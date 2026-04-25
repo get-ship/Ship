@@ -21,11 +21,27 @@
  *   - apps/web/src/styles.css (Studio shell)
  *   - apps/shipd/assets/view-tokens.css (daemon-served runtime views)
  *   - packages/ship-set/src/web-components/* (via var(--foo) in shadow DOM)
+ *
+ * ─── Stability contract ──────────────────────────────────────────────
+ * Each section below is marked @stable or @internal:
+ *   @stable    — public v1 contract. Will not be renamed within v1.x
+ *                without a deprecation alias kept for one minor.
+ *                New tokens may be added; existing names + intent frozen.
+ *   @internal  — implementation detail of the default themes. May be
+ *                renamed, retyped, or removed at any minor. Do not
+ *                reference from user themes or third-party CSS.
+ *
+ * Reference: docs/ship-themes/references/docs/tokens.md
+ * ─────────────────────────────────────────────────────────────────────
  */
 
 /* ─── Primitives: these never change per theme ────────────────────── */
+/* @stable — radii, spacing, type scale, weights, tracking, motion curves,
+ * durations, focus ring, density channel, font roles, elevation. These
+ * are the public token API; user themes and third-party components may
+ * reference any name in this block. */
 :root {
-  /* Radii */
+  /* @stable Radii */
   --radius: 0.625rem;
   --radius-sm: 4px;
   --radius-md: 6px;
@@ -33,7 +49,7 @@
   --radius-xl: 14px;
   --radius-full: 9999px;
 
-  /* Spacing scale — 4px base */
+  /* @stable Spacing scale — 4px base */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -43,7 +59,7 @@
   --space-7: 32px;
   --space-8: 40px;
 
-  /* Z-index scale */
+  /* @stable Z-index scale */
   --z-base: 0;
   --z-elevated: 1;
   --z-dropdown: 10;
@@ -53,7 +69,7 @@
   --z-toast: 50;
   --z-max: 100;
 
-  /* Typography scale */
+  /* @stable Typography scale */
   --text-xs: 10.5px;
   --text-sm: 12px;
   --text-base: 13px;
@@ -73,13 +89,13 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  /* Letter spacing */
+  /* @stable Letter spacing */
   --tracking-tight: -0.01em;
   --tracking-normal: 0;
   --tracking-wide: 0.04em;
   --tracking-wider: 0.1em;
 
-  /* Motion curves — expressive by default, soft for surface changes,
+  /* @stable Motion curves — expressive by default, soft for surface changes,
    * spring for tactile feedback, linear for utility. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-out-soft: cubic-bezier(0.33, 1, 0.68, 1);
@@ -92,23 +108,25 @@
   --duration-slow: 280ms;
   --duration-deliberate: 420ms;
 
-  /* Focus ring */
+  /* @stable Focus ring */
   --ring-width: 3px;
   --ring-offset: 2px;
   --ring-opacity: 25%;
 
-  /* Interaction tints — used by hover/active/selected states so the
+  /* @internal Interaction tints — used by hover/active/selected states so the
    * depth hierarchy stays consistent. Themes can dial these up (high
    * contrast) or relax (paper). */
   --hover-strength: 6%;
   --active-strength: 10%;
   --selected-strength: 14%;
 
-  /* Tooltip delays */
+  /* @internal Tooltip delays — read by tooltip primitive only. */
   --tooltip-show-delay: 300ms;
   --tooltip-hide-delay: 100ms;
 
-  /* Font stacks. App-specific variable-weight fonts resolve at runtime if
+  /* @stable Font stacks (--font-display, --font-body, --font-mono).
+   * @internal: the *-app aliases below are wiring detail, may change.
+   * App-specific variable-weight fonts resolve at runtime if
    * loaded by Studio; daemon views fall back to the web-safe stacks. */
   --font-display-app: "Syne Variable", "Syne", "Inter", sans-serif;
   --font-body-app: "DM Sans Variable", "DM Sans", "Inter", sans-serif;
@@ -117,7 +135,7 @@
   --font-body: var(--font-body-app);
   --font-mono: var(--font-mono-app);
 
-  /* Typography roles — components read these, themes override. A theme
+  /* @stable Typography roles — components read these, themes override. A theme
    * can swap --heading-font to body, or flip display roles entirely. */
   --heading-font: var(--font-display);
   --heading-weight: var(--font-weight-semibold);
@@ -128,7 +146,7 @@
   --label-weight: var(--font-weight-semibold);
   --label-tracking: var(--tracking-wide);
 
-  /* Density channel — :root[data-density=compact|comfortable|spacious]
+  /* @stable Density channel — :root[data-density=compact|comfortable|spacious]
    * overrides these. Components that present rows/tiles read from here
    * instead of the base scale so density propagates everywhere at once. */
   --density-row-py: var(--space-2);
@@ -137,13 +155,13 @@
   --density-text: var(--text-base);
   --density-icon: 16px;
 
-  /* Elevation — light mode defaults. Dark mode + accent themes override. */
+  /* @stable Elevation — light mode defaults. Dark mode + accent themes override. */
   --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 5%);
   --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 8%), 0 1px 2px -1px oklch(0 0 0 / 6%);
   --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 10%), 0 2px 4px -2px oklch(0 0 0 / 6%);
   --shadow-lg: 0 12px 24px -4px oklch(0 0 0 / 10%), 0 4px 8px -4px oklch(0 0 0 / 6%);
   --shadow-xl: 0 20px 40px -8px oklch(0 0 0 / 12%);
-  /* Semantic shadows — components read these for intent, not depth. */
+  /* @stable Semantic shadows — components read these for intent, not depth. */
   --shadow-hover: 0 2px 6px -1px oklch(0 0 0 / 8%), 0 1px 3px -1px oklch(0 0 0 / 5%);
   --shadow-sticky: 0 2px 4px -2px oklch(0 0 0 / 6%);
   --shadow-accent: 0 8px 24px -6px color-mix(in oklch, var(--primary) 45%, transparent);
@@ -166,6 +184,7 @@
 }
 
 /* ─── Density channels (opt-in via :root[data-density=…]) ───────────── */
+/* @stable — density attribute values + the density-* token names. */
 :root[data-density='compact'] {
   --density-row-py: 4px;
   --density-row-px: 8px;
@@ -182,7 +201,16 @@
 }
 
 /* ─── Brand palette — light (:root) ──────────────────────────────────
- * The canonical palette. Themes override this layer. */
+ * The canonical palette. Themes override this layer.
+ * @stable — every named slot in this block is public contract:
+ *   --background, --foreground, --card[-foreground], --popover[-foreground],
+ *   --primary[-foreground], --secondary[-foreground], --muted[-foreground],
+ *   --accent[-foreground], --destructive, --border, --input, --ring,
+ *   --success, --warning, --info, their *-foreground pairs.
+ * @internal — --ring-color (alias of --primary), the --status-* data-viz
+ *   ramp (kept for Studio compat; will move to a dedicated chart token
+ *   set), and the --sidebar-* slots (Studio-shell-specific, may collapse
+ *   into surface tokens). */
 :root {
   --background: oklch(0.99 0.001 106.423);
   --foreground: oklch(0.147 0.004 49.25);
@@ -204,12 +232,12 @@
   --ring: oklch(0.67 0.16 58 / 40%);
   --ring-color: var(--primary);
 
-  /* Feedback semantics (legacy names kept for backward compat) */
+  /* @stable Feedback semantics */
   --success: oklch(0.65 0.2 150);
   --warning: oklch(0.75 0.15 75);
   --info: oklch(0.6 0.18 260);
 
-  /* Contrast foregrounds for solid feedback fills (used by tone-on-fg /
+  /* @stable Contrast foregrounds for solid feedback fills (used by tone-on-fg /
    * tone-contrast in components like ship-button, ship-badge, ship-checkbox,
    * ship-switch, ship-chip). Theme-invariant — solid tone surfaces stay the
    * same saturation in light + dark. */
@@ -218,8 +246,9 @@
   --warning-foreground:     oklch(0.2 0.04 75);
   --destructive-foreground: oklch(0.99 0.02 25);
 
-  /* Chart / data-viz — kept separate from feedback so theme authors
-   * can set them independently. */
+  /* @internal Chart / data-viz — kept separate from feedback so theme authors
+   * can set them independently. Will migrate to a dedicated --chart-* set
+   * before v1.0; do not depend on --status-* names from user CSS. */
   --status-gray: oklch(0.5 0.01 58);
   --status-blue: oklch(0.6 0.18 260);
   --status-red: oklch(0.55 0.25 25);
@@ -229,7 +258,9 @@
   --status-orange: oklch(0.6 0.2 35);
   --status-amber: oklch(0.75 0.15 75);
 
-  /* Sidebar — kept as-is for Studio compat. */
+  /* @internal Sidebar — kept as-is for Studio compat. May collapse into
+   * --surface-* tokens; user themes should override --surface-0 / --border
+   * rather than --sidebar-* directly. */
   --sidebar: oklch(0.99 0.001 106.423);
   --sidebar-foreground: oklch(0.147 0.004 49.25);
   --sidebar-primary: oklch(0.67 0.16 58);
@@ -243,7 +274,10 @@
 /* ─── Semantic surface stack ──────────────────────────────────────────
  * Components read --surface-{N} for depth; brand palette slots map the
  * canonical values. A theme that wants a warmer card can shift
- * --surface-1 without touching every component. */
+ * --surface-1 without touching every component.
+ * @stable — --surface-0..3, --surface-inverse, --backdrop, --scrim,
+ *   --border-subtle, --border-strong, --divider, --hover-bg, --active-bg,
+ *   --selected-bg, --selected-border. */
 :root {
   --surface-0: var(--background);
   --surface-1: var(--card);
@@ -254,12 +288,12 @@
   --backdrop: oklch(0 0 0 / 40%);
   --scrim: oklch(0 0 0 / 20%);
 
-  /* Border variants */
+  /* @stable Border variants */
   --border-subtle: color-mix(in oklch, var(--border) 60%, transparent);
   --border-strong: color-mix(in oklch, var(--border) 150%, transparent);
   --divider: var(--border-subtle);
 
-  /* Interaction surfaces — use these for hover/pressed states instead
+  /* @stable Interaction surfaces — use these for hover/pressed states instead
    * of re-inventing color-mix per component. */
   --hover-bg: color-mix(in oklch, var(--foreground) var(--hover-strength), transparent);
   --active-bg: color-mix(in oklch, var(--foreground) var(--active-strength), transparent);
@@ -273,7 +307,12 @@
  * diff lines) reads from here — no bespoke color-mix in component CSS.
  *
  * Theme authors: override the base --success / --warning / etc. values
- * and the ramps rebuild automatically. */
+ * and the ramps rebuild automatically.
+ *
+ * @stable — every --tone-{name}-{fg,bg,bg-solid,border,ring} for the
+ *   eight named tones (default, muted, info, success, warning,
+ *   destructive, accent, primary). New tones may be added; existing
+ *   names are frozen. */
 :root {
   --tone-default-fg: var(--foreground);
   --tone-default-bg: var(--muted);
@@ -323,14 +362,17 @@
   --tone-primary-border: color-mix(in oklch, var(--primary) 30%, transparent);
   --tone-primary-ring: var(--ring);
 
-  /* Legacy tone mix percentages — still exposed for util.toneVars() but
-   * new code should read the ramp variables above directly. */
+  /* @internal Legacy tone mix percentages — still exposed for util.toneVars() but
+   * new code should read the ramp variables above directly. Will be removed
+   * once util.toneVars() callers migrate. */
   --tone-bg-mix: 18%;
   --tone-border-mix: 35%;
   --tone-hover-mix: 24%;
 }
 
 /* ─── Dark mode overrides ─────────────────────────────────────────── */
+/* @stable — the .dark class hook itself + every brand-palette slot it
+ * sets. @internal — exact oklch values (themes may shift them). */
 .dark {
   --background: oklch(0.18 0.01 250);
   --foreground: oklch(0.98 0.001 106);
@@ -360,7 +402,7 @@
   --sidebar-border: oklch(1 0 0 / 15%);
   --sidebar-ring: oklch(0.77 0.16 70 / 25%);
 
-  /* Dark elevation — deeper, lower-alpha blacks preserve contrast. */
+  /* @stable Dark elevation — deeper, lower-alpha blacks preserve contrast. */
   --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 30%);
   --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 35%), 0 1px 2px -1px oklch(0 0 0 / 25%);
   --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 40%), 0 2px 4px -2px oklch(0 0 0 / 25%);
