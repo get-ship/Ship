@@ -54,6 +54,12 @@
   .act:hover { border-color: color-mix(in oklch, var(--foreground) 35%, var(--border)); }
   .act.danger:hover { color: var(--destructive); border-color: var(--destructive); }
   .act.primary { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+  .send { display: flex; gap: 6px; margin-top: 4px; }
+  .send input { flex: 1; min-width: 0; appearance: none; font: inherit; font-size: 12px; padding: 5px 9px; border: 1px solid var(--border); border-radius: var(--radius-sm, 4px); background: var(--background); color: var(--foreground); }
+  .send input:focus { outline: none; border-color: color-mix(in oklch, var(--foreground) 50%, var(--border)); }
+  .send-status { font-size: 11px; color: var(--muted-foreground); min-height: 1em; font-family: var(--font-mono); }
+  .send-status[data-state="ok"] { color: var(--success, #16a34a); }
+  .send-status[data-state="err"] { color: var(--destructive, #dc2626); }
 
   .empty { padding: var(--space-12, 48px) var(--space-5, 20px); text-align: center; color: var(--muted-foreground); border: 1px dashed var(--border); border-radius: var(--radius-md); }
 
@@ -78,9 +84,83 @@
       const r = fmt(el.dataset.ts); if (r) el.textContent = r;
     });
     apply();
-    // Re-tick every 30s while the view is mounted.
-    const id = setInterval(apply, 30000);
-    document.addEventListener('ship:before-mount', () => clearInterval(id), { once: true });
+    const tickId = setInterval(apply, 30000);
+
+    // Inline send: POST to /api/actors/{id}/input. Status feedback
+    // inline below the form. No navigation, no copy/paste.
+    document.querySelectorAll('form.send').forEach(form => {
+      form.addEventListener('submit', async (ev) => {
+        ev.preventDefault();
+        const actor = form.dataset.actor;
+        const input = form.querySelector('input');
+        const text = input.value.trim();
+        if (!text) return;
+        const status = document.querySelector(`[data-status-for="${actor}"]`);
+        status.textContent = 'sending…';
+        status.dataset.state = '';
+        try {
+          const r = await fetch(`/api/actors/${actor}/input`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ text }),
+          });
+          if (r.status === 202 || r.ok) {
+            status.textContent = 'sent · waiting for reply…';
+            status.dataset.state = 'ok';
+            input.value = '';
+            // Tail the actor's events for a studio.reply matching this turn.
+            tailReply(actor, status);
+          } else {
+            const body = await r.text().catch(() => '');
+            status.textContent = `error ${r.status}: ${body || 'send failed'}`;
+            status.dataset.state = 'err';
+          }
+        } catch (e) {
+          status.textContent = `network error: ${e.message}`;
+          status.dataset.state = 'err';
+        }
+      });
+    });
+
+    // Poll the actor's event log for a studio.reply that arrived AFTER
+    // we sent. Cheap and reliable; SSE is a future upgrade.
+    async function tailReply(actor, status) {
+      const startedAt = Date.now();
+      let lastId = '';
+      try {
+        const r = await fetch(`/api/actors/${actor}/events?limit=1`, { credentials: 'same-origin' });
+        const d = await r.json();
+        const evs = d?.data?.events ?? [];
+        if (evs.length) lastId = evs[evs.length - 1].id;
+      } catch {}
+      const deadline = startedAt + 90_000; // 90s timeout
+      const tick = async () => {
+        if (Date.now() > deadline) {
+          status.textContent = 'no reply within 90s';
+          status.dataset.state = 'err';
+          return;
+        }
+        try {
+          const url = `/api/actors/${actor}/events?from_id=${encodeURIComponent(lastId)}&limit=20`;
+          const r = await fetch(url, { credentials: 'same-origin' });
+          const d = await r.json();
+          const evs = d?.data?.events ?? [];
+          for (const e of evs) {
+            lastId = e.id;
+            if (e.event_type === 'studio.reply') {
+              const body = (() => { try { return JSON.parse(e.payload_json); } catch { return {}; } })();
+              const text = (body.text || '').slice(0, 200);
+              status.textContent = `reply: ${text}`;
+              status.dataset.state = 'ok';
+              return;
+            }
+          }
+        } catch {}
+        setTimeout(tick, 1500);
+      };
+      setTimeout(tick, 1500);
+    }
   </script>
 
   <header class="actors-head">
@@ -114,13 +194,12 @@
             {% if a.transport %}<span class="k">mode</span><span class="v dim">{{ a.transport }}{% if a.persistence %} · {{ a.persistence }}{% endif %}</span>{% endif %}
             <span class="k">last activity</span><span class="v dim ts" data-ts="{{ a.last_event_at or a.created_at }}">{{ (a.last_event_at or a.created_at)[:19] | replace('T', ' ') }}</span>
           </div>
+          <form class="send" data-actor="{{ a.id }}">
+            <input type="text" placeholder="Send to {{ name }}…" required>
+            <button type="submit" class="act primary">Send</button>
+          </form>
+          <div class="send-status" data-status-for="{{ a.id }}"></div>
           <div class="actions">
-            {% if a.kind == 'agent' %}
-              <button class="act primary"
-                      data-on-click__stop="window.ship.navigate('/chat?actor={{ a.id }}')">
-                Open chat
-              </button>
-            {% endif %}
             <button class="act"
                     data-on-click__stop="window.ship.navigate('/events?actor={{ a.id }}')">
               Events
