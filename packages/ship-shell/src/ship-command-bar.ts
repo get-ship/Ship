@@ -806,8 +806,9 @@ export class ShipCommandBar extends LitElement {
       const list: AgentSummary[] = (body.items ?? []).map((a) => ({ id: a.id }));
       this._agents = list;
       if (!this._spawnAgent && list.length > 0) {
-        const ship = list.find((a) => a.id === "shipwright");
-        this._spawnAgent = (ship ?? list[0]).id;
+        // Default to the first agent alphabetically. Whatever the user
+        // configures becomes the default — no hardcoded preference.
+        this._spawnAgent = list[0].id;
       }
     } catch {
       /* empty */

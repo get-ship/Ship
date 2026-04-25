@@ -247,6 +247,9 @@ pub struct ActorRow {
     pub created_at: String,
     pub updated_at: String,
     pub last_event_at: Option<String>,
+    /// Derived: process alive right now (kill -0 probe via /proc).
+    /// `false` for dead pids and rows without a pid (services).
+    pub live: bool,
 }
 
 /// Filter for `list_actors`. All `Option`s default to "no filter."
@@ -270,10 +273,15 @@ fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
         .try_get("capabilities_json")
         .unwrap_or_else(|_| "[]".into());
     let capabilities: Vec<String> = serde_json::from_str(&caps_json).unwrap_or_default();
+    let pid: Option<i64> = row.try_get("pid").ok();
+    let status: String = row.try_get("status").unwrap_or_default();
+    let live = pid.map(pid_alive).unwrap_or(false)
+        && status != "stopped"
+        && status != "crashed";
     ActorRow {
         id: row.try_get("id").unwrap_or_default(),
         kind: row.try_get("kind").unwrap_or_default(),
-        status: row.try_get("status").unwrap_or_default(),
+        status,
         workspace_id: row.try_get("workspace_id").ok(),
         agent_id: row.try_get("agent_id").ok(),
         provider: row.try_get("provider").ok(),
@@ -282,7 +290,7 @@ fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
         persistence: row.try_get("persistence").ok(),
         provider_session_id: row.try_get("provider_session_id").ok(),
         system_prompt_hash: row.try_get("system_prompt_hash").ok(),
-        pid: row.try_get("pid").ok(),
+        pid,
         capabilities,
         parent_actor_id: row.try_get("parent_actor_id").ok(),
         restart_count: row.try_get("restart_count").unwrap_or(0),
@@ -292,6 +300,7 @@ fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
         created_at: row.try_get("created_at").unwrap_or_default(),
         updated_at: row.try_get("updated_at").unwrap_or_default(),
         last_event_at: row.try_get("last_event_at").ok(),
+        live,
     }
 }
 
@@ -336,6 +345,18 @@ pub fn get_actor(actor_id: &str) -> Result<Option<ActorRow>> {
         let row = sqlx::query(&sql).bind(actor_id).fetch_optional(&mut conn).await?;
         Ok(row.as_ref().map(row_to_actor))
     })
+}
+
+/// Check if a pid exists. Used to derive real liveness for the dashboard
+/// since pipeline `actor.stopped` events don't fire today and chat actor
+/// `created` status is sticky after process exit.
+///
+/// Linux: `/proc/<pid>` exists iff the process is alive.
+pub fn pid_alive(pid: i64) -> bool {
+    if pid <= 0 {
+        return false;
+    }
+    std::path::Path::new(&format!("/proc/{pid}")).exists()
 }
 
 /// One row from the event log for a given actor. Strongly-typed wrapper

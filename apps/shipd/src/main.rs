@@ -31,7 +31,6 @@ fn main() -> anyhow::Result<()> {
     let port = extract_u16_arg(&args, "--port").unwrap_or(9315);
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dev = args.iter().any(|a| a == "--dev");
-    let with_ui = args.iter().any(|a| a == "--with-ui");
     // Workspace resolution: explicit flag wins; otherwise walk up from CWD
     // looking for `.ship/` like git discovers the repo root. Only fall back
     // to global-only when the daemon genuinely isn't inside a project.
@@ -42,7 +41,7 @@ fn main() -> anyhow::Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
-    rt.block_on(shipd::run_network(host, port, dev, with_ui, workspace))
+    rt.block_on(shipd::run_network(host, port, dev, workspace))
 }
 
 fn extract_u16_arg(args: &[String], flag: &str) -> Option<u16> {

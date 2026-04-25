@@ -102,7 +102,6 @@ pub async fn run_network(
     host: String,
     port: u16,
     dev: bool,
-    with_ui: bool,
     workspace_dir: Option<std::path::PathBuf>,
 ) -> Result<()> {
     if dev {
@@ -189,14 +188,11 @@ pub async fn run_network(
         pairing_registry,
         attestation_verifier,
         ct.child_token(),
-        with_ui,
     );
     let addr = format!("{host}:{port}");
     tracing::info!("shipd: listening on http://{addr}/mcp");
-    if with_ui {
-        tracing::info!("shipd: shell: http://{addr}/shell/");
-        eprintln!("shell: http://{addr}/shell/");
-    }
+    tracing::info!("shipd: shell: http://{addr}/shell/");
+    eprintln!("shell: http://{addr}/shell/");
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(l) => l,
         Err(e) => {

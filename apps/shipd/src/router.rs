@@ -30,7 +30,6 @@ pub fn build_router(
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
     mcp_ct: CancellationToken,
-    with_ui: bool,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     let kernel_factory = rt.kernel().clone();
@@ -204,12 +203,10 @@ pub fn build_router(
             Json(openapi::ApiDoc::openapi())
         }))
         .merge(authenticated_routes);
-    if with_ui {
-        // Shell routes are registered OUTSIDE the auth middleware — the
-        // initial `/shell/` GET is what mints the browser cookie that
-        // everything else uses. Put before any catch-all.
-        root = root.merge(shell_assets::router(shell_registry));
-    }
+    // Shell routes are registered OUTSIDE the auth middleware — the
+    // initial `/shell/` GET is what mints the browser cookie that
+    // everything else uses. The shell IS the app; it always mounts.
+    root = root.merge(shell_assets::router(shell_registry));
     root
         .layer(axum::middleware::from_fn(cors::cors_middleware))
         // Tag view responses with Datastar morph-target headers so cross-view
