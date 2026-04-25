@@ -412,6 +412,14 @@ fn spawn_command(
         })
         .map_err(|e| anyhow!("openpty failed: {e}"))?;
 
+    // Generate the registry id up front so SHIP_SESSION_ID matches the
+    // id the daemon and clients use to address this session. The MCP
+    // peer registers its `PeerHandle.session_id` from this env var; the
+    // relay's session-scoping filter only delivers `studio.chat_turn`
+    // events whose `session_id` equals the peer's. Mismatched values
+    // (e.g. exporting the slug) silently drop every chat turn.
+    let id: SessionId = runtime::gen_ulid();
+
     let mut cmd = CommandBuilder::new(&launch.bin);
     for arg in &launch.args {
         cmd.arg(arg);
@@ -423,7 +431,7 @@ fn spawn_command(
     if let Some(a) = agent_id.as_deref() {
         cmd.env("SHIP_AGENT_ID", a);
     }
-    cmd.env("SHIP_SESSION_ID", slug);
+    cmd.env("SHIP_SESSION_ID", &id);
 
     let child = pair
         .slave
@@ -440,7 +448,6 @@ fn spawn_command(
     let (output_tx, _) = broadcast::channel(OUTPUT_CHANNEL_CAP);
     let (event_tx, _) = broadcast::channel(256);
 
-    let id: SessionId = runtime::gen_ulid();
     let now = Utc::now();
     let meta = SessionMeta {
         id: id.clone(),
