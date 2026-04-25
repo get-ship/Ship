@@ -107,6 +107,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             } => run_compile_cmd(provider.as_deref(), dry_run, path),
             Commands::Workspace { action } => dispatch_workspace(action),
             Commands::Lint { action } => dispatch_lint(action),
+            Commands::Lsp => lsp::run_stdio().map_err(|e: anyhow::Error| e),
             Commands::Mcp { action } => dispatch_mcp(action),
             Commands::Convert { source } => convert::run_convert(&source),
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
