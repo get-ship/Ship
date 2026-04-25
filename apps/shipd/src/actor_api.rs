@@ -109,21 +109,26 @@ pub async fn actor_spawn(
         }
     }
 
-    // Emit `actor.created` so externally-launched MCP clients (e.g. a
-    // local Claude Code session started with --channels) appear in the
-    // unified actors dashboard. The kernel-route side runs block_on,
-    // so dispatch on a std::thread to avoid deadlocking this async
-    // handler. Best-effort; failures only warn.
+    // Emit `actor.created` only if the projection has no row for this
+    // id yet — i.e., the actor was NOT spawned by the daemon's own
+    // lifecycle path (which emits its own rich metadata). For
+    // externally-launched MCP clients (a user's local Claude Code with
+    // --channels), this is the only emission and gives the dashboard
+    // its first row. For daemon-spawned, this skips so the existing
+    // metadata isn't overwritten by `INSERT OR REPLACE` with a thinner
+    // payload (the MCP side doesn't know provider/agent_id specifics).
     let actor_id = req.actor_id.clone();
     let capabilities = req.capabilities.clone().unwrap_or_default();
     std::thread::spawn(move || {
+        let already_exists = runtime::projections::actor::get_actor(&actor_id)
+            .map(|opt| opt.is_some())
+            .unwrap_or(false);
+        if already_exists {
+            return;
+        }
         let payload = runtime::events::types::ActorCreated {
             kind: "agent".to_string(),
             environment_type: "local".to_string(),
-            workspace_id: None,
-            parent_actor_id: None,
-            restart_count: 0,
-            agent_id: Some(actor_id.clone()),
             transport: Some("stdio".to_string()),
             persistence: Some("long-lived".to_string()),
             capabilities,

@@ -175,19 +175,27 @@ fn spawn_long_lived_agent(
         extras,
     )?;
 
-    // Claude's interactive mode opens with a one-shot dev-channels
-    // confirmation TUI menu (`--dangerously-load-development-channels`)
-    // and a project-trust dialog. Both block at "press Enter to confirm".
-    // Auto-dismiss them by writing a few newlines once the PTY is alive.
-    // Harmless on providers that don't show menus — the bytes land at
-    // their input prompt and get echoed back. Phase 2.5 should detect
-    // the actual menu pattern in the reader loop instead of best-effort
-    // timing.
+    // Claude's `--dangerously-load-development-channels` flag opens with
+    // a TUI menu blocking at "Enter to confirm" until the user OK's the
+    // dev-channels warning. Without dismissing it, the MCP child never
+    // boots → no actor_spawn → no kernel mailbox → no channel delivery.
+    // Loop-1 (channel round-trip) depends on this.
+    //
+    // The menu's first option ("I am using this for local development")
+    // is selected by default. Sending Enter accepts. Two more Enters
+    // dismiss any follow-up project-trust dialog. We send across a wider
+    // window with both `\r` and `\n` because keystroke handling in
+    // claude's TUI varies by version. Best-effort polling pattern;
+    // when this gets fragile again, move detection into reader_loop.
     let confirm_session = session.clone();
     std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(1500));
-        for _ in 0..3 {
-            let _ = write_input(&confirm_session, b"\r");
+        // Wait for the PTY to settle and the menu to render.
+        std::thread::sleep(Duration::from_millis(800));
+        // Six attempts across ~5s, alternating CR / LF to handle whatever
+        // the TUI's input layer accepts as Enter.
+        for i in 0..6 {
+            let bytes: &[u8] = if i % 2 == 0 { b"\r" } else { b"\n" };
+            let _ = write_input(&confirm_session, bytes);
             std::thread::sleep(Duration::from_millis(800));
         }
     });
