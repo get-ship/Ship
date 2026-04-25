@@ -142,16 +142,18 @@ impl ShipServer {
         // subscribe_namespaces IS the filter — anything not declared
         // here doesn't reach the agent's mailbox.
         //
-        // What an agent SHOULD see:
+        // What an agent SHOULD see (broadcast subscriptions):
         // - studio.chat_turn — user turns from the command bar
         // - studio.reply — replies from other agents (multi-agent)
         // - inbox.* / human.* — messages from external user gateways
         // - mesh.message — inter-agent direct messaging
-        // - mesh.register / mesh.deregister — visibility into peers
-        //   joining or leaving the mesh. Historically pushed to chat
-        //   so the user sees "agent X joined" / "agent X left" in
-        //   their session. Lifecycle visibility is a feature, not
-        //   noise.
+        //
+        // Mesh lifecycle (`mesh.register` / `mesh.deregister`) is
+        // delivered as DIRECTED events (target_actor_id = the actor
+        // joining/leaving), so an actor sees its OWN join confirmation
+        // in its own TUI but doesn't get pushed about other agents'
+        // lifecycle. Directed delivery routes by target — no
+        // broadcast subscription needed for that path.
         //
         // What we DON'T subscribe to (deliberately):
         // - workspace.*, session.*, actor.*, supervisor.* — internal
@@ -166,8 +168,6 @@ impl ShipServer {
             "inbox.".to_string(),
             "human.".to_string(),
             "mesh.message".to_string(),
-            "mesh.register".to_string(),
-            "mesh.deregister".to_string(),
         ];
         for ns in skill_subs {
             if !subscribe_namespaces.contains(&ns) {

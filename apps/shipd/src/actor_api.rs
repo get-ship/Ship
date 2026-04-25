@@ -97,12 +97,16 @@ pub async fn actor_spawn(
     }
 
     if let Some(ref caps) = req.capabilities {
+        // Directed at the registering actor so ONLY that actor's tui
+        // sees the join confirmation. Other agents don't need to be
+        // told that another agent showed up — that would be the
+        // firehose problem we just fixed. Self-confirmation only.
         let envelope = match EventEnvelope::new(
             "mesh.register",
             &req.actor_id,
             &serde_json::json!({ "agent_id": &req.actor_id, "capabilities": caps }),
         )
-        .map(|e| e.with_actor_id(&req.actor_id))
+        .map(|e| e.with_actor_id(&req.actor_id).with_target(&req.actor_id))
         {
             Ok(e) => e,
             Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse {

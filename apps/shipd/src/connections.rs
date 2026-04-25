@@ -148,12 +148,15 @@ impl Drop for ConnectionGuard {
         let id_clone = id.clone();
         let Ok(rt) = tokio::runtime::Handle::try_current() else { return };
         rt.spawn(async move {
+            // Directed at the leaving actor — the actor itself sees
+            // its own deregister confirmation; other peers don't get
+            // a push about it. Symmetric with mesh.register.
             if let Ok(env) = EventEnvelope::new(
                 "mesh.deregister",
                 &id,
                 &serde_json::json!({ "agent_id": &id }),
             )
-            .map(|e| e.with_actor_id(&id))
+            .map(|e| e.with_actor_id(&id).with_target(&id))
             {
                 let ctx = runtime::events::EmitContext {
                     caller_kind: runtime::events::CallerKind::Mcp,
