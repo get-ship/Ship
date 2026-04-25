@@ -15,8 +15,14 @@ fn worker_preset_contains_platform_tools() {
 fn worker_preset_excludes_orchestration_tools() {
     let tools = ShipServer::tools_for_preset("worker");
     assert!(!tools.contains(&"create_job"), "worker must not have create_job");
-    assert!(!tools.contains(&"mesh_discover"), "worker must not have mesh_discover");
-    assert!(!tools.contains(&"mesh_status"), "worker must not have mesh_status");
+    assert!(
+        !tools.contains(&"discover_mesh_agents"),
+        "worker must not have discover_mesh_agents"
+    );
+    assert!(
+        !tools.contains(&"update_mesh_status"),
+        "worker must not have update_mesh_status"
+    );
 }
 
 #[test]
@@ -30,8 +36,14 @@ fn orchestrator_preset_extends_worker() {
         );
     }
     assert!(orchestrator.contains(&"create_job"), "orchestrator missing create_job");
-    assert!(orchestrator.contains(&"mesh_discover"), "orchestrator missing mesh_discover");
-    assert!(orchestrator.contains(&"mesh_status"), "orchestrator missing mesh_status");
+    assert!(
+        orchestrator.contains(&"discover_mesh_agents"),
+        "orchestrator missing discover_mesh_agents"
+    );
+    assert!(
+        orchestrator.contains(&"update_mesh_status"),
+        "orchestrator missing update_mesh_status"
+    );
 }
 
 #[test]
@@ -76,7 +88,7 @@ fn tools_preset_takes_precedence_over_legacy_role() {
 
 #[test]
 fn dangerous_tools_excluded_from_all_presets() {
-    let dangerous = ["event", "mesh_send", "mesh_broadcast"];
+    let dangerous = ["emit_event", "send_mesh_message", "broadcast_mesh_message"];
     for preset in &["worker", "orchestrator"] {
         let tools = ShipServer::tools_for_preset(preset);
         for tool in &dangerous {
@@ -101,7 +113,7 @@ fn is_platform_tool_recognizes_step_done() {
 #[test]
 fn is_platform_tool_rejects_orchestration() {
     assert!(!ShipServer::is_platform_tool("create_job"));
-    assert!(!ShipServer::is_platform_tool("mesh_discover"));
+    assert!(!ShipServer::is_platform_tool("discover_mesh_agents"));
 }
 
 #[test]
@@ -162,25 +174,34 @@ fn dispatched_context_ignores_artifacts_without_marker() {
     );
 }
 
-// ── event gating (unit) ────────────────────────────────────────────
+// ── emit_event gating (unit) ───────────────────────────────────────
+//
+// emit_event is registered on every binary now (no compile-time gate). It is
+// classified as core (bypasses agent-mode gating) but is never folded into a
+// preset — clients reach it explicitly.
 
 #[test]
-#[cfg(not(feature = "unstable"))]
-fn event_not_core_without_unstable() {
+fn emit_event_is_core_so_it_bypasses_mode_gate() {
     assert!(
-        !ShipServer::is_core_tool("event"),
-        "event should not be core without unstable"
+        ShipServer::is_core_tool("emit_event"),
+        "emit_event should be core (bypasses mode gating)"
+    );
+    // Old alias resolves to canonical and is also treated as core.
+    assert!(
+        ShipServer::is_core_tool("event"),
+        "deprecated `event` alias must still resolve to core"
     );
 }
 
 #[test]
-#[cfg(feature = "unstable")]
-fn event_not_in_orchestrator_preset_even_with_unstable() {
-    let tools = ShipServer::tools_for_preset("orchestrator");
-    assert!(
-        !tools.contains(&"event"),
-        "event must not be in any preset even with unstable"
-    );
+fn emit_event_not_in_any_preset() {
+    for preset in &["worker", "orchestrator"] {
+        let tools = ShipServer::tools_for_preset(preset);
+        assert!(
+            !tools.contains(&"emit_event"),
+            "emit_event must not be in {preset} preset"
+        );
+    }
 }
 
 // ── core tools bypass gating ───────────────────────────────────────
@@ -234,11 +255,10 @@ fn worker_effective_tool_set_count() {
     all.extend(preset.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // Stable: 3 core + 4 platform (step_done, log_progress, update_job,
-    // write_session_file) = 7. Unstable adds 5 view.* = 12.
-    #[cfg(not(feature = "unstable"))]
-    let expected = 7;
-    #[cfg(feature = "unstable")]
+    // 3 core + 4 protocol (step_done, log_progress, update_job,
+    // write_session_file) + 5 view canvas tools (open/patch/append/signal/
+    // close) = 12. View tools are now experimental (runtime marker) but
+    // always part of the platform set.
     let expected = 12;
     assert_eq!(all.len(), expected, "worker effective set mismatch: {all:?}");
 }
@@ -251,11 +271,8 @@ fn orchestrator_effective_tool_set_count() {
     all.extend(preset.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // Stable: 7 worker + 3 orchestration (create_job, mesh_discover,
-    // mesh_status) = 10. Unstable: 10 + 5 view.* = 15.
-    #[cfg(not(feature = "unstable"))]
-    let expected = 10;
-    #[cfg(feature = "unstable")]
+    // 12 worker + 3 orchestration (create_job, discover_mesh_agents,
+    // update_mesh_status) = 15.
     let expected = 15;
     assert_eq!(all.len(), expected, "orchestrator effective set mismatch: {all:?}");
 }

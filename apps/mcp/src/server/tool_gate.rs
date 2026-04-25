@@ -25,8 +25,11 @@ impl ShipServer {
         "set_skill_var",
     ];
 
-    #[cfg(feature = "unstable")]
-    const UNSTABLE_TOOLS: &[&str] = &["event"];
+    /// Experimental tools that are always callable but advertised as
+    /// experimental in their description. Listed here so dispatched/agent-
+    /// gated contexts treat them as "core platform" tools (the experimental
+    /// marker is informational, not a gating mechanism).
+    const EXPERIMENTAL_CORE_TOOLS: &[&str] = &["emit_event"];
 
     // ── Tool tiers ──────────────────────────────────────────────────
     //
@@ -43,21 +46,18 @@ impl ShipServer {
         // Pipeline step-completion signal. Without step_done, pipelines
         // fall back to process-exit / activity-timeout signals.
         "step_done",
-        #[cfg(feature = "unstable")]
-        "view_open",
-        #[cfg(feature = "unstable")]
-        "view_patch",
-        #[cfg(feature = "unstable")]
-        "view_append",
-        #[cfg(feature = "unstable")]
-        "view_signal",
-        #[cfg(feature = "unstable")]
-        "view_close",
+        // Canvas/view tools (experimental but registered everywhere).
+        "open_view",
+        "patch_view",
+        "append_view",
+        "signal_view",
+        "close_view",
     ];
 
     /// Orchestration tools — spawn child jobs, observe the mesh.
     /// Only agents with an orchestrator preset get these.
-    pub const ORCHESTRATION_TOOLS: &[&str] = &["create_job", "mesh_discover", "mesh_status"];
+    pub const ORCHESTRATION_TOOLS: &[&str] =
+        &["create_job", "discover_mesh_agents", "update_mesh_status"];
 
     /// Resolve a preset name to its tool set. Unknown presets fall back
     /// to "worker" (platform tools only — the safe default).
@@ -134,16 +134,17 @@ impl ShipServer {
     /// dispatched agent).
     pub fn is_platform_tool(tool_name: &str) -> bool {
         let n = Self::normalize_mode_tool_id(tool_name);
-        Self::PLATFORM_TOOLS.contains(&n.as_str())
+        let canonical = crate::tools::stability::canonical_name(&n);
+        Self::PLATFORM_TOOLS.contains(&canonical)
     }
 
     pub fn is_core_tool(tool_name: &str) -> bool {
         let normalized = Self::normalize_mode_tool_id(tool_name);
-        if Self::CORE_TOOLS.contains(&normalized.as_str()) {
+        let canonical = crate::tools::stability::canonical_name(&normalized);
+        if Self::CORE_TOOLS.contains(&canonical) {
             return true;
         }
-        #[cfg(feature = "unstable")]
-        if Self::UNSTABLE_TOOLS.contains(&normalized.as_str()) {
+        if Self::EXPERIMENTAL_CORE_TOOLS.contains(&canonical) {
             return true;
         }
         false
@@ -157,11 +158,14 @@ impl ShipServer {
         if active_tools.is_empty() {
             return true;
         }
-        let normalized_tool = Self::normalize_mode_tool_id(tool_name);
-        active_tools
-            .iter()
-            .map(|t| Self::normalize_mode_tool_id(t))
-            .any(|allowed| allowed == normalized_tool)
+        let canonical_tool = crate::tools::stability::canonical_name(
+            &Self::normalize_mode_tool_id(tool_name),
+        )
+        .to_string();
+        active_tools.iter().any(|t| {
+            let n = Self::normalize_mode_tool_id(t);
+            crate::tools::stability::canonical_name(&n) == canonical_tool.as_str()
+        })
     }
 
     pub fn enforce_mode_tool_gate(project_dir: &Path, tool_name: &str) -> Result<(), String> {
@@ -198,7 +202,8 @@ impl ShipServer {
             let preset = Self::effective_preset(mode.tools_preset.as_deref(), mode.role.as_deref());
             let preset_tools = Self::tools_for_preset(preset);
             let normalized = Self::normalize_mode_tool_id(tool_name);
-            if preset_tools.contains(&normalized.as_str()) {
+            let canonical = crate::tools::stability::canonical_name(&normalized);
+            if preset_tools.contains(&canonical) {
                 return Ok(());
             }
             return Err(format!(
