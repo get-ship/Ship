@@ -91,6 +91,9 @@ export class ShipPanelDock extends LitElement {
       z-index: 2;
       touch-action: none;
     }
+    /* Grip — three short ticks centered on the top edge. Always visible
+     * at rest (opacity 0.45) so the affordance doesn't depend on hover
+     * discovery. Brightens on hover/active drag. */
     .resize::before {
       content: "";
       position: absolute;
@@ -100,13 +103,33 @@ export class ShipPanelDock extends LitElement {
       width: 28px;
       height: 2px;
       border-radius: 2px;
-      background: var(--border);
-      opacity: 0;
+      background: var(--muted-foreground);
+      opacity: 0.45;
+      transition: opacity var(--duration-fast) var(--ease-out),
+        background var(--duration-fast) var(--ease-out);
+    }
+    .resize::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 2px;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 2px;
+      border-radius: 2px;
+      background: var(--muted-foreground);
+      opacity: 0.7;
       transition: opacity var(--duration-fast) var(--ease-out);
     }
     .resize:hover::before,
     :host([resizing]) .resize::before {
+      opacity: 0.95;
+      background: var(--foreground);
+    }
+    .resize:hover::after,
+    :host([resizing]) .resize::after {
       opacity: 1;
+      background: var(--foreground);
     }
 
     /* Tab strip. */
@@ -253,7 +276,8 @@ export class ShipPanelDock extends LitElement {
     @media (prefers-reduced-motion: reduce) {
       .tab,
       .tool,
-      .resize::before {
+      .resize::before,
+      .resize::after {
         transition: none;
       }
     }

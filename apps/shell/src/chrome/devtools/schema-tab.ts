@@ -237,9 +237,11 @@ export class ShipDevtoolsSchema extends LitElement {
       return html`<div class="empty">${this._error}</div>`;
     }
     if (this._refs.length === 0) {
-      return html`<div class="empty">
-        No <code>ship.*</code> references in this view.
-      </div>`;
+      return html`<ship-empty-state>
+        <ship-icon slot="icon" name="network"></ship-icon>
+        <span slot="title">No schema references</span>
+        No <code>ship.*</code> calls detected in this view.
+      </ship-empty-state>`;
     }
     const known = this._refs.filter((r) => r.known).length;
     return html`

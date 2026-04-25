@@ -227,11 +227,15 @@ export class ShipDevtoolsLint extends LitElement {
         ${this._error
           ? html`<div class="empty">${this._error}</div>`
           : findings.length === 0
-            ? html`<div class="empty">
+            ? html`<ship-empty-state>
+                <ship-icon slot="icon" name="check-circle"></ship-icon>
+                <span slot="title"
+                  >${this._viewName ? "Clean" : "No view"}</span
+                >
                 ${this._viewName
-                  ? "No findings."
+                  ? "No lint errors in current view."
                   : "Navigate to a view to lint it."}
-              </div>`
+              </ship-empty-state>`
             : findings.map(
                 (f) => html`
                   <div class="row">

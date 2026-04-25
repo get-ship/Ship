@@ -558,16 +558,26 @@ export class ShipDevtoolsSource extends LitElement {
 
   render() {
     if (this._loading && !this._src) {
-      return html`<div class="empty">Loading source…</div>`;
+      return html`<ship-empty-state>
+        <ship-icon slot="icon" name="file-code"></ship-icon>
+        <span slot="title">Loading source…</span>
+        Fetching the view template from the daemon.
+      </ship-empty-state>`;
     }
     if (this._error) {
-      return html`<div class="empty error">${this._error}</div>`;
+      return html`<ship-empty-state>
+        <ship-icon slot="icon" name="alert-triangle"></ship-icon>
+        <span slot="title">Source error</span>
+        ${this._error}
+      </ship-empty-state>`;
     }
     const src = this._src;
     if (!src) {
-      return html`<div class="empty">
-        No file-routed view at this path.
-      </div>`;
+      return html`<ship-empty-state>
+        <ship-icon slot="icon" name="file-code"></ship-icon>
+        <span slot="title">No source available</span>
+        This path is not served by a file-routed view.
+      </ship-empty-state>`;
     }
     const dirty = this._dirty;
     const displayValue = this._draft ?? src.template;

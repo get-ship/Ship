@@ -215,11 +215,15 @@ export class ShipDevtoolsSignals extends LitElement {
       </div>
       <div class="body">
         ${filtered.length === 0
-          ? html`<div class="empty">
+          ? html`<ship-empty-state>
+              <ship-icon slot="icon" name="radio"></ship-icon>
+              <span slot="title"
+                >${needle ? "No matches" : "No signals"}</span
+              >
               ${needle
-                ? "No signals match filter."
-                : "No Datastar signals on this view."}
-            </div>`
+                ? "No signals match the current filter."
+                : "Live events will appear here when actors emit."}
+            </ship-empty-state>`
           : filtered.map(
               (k) => html`
                 <div class="row">

@@ -237,7 +237,11 @@ export class ShipDevtoolsComponents extends LitElement {
       return html`<div class="empty">${this._error}</div>`;
     }
     if (this._entries.length === 0) {
-      return html`<div class="empty">Loading catalog…</div>`;
+      return html`<ship-empty-state>
+        <ship-icon slot="icon" name="package"></ship-icon>
+        <span slot="title">Loading components…</span>
+        Fetching the component catalog from the daemon.
+      </ship-empty-state>`;
     }
     const needle = this._filter.toLowerCase();
     const shown = needle
@@ -259,7 +263,11 @@ export class ShipDevtoolsComponents extends LitElement {
       </div>
       <div class="body">
         ${shown.length === 0
-          ? html`<div class="empty">No components match filter.</div>`
+          ? html`<ship-empty-state>
+              <ship-icon slot="icon" name="search"></ship-icon>
+              <span slot="title">No matches</span>
+              No components match the current filter.
+            </ship-empty-state>`
           : shown.map((e) => this._renderEntry(e))}
       </div>
     `;
