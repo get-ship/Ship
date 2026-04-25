@@ -167,16 +167,19 @@ export class ShipListTile extends LitElement {
       :host([variant='card']) .tile {
         background: var(--card);
         border-color: var(--border-subtle);
-        box-shadow: var(--shadow-xs);
+        box-shadow: var(--shadow-card-rest);
       }
       :host([variant='card']) .tile:hover {
         border-color: var(--tone-primary-border);
-        box-shadow: var(--shadow-sm);
+        box-shadow: var(--shadow-hover);
         transform: translateY(-1px);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        :host([variant='card']) .tile:hover { transform: none; }
       }
       :host([variant='card'][interactive]) .tile:active {
         transform: translateY(0);
-        box-shadow: var(--shadow-xs);
+        box-shadow: var(--shadow-card-rest);
         transition-duration: 60ms;
       }
 

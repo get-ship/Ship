@@ -35,7 +35,7 @@ export const shipCardStyles = [
       color: var(--card-foreground);
       border: 1px solid var(--border);
       border-radius: var(--card-radius);
-      box-shadow: var(--shadow-xs);
+      box-shadow: var(--shadow-card-rest);
       /* Density channel — overridden per :host([padding=…]) below.
        * Defaults match pre-polish 16px/20px so existing composites
        * (ship-pipeline-definition, ship-pipeline-run, settings cards)
@@ -134,14 +134,17 @@ export const shipCardStyles = [
     }
     :host([interactive]:hover) {
       border-color: color-mix(in oklch, var(--border) 160%, transparent);
-      box-shadow: var(--shadow-sm);
+      box-shadow: var(--shadow-hover);
       transform: translateY(-1px);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      :host([interactive]:hover) { transform: none; }
     }
     :host([interactive][tone]:not([tone='default']):hover) {
       border-color: color-mix(in oklch, var(--tone-fg) 55%, var(--border));
     }
     :host([interactive]:active) {
-      box-shadow: var(--shadow-xs);
+      box-shadow: var(--shadow-card-rest);
       transform: translateY(0);
       transition-duration: 60ms;
     }
