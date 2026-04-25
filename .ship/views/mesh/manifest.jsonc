@@ -1,9 +1,9 @@
 {
   "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
-  "name": "actors",
+  "name": "mesh",
   "type": "component",
   "rail": {
-    "label": "Actors",
+    "label": "Mesh",
     "icon": "activity"
   }
 }

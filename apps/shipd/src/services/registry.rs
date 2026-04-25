@@ -546,6 +546,131 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             Ok(json!({ "items": actors }))
         }
 
+        // ── mesh ──────────────────────────────────────────────────
+        // The mesh view's three populations — kernel actors, Ship-
+        // owned processes, integrations. Single call so the view
+        // renders consistently in one render pass.
+        "mesh.snapshot" => {
+            // 1. Kernel actor list (mesh truth) merged with projection
+            //    metadata where available.
+            let kernel_actors: Vec<(String, runtime::events::ActorConfig)> = {
+                let kernel = state.kernel().clone();
+                tokio::task::block_in_place(|| {
+                    tokio::runtime::Handle::current().block_on(async {
+                        kernel.lock().await.list_actors()
+                    })
+                })
+            };
+            let projection_rows = runtime::projections::actor::list_actors(
+                &runtime::projections::actor::ListActorsFilter {
+                    limit: 500,
+                    ..Default::default()
+                },
+            ).unwrap_or_default();
+            let projection_by_id: std::collections::HashMap<String, _> =
+                projection_rows.into_iter().map(|r| (r.id.clone(), r)).collect();
+            let actors: Vec<serde_json::Value> = kernel_actors
+                .into_iter()
+                .map(|(id, cfg)| {
+                    let proj = projection_by_id.get(&id);
+                    json!({
+                        "actor_id": id,
+                        "kind": proj.map(|p| p.kind.clone())
+                            .unwrap_or_else(|| {
+                                // No projection row: classify from id pattern.
+                                if id.starts_with("service.") { "service".into() }
+                                else if id.starts_with("agent.") { "agent".into() }
+                                else { "unknown".into() }
+                            }),
+                        "agent_id": proj.and_then(|p| p.agent_id.clone()),
+                        "provider": proj.and_then(|p| p.provider.clone()),
+                        "transport": proj.and_then(|p| p.transport.clone()),
+                        "workspace_id": proj.and_then(|p| p.workspace_id.clone()),
+                        "pid": proj.and_then(|p| p.pid),
+                        "last_event_at": proj.and_then(|p| p.last_event_at.clone()),
+                        "subscribe_namespaces": cfg.subscribe_namespaces,
+                    })
+                })
+                .collect();
+
+            // 2. Ship system processes — daemon + supervisor from the
+            //    pidfile/port. These don't always register as kernel
+            //    actors but they're the most important "Ship is doing
+            //    this on your machine" rows.
+            let global_dir = runtime::project::get_global_dir().unwrap_or_default();
+            let read_pidfile = |name: &str| -> Option<i64> {
+                std::fs::read_to_string(global_dir.join(name))
+                    .ok()
+                    .and_then(|s| s.trim().parse().ok())
+            };
+            let pid_alive = runtime::projections::actor::pid_alive;
+            let mut processes: Vec<serde_json::Value> = Vec::new();
+            if let Some(pid) = read_pidfile("daemon.pid") {
+                processes.push(json!({
+                    "name": "shipd",
+                    "role": "daemon",
+                    "pid": pid,
+                    "alive": pid_alive(pid),
+                    "log": global_dir.join("shipd.log").display().to_string(),
+                    "version": option_env!("SHIP_MCP_VERSION_STRING").unwrap_or("dev"),
+                }));
+            }
+            // Supervisor is shipd's parent.
+            if let Some(daemon_pid) = read_pidfile("daemon.pid") {
+                if let Ok(p) = std::fs::read_to_string(format!("/proc/{daemon_pid}/status")) {
+                    let ppid: Option<i64> = p.lines()
+                        .find(|l| l.starts_with("PPid:"))
+                        .and_then(|l| l.split_whitespace().nth(1))
+                        .and_then(|s| s.parse().ok());
+                    if let Some(pp) = ppid {
+                        if pp > 1 {
+                            processes.push(json!({
+                                "name": "ship daemon supervisor",
+                                "role": "supervisor",
+                                "pid": pp,
+                                "alive": pid_alive(pp),
+                            }));
+                        }
+                    }
+                }
+            }
+
+            // 3. Integrations — known external bridges Ship can talk
+            //    to. Today: Telegram if env vars are set. Will
+            //    expand as user-inbox / Discord / Slack land.
+            let mut integrations: Vec<serde_json::Value> = Vec::new();
+            let tg_token = std::env::var("SHIP_TELEGRAM_TOKEN").ok();
+            let tg_chat = std::env::var("SHIP_TELEGRAM_CHAT_ID").ok();
+            integrations.push(json!({
+                "name": "Telegram (user inbox)",
+                "kind": "inbox",
+                "active": tg_token.is_some() && tg_chat.is_some(),
+                "hint": if tg_token.is_some() && tg_chat.is_some() {
+                    "configured"
+                } else {
+                    "set SHIP_TELEGRAM_TOKEN + SHIP_TELEGRAM_CHAT_ID"
+                },
+            }));
+            // Channel capability is always declared by the MCP server.
+            integrations.push(json!({
+                "name": "claude/channel",
+                "kind": "channel",
+                "active": true,
+                "hint": "Ship MCP declares experimental.claude/channel capability",
+            }));
+
+            Ok(json!({
+                "actors": actors,
+                "processes": processes,
+                "integrations": integrations,
+                "counts": {
+                    "actors": actors.len(),
+                    "processes": processes.len(),
+                    "integrations": integrations.iter().filter(|i| i["active"] == true).count(),
+                },
+            }))
+        }
+
         // ── chat ──────────────────────────────────────────────────
         "chat.state" => {
             let ship_dir = state.ship_dir();
