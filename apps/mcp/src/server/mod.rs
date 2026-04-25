@@ -140,16 +140,23 @@ impl ShipServer {
 
         // Default subscription set for an agent peer. The mesh's
         // subscribe_namespaces IS the filter — anything not declared
-        // here doesn't reach the agent's mailbox. Keep this tight:
-        // agents react to user/peer messages, not to lifecycle noise
-        // (workspace.*, session.*, actor.*, supervisor.* etc.) which
-        // belongs in dashboards / SSE / projections, not in an agent's
-        // context window.
+        // here doesn't reach the agent's mailbox.
         //
+        // What an agent SHOULD see:
         // - studio.chat_turn — user turns from the command bar
         // - studio.reply — replies from other agents (multi-agent)
         // - inbox.* / human.* — messages from external user gateways
         // - mesh.message — inter-agent direct messaging
+        // - mesh.register / mesh.deregister — visibility into peers
+        //   joining or leaving the mesh. Historically pushed to chat
+        //   so the user sees "agent X joined" / "agent X left" in
+        //   their session. Lifecycle visibility is a feature, not
+        //   noise.
+        //
+        // What we DON'T subscribe to (deliberately):
+        // - workspace.*, session.*, actor.*, supervisor.* — internal
+        //   lifecycle that drowns chat turns when pushed as channel
+        //   events. The dashboard + SSE views render these instead.
         //
         // Skills extend this list via their declared `in:` events
         // (visual-brainstorm.annotation_created etc.).
@@ -159,6 +166,8 @@ impl ShipServer {
             "inbox.".to_string(),
             "human.".to_string(),
             "mesh.message".to_string(),
+            "mesh.register".to_string(),
+            "mesh.deregister".to_string(),
         ];
         for ns in skill_subs {
             if !subscribe_namespaces.contains(&ns) {

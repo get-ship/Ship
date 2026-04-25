@@ -46,11 +46,24 @@ fn base_url() -> Result<String> {
     Ok(format!("http://127.0.0.1:{}/api", get_network_port()?))
 }
 
+/// Default per-call timeout. Without this, `reqwest::Client::new()`
+/// has NO timeout — a stalled daemon connection would hang any caller
+/// indefinitely. Claude's `/mcp` panel blocks on our `on_initialized`,
+/// which calls `actor_spawn`/`auto_session_start` synchronously; an
+/// unreachable daemon froze the entire MCP UI. 5s is generous for
+/// localhost HTTP.
+fn http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new())
+}
+
 /// POST JSON to a REST endpoint, return the response body.
 async fn post(path: &str, body: Value) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .post(&url)
         .bearer_auth(&token)
         .json(&body)
@@ -70,7 +83,7 @@ async fn post(path: &str, body: Value) -> Result<String> {
 async fn get(path: &str) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .get(&url)
         .bearer_auth(&token)
         .send()
@@ -163,7 +176,7 @@ pub async fn steer_agent_via_daemon(slug: &str, message: &str) -> Result<String>
 async fn post_as_agent(path: &str, agent_id: &str, body: Value) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .post(&url)
         .bearer_auth(&token)
         .header("x-ship-agent-id", agent_id)
@@ -182,7 +195,7 @@ async fn post_as_agent(path: &str, agent_id: &str, body: Value) -> Result<String
 async fn delete_as_agent(path: &str, agent_id: &str) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .delete(&url)
         .bearer_auth(&token)
         .header("x-ship-agent-id", agent_id)
@@ -293,7 +306,7 @@ pub async fn register_session(
 ) -> Result<String> {
     let url = format!("{}/session/register", base_url()?);
     let daemon_token = get_network_token()?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .post(&url)
         .bearer_auth(&daemon_token)
         .json(&serde_json::json!({
@@ -336,7 +349,7 @@ pub fn mesh_subscribe(
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     tokio::spawn(async move {
-        let resp = match reqwest::Client::new()
+        let resp = match http_client()
             .get(&url)
             .bearer_auth(&token)
             .header("Accept", "text/event-stream")
@@ -416,7 +429,7 @@ pub fn mesh_subscribe(
 async fn delete(path: &str) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .delete(&url)
         .bearer_auth(&token)
         .send()
@@ -434,7 +447,7 @@ async fn delete(path: &str) -> Result<String> {
 async fn put(path: &str, body: Value) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .put(&url)
         .bearer_auth(&token)
         .json(&body)
@@ -512,7 +525,7 @@ pub async fn artifact_upload(
         form = form.text("expires_at", exp.to_string());
     }
 
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .post(&url)
         .bearer_auth(&token)
         .multipart(form)

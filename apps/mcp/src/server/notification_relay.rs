@@ -140,16 +140,29 @@ impl EventRelay {
     }
 }
 
-/// Events that the Claude channel pushes to the agent. Restrict to
-/// turns and replies — i.e., things a user types or another agent says
-/// directly to this one. Background lifecycle (`actor.*`, `mesh.*`,
-/// `workspace.*`, `supervisor.*`) goes through SSE / dashboards, never
-/// the channel — Claude has nothing to do with them and treats them
-/// as noise that drowns real user turns.
+/// Events that the Claude channel pushes to the agent. Two categories:
+///
+/// 1. User-or-peer messages — turns, replies, inbox messages. The
+///    primary case for channel pushes.
+/// 2. Mesh lifecycle visibility — `mesh.register` and `mesh.deregister`
+///    so the user sees "agent X joined" / "agent X left" in their
+///    Claude session. This is the "Ship spawning a process on your
+///    machine, you see it happen" trust signal.
+///
+/// Excluded by design: `actor.*`, `workspace.*`, `session.*`,
+/// `supervisor.*`, `runtime.*`, `project.*`, `gate.*`, `config.*`,
+/// `sync.*` — internal lifecycle that drowned chat turns when pushed.
+/// The dashboard + SSE views render these instead.
 fn is_user_actionable(event_type: &str) -> bool {
     matches!(
         event_type,
-        "studio.chat_turn" | "studio.reply" | "inbox.message" | "human.message"
+        "studio.chat_turn"
+            | "studio.reply"
+            | "inbox.message"
+            | "human.message"
+            | "mesh.message"
+            | "mesh.register"
+            | "mesh.deregister"
     )
 }
 
