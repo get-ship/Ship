@@ -108,51 +108,44 @@ function mountThemePicker() {
   const grid = root.querySelector<HTMLElement>(".theme-grid");
   if (!grid) return;
 
-  // Personality-aware groups. Each row gets a typography hint matching
-  // the theme's body voice — mono for console, demoted serif-ish for
-  // paper, brand-display for halo/contrast — so the picker previews
-  // not just color but feel.
-  type Group = { label: string; ids: ReadonlyArray<string>; font: string };
+  // Personality-aware groups. Each tile renders a real mini card preview
+  // by scoping the theme's tokens to a [data-theme-preview] subtree,
+  // so users see the actual surface treatment, shadow, font, primary CTA,
+  // and overlay (scanlines, grain, mesh) — not three neutral dots.
+  type Group = { label: string; ids: ReadonlyArray<string> };
   const GROUPS: Group[] = [
-    { label: "Default", ids: ["ship-light", "ship-dark"],
-      font: "var(--font-display, var(--font-body))" },
-    { label: "Texture", ids: ["paper", "halo"],
-      font: "var(--font-body)" },
-    { label: "Effects", ids: ["glass"],
-      font: "var(--font-body)" },
-    { label: "Special", ids: ["console", "contrast"],
-      font: "var(--font-mono)" },
+    { label: "Default", ids: ["ship-light", "ship-dark"] },
+    { label: "Texture", ids: ["paper", "halo"] },
+    { label: "Effects", ids: ["glass"] },
+    { label: "Special", ids: ["console", "contrast"] },
   ];
 
-  const card = (t: (typeof THEMES)[number], font: string) => {
-    // Three-swatch personality preview: bg, primary, surface (card).
-    return `
+  const card = (t: (typeof THEMES)[number]) => `
       <button type="button" class="theme-card" role="option"
         data-theme-card="${t.id}" data-dark="${t.dark}"
-        aria-label="${t.label}" aria-selected="false" tabindex="-1"
-        style="
-          --swatch-bg: ${t.swatches[0]};
-          --swatch-card: ${t.swatches[1]};
-          --swatch-primary: ${t.swatches[2]};
-          --swatch-accent: ${t.swatches[3]};
-          --tc-font: ${font};
-        ">
-        <span class="theme-card-radio" aria-hidden="true"></span>
-        <span class="theme-card-swatches" aria-hidden="true">
-          <span style="background:${t.swatches[0]}"></span>
-          <span style="background:${t.swatches[2]}"></span>
-          <span style="background:${t.swatches[1]}"></span>
+        aria-label="${t.label}" aria-selected="false" tabindex="-1">
+        <span class="tc-bg" data-theme-preview="${t.id}" aria-hidden="true">
+          <span class="tc-overlay"></span>
+          <span class="tc-card">
+            <span class="tc-heading">${t.label}</span>
+            <span class="tc-controls">
+              <span class="tc-cta">Action</span>
+              <span class="tc-accent" aria-hidden="true"></span>
+            </span>
+          </span>
         </span>
-        <span class="theme-card-name">${t.label}</span>
+        <span class="tc-row">
+          <span class="theme-card-name">${t.label}</span>
+          <span class="theme-card-radio" aria-hidden="true"></span>
+        </span>
       </button>`;
-  };
   const byId = new Map(THEMES.map((t) => [t.id, t]));
   const groupHtml = (g: Group) => `
     <section class="theme-group" aria-label="${g.label}">
       <div class="theme-group-h">${g.label}</div>
       <div class="theme-group-rows">
         ${g.ids.map((id) => byId.get(id)).filter(Boolean)
-          .map((t) => card(t!, g.font)).join("")}
+          .map((t) => card(t!)).join("")}
       </div>
     </section>`;
   grid.innerHTML = GROUPS.map(groupHtml).join("");

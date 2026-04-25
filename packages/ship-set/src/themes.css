@@ -33,7 +33,8 @@
  * selector exists so `data-theme='ship-dark'` resolves cleanly and
  * can pin a couple of surface details.
  * ─────────────────────────────────────────────────────────────────── */
-:root[data-theme='ship-dark'] {
+:root[data-theme='ship-dark'],
+[data-theme-preview='ship-dark'] {
   --surface-2: oklch(0.22 0.012 50);
   --border-subtle: oklch(1 0 0 / 8%);
   --border-strong: oklch(1 0 0 / 22%);
@@ -46,7 +47,8 @@
  * demoted to body font, slow calm motion, low interaction tints. Not
  * tinted shadcn — a different feel of surface entirely.
  * ─────────────────────────────────────────────────────────────────── */
-:root[data-theme='paper'] {
+:root[data-theme='paper'],
+[data-theme-preview='paper'] {
   --background: oklch(0.985 0.020 75);
   --foreground: oklch(0.20 0.015 60);
   --card: oklch(0.995 0.012 75);
@@ -133,7 +135,8 @@
 /* Subtle paper grain — very faint, only on the paper theme. Riding on the
  * --surface-overlay channel so future themes opt in via the same hook
  * (tokens.css owns the body::after rule and reduced-motion guard). */
-:root[data-theme='paper'] {
+:root[data-theme='paper'],
+[data-theme-preview='paper'] {
   --surface-overlay: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.05'/%3E%3C/svg%3E");
   --surface-overlay-blend: multiply;
   --surface-overlay-opacity: 0.4;
@@ -147,7 +150,8 @@
  * orange survives at slightly lower chroma to harmonize with the
  * soft mid-grey-blue ground.
  * ─────────────────────────────────────────────────────────────────── */
-:root[data-theme='halo'] {
+:root[data-theme='halo'],
+[data-theme-preview='halo'] {
   --background: oklch(0.92 0.008 230);
   --foreground: oklch(0.30 0.015 230);
   --card: oklch(0.92 0.008 230);
@@ -224,7 +228,8 @@
 
 /* Subtle "spotlit from above" radial — gives the otherwise-flat ground
  * a directional cue that cooperates with the neumorph shadow lighting. */
-:root[data-theme='halo'] body {
+:root[data-theme='halo'] body,
+[data-theme-preview='halo'].tc-bg {
   background-image: radial-gradient(
     ellipse 90% 60% at 50% -10%,
     oklch(1 0 0 / 8%),
@@ -247,7 +252,8 @@
  * component that reads it), sharp 2px corners, low-spread shadows
  * with green glow tint. This is a different machine, not a tint.
  * ─────────────────────────────────────────────────────────────────── */
-:root[data-theme='console'] {
+:root[data-theme='console'],
+[data-theme-preview='console'] {
   --background: oklch(0.13 0.008 220);
   --foreground: oklch(0.92 0.06 145);
   --card: oklch(0.16 0.010 220);
@@ -337,7 +343,8 @@
  * 1× zoom: 8% black on 1px stripes is barely perceptible at body size
  * but unmistakable on solid surfaces. Reduced motion skips overlays
  * entirely (tokens.css). */
-:root[data-theme='console'] {
+:root[data-theme='console'],
+[data-theme-preview='console'] {
   --surface-overlay: repeating-linear-gradient(
     to bottom,
     transparent 0px,
@@ -352,7 +359,8 @@
 /* Bevel-style elevation — terminal apps don't blur, they stack 1px
  * phosphor borders + hard offset shadows. Override the shadow stack so
  * elevated surfaces read as outset hardware pixels, not soft cards. */
-:root[data-theme='console'] {
+:root[data-theme='console'],
+[data-theme-preview='console'] {
   --shadow-card-rest: 0 0 0 1px oklch(0.78 0.20 145 / 30%);
   --shadow-hover:
     0 0 0 1px oklch(0.78 0.20 145 / 60%),
@@ -372,7 +380,8 @@
  * blocky radii. Bold weights. Amped interaction tints so every
  * focus/active state is impossible to miss.
  * ─────────────────────────────────────────────────────────────────── */
-:root[data-theme='contrast'] {
+:root[data-theme='contrast'],
+[data-theme-preview='contrast'] {
   --background: oklch(0.09 0 0);
   --foreground: oklch(0.99 0 0);
   --card: oklch(0.15 0 0);
@@ -442,7 +451,9 @@
  * without competing with content.
  * ─────────────────────────────────────────────────────────────────── */
 :root[data-theme='ship-light'] body,
-:root[data-theme='ship-dark'] body {
+:root[data-theme='ship-dark'] body,
+[data-theme-preview='ship-light'].tc-bg,
+[data-theme-preview='ship-dark'].tc-bg {
   background-image: linear-gradient(
     to bottom,
     color-mix(in oklch, var(--surface-0) 100%, white 1.5%) 0%,
@@ -453,7 +464,9 @@
 }
 
 :root[data-theme='ship-light'],
-:root[data-theme='ship-dark'] {
+:root[data-theme='ship-dark'],
+[data-theme-preview='ship-light'],
+[data-theme-preview='ship-dark'] {
   --surface-overlay: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
   --surface-overlay-blend: overlay;
 }
@@ -471,7 +484,8 @@
  * popovers, dialogs, card-variant tiles via --card-backdrop-filter). The
  * page background is a flat gradient — no full-page blur cost.
  * ─────────────────────────────────────────────────────────────────── */
-:root[data-theme='glass'] {
+:root[data-theme='glass'],
+[data-theme-preview='glass'] {
   --background: oklch(0.97 0.005 240);
   --foreground: oklch(0.22 0.02 250);
   --card: oklch(1 0 0 / 65%);
@@ -546,11 +560,72 @@
 
 /* Tinted gradient mesh — soft warm/cool corners blur into the cool
  * neutral page. Fixed attachment so scrolling doesn't drag the mesh. */
-:root[data-theme='glass'] body {
+:root[data-theme='glass'] body,
+[data-theme-preview='glass'].tc-bg {
   background-color: oklch(0.97 0.005 240);
   background-image:
     radial-gradient(ellipse 70% 50% at 0% 0%, oklch(0.88 0.10 220 / 70%), transparent 60%),
     radial-gradient(ellipse 60% 45% at 100% 100%, oklch(0.90 0.10 30 / 55%), transparent 60%),
     radial-gradient(ellipse 50% 40% at 100% 0%, oklch(0.92 0.08 300 / 45%), transparent 65%);
   background-attachment: fixed;
+}
+
+/* ───────────────────────────────────────────────────────────────────
+ * Theme-preview palette resets. The picker mounts each tile under
+ * [data-theme-preview='X'] so components inside read the X theme's
+ * tokens without flipping the whole document. ship-light is canonical
+ * in tokens.css under :root; ship-dark inherits .dark — but neither
+ * of those selectors apply to a descendant when the document root
+ * already carries a different theme. Mirror the relevant palette
+ * blocks here so a preview tile of any theme renders correctly
+ * regardless of the live theme.
+ * ─────────────────────────────────────────────────────────────────── */
+[data-theme-preview='ship-light'] {
+  --background: oklch(0.975 0.002 106.423);
+  --foreground: oklch(0.147 0.004 49.25);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.147 0.004 49.25);
+  --primary: oklch(0.67 0.16 58);
+  --primary-foreground: oklch(0.99 0.02 95);
+  --accent: oklch(0.61 0.23 303);
+  --accent-foreground: oklch(0.98 0.02 301);
+  --muted: oklch(0.95 0.003 106.424);
+  --muted-foreground: oklch(0.40 0.02 58.071);
+  --border: oklch(0.147 0.004 49.25 / 25%);
+  --ring: oklch(0.67 0.16 58 / 40%);
+  --heading-font: var(--font-display, var(--font-body));
+  --heading-weight: var(--font-weight-semibold);
+  --heading-tracking: var(--tracking-tight);
+  --label-font: var(--font-body);
+  --label-weight: var(--font-weight-semibold);
+  --body-font: var(--font-body);
+  --shadow-card-rest: 0 1px 2px 0 oklch(0 0 0 / 4%), 0 0 0 1px oklch(0 0 0 / 3%);
+  --radius-md: 6px;
+  --radius-sm: 4px;
+  --card-backdrop-filter: none;
+}
+
+[data-theme-preview='ship-dark'] {
+  --background: oklch(0.158 0.012 250);
+  --foreground: oklch(0.98 0.001 106);
+  --card: oklch(0.205 0.012 250);
+  --card-foreground: oklch(0.98 0.001 106);
+  --primary: oklch(0.77 0.16 70);
+  --primary-foreground: oklch(0.2 0.01 50);
+  --accent: oklch(0.3 0.05 300);
+  --accent-foreground: oklch(0.9 0.02 300);
+  --muted: oklch(0.2 0.01 50);
+  --muted-foreground: oklch(0.75 0.015 50);
+  --border: oklch(1 0 0 / 12%);
+  --ring: oklch(0.77 0.16 70 / 30%);
+  --heading-font: var(--font-display, var(--font-body));
+  --heading-weight: var(--font-weight-semibold);
+  --heading-tracking: var(--tracking-tight);
+  --label-font: var(--font-body);
+  --label-weight: var(--font-weight-semibold);
+  --body-font: var(--font-body);
+  --shadow-card-rest: 0 1px 2px 0 oklch(0.05 0.02 250 / 35%), 0 0 0 1px oklch(1 0 0 / 4%);
+  --radius-md: 6px;
+  --radius-sm: 4px;
+  --card-backdrop-filter: none;
 }
