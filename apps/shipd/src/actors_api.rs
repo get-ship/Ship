@@ -19,6 +19,7 @@ use runtime::events::types::event_types;
 use runtime::projections::actor::{
     ListActorsFilter, actor_status, get_actor, list_actor_events, list_actors,
 };
+use serde::Serialize;
 use serde::Deserialize;
 use serde_json::json;
 
@@ -33,9 +34,13 @@ pub struct ListQuery {
     pub limit: Option<i64>,
 }
 
-/// `GET /api/actors` — list all actors, ordered by recency.
+/// `GET /api/actors` — list all actors, ordered by recency. The
+/// `live` field on each row is overlaid from the kernel's mailbox
+/// map at query time — the mesh IS the source of truth for "alive
+/// and reachable." If an actor is in `kernel.list_actors()`, you can
+/// send to it and it will receive. If not, you can't. Period.
 pub async fn list_actors_handler(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     Extension(_auth): Extension<AuthContext>,
     Query(q): Query<ListQuery>,
 ) -> impl IntoResponse {
@@ -45,18 +50,69 @@ pub async fn list_actors_handler(
         status: q.status,
         limit: q.limit.unwrap_or(0),
     };
-    match list_actors(&filter) {
-        Ok(actors) => (
-            StatusCode::OK,
-            Json(MeshResponse { ok: true, data: json!({ "actors": actors }) }),
-        )
-            .into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse { ok: false, data: json!(format!("query: {e}")) }),
-        )
-            .into_response(),
+    let mut rows = match list_actors(&filter) {
+        Ok(r) => r,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse { ok: false, data: json!(format!("query: {e}")) }),
+            )
+                .into_response();
+        }
+    };
+    let on_mesh: std::collections::HashSet<String> = state
+        .kernel()
+        .lock()
+        .await
+        .list_actors()
+        .into_iter()
+        .map(|(id, _)| id)
+        .collect();
+    for r in rows.iter_mut() {
+        r.live = on_mesh.contains(&r.id);
     }
+    (
+        StatusCode::OK,
+        Json(MeshResponse { ok: true, data: json!({ "actors": rows }) }),
+    )
+        .into_response()
+}
+
+#[derive(Serialize)]
+pub struct MeshActor {
+    pub actor_id: String,
+    pub subscribe_namespaces: Vec<String>,
+    pub write_namespaces: Vec<String>,
+}
+
+/// `GET /api/mesh` — every actor with a live mailbox in the kernel,
+/// straight from `kernel.list_actors()`. This is the heartbeat: if
+/// it's here, it's reachable. Used by the dashboard and by anyone
+/// who needs to know "what can I send to right now."
+pub async fn list_mesh_handler(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let actors: Vec<MeshActor> = state
+        .kernel()
+        .lock()
+        .await
+        .list_actors()
+        .into_iter()
+        .map(|(id, cfg)| MeshActor {
+            actor_id: id,
+            subscribe_namespaces: cfg.subscribe_namespaces,
+            write_namespaces: cfg.write_namespaces,
+        })
+        .collect();
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: json!({ "count": actors.len(), "actors": actors }),
+        }),
+    )
+        .into_response()
 }
 
 /// `GET /api/actors/{id}` — single actor detail.
@@ -142,36 +198,28 @@ pub async fn actor_input_handler(
             .into_response();
     }
 
-    let (status, workspace_id): (String, Option<String>) = match actor_status(&id) {
-        Ok(Some(s)) => s,
-        Ok(None) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(MeshResponse {
-                    ok: false,
-                    data: json!(format!("actor '{id}' not found")),
-                }),
-            )
-                .into_response();
-        }
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse { ok: false, data: json!(format!("status: {e}")) }),
-            )
-                .into_response();
-        }
-    };
-    if status == "stopped" || status == "crashed" {
+    // Source of truth for "can I send to this": the kernel's mailbox
+    // map. If the actor isn't there RIGHT NOW, no message will reach
+    // it. The projection's status field can lag (events not yet
+    // applied, or stale rows from old runs); kernel state is now.
+    let on_mesh = state.kernel().lock().await.has_actor(&id);
+    if !on_mesh {
         return (
-            StatusCode::CONFLICT,
+            StatusCode::NOT_FOUND,
             Json(MeshResponse {
                 ok: false,
-                data: json!({ "error": "actor not deliverable", "status": status }),
+                data: json!({
+                    "error": "actor not on mesh",
+                    "hint": "the actor isn't currently registered in the kernel — \
+                            it may have exited, crashed, or never registered",
+                    "actor_id": id,
+                }),
             }),
         )
             .into_response();
     }
+    // Workspace_id only used for context tagging. Best-effort lookup.
+    let workspace_id = actor_status(&id).ok().flatten().and_then(|(_, w)| w);
 
     let payload = json!({ "actor_id": id, "text": text });
     let envelope = match EventEnvelope::new(event_types::STUDIO_CHAT_TURN, &id, &payload) {

@@ -574,6 +574,9 @@ pub enum Route {
     /// @route GET "/api/actors"
     ListActors,
 
+    /// @route GET "/api/mesh"
+    ListMesh,
+
     /// @route GET "/api/actors/{actor_id}"
     GetActor { actor_id: String },
 

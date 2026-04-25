@@ -244,6 +244,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
         .ship_route(Route::EventRoute, actor_api::event_route)
         .ship_route(Route::ListActors, actors_api::list_actors_handler)
+        .ship_route(Route::ListMesh, actors_api::list_mesh_handler)
         .ship_route(Route::GetActor_template(), actors_api::get_actor_handler)
         .ship_route(Route::ActorEvents_template(), actors_api::list_actor_events_handler)
         .ship_route(Route::ActorInput_template(), actors_api::actor_input_handler)
