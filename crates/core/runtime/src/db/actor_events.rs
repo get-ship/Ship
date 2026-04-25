@@ -77,6 +77,39 @@ pub fn emit_actor_created(
     run_tx(actor_id, workspace_id, parent_actor_id, event_types::ACTOR_CREATED, payload)
 }
 
+/// Convenience wrapper for pipeline / one-shot spawns: builds an `ActorCreated`
+/// payload from raw fields. The dashboard treats the row identically to a
+/// chat agent — `kind` (`pipeline-step` etc.) is what distinguishes it.
+pub fn emit_actor_created_simple(
+    actor_id: &str,
+    kind: &str,
+    workspace_id: Option<&str>,
+    agent_id: Option<&str>,
+    provider: Option<&str>,
+    transport: Option<&str>,
+    parent_actor_id: Option<&str>,
+) -> Result<()> {
+    let payload = ActorCreated {
+        kind: kind.to_string(),
+        environment_type: "local".to_string(),
+        workspace_id: workspace_id.map(str::to_string),
+        parent_actor_id: parent_actor_id.map(str::to_string),
+        restart_count: 0,
+        agent_id: agent_id.map(str::to_string),
+        provider: provider.map(str::to_string),
+        transport: transport.map(str::to_string),
+        persistence: Some("one-shot".to_string()),
+        ..Default::default()
+    };
+    run_tx(
+        actor_id,
+        workspace_id,
+        parent_actor_id,
+        event_types::ACTOR_CREATED,
+        &payload,
+    )
+}
+
 pub fn emit_actor_woke(
     id: &str,
     workspace_id: Option<&str>,

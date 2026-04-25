@@ -211,6 +211,29 @@ pub(crate) enum RouteKind {
 #[async_trait]
 impl JobExecutor for RoutingExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
+        // Register the pipeline step as an actor so it surfaces in the
+        // unified dashboard alongside chat agents and shell sessions.
+        // Fire-and-forget on a std::thread to avoid the kernel-route
+        // block_on path deadlocking the tokio runtime.
+        let actor_id = ctx.slug.clone();
+        let kind = "pipeline-step";
+        let workspace_id = ctx.branch.clone();
+        let agent_id = ctx.agent.clone();
+        let provider = ctx.launch.provider.clone();
+        let transport = if ctx.headless { "headless" } else { "pty" };
+        let transport = transport.to_string();
+        std::thread::spawn(move || {
+            let _ = runtime::db::actor_events::emit_actor_created_simple(
+                &actor_id,
+                kind,
+                Some(&workspace_id),
+                Some(&agent_id),
+                provider.as_deref(),
+                Some(&transport),
+                None,
+            );
+        });
+
         // Server-mode providers route to a persistent session when the
         // registry has a binding. The first dispatch per provider lazy-
         // spawns the child; subsequent dispatches reuse the cached Arc.
