@@ -4,6 +4,7 @@
 //! `network_status` / `network_stop` for CLI subcommands.
 
 pub mod actor_api;
+pub mod actors_api;
 pub mod artifacts_api;
 pub mod collection_api;
 pub mod create_api;

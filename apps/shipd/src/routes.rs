@@ -571,6 +571,15 @@ pub enum Route {
     /// @route POST "/api/events/route"
     EventRoute,
 
+    /// @route GET "/api/actors"
+    ListActors,
+
+    /// @route GET "/api/actors/{actor_id}"
+    GetActor { actor_id: String },
+
+    /// @route POST "/api/actors/{actor_id}/input"
+    ActorInput { actor_id: String },
+
     // ── Collections ──────────────────────────────────────────────────────
 
     /// @route GET "/api/collections"

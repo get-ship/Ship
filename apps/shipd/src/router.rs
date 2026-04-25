@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
 
 use crate::{
-    NetworkServer, actor_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
+    NetworkServer, actor_api, actors_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
     human_webhook, lint_api, logs_api, mcp_registry, openapi, pairing, project_api, pty_handler,
     rest_api, runtime_api, sdk_manifest, services, session, settings_api, shell_assets,
     ship_runtime, specs_api, supervisor, view_errors_api, view_morph_target, view_sessions_api,
@@ -246,6 +246,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::MeshEvents_template(), rest_api::mesh_events)
         .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
         .ship_route(Route::EventRoute, actor_api::event_route)
+        .ship_route(Route::ListActors, actors_api::list_actors_handler)
+        .ship_route(Route::GetActor_template(), actors_api::get_actor_handler)
+        .ship_route(Route::ActorInput_template(), actors_api::actor_input_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Runtime

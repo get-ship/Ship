@@ -12,7 +12,7 @@ pub mod job;
 pub mod job_transitions;
 pub mod process;
 pub mod spawn;
-mod actor;
+pub mod actor;
 mod registry;
 mod session;
 mod workspace;

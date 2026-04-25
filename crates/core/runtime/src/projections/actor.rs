@@ -1,5 +1,10 @@
 //! Actor state projection — derived from actor.* events.
 //!
+//! Read API: `list_actors` and `get_actor` project the actors table for
+//! the unified dashboard. Filterable by workspace, kind, status; ordered
+//! by `last_event_at` desc so the most recently active actors surface
+//! first.
+//!
 //! This projection maintains the `actors` table in per-workspace DBs as a read
 //! model. It handles every actor event type and applies the state change.
 //! On rebuild, the table is truncated and replayed from the event log.
@@ -211,5 +216,139 @@ fn apply_crashed(
         .execute(conn)
         .await?;
         Ok(())
+    })
+}
+
+// ── Read API ─────────────────────────────────────────────────────────────────
+
+/// Read-side row shape returned by `list_actors` / `get_actor`. JSON-friendly,
+/// transport-agnostic — the HTTP layer can pass it through directly. All
+/// columns mirror the `actors` table after migration 0006.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ActorRow {
+    pub id: String,
+    pub kind: String,
+    pub status: String,
+    pub workspace_id: Option<String>,
+    pub agent_id: Option<String>,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub transport: Option<String>,
+    pub persistence: Option<String>,
+    pub provider_session_id: Option<String>,
+    pub system_prompt_hash: Option<String>,
+    pub pid: Option<i64>,
+    pub capabilities: Vec<String>,
+    pub parent_actor_id: Option<String>,
+    pub restart_count: i64,
+    pub exit_code: Option<i64>,
+    pub exit_reason: Option<String>,
+    pub duration_ms: Option<i64>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub last_event_at: Option<String>,
+}
+
+/// Filter for `list_actors`. All `Option`s default to "no filter."
+#[derive(Default, Debug, Clone)]
+pub struct ListActorsFilter {
+    pub workspace_id: Option<String>,
+    pub kind: Option<String>,
+    pub status: Option<String>,
+    pub limit: i64,
+}
+
+const SELECT_COLS: &str =
+    "id, kind, status, workspace_id, agent_id, provider, model, \
+     transport, persistence, provider_session_id, system_prompt_hash, \
+     pid, capabilities_json, parent_actor_id, restart_count, exit_code, \
+     exit_reason, duration_ms, created_at, updated_at, last_event_at";
+
+fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
+    use sqlx::Row;
+    let caps_json: String = row
+        .try_get("capabilities_json")
+        .unwrap_or_else(|_| "[]".into());
+    let capabilities: Vec<String> = serde_json::from_str(&caps_json).unwrap_or_default();
+    ActorRow {
+        id: row.try_get("id").unwrap_or_default(),
+        kind: row.try_get("kind").unwrap_or_default(),
+        status: row.try_get("status").unwrap_or_default(),
+        workspace_id: row.try_get("workspace_id").ok(),
+        agent_id: row.try_get("agent_id").ok(),
+        provider: row.try_get("provider").ok(),
+        model: row.try_get("model").ok(),
+        transport: row.try_get("transport").ok(),
+        persistence: row.try_get("persistence").ok(),
+        provider_session_id: row.try_get("provider_session_id").ok(),
+        system_prompt_hash: row.try_get("system_prompt_hash").ok(),
+        pid: row.try_get("pid").ok(),
+        capabilities,
+        parent_actor_id: row.try_get("parent_actor_id").ok(),
+        restart_count: row.try_get("restart_count").unwrap_or(0),
+        exit_code: row.try_get("exit_code").ok(),
+        exit_reason: row.try_get("exit_reason").ok(),
+        duration_ms: row.try_get("duration_ms").ok(),
+        created_at: row.try_get("created_at").unwrap_or_default(),
+        updated_at: row.try_get("updated_at").unwrap_or_default(),
+        last_event_at: row.try_get("last_event_at").ok(),
+    }
+}
+
+pub fn list_actors(filter: &ListActorsFilter) -> Result<Vec<ActorRow>> {
+    let mut conn = crate::db::open_db()?;
+    let limit = if filter.limit > 0 { filter.limit } else { 200 }.min(1000);
+    let mut sql = format!(
+        "SELECT {SELECT_COLS} FROM actors WHERE 1=1"
+    );
+    if filter.workspace_id.is_some() {
+        sql.push_str(" AND workspace_id = ?");
+    }
+    if filter.kind.is_some() {
+        sql.push_str(" AND kind = ?");
+    }
+    if filter.status.is_some() {
+        sql.push_str(" AND status = ?");
+    }
+    sql.push_str(" ORDER BY COALESCE(last_event_at, created_at) DESC LIMIT ?");
+
+    block_on(async {
+        let mut q = sqlx::query(&sql);
+        if let Some(w) = &filter.workspace_id {
+            q = q.bind(w);
+        }
+        if let Some(k) = &filter.kind {
+            q = q.bind(k);
+        }
+        if let Some(s) = &filter.status {
+            q = q.bind(s);
+        }
+        q = q.bind(limit);
+        let rows = q.fetch_all(&mut conn).await?;
+        Ok(rows.iter().map(row_to_actor).collect())
+    })
+}
+
+pub fn get_actor(actor_id: &str) -> Result<Option<ActorRow>> {
+    let mut conn = crate::db::open_db()?;
+    let sql = format!("SELECT {SELECT_COLS} FROM actors WHERE id = ?");
+    block_on(async {
+        let row = sqlx::query(&sql).bind(actor_id).fetch_optional(&mut conn).await?;
+        Ok(row.as_ref().map(row_to_actor))
+    })
+}
+
+/// Look up `(status, workspace_id)` for routing decisions in the input
+/// endpoint. Returns `None` if the actor isn't in the projection.
+pub fn actor_status(actor_id: &str) -> Result<Option<(String, Option<String>)>> {
+    let mut conn = crate::db::open_db()?;
+    block_on(async {
+        let row: Option<(String, Option<String>)> = sqlx::query_as(
+            "SELECT status, workspace_id FROM actors WHERE id = ?",
+        )
+        .bind(actor_id)
+        .fetch_optional(&mut conn)
+        .await?;
+        Ok(row)
     })
 }
