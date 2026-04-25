@@ -122,7 +122,7 @@ fn ship_event_rejects_reserved_job_type() {
 
 #[test]
 fn ship_event_rejects_studio_namespace() {
-    // Agents must not emit studio.* events — only StudioServer may do so
+    // `studio.*` is reserved for daemon-emitted UI events; agents must not emit them.
     let result = handle_ship_event("actor-1", "ws-1", "studio.message.visual", json!({}), false);
     assert!(result.is_err());
     let msg = result.unwrap_err().to_string();

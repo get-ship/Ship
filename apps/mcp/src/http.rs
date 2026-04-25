@@ -14,7 +14,6 @@ use std::path::Path;
 use tokio_util::sync::CancellationToken;
 
 use crate::server::ShipServer;
-use crate::studio_server::StudioServer;
 
 /// Read the bearer token from a given config.toml path.
 /// Returns None if the file is absent or has no [auth] token.
@@ -160,80 +159,6 @@ pub async fn run_http_server(port: u16) -> Result<()> {
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })
         .await
         .map_err(|e| anyhow!("HTTP server error: {e}"))?;
-
-    Ok(())
-}
-
-/// Build the axum Router for the Studio MCP HTTP server.
-///
-/// Serves two MCP endpoints on the same port — sharing one process and one
-/// The daemon owns the single `KernelRouter`. MCP servers delegate event
-/// routing and actor spawning to the daemon via HTTP, receiving events back
-/// through SSE subscriptions.
-///
-/// - `/mcp`   → `StudioServer`  — web UI (reduced tool set, studio actor)
-/// - `/agent` → `ShipServer`    — agent connections (full tool set, agent actor)
-pub fn build_studio_app(token: Option<String>, ct: CancellationToken) -> Router {
-    let studio_service: StreamableHttpService<StudioServer, LocalSessionManager> =
-        StreamableHttpService::new(
-            || Ok(StudioServer::new()),
-            Default::default(),
-            StreamableHttpServerConfig {
-                cancellation_token: ct.child_token(),
-                sse_retry: None,
-                sse_keep_alive: None,
-                ..Default::default()
-            },
-        );
-
-    let agent_service: StreamableHttpService<ShipServer, LocalSessionManager> =
-        StreamableHttpService::new(
-            || Ok(ShipServer::new()),
-            Default::default(),
-            StreamableHttpServerConfig {
-                cancellation_token: ct.child_token(),
-                sse_retry: None,
-                sse_keep_alive: None,
-                ..Default::default()
-            },
-        );
-
-    let app = Router::new()
-        .nest_service("/mcp", studio_service)
-        .nest_service("/agent", agent_service)
-        .layer(middleware::from_fn(cors_middleware));
-
-    if let Some(tok) = token {
-        app.route_layer(middleware::from_fn_with_state(tok, bearer_auth))
-    } else {
-        app
-    }
-}
-
-/// Start the Studio HTTP MCP server on the given port.
-pub async fn run_studio_http_server(port: u16) -> Result<()> {
-    let token = read_auth_token()?;
-
-    let ct = CancellationToken::new();
-
-    if token.is_some() {
-        tracing::info!("ship studio: bearer token auth enabled");
-    } else {
-        tracing::info!(
-            "ship studio: no [auth] token in ~/.ship/config.toml, server is unauthenticated"
-        );
-    }
-
-    let app = build_studio_app(token, ct.child_token());
-
-    let addr = format!("0.0.0.0:{port}");
-    tracing::info!("ship studio: HTTP server listening on {addr}");
-
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
-    axum::serve(listener, app)
-        .with_graceful_shutdown(async move { ct.cancelled_owned().await })
-        .await
-        .map_err(|e| anyhow!("Studio HTTP server error: {e}"))?;
 
     Ok(())
 }

@@ -438,11 +438,6 @@ impl ShipServer {
             .collect()
     }
 
-    // ---- Studio sync ----
-
-    // Studio-only tools (pull_agents, list_local_agents, push_bundle) are on
-    // StudioServer, not here. Agents don't need to pull/push their own config.
-
     // ---- Workspace ----
 
     #[tool(
@@ -511,14 +506,11 @@ impl ShipServer {
         result
     }
 
-    // Studio-only tools (write_skill_file, delete_skill_file, list_project_skills)
-    // are on StudioServer. Agents use list_skills and skill_vars for their needs.
-
     // ---- Session Files ----
 
     #[tool(
         description = "Write a file to .artifacts/. Fires a resource update notification \
-        so subscribed clients (Studio, agents) react immediately. \
+        so subscribed clients react immediately. \
         Path is relative to .artifacts/ (e.g. 'canvas.html', 'vitest/report.html')."
     )]
     async fn write_session_file(

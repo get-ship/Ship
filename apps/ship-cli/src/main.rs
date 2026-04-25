@@ -180,7 +180,6 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             Commands::Jobs { json } => jobs::run(json),
             Commands::Procs { slug, limit, json } => procs::run(slug.as_deref(), limit, json),
             Commands::Tail { slug, namespace } => tail::run(&slug, namespace.as_deref()),
-            Commands::Studio { port, open } => run_studio(port, open),
             Commands::Daemon { action } => {
                 use cli::DaemonCommands;
                 use daemon::{DaemonCommand, run_daemon};
@@ -214,38 +213,6 @@ fn dispatch_openapi(action: OpenapiCommands) -> Result<()> {
     match action {
         OpenapiCommands::Export { pretty } => openapi::run(pretty),
     }
-}
-
-fn run_studio(port: u16, open: bool) -> Result<()> {
-    eprintln!("Ship Studio MCP listening on http://localhost:{port}/mcp");
-
-    if open {
-        // Read daemon token and pass via URL fragment (anonymous auth path)
-        let token: Option<String> = read_daemon_token();
-        let url: String = match token {
-            Some(t) => format!("https://getship.dev/studio#token={t}"),
-            None => "https://getship.dev/studio".to_string(),
-        };
-        eprintln!("Opening {}", url.split('#').next().unwrap_or(&url));
-        #[cfg(target_os = "macos")]
-        let _ = std::process::Command::new("open").arg(&url).spawn();
-        #[cfg(target_os = "linux")]
-        let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
-        #[cfg(target_os = "windows")]
-        let _ = std::process::Command::new("cmd")
-            .args(["/C", "start", &url])
-            .spawn();
-    } else {
-        eprintln!("Open https://getship.dev/studio to connect");
-    }
-    mcp_serve::run_studio(port)
-}
-
-fn read_daemon_token() -> Option<String> {
-    let global_dir: std::path::PathBuf = runtime::project::get_global_dir()
-        .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".ship"));
-    let path: std::path::PathBuf = global_dir.join("daemon.token");
-    std::fs::read_to_string(path).ok().map(|s| s.trim().to_string())
 }
 
 #[cfg(feature = "unstable")]
