@@ -42,7 +42,7 @@ pub(crate) fn pack_bundles(name: &str) -> &'static [&'static str] {
 /// Read the `packs:` list from a view directory's manifest. Returns an
 /// empty vec when the view has no manifest or no packs declared. Silently
 /// drops unknown pack names so a typo doesn't break the view — the lint
-/// rule `stale-pack-declaration` surfaces those at author time.
+/// rule `pkg-stale-pack-declaration` surfaces those at author time.
 pub(crate) fn read_view_packs(dir: &PathBuf) -> Vec<String> {
     let Some(raw) = super::resolve::read_raw_manifest(dir) else {
         return Vec::new();

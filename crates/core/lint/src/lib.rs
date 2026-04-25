@@ -1,11 +1,15 @@
 //! View linter — enforce view-authoring discipline.
 //!
-//! Five rules:
-//! - `no-inline-script` (error)
-//! - `inline-style-budget` (warn > 50, error > 150)
-//! - `undefined-signal` (warn)
-//! - `missing-pack-declaration` (error)
-//! - `stale-pack-declaration` (warn)
+//! All rule IDs are category-prefixed (`<category>-<descriptor>`). The
+//! catalog and stability policy live in
+//! `docs/ship-contributing/references/docs/lint-rule-catalog.md`.
+//!
+//! Categories in use:
+//! - `style` — inline `<script>` / `<style>` budget rules.
+//! - `views` — Datastar signal hygiene.
+//! - `pkg`   — view-manifest pack declarations.
+//! - `ast`   — minijinja-AST checks (macros, imports, filters,
+//!            context fields, routes, ship-ops).
 
 use std::path::{Path, PathBuf};
 
@@ -18,11 +22,11 @@ mod tests;
 
 pub use report::{Category, Finding, Severity};
 
-pub const RULE_NO_INLINE_SCRIPT: &str = "no-inline-script";
-pub const RULE_INLINE_STYLE_BUDGET: &str = "inline-style-budget";
-pub const RULE_UNDEFINED_SIGNAL: &str = "undefined-signal";
-pub const RULE_MISSING_PACK_DECLARATION: &str = "missing-pack-declaration";
-pub const RULE_STALE_PACK_DECLARATION: &str = "stale-pack-declaration";
+pub const RULE_NO_INLINE_SCRIPT: &str = "style-no-inline-script";
+pub const RULE_INLINE_STYLE_BUDGET: &str = "style-inline-budget";
+pub const RULE_UNDEFINED_SIGNAL: &str = "views-undefined-signal";
+pub const RULE_MISSING_PACK_DECLARATION: &str = "pkg-missing-pack-declaration";
+pub const RULE_STALE_PACK_DECLARATION: &str = "pkg-stale-pack-declaration";
 
 pub use rules::ast::{
     RULE_AST_PARSE_ERROR, RULE_AST_UNDECLARED_SIGNAL, RULE_AST_UNDEFINED_CONTEXT,

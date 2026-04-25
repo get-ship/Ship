@@ -32,7 +32,7 @@ pack bundle arrives per-view. Source of truth:
 `apps/shipd/src/views/packs.rs`.
 
 Unknown pack names are silently dropped — the lint rule
-`stale-pack-declaration` surfaces typos at author time.
+`pkg-stale-pack-declaration` surfaces typos at author time.
 
 ## Pack → bundle mapping
 

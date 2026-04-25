@@ -328,8 +328,9 @@ pub enum LintCommands {
     Views {
         /// Lint only this view (directory name under `.ship/views/`)
         view: Option<String>,
-        /// Restrict to a single rule (repeatable). Valid: no-inline-script,
-        /// inline-style-budget, undefined-signal.
+        /// Restrict to a single rule (repeatable). All rule IDs are
+        /// category-prefixed: `style-*`, `views-*`, `pkg-*`, `ast-*`.
+        /// See `lint::ALL_RULES` for the full set.
         #[arg(long = "rule", value_name = "RULE")]
         rules: Vec<String>,
         /// Output format: human (default) or json
