@@ -194,7 +194,7 @@
       setSig(root, 'new_pipe_creating', true);
       setSig(root, 'new_pipe_error', '');
       const body = TEMPLATE.replace('__NAME__', trimmed);
-      const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+      const url = '/api/v1/workspaces/' + encodeURIComponent(workspaceId)
         + '/pipelines/' + encodeURIComponent(trimmed);
       try {
         const resp = await fetch(url, {

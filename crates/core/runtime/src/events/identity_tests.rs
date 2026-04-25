@@ -27,7 +27,7 @@ mod identity {
     #[test]
     fn spawned_actor_gets_unique_instance_id() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let identity_a = ActorIdentity {
             instance_id: ulid::Ulid::new().to_string(),
@@ -66,7 +66,7 @@ mod identity {
     #[test]
     fn label_stable_across_restarts_with_new_instance_id() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let label = "agent.reviewer";
 
@@ -147,7 +147,7 @@ mod identity {
     #[test]
     fn spawn_rejects_duplicate_label() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let id1 = ActorIdentity {
             instance_id: ulid::Ulid::new().to_string(),

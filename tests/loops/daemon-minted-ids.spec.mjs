@@ -57,7 +57,7 @@ async function main() {
     read_namespaces: ["agent."],
     subscribe_namespaces: ["studio.chat_turn"],
   };
-  const { status, data } = await api("/api/actor/spawn", {
+  const { status, data } = await api("/api/v1/actor/spawn", {
     method: "POST",
     body: JSON.stringify({
       config,

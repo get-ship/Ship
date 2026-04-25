@@ -132,15 +132,15 @@ fn section_macro_omits_icon_when_not_supplied() {
 fn section_macro_emits_sse_link_for_view_href() {
     #[derive(Serialize)]
     struct Ctx {}
-    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('Jobs', link_href='/api/view/pipelines', link_label='View all') }}{{ endsection() }}"#;
+    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('Jobs', link_href='/api/v1/view/pipelines', link_label='View all') }}{{ endsection() }}"#;
     let html = render_view_source("test-section-sse-link", source, &Ctx {}).unwrap();
     assert!(html.contains("View all"), "label: {html}");
     assert!(
-        html.contains("data-on:click.prevent=\"@get('/api/view/pipelines')\""),
-        "SSE handler must render for /api/view/ hrefs: {html}"
+        html.contains("data-on:click.prevent=\"@get('/api/v1/view/pipelines')\""),
+        "SSE handler must render for /api/v1/view/ hrefs: {html}"
     );
     assert!(
-        html.contains(r#"href="/api/view/pipelines""#),
+        html.contains(r#"href="/api/v1/view/pipelines""#),
         "href must render for fallback: {html}"
     );
     assert!(
@@ -184,7 +184,7 @@ fn sibling_partial_edit_busts_cache() {
     struct Ctx {}
 
     let dir = TempDir::new().unwrap();
-    let view_dir = dir.path().join(".ship/views/cache-bust");
+    let view_dir = runtime::ShipHome::project_ship_dir(dir.path()).join("views/cache-bust");
     std::fs::create_dir_all(view_dir.join("partials")).unwrap();
 
     let index_path = view_dir.join("index.html.j2");
@@ -195,9 +195,9 @@ fn sibling_partial_edit_busts_cache() {
 
     // Point discovery at our temp project dir.
     // SAFETY: tests in this binary serially, and we restore prior state.
-    let prior = std::env::var("SHIP_DIR").ok();
+    let prior = runtime::env::read_raw(runtime::env::Var::Dir).ok();
     unsafe {
-        std::env::set_var("SHIP_DIR", dir.path().join(".ship"));
+        runtime::env::set(runtime::env::Var::Dir, runtime::ShipHome::project_ship_dir(dir.path()));
     }
 
     let first = render_view_source("cache-bust/index.html.j2", index_src, &Ctx {})
@@ -213,8 +213,8 @@ fn sibling_partial_edit_busts_cache() {
 
     unsafe {
         match prior {
-            Some(v) => std::env::set_var("SHIP_DIR", v),
-            None => std::env::remove_var("SHIP_DIR"),
+            Some(v) => runtime::env::set(runtime::env::Var::Dir, v),
+            None => runtime::env::remove(runtime::env::Var::Dir),
         }
     }
 

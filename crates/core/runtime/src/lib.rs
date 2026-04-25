@@ -5,8 +5,10 @@ pub mod config;
 pub mod data;
 pub mod db;
 pub mod artifacts;
+pub mod env;
 pub mod errors;
 pub mod events;
+pub mod home;
 pub mod fs_util;
 pub mod hooks;
 pub mod log;
@@ -20,6 +22,10 @@ pub mod supervisor;
 #[cfg(feature = "unstable")]
 pub mod sync;
 pub mod services;
+
+// Re-export typed home accessors at the crate root so callers can write
+// `runtime::ShipHome::project_ship_dir(&p)` without going through `home::`.
+pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
 
 // Backward-compatible module aliases.
 // Canonical implementation lives under `runtime::agents::*`.
@@ -80,10 +86,6 @@ pub use skill_vars::{
 pub use db::artifact_registry::{
     get_compiled_asset_cache_by_external_id_db, get_compiled_asset_cache_by_uuid_db,
     upsert_compiled_asset_cache_db,
-};
-pub use db::branch_context::{
-    clear_branch_doc, clear_branch_link, get_branch_doc, get_branch_link, set_branch_doc,
-    set_branch_link,
 };
 pub use db::managed_state::{get_managed_state_db, set_managed_state_db};
 pub use db::session::get_workspace_session_record_db;
@@ -386,7 +388,7 @@ mod tests {
         assert!(!project_path.exists());
         assert_eq!(
             fs::canonicalize(project_dir)?,
-            fs::canonicalize(tmp.path().join(".ship"))?
+            fs::canonicalize(crate::ShipHome::project_ship_dir(tmp.path()))?
         );
         Ok(())
     }
@@ -395,7 +397,7 @@ mod tests {
     fn test_get_project_dir_resolves_main_ship_from_worktree() -> anyhow::Result<()> {
         let tmp = tempdir()?;
         let main_root = tmp.path().join("main");
-        let main_ship = main_root.join(".ship");
+        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
         let common_git = main_root.join(".git");
         let worktree_git = common_git.join("worktrees").join("feature-auth");
         let worktree_root = tmp.path().join("worktrees").join("feature-auth");
@@ -422,7 +424,7 @@ mod tests {
     fn test_get_project_dir_prefers_main_ship_when_worktree_has_local_copy() -> anyhow::Result<()> {
         let tmp = tempdir()?;
         let main_root = tmp.path().join("main");
-        let main_ship = main_root.join(".ship");
+        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
         let common_git = main_root.join(".git");
         let worktree_git = common_git.join("worktrees").join("feature-auth");
         let worktree_root = tmp.path().join("worktrees").join("feature-auth");
@@ -430,7 +432,7 @@ mod tests {
 
         fs::create_dir_all(&main_ship)?;
         fs::create_dir_all(&worktree_git)?;
-        fs::create_dir_all(worktree_root.join(".ship"))?;
+        fs::create_dir_all(crate::ShipHome::project_ship_dir(&worktree_root))?;
         fs::create_dir_all(&worktree_nested)?;
         fs::write(
             worktree_root.join(".git"),

@@ -20,7 +20,7 @@ use super::registry::ProcessRegistry;
 
 fn setup() -> (TempDir, std::path::PathBuf, Arc<Mutex<KernelRouter>>) {
     let dir = TempDir::new().unwrap();
-    let base = dir.path().join(".ship");
+    let base = runtime::ShipHome::project_ship_dir(dir.path());
     let router = KernelRouter::new(base.clone()).unwrap();
     (dir, base, Arc::new(Mutex::new(router)))
 }

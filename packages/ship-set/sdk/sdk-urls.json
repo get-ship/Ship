@@ -163,6 +163,22 @@
       },
       "response": null
     },
+    "POST /api/create/{surface}": {
+      "method": "POST",
+      "path": "/api/create/{surface}",
+      "purpose": "create",
+      "params": [
+        "surface"
+      ],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/CreateRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/CreateResponse"
+      }
+    },
     "GET /api/events": {
       "method": "GET",
       "path": "/api/events",
@@ -172,6 +188,20 @@
       "description": null,
       "request": null,
       "response": null
+    },
+    "POST /api/events/emit": {
+      "method": "POST",
+      "path": "/api/events/emit",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/events/emit",
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/EmitEventReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
     },
     "POST /api/events/route": {
       "method": "POST",
@@ -222,6 +252,38 @@
       "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
       "request": {
         "$ref": "#/components/schemas/JobEndRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/jobs/{job_id}/status": {
+      "method": "POST",
+      "path": "/api/jobs/{job_id}/status",
+      "purpose": "create",
+      "params": [
+        "job_id"
+      ],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/JobStatusReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/jobs/{slug}/step-done": {
+      "method": "POST",
+      "path": "/api/jobs/{slug}/step-done",
+      "purpose": "create",
+      "params": [
+        "slug"
+      ],
+      "summary": "POST /api/jobs/{slug}/step-done — agent declares the current pipeline step\ncomplete. Daemon resolves the active step from the projection, builds a\n`step.done_declared` envelope, and routes it through the kernel.",
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/StepDoneReq"
       },
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
@@ -307,6 +369,44 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
+    "GET /api/projects": {
+      "method": "GET",
+      "path": "/api/projects",
+      "purpose": "read",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/ProjectsResponse"
+      }
+    },
+    "POST /api/projects": {
+      "method": "POST",
+      "path": "/api/projects",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/ProjectAddReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/ProjectsResponse"
+      }
+    },
+    "POST /api/projects/switch": {
+      "method": "POST",
+      "path": "/api/projects/switch",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/ProjectSwitchReq"
+      },
+      "response": null
+    },
     "GET /api/providers": {
       "method": "GET",
       "path": "/api/providers",
@@ -317,6 +417,18 @@
       "request": null,
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/providers/installed": {
+      "method": "GET",
+      "path": "/api/providers/installed",
+      "purpose": "read",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/InstalledProvidersResponse"
       }
     },
     "POST /api/rebuild-projections": {
@@ -342,6 +454,112 @@
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
       }
+    },
+    "POST /api/sessions/spawn": {
+      "method": "POST",
+      "path": "/api/sessions/spawn",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/SpawnBody"
+      },
+      "response": {
+        "$ref": "#/components/schemas/SpawnResponse"
+      }
+    },
+    "GET /api/sessions/{id}": {
+      "method": "GET",
+      "path": "/api/sessions/{id}",
+      "purpose": "read",
+      "params": [
+        "id"
+      ],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/SessionMetaWire"
+      }
+    },
+    "DELETE /api/sessions/{id}": {
+      "method": "DELETE",
+      "path": "/api/sessions/{id}",
+      "purpose": "delete",
+      "params": [
+        "id"
+      ],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": null
+    },
+    "GET /api/sessions/{id}/events": {
+      "method": "GET",
+      "path": "/api/sessions/{id}/events",
+      "purpose": "read",
+      "params": [
+        "id"
+      ],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": null
+    },
+    "POST /api/sessions/{id}/input": {
+      "method": "POST",
+      "path": "/api/sessions/{id}/input",
+      "purpose": "create",
+      "params": [
+        "id"
+      ],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/InputBody"
+      },
+      "response": null
+    },
+    "POST /api/sessions/{id}/message": {
+      "method": "POST",
+      "path": "/api/sessions/{id}/message",
+      "purpose": "create",
+      "params": [
+        "id"
+      ],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/MessageBody"
+      },
+      "response": null
+    },
+    "POST /api/sessions/{id}/reply": {
+      "method": "POST",
+      "path": "/api/sessions/{id}/reply",
+      "purpose": "create",
+      "params": [
+        "id"
+      ],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/MessageBody"
+      },
+      "response": null
+    },
+    "GET /api/sessions/{id}/stream": {
+      "method": "GET",
+      "path": "/api/sessions/{id}/stream",
+      "purpose": "sse",
+      "params": [
+        "id"
+      ],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": null
     },
     "GET /api/settings": {
       "method": "GET",
@@ -405,6 +623,20 @@
       "request": null,
       "response": null
     },
+    "POST /api/themes/contrast": {
+      "method": "POST",
+      "path": "/api/themes/contrast",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/ContrastRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/ContrastReport"
+      }
+    },
     "GET /api/v/{path}": {
       "method": "GET",
       "path": "/api/v/{path}",
@@ -416,6 +648,66 @@
       "description": null,
       "request": null,
       "response": null
+    },
+    "GET /api/view-source/{path}": {
+      "method": "GET",
+      "path": "/api/view-source/{path}",
+      "purpose": "read",
+      "params": [
+        "path"
+      ],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/ViewSourceResponse"
+      }
+    },
+    "POST /api/views/{name}/fork": {
+      "method": "POST",
+      "path": "/api/views/{name}/fork",
+      "purpose": "create",
+      "params": [
+        "name"
+      ],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/WriteResponse"
+      }
+    },
+    "PUT /api/views/{name}/manifest": {
+      "method": "PUT",
+      "path": "/api/views/{name}/manifest",
+      "purpose": "update",
+      "params": [
+        "name"
+      ],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/WriteManifestRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/WriteResponse"
+      }
+    },
+    "PUT /api/views/{name}/template": {
+      "method": "PUT",
+      "path": "/api/views/{name}/template",
+      "purpose": "update",
+      "params": [
+        "name"
+      ],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/WriteTemplateRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/WriteResponse"
+      }
     },
     "GET /api/workspaces": {
       "method": "GET",

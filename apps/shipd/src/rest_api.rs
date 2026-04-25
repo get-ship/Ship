@@ -87,7 +87,7 @@ pub struct MeshResponse {
 #[utoipa::path(
     operation_id = "meshRegister",
     post,
-    path = "/api/mesh/register",
+    path = "/api/v1/mesh/register",
     request_body = MeshRegisterReq,
     responses(
         (status = 200, body = MeshResponse),
@@ -181,7 +181,7 @@ pub async fn mesh_register(
 #[utoipa::path(
     operation_id = "meshSend",
     post,
-    path = "/api/mesh/send",
+    path = "/api/v1/mesh/send",
     request_body = MeshSendReq,
     responses(
         (status = 200, body = MeshResponse),
@@ -223,7 +223,7 @@ pub async fn mesh_send(
 #[utoipa::path(
     operation_id = "meshBroadcast",
     post,
-    path = "/api/mesh/broadcast",
+    path = "/api/v1/mesh/broadcast",
     request_body = MeshBroadcastReq,
     responses(
         (status = 200, body = MeshResponse),
@@ -262,7 +262,7 @@ pub async fn mesh_broadcast(
 #[utoipa::path(
     operation_id = "meshDiscover",
     get,
-    path = "/api/mesh/discover",
+    path = "/api/v1/mesh/discover",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -291,7 +291,7 @@ pub async fn mesh_discover(
 #[utoipa::path(
     operation_id = "meshStatusUpdate",
     post,
-    path = "/api/mesh/status",
+    path = "/api/v1/mesh/status",
     request_body = MeshStatusReq,
     responses(
         (status = 200, body = MeshResponse),
@@ -343,7 +343,7 @@ pub struct CapabilitiesResponse {
 #[utoipa::path(
     operation_id = "capabilities",
     get,
-    path = "/api/capabilities",
+    path = "/api/v1/capabilities",
     responses(
         (status = 200, body = CapabilitiesResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -387,7 +387,7 @@ pub struct CheckoutHookReq {
 #[utoipa::path(
     operation_id = "hooksCheckout",
     post,
-    path = "/api/hooks/checkout",
+    path = "/api/v1/hooks/checkout",
     request_body = CheckoutHookReq,
     responses(
         (status = 200, description = "Workspace reconciled for the checked-out branch", body = MeshResponse),
@@ -448,7 +448,7 @@ pub async fn hooks_checkout(
 #[utoipa::path(
     operation_id = "meshEvents",
     get,
-    path = "/api/mesh/events/{agent_id}",
+    path = "/api/v1/mesh/events/{agent_id}",
     params(("agent_id" = String, Path, description = "Agent ID")),
     responses(
         (status = 200, description = "SSE stream of mesh events"),

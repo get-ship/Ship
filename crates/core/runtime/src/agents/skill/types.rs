@@ -1,10 +1,59 @@
 //! Skill data types + frontmatter validation.
 
 use std::path::Path;
+use std::sync::OnceLock;
 
 use anyhow::{Result, anyhow};
+use jsonschema::Validator;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use specta::Type;
+
+/// Canonical SKILL.md frontmatter schema (embedded at compile time).
+///
+/// Source of truth: `schemas/skill.schema.json` at the workspace root. Keeping
+/// the schema string embedded means the runtime can validate every SKILL.md
+/// without depending on an installed copy at runtime.
+const SKILL_SCHEMA_JSON: &str =
+    include_str!("../../../../../../schemas/skill.schema.json");
+
+fn skill_schema_validator() -> &'static Validator {
+    static VALIDATOR: OnceLock<Validator> = OnceLock::new();
+    VALIDATOR.get_or_init(|| {
+        let schema: Value = serde_json::from_str(SKILL_SCHEMA_JSON)
+            .expect("schemas/skill.schema.json must be valid JSON");
+        jsonschema::validator_for(&schema)
+            .expect("schemas/skill.schema.json must be a valid JSON Schema")
+    })
+}
+
+/// Validate a parsed SKILL.md frontmatter (already converted from YAML to JSON)
+/// against the canonical schema. On violation, returns an error that names the
+/// skill directory and every offending field.
+pub(super) fn validate_against_schema(value: &Value, path: &Path) -> Result<()> {
+    let validator = skill_schema_validator();
+    let errors: Vec<String> = validator
+        .iter_errors(value)
+        .map(|err| {
+            let location = err.instance_path().to_string();
+            let field = if location.is_empty() {
+                "<root>".to_string()
+            } else {
+                location
+            };
+            format!("  - {field}: {err}")
+        })
+        .collect();
+    if errors.is_empty() {
+        Ok(())
+    } else {
+        Err(anyhow!(
+            "Invalid SKILL.md frontmatter in {}:\n{}",
+            path.display(),
+            errors.join("\n")
+        ))
+    }
+}
 
 /// Origin of a skill document.
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Type, Default)]
@@ -35,8 +84,20 @@ pub struct Skill {
     pub description: Option<String>,
     #[serde(default)]
     pub version: Option<String>,
+    /// Free-form author strings. Required by the canonical schema; defaulted
+    /// at create time when the caller does not supply one.
     #[serde(default)]
-    pub author: Option<String>,
+    pub authors: Vec<String>,
+    /// Stable storage key. Survives directory renames. Defaults to `id` when
+    /// absent in frontmatter.
+    #[serde(default)]
+    pub stable_id: Option<String>,
+    /// Discovery tags. Required by the canonical schema.
+    #[serde(default)]
+    pub tags: Vec<String>,
+    /// Visibility. None means default-public.
+    #[serde(default)]
+    pub audience: Option<String>,
     /// The command template. Use `$ARGUMENTS` as a placeholder for user input.
     pub content: String,
     #[serde(default)]
@@ -49,26 +110,46 @@ pub struct Skill {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(super) struct SkillSpecMetadata {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) display_name: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) source: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub(super) struct SkillSpecFrontmatter {
     pub(super) name: String,
+    #[serde(rename = "stable-id")]
+    pub(super) stable_id: String,
     pub(super) description: String,
-    #[serde(default)]
+    pub(super) tags: Vec<String>,
+    pub(super) authors: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) audience: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) supersedes: Option<String>,
+    #[serde(
+        default,
+        rename = "superseded-by",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub(super) superseded_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) compatibility: Option<String>,
-    #[serde(rename = "allowed-tools", default)]
+    #[serde(
+        rename = "allowed-tools",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
     pub(super) allowed_tools: Option<Vec<String>>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) license: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) metadata: Option<SkillSpecMetadata>,
     /// Artifact types produced by this skill (e.g. `[html, adr]`).
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) artifacts: Option<Vec<String>>,
 }
 

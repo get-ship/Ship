@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/madvib/ship/main/schemas/trigger.schema.json",
   "title": "Ship Trigger",
-  "description": "Schema for .ship/hooks/*.jsonc — a reactive trigger that subscribes to an event and runs actions. (Directory is currently named 'hooks'; rename to 'triggers' is planned.)",
+  "description": "Schema for .ship/triggers/*.jsonc — a reactive trigger that subscribes to an event and runs actions. The actions[] type vocabulary is a CLOSED ENUM at v1: collection.insert, collection.update, event.emit, pipeline.trigger. Adding a new action type is a coordinated change across this schema, the loader (crates/core/runtime/src/hooks/), and a Reference page; unknown types are rejected at load time.",
   "type": "object",
   "required": ["name", "trigger", "actions"],
   "additionalProperties": false,
@@ -105,7 +105,7 @@
     },
     "actions": {
       "type": "array",
-      "description": "Ordered list of actions to run when the trigger fires.",
+      "description": "Ordered list of actions to run when the trigger fires. CLOSED ENUM at v1: each action's `type` must be one of collection.insert, collection.update, event.emit, pipeline.trigger. The oneOf below is exhaustive; unknown action types fail validation.",
       "items": {
         "type": "object",
         "required": ["type"],

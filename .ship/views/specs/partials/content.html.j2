@@ -8,7 +8,7 @@
           <h1>{{ selected.title if selected.title else '(untitled)' }}</h1>
           <div class="specs-detail-actions">
             <ship-button variant="outline" size="sm"
-              {{ on_click("@post('/api/specs', {contentType: 'json', body: JSON.stringify({title: '" ~ selected.title_js ~ " (copy)', body: '" ~ selected.body_js ~ "'})})") }}>
+              {{ on_click("@post('/api/v1/specs', {contentType: 'json', body: JSON.stringify({title: '" ~ selected.title_js ~ " (copy)', body: '" ~ selected.body_js ~ "'})})") }}>
               Duplicate
             </ship-button>
             <ship-button variant="outline" size="sm" tone="destructive"
@@ -65,7 +65,7 @@
       <div class="specs-launch-bar-inner">
         <ship-button variant="solid" tone="primary" size="lg"
           {% if not selected.pipeline %}disabled{% endif %}
-          {{ on_click("@post('/api/specs/" ~ selected.id ~ "/launch')") }}>
+          {{ on_click("@post('/api/v1/specs/" ~ selected.id ~ "/launch')") }}>
           {{ selected.launch_label }}
         </ship-button>
         <span class="specs-launch-hint">{{ selected.launch_hint }}</span>
@@ -77,7 +77,7 @@
                        cancel-label="Cancel"
                        data-attr-open="$confirmDelete"
                        {{ on('ship-cancel', '$confirmDelete = false') }}
-                       {{ on('ship-confirm', "@delete('/api/specs/" ~ selected.id ~ "'); $confirmDelete = false") }}>
+                       {{ on('ship-confirm', "@delete('/api/v1/specs/" ~ selected.id ~ "'); $confirmDelete = false") }}>
       <span slot="title">Delete spec</span>
       This removes the spec from the project. This cannot be undone.
     </ship-alert-dialog>

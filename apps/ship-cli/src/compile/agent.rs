@@ -18,7 +18,7 @@ pub(crate) fn apply_agent_to_library(
     };
 
     let profile = AgentConfig::load(&path)?;
-    let ship_dir = project_root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
 
     // Permission overrides — pass ship_dir so preset sections from permissions.jsonc are resolved
     library.permissions =
@@ -117,8 +117,7 @@ pub(crate) fn apply_agent_to_library(
 // ── Team agents ──────────────────────────────────────────────────────────────
 
 fn load_team_agents(project_root: &Path, provider_id: &str) -> Vec<(String, String)> {
-    let teams_dir = project_root
-        .join(".ship")
+    let teams_dir = runtime::ShipHome::project_ship_dir(project_root)
         .join("agents")
         .join("teams")
         .join(provider_id);

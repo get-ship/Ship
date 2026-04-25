@@ -103,5 +103,6 @@ pub fn resolved(servers: Vec<McpServerConfig>) -> ResolvedConfig {
         claude_auto_updates: None,
         claude_include_co_authored_by: None,
         studio_mcp_url: None,
+        ship_home_dir: None,
     }
 }

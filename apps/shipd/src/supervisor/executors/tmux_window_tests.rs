@@ -48,7 +48,7 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
     // Real-tmux integration test. Flaky under parallel test execution
     // because tmux's session init races with sibling tests. Gate with
     // SHIP_TMUX_TESTS=1 to run locally; the default test run skips it.
-    if std::env::var("SHIP_TMUX_TESTS").ok().as_deref() != Some("1") {
+    if runtime::env::read_raw(runtime::env::Var::TmuxTests).ok().as_deref() != Some("1") {
         eprintln!("skipping: set SHIP_TMUX_TESTS=1 to run");
         return;
     }

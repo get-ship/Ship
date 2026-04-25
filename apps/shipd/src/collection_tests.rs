@@ -10,7 +10,7 @@ mod tests {
 
     /// Write a schema JSONC file into the test daemon's .ship/collections/ dir.
     fn write_schema(daemon: &TestDaemon, id: &str, schema_json: &str) {
-        let schemas_dir = daemon.temp_dir.path().join(".ship").join("collections");
+        let schemas_dir = runtime::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("collections");
         std::fs::create_dir_all(&schemas_dir).unwrap();
         std::fs::write(schemas_dir.join(format!("{id}.jsonc")), schema_json).unwrap();
     }
@@ -36,7 +36,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn list_collections_includes_builtins() {
         let daemon = TestDaemon::new().await;
-        let resp = daemon.get("/api/collections").await;
+        let resp = daemon.get("/api/v1/collections").await;
         assert_eq!(resp.status, 200);
         assert_eq!(resp.body["ok"], true);
         // 4 built-in collections: specs, adrs, notes, feedback
@@ -54,7 +54,7 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        let resp = daemon.get("/api/collections").await;
+        let resp = daemon.get("/api/v1/collections").await;
         assert_eq!(resp.status, 200);
         let data = resp.body["data"].as_array().unwrap();
         // 4 built-in + 1 user-defined
@@ -69,7 +69,7 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        let resp = daemon.get("/api/collections/task/schema").await;
+        let resp = daemon.get("/api/v1/collections/task/schema").await;
         assert_eq!(resp.status, 200);
         assert_eq!(resp.body["data"]["id"], "task");
         assert!(resp.body["data"]["fields"]["title"].is_object());
@@ -78,7 +78,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn get_schema_not_found() {
         let daemon = TestDaemon::new().await;
-        let resp = daemon.get("/api/collections/nonexistent/schema").await;
+        let resp = daemon.get("/api/v1/collections/nonexistent/schema").await;
         assert_eq!(resp.status, 404);
     }
 
@@ -89,7 +89,7 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        let resp = daemon.post_json("/api/collections/task/items", &json!({
+        let resp = daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "t1",
             "data": { "title": "Write tests", "status": "todo", "priority": 1 }
         })).await;
@@ -106,7 +106,7 @@ mod tests {
         write_schema(&daemon, "task", task_schema_json());
 
         // Missing required field "title".
-        let resp = daemon.post_json("/api/collections/task/items", &json!({
+        let resp = daemon.post_json("/api/v1/collections/task/items", &json!({
             "data": { "status": "todo" }
         })).await;
 
@@ -119,7 +119,7 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        let resp = daemon.post_json("/api/collections/task/items", &json!({
+        let resp = daemon.post_json("/api/v1/collections/task/items", &json!({
             "data": { "title": "Test", "status": "invalid" }
         })).await;
 
@@ -132,7 +132,7 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        let resp = daemon.post_json("/api/collections/task/items", &json!({
+        let resp = daemon.post_json("/api/v1/collections/task/items", &json!({
             "data": { "title": "Auto ID" }
         })).await;
 
@@ -148,12 +148,12 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "g1",
             "data": { "title": "Fetch me", "status": "doing" }
         })).await;
 
-        let resp = daemon.get("/api/collections/task/items/g1").await;
+        let resp = daemon.get("/api/v1/collections/task/items/g1").await;
         assert_eq!(resp.status, 200);
         assert_eq!(resp.body["data"]["data"]["title"], "Fetch me");
         assert_eq!(resp.body["data"]["data"]["status"], "doing");
@@ -165,11 +165,11 @@ mod tests {
         write_schema(&daemon, "task", task_schema_json());
 
         // Trigger table creation by any request first.
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "x", "data": { "title": "Seed" }
         })).await;
 
-        let resp = daemon.get("/api/collections/task/items/nonexistent").await;
+        let resp = daemon.get("/api/v1/collections/task/items/nonexistent").await;
         assert_eq!(resp.status, 404);
     }
 
@@ -180,12 +180,12 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "u1",
             "data": { "title": "Original", "status": "todo", "priority": 5 }
         })).await;
 
-        let resp = daemon.put_json("/api/collections/task/items/u1", &json!({
+        let resp = daemon.put_json("/api/v1/collections/task/items/u1", &json!({
             "data": { "status": "done" }
         })).await;
 
@@ -201,14 +201,14 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "d1", "data": { "title": "Delete me" }
         })).await;
 
-        let resp = daemon.delete("/api/collections/task/items/d1").await;
+        let resp = daemon.delete("/api/v1/collections/task/items/d1").await;
         assert_eq!(resp.status, 200);
 
-        let check = daemon.get("/api/collections/task/items/d1").await;
+        let check = daemon.get("/api/v1/collections/task/items/d1").await;
         assert_eq!(check.status, 404);
     }
 
@@ -218,11 +218,11 @@ mod tests {
         write_schema(&daemon, "task", task_schema_json());
 
         // Trigger table creation.
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "x", "data": { "title": "Seed" }
         })).await;
 
-        let resp = daemon.delete("/api/collections/task/items/ghost").await;
+        let resp = daemon.delete("/api/v1/collections/task/items/ghost").await;
         assert_eq!(resp.status, 404);
     }
 
@@ -234,13 +234,13 @@ mod tests {
         write_schema(&daemon, "task", task_schema_json());
 
         for i in 1..=3 {
-            daemon.post_json("/api/collections/task/items", &json!({
+            daemon.post_json("/api/v1/collections/task/items", &json!({
                 "id": format!("q{i}"),
                 "data": { "title": format!("Task {i}"), "status": "todo" }
             })).await;
         }
 
-        let resp = daemon.post_json("/api/collections/task/query", &json!({
+        let resp = daemon.post_json("/api/v1/collections/task/query", &json!({
             "collection": "task"
         })).await;
 
@@ -253,14 +253,14 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "f1", "data": { "title": "A", "status": "todo" }
         })).await;
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "f2", "data": { "title": "B", "status": "done" }
         })).await;
 
-        let resp = daemon.post_json("/api/collections/task/query", &json!({
+        let resp = daemon.post_json("/api/v1/collections/task/query", &json!({
             "collection": "task",
             "filter": { "status": "done" }
         })).await;
@@ -277,7 +277,7 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "file1",
             "data": {
                 "title": "With attachment",
@@ -285,7 +285,7 @@ mod tests {
             }
         })).await;
 
-        let resp = daemon.get("/api/collections/task/items/file1").await;
+        let resp = daemon.get("/api/v1/collections/task/items/file1").await;
         assert_eq!(resp.status, 200);
         assert_eq!(resp.body["data"]["data"]["attachment"], ".artifacts/design.png");
     }
@@ -297,12 +297,12 @@ mod tests {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "bool1",
             "data": { "title": "Done task", "done": true }
         })).await;
 
-        let resp = daemon.get("/api/collections/task/items/bool1").await;
+        let resp = daemon.get("/api/v1/collections/task/items/bool1").await;
         assert_eq!(resp.status, 200);
         // SQLite stores booleans as integers (0/1). true may round-trip as 1.
         let done = &resp.body["data"]["data"]["done"];
@@ -320,17 +320,17 @@ mod tests {
             "fields": { "body": { "type": "markdown", "required": true } }
         }"#);
 
-        daemon.post_json("/api/collections/task/items", &json!({
+        daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "t1", "data": { "title": "Task" }
         })).await;
-        daemon.post_json("/api/collections/note/items", &json!({
+        daemon.post_json("/api/v1/collections/note/items", &json!({
             "id": "n1", "data": { "body": "Note content" }
         })).await;
 
-        let tasks = daemon.post_json("/api/collections/task/query", &json!({
+        let tasks = daemon.post_json("/api/v1/collections/task/query", &json!({
             "collection": "task"
         })).await;
-        let notes = daemon.post_json("/api/collections/note/query", &json!({
+        let notes = daemon.post_json("/api/v1/collections/note/query", &json!({
             "collection": "note"
         })).await;
 
@@ -346,18 +346,18 @@ mod tests {
         write_schema(&daemon, "task", task_schema_json());
 
         // Create
-        let create_resp = daemon.post_json("/api/collections/task/items", &json!({
+        let create_resp = daemon.post_json("/api/v1/collections/task/items", &json!({
             "id": "lifecycle",
             "data": { "title": "E2E Test", "status": "todo", "priority": 3 }
         })).await;
         assert_eq!(create_resp.status, 201);
 
         // Read
-        let get_resp = daemon.get("/api/collections/task/items/lifecycle").await;
+        let get_resp = daemon.get("/api/v1/collections/task/items/lifecycle").await;
         assert_eq!(get_resp.body["data"]["data"]["title"], "E2E Test");
 
         // Update
-        let update_resp = daemon.put_json("/api/collections/task/items/lifecycle", &json!({
+        let update_resp = daemon.put_json("/api/v1/collections/task/items/lifecycle", &json!({
             "data": { "status": "done" }
         })).await;
         assert_eq!(update_resp.status, 200);
@@ -365,22 +365,22 @@ mod tests {
         assert_eq!(update_resp.body["data"]["data"]["title"], "E2E Test");
 
         // Query
-        let query_resp = daemon.post_json("/api/collections/task/query", &json!({
+        let query_resp = daemon.post_json("/api/v1/collections/task/query", &json!({
             "collection": "task",
             "filter": { "status": "done" }
         })).await;
         assert_eq!(query_resp.body["count"], 1);
 
         // Delete
-        let delete_resp = daemon.delete("/api/collections/task/items/lifecycle").await;
+        let delete_resp = daemon.delete("/api/v1/collections/task/items/lifecycle").await;
         assert_eq!(delete_resp.status, 200);
 
         // Verify gone
-        let gone_resp = daemon.get("/api/collections/task/items/lifecycle").await;
+        let gone_resp = daemon.get("/api/v1/collections/task/items/lifecycle").await;
         assert_eq!(gone_resp.status, 404);
 
         // Verify query empty
-        let empty_resp = daemon.post_json("/api/collections/task/query", &json!({
+        let empty_resp = daemon.post_json("/api/v1/collections/task/query", &json!({
             "collection": "task",
             "filter": { "status": "done" }
         })).await;

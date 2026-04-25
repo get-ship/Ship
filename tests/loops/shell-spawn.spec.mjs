@@ -44,7 +44,7 @@ function fail(reason, details = {}) {
 }
 
 async function main() {
-  const { status, data: spawn } = await api("/api/sessions/spawn", {
+  const { status, data: spawn } = await api("/api/v1/sessions/spawn", {
     method: "POST",
     body: JSON.stringify({
       workspace_id: "feat-view-dev-studio",
@@ -84,7 +84,7 @@ async function main() {
     if (!row) fail("shell actor row never materialised in projection", { id });
     if (!row.live) fail("actor not marked live on mesh", { row });
   } finally {
-    await api(`/api/sessions/${id}`, { method: "DELETE" });
+    await api(`/api/v1/sessions/${id}`, { method: "DELETE" });
   }
 
   // After kill, it should drop from the mesh within a beat.

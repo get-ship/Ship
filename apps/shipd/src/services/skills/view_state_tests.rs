@@ -19,7 +19,7 @@ fn write_skill(dir: &Path, name: &str, fm: &str, body: &str) {
 #[test]
 fn empty_returns_empty() {
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship).unwrap();
     let scopes = scopes_from(&ship, None);
     assert!(list_skills_with_scopes(&scopes).is_empty());
@@ -28,7 +28,7 @@ fn empty_returns_empty() {
 #[test]
 fn parses_frontmatter_into_summary() {
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship.join("skills")).unwrap();
     write_skill(
         &ship.join("skills"),
@@ -47,7 +47,7 @@ fn parses_frontmatter_into_summary() {
 #[test]
 fn load_skill_reads_body_and_vars() {
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship.join("skills").join("x").join("assets")).unwrap();
     write_skill(
         &ship.join("skills"),
@@ -69,7 +69,7 @@ fn load_skill_reads_body_and_vars() {
 #[test]
 fn load_skill_returns_none_for_missing() {
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship).unwrap();
     let scopes = scopes_from(&ship, None);
     assert!(load_skill_with_scopes(&scopes, "nope").is_none());
@@ -79,7 +79,7 @@ fn load_skill_returns_none_for_missing() {
 fn merges_project_and_global_scopes() {
     // Global ship_dir hosts two skills ("g-only" and "shared").
     let global_tmp = tempdir().unwrap();
-    let global_ship = global_tmp.path().join(".ship");
+    let global_ship = runtime::ShipHome::project_ship_dir(global_tmp.path());
     std::fs::create_dir_all(global_ship.join("skills")).unwrap();
     write_skill(
         &global_ship.join("skills"),
@@ -97,7 +97,7 @@ fn merges_project_and_global_scopes() {
     // Project ship_dir hosts "p-only" and "shared" — project wins on dedup.
     let project_tmp = tempdir().unwrap();
     let project_root = project_tmp.path();
-    let project_ship = project_root.join(".ship");
+    let project_ship = runtime::ShipHome::project_ship_dir(project_root);
     std::fs::create_dir_all(project_ship.join("skills")).unwrap();
     // A minimal manifest isn't strictly required (read_skill_paths falls
     // back to `skills/` when absent), but writing one exercises the same
@@ -144,7 +144,7 @@ fn merges_project_and_global_scopes() {
 #[test]
 fn scope_skipped_when_project_matches_global() {
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship.join("skills")).unwrap();
     write_skill(&ship.join("skills"), "dup", "name: dup\n", "body");
     // Passing the same path as both scopes collapses to a single (global)
@@ -197,7 +197,7 @@ fn list_skills_public_discovers_our_tmp_skill() {
     // during tests, which is fine: we only assert that our unique skill
     // appears (not that the list is exclusive to it).
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship.join("skills")).unwrap();
     write_skill(
         &ship.join("skills"),
@@ -215,7 +215,7 @@ fn list_skills_public_discovers_our_tmp_skill() {
 #[test]
 fn summary_includes_files_and_indicators() {
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     let skill_dir = ship.join("skills").join("x");
     std::fs::create_dir_all(skill_dir.join("assets")).unwrap();
     std::fs::create_dir_all(skill_dir.join("references")).unwrap();
@@ -237,7 +237,7 @@ fn summary_includes_files_and_indicators() {
 #[test]
 fn detail_includes_files() {
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     let skill_dir = ship.join("skills").join("y");
     std::fs::create_dir_all(skill_dir.join("scripts")).unwrap();
     write_skill(&ship.join("skills"), "y", "name: y\n", "body");
@@ -251,7 +251,7 @@ fn detail_includes_files() {
 #[test]
 fn load_skill_file_reads_content() {
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship.join("skills")).unwrap();
     write_skill(&ship.join("skills"), "z", "name: z\n", "hello");
     let content = load_skill_file(&ship, "z", "SKILL.md");
@@ -262,7 +262,7 @@ fn load_skill_file_reads_content() {
 #[test]
 fn load_skill_file_rejects_path_traversal() {
     let tmp = tempdir().unwrap();
-    let ship = tmp.path().join(".ship");
+    let ship = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship.join("skills")).unwrap();
     write_skill(&ship.join("skills"), "w", "name: w\n", "body");
     std::fs::write(tmp.path().join("secret.txt"), "top secret").unwrap();

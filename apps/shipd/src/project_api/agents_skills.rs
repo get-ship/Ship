@@ -92,11 +92,11 @@ fn strip_trailing_commas(input: &str) -> String {
     result
 }
 
-/// GET /api/workspaces/{id}/agents
+/// GET /api/v1/workspaces/{id}/agents
 #[utoipa::path(
     operation_id = "listAgents",
     get,
-    path = "/api/workspaces/{id}/agents",
+    path = "/api/v1/workspaces/{id}/agents",
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Agents discovered in .ship/agents/", body = MeshResponse),
@@ -111,7 +111,7 @@ pub async fn list_agents(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let agents_dir = worktree.join(".ship").join("agents");
+    let agents_dir = runtime::ShipHome::project_ship_dir(&worktree).join("agents");
 
     if !agents_dir.exists() {
         return Ok(ok_response(serde_json::json!({ "agents": [] })));
@@ -167,11 +167,11 @@ pub async fn list_agents(
     Ok(ok_response(serde_json::json!({ "agents": agents })))
 }
 
-/// GET /api/workspaces/{id}/skills
+/// GET /api/v1/workspaces/{id}/skills
 #[utoipa::path(
     operation_id = "listSkills",
     get,
-    path = "/api/workspaces/{id}/skills",
+    path = "/api/v1/workspaces/{id}/skills",
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Skills discovered in .ship/skills/", body = MeshResponse),
@@ -186,7 +186,7 @@ pub async fn list_skills(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let ship_dir = worktree.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&worktree);
 
     // Use read_skill_paths to discover all skill directories (respects skill_paths config)
     let skill_dirs = runtime::read_skill_paths(&ship_dir, &worktree);

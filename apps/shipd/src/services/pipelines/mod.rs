@@ -1,17 +1,17 @@
-//! PipelineService — HTTP surface at `/api/pipelines/*`.
+//! PipelineService — HTTP surface at `/api/v1/pipelines/*`.
 //!
 //! Canonical shape per `.artifacts/daemon-services.md` §3:
 //!
-//! - GET    /api/pipelines                       list (project + user)
-//! - GET    /api/pipelines/{name}                raw document
-//! - PUT    /api/pipelines/{name}                full replace
-//! - PATCH  /api/pipelines/{name}                RFC 6902 ops
-//! - DELETE /api/pipelines/{name}                trash
-//! - POST   /api/pipelines/{name}/dispatch       kick off a run
-//! - POST   /api/pipelines/runs/{slug}/cancel    cancel a run
-//! - GET    /api/pipelines/runs                  run history
-//! - GET    /api/pipelines/runs/{slug}           single run detail
-//! - GET    /api/pipelines/runs/{slug}/log/stream SSE of the agent log
+//! - GET    /api/v1/pipelines                       list (project + user)
+//! - GET    /api/v1/pipelines/{name}                raw document
+//! - PUT    /api/v1/pipelines/{name}                full replace
+//! - PATCH  /api/v1/pipelines/{name}                RFC 6902 ops
+//! - DELETE /api/v1/pipelines/{name}                trash
+//! - POST   /api/v1/pipelines/{name}/dispatch       kick off a run
+//! - POST   /api/v1/pipelines/runs/{slug}/cancel    cancel a run
+//! - GET    /api/v1/pipelines/runs                  run history
+//! - GET    /api/v1/pipelines/runs/{slug}           single run detail
+//! - GET    /api/v1/pipelines/runs/{slug}/log/stream SSE of the agent log
 //!
 //! Dispatch / cancel / run-detail / log-stream delegate to the
 //! kernel-backed handlers in `runtime_api` + `logs_api` — those
@@ -83,14 +83,14 @@ fn files(state: &ApiState) -> FilesService {
 
 // ── Definition CRUD ──────────────────────────────────────────────────
 
-/// GET /api/pipelines
+/// GET /api/v1/pipelines
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
     let svc = files(&state);
     let items = state::list(&svc);
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
-/// GET /api/pipelines/{name}
+/// GET /api/v1/pipelines/{name}
 pub async fn get(
     State(state): State<ApiState>,
     Path(name): Path<String>,
@@ -108,7 +108,7 @@ pub async fn get(
     })))
 }
 
-/// PUT /api/pipelines/{name}
+/// PUT /api/v1/pipelines/{name}
 pub async fn put(
     State(state): State<ApiState>,
     Path(name): Path<String>,
@@ -131,7 +131,7 @@ pub async fn put(
     })))
 }
 
-/// PATCH /api/pipelines/{name}
+/// PATCH /api/v1/pipelines/{name}
 pub async fn patch(
     State(state): State<ApiState>,
     Path(name): Path<String>,
@@ -150,7 +150,7 @@ pub async fn patch(
     })))
 }
 
-/// DELETE /api/pipelines/{name}
+/// DELETE /api/v1/pipelines/{name}
 pub async fn delete(
     State(state): State<ApiState>,
     Path(name): Path<String>,
@@ -167,7 +167,7 @@ pub async fn delete(
 
 // ── Dispatch / cancel / run detail — thin wrappers over runtime_api ──
 
-/// POST /api/pipelines/{name}/dispatch
+/// POST /api/v1/pipelines/{name}/dispatch
 ///
 /// Accepts the same body shape as `runtime_api::DispatchRequest` minus
 /// `pipeline` (the name is taken from the URL).
@@ -194,7 +194,7 @@ pub async fn dispatch(
     crate::runtime_api::dispatch_pipeline(state, auth, Json(req)).await.into_response()
 }
 
-/// POST /api/pipelines/runs/{slug}/cancel — delegates to the job-level
+/// POST /api/v1/pipelines/runs/{slug}/cancel — delegates to the job-level
 /// handler which already emits the right event.
 pub async fn cancel_run(
     state: State<ApiState>,
@@ -224,7 +224,7 @@ pub struct RunsQuery {
     pub limit: Option<usize>,
 }
 
-/// GET /api/pipelines/runs — paginated history filterable by pipeline
+/// GET /api/v1/pipelines/runs — paginated history filterable by pipeline
 /// name, branch, and a size cap (default 100, max 500).
 pub async fn list_runs(
     State(state): State<ApiState>,
@@ -256,7 +256,7 @@ pub async fn list_runs(
     Ok(Json(serde_json::json!({ "ok": true, "items": rendered })))
 }
 
-/// GET /api/pipelines/runs/{slug}
+/// GET /api/v1/pipelines/runs/{slug}
 pub async fn get_run(
     State(state): State<ApiState>,
     Path(slug): Path<String>,

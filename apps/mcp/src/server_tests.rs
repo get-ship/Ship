@@ -175,11 +175,10 @@ fn core_tool_with_prefix_and_suffix() {
 }
 
 #[test]
-#[cfg(feature = "unstable")]
 fn create_adr_not_core_after_removal() {
     assert!(
         !ShipServer::is_core_tool("create_adr"),
-        "create_adr removed — should not be core even with unstable"
+        "create_adr removed — should not be core"
     );
 }
 
@@ -226,7 +225,7 @@ fn normalization_applied_to_both_sides() {
 // ── tool registration surface ──────────────────────────────────────
 
 #[test]
-fn stable_build_registers_expected_tools() {
+fn registers_canonical_verb_first_tool_names() {
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     let expected: &[&str] = &[
@@ -237,15 +236,69 @@ fn stable_build_registers_expected_tools() {
         "write_session_file",
         "create_job",
         "update_job",
-        "mesh_send",
-        "mesh_broadcast",
-        "mesh_discover",
-        "mesh_status",
+        "send_mesh_message",
+        "broadcast_mesh_message",
+        "discover_mesh_agents",
+        "update_mesh_status",
+        "upload_artifact",
+        "get_artifact",
+        "list_artifacts",
+        "delete_artifact",
+        "promote_artifact",
+        "open_view",
+        "patch_view",
+        "append_view",
+        "signal_view",
+        "close_view",
+        "emit_event",
+        "dispatch_agent",
+        "list_agents",
+        "stop_agent",
+        "steer_agent",
+        "lint_view",
+        "scaffold_view",
+        "query_sdk",
+        "get_view_errors",
     ];
     for tool in expected {
         assert!(
             names.iter().any(|n| n == tool),
-            "{tool} missing from router"
+            "{tool} missing from router; have: {names:?}"
+        );
+    }
+}
+
+#[test]
+fn deprecated_aliases_resolve_to_canonical_names() {
+    // Aliases are kept for one release with a deprecation prefix in the
+    // description. They must be present alongside the canonical names.
+    let server = ShipServer::new();
+    let names = server.registered_tool_names();
+    let aliases: &[&str] = &[
+        "mesh_send",
+        "mesh_broadcast",
+        "mesh_discover",
+        "mesh_status",
+        "ship_view_errors",
+        "ship_view_lint",
+        "ship_sdk_query",
+        "ship_view_scaffold",
+        "artifact_upload",
+        "artifact_get",
+        "artifact_list",
+        "artifact_delete",
+        "artifact_promote",
+        "view_open",
+        "view_patch",
+        "view_append",
+        "view_signal",
+        "view_close",
+        "event",
+    ];
+    for alias in aliases {
+        assert!(
+            names.iter().any(|n| n == alias),
+            "deprecated alias {alias} missing — must register for one release"
         );
     }
 }
@@ -254,6 +307,9 @@ fn stable_build_registers_expected_tools() {
 fn deprecated_tools_not_registered() {
     let server = ShipServer::new();
     let names = server.registered_tool_names();
+    // These tools were removed in earlier cleanup and must NOT register on
+    // the agent-facing ShipServer. Tools that look related (e.g. list_skills)
+    // live on StudioServer instead.
     let removed: &[&str] = &[
         "open_project",
         "set_agent",
@@ -281,25 +337,39 @@ fn deprecated_tools_not_registered() {
 }
 
 #[test]
-#[cfg(not(feature = "unstable"))]
-fn stable_build_does_not_register_event() {
+fn every_build_registers_emit_event() {
+    // Compile-time gating of tool registration is gone. emit_event (formerly
+    // gated behind the `unstable` feature) is now always present, with an
+    // **EXPERIMENTAL** prefix on its description as the runtime marker.
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     assert!(
-        !names.iter().any(|n| n == "event"),
-        "event should not be registered in stable build"
+        names.iter().any(|n| n == "emit_event"),
+        "emit_event must be registered on every build (runtime stability marker, not compile-time)"
+    );
+    // Deprecation alias still resolves for one release.
+    assert!(
+        names.iter().any(|n| n == "event"),
+        "deprecated alias `event` must still register"
     );
 }
 
 #[test]
-#[cfg(feature = "unstable")]
-fn unstable_build_registers_event() {
+fn experimental_tools_carry_marker_in_description() {
+    use crate::tools::stability::EXPERIMENTAL_PREFIX;
     let server = ShipServer::new();
-    let names = server.registered_tool_names();
-    assert!(
-        names.iter().any(|n| n == "event"),
-        "event should be registered in unstable build"
-    );
+    let tools = server.tool_router.list_all();
+    for tool_name in crate::tools::stability::EXPERIMENTAL_TOOLS {
+        let tool = tools
+            .iter()
+            .find(|t| t.name.as_ref() == *tool_name)
+            .unwrap_or_else(|| panic!("experimental tool {tool_name} not registered"));
+        let desc = tool.description.clone().unwrap_or_default();
+        assert!(
+            desc.starts_with(EXPERIMENTAL_PREFIX),
+            "{tool_name} description missing EXPERIMENTAL prefix: {desc:?}"
+        );
+    }
 }
 
 #[test]

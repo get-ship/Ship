@@ -6,9 +6,7 @@
 //! `persistence::actor_store` for the namespace-scoped write/read handle.
 
 pub mod actor_events;
-pub mod adrs;
 pub mod artifact_registry;
-pub mod branch_context;
 pub mod envelope;
 pub mod events;
 pub mod integrity;

@@ -218,7 +218,7 @@ fn unauthorized_or<F: FnOnce() -> axum::response::Response>(
     }
 }
 
-/// GET /api/views/{name}/meta
+/// GET /api/v1/views/{name}/meta
 pub async fn get_view_meta(
     Extension(auth): Extension<AuthContext>,
     AxumPath(name): AxumPath<String>,
@@ -267,7 +267,7 @@ pub async fn get_view_meta(
     })
 }
 
-/// GET /api/sdk — full SDK root.
+/// GET /api/v1/sdk — full SDK root.
 pub async fn get_sdk_root(
     Extension(auth): Extension<AuthContext>,
 ) -> axum::response::Response {
@@ -285,7 +285,7 @@ pub async fn get_sdk_root(
     })
 }
 
-/// GET /api/sdk/query?q=term
+/// GET /api/v1/sdk/query?q=term
 pub async fn query_sdk(
     Extension(auth): Extension<AuthContext>,
     axum::extract::Query(q): axum::extract::Query<SdkQuery>,
@@ -353,7 +353,7 @@ fn search(q: &str, p: &Parsed) -> Vec<SdkSearchHit> {
                 .and_then(|x| x.as_str())
                 .unwrap_or("")
                 .to_string();
-            push("view", id, summary, format!("/api/view/{id}"));
+            push("view", id, summary, format!("/api/v1/view/{id}"));
         }
     }
     if let Some(m) = entries(&p.collections) {
@@ -363,7 +363,7 @@ fn search(q: &str, p: &Parsed) -> Vec<SdkSearchHit> {
                 .and_then(|x| x.as_str())
                 .unwrap_or("")
                 .to_string();
-            push("collection", id, summary, format!("/api/collections/{id}"));
+            push("collection", id, summary, format!("/api/v1/collections/{id}"));
         }
     }
     if let Some(m) = entries(&p.triggers) {
@@ -417,10 +417,10 @@ mod tests {
     #[test]
     fn extracts_action_urls_from_strings() {
         let m = serde_json::json!({
-            "on": {"click": {"do": "POST /api/collections/tasks/items"}},
+            "on": {"click": {"do": "POST /api/v1/collections/tasks/items"}},
         });
         let urls = serde_json::json!({"entries": {
-            "POST /api/collections/tasks/items": {"purpose": "create-item"}
+            "POST /api/v1/collections/tasks/items": {"purpose": "create-item"}
         }});
         let out = extract_action_urls(&m, &urls);
         assert_eq!(out.len(), 1);

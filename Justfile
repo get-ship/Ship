@@ -159,6 +159,17 @@ openapi-regen:
 check-openapi-drift:
     cd apps/docs && pnpm run openapi:check-drift
 
+# Regenerate the Astro reference tree from docs/<skill>/references/docs/.
+# The output (apps/docs/src/content/docs/reference/) is gitignored build
+# output; predev/prebuild run this automatically.
+docs-regen:
+    cd apps/docs && AUDIENCE=internal pnpm run collect
+
+# Fail if the on-disk Astro reference tree disagrees with what the collector
+# would produce from source. CI gate against hand-edited generated docs.
+check-docs-drift:
+    cd apps/docs && pnpm run docs:check-drift
+
 # ── Deploy ─────────────────────────────────────────────────────────────────────
 
 # Deploy Studio to Cloudflare Workers
@@ -223,6 +234,16 @@ check-gates:
     cargo build --features unstable -p ship-cli -p mcp
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
+
+# Run home-layout grep guards (warn-only in phase-1; phase-2 will flip to hard-fail)
+check-raw:
+    @scripts/check-raw-ship-paths.sh
+    @scripts/check-raw-env-reads.sh
+    @just check-migrations
+
+# Enforce platform.db migration naming discipline (timestamp-prefixed; 0001–0006 frozen)
+check-migrations:
+    @scripts/check-migration-naming.sh
 
 # Fail if any test uses set_var("SHIP_GLOBAL_DIR") — causes env var races
 check-no-set-var-global-dir:

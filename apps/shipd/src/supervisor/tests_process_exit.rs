@@ -63,7 +63,7 @@ fn dead_handle() -> ExecutorHandle {
 
 fn setup_kernel() -> (TempDir, Arc<Mutex<KernelRouter>>) {
     let dir = TempDir::new().unwrap();
-    let router = KernelRouter::new(dir.path().join(".ship")).unwrap();
+    let router = KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
     (dir, Arc::new(Mutex::new(router)))
 }
 

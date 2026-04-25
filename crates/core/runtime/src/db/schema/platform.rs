@@ -98,16 +98,6 @@ CREATE INDEX IF NOT EXISTS workspace_session_record_workspace_idx
   ON workspace_session_record(workspace_id, created_at DESC);
 "#;
 
-/// Branch context: links a branch to an external entity (e.g. a target or capability).
-pub const BRANCH_CONTEXT: &str = r#"
-CREATE TABLE IF NOT EXISTS branch_context (
-  branch      TEXT PRIMARY KEY,
-  link_type   TEXT NOT NULL,
-  link_id     TEXT NOT NULL,
-  last_synced TEXT NOT NULL
-);
-"#;
-
 /// Event log: append-only state change record. Never update or delete events.
 /// Context columns enable scoped queries without joins.
 pub const EVENT_LOG: &str = r#"

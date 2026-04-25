@@ -283,7 +283,7 @@ fi
 PORT=$(cat "$PORT_FILE")
 
 # Fire and forget — fail silently if shipd isn't running.
-curl -sf -X POST "http://127.0.0.1:${PORT}/api/hooks/checkout" \
+curl -sf -X POST "http://127.0.0.1:${PORT}/api/v1/hooks/checkout" \
   -H "Content-Type: application/json" \
   -d "{\"branch\":\"${NEW_BRANCH}\",\"path\":\"$(pwd)\"}" \
   >/dev/null 2>&1 || true

@@ -809,7 +809,7 @@ fn register_with_kernel(actor_id: &str, kind: SessionKind, agent_id: Option<&str
 /// absent, unreadable, or has no inline rules — callers fall back to vanilla
 /// provider behaviour.
 pub fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
-    let path = work_dir.join(".ship").join("agents").join(format!("{agent_id}.jsonc"));
+    let path = runtime::ShipHome::project_ship_dir(work_dir).join("agents").join(format!("{agent_id}.jsonc"));
     let raw = std::fs::read_to_string(&path).ok()?;
     let stripped = strip_jsonc(&raw);
     let v: serde_json::Value = serde_json::from_str(&stripped).ok()?;

@@ -1,4 +1,4 @@
-//! `/api/view/{name}/raw` — full HTML document for Studio and
+//! `/api/v1/view/{name}/raw` — full HTML document for Studio and
 //! direct-browser mounting.
 //!
 //! For SDK-backed first-party views (settings, agents, chat, events)
@@ -58,7 +58,7 @@ fn wrap(title: &str, inner: &str) -> Option<String> {
     templates::render("_raw_shell.html.j2", &RawCtx { title, inner }).ok()
 }
 
-/// GET `/api/view/{name}/raw`
+/// GET `/api/v1/view/{name}/raw`
 ///
 /// Cookie-first auth: mints a `ship_session` cookie scoped to
 /// `/api` so subsequent fetches from the served document
@@ -67,7 +67,7 @@ fn wrap(title: &str, inner: &str) -> Option<String> {
 #[utoipa::path(
     operation_id = "serveViewRaw",
     get,
-    path = "/api/view/{name}/raw",
+    path = "/api/v1/view/{name}/raw",
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "Raw view shell HTML with session cookie", content_type = "text/html"),
@@ -86,7 +86,7 @@ pub async fn serve_view_raw(
     }
 
     // Static `index.html` fallback for third-party views that ship a
-    // plain HTML doc. File-routed (`.j2`) views use `/api/v/{*path}`.
+    // plain HTML doc. File-routed (`.j2`) views use `/api/v1/v/{*path}`.
     let (view_dir, _) = match crate::views::resolve_view_dir(&name) {
         Some(v) => v,
         None => return err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),

@@ -61,7 +61,7 @@ mod permissions {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn actor_with_emit_permission_can_emit() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let perms = ActorPermissions {
             emit: vec!["studio.".into()],
@@ -78,7 +78,7 @@ mod permissions {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn actor_without_emit_permission_is_rejected() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let perms = ActorPermissions {
             emit: vec!["agent.".into()],
@@ -98,7 +98,7 @@ mod permissions {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn actor_with_empty_emit_cannot_emit_anything() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let perms = ActorPermissions {
             emit: vec![],
@@ -123,7 +123,7 @@ mod permissions {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn cli_caller_bypasses_emit_restrictions() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let perms = ActorPermissions {
             emit: vec![],
@@ -146,7 +146,7 @@ mod permissions {
     #[test]
     fn actor_cannot_subscribe_to_unpermitted_namespace() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         // Permissions only allow subscribing to "studio."
         let perms = ActorPermissions {
@@ -171,7 +171,7 @@ mod permissions {
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn actor_only_receives_events_from_permitted_subscriptions() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let perms = ActorPermissions {
             emit: vec![],
@@ -211,7 +211,7 @@ mod permissions {
     #[test]
     fn spawn_rejects_empty_namespace_in_emit() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let perms = ActorPermissions {
             emit: vec!["".into()],
@@ -227,7 +227,7 @@ mod permissions {
     #[test]
     fn spawn_rejects_empty_namespace_in_subscribe() {
         let tmp = tempdir().unwrap();
-        let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
         let perms = ActorPermissions {
             emit: vec![],

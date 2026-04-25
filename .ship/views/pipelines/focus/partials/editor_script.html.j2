@@ -76,7 +76,7 @@
   });
 
   window.deletePipeline = async function (workspaceId, name) {
-    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+    const url = '/api/v1/workspaces/' + encodeURIComponent(workspaceId)
       + '/pipelines/' + encodeURIComponent(name);
     try {
       const resp = await fetch(url, { method: 'DELETE', credentials: 'include' });
@@ -109,7 +109,7 @@
     setSignal('edit_error_col', '0');
     setSignal('edit_issue_count', '0');
     pushDiagnostics([]);
-    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+    const url = '/api/v1/workspaces/' + encodeURIComponent(workspaceId)
       + '/pipelines/' + encodeURIComponent(name);
     try {
       const resp = await fetch(url, {

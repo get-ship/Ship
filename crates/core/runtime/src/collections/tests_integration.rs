@@ -28,7 +28,7 @@ mod tests {
 
     fn setup() -> (crate::data::DataService, CollectionSchema, tempfile::TempDir) {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let mut svc = open_data_db(&ship_dir).unwrap();
         let schema = task_schema();
@@ -325,7 +325,7 @@ mod tests {
     #[test]
     fn schema_loads_from_directory() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         let schemas_dir = ship_dir.join("collections");
         std::fs::create_dir_all(&schemas_dir).unwrap();
         std::fs::write(
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn schema_load_skips_missing_directory() {
         let tmp = tempfile::tempdir().unwrap();
-        let schemas = schema::load_schemas(&tmp.path().join(".ship")).unwrap();
+        let schemas = schema::load_schemas(&crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
         assert!(schemas.is_empty());
     }
 
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn multiple_collections_are_isolated() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let mut svc = open_data_db(&ship_dir).unwrap();
 

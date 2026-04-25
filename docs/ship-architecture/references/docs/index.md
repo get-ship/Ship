@@ -274,7 +274,7 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
 | Package | Role |
 |---|---|
 | `@ship/compiler` | WASM-bindgen npm wrapper around the compiler crate. |
-| `@ship/ui` | Web components + tokens. The `ship-elements` bundle. |
+| `@ship/set` | Web components + tokens. The `ship-elements` bundle. |
 | `@ship/primitives` | Shared UI primitives. |
 | `@ship/sdk` | TypeScript SDK for talking to the daemon. |
 | `@ship/assets` | Shared static assets. |

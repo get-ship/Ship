@@ -42,9 +42,9 @@ fn help_does_not_list_vars_subcommand() {
 #[test]
 fn retained_compile_still_works() {
     let tmp = TempDir::new().unwrap();
-    std::fs::create_dir_all(tmp.path().join(".ship/rules")).unwrap();
+    std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(tmp.path()).join("rules")).unwrap();
     std::fs::write(
-        tmp.path().join(".ship/rules/style.md"),
+        runtime::ShipHome::project_ship_dir(tmp.path()).join("rules/style.md"),
         "Use explicit types.",
     )
     .unwrap();
@@ -71,9 +71,9 @@ fn retained_use_still_works() {
         .assert()
         .success();
 
-    std::fs::create_dir_all(tmp.path().join(".ship/agents")).unwrap();
+    std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(tmp.path()).join("agents")).unwrap();
     std::fs::write(
-        tmp.path().join(".ship/agents/test-agent.jsonc"),
+        runtime::ShipHome::project_ship_dir(tmp.path()).join("agents/test-agent.jsonc"),
         r#"{ "agent": { "name": "Test", "id": "test-agent", "providers": ["claude"] } }"#,
     )
     .unwrap();
@@ -88,9 +88,9 @@ fn retained_use_still_works() {
 fn retained_install_still_works() {
     let tmp = TempDir::new().unwrap();
 
-    std::fs::create_dir_all(tmp.path().join(".ship")).unwrap();
+    std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(tmp.path())).unwrap();
     std::fs::write(
-        tmp.path().join(".ship/ship.toml"),
+        runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.toml"),
         "[module]\nname = \"github.com/test/repo\"\nversion = \"0.1.0\"\n",
     )
     .unwrap();

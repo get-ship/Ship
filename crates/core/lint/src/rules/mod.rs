@@ -245,7 +245,7 @@ fn rule_undefined_signal(sources: &[Source]) -> Vec<Finding> {
                     line: idx + 1,
                     col: col + 1,
                     rule: RULE_UNDEFINED_SIGNAL,
-                    severity: Severity::Warn,
+                    severity: Severity::Error,
                     message: format!(
                         "signal ${} referenced but never declared (add signal('{}', …) or allow via {{#- @lint:signals-ok: {} -#}})",
                         name, name, name,

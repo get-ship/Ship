@@ -149,7 +149,7 @@ fn includes_vars_and_files() {
 #[test]
 fn discovers_skills_from_multiple_paths() {
     let tmp = tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     write_manifest_with_skill_paths(&ship_dir, &["skills/", "docs/"]);
 
@@ -185,7 +185,7 @@ fn default_no_skill_paths_scans_skills_only() {
 #[test]
 fn duplicate_skill_id_first_path_wins() {
     let tmp = tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     write_manifest_with_skill_paths(&ship_dir, &["first/", "second/"]);
 

@@ -20,7 +20,7 @@ fn empty_query(collection: &str) -> QueryRequest {
 
 fn setup_data_service() -> (DataService, tempfile::TempDir) {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     // Use open_raw to bypass the auto-startup — these tests exercise
     // migration directly rather than letting it run as a side effect.
@@ -382,4 +382,83 @@ fn prune_is_idempotent_on_missing_platform_db() {
     // Second call → already_pruned.
     let report2 = prune_legacy_source_rows(&mut svc, &missing).unwrap();
     assert!(report2.already_pruned);
+}
+
+// ── End-to-end: drop migration removes legacy tables after copy ─────────────
+
+/// Fixture-based upgrade path test: seed a `platform.db` that contains all
+/// five legacy user-content tables with N rows each, run the collections
+/// migration + the sqlx drop migration, and assert (a) every row landed in
+/// its destination collection and (b) the five tables no longer exist.
+#[test]
+fn drop_migration_removes_all_legacy_tables_after_copy() {
+    let (mut svc, tmp) = setup_data_service();
+    let platform = tmp.path().join("platform.db");
+    seed_platform_db(&platform);
+
+    // Additionally seed branch_context — its destination is /dev/null, we only
+    // need to prove the drop removes it.
+    let mut seed_conn = open_platform_rw(&platform);
+    crate::db::block_on(async {
+        sqlx::query(
+            "CREATE TABLE branch_context (
+                branch TEXT PRIMARY KEY, link_type TEXT NOT NULL,
+                link_id TEXT NOT NULL, last_synced TEXT NOT NULL
+            )",
+        )
+        .execute(&mut seed_conn)
+        .await
+    })
+    .unwrap();
+    let now = chrono::Utc::now().to_rfc3339();
+    crate::db::block_on(async {
+        sqlx::query(
+            "INSERT INTO branch_context (branch, link_type, link_id, last_synced)
+             VALUES (?, ?, ?, ?)",
+        )
+        .bind("feature/x")
+        .bind("spec")
+        .bind("t1")
+        .bind(&now)
+        .execute(&mut seed_conn)
+        .await
+    })
+    .unwrap();
+    crate::db::block_on(async { seed_conn.close().await }).unwrap();
+
+    // Copy rows into collections.
+    let report = migrate_platform_to_collections(&mut svc, &platform).unwrap();
+    assert_eq!(report.notes_migrated, 1);
+    assert_eq!(report.adrs_migrated, 1);
+    assert_eq!(report.specs_migrated, 1);
+
+    // Run sqlx migrations (which includes 0006 drop) against the same platform.db.
+    // ensure_db_at uses ship_dir.join("platform.db") — point it at our fixture.
+    let fake_ship_dir = tmp.path().to_path_buf();
+    crate::db::ensure_db_at(&fake_ship_dir).unwrap();
+
+    // Verify: every legacy table is gone.
+    let mut conn = open_platform_rw(&platform);
+    for table in ["adr", "note", "target", "capability", "branch_context"] {
+        let row: Option<(String,)> = crate::db::block_on(async {
+            sqlx::query_as("SELECT name FROM sqlite_master WHERE type='table' AND name = ?")
+                .bind(table)
+                .fetch_optional(&mut conn)
+                .await
+        })
+        .unwrap();
+        assert!(
+            row.is_none(),
+            "table `{table}` should be dropped by migration 0006"
+        );
+    }
+    crate::db::block_on(async { conn.close().await }).unwrap();
+
+    // Collections still contain the copied rows.
+    let notes = store::query_items(&mut svc, &builtin::notes_schema(), &empty_query(NOTES_ID)).unwrap();
+    assert_eq!(notes.len(), 1);
+    let adrs = store::query_items(&mut svc, &builtin::adrs_schema(), &empty_query(ADRS_ID)).unwrap();
+    assert_eq!(adrs.len(), 1);
+    let specs = store::query_items(&mut svc, &builtin::specs_schema(), &empty_query(SPECS_ID)).unwrap();
+    assert_eq!(specs.len(), 1);
 }

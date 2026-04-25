@@ -61,7 +61,7 @@
     <ship-button variant="outline" size="sm"
                  {{ attr_if("!$api_key || $provider_test_result == 'testing'", 'disabled') }}
                  {{ attr_if("$provider_test_result == 'testing'", 'loading') }}
-                 {{ on_click("$provider_test_result = 'testing'; @post('/api/providers/test', {payload: {provider: $provider, key: $api_key}})") }}
+                 {{ on_click("$provider_test_result = 'testing'; @post('/api/v1/providers/test', {payload: {provider: $provider, key: $api_key}})") }}
                  {{ on('datastar-fetch__document', "evt.detail && evt.detail.el === el && evt.detail.type === 'error' ? ($provider_test_result = 'failed', $provider_test_error = 'Could not reach ' + $provider + ' (HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?') + ')') : null") }}>
       Test connection
     </ship-button>
@@ -86,7 +86,7 @@
 
   <ship-button tone="primary" variant="solid" size="md"
                {{ attr_if("$provider_test_result != 'ok'", 'disabled') }}
-               {{ on_click("$step = 4; @post('/api/settings', {payload: {provider: $provider, key: $api_key}})") }}>
+               {{ on_click("$step = 4; @post('/api/v1/settings', {payload: {provider: $provider, key: $api_key}})") }}>
     Save &amp; continue
     <ship-icon slot="trailing" name="arrow-right"></ship-icon>
   </ship-button>

@@ -1,5 +1,5 @@
 //! MCP tool: fuzzy-search Ship's SDK surface via the daemon's
-//! `GET /api/sdk/query` endpoint.
+//! `GET /api/v1/sdk/query` endpoint.
 //!
 //! The daemon owns the canonical SDK manifest (macros, REST routes, view
 //! manifests, collection and trigger schemas) — this tool just formats the
@@ -81,7 +81,7 @@ async fn http_get_query(query: &str) -> Result<String> {
     let port = read_port(&global_dir)?;
     let token = read_token(&global_dir)?;
     // Percent-encode the query — reqwest's query() handles it for us.
-    let url = format!("http://127.0.0.1:{port}/api/sdk/query");
+    let url = format!("http://127.0.0.1:{port}/api/v1/sdk/query");
     let resp = reqwest::Client::new()
         .get(&url)
         .query(&[("q", query)])

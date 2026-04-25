@@ -4,7 +4,7 @@
 //!
 //! This pathway predates the `ship.*` SDK. File-routed views do NOT
 //! use it — they pull data inline via registry ops and re-render
-//! through the routed SSE at `/api/sse/{*path}`. Remaining consumers:
+//! through the routed SSE at `/api/v1/sse/{*path}`. Remaining consumers:
 //! canvas (manifest declares collections), setup, overview.
 //!
 //! When those views migrate to `ship.*`, this file + `generic_sse.rs`

@@ -1,11 +1,11 @@
 //! HTTP endpoints for the PTY session registry.
 //!
-//! * `POST /api/sessions/spawn` — agent or shell spawn
-//! * `GET /api/sessions` — list all (active + ended)
-//! * `GET /api/sessions/{id}` — single snapshot
-//! * `DELETE /api/sessions/{id}` — graceful stop
-//! * `POST /api/sessions/{id}/input` — write stdin bytes
-//! * `GET /api/sessions/{id}/stream` — SSE replay + live tail
+//! * `POST /api/v1/sessions/spawn` — agent or shell spawn
+//! * `GET /api/v1/sessions` — list all (active + ended)
+//! * `GET /api/v1/sessions/{id}` — single snapshot
+//! * `DELETE /api/v1/sessions/{id}` — graceful stop
+//! * `POST /api/v1/sessions/{id}/input` — write stdin bytes
+//! * `GET /api/v1/sessions/{id}/stream` — SSE replay + live tail
 //!
 //! SSE is the default for subscribers because our existing asset
 //! pipeline (EventSource, same-origin cookie) handles it cleanly.
@@ -139,7 +139,7 @@ fn binary_exists(bin: &str) -> bool {
 #[utoipa::path(
     operation_id = "installedProviders",
     get,
-    path = "/api/providers/installed",
+    path = "/api/v1/providers/installed",
     responses(
         (status = 200, description = "Providers detected on PATH", body = InstalledProvidersResponse),
     ),
@@ -166,7 +166,7 @@ pub struct MessageBody {
 #[utoipa::path(
     operation_id = "sessionMessage",
     post,
-    path = "/api/sessions/{id}/message",
+    path = "/api/v1/sessions/{id}/message",
     params(("id" = String, Path, description = "Agent session id")),
     request_body = MessageBody,
     responses(
@@ -246,7 +246,7 @@ pub async fn session_message(
 #[utoipa::path(
     operation_id = "sessionReply",
     post,
-    path = "/api/sessions/{id}/reply",
+    path = "/api/v1/sessions/{id}/reply",
     params(("id" = String, Path, description = "Agent session id")),
     request_body = MessageBody,
     responses(
@@ -322,7 +322,7 @@ fn work_dir_for(state: &ApiState, workspace_id: &str) -> std::path::PathBuf {
 #[utoipa::path(
     operation_id = "spawnSession",
     post,
-    path = "/api/sessions/spawn",
+    path = "/api/v1/sessions/spawn",
     request_body = SpawnBody,
     responses(
         (status = 200, description = "Session spawned or attached", body = SpawnResponse),
@@ -435,7 +435,7 @@ pub async fn spawn_session(
 #[utoipa::path(
     operation_id = "listSessions",
     get,
-    path = "/api/sessions",
+    path = "/api/v1/sessions",
     responses(
         (status = 200, description = "All known sessions", body = SessionListResponse),
     ),
@@ -464,7 +464,7 @@ pub async fn list_sessions(State(state): State<ApiState>) -> axum::response::Res
 #[utoipa::path(
     operation_id = "getSession",
     get,
-    path = "/api/sessions/{id}",
+    path = "/api/v1/sessions/{id}",
     params(("id" = String, Path, description = "Session id")),
     responses(
         (status = 200, description = "Session snapshot", body = SessionMetaWire),
@@ -492,7 +492,7 @@ pub async fn get_session(
 #[utoipa::path(
     operation_id = "stopSession",
     delete,
-    path = "/api/sessions/{id}",
+    path = "/api/v1/sessions/{id}",
     params(("id" = String, Path, description = "Session id")),
     responses(
         (status = 204, description = "Stopped"),
@@ -516,7 +516,7 @@ pub async fn stop_session(
 #[utoipa::path(
     operation_id = "sessionInput",
     post,
-    path = "/api/sessions/{id}/input",
+    path = "/api/v1/sessions/{id}/input",
     params(("id" = String, Path, description = "Session id")),
     request_body = InputBody,
     responses(
@@ -548,7 +548,7 @@ pub async fn session_input(
 #[utoipa::path(
     operation_id = "streamSessionEvents",
     get,
-    path = "/api/sessions/{id}/events",
+    path = "/api/v1/sessions/{id}/events",
     params(("id" = String, Path, description = "Session id")),
     responses(
         (status = 200, description = "SSE stream of parsed ProviderEvents", content_type = "text/event-stream"),
@@ -580,7 +580,7 @@ pub async fn stream_session_events(
 #[utoipa::path(
     operation_id = "streamSession",
     get,
-    path = "/api/sessions/{id}/stream",
+    path = "/api/v1/sessions/{id}/stream",
     params(("id" = String, Path, description = "Session id")),
     responses(
         (status = 200, description = "SSE stream of PTY bytes + status events", content_type = "text/event-stream"),

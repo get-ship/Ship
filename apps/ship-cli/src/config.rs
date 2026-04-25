@@ -87,9 +87,7 @@ impl Credentials {
     }
 
     fn path() -> PathBuf {
-        dirs::home_dir()
-            .unwrap_or_default()
-            .join(".ship")
+        runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap_or_default())
             .join("credentials")
     }
 
@@ -121,9 +119,7 @@ impl ShipConfig {
     }
 
     pub fn path() -> PathBuf {
-        dirs::home_dir()
-            .unwrap_or_default()
-            .join(".ship")
+        runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap_or_default())
             .join("config.toml")
     }
 

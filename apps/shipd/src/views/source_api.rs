@@ -1,4 +1,4 @@
-//! `GET /api/view-source/{*path}` — return template + manifest source
+//! `GET /api/v1/view-source/{*path}` — return template + manifest source
 //! for the file-routed view that matches `path`.
 //!
 //! Used by the shell's Source devtools tab to inspect the currently
@@ -70,8 +70,8 @@ fn find_manifest(
 #[utoipa::path(
     operation_id = "serveViewSource",
     get,
-    path = "/api/view-source/{path}",
-    params(("path" = String, Path, description = "View path; matches /api/v/{path}")),
+    path = "/api/v1/view-source/{path}",
+    params(("path" = String, Path, description = "View path; matches /api/v1/v/{path}")),
     responses(
         (status = 200, description = "Template + manifest source", body = ViewSourceResponse),
         (status = 404, description = "No matching view"),

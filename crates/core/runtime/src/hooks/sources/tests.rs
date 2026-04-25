@@ -21,7 +21,7 @@ use crate::hooks::loader::{load_hooks_dir, parse_hook, validate_hook};
 
 fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship_dir.join("hooks")).unwrap();
     std::fs::create_dir_all(ship_dir.join("schemas")).unwrap();
     crate::db::ensure_db_at(&ship_dir).unwrap();

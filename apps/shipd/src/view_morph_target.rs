@@ -1,6 +1,6 @@
 //! Middleware that makes in-shell view navigation clean.
 //!
-//! When the shell does `@get('/api/view/skills')` from within an
+//! When the shell does `@get('/api/v1/view/skills')` from within an
 //! already-mounted view, Datastar morphs the response into the current
 //! DOM. Two problems if we don't intervene:
 //!
@@ -30,7 +30,7 @@ use axum::{
 
 /// Wrap responses from view routes for in-shell navigation compatibility.
 pub async fn view_morph_target_middleware(req: Request<Body>, next: Next) -> Response {
-    let is_view_route = req.uri().path().starts_with("/api/view/");
+    let is_view_route = req.uri().path().starts_with("/api/v1/view/");
     let is_datastar = req
         .headers()
         .get("datastar-request")

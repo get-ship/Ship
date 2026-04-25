@@ -53,7 +53,7 @@ async function main() {
   const startLogSize = (await readFile(LOG_PATH, "utf8").catch(() => "")).length;
 
   // Spawn.
-  const { status, data: spawn } = await api("/api/sessions/spawn", {
+  const { status, data: spawn } = await api("/api/v1/sessions/spawn", {
     method: "POST",
     body: JSON.stringify({
       workspace_id: "feat-view-dev-studio",
@@ -115,7 +115,7 @@ async function main() {
       `PASS — channel push delivered to Claude in ${((Date.now() - startedAt) / 1000).toFixed(1)}s`,
     );
   } finally {
-    await api(`/api/sessions/${actorId}`, { method: "DELETE" });
+    await api(`/api/v1/sessions/${actorId}`, { method: "DELETE" });
   }
 }
 

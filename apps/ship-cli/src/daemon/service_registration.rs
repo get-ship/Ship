@@ -120,7 +120,7 @@ fn resolve_shipd_path(explicit: Option<&std::path::Path>) -> Result<PathBuf> {
     if let Some(p) = explicit {
         return Ok(p.to_path_buf());
     }
-    if let Ok(env) = std::env::var("SHIPD_PATH")
+    if let Ok(env) = runtime::env::read_raw(runtime::env::Var::DaemonPath)
         && !env.is_empty()
     {
         return Ok(PathBuf::from(env));
@@ -170,7 +170,7 @@ fn default_paths() -> Vec<PathBuf> {
             PathBuf::from("/usr/bin/shipd"),
             PathBuf::from("/usr/local/bin/shipd"),
             dirs::home_dir()
-                .map(|h| h.join(".ship").join("bin").join("shipd"))
+                .map(|h| runtime::ShipHome::project_ship_dir(h).join("bin").join("shipd"))
                 .unwrap_or_default(),
         ]
     }
@@ -180,7 +180,7 @@ fn default_paths() -> Vec<PathBuf> {
             PathBuf::from("/usr/local/bin/shipd"),
             PathBuf::from("/opt/homebrew/bin/shipd"),
             dirs::home_dir()
-                .map(|h| h.join(".ship").join("bin").join("shipd"))
+                .map(|h| runtime::ShipHome::project_ship_dir(h).join("bin").join("shipd"))
                 .unwrap_or_default(),
         ]
     }
@@ -189,7 +189,7 @@ fn default_paths() -> Vec<PathBuf> {
         vec![
             PathBuf::from(r"C:\Program Files\Ship\shipd.exe"),
             dirs::home_dir()
-                .map(|h| h.join(".ship").join("bin").join("shipd.exe"))
+                .map(|h| runtime::ShipHome::project_ship_dir(h).join("bin").join("shipd.exe"))
                 .unwrap_or_default(),
         ]
     }

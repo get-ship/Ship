@@ -8,7 +8,7 @@ use runtime::workspace::{
 use crate::requests::LogProgressRequest;
 
 pub fn log_progress(project_dir: &Path, req: LogProgressRequest, branch: &str) -> String {
-    let ship_dir = project_dir.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
     match runtime_get_active_workspace_session(&ship_dir, branch) {
         Ok(None) => {
             return format!(

@@ -17,11 +17,11 @@ steps:
     after: [verify]
     gate:
       require_changed:
-        match: "**/*.rs"
-        min: 1
+        - match: ["**/*.rs"]
+          min: 1
       forbid_changed:
-        match: ".artifacts/**"
-        min: 0
+        - match: [".artifacts/**"]
+          min: 0
 step_specs:
   - |
     # Implementer — step 1 of 3

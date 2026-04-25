@@ -14,15 +14,10 @@ use std::path::PathBuf;
 
 use crate::requests::*;
 use crate::tools::{
-    artifacts as artifact_tools, job as job_tools, project, session, session_files, skills,
-    workspace, workspace_ops,
+    artifacts as artifact_tools, dispatch as dispatch_tools, event, job as job_tools, project,
+    session, session_files, skills, stability, workspace, workspace_ops,
 };
-#[cfg(feature = "unstable")]
-use crate::tools::event;
 use skills::set_skill_var_tool;
-
-#[cfg(feature = "unstable")]
-use crate::tools::dispatch as dispatch_tools;
 
 // ---- Server struct ----
 
@@ -71,12 +66,13 @@ impl std::fmt::Debug for ShipServer {
 impl ShipServer {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
+        // All tools register unconditionally; stability is a runtime marker
+        // applied via `stability::finalize_router` (description prefix +
+        // alias entries pointing at canonical handlers).
         let router = {
-            #[allow(unused_mut)]
             let mut r = Self::tool_router();
-            #[cfg(feature = "unstable")]
-            r.merge(Self::unstable_tool_router());
-            r
+            r.merge(Self::experimental_tool_router());
+            stability::finalize_router(r)
         };
         // Detect project from CWD at startup
         let project_dir = runtime::project::get_project_dir(None)
@@ -143,7 +139,7 @@ impl ShipServer {
             .filter(|v| !v.is_empty());
 
         // Compute skill-derived subscriptions
-        let ship_dir = project_dir.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
         let skills_list = runtime::list_skills(&ship_dir).unwrap_or_default();
         let skill_subs =
             runtime::workspace::artifact_events::skill_event_subscriptions(&skills_list);
@@ -340,7 +336,7 @@ impl ShipServer {
         if let Some(id) = self.canonical_actor_id.lock().await.clone() {
             return id;
         }
-        if let Ok(env_id) = std::env::var("SHIP_ACTOR_ID")
+        if let Ok(env_id) = runtime::env::read_raw(runtime::env::Var::ActorId)
             && !env_id.is_empty()
         {
             tracing::info!(actor_id = %env_id, "resolved actor ID from SHIP_ACTOR_ID");
@@ -370,7 +366,7 @@ impl ShipServer {
             Ok(d) => d,
             Err(_) => return,
         };
-        let ship_dir = project_dir.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&project_dir);
         let branch = match tool_gate::current_branch(&project_dir) {
             Ok(b) => b,
             Err(_) => return,
@@ -561,7 +557,7 @@ impl ShipServer {
     // ---- Mesh ----
 
     #[tool(description = "Send a directed message to another agent on the mesh.")]
-    async fn mesh_send(&self, Parameters(req): Parameters<MeshSendRequest>) -> String {
+    async fn send_mesh_message(&self, Parameters(req): Parameters<MeshSendRequest>) -> String {
         let actor_id = self.resolve_actor_id().await;
         match crate::network_client::mesh_send(&actor_id, &req.to, req.body).await {
             Ok(result) => result,
@@ -572,7 +568,10 @@ impl ShipServer {
     #[tool(
         description = "Broadcast a message to all agents on the mesh, optionally filtered by capability."
     )]
-    async fn mesh_broadcast(&self, Parameters(req): Parameters<MeshBroadcastRequest>) -> String {
+    async fn broadcast_mesh_message(
+        &self,
+        Parameters(req): Parameters<MeshBroadcastRequest>,
+    ) -> String {
         let actor_id = self.resolve_actor_id().await;
         match crate::network_client::mesh_broadcast(&actor_id, req.body, req.capability_filter).await {
             Ok(result) => result,
@@ -583,7 +582,10 @@ impl ShipServer {
     #[tool(
         description = "Discover agents on the mesh. Optionally filter by capability or status."
     )]
-    async fn mesh_discover(&self, Parameters(_req): Parameters<MeshDiscoverRequest>) -> String {
+    async fn discover_mesh_agents(
+        &self,
+        Parameters(_req): Parameters<MeshDiscoverRequest>,
+    ) -> String {
         match crate::network_client::mesh_discover().await {
             Ok(result) => result,
             Err(e) => format!("Error: {e}"),
@@ -591,7 +593,7 @@ impl ShipServer {
     }
 
     #[tool(description = "Update this agent's status on the mesh (active, busy, idle).")]
-    async fn mesh_status(&self, Parameters(req): Parameters<MeshStatusRequest>) -> String {
+    async fn update_mesh_status(&self, Parameters(req): Parameters<MeshStatusRequest>) -> String {
         let actor_id = self.resolve_actor_id().await;
         match crate::network_client::mesh_status(&actor_id, &req.status).await {
             Ok(result) => result,
@@ -715,7 +717,7 @@ impl ShipServer {
         Args: since (id floor, for incremental polling), view (filter), limit \
         (default 50, max 200), clear_after (drain buffer after returning)."
     )]
-    async fn ship_view_errors(
+    async fn get_view_errors(
         &self,
         Parameters(req): Parameters<crate::requests::ViewErrorsRequest>,
     ) -> String {
@@ -752,7 +754,7 @@ impl ShipServer {
         Pass 'name' to lint a saved view by name, or 'source' to lint an in-flight draft. \
         Output groups errors before warnings and includes fix hints (`→ suggest: …`) when available."
     )]
-    async fn ship_view_lint(&self, Parameters(req): Parameters<LintViewRequest>) -> String {
+    async fn lint_view(&self, Parameters(req): Parameters<LintViewRequest>) -> String {
         let project_dir = match self.get_effective_project_dir().await {
             Ok(d) => d,
             Err(e) => return e,
@@ -762,7 +764,7 @@ impl ShipServer {
             let label = req.name.as_deref().unwrap_or("inline");
             lint::lint_view_source(label, &source)
         } else if let Some(name) = req.name {
-            let views_dir = project_dir.join(".ship").join("views").join(&name);
+            let views_dir = runtime::ShipHome::project_ship_dir(project_dir).join("views").join(&name);
             if !views_dir.exists() {
                 return format!("Error: view '{}' not found under .ship/views/", name);
             }
@@ -784,7 +786,7 @@ impl ShipServer {
         which macro exists. Prefer this over grepping the daemon source. \
         Args: query (required), limit (default 20), kind ('macro'|'route'|'view'|'collection'|'trigger')."
     )]
-    async fn ship_sdk_query(
+    async fn query_sdk(
         &self,
         Parameters(req): Parameters<crate::requests::SdkQueryRequest>,
     ) -> String {
@@ -798,7 +800,7 @@ impl ShipServer {
         Args: name (required), collection (required for list/form/detail shapes), \
         shape ('blank'|'list'|'list-edit-delete'|'form'|'detail'|'tabs', default 'blank')."
     )]
-    async fn ship_view_scaffold(
+    async fn scaffold_view(
         &self,
         Parameters(req): Parameters<crate::requests::ViewScaffoldRequest>,
     ) -> String {
@@ -813,7 +815,7 @@ impl ShipServer {
         scope: run|project|user. run_id required when scope=run. \
         Returns { id } of the stored artifact."
     )]
-    async fn artifact_upload(
+    async fn upload_artifact(
         &self,
         Parameters(req): Parameters<crate::requests::artifacts::ArtifactUploadRequest>,
     ) -> String {
@@ -832,7 +834,7 @@ impl ShipServer {
         description = "Get artifact metadata (JSON). Does not return bytes. \
         Use artifact_download to retrieve binary content."
     )]
-    async fn artifact_get(
+    async fn get_artifact(
         &self,
         Parameters(req): Parameters<crate::requests::artifacts::ArtifactIdRequest>,
     ) -> String {
@@ -843,7 +845,7 @@ impl ShipServer {
         description = "List artifacts. scope: run|project|user (default project). \
         filter_json: optional JSON object with additional query filters."
     )]
-    async fn artifact_list(
+    async fn list_artifacts(
         &self,
         Parameters(req): Parameters<crate::requests::artifacts::ArtifactListRequest>,
     ) -> String {
@@ -851,7 +853,7 @@ impl ShipServer {
     }
 
     #[tool(description = "Delete an artifact by ID.")]
-    async fn artifact_delete(
+    async fn delete_artifact(
         &self,
         Parameters(req): Parameters<crate::requests::artifacts::ArtifactIdRequest>,
     ) -> String {
@@ -862,7 +864,7 @@ impl ShipServer {
         description = "Promote an artifact to a new scope. \
         target_scope: project|user. Requires PromoteArtifact grant."
     )]
-    async fn artifact_promote(
+    async fn promote_artifact(
         &self,
         Parameters(req): Parameters<crate::requests::artifacts::ArtifactPromoteRequest>,
     ) -> String {
@@ -926,10 +928,15 @@ fn format_findings(findings: &[lint::Finding]) -> String {
     out
 }
 
-// ---- Unstable tool registration ----
+// ---- Experimental tool registration ----
+//
+// These tools are always registered. The `experimental` marker is applied by
+// `stability::finalize_router` after the main and experimental routers merge:
+// each tool's description gains an "**EXPERIMENTAL** — interface may change…"
+// prefix. The historical `unstable` Cargo feature still exists for runtime-
+// behavior gating but no longer controls tool registration.
 
-#[cfg(feature = "unstable")]
-#[tool_router(router = unstable_tool_router)]
+#[tool_router(router = experimental_tool_router)]
 impl ShipServer {
     // ---- Dispatch ----
 
@@ -975,7 +982,7 @@ impl ShipServer {
         workspace.*, gate.*, job.*, config.*, project.*) are rejected. \
         actor_id and workspace_id are injected from connection context — not agent-controlled."
     )]
-    async fn event(&self, Parameters(req): Parameters<ShipEventRequest>) -> String {
+    async fn emit_event(&self, Parameters(req): Parameters<ShipEventRequest>) -> String {
         let project_dir = match self.get_effective_project_dir().await {
             Ok(d) => d,
             Err(e) => return e,
@@ -985,42 +992,20 @@ impl ShipServer {
             tool_gate::current_branch(project_dir.parent().unwrap_or(&project_dir))
                 .unwrap_or_else(|_| "unknown".to_string());
 
-        let envelope = match event::handle_ship_event(
+        match event::emit_domain_event(
             &actor_id,
             &workspace_id,
             &req.event_type,
             req.payload,
             req.elevated.unwrap_or(false),
-        ) {
-            Ok(e) => e,
-            Err(e) => return format!("Error: {}", e),
-        };
-
-        // Persist to actor-scoped store.
+        )
+        .await
         {
-            let store_guard = self.actor_store.lock().await;
-            let Some(ref store) = *store_guard else {
-                return "Error: actor not initialized — ensure on_initialized completed".to_string();
-            };
-            if let Err(e) = store.append(&envelope) {
-                return format!("Error persisting event: {}", e);
+            Ok(resp) => {
+                self.notify_resource_updated("ship://events").await;
+                resp
             }
-        }
-
-        // Route via daemon's KernelRouter for subscriber delivery.
-        if let Err(e) = crate::network_client::event_route(
-            &envelope,
-            Some(&workspace_id),
-            None,
-        ).await {
-            return format!("Error routing event via daemon: {}", e);
-        }
-
-        self.notify_resource_updated("ship://events").await;
-
-        match serde_json::to_string(&envelope) {
-            Ok(json) => json,
-            Err(_) => format!("Event emitted: {}", envelope.id),
+            Err(e) => format!("Error: {}", e),
         }
     }
 
@@ -1033,31 +1018,31 @@ impl ShipServer {
         Arguments: `template` (required, registered minijinja template), \
         `title` (optional), `initial_context` (optional JSON)."
     )]
-    async fn view_open(&self, Parameters(req): Parameters<crate::requests::ViewOpenRequest>) -> String {
+    async fn open_view(&self, Parameters(req): Parameters<crate::requests::ViewOpenRequest>) -> String {
         let actor_id = self.resolve_actor_id().await;
         crate::tools::view::view_open(&actor_id, req).await
     }
 
     #[tool(description = "Patch (morph) a selector inside an open view session with new HTML.")]
-    async fn view_patch(&self, Parameters(req): Parameters<crate::requests::ViewPatchRequest>) -> String {
+    async fn patch_view(&self, Parameters(req): Parameters<crate::requests::ViewPatchRequest>) -> String {
         let actor_id = self.resolve_actor_id().await;
         crate::tools::view::view_patch(&actor_id, req).await
     }
 
     #[tool(description = "Append HTML at a selector inside an open view session.")]
-    async fn view_append(&self, Parameters(req): Parameters<crate::requests::ViewAppendRequest>) -> String {
+    async fn append_view(&self, Parameters(req): Parameters<crate::requests::ViewAppendRequest>) -> String {
         let actor_id = self.resolve_actor_id().await;
         crate::tools::view::view_append(&actor_id, req).await
     }
 
     #[tool(description = "Set a reactive signal in an open view session.")]
-    async fn view_signal(&self, Parameters(req): Parameters<crate::requests::ViewSignalRequest>) -> String {
+    async fn signal_view(&self, Parameters(req): Parameters<crate::requests::ViewSignalRequest>) -> String {
         let actor_id = self.resolve_actor_id().await;
         crate::tools::view::view_signal(&actor_id, req).await
     }
 
     #[tool(description = "Close a view session. Only the owning agent may close.")]
-    async fn view_close(&self, Parameters(req): Parameters<crate::requests::ViewCloseRequest>) -> String {
+    async fn close_view(&self, Parameters(req): Parameters<crate::requests::ViewCloseRequest>) -> String {
         let actor_id = self.resolve_actor_id().await;
         crate::tools::view::view_close(&actor_id, req).await
     }

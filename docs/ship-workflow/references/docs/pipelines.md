@@ -27,15 +27,12 @@ steps:
     agent: rust-runtime
     after: [test]
 
-  - id: gate
-    type: gate
+  - id: review
+    type: review
     agent: reviewer
     model: sonnet
     after: [impl]
-
-  - id: merge
-    type: merge
-    after: [gate]
+auto_merge: true
 ```
 
 Reference it in spec frontmatter:
@@ -62,37 +59,36 @@ Spawns an agent in the worktree. The agent reads the job spec and works.
   provider: anthropic  # optional
 ```
 
-### `gate`
+### `review`
 
-Review step. Same as agent but semantically a read-only review. The gate agent reads the original spec and the diff, then passes or fails.
+Agent-backed reviewer. Same as `agent` but semantically read-only — the reviewer reads the diff and emits pass/fail.
 
 ```yaml
 - id: review
-  type: gate
+  type: review
   agent: reviewer
   model: sonnet
   after: [implement]
 ```
 
-### `merge`
+### `run`
 
-Merges the job branch into the current branch. Emits `job.merged` which triggers cleanup (worktree removal, branch deletion, tmux session kill).
-
-```yaml
-- id: merge
-  type: merge
-  after: [review]
-```
-
-### `human`
-
-Pauses the pipeline until a human acts. Creates an inbox item.
+Plain shell command. No agent process. Used for build/test/lint steps that don't need an LLM.
 
 ```yaml
-- id: approve
-  type: human
-  after: [review]
+- id: check
+  type: run
+  run: cargo test --workspace
+  after: [implement]
 ```
+
+### Merge — pipeline attribute, not a step type
+
+Set `auto_merge: true` at the pipeline root to merge the job branch on success. The legacy `type: merge` step variant was removed in the v1 contract freeze.
+
+### Human handoff — emit `job.blocked`, no `type: human`
+
+There is no `type: human` step. Emit `job.blocked { needs_human: true }` from a step to pause for human action; the human gateway service routes it.
 
 ## DAG Dependencies
 

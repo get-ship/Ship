@@ -7,10 +7,21 @@
 //! core bundles (`datastar.js`, `ship-elements.js`); every island bundle
 //! arrives per-view.
 //!
+//! ## Closed enum (v1)
+//!
+//! The pack vocabulary is a closed set: [`KNOWN_PACKS`]. The view manifest
+//! JSON Schema (`schemas/view-manifest.schema.json`) enforces the same
+//! enum at author time, and this module is the runtime source of truth
+//! at load time — unknown names are rejected with a clear error naming
+//! the manifest path and the offending value. Pack extensibility for
+//! third-party authors is a Phase B concern (see
+//! `docs/ship-component-packs/references/docs/manifest-and-distribution.md`).
+//!
 //! Packs are intentionally coarse — `editor` bundles TipTap and CodeMirror
 //! because most views that need one need the other, and splitting them adds
-//! complexity without benefit. New packs (e.g. `viz` for charts) get added
-//! here as a single source of truth.
+//! complexity without benefit. Adding a first-party pack means extending
+//! [`KNOWN_PACKS`], adding a match arm to [`pack_bundles`], updating the
+//! schema enum, and adding a `bundle:*` script in `packages/ship-set`.
 //!
 //! ## Render-path contract
 //!
@@ -25,11 +36,18 @@
 //! view can't happen. Cross-view chaining (e.g. pipelines focus nested
 //! under pipelines) is a future problem.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+/// Closed set of pack names accepted at v1. Mirrors the `enum` in
+/// `schemas/view-manifest.schema.json`. Adding a name here requires a
+/// matching schema update plus a `pack_bundles` arm and a bundle script.
+pub(crate) const KNOWN_PACKS: &[&str] = &["editor", "terminal", "git"];
 
 /// Map a pack name to the JS bundle filenames served under
 /// `/api/assets/`. Returning a `&'static [&'static str]` keeps this
-/// a trivially-cheap lookup with no allocation.
+/// a trivially-cheap lookup with no allocation. Names outside
+/// [`KNOWN_PACKS`] return an empty slice — callers should validate
+/// via [`validate_packs`] before reaching this function.
 pub(crate) fn pack_bundles(name: &str) -> &'static [&'static str] {
     match name {
         "editor" => &["ship-code-editor.js", "ship-markdown-editor.js"],
@@ -39,15 +57,90 @@ pub(crate) fn pack_bundles(name: &str) -> &'static [&'static str] {
     }
 }
 
-/// Read the `packs:` list from a view directory's manifest. Returns an
-/// empty vec when the view has no manifest or no packs declared. Silently
-/// drops unknown pack names so a typo doesn't break the view — the lint
-/// rule `stale-pack-declaration` surfaces those at author time.
+/// Validation failure for a manifest's `packs:` list. Carries the
+/// manifest path + offending value so the runtime can log a precise
+/// error and tests can assert on the message.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct PackValidationError {
+    pub manifest: PathBuf,
+    pub offending: String,
+}
+
+impl std::fmt::Display for PackValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "view manifest {manifest} declares unknown pack {offending:?}; \
+             allowed values: {allowed:?}",
+            manifest = self.manifest.display(),
+            offending = self.offending,
+            allowed = KNOWN_PACKS,
+        )
+    }
+}
+
+impl std::error::Error for PackValidationError {}
+
+/// Validate a `packs:` list against [`KNOWN_PACKS`]. Returns the list
+/// unchanged on success, or an error naming the first offending value
+/// and the manifest path. Empty / missing lists are valid.
+pub(crate) fn validate_packs(
+    manifest_path: &Path,
+    packs: &[String],
+) -> Result<Vec<String>, PackValidationError> {
+    for pack in packs {
+        if !KNOWN_PACKS.contains(&pack.as_str()) {
+            return Err(PackValidationError {
+                manifest: manifest_path.to_path_buf(),
+                offending: pack.clone(),
+            });
+        }
+    }
+    Ok(packs.to_vec())
+}
+
+/// Locate a view's manifest file inside `dir`. Mirrors the precedence
+/// in `read_raw_manifest`. Returns `None` when no manifest exists.
+fn find_manifest_path(dir: &Path) -> Option<PathBuf> {
+    for fname in ["manifest.yaml", "manifest.jsonc", "manifest.json"] {
+        let p = dir.join(fname);
+        if p.exists() {
+            return Some(p);
+        }
+    }
+    None
+}
+
+/// Read and validate the `packs:` list from a view directory's manifest.
+///
+/// Returns an empty vec when the view has no manifest or no packs
+/// declared. **Unknown pack names cause the entire pack list for that
+/// view to be dropped**, with a `tracing::error!` naming the manifest
+/// path and offending value — the runtime is the source of truth for
+/// the closed enum, and partial injection of "the known half" of a
+/// broken declaration would mask the author's mistake. The lint rule
+/// `pkg-stale-pack-declaration` is the author-time double-check.
 pub(crate) fn read_view_packs(dir: &PathBuf) -> Vec<String> {
     let Some(raw) = super::resolve::read_raw_manifest(dir) else {
         return Vec::new();
     };
-    raw.packs.unwrap_or_default()
+    let packs = raw.packs.unwrap_or_default();
+    if packs.is_empty() {
+        return Vec::new();
+    }
+    let manifest_path = find_manifest_path(dir).unwrap_or_else(|| dir.clone());
+    match validate_packs(&manifest_path, &packs) {
+        Ok(v) => v,
+        Err(err) => {
+            tracing::error!(
+                manifest = %err.manifest.display(),
+                offending = %err.offending,
+                allowed = ?KNOWN_PACKS,
+                "view manifest declares unknown pack — pack injection skipped for this view"
+            );
+            Vec::new()
+        }
+    }
 }
 
 /// Build `<script type="module" src="/api/assets/<bundle>">` tags

@@ -1,7 +1,7 @@
 {#- Permissions section — preset select + three tool-pattern lists.
     Context: agent (AgentDetail), catalogs (AgentCatalogs). Edits send
     a PATCH with a single replace op on `/permissions` against the
-    generic AgentService at /api/agents/{id}. Replace semantics are
+    generic AgentService at /api/v1/agents/{id}. Replace semantics are
     correct for tool lists (merge can't express removal).
 
     Signals (view-root):
@@ -29,7 +29,7 @@
     <ship-button variant="outline" size="sm"
                  {{ attr_if('!$pDirty || $pSaving', 'disabled') }}
                  {{ class_if('$pSaving', 'is-saving') }}
-                 {{ on_click("$pSaving = true; @patch('/api/agents/" ~ (agent.id | e) ~ "', {
+                 {{ on_click("$pSaving = true; @patch('/api/v1/agents/" ~ (agent.id | e) ~ "', {
                    contentType: 'json',
                    body: JSON.stringify([
                      { op: 'add', path: '/permissions', value: {

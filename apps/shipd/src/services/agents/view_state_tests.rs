@@ -152,7 +152,7 @@ fn merges_project_and_global_scopes() {
     // Project ship_dir with one unique + one shared — project wins.
     let project_tmp = tempdir().unwrap();
     let project_root = project_tmp.path();
-    let project_ship = project_root.join(".ship");
+    let project_ship = runtime::ShipHome::project_ship_dir(project_root);
     std::fs::create_dir_all(&project_ship).unwrap();
     std::fs::write(project_ship.join("ship.jsonc"), r#"{"id": "pr1"}"#).unwrap();
     write_agent(

@@ -56,7 +56,7 @@ pub struct EventRouteReq {
 #[utoipa::path(
     operation_id = "actorSpawn",
     post,
-    path = "/api/actor/spawn",
+    path = "/api/v1/actor/spawn",
     request_body = ActorSpawnReq,
     responses(
         (status = 200, body = MeshResponse),
@@ -198,7 +198,7 @@ fn is_ulid_shape(s: &str) -> bool {
 #[utoipa::path(
     operation_id = "eventRoute",
     post,
-    path = "/api/events/route",
+    path = "/api/v1/events/route",
     request_body = EventRouteReq,
     responses(
         (status = 200, body = MeshResponse),

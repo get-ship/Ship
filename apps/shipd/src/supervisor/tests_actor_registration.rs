@@ -16,14 +16,14 @@ use crate::rest_api::{ApiState, MeshRegisterReq, mesh_register};
 use crate::test_harness::TestDaemon;
 
 fn make_kernel(dir: &TempDir) -> KernelRouter {
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     KernelRouter::new(ship_dir).unwrap()
 }
 
 fn make_api_state(dir: &TempDir) -> ApiState {
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = Arc::new(Mutex::new(KernelRouter::new(ship_dir.clone()).unwrap()));

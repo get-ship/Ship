@@ -1,16 +1,16 @@
-//! PermissionService — HTTP surface at `/api/permissions/*`.
+//! PermissionService — HTTP surface at `/api/v1/permissions/*`.
 //!
 //! Preset entries in a single `<scope>/permissions.jsonc`. Same shape as
 //! McpService (singleton-file-with-entries) but keys live at the file root
 //! rather than under a sub-object.
 //!
-//! - GET    /api/permissions                 list presets
-//! - GET    /api/permissions/{id}            one preset
-//! - PUT    /api/permissions/{id}            replace
-//! - PATCH  /api/permissions/{id}            RFC 6902
-//! - DELETE /api/permissions/{id}            remove
-//! - POST   /api/permissions                 create { id, preset, scope? }
-//! - GET    /api/permissions/tool-patterns   autocomplete catalog
+//! - GET    /api/v1/permissions                 list presets
+//! - GET    /api/v1/permissions/{id}            one preset
+//! - PUT    /api/v1/permissions/{id}            replace
+//! - PATCH  /api/v1/permissions/{id}            RFC 6902
+//! - DELETE /api/v1/permissions/{id}            remove
+//! - POST   /api/v1/permissions                 create { id, preset, scope? }
+//! - GET    /api/v1/permissions/tool-patterns   autocomplete catalog
 //!
 //! The `tool-patterns` endpoint composes: hardcoded provider builtins +
 //! curated Bash shapes + wildcards for every MCP server returned by
@@ -81,14 +81,14 @@ fn files(state: &ApiState) -> FilesService {
     FilesService::resolve_roots(state.ship_dir())
 }
 
-/// GET /api/permissions
+/// GET /api/v1/permissions
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
     let svc = files(&state);
     let items = state::list(&svc);
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
-/// GET /api/permissions/{id}
+/// GET /api/v1/permissions/{id}
 pub async fn get(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -105,7 +105,7 @@ pub async fn get(
     })))
 }
 
-/// PUT /api/permissions/{id}
+/// PUT /api/v1/permissions/{id}
 pub async fn put(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -125,7 +125,7 @@ pub async fn put(
     })))
 }
 
-/// PATCH /api/permissions/{id}
+/// PATCH /api/v1/permissions/{id}
 pub async fn patch(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -143,7 +143,7 @@ pub async fn patch(
     })))
 }
 
-/// DELETE /api/permissions/{id}
+/// DELETE /api/v1/permissions/{id}
 pub async fn delete(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -158,7 +158,7 @@ pub async fn delete(
     })))
 }
 
-/// POST /api/permissions
+/// POST /api/v1/permissions
 #[derive(Deserialize)]
 pub struct CreateBody {
     pub id: String,
@@ -211,7 +211,7 @@ const BASH_SHAPES: &[(&str, &str)] = &[
     ("Bash(rm -rf *)", "Bash rm — recursive delete (destructive)"),
 ];
 
-/// GET /api/permissions/tool-patterns
+/// GET /api/v1/permissions/tool-patterns
 ///
 /// Provider builtins + curated Bash shapes + wildcard entries for every
 /// MCP server known to the daemon. Service-to-service: calls

@@ -50,7 +50,7 @@ function fail(reason, details = {}) {
 
 async function main() {
   // Spawn a real agent so we have a valid actor_id with mesh registration.
-  const spawnRes = await api("/api/sessions/spawn", {
+  const spawnRes = await api("/api/v1/sessions/spawn", {
     method: "POST",
     body: JSON.stringify({
       workspace_id: "feat-view-dev-studio",
@@ -78,7 +78,7 @@ async function main() {
   }
   if (!onMesh) {
     // Cleanup before failing.
-    await api(`/api/sessions/${actorId}`, { method: "DELETE" });
+    await api(`/api/v1/sessions/${actorId}`, { method: "DELETE" });
     fail("actor never reached the mesh", { actorId });
   }
   console.log("actor on mesh");
@@ -100,7 +100,7 @@ async function main() {
     }),
   });
   if (hookRes.status !== 200) {
-    await api(`/api/sessions/${actorId}`, { method: "DELETE" });
+    await api(`/api/v1/sessions/${actorId}`, { method: "DELETE" });
     fail("hook before-tool failed", hookRes);
   }
   console.log("hook posted");
@@ -122,7 +122,7 @@ async function main() {
   }
 
   // Cleanup.
-  await api(`/api/sessions/${actorId}`, { method: "DELETE" });
+  await api(`/api/v1/sessions/${actorId}`, { method: "DELETE" });
 
   if (!landed) {
     fail("hook event never appeared in actor's event stream", {

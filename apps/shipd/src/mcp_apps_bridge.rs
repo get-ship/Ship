@@ -13,7 +13,7 @@
 use serde_json::{Value, json};
 
 /// Stable resource URI scheme for an agent-opened canvas. Resolves to the
-/// same HTML that `/api/view-sessions/:id/raw` serves.
+/// same HTML that `/api/v1/view-sessions/:id/raw` serves.
 pub const RESOURCE_URI_PREFIX: &str = "ui://ship/view-session/";
 
 /// Content-Security-Policy applied to iframe shell responses. Script-src is
@@ -29,7 +29,7 @@ pub const IFRAME_CSP: &str =
 /// aligned. Columns: inbound MCP Apps message, outbound daemon action
 /// (or reverse for daemon → host).
 pub const MESSAGE_MAPPING: &str = "\
-inbound: ui/initialize        → subscribe to /api/view-sessions/{id}\n\
+inbound: ui/initialize        → subscribe to /api/v1/view-sessions/{id}\n\
 inbound: ui/context-update    → merge into session.context; re-render shell\n\
 inbound: tools/call           → existing MCP tool call path\n\
 outbound: datastar-patch-elements → ui/render { selector, fragment }\n\

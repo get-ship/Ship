@@ -2,7 +2,7 @@
 //! templates (`ship.<domain>.<op>`), `window.ship.*` codegen, and MCP
 //! tool auto-registration all read.
 //!
-//! Served at `GET /api/ship/schema`. Each op carries enough metadata
+//! Served at `GET /api/v1/ship/schema`. Each op carries enough metadata
 //! for lint, autocomplete, and permission mapping:
 //!
 //! - `name`         — dotted op path (e.g. `agents.detail`).
@@ -23,16 +23,16 @@ use serde::Serialize;
 
 use crate::rest_api::MeshResponse;
 
-/// `GET /api/ship/schema` — catalog of every `ship.<domain>.<op>` the
+/// `GET /api/v1/ship/schema` — catalog of every `ship.<domain>.<op>` the
 /// registry exposes. Consumers:
 /// - `@ship/shell` TS SDK: codegen typed `window.ship.*` methods
 /// - Lint: flag template calls that don't match a known op
 /// - MCP server: auto-register ops as tools
-/// - Third-party view authors: editor autocomplete via `/api/ship/schema`
+/// - Third-party view authors: editor autocomplete via `/api/v1/ship/schema`
 #[utoipa::path(
     operation_id = "serveShipSchema",
     get,
-    path = "/api/ship/schema",
+    path = "/api/v1/ship/schema",
     responses(
         (status = 200, description = "ship.* op catalog (names, args, returns, permissions)"),
     ),

@@ -147,7 +147,7 @@ pub fn run_publish(
     is_dry_run: bool,
     tag: Option<&str>,
 ) -> Result<()> {
-    let ship_dir = root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(root);
     let manifest_path = ship_dir.join("ship.jsonc");
     let manifest = ShipManifest::from_file(&manifest_path)
         .context("reading .ship/ship.jsonc — is this a Ship project?")?;
@@ -168,7 +168,7 @@ pub fn run_publish(
 
     let payload = build_payload(&manifest, &hashes, tag, export_path);
 
-    let mut resp = ureq::post("https://api.getship.dev/api/registry/publish")
+    let mut resp = ureq::post("https://api.getship.dev/api/v1/registry/publish")
         .header("Authorization", &format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .send(payload.to_string().as_bytes())

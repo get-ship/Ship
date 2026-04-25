@@ -166,7 +166,7 @@
   <script>
     function shipSaveSetting(key, value, badgeId) {
       var badge = document.getElementById(badgeId);
-      fetch('/api/settings', {
+      fetch('/api/v1/settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: key, value: value })

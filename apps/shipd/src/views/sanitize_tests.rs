@@ -61,7 +61,7 @@ fn preserves_ship_element_with_attributes() {
 
 #[test]
 fn preserves_data_attributes_on_standard_tags() {
-    let out = sanitize(r#"<div id="root" data-init="@get('/api/x')" data-on-click="$n++"></div>"#);
+    let out = sanitize(r#"<div id="root" data-init="@get('/api/v1/x')" data-on-click="$n++"></div>"#);
     assert!(out.contains("id=\"root\""));
     assert!(out.contains("data-init"));
     assert!(out.contains("data-on-click"));

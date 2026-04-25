@@ -2,7 +2,7 @@
   File explorer — 240px left pane with search, filter chips, and nested
   skill-to-file tree. Matches React SkillsFileExplorer layout.
 -#}
-{#- URLs hit the file-routed framework directly: /api/v/skills[/<id>]. -#}
+{#- URLs hit the file-routed framework directly: /api/v1/v/skills[/<id>]. -#}
 {% from '_ship.html.j2' import on_click %}
 <style>
 .skills-explorer {
@@ -139,13 +139,13 @@
         placeholder="Search skills..."
         spellcheck="false"
         aria-label="Search skills"
-        data-on:input__debounce.250ms="@get('/api/v/skills?q=' + encodeURIComponent(evt.target.value) + '&kind={{ rail.active_kind }}')"
+        data-on:input__debounce.250ms="@get('/api/v1/v/skills?q=' + encodeURIComponent(evt.target.value) + '&kind={{ rail.active_kind }}')"
       >
     </div>
     <div class="se-filters" role="group" aria-label="Filter by kind">
       {% for kc in rail.kind_counts %}
         <button class="se-pill{% if kc.selected %} is-active{% endif %}"
-          {{ on_click("@get('/api/v/skills?kind=" ~ kc.id ~ (('&q=' ~ rail.q) if rail.q else '') ~ "')") }}>
+          {{ on_click("@get('/api/v1/v/skills?kind=" ~ kc.id ~ (('&q=' ~ rail.q) if rail.q else '') ~ "')") }}>
           {{ kc.label }} <span style="opacity:0.6;font-variant-numeric:tabular-nums">{{ kc.count }}</span>
         </button>
       {% endfor %}
@@ -181,7 +181,7 @@
               {% set is_expanded = is_active %}
               <div role="treeitem">
                 <button class="se-skill"
-                  {{ on_click("@get('/api/v/skills/" ~ s.id ~ "?q=" ~ rail.q ~ "&kind=" ~ rail.active_kind ~ "&file=SKILL.md')") }}
+                  {{ on_click("@get('/api/v1/v/skills/" ~ s.id ~ "?q=" ~ rail.q ~ "&kind=" ~ rail.active_kind ~ "&file=SKILL.md')") }}
                   title="{{ s.description }}">
                   <span class="se-chevron" aria-hidden="true">
                     {% if is_expanded %}
@@ -206,7 +206,7 @@
                     {% set is_file_active = file and (file.path == f) %}
                     <button class="se-file{% if is_file_active %} is-active{% endif %}"
                       role="treeitem"
-                      {{ on_click("@get('/api/v/skills/" ~ s.id ~ "?q=" ~ rail.q ~ "&kind=" ~ rail.active_kind ~ "&file=" ~ f ~ "')") }}
+                      {{ on_click("@get('/api/v1/v/skills/" ~ s.id ~ "?q=" ~ rail.q ~ "&kind=" ~ rail.active_kind ~ "&file=" ~ f ~ "')") }}
                       title="{{ f }}">
                       {% if f == 'SKILL.md' %}
                         <ship-icon name="file" size="xs" tone="info"></ship-icon>

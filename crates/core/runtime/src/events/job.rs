@@ -168,7 +168,21 @@ pub struct GateSpec {
     pub forbid_changed: Vec<GateRule>,
 }
 
-/// A single gate rule. `match` is pipe-separated globs (or a YAML list).
+/// A single gate rule. `match` and `not_match` are lists of glob patterns.
+///
+/// Canonical YAML/JSON shape:
+/// ```yaml
+/// match: ["**/*.rs", "**/*.toml"]
+/// not_match: ["**/tests/**"]
+/// min: 1
+/// ```
+///
+/// Earlier revisions accepted a pipe-separated string for `match`/`not_match`
+/// and a single rule object for `require_changed`/`forbid_changed`; both
+/// shorthand forms are now rejected at load time. See
+/// `crates/core/runtime/src/events/job.rs::deserialize_rules` for the error
+/// the loader surfaces and the contract-freeze (Item 1) note in
+/// `apps/docs/src/content/docs/reference/pipelines/reference.md`.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct GateRule {
     #[serde(rename = "match", deserialize_with = "deserialize_patterns")]
@@ -182,24 +196,65 @@ pub struct GateRule {
 
 fn default_min() -> u32 { 1 }
 
+/// Canonical: a list of rule objects. The legacy single-object shorthand is
+/// rejected with an error pointing at the canonical syntax.
 fn deserialize_rules<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<GateRule>, D::Error> {
-    #[derive(serde::Deserialize)]
-    #[serde(untagged)]
-    enum OneOrMany { One(GateRule), Many(Vec<GateRule>) }
-    Ok(match OneOrMany::deserialize(d)? {
-        OneOrMany::One(r) => vec![r],
-        OneOrMany::Many(v) => v,
-    })
+    use serde::de::Error;
+    let val = serde_json::Value::deserialize(d)?;
+    if !val.is_array() {
+        return Err(D::Error::custom(
+            "gate rule list must be a YAML/JSON array of rule objects \
+             (e.g. `require_changed: [{ match: [\"**/*.rs\"], min: 1 }]`); \
+             the legacy single-object shorthand was removed in the v1 \
+             contract freeze",
+        ));
+    }
+    serde_json::from_value(val).map_err(D::Error::custom)
 }
 
+/// Canonical: a list of glob strings. The legacy pipe-separated string
+/// shorthand is rejected with an error pointing at the canonical syntax.
 fn deserialize_patterns<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
-    #[derive(serde::Deserialize)]
-    #[serde(untagged)]
-    enum V { S(String), L(Vec<String>) }
-    Ok(match V::deserialize(d)? {
-        V::S(s) => s.split('|').map(|p| p.trim().to_string()).filter(|p| !p.is_empty()).collect(),
-        V::L(v) => v.into_iter().flat_map(|s| s.split('|').map(|p| p.trim().to_string()).collect::<Vec<_>>()).filter(|p| !p.is_empty()).collect(),
-    })
+    use serde::de::Error;
+    let val = serde_json::Value::deserialize(d)?;
+    match val {
+        serde_json::Value::Array(items) => {
+            let mut out = Vec::with_capacity(items.len());
+            for (idx, item) in items.into_iter().enumerate() {
+                match item {
+                    serde_json::Value::String(s) => {
+                        if s.contains('|') {
+                            return Err(D::Error::custom(format!(
+                                "gate pattern[{idx}] '{s}' contains '|'; \
+                                 pipe-separated patterns were removed in the \
+                                 v1 contract freeze. Split into separate list \
+                                 entries: `match: [\"a\", \"b\"]`"
+                            )));
+                        }
+                        if s.is_empty() {
+                            return Err(D::Error::custom(format!(
+                                "gate pattern[{idx}] is empty"
+                            )));
+                        }
+                        out.push(s);
+                    }
+                    other => return Err(D::Error::custom(format!(
+                        "gate pattern[{idx}] must be a glob string, got {other:?}"
+                    ))),
+                }
+            }
+            Ok(out)
+        }
+        serde_json::Value::String(_) => Err(D::Error::custom(
+            "gate `match`/`not_match` must be a list of glob strings \
+             (e.g. `match: [\"**/*.rs\", \"**/*.toml\"]`); the legacy \
+             pipe-separated string shorthand was removed in the v1 \
+             contract freeze",
+        )),
+        other => Err(D::Error::custom(format!(
+            "gate `match`/`not_match` must be a list of glob strings, got {other:?}"
+        ))),
+    }
 }
 
 
@@ -1101,3 +1156,74 @@ mod verdict_tests {
         assert_eq!(v, StepVerdict::Advance);
     }
 }
+
+#[cfg(test)]
+mod gate_canonical_format_tests {
+    //! Contract-freeze Item 1: GateRule must use the list-of-rules + list-of-globs
+    //! canonical shape. The legacy single-object and pipe-separated string
+    //! shorthands are rejected at deserialize with a pointer to the canonical syntax.
+    use super::*;
+
+    #[test]
+    fn canonical_list_of_rules_with_glob_lists_round_trips() {
+        let yaml = r#"
+require_changed:
+  - match: ["**/*.rs", "**/*.toml"]
+    not_match: ["**/tests/**"]
+    min: 2
+forbid_changed:
+  - match: [".artifacts/**"]
+    min: 0
+"#;
+        let g: GateSpec = serde_yaml::from_str(yaml).expect("canonical shape parses");
+        assert_eq!(g.require_changed.len(), 1);
+        assert_eq!(g.require_changed[0].match_patterns,
+            vec!["**/*.rs".to_string(), "**/*.toml".to_string()]);
+        assert_eq!(g.require_changed[0].not_match, vec!["**/tests/**".to_string()]);
+        assert_eq!(g.require_changed[0].min, 2);
+        assert_eq!(g.forbid_changed[0].match_patterns, vec![".artifacts/**".to_string()]);
+    }
+
+    #[test]
+    fn legacy_single_object_rule_is_rejected_with_actionable_error() {
+        let yaml = r#"
+require_changed:
+  match: ["**/*.rs"]
+  min: 1
+"#;
+        let err = serde_yaml::from_str::<GateSpec>(yaml).unwrap_err().to_string();
+        assert!(
+            err.contains("array") && err.contains("contract freeze"),
+            "error must point at canonical syntax + freeze rationale: {err}"
+        );
+    }
+
+    #[test]
+    fn legacy_pipe_separated_match_string_is_rejected() {
+        let yaml = r#"
+require_changed:
+  - match: "**/*.rs|**/*.toml"
+    min: 1
+"#;
+        let err = serde_yaml::from_str::<GateSpec>(yaml).unwrap_err().to_string();
+        assert!(
+            err.contains("list of glob strings") || err.contains("contract freeze"),
+            "string match value must be rejected with canonical-syntax pointer: {err}"
+        );
+    }
+
+    #[test]
+    fn pipe_inside_list_entry_is_rejected() {
+        // The list shape was always canonical for the loader, but we used to
+        // also split entries on '|'. That's the same dual shape one level
+        // deeper — reject.
+        let yaml = r#"
+require_changed:
+  - match: ["**/*.rs|**/*.toml"]
+    min: 1
+"#;
+        let err = serde_yaml::from_str::<GateSpec>(yaml).unwrap_err().to_string();
+        assert!(err.contains("contains '|'"), "pipe inside list entry must be flagged: {err}");
+    }
+}
+

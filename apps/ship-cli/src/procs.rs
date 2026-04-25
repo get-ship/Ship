@@ -5,7 +5,7 @@ use anyhow::{Result, anyhow};
 
 pub fn run(slug: Option<&str>, limit: Option<usize>, json: bool) -> Result<()> {
     let (port, token) = crate::daemon::ensure_daemon()?;
-    let mut url = format!("http://127.0.0.1:{port}/api/procs");
+    let mut url = format!("http://127.0.0.1:{port}/api/v1/procs");
     let mut q: Vec<String> = vec![];
     if let Some(s) = slug {
         q.push(format!("slug={}", urlencode(s)));

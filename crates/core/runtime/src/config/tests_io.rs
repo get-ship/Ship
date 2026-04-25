@@ -6,7 +6,7 @@ use tempfile::tempdir;
 #[test]
 fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     fs::create_dir_all(&ship_dir)?;
 
     let config = ProjectConfig {
@@ -93,10 +93,8 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
         "ship.jsonc must not persist namespace claims"
     );
 
-    assert!(
-        !ship_dir.join("agents").join("config.toml").exists(),
-        "legacy agents/config.toml should not be written"
-    );
+    // Legacy per-agent TOML config is no longer read or written — the
+    // loader path was removed in the home-layout restructure.
 
     // Verify runtime settings stored in kv_state (project-scoped namespace)
     let ns = super::runtime_settings::project_ns(&ship_dir);
@@ -138,7 +136,7 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
 #[test]
 fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     fs::create_dir_all(&ship_dir)?;
 
     let config = ProjectConfig {

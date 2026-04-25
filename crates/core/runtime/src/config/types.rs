@@ -145,16 +145,6 @@ pub fn is_agent_layer_empty(config: &AgentLayerConfig) -> bool {
     config.skills.is_empty() && config.prompts.is_empty() && config.context.is_empty()
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub(super) struct LegacyAgentsConfigFile {
-    #[serde(default)]
-    pub providers: Vec<String>,
-    #[serde(default)]
-    pub active_agent: Option<String>,
-    #[serde(default)]
-    pub hooks: Vec<HookConfig>,
-}
-
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Type)]
 pub struct NamespaceConfig {
     /// Stable namespace id (e.g. "project", "agents", "generated", "plugin:ghost-issues")

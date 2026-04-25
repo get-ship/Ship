@@ -86,7 +86,7 @@ pub fn build_command(strategy: &TerminalStrategy, session_name: &str) -> Option<
 /// Detect the terminal strategy from the current environment.
 pub fn detect_strategy() -> TerminalStrategy {
     detect_strategy_inner(
-        std::env::var("SHIP_DEFAULT_TERMINAL").ok().as_deref().map(str::trim).map(str::to_lowercase).as_deref(),
+        runtime::env::read_raw(runtime::env::Var::DefaultTerminal).ok().as_deref().map(str::trim).map(str::to_lowercase).as_deref(),
         wt_in_path(),
         std::env::var("TMUX").is_ok(),
         std::env::var("TERM_PROGRAM").ok().as_deref(),

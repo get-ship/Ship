@@ -464,7 +464,7 @@ mod tests {
 
     fn setup_kernel() -> (tempfile::TempDir, Arc<TokioMutex<KernelRouter>>, std::path::PathBuf) {
         let dir = tempfile::tempdir().unwrap();
-        let base = dir.path().join(".ship");
+        let base = runtime::ShipHome::project_ship_dir(dir.path());
         let router = KernelRouter::new(base.clone()).unwrap();
         let db = base.join("platform.db");
         (dir, Arc::new(TokioMutex::new(router)), db)

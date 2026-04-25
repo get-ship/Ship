@@ -155,7 +155,7 @@ pub fn run_login() -> Result<()> {
 /// Fetch the authenticated user's id and record it as the daemon owner in
 /// platform.db. The daemon checks this on every server-attest call.
 fn bind_daemon_owner(token: &str) -> Result<Option<String>> {
-    let mut resp = ureq::get("https://api.getship.dev/api/me")
+    let mut resp = ureq::get("https://api.getship.dev/api/v1/me")
         .header("Authorization", &format!("Bearer {token}"))
         .call()
         .map_err(|e| anyhow::anyhow!("fetch user profile: {e}"))?;
@@ -213,9 +213,10 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
 
 /// Read daemon connection info (port + daemon.token) from ~/.ship/.
 fn daemon_connect() -> Result<(u16, String)> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?
-        .join(".ship");
+    let home = runtime::ShipHome::project_ship_dir(
+        dirs::home_dir()
+            .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?,
+    );
     let port: u16 = std::fs::read_to_string(home.join("daemon.port"))
         .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?
         .trim()
@@ -358,9 +359,9 @@ fn print_local_identity() {
     }
 }
 
-/// Fetch /api/me and return a display string.
+/// Fetch /api/v1/me and return a display string.
 fn fetch_me(token: &str) -> Result<String> {
-    let mut resp = ureq::get("https://api.getship.dev/api/me")
+    let mut resp = ureq::get("https://api.getship.dev/api/v1/me")
         .header("Authorization", &format!("Bearer {}", token))
         .call()
         .map_err(|e| anyhow::anyhow!("API request failed: {}", e))?;

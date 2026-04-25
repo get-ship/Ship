@@ -94,7 +94,7 @@ fn err(status: StatusCode, msg: impl Into<String>) -> axum::response::Response {
 fn ensure_current(state: &ApiState, mut list: Vec<Project>) -> Vec<Project> {
     if let Ok(current) = std::env::current_dir() {
         // Only track if it contains a .ship dir.
-        if current.join(".ship").is_dir() {
+        if runtime::ShipHome::project_ship_dir(&current).is_dir() {
             let id = project_id_for(&current);
             if !list.iter().any(|p| p.id == id) {
                 list.push(Project {
@@ -125,7 +125,7 @@ fn active_id(state: &ApiState) -> Option<String> {
 #[utoipa::path(
     operation_id = "listProjects",
     get,
-    path = "/api/projects",
+    path = "/api/v1/projects",
     responses(
         (status = 200, description = "Known projects + active id", body = ProjectsResponse),
     ),
@@ -146,7 +146,7 @@ pub async fn list_projects(State(state): State<ApiState>) -> axum::response::Res
 #[utoipa::path(
     operation_id = "addProject",
     post,
-    path = "/api/projects",
+    path = "/api/v1/projects",
     request_body = ProjectAddReq,
     responses(
         (status = 200, description = "Project added", body = ProjectsResponse),
@@ -163,7 +163,7 @@ pub async fn add_project(
         return err(StatusCode::BAD_REQUEST, format!("not a directory: {}", path.display()));
     }
     // Require .ship dir OR create one quietly.
-    let ship_dir = path.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&path);
     if !ship_dir.exists() {
         if let Err(e) = std::fs::create_dir_all(&ship_dir) {
             return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
@@ -200,7 +200,7 @@ pub async fn add_project(
 #[utoipa::path(
     operation_id = "switchProject",
     post,
-    path = "/api/projects/switch",
+    path = "/api/v1/projects/switch",
     request_body = ProjectSwitchReq,
     responses(
         (status = 200, description = "Active project updated"),

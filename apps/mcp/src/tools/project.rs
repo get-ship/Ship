@@ -95,8 +95,6 @@ pub async fn get_project_info(project_dir: &Path) -> String {
     let name = get_project_name(project_dir);
     let config = get_config(Some(project_dir.to_path_buf())).unwrap_or_default();
 
-    let adrs = runtime::db::adrs::list_adrs().unwrap_or_default();
-
     let mut out = format!("# Project: {}\n\n", name);
     out.push_str("## Current Context\n");
 
@@ -142,15 +140,6 @@ pub async fn get_project_info(project_dir: &Path) -> String {
         let names: Vec<_> = config.modes.iter().map(|m| m.id.as_str()).collect();
         out.push_str(&names.join(", "));
         out.push_str(")\n");
-    }
-
-    out.push_str("\n## ADRs\n");
-    if adrs.is_empty() {
-        out.push_str("No ADRs.\n");
-    } else {
-        for a in &adrs {
-            out.push_str(&format!("- {} [{}] {}\n", a.id, a.status, a.title));
-        }
     }
 
     if let Ok(log) = read_log(project_dir) {

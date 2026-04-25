@@ -52,7 +52,7 @@ pub(super) fn sync_compiled_asset_cache(ship_dir: &Path) -> Result<()> {
     }
 
     for server in super::mcp::get_mcp_config(ship_dir)? {
-        let digest = stable_hash(&toml::to_string(&server)?);
+        let digest = stable_hash(&serde_json::to_string(&server)?);
         crate::db::artifact_registry::upsert_compiled_asset_cache_db(
             ARTIFACT_KIND_MCP,
             &server.id,

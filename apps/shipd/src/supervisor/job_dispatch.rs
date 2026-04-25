@@ -48,7 +48,7 @@ pub async fn subscribe_job_events(
     // single-session interactive TmuxExecutor for users pairing with an
     // agent in a workspace session.
     let executor: Arc<dyn JobExecutor> =
-        if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("tmux") {
+        if runtime::env::read_raw(runtime::env::Var::Executor).as_deref() == Ok("tmux") {
             tracing::info!("job-dispatch: using TmuxExecutor (SHIP_EXECUTOR=tmux)");
             Arc::new(super::executors::TmuxExecutor::new(Some(kernel.clone())))
         } else {

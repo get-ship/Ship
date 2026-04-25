@@ -25,9 +25,10 @@ fn ensure_no_daemon() {
 async fn open_without_daemon_returns_structured_error() {
     ensure_no_daemon();
     let req = ViewOpenRequest {
-        template: "canvas/blank".into(),
+        template: Some("canvas/blank".into()),
         title: Some("hello".into()),
         initial_context: None,
+        target: None,
     };
     let out = view_open("agent.test", req).await;
     assert!(out.starts_with("Error:"), "expected error surface, got: {out}");

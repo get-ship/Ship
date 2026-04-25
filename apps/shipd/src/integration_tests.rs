@@ -10,13 +10,13 @@ use runtime::events::{ActorConfig, EventEnvelope};
 async fn harness_provides_clean_environment() {
     let daemon = TestDaemon::new().await;
     assert!(daemon.temp_dir.path().exists());
-    assert!(daemon.temp_dir.path().join(".ship").exists());
+    assert!(runtime::ShipHome::project_ship_dir(daemon.temp_dir.path()).exists());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn harness_get_returns_json() {
     let daemon = TestDaemon::new().await;
-    let resp = daemon.get("/api/workspaces").await;
+    let resp = daemon.get("/api/v1/workspaces").await;
     assert_eq!(resp.status, 200);
     assert_eq!(resp.body["ok"], true);
 }
@@ -94,7 +94,7 @@ async fn sse_endpoint_returns_event_stream_content_type() {
     let daemon = TestDaemon::new().await;
     daemon.register_agent("agent.sse-type", &[]).await;
 
-    let resp = daemon.get_raw("/api/mesh/events/agent.sse-type").await;
+    let resp = daemon.get_raw("/api/v1/mesh/events/agent.sse-type").await;
     assert_eq!(resp.status(), 200);
 
     let content_type = resp
@@ -111,7 +111,7 @@ async fn sse_endpoint_returns_event_stream_content_type() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn sse_endpoint_not_found_for_unregistered() {
     let daemon = TestDaemon::new().await;
-    let resp = daemon.get_raw("/api/mesh/events/agent.ghost").await;
+    let resp = daemon.get_raw("/api/v1/mesh/events/agent.ghost").await;
     assert_eq!(resp.status(), 404);
 }
 
@@ -392,7 +392,7 @@ async fn mesh_discover_via_router() {
         );
     }
 
-    let resp = daemon.get("/api/mesh/discover").await;
+    let resp = daemon.get("/api/v1/mesh/discover").await;
     assert_eq!(resp.status, 200);
     let agents = resp.body["data"]["agents"].as_array().unwrap();
     assert!(
@@ -430,7 +430,7 @@ async fn runtime_workspaces_via_harness() {
     )
     .unwrap();
 
-    let resp = daemon.get("/api/workspaces").await;
+    let resp = daemon.get("/api/v1/workspaces").await;
     assert_eq!(resp.status, 200);
     let workspaces = resp.body["data"]["workspaces"].as_array().unwrap();
     assert!(
@@ -445,7 +445,7 @@ async fn runtime_workspaces_via_harness() {
 async fn runtime_sessions_via_harness() {
     let daemon = TestDaemon::new().await;
 
-    let resp = daemon.get("/api/sessions").await;
+    let resp = daemon.get("/api/v1/sessions").await;
     assert_eq!(resp.status, 200);
     assert!(resp.body["data"]["sessions"].is_array());
 }
@@ -469,7 +469,7 @@ async fn runtime_agents_via_harness() {
         );
     }
 
-    let resp = daemon.get("/api/agents/active").await;
+    let resp = daemon.get("/api/v1/agents/active").await;
     assert_eq!(resp.status, 200);
     let agents = resp.body["data"]["agents"].as_array().unwrap();
     assert!(
@@ -488,7 +488,7 @@ async fn event_route_via_harness() {
 
     let resp = daemon
         .post(
-            "/api/events/route",
+            "/api/v1/events/route",
             &serde_json::json!({
                 "envelope": envelope,
                 "workspace_id": null,
@@ -523,7 +523,7 @@ async fn workspaces_listed_in_api() {
     )
     .unwrap();
 
-    let resp = daemon.get("/api/workspaces").await;
+    let resp = daemon.get("/api/v1/workspaces").await;
     let workspaces = resp.body["data"]["workspaces"].as_array().unwrap();
     assert!(workspaces.iter().any(|w| w["name"] == "feature/ws-a"));
     assert!(workspaces.iter().any(|w| w["name"] == "feature/ws-b"));
@@ -543,7 +543,7 @@ async fn deleted_workspace_excluded_from_api() {
     .unwrap();
 
     // Verify it exists.
-    let resp = daemon.get("/api/workspaces").await;
+    let resp = daemon.get("/api/v1/workspaces").await;
     let workspaces = resp.body["data"]["workspaces"].as_array().unwrap();
     assert!(workspaces.iter().any(|w| w["name"] == "feature/delete-me"));
 
@@ -551,7 +551,7 @@ async fn deleted_workspace_excluded_from_api() {
     runtime::workspace::delete_workspace(daemon.state.ship_dir(), "feature/delete-me").unwrap();
 
     // Must not appear.
-    let resp = daemon.get("/api/workspaces").await;
+    let resp = daemon.get("/api/v1/workspaces").await;
     let workspaces = resp.body["data"]["workspaces"].as_array().unwrap();
     assert!(
         !workspaces.iter().any(|w| w["name"] == "feature/delete-me"),

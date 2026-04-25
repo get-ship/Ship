@@ -63,7 +63,7 @@ async function main() {
   const startSize = (await readLogTail()).length;
 
   // Full lifecycle: spawn → wait for mesh → input → kill.
-  const { status, data: spawn } = await api("/api/sessions/spawn", {
+  const { status, data: spawn } = await api("/api/v1/sessions/spawn", {
     method: "POST",
     body: JSON.stringify({
       workspace_id: "feat-view-dev-studio",
@@ -110,7 +110,7 @@ async function main() {
 
   // Cleanup.
   await new Promise((r) => setTimeout(r, 1000));
-  await api(`/api/sessions/${actorId}`, { method: "DELETE" });
+  await api(`/api/v1/sessions/${actorId}`, { method: "DELETE" });
 
   // Sweep new log lines for UNIQUE constraint failures.
   const fullLog = await readLogTail();

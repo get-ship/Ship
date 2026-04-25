@@ -137,7 +137,7 @@ mod tests {
 
     fn test_db() -> (DataService, CollectionSchema, tempfile::TempDir) {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let mut svc = open_data_db(&ship_dir).unwrap();
         let schema = test_schema();
@@ -147,7 +147,7 @@ mod tests {
 
     fn test_kernel() -> Arc<Mutex<KernelRouter>> {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         crate::db::ensure_db_at(&ship_dir).unwrap();
         let ship_dir = Box::leak(Box::new(ship_dir));

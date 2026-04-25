@@ -73,7 +73,6 @@ pub fn ensure_registered_namespaces(
         "agents",
         "ship.jsonc",
         "ship.toml",
-        "config.toml",
         "log.md",
         "templates",
         "plugins",

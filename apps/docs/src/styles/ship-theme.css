@@ -1,6 +1,6 @@
 /* Ship brand theme for Starlight.
  *
- * Strategy: bridge Ship's design tokens (@ship/ui/tokens.css + themes.css)
+ * Strategy: bridge Ship's design tokens (@ship/set/tokens.css + themes.css)
  * into Starlight's --sl-color-* variables so every Ship theme repaints the
  * full Starlight content area, not just ship-elements. Ship tokens are
  * already theme-aware via :root[data-theme='...'] selectors in themes.css
@@ -90,4 +90,146 @@ pre {
 
 nav.sidebar .top-level > li {
   margin-top: 0.25rem;
+}
+
+/* -------------------------------------------------------------------------
+ * FOUC guards — hide Ship web components until they're registered.
+ *
+ * Without this, `ship-popover` (the theme picker) flashes open on every
+ * page load because its slot content renders as plain flow before the
+ * custom element upgrades. Likewise, `ship-code-editor` flashes its raw
+ * slotted source as plaintext. `:not(:defined)` matches only while the
+ * element is unknown — once the registry upgrades it, the rule drops.
+ * ------------------------------------------------------------------------- */
+ship-popover:not(:defined),
+ship-code-editor:not(:defined),
+ship-markdown-editor:not(:defined),
+ship-tabs:not(:defined),
+ship-tab-panel:not(:defined),
+ship-accordion:not(:defined),
+ship-dialog:not(:defined),
+ship-drawer:not(:defined),
+ship-tooltip:not(:defined) {
+  visibility: hidden;
+}
+
+/* For block-ish presentation components we don't want layout to pop — show
+ * a placeholder shell instead of nothing, then swap to the real element. */
+ship-card:not(:defined),
+ship-alert:not(:defined),
+ship-button:not(:defined) {
+  opacity: 0;
+}
+ship-card:defined,
+ship-alert:defined,
+ship-button:defined,
+ship-popover:defined,
+ship-code-editor:defined,
+ship-markdown-editor:defined,
+ship-tabs:defined,
+ship-tab-panel:defined,
+ship-accordion:defined,
+ship-dialog:defined,
+ship-drawer:defined,
+ship-tooltip:defined {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 120ms ease-out;
+}
+
+/* -------------------------------------------------------------------------
+ * Right TOC (Table of Contents) — narrower on large screens.
+ *
+ * Starlight's right column is sized from --sl-sidebar-width by default. We
+ * shrink it so the content column can breathe on wide viewports. This helps
+ * every doc page; the /components/ grid especially benefits.
+ * ------------------------------------------------------------------------- */
+@media (min-width: 72rem) {
+  :root {
+    --sl-sidebar-width: 17rem;
+    --sl-content-width: 52rem;
+  }
+}
+@media (min-width: 90rem) {
+  :root {
+    --sl-content-width: 60rem;
+  }
+}
+
+/* -------------------------------------------------------------------------
+ * starlight-openapi endpoint sidebar entries — normalize size.
+ *
+ * Endpoint labels come in as "GET /api/…" and inherit the sidebar link
+ * styling, but some themes render them at the heading scale. Clamp to a
+ * compact, monospaced row that matches normal sidebar entries.
+ * ------------------------------------------------------------------------- */
+nav.sidebar a[href*="/reference/http-api/operations/"] {
+  font-family: var(--__sl-font-mono, ui-monospace, monospace);
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.35;
+  padding-block: 0.3rem;
+  letter-spacing: 0;
+  text-transform: none;
+  word-break: break-word;
+}
+nav.sidebar a[href*="/reference/http-api/operations/"][aria-current="page"] {
+  font-weight: 600;
+}
+
+/* -------------------------------------------------------------------------
+ * Card grid sizing — neutralize Starlight's inter-sibling margin.
+ *
+ * Root cause: Starlight applies
+ *   .sl-markdown-content :not(a,strong,em,…) + :not(a,strong,em,…)
+ *     { margin-top: var(--sl-content-gap-y); }
+ * That rule fires on EVERY adjacent non-inline sibling pair anywhere inside
+ * markdown content, including `<ship-card>` siblings inside an inline grid
+ * on the homepage. The first card in a grid row has no preceding sibling
+ * → no margin-top → renders at full natural height. Every subsequent card
+ * picks up 1rem margin-top, which gets subtracted from the grid row's
+ * stretched height, so those cards render 16px SHORTER than the first.
+ *
+ * The visual symptom is "first card is taller than its siblings". The
+ * fix: zero margin-top for every ship-card sitting in a grid container,
+ * since grid `gap` already handles inter-card spacing.
+ *
+ * Scoped to direct children of grid parents to avoid affecting ship-cards
+ * that sit in normal prose flow (where the Starlight margin is correct).
+ * ------------------------------------------------------------------------- */
+.sl-markdown-content :is([style*="display: grid"], [style*="display:grid"]) > ship-card,
+.sl-markdown-content .ship-cards > ship-card,
+.sl-markdown-content .ship-cards > .ship-card {
+  margin-top: 0 !important;
+}
+
+/* Cards.astro markdoc helper — its children are wrapped in an Astro grid;
+ * Starlight's sibling-margin rule likewise fires on adjacent `.ship-card`
+ * children inside it. */
+.ship-cards {
+  align-items: stretch;
+}
+.ship-cards > * {
+  align-self: stretch;
+  min-width: 0;
+  margin-top: 0 !important;
+}
+
+/* -------------------------------------------------------------------------
+ * Chips on the components page — force uniform height regardless of which
+ * pill is active. The `.is-active` rule changes background but the same
+ * box-sizing + line-height must apply so the active pill doesn't render
+ * taller than the others.
+ * ------------------------------------------------------------------------- */
+.idx-pills {
+  align-items: center;
+}
+.idx-pill,
+.idx-pill.is-active {
+  box-sizing: border-box;
+  line-height: 1.2;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
