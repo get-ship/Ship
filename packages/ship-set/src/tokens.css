@@ -328,6 +328,27 @@
   --tone-bg-mix: 18%;
   --tone-border-mix: 35%;
   --tone-hover-mix: 24%;
+
+  /* ─── App accent palette ─────────────────────────────────────────
+   * Per-app hue tokens consumed by <ship-app-icon>. Each app gets
+   * one OKLCH that stays distinct across themes. Themes raise L for
+   * dark backgrounds and may pull chroma. Values are tuned to remain
+   * visually distinct from each other AND legible against every
+   * theme's surface. */
+  --app-accent-dashboard:    oklch(0.62 0.18 260);
+  --app-accent-pipelines:    oklch(0.67 0.16 58);
+  --app-accent-agents:       oklch(0.58 0.22 295);
+  --app-accent-skills:       oklch(0.62 0.16 152);
+  --app-accent-git:          oklch(0.58 0.21 25);
+  --app-accent-collections:  oklch(0.65 0.15 200);
+  --app-accent-canvas:       oklch(0.72 0.16 80);
+  --app-accent-settings:     oklch(0.55 0.02 60);
+  --app-accent-chat:         oklch(0.62 0.13 280);
+  --app-accent-events:       oklch(0.62 0.18 30);
+  --app-accent-specs:        oklch(0.55 0.05 240);
+  --app-accent-theme:        oklch(0.66 0.20 320);
+  --app-accent-setup:        oklch(0.68 0.16 110);
+  --app-accent-overview:     oklch(0.60 0.10 230);
 }
 
 /* ─── Dark mode overrides ─────────────────────────────────────────── */
@@ -371,4 +392,22 @@
 
   --backdrop: oklch(0 0 0 / 55%);
   --scrim: oklch(0 0 0 / 30%);
+
+  /* App accents — bias toward higher chroma + brighter L for legibility
+   * against deep warm-navy. Hues are preserved so each app keeps its
+   * identity across the light/dark switch. */
+  --app-accent-dashboard:    oklch(0.74 0.16 260);
+  --app-accent-pipelines:    oklch(0.78 0.15 70);
+  --app-accent-agents:       oklch(0.72 0.20 295);
+  --app-accent-skills:       oklch(0.76 0.16 152);
+  --app-accent-git:          oklch(0.72 0.20 25);
+  --app-accent-collections:  oklch(0.78 0.14 200);
+  --app-accent-canvas:       oklch(0.82 0.15 80);
+  --app-accent-settings:     oklch(0.72 0.02 60);
+  --app-accent-chat:         oklch(0.74 0.13 280);
+  --app-accent-events:       oklch(0.74 0.18 30);
+  --app-accent-specs:        oklch(0.72 0.05 240);
+  --app-accent-theme:        oklch(0.78 0.20 320);
+  --app-accent-setup:        oklch(0.80 0.16 110);
+  --app-accent-overview:     oklch(0.74 0.10 230);
 }
