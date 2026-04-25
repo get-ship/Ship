@@ -90,7 +90,7 @@ pub async fn actor_spawn(
         }
     }
 
-    if let Some(caps) = req.capabilities {
+    if let Some(ref caps) = req.capabilities {
         let envelope = match EventEnvelope::new(
             "mesh.register",
             &req.actor_id,
@@ -108,6 +108,36 @@ pub async fn actor_spawn(
             tracing::warn!(actor_id = %req.actor_id, "mesh.register emit failed: {e}");
         }
     }
+
+    // Emit `actor.created` so externally-launched MCP clients (e.g. a
+    // local Claude Code session started with --channels) appear in the
+    // unified actors dashboard. The kernel-route side runs block_on,
+    // so dispatch on a std::thread to avoid deadlocking this async
+    // handler. Best-effort; failures only warn.
+    let actor_id = req.actor_id.clone();
+    let capabilities = req.capabilities.clone().unwrap_or_default();
+    std::thread::spawn(move || {
+        let payload = runtime::events::types::ActorCreated {
+            kind: "agent".to_string(),
+            environment_type: "local".to_string(),
+            workspace_id: None,
+            parent_actor_id: None,
+            restart_count: 0,
+            agent_id: Some(actor_id.clone()),
+            transport: Some("stdio".to_string()),
+            persistence: Some("long-lived".to_string()),
+            capabilities,
+            ..Default::default()
+        };
+        if let Err(e) = runtime::db::actor_events::emit_actor_created(
+            &actor_id,
+            &payload,
+            None,
+            None,
+        ) {
+            tracing::debug!(actor_id = %actor_id, "actor.created emit failed: {e}");
+        }
+    });
 
     (StatusCode::OK, Json(MeshResponse {
         ok: true, data: serde_json::json!(format!("spawned: {}", req.actor_id)),
