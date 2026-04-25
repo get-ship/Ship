@@ -62,21 +62,21 @@ export const THEMES: Theme[] = [
     ],
   },
   {
-    id: 'halo', label: 'Halo', dark: false,
+    id: 'halo', label: 'Halo (Soft)', dark: false,
     swatches: [
-      'oklch(0.97 0.012 240)',     // pale blue
-      'oklch(0.94 0.020 235)',     // tinted card
-      'oklch(0.62 0.14 240)',      // primary
-      'oklch(0.72 0.10 200)',      // accent
+      'oklch(0.92 0.008 230)',     // soft mid-grey-blue surface
+      'oklch(0.92 0.008 230)',     // same — depth from shadow, not hue
+      'oklch(0.62 0.14 50)',       // muted orange primary
+      'oklch(0.55 0.05 230)',      // accent
     ],
   },
   {
-    id: 'console', label: 'Console', dark: false,
+    id: 'console', label: 'Console', dark: true,
     swatches: [
-      'oklch(0.90 0.020 85)',      // beige
-      'oklch(0.94 0.018 85)',      // tan card
-      'oklch(0.65 0.15 65)',       // amber
-      'oklch(0.60 0.09 195)',      // teal accent
+      'oklch(0.13 0.008 220)',     // near-black ground
+      'oklch(0.16 0.010 220)',     // tinted card
+      'oklch(0.78 0.20 145)',      // phosphor green
+      'oklch(0.78 0.16 195)',      // teal accent
     ],
   },
   {

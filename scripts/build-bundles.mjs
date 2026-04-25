@@ -37,6 +37,7 @@ const baseOpts = {
   target: 'es2020',
   logLevel: 'warning',
   absWorkingDir: repoRoot,
+  loader: { '.svg': 'text' },
 };
 
 function hashTree(entryAbs) {
