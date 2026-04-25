@@ -32,6 +32,10 @@ jobs:
         run: bash scripts/check-silent-errors.sh
       - name: Check OpenAPI drift
         run: cd apps/docs && pnpm run openapi:check-drift
+      - name: Collect skill docs
+        run: cd apps/docs && AUDIENCE=internal pnpm run collect
+      - name: Check skill-docs drift
+        run: cd apps/docs && pnpm run docs:check-drift
       - name: Clippy
         run: cargo clippy --workspace --features unstable -- -D warnings
       - name: Build (stable)

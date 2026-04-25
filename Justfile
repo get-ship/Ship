@@ -147,6 +147,17 @@ openapi-regen:
 check-openapi-drift:
     cd apps/docs && pnpm run openapi:check-drift
 
+# Regenerate the Astro reference tree from docs/<skill>/references/docs/.
+# The output (apps/docs/src/content/docs/reference/) is gitignored build
+# output; predev/prebuild run this automatically.
+docs-regen:
+    cd apps/docs && AUDIENCE=internal pnpm run collect
+
+# Fail if the on-disk Astro reference tree disagrees with what the collector
+# would produce from source. CI gate against hand-edited generated docs.
+check-docs-drift:
+    cd apps/docs && pnpm run docs:check-drift
+
 # ── Deploy ─────────────────────────────────────────────────────────────────────
 
 # Deploy Studio to Cloudflare Workers
