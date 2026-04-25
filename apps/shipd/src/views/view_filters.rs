@@ -221,11 +221,26 @@ pub fn register_all(env: &mut minijinja::Environment) {
     env.add_function("ship_query", ship_query);
     env.add_function("ship_canvas_docs", ship_canvas_docs);
     env.add_function("ship_canvas_doc_content", ship_canvas_doc_content);
+    env.add_function("ship_tokens", ship_tokens);
     env.add_filter("where", filter_where);
     env.add_filter("sort_by", filter_sort_by);
     env.add_filter("take", filter_take);
     env.add_filter("tojson", filter_tojson);
     env.add_filter("to_attr_json", filter_to_attr_json);
+}
+
+/// Global function: `ship_tokens()`.
+/// Returns Ship's canonical design-token catalog parsed from the
+/// embedded `packages/ship-set/tokens.json`. Shape is the parsed JSON
+/// (`{ version, layers, tokens }`). Used by views like theme-studio
+/// to render token lists server-side.
+pub fn ship_tokens() -> Value {
+    static TOKENS_JSON: &str =
+        include_str!("../../../../packages/ship-set/tokens.json");
+    match serde_json::from_str::<serde_json::Value>(TOKENS_JSON) {
+        Ok(v) => Value::from_serialize(&v),
+        Err(_) => Value::UNDEFINED,
+    }
 }
 
 /// Filter: `| tojson` — serialize any value to a JSON string.
