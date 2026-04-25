@@ -41,7 +41,8 @@ import { shipEmptyStateStyles } from './ship-empty-state.styles'
 // Inline-render the glyph from the shared registry so we control the SVG
 // size directly (ship-icon locks its internal SVG to 12/16/20px which
 // would leave the icon tile looking sparse at md/lg).
-import { ICONS } from './ship-icon'
+import { LUCIDE_ICONS } from './lucide-icons.generated'
+import './ship-icon'
 import type { Size, Tone } from './util'
 
 type EmptyVariant = 'default' | 'inline' | 'placeholder' | 'connecting'
@@ -91,8 +92,8 @@ export class ShipEmptyState extends LitElement {
     // glyph scales with the tile. Either way the tile owns tone + sizing
     // so callers don't restyle their glyph per size. `data-empty` collapses
     // the tile when neither path produces a glyph.
-    const fallbackPath = this.icon ? ICONS[this.icon] : undefined
-    const hasFallback = !this.iconSlotFilled && !!fallbackPath
+    const fallbackName = this.icon && LUCIDE_ICONS[this.icon] ? this.icon : ''
+    const hasFallback = !this.iconSlotFilled && !!fallbackName
     const tileHasContent = this.iconSlotFilled || hasFallback
 
     return html`
@@ -105,18 +106,7 @@ export class ShipEmptyState extends LitElement {
         >
           <slot name="icon" @slotchange=${this.onIconSlotChange}>
             ${hasFallback
-              ? html`<svg
-                  class="glyph"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.75"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d=${fallbackPath}></path>
-                </svg>`
+              ? html`<ship-icon class="glyph" name=${fallbackName} aria-hidden="true"></ship-icon>`
               : nothing}
           </slot>
         </div>
