@@ -14,7 +14,7 @@
   What IS migrated to signals + data-effect:
   - Filter state (search, status, layer) — Datastar signals
   - Node dimming — data-effect on the canvas element
-  - Chip active state — data-attr:data-active driven by signal comparison
+  - Chip active state — data-attr:selected driven by signal comparison
   - Drawer open/close — .open CSS class driven by data-class:open
 -#}
 {% from '_ship.html.j2' import head, signal, show, styles, form, loading, spinner, chip, chip_all, feedback %}
@@ -143,22 +143,22 @@
     <div class="ov-sep"></div>
     <div class="ov-group" role="group" aria-label="Status">
       <ship-chip size="sm"
-        data-attr:data-active="$_ovStatus == ''"
+        data-attr:selected="$_ovStatus == ''"
         data-on:click="$_ovStatus = ''">all</ship-chip>
       {% for v in ['spec','building','shipping','complete'] %}
       <ship-chip size="sm"
-        data-attr:data-active="$_ovStatus == '{{ v }}'"
+        data-attr:selected="$_ovStatus == '{{ v }}'"
         data-on:click="$_ovStatus = $_ovStatus == '{{ v }}' ? '' : '{{ v }}'">{{ v }}</ship-chip>
       {% endfor %}
     </div>
     <div class="ov-sep"></div>
     <div class="ov-group" role="group" aria-label="Layer">
       <ship-chip size="sm"
-        data-attr:data-active="$_ovLayer == ''"
+        data-attr:selected="$_ovLayer == ''"
         data-on:click="$_ovLayer = ''">all</ship-chip>
       {% for v in ['primitive','runtime','interface','meta'] %}
       <ship-chip size="sm"
-        data-attr:data-active="$_ovLayer == '{{ v }}'"
+        data-attr:selected="$_ovLayer == '{{ v }}'"
         data-on:click="$_ovLayer = $_ovLayer == '{{ v }}' ? '' : '{{ v }}'">{{ v }}</ship-chip>
       {% endfor %}
     </div>

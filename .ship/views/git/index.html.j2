@@ -139,7 +139,7 @@
 
 {# ── Tabs bar + tabs-right action strip, sharing a bottom border ── #}
 <div class="gv-row" style="border-bottom: 1px solid var(--border); padding: 0 12px; gap: 0">
-  <ship-tabs variant="underline" tone="accent" {{ attr_if('$tab', 'active') }}
+  <ship-tabs variant="underline" {{ attr_if('$tab', 'active') }}
     {{ on('ship-tab-change', '$tab = evt.detail.name') }}
     style="flex:1;min-width:0;border:0;padding:0">
     <ship-tab name="changes" count="{{ total_changed }}">Changes</ship-tab>

@@ -13,44 +13,32 @@
 <div class="dash-links">
   <a class="dash-link-btn" href="/api/view/pipelines" {{ on_click_prevent("@get('/api/view/pipelines')") }}>
     <div class="dash-link-icon dash-link-icon--workflows" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34M4 6h.01M2.29 9.62A10 10 0 1 0 21.54 16"/>
-      </svg>
+      <ship-icon name="workflow" size="16"></ship-icon>
     </div>Workflows
   </a>
   <a class="dash-link-btn" href="/api/v/agents" {{ on_click_prevent("@get('/api/v/agents')") }}>
     <div class="dash-link-icon dash-link-icon--agents" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-      </svg>
+      <ship-icon name="users" size="16"></ship-icon>
     </div>Agents
   </a>
   <a class="dash-link-btn" href="/api/view/skills" {{ on_click_prevent("@get('/api/view/skills')") }}>
     <div class="dash-link-icon dash-link-icon--skills" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-      </svg>
+      <ship-icon name="book" size="16"></ship-icon>
     </div>Skills
   </a>
   <a class="dash-link-btn" href="/api/v/collections" {{ on_click_prevent("@get('/api/v/collections')") }}>
     <div class="dash-link-icon dash-link-icon--data" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-      </svg>
+      <ship-icon name="database" size="16"></ship-icon>
     </div>Data
   </a>
   <a class="dash-link-btn" href="/api/view/events" {{ on_click_prevent("@get('/api/view/events')") }}>
     <div class="dash-link-icon dash-link-icon--events" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-      </svg>
+      <ship-icon name="activity" size="16"></ship-icon>
     </div>Events
   </a>
   <a class="dash-link-btn" href="/api/view/settings" {{ on_click_prevent("@get('/api/view/settings')") }}>
     <div class="dash-link-icon dash-link-icon--settings" aria-hidden="true">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 0-14.14 0M4.93 19.07a10 10 0 0 0 14.14 0M20.83 9A10 10 0 0 0 3.17 9m17.66 6a10 10 0 0 1-17.66 0"/>
-      </svg>
+      <ship-icon name="settings" size="16"></ship-icon>
     </div>Settings
   </a>
 </div>

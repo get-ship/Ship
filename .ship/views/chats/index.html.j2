@@ -21,7 +21,18 @@
   <style>
   .ship-chats { padding: var(--space-5, 20px); max-width: 1280px; margin: 0 auto; color: var(--foreground); }
   .chats-head { display: flex; align-items: baseline; gap: var(--space-4, 16px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
-  .chats-head h1 { margin: 0; font-size: var(--text-2xl); font-weight: var(--font-weight-medium, 500); }
+  .chats-head-title { position: relative; }
+  .chats-head-title::after {
+    content: ''; display: block; width: 60px; height: 4px;
+    margin-top: var(--space-2, 8px); border-radius: 2px;
+    background: linear-gradient(90deg, var(--primary), transparent);
+  }
+  .chats-head h1 {
+    margin: 0; font-size: var(--text-2xl);
+    font-family: var(--heading-font);
+    font-weight: var(--heading-weight);
+    letter-spacing: var(--heading-tracking);
+  }
   .chats-head .sub { color: var(--muted-foreground); font-size: var(--text-sm); }
   .chats-filters { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; margin-left: auto; }
   .chats-filter { appearance: none; background: transparent; color: var(--muted-foreground); border: 0; padding: 4px 12px; font: inherit; font-size: var(--text-xs); cursor: pointer; border-right: 1px solid var(--border); }
@@ -47,7 +58,7 @@
   </style>
 
   <header class="chats-head">
-    <h1>Chats</h1>
+    <div class="chats-head-title"><h1>Chats</h1></div>
     <div class="sub">{{ active_count }} active · total {{ items | length }}</div>
   </header>
 

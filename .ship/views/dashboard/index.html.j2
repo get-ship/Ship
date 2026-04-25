@@ -98,18 +98,12 @@
       <ship-card padding="none" class="dash-section" aria-label="Recent jobs">
         <div slot="header" class="dash-section-head">
           <h2 class="dash-section-title">
-            <svg class="dash-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="3"/>
-              <path d="M19.07 4.93A10 10 0 0 0 6.99 3.34M4 6h.01M2.29 9.62A10 10 0 1 0 21.54 16"/>
-            </svg>
+            <ship-icon class="dash-section-icon" name="workflow" aria-hidden="true"></ship-icon>
             Recent jobs
           </h2>
           <a class="dash-section-link" href="/api/view/pipelines"
              {{ on_click_prevent("@get('/api/view/pipelines')") }}>
-            View all <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="9 18 15 12 9 6"/></svg>
+            View all <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
           </a>
         </div>
         <div class="dash-jobs-list">
@@ -150,19 +144,13 @@
       <ship-card padding="none" class="dash-section" aria-label="Agents">
         <div slot="header" class="dash-section-head">
           <h2 class="dash-section-title">
-            <svg class="dash-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
-            </svg>
+            <ship-icon class="dash-section-icon" name="users" aria-hidden="true"></ship-icon>
             Agents
             <ship-badge tone="muted" variant="soft" size="sm">{{ all_agents | length }}</ship-badge>
           </h2>
           <a class="dash-section-link" href="/api/v/agents"
              {{ on_click_prevent("@get('/api/v/agents')") }}>
-            Manage <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="9 18 15 12 9 6"/></svg>
+            Manage <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
           </a>
         </div>
         <div class="dash-section-body">
@@ -228,17 +216,12 @@
       <ship-card padding="none" class="dash-section dash-body--wide" aria-label="Latest events">
         <div slot="header" class="dash-section-head">
           <h2 class="dash-section-title">
-            <svg class="dash-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-            </svg>
+            <ship-icon class="dash-section-icon" name="activity" aria-hidden="true"></ship-icon>
             Latest events
           </h2>
           <a class="dash-section-link" href="/api/view/events"
              {{ on_click_prevent("@get('/api/view/events')") }}>
-            Full stream <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <polyline points="9 18 15 12 9 6"/></svg>
+            Full stream <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
           </a>
         </div>
         <div class="dash-section-body">
@@ -276,11 +259,7 @@
       <ship-card padding="none" class="dash-section dash-body--wide" aria-label="Quick links">
         <div slot="header" class="dash-section-head">
           <h2 class="dash-section-title">
-            <svg class="dash-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
-              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
-            </svg>
+            <ship-icon class="dash-section-icon" name="external-link" aria-hidden="true"></ship-icon>
             Quick links
           </h2>
         </div>
