@@ -275,7 +275,20 @@ fn row_to_actor(row: &sqlx::sqlite::SqliteRow) -> ActorRow {
     let capabilities: Vec<String> = serde_json::from_str(&caps_json).unwrap_or_default();
     let pid: Option<i64> = row.try_get("pid").ok();
     let status: String = row.try_get("status").unwrap_or_default();
-    let live = pid.map(pid_alive).unwrap_or(false)
+    let last_event_at: Option<String> = row.try_get("last_event_at").ok();
+    // Liveness sources, in order of confidence:
+    //   1. pid recorded → /proc probe (definitive for daemon-spawned actors)
+    //   2. no pid → recent activity (within 90s) means the mailbox is
+    //      probably still draining (used by MCP-bridge actors that don't
+    //      advertise their pid via actor_spawn).
+    let pid_live = pid.map(pid_alive).unwrap_or(false);
+    let activity_live = pid.is_none()
+        && last_event_at
+            .as_deref()
+            .and_then(|s| chrono::DateTime::parse_from_rfc3339(s).ok())
+            .map(|t| (chrono::Utc::now() - t.with_timezone(&chrono::Utc)).num_seconds() < 90)
+            .unwrap_or(false);
+    let live = (pid_live || activity_live)
         && status != "stopped"
         && status != "crashed";
     ActorRow {

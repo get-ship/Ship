@@ -312,8 +312,17 @@ impl ShipServer {
                     .and_then(|d| tool_gate::current_branch(&d).ok())
             });
 
+        // Slugify the branch — slashes break URL routing
+        // (`/api/actors/{id}/input` ambiguity) and ULID-style identity
+        // expectations elsewhere. `feat/view-dev-studio` → `feat-view-dev-studio`.
         let id = match branch {
-            Some(b) => format!("agent.{agent_name}.{b}"),
+            Some(b) => {
+                let slug: String = b
+                    .chars()
+                    .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+                    .collect();
+                format!("agent.{agent_name}.{slug}")
+            }
             None => format!("agent.{agent_name}"),
         };
         tracing::info!(actor_id = %id, "resolved actor ID");
