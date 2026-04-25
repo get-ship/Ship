@@ -132,6 +132,27 @@ export class ShipListTile extends LitElement {
       }
       a.tile { display: flex; }
 
+      /* When the host is placed in a grid/flex container with stretch
+       * alignment (the default), make card-variant tiles fill the
+       * allocated track height so a row of cards reads as equal
+       * surfaces. The inner .tile, .row, and .primary span all flex to
+       * consume extra space so a slotted body's "margin-top: auto" can
+       * push trailing chips to the bottom edge of the card. */
+      :host([variant='card']) { height: 100%; box-sizing: border-box; }
+      :host([variant='card']) .tile {
+        min-height: 100%;
+        box-sizing: border-box;
+      }
+      :host([variant='card']) .row { flex: 1; align-items: stretch; }
+      :host([variant='card']) ::slotted([slot='leading']) {
+        align-self: flex-start;
+      }
+      :host([variant='card']) .primary {
+        display: flex;
+        flex-direction: column;
+        align-self: stretch;
+      }
+
       /* variant=row (default) — thin hover background */
       :host([variant='row']) .tile:hover,
       :host(:not([variant])) .tile:hover {
@@ -146,16 +167,19 @@ export class ShipListTile extends LitElement {
       :host([variant='card']) .tile {
         background: var(--card);
         border-color: var(--border-subtle);
-        box-shadow: var(--shadow-xs);
+        box-shadow: var(--shadow-card-rest);
       }
       :host([variant='card']) .tile:hover {
         border-color: var(--tone-primary-border);
-        box-shadow: var(--shadow-sm);
+        box-shadow: var(--shadow-hover);
         transform: translateY(-1px);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        :host([variant='card']) .tile:hover { transform: none; }
       }
       :host([variant='card'][interactive]) .tile:active {
         transform: translateY(0);
-        box-shadow: var(--shadow-xs);
+        box-shadow: var(--shadow-card-rest);
         transition-duration: 60ms;
       }
 

@@ -42,10 +42,10 @@
     padding: var(--space-3) var(--space-3) var(--space-2);
   }
   .specs-rail-head h1 {
-    font-family: var(--font-display);
+    font-family: var(--heading-font);
     font-size: var(--text-md);
-    font-weight: var(--font-weight-semibold);
-    letter-spacing: -0.01em;
+    font-weight: var(--heading-weight);
+    letter-spacing: var(--heading-tracking);
     margin: 0;
   }
   .specs-rail-filter { padding: 0 var(--space-3) var(--space-2); }
@@ -195,7 +195,7 @@
     <aside class="specs-rail" aria-label="Spec list">
       <div class="specs-rail-head">
         <h1>Specs</h1>
-        <ship-button variant="solid" tone="accent" size="sm"
+        <ship-button variant="solid" tone="primary" size="sm"
                      {{ on_click("@post('/api/specs', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] '})})") }}>
           + New
         </ship-button>

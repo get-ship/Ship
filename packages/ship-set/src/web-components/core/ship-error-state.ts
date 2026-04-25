@@ -28,7 +28,8 @@
 
 import { LitElement, css, html } from 'lit'
 import { shipEmptyStateStyles } from './ship-empty-state.styles'
-import { ICONS } from './ship-icon'
+import { LUCIDE_ICONS } from './lucide-icons.generated'
+import './ship-icon'
 import type { Size } from './util'
 
 type ErrorVariant = 'default' | 'inline'
@@ -102,12 +103,11 @@ export class ShipErrorState extends LitElement {
   render() {
     // Destructive tone is implicit — set data-initials-like attr so the
     // shared empty-state styles pick up the destructive tile tint.
-    const path = ICONS[this.icon]
+    const hasIcon = !!(this.icon && LUCIDE_ICONS[this.icon])
     return html`
       <div class="box" part="box" role="alert" tone="destructive">
         <div class="icon" part="icon" aria-hidden="true">
-          ${path ? html`<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d=${path}></path></svg>` : null}
+          ${hasIcon ? html`<ship-icon class="glyph" name=${this.icon}></ship-icon>` : null}
         </div>
 
         <div class="copy">

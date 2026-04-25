@@ -67,7 +67,7 @@
     {#- One @patch per clicked id. AgentService's PATCH is path-tolerant:
         `add /skills/refs/-` succeeds even if `/skills/refs` didn't exist.
         No GET-mutate-PUT dance. -#}
-    <ship-button tone="accent" variant="solid" size="sm"
+    <ship-button tone="primary" variant="solid" size="sm"
                  {{ attr_if('$pickerSelected.length == 0', 'disabled') }}
                  {{ on_click("@patch('/api/agents/" ~ (agent.id | e) ~ "', {
                    contentType: 'json',

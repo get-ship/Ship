@@ -6,23 +6,20 @@
     <title>Ship</title>
     <link rel="icon" href="/favicon.ico" />
     <script>
-      // Load daemon-served core assets dynamically (avoids Vite pre-transform
-      // errors). Only core runtime + element registry load here — heavy
-      // island bundles (code editor, markdown editor, terminal) arrive per
-      // view via the `packs:` declaration in each view's manifest. The
-      // daemon injects `<script type="module" src=...>` tags for the
-      // declared packs; mount.ts rehydrates them after innerHTML assignment
-      // so fragment navigation still fires the module loads.
+      // Load daemon-served stylesheet + datastar runtime. Web-component
+      // registrations (`ship-elements`) are imported into the Vite bundle
+      // via main.ts — keeping them in the same module graph ensures a
+      // single Lit copy at runtime (no "Multiple versions" warning).
+      // Heavy island bundles still arrive per view via each view's
+      // `packs:` manifest, injected by the daemon at render time.
       (function() {
         var base = '/api/assets/';
         var css = document.createElement('link');
         css.rel = 'stylesheet'; css.href = base + 'view-tokens.css';
         document.head.appendChild(css);
-        ['datastar.js','ship-elements.js'].forEach(function(f) {
-          var s = document.createElement('script');
-          s.type = 'module'; s.src = base + f;
-          document.head.appendChild(s);
-        });
+        var s = document.createElement('script');
+        s.type = 'module'; s.src = base + 'datastar.js';
+        document.head.appendChild(s);
       })();
     </script>
     <script>
@@ -44,29 +41,8 @@
       html, body { height: 100%; margin: 0; }
       * { box-sizing: border-box; }
 
-      /* ── Global scrollbar: thin, tokenized, reveal-on-hover ──
-         Replaces platform scrollbars which read as chrome on panel-heavy
-         layouts (3-panel git, agents detail, skills explorer). Firefox
-         uses scrollbar-*; WebKit/Blink use ::-webkit-scrollbar. Track
-         stays invisible; thumb fades in on hover. */
-      * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
-      *:hover { scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent; }
-      *::-webkit-scrollbar { width: 10px; height: 10px; }
-      *::-webkit-scrollbar-track { background: transparent; }
-      *::-webkit-scrollbar-thumb {
-        background: transparent;
-        border-radius: 999px;
-        border: 2px solid transparent;
-        background-clip: padding-box;
-        transition: background-color 160ms var(--ease-out, ease-out);
-      }
-      *:hover::-webkit-scrollbar-thumb {
-        background-color: color-mix(in oklab, var(--foreground) 22%, transparent);
-      }
-      *::-webkit-scrollbar-thumb:hover {
-        background-color: color-mix(in oklab, var(--foreground) 38%, transparent);
-      }
-      *::-webkit-scrollbar-corner { background: transparent; }
+      /* Global scrollbar styling lives in ship-set tokens.css under the
+         .ship-scroll-thin utility class — applied to <body> below. */
 
       /* ── Shell: content-first layout ──
          Top bar (32px) + full-bleed content + status bar (24px).
@@ -349,6 +325,237 @@
       }
       .ship-rail .rail-launcher:hover { opacity: 1; }
 
+      /* ── App launcher popover ── */
+      ship-launcher { display: contents; }
+      ship-launcher:not([open]) { display: none; }
+      .launcher-mask {
+        position: fixed;
+        inset: 0;
+        background: var(--scrim, transparent);
+        z-index: 9000;
+        animation: launcher-mask-in 140ms var(--ease-out) both;
+      }
+      @keyframes launcher-mask-in { from { opacity: 0 } to { opacity: 1 } }
+      .launcher-panel {
+        position: fixed;
+        left: 56px;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 360px;
+        max-height: min(640px, calc(100vh - 32px));
+        background: var(--surface-3, var(--popover, var(--background)));
+        color: var(--foreground);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-lg);
+        z-index: 9001;
+        display: grid;
+        grid-template-rows: auto auto 1fr auto;
+        overflow: hidden;
+        animation: launcher-panel-in 160ms var(--ease-out) both;
+      }
+      @keyframes launcher-panel-in {
+        from { opacity: 0; transform: translateY(-50%) translateX(-4px) }
+        to   { opacity: 1; transform: translateY(-50%) translateX(0) }
+      }
+      @media (max-height: 600px) {
+        .launcher-panel { top: 16px; transform: none; }
+        @keyframes launcher-panel-in {
+          from { opacity: 0; transform: translateY(-4px) }
+          to   { opacity: 1; transform: translateY(0) }
+        }
+      }
+      .launcher-head {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: 10px 12px;
+        border-bottom: 1px solid var(--border-subtle, var(--border));
+      }
+      .launcher-head .launcher-title {
+        font-family: var(--heading-font);
+        font-weight: var(--heading-weight, 600);
+        font-size: var(--text-sm);
+        color: var(--foreground);
+      }
+      .launcher-head .launcher-ws {
+        font-family: var(--mono-font, var(--font-mono));
+        font-size: 10.5px;
+        color: var(--muted-foreground);
+        margin-left: auto;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 180px;
+      }
+      .launcher-filter {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        margin: 8px 10px 4px;
+        background: var(--muted);
+        border-radius: var(--radius-md);
+        color: var(--muted-foreground);
+      }
+      .launcher-filter input {
+        flex: 1;
+        border: 0;
+        background: transparent;
+        outline: none;
+        color: var(--foreground);
+        font-size: 12px;
+        font-family: var(--body-font, var(--font-body));
+        padding: 4px 0;
+      }
+      .launcher-filter .launcher-count {
+        font-family: var(--mono-font, var(--font-mono));
+        font-size: 10px;
+        color: var(--muted-foreground);
+      }
+      .launcher-body {
+        overflow-y: auto;
+        padding: 4px 0 6px;
+      }
+      .launcher-empty {
+        padding: 16px 14px;
+        font-size: var(--text-xs);
+        color: var(--muted-foreground);
+        text-align: center;
+      }
+      .launcher-section { padding: 6px 0; }
+      .launcher-section + .launcher-section {
+        border-top: 1px solid var(--border-subtle, var(--border));
+      }
+      .launcher-section-h {
+        font-family: var(--mono-font, var(--font-mono));
+        font-size: 9.5px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--muted-foreground);
+        padding: 4px 14px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .launcher-section-spacer { flex: 1; }
+      .launcher-section-h .launcher-hint {
+        text-transform: none;
+        letter-spacing: 0;
+        font-family: var(--body-font, var(--font-body));
+        font-size: 10.5px;
+      }
+      .launcher-row {
+        display: grid;
+        grid-template-columns: 26px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 14px;
+        font-size: 12px;
+        color: var(--foreground);
+        cursor: pointer;
+        outline: none;
+        position: relative;
+        transition:
+          background var(--duration-fast) var(--ease-out),
+          transform var(--duration-fast) var(--ease-out);
+      }
+      .launcher-row:hover { background: var(--hover-bg, var(--muted)); }
+      .launcher-row:hover { transform: translateX(1px); }
+      .launcher-row.is-cursor {
+        background: color-mix(in oklch, var(--primary) 12%, transparent);
+        box-shadow: inset 2px 0 0 var(--primary);
+      }
+      .launcher-row.is-cursor .launcher-row-label {
+        color: var(--foreground);
+        font-weight: var(--font-weight-medium, 500);
+      }
+      .launcher-row.is-dragging { opacity: 0.4; }
+      .launcher-row.is-drag-over {
+        box-shadow: inset 0 2px 0 var(--primary);
+      }
+      .launcher-row-name {
+        display: flex;
+        flex-direction: column;
+        line-height: 1.2;
+        min-width: 0;
+      }
+      .launcher-row-label {
+        color: var(--foreground);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .launcher-row-path {
+        font-family: var(--mono-font, var(--font-mono));
+        font-size: 10px;
+        color: var(--muted-foreground);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .launcher-pin {
+        width: 22px;
+        height: 22px;
+        display: grid;
+        place-items: center;
+        background: transparent;
+        border: 0;
+        color: var(--muted-foreground);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        opacity: 0;
+        transition: opacity var(--duration-fast) var(--ease-out),
+                    background var(--duration-fast) var(--ease-out);
+      }
+      .launcher-row:hover .launcher-pin,
+      .launcher-row.is-cursor .launcher-pin { opacity: 1; }
+      .launcher-pin.is-pinned {
+        opacity: 1;
+        color: var(--primary);
+      }
+      .launcher-pin:hover {
+        background: var(--surface-1, var(--background));
+        color: var(--foreground);
+      }
+      .launcher-foot {
+        border-top: 1px solid var(--border-subtle, var(--border));
+        padding: 8px 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        color: var(--muted-foreground);
+        background: color-mix(in oklch, var(--surface-3, var(--popover)) 60%, var(--background));
+      }
+      .launcher-add {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 6px;
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        text-decoration: none;
+        color: inherit;
+      }
+      .launcher-add:hover { background: var(--muted); color: var(--foreground); }
+      .launcher-kbd {
+        font-family: var(--mono-font, var(--font-mono));
+        font-size: 10px;
+        padding: 1px 5px;
+        border: 1px solid var(--border-subtle, var(--border));
+        border-radius: 3px;
+        background: var(--muted);
+        color: var(--muted-foreground);
+        min-width: 14px;
+        text-align: center;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .launcher-mask, .launcher-panel { animation: none; }
+        .launcher-row, .launcher-pin { transition: none; }
+        .launcher-row:hover { transform: none; }
+      }
+
       /* ── Main content: full bleed ── */
       .ship-content {
         grid-row: 2;
@@ -381,9 +588,10 @@
         from { opacity: 0; transform: translateY(4px); }
         to   { opacity: 1; transform: none; }
       }
-      #ship-view-root [data-view-enter] > * {
-        animation: ship-view-enter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
-        animation-delay: calc(var(--i, 0) * 24ms);
+      #ship-view-root [data-view-enter] > *,
+      #ship-view-root[data-view-enter] > * {
+        animation: ship-view-enter 220ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation-delay: calc(var(--i, 0) * 28ms);
       }
       @media (prefers-reduced-motion: reduce) {
         .ship-content,
@@ -414,13 +622,33 @@
         grid-column: 1 / -1;
         height: 0;
         overflow: hidden;
-        background: var(--background);
+        background: var(--card);
         border-top: none;
-        transition: height var(--duration-normal) var(--ease-out);
+        opacity: 0;
+        transform: translateY(8px);
+        transition:
+          height var(--duration-normal, 200ms) var(--ease-out),
+          opacity var(--duration-normal, 200ms) var(--ease-out),
+          transform var(--duration-normal, 200ms) var(--ease-out);
       }
       body.dock-open ship-panel-dock {
-        height: 240px;
+        height: var(--ship-dock-height, 240px);
         border-top: 1px solid var(--border);
+        opacity: 1;
+        transform: none;
+      }
+      body.dock-open.dock-popout ship-panel-dock {
+        height: calc(100vh - 48px);
+      }
+      /* Skip height transition during interactive resize drag. */
+      ship-panel-dock[resizing] {
+        transition: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        ship-panel-dock {
+          transition: none;
+          transform: none;
+        }
       }
 
       /* ── Status bar: hairline bottom ── */
@@ -469,7 +697,7 @@
       }
     </style>
   </head>
-  <body>
+  <body class="ship-scroll-thin">
     <ship-shell>
     <!-- Top bar: brand, breadcrumbs, view actions, cmdk, rail toggle,
          theme picker, fullscreen, chat drawer toggle. -->

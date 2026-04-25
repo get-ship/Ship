@@ -1,6 +1,6 @@
 # Ship element catalog
 
-Compact reference auto-generated from `custom-elements.json`. For depth (types, defaults, descriptions, CSS custom properties), load the full CEM at `/api/runtime/assets/custom-elements.json`.
+Compact reference auto-generated from `custom-elements.json`. For depth (types, defaults, descriptions, CSS custom properties), load the full CEM at `/api/assets/custom-elements.json`.
 
 Convention: `attr=value|value` = enum, bare `attr` = boolean.
 
@@ -14,8 +14,9 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-annotation-layer>` [view-id mode endpoint staging staged _pending _drag] events: ship-annotation-staged, ship-annotation-error, ship-annotation-sent
 - `<ship-annotation-list>` [staged] events: ship-annotation-remove
 - `<ship-annotation-marker>` [kind x y rect active index]
+- `<ship-app-icon>` [name variant size radius= | | | | | | |  label]
 - `<ship-area-chart>` [series labels width height points grid label]
-- `<ship-avatar>` [src name size tone _errored]
+- `<ship-avatar>` [src name initials size shape tone icon-slug identity-hue _errored]
 - `<ship-badge>` [tone variant size pill]
 - `<ship-bar-chart>` [data labels tone orientation=vertical|horizontal width height max label]
 - `<ship-breadcrumb>`
@@ -32,11 +33,14 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-dialog>` [open size backdrop dismissible no-close-button no-header no-footer role-override=dialog|alertdialog] events: ship-open
 - `<ship-diff>` [from to value]
 - `<ship-donut>` [data size thickness label]
+- `<ship-drawer>` [open side size dismissible] events: ship-open
 - `<ship-dropdown-menu>` [open]
 - `<ship-empty-state>` [variant size tone icon]
+- `<ship-error-state>` [title body size variant icon _open _hasDetails]
 - `<ship-field>` [invalid]
 - `<ship-file-upload>` [accept multiple max-size disabled tone _files _over _error] events: ship-change
 - `<ship-gauge>` [value min max tone low-threshold high-threshold size thickness label]
+- `<ship-graph-canvas>` [nodes edges width height layout=positioned|radial selected-id] events: name
 - `<ship-heatmap>` [data rows cols tone label]
 - `<ship-hover-card>` [open placement=top|bottom|left|right show-delay hide-delay] events: name
 - `<ship-icon>` [name size tone label]
@@ -46,7 +50,8 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-label>` [for size=sm|md required]
 - `<ship-line-chart>` [series labels width height points grid label]
 - `<ship-link>` [href external tone]
-- `<ship-list-tile>` [variant interactive selected disabled density tone] events: ship-select
+- `<ship-list-tile>` [variant interactive navigable selected disabled density tone]
+- `<ship-mark>` [size]
 - `<ship-markdown>` [value]
 - `<ship-markdown-editor>` [value placeholder size tone disabled invalid rows full-height name label show-selection-toolbar allow-comment allow-generate] events: input, ship-change
 - `<ship-metachip>` [label value]
@@ -60,6 +65,8 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-radio>` [value disabled checked tone size]
 - `<ship-radio-group>` [value disabled tone size name label]
 - `<ship-scroll-area>` [orientation=vertical|horizontal|both size=sm|md|lg]
+- `<ship-segmented>` [value size disabled] events: ship-change
+- `<ship-segmented-option>` [value icon disabled]
 - `<ship-select>` [value name required disabled invalid tone size label described-by] events: ship-change
 - `<ship-separator>` [orientation=horizontal|vertical variant=solid|dashed]
 - `<ship-skeleton>` [variant width height lines animate]
@@ -73,7 +80,7 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-switch>` [checked disabled tone size name value label]
 - `<ship-tab>` [name label count disabled]
 - `<ship-tab-panel>` [name active]
-- `<ship-table>` [variant density dense hoverable striped sticky-header label] events: ship-sort
+- `<ship-table>` [variant density dense hoverable striped sticky-header sticky-first-col gutter label] events: ship-sort
 - `<ship-tabs>` [active variant=underline|segmented size tone sticky orientation=horizontal|vertical] events: ship-tab-change
 - `<ship-textarea>` [value placeholder name rows required disabled readonly tone variant=default|code size resize=none|vertical|horizontal|both invalid label described-by] events: ship-input
 - `<ship-theme-toggle>` [theme=light|dark|auto]
@@ -88,6 +95,7 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-tooltip>` [placement=top|bottom|left|right]
 - `<ship-tree-node>` [label expanded selected leaf]
 - `<ship-tree-view>`
+- `<ship-view-chrome>` [title branch ahead behind tone=default|success|warning|destructive|accent|muted busy]
 
 ## Pipeline domain
 
@@ -95,8 +103,10 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-git-diff>` [files additions deletions empty allCollapsed]
 - `<ship-git-diff-file>` [path additions deletions collapsed]
 - `<ship-git-diff-hunk>` [header]
-- `<ship-git-diff-line>` [type old new]
+- `<ship-git-diff-line>` [type old new comment-count] events: ship-comment
+- `<ship-history-row>` [sha subject author timestamp additions deletions active human] events: ship-select
 - `<ship-pipeline-dag>`
 - `<ship-pipeline-definition>` [name steps description]
 - `<ship-pipeline-run>` [state slug agent]
 - `<ship-pipeline-step>` [name step-type state agent]
+- `<ship-provider-blob>` [provider size variant]

@@ -23,8 +23,10 @@
      shell container owns font + color context. */
   .agents-view { color: var(--foreground); font-family: var(--font-body); }
 
-  /* Outer wrap. The agents view sits inside the shell's main panel; the
-     1024px clamp + symmetric padding match the React parity exactly. */
+  /* Outer wrap. The agents view sits inside the shell's main panel
+     (overflow:auto, no horizontal clip). 1024px clamp + symmetric padding
+     match the React parity. var(--space-6) gives the card hover-shadow
+     room to breathe inside the wrap without touching the scrollbar. */
   .agents-wrap { max-width: 1024px; margin: 0 auto; padding: 32px var(--space-6); }
 
   /* Title row — display-family heading left, primary CTA right. No
@@ -35,13 +37,23 @@
     gap: var(--space-4); margin-bottom: var(--space-6);
   }
   .agents-title {
-    font-family: var(--font-display);
+    font-family: var(--heading-font);
     font-size: var(--text-2xl);
-    font-weight: var(--font-weight-bold);
+    font-weight: var(--heading-weight);
     line-height: 32px;
-    letter-spacing: -0.015em;
+    letter-spacing: var(--heading-tracking);
     margin: 0 0 var(--space-1);
     color: var(--foreground);
+  }
+  .agents-head-titles { position: relative; }
+  .agents-head-titles::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 4px;
+    margin-top: var(--space-2);
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--primary), transparent);
   }
   .agents-sub { font-size: 14px; color: var(--muted-foreground); margin: 0; }
 
@@ -53,19 +65,18 @@
   .agents-grid {
     display: grid; grid-template-columns: 1fr; gap: var(--space-3);
     align-items: stretch;
+    /* Equalize row heights so every card in a row matches the tallest
+       sibling. Safe because ship-list-tile[variant=card] stretches its
+       internal .tile to 100% of host height — short cards no longer
+       leave whitespace below their content. */
+    grid-auto-rows: 1fr;
   }
-  /* `align-items: stretch` (the default) makes all cards in a row match
-     the tallest sibling. Rows can differ in height naturally. We don't
-     set `grid-auto-rows: 1fr` — that forces equal row heights but the
-     ship-list-tile's internal .tile element sizes to content, leaving
-     whitespace below short cards. Stretching works and matches React. */
-  .agents-grid > ship-list-tile.agents-card-tile { overflow: hidden; }
 
   /* Card internals: uniform rows regardless of payload. Description clamps
      to 2 lines, chip-row stays single-line and clips on overflow, provider
      row is fixed height. Without this the chips wrapping to a second line
      blows past the grid's allocated 1fr height. */
-  .agents-card-tile .agents-card-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .agents-card-tile .agents-card-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; flex: 1; }
   .agents-card-tile .agents-card-head { min-width: 0; }
   .agents-card-tile .agents-card-title {
     font-weight: var(--font-weight-semibold);
@@ -95,13 +106,15 @@
   }
   .agents-card-tile .agents-card-sep { color: var(--border); }
   .agents-card-tile .agents-card-providers { min-height: 12px; }
+  /* Badges row pinned to the card's bottom edge so equal-height cards
+     align their meta rows even when descriptions vary in length. */
   .agents-card-tile .agents-card-badges {
     display: flex;
     align-items: center;
     gap: 4px;
-    flex-wrap: nowrap;
-    overflow: hidden;
+    flex-wrap: wrap;
     min-height: 22px;
+    margin-top: auto;
   }
   @media (min-width: 768px) {
     .agents-grid { grid-template-columns: repeat(2, 1fr); }
@@ -188,8 +201,10 @@
     margin-top: 2px;
   }
 
-  /* Badges row grows gap + wraps when chips overflow. */
-  .agents-card-badges { flex-wrap: wrap; }
+  /* Badges row grows gap + wraps when chips overflow. `margin-top: auto`
+     pins the row to the card's bottom edge so equal-height cards align
+     their meta rows even when descriptions vary in length. */
+  .agents-card-badges { flex-wrap: wrap; margin-top: auto; }
   </style>
   <div class="agents-wrap">
 
@@ -200,11 +215,11 @@
     {% set total = agents | length %}
 
     <header class="agents-head">
-      <div>
+      <div class="agents-head-titles">
         <h1 class="agents-title">Agents</h1>
         <p class="agents-sub">{{ total }} agent{% if total != 1 %}s{% endif %}</p>
       </div>
-      <ship-button tone="accent" variant="solid" {{ nav('/agents/create') }}>
+      <ship-button tone="primary" variant="solid" {{ nav('/agents/create') }}>
         <ship-icon slot="leading" name="plus"></ship-icon>
         New agent
       </ship-button>

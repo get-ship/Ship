@@ -171,7 +171,7 @@ line, this trailing badge," you are composing, not distributing.
 
 These enums are reused across every component. Do not invent new values.
 
-- **tone** — semantic color: `default | info | success | warning | destructive | accent | muted`
+- **tone** — semantic color: `default | primary | info | success | warning | destructive | accent | muted`
 - **variant** — visual treatment: `solid | soft | outline | ghost`
 - **size** — dimension: `sm | md | lg` (default `md`)
 - **state attrs** (boolean, reflect): `selected`, `disabled`, `loading`,

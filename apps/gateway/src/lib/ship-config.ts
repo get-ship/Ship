@@ -3,7 +3,7 @@
  * Returns a map of file paths (relative to repo root) to their contents.
  */
 
-import type { ProjectLibrary, McpServerConfig, Permissions } from '@ship/ui'
+import type { ProjectLibrary, McpServerConfig, Permissions } from '@ship/set'
 
 export function libraryToShipFiles(library: ProjectLibrary, modeName = 'default'): Record<string, string> {
   const files: Record<string, string> = {}

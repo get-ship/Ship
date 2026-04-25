@@ -30,7 +30,7 @@ export class ShipPopover extends LitElement {
       color: var(--popover-foreground);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: var(--shadow-lg);
+      box-shadow: var(--shadow-md);
       font-family: var(--font-body);
       font-size: var(--text-base);
       opacity: 0;

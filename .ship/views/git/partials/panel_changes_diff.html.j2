@@ -121,7 +121,7 @@
           <span slot="spacer"></span>
           <ship-button variant="ghost" size="sm"
             {{ on_click("$commentLine = ''; $commentDraft = ''; $sendTo = 'keep'") }}>Cancel</ship-button>
-          <ship-button tone="accent" variant="solid" size="sm"
+          <ship-button tone="primary" variant="solid" size="sm"
             {{ on_click("@post('/api/collections/annotations/items', {payload: {file_path: '" ~ (shown.path | e) ~ "', view_id: 'git', selector: $commentLine, note: $commentDraft, intent: 'review', route_to: $sendTo}}); $commentLine = ''; $commentDraft = ''; $sendTo = 'keep'") }}>
             Save comment
           </ship-button>

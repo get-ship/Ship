@@ -41,42 +41,47 @@
 }
 
 /* ───────────────────────────────────────────────────────────────────
- * paper — editorial reading mode. Warm cream background with a quiet
- * terracotta primary, rounded corners, slow calm motion, display
- * font demoted so headings read like body copy. Low interaction
- * tints keep the page still while you read.
+ * paper — editorial reading mode. Warmer cream with a real papery
+ * weight: warm-brown shadows, heavier book-print body weight, headings
+ * demoted to body font, slow calm motion, low interaction tints. Not
+ * tinted shadcn — a different feel of surface entirely.
  * ─────────────────────────────────────────────────────────────────── */
 :root[data-theme='paper'] {
-  --background: oklch(0.97 0.014 80);
-  --foreground: oklch(0.28 0.03 55);
-  --card: oklch(0.99 0.010 80);
-  --card-foreground: oklch(0.28 0.03 55);
-  --popover: oklch(0.99 0.010 80);
-  --popover-foreground: oklch(0.28 0.03 55);
-  --muted: oklch(0.93 0.025 75);
-  --muted-foreground: oklch(0.46 0.04 55);
-  --border: oklch(0.28 0.03 55 / 22%);
-  --input: oklch(0.28 0.03 55 / 22%);
-  --primary: oklch(0.55 0.14 35);
-  --primary-foreground: oklch(0.99 0.01 80);
-  --accent: oklch(0.48 0.09 55);
-  --accent-foreground: oklch(0.99 0.01 80);
+  --background: oklch(0.985 0.020 75);
+  --foreground: oklch(0.20 0.015 60);
+  --card: oklch(0.995 0.012 75);
+  --card-foreground: oklch(0.20 0.015 60);
+  --popover: oklch(1.000 0.000 75);
+  --popover-foreground: oklch(0.20 0.015 60);
+  --muted: oklch(0.92 0.020 75);
+  --muted-foreground: oklch(0.45 0.015 60);
+  --border: oklch(0.20 0.015 60 / 14%);
+  --input: oklch(0.20 0.015 60 / 14%);
+  --primary: oklch(0.50 0.16 30);
+  --primary-foreground: oklch(0.985 0.02 75);
+  --accent: oklch(0.45 0.10 280);
+  --accent-foreground: oklch(0.985 0.02 75);
   --destructive: oklch(0.55 0.22 27);
   --success: oklch(0.58 0.14 150);
   --warning: oklch(0.70 0.15 75);
   --info: oklch(0.55 0.15 240);
-  --ring: oklch(0.55 0.14 35 / 35%);
+  --ring: oklch(0.50 0.16 30 / 35%);
 
-  /* Paper surfaces: tinted cards, slightly deeper warm surface-2. */
-  --surface-2: oklch(0.95 0.020 75);
-  --border-subtle: oklch(0.28 0.03 55 / 12%);
-  --border-strong: oklch(0.28 0.03 55 / 34%);
+  /* Paper surfaces: slightly brighter than the page so cards lift
+   * off the pulp. surface-3 is the brightest "fresh-page" tone. */
+  --surface-0: oklch(0.985 0.020 75);
+  --surface-1: oklch(0.995 0.012 75);
+  --surface-2: oklch(0.990 0.018 75);
+  --surface-3: oklch(1.000 0.000 75);
+  --border-subtle: oklch(0.20 0.015 60 / 8%);
+  --border-strong: oklch(0.20 0.015 60 / 30%);
 
-  /* Rounder, softer corners. */
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  /* Rounded book-corners. */
+  --radius: 10px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 12px;
+  --radius-xl: 18px;
 
   /* Slower, calmer motion — long reading sessions. */
   --duration-fast: 200ms;
@@ -85,60 +90,88 @@
   --duration-deliberate: 560ms;
   --ease-out: var(--ease-out-soft);
 
-  /* Softer, warm-tinted shadows. */
-  --shadow-xs: 0 1px 2px 0 oklch(0.28 0.03 55 / 5%);
-  --shadow-sm: 0 2px 4px -1px oklch(0.28 0.03 55 / 8%);
-  --shadow-md: 0 6px 14px -4px oklch(0.28 0.03 55 / 10%);
-  --shadow-lg: 0 14px 30px -6px oklch(0.28 0.03 55 / 12%);
-  --shadow-xl: 0 24px 48px -10px oklch(0.28 0.03 55 / 14%);
-  --shadow-hover: 0 3px 8px -2px oklch(0.28 0.03 55 / 10%);
-  --shadow-accent: 0 8px 24px -6px oklch(0.55 0.14 35 / 30%);
+  /* Warm-brown tinted shadows — soft, papery, never crisp. */
+  --shadow-card-rest: 0 1px 2px oklch(0.30 0.04 60 / 8%), 0 0 0 1px oklch(0.20 0.015 60 / 6%);
+  --shadow-hover:     0 6px 18px oklch(0.30 0.04 60 / 14%), 0 2px 6px oklch(0.30 0.04 60 / 8%);
+  --shadow-xs: 0 1px 2px 0 oklch(0.30 0.04 60 / 6%);
+  --shadow-sm: 0 2px 4px -1px oklch(0.30 0.04 60 / 9%);
+  --shadow-md: 0 4px 12px oklch(0.30 0.04 60 / 12%), 0 2px 4px oklch(0.30 0.04 60 / 8%);
+  --shadow-lg: 0 12px 32px oklch(0.30 0.04 60 / 18%), 0 4px 12px oklch(0.30 0.04 60 / 10%);
+  --shadow-xl: 0 24px 64px oklch(0.30 0.04 60 / 24%);
+  --shadow-edge-top: 0 -6px 18px oklch(0.30 0.04 60 / 8%), 0 -1px 0 oklch(0.30 0.04 60 / 6%);
+  --shadow-accent: 0 8px 24px -6px oklch(0.50 0.16 30 / 30%);
 
-  /* Editorial voice: demote display; use body for headings. */
+  /* Editorial voice: demote display, body for headings; heavier
+   * book-print body weight so text reads like a printed page. */
   --heading-font: var(--font-body);
   --heading-weight: var(--font-weight-semibold);
   --heading-tracking: var(--tracking-tight);
   --label-font: var(--font-body);
   --label-weight: var(--font-weight-medium);
   --label-tracking: var(--tracking-normal);
+  --font-weight-medium: 600;
 
   /* Calm tints — don't fight the paper. */
   --hover-strength: 4%;
   --active-strength: 7%;
   --selected-strength: 10%;
+
+  /* Heavier scrollbar thumb — papery. */
+  --scrollbar-width: 12px;
+  --scrollbar-thumb: oklch(0.20 0.015 60 / 18%);
+  --scrollbar-thumb-hover: oklch(0.20 0.015 60 / 36%);
+}
+
+/* Subtle paper grain — very faint, only on the paper theme. */
+:root[data-theme='paper'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.05'/%3E%3C/svg%3E");
+  mix-blend-mode: multiply;
+  opacity: 0.4;
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='paper'] body::before { display: none; }
 }
 
 /* ───────────────────────────────────────────────────────────────────
- * halo — glassy, atmospheric, calm. Cool pale-blue surfaces with a
- * primary-tinted nested surface for a subtle translucency. Spring
- * motion as the default ease gives interactions a quiet bounce;
- * durations are quick. Radii are rounded without being soft.
+ * halo — cool-blue dark with iridescent edge highlights. Cards and
+ * buttons earn a subtle cyan-violet rim glow that sets the theme
+ * apart from generic dark mode. Spring motion as the default ease,
+ * snappy durations, a primary-tinted accent shadow for premium CTAs.
  * ─────────────────────────────────────────────────────────────────── */
 :root[data-theme='halo'] {
-  --background: oklch(0.97 0.012 240);
-  --foreground: oklch(0.22 0.03 245);
-  --card: oklch(0.94 0.020 235);
-  --card-foreground: oklch(0.22 0.03 245);
-  --popover: oklch(0.96 0.018 235);
-  --popover-foreground: oklch(0.22 0.03 245);
-  --muted: oklch(0.92 0.022 235);
-  --muted-foreground: oklch(0.46 0.04 240);
-  --border: oklch(0.22 0.03 245 / 14%);
-  --input: oklch(0.22 0.03 245 / 14%);
-  --primary: oklch(0.62 0.14 240);
-  --primary-foreground: oklch(0.98 0.01 240);
-  --accent: oklch(0.72 0.10 200);
-  --accent-foreground: oklch(0.15 0.03 245);
-  --destructive: oklch(0.58 0.22 25);
-  --success: oklch(0.65 0.15 155);
-  --warning: oklch(0.72 0.14 75);
-  --info: oklch(0.62 0.14 240);
-  --ring: oklch(0.62 0.14 240 / 40%);
+  --background: oklch(0.15 0.020 230);
+  --foreground: oklch(0.95 0.005 230);
+  --card: oklch(0.20 0.025 230);
+  --card-foreground: oklch(0.95 0.005 230);
+  --popover: oklch(0.23 0.028 230);
+  --popover-foreground: oklch(0.95 0.005 230);
+  --muted: oklch(0.22 0.020 230);
+  --muted-foreground: oklch(0.70 0.015 230);
+  --border: oklch(0.78 0.14 230 / 18%);
+  --input: oklch(0.78 0.14 230 / 18%);
+  --primary: oklch(0.78 0.18 220);
+  --primary-foreground: oklch(0.15 0.020 230);
+  --accent: oklch(0.78 0.14 290);
+  --accent-foreground: oklch(0.15 0.020 230);
+  --destructive: oklch(0.65 0.22 25);
+  --success: oklch(0.74 0.18 155);
+  --warning: oklch(0.78 0.16 80);
+  --info: oklch(0.78 0.18 220);
+  --ring: oklch(0.78 0.18 220 / 40%);
 
-  /* Primary-tinted nested surface — the "glass" layer. */
-  --surface-2: oklch(0.90 0.035 235);
-  --border-subtle: oklch(0.22 0.03 245 / 8%);
-  --border-strong: oklch(0.22 0.03 245 / 24%);
+  /* Surface ladder climbs from near-black through tinted blues —
+   * each step carries a touch more chroma so depth reads as glow. */
+  --surface-0: oklch(0.15 0.020 230);
+  --surface-1: oklch(0.20 0.025 230);
+  --surface-2: oklch(0.23 0.028 230);
+  --surface-3: oklch(0.26 0.030 230);
+  --border-subtle: oklch(0.78 0.14 230 / 10%);
+  --border-strong: oklch(0.78 0.18 220 / 50%);
 
   /* Rounded, not soft. */
   --radius-sm: 6px;
@@ -153,84 +186,122 @@
   --duration-deliberate: 320ms;
   --ease-out: var(--ease-spring);
 
-  /* Cool, soft shadows with a primary-tinted accent glow. */
-  --shadow-xs: 0 1px 2px 0 oklch(0.30 0.05 245 / 6%);
-  --shadow-sm: 0 1px 3px 0 oklch(0.30 0.05 245 / 10%), 0 1px 2px -1px oklch(0.30 0.05 245 / 6%);
-  --shadow-md: 0 6px 14px -3px oklch(0.30 0.05 245 / 12%), 0 2px 4px -2px oklch(0.30 0.05 245 / 8%);
-  --shadow-lg: 0 16px 32px -6px oklch(0.30 0.05 245 / 14%), 0 4px 10px -4px oklch(0.30 0.05 245 / 8%);
-  --shadow-xl: 0 24px 48px -8px oklch(0.30 0.05 245 / 18%);
-  --shadow-hover: 0 3px 10px -2px oklch(0.30 0.05 245 / 12%);
-  --shadow-accent: 0 10px 32px -6px oklch(0.62 0.14 240 / 45%);
+  /* Iridescent edge-glow shadows. Every elevation carries a thin
+   * cyan rim plus a darker drop, so cards feel haloed against the
+   * deep blue ground. */
+  --shadow-card-rest: 0 0 0 1px oklch(0.78 0.14 230 / 12%), 0 1px 2px oklch(0 0 230 / 50%);
+  --shadow-hover:     0 8px 24px oklch(0.78 0.18 220 / 18%), 0 0 0 1px oklch(0.78 0.18 220 / 30%);
+  --shadow-xs: 0 0 0 1px oklch(0.78 0.14 230 / 10%);
+  --shadow-sm: 0 1px 2px oklch(0 0 230 / 45%), 0 0 0 1px oklch(0.78 0.14 230 / 10%);
+  --shadow-md: 0 4px 14px oklch(0 0 230 / 50%), 0 0 0 1px oklch(0.78 0.14 230 / 14%);
+  --shadow-lg: 0 12px 32px oklch(0 0 230 / 60%), 0 0 0 1px oklch(0.78 0.14 230 / 18%);
+  --shadow-xl: 0 24px 56px oklch(0 0 230 / 70%), 0 0 0 1px oklch(0.78 0.14 230 / 22%);
+  --shadow-accent: 0 0 0 3px color-mix(in oklch, var(--primary) 25%, transparent), 0 0 16px oklch(0.78 0.18 220 / 14%);
+  --shadow-edge-top: 0 -1px 0 oklch(0.78 0.14 230 / 18%), 0 -8px 24px oklch(0 0 0 / 40%);
+  --shadow-sticky: 0 1px 0 oklch(0.78 0.14 230 / 16%), 0 4px 14px oklch(0 0 230 / 40%);
 }
 
 /* ───────────────────────────────────────────────────────────────────
- * console — 90s beige-box nostalgia. Warm tan surfaces, amber primary
- * with a teal accent, sharp tiny radii, inset-style borders in lieu
- * of blurred shadows, mono-forward labels. Chunky interaction tints
- * make everything feel buttoned and physical.
+ * console — terminal mode. Phosphor-green-on-near-black, mono
+ * everywhere (the --font-body remap propagates through every
+ * component that reads it), sharp 2px corners, low-spread shadows
+ * with green glow tint. This is a different machine, not a tint.
  * ─────────────────────────────────────────────────────────────────── */
 :root[data-theme='console'] {
-  --background: oklch(0.90 0.020 85);
-  --foreground: oklch(0.22 0.02 80);
-  --card: oklch(0.94 0.018 85);
-  --card-foreground: oklch(0.22 0.02 80);
-  --popover: oklch(0.94 0.018 85);
-  --popover-foreground: oklch(0.22 0.02 80);
-  --muted: oklch(0.86 0.025 85);
-  --muted-foreground: oklch(0.40 0.02 80);
-  --border: oklch(0.22 0.02 80 / 28%);
-  --input: oklch(0.22 0.02 80 / 28%);
-  --primary: oklch(0.65 0.15 65);
-  --primary-foreground: oklch(0.15 0.02 80);
-  --accent: oklch(0.60 0.09 195);
-  --accent-foreground: oklch(0.98 0.01 195);
-  --destructive: oklch(0.55 0.22 27);
-  --success: oklch(0.60 0.14 145);
-  --warning: oklch(0.70 0.15 75);
-  --info: oklch(0.55 0.12 220);
-  --ring: oklch(0.65 0.15 65 / 45%);
+  --background: oklch(0.13 0.008 220);
+  --foreground: oklch(0.92 0.06 145);
+  --card: oklch(0.16 0.010 220);
+  --card-foreground: oklch(0.92 0.06 145);
+  --popover: oklch(0.18 0.012 220);
+  --popover-foreground: oklch(0.92 0.06 145);
+  --muted: oklch(0.20 0.012 220);
+  --muted-foreground: oklch(0.62 0.05 145);
+  --border: oklch(0.30 0.04 145 / 40%);
+  --input: oklch(0.30 0.04 145 / 40%);
+  --primary: oklch(0.78 0.20 145);
+  --primary-foreground: oklch(0.13 0.008 220);
+  --accent: oklch(0.78 0.16 195);
+  --accent-foreground: oklch(0.13 0.008 220);
+  --destructive: oklch(0.70 0.22 25);
+  --success: oklch(0.78 0.20 145);
+  --warning: oklch(0.85 0.18 90);
+  --info: oklch(0.78 0.16 195);
+  --ring: oklch(0.78 0.20 145 / 50%);
 
-  /* Inset chrome surfaces. */
-  --surface-2: oklch(0.87 0.024 85);
-  --border-subtle: oklch(0.22 0.02 80 / 16%);
-  --border-strong: oklch(0.22 0.02 80 / 50%);
+  /* Surface ladder — faint cool drift up from the near-black base. */
+  --surface-0: oklch(0.13 0.008 220);
+  --surface-1: oklch(0.16 0.010 220);
+  --surface-2: oklch(0.18 0.012 220);
+  --surface-3: oklch(0.20 0.014 220);
+  --border-subtle: oklch(0.30 0.04 145 / 20%);
+  --border-strong: oklch(0.78 0.20 145 / 60%);
 
-  /* Sharp radii — hardware edges. */
+  /* Sharp hardware edges. */
+  --radius: 2px;
   --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --radius-xl: 6px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
 
-  /* Inset-style shadows — dark inner edges, no blur. */
-  --shadow-xs: inset 0 1px 0 oklch(1 0 0 / 60%), inset 0 -1px 0 oklch(0.22 0.02 80 / 20%);
-  --shadow-sm: inset 0 1px 0 oklch(1 0 0 / 55%), 0 1px 0 oklch(0.22 0.02 80 / 22%);
-  --shadow-md: inset 0 1px 0 oklch(1 0 0 / 50%), 0 1px 0 oklch(0.22 0.02 80 / 28%), 0 2px 0 oklch(0.22 0.02 80 / 10%);
-  --shadow-lg: inset 0 1px 0 oklch(1 0 0 / 45%), 0 2px 0 oklch(0.22 0.02 80 / 30%), 0 3px 0 oklch(0.22 0.02 80 / 12%);
-  --shadow-xl: inset 0 1px 0 oklch(1 0 0 / 40%), 0 3px 0 oklch(0.22 0.02 80 / 32%);
-  --shadow-hover: inset 0 1px 0 oklch(1 0 0 / 60%), 0 1px 0 oklch(0.22 0.02 80 / 30%);
-  --shadow-sticky: 0 1px 0 oklch(0.22 0.02 80 / 24%);
-  --shadow-accent: 0 0 0 2px oklch(0.65 0.15 65 / 55%);
+  /* Phosphor-tinted shadows — low spread, glow rather than blur. */
+  --shadow-card-rest: 0 0 0 1px oklch(0.78 0.20 145 / 14%);
+  --shadow-hover:     0 0 0 1px oklch(0.78 0.20 145 / 40%), 0 0 16px oklch(0.78 0.20 145 / 12%);
+  --shadow-xs: 0 0 0 1px oklch(0.78 0.20 145 / 10%);
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 50%), 0 0 0 1px oklch(0.78 0.20 145 / 12%);
+  --shadow-md: 0 4px 12px oklch(0 0 0 / 50%), 0 0 0 1px oklch(0.78 0.20 145 / 16%);
+  --shadow-lg: 0 12px 32px oklch(0 0 0 / 60%), 0 0 0 1px oklch(0.78 0.20 145 / 20%);
+  --shadow-xl: 0 24px 64px oklch(0 0 0 / 70%);
+  --shadow-edge-top: 0 -1px 0 oklch(0.78 0.20 145 / 30%);
+  --shadow-sticky: 0 1px 0 oklch(0.78 0.20 145 / 24%);
+  --shadow-accent: 0 0 0 2px oklch(0.78 0.20 145 / 55%), 0 0 18px oklch(0.78 0.20 145 / 18%);
 
-  /* Mono-forward labels, chunky heading weight. */
-  --heading-font: var(--font-body);
+  /* Mono everywhere. The body remap propagates to every component
+   * that reads var(--font-body) — chips, inputs, labels, headings. */
+  --font-body: var(--font-mono);
+  --body-font: var(--font-mono);
+  --heading-font: var(--font-mono);
+  --label-font: var(--font-mono);
   --heading-weight: var(--font-weight-bold);
   --heading-tracking: var(--tracking-normal);
-  --label-font: var(--font-mono);
   --label-weight: var(--font-weight-bold);
   --label-tracking: var(--tracking-wide);
 
-  /* Chunky interaction — everything "clicks". */
+  /* Crisp interaction — every press registers. */
   --hover-strength: 12%;
   --active-strength: 18%;
   --selected-strength: 22%;
+
+  /* Phosphor-green scrollbar. */
+  --scrollbar-radius: 2px;
+  --scrollbar-width: 12px;
+  --scrollbar-width-thin: 8px;
+  --scrollbar-thumb: oklch(0.78 0.20 145 / 30%);
+  --scrollbar-thumb-hover: oklch(0.78 0.20 145 / 60%);
+}
+
+/* Faint horizontal scanline — barely perceptible, evokes a CRT. */
+:root[data-theme='console'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    oklch(0.78 0.20 145 / 0%) 0 1px,
+    oklch(0.78 0.20 145 / 2%) 1px 2px
+  );
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='console'] body::before { display: none; }
 }
 
 /* ───────────────────────────────────────────────────────────────────
  * contrast — accessibility-hero. Near-black background, amber
  * primary/accent fused into one high-chroma signal, pure white
  * foreground. Flat 1–2px border "shadows" in lieu of blurs. Tiny
- * blocky radii. Bold labels and headings. Amped interaction tints
- * so every focus/active state is impossible to miss.
+ * blocky radii. Bold weights. Amped interaction tints so every
+ * focus/active state is impossible to miss.
  * ─────────────────────────────────────────────────────────────────── */
 :root[data-theme='contrast'] {
   --background: oklch(0.09 0 0);
@@ -253,18 +324,15 @@
   --info: oklch(0.75 0.22 260);
   --ring: oklch(0.87 0.18 85 / 60%);
 
-  /* No subtle surfaces — every boundary is hard. */
   --surface-2: oklch(0.20 0 0);
   --border-subtle: oklch(0.50 0 0);
   --border-strong: oklch(0.99 0 0);
 
-  /* Blocky tiny radii. */
   --radius-sm: 2px;
   --radius-md: 3px;
   --radius-lg: 4px;
   --radius-xl: 6px;
 
-  /* Flat border "shadows" — rely on 1–2px rings for elevation. */
   --shadow-xs: 0 0 0 1px oklch(1 0 0 / 60%);
   --shadow-sm: 0 0 0 1px oklch(1 0 0 / 65%);
   --shadow-md: 0 0 0 1px oklch(1 0 0 / 75%);
@@ -274,12 +342,48 @@
   --shadow-sticky: 0 0 0 1px oklch(1 0 0 / 60%);
   --shadow-accent: 0 0 0 3px oklch(0.87 0.18 85 / 60%);
 
-  /* Bold everything — legibility over nuance. */
   --heading-weight: var(--font-weight-bold);
   --label-weight: var(--font-weight-bold);
 
-  /* Amped interaction — focus states must be unmistakable. */
   --hover-strength: 14%;
   --active-strength: 22%;
   --selected-strength: 30%;
+
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 50%, transparent);
+  --scrollbar-thumb-hover: var(--foreground);
+  --scrollbar-radius: 4px;
+}
+
+/* ───────────────────────────────────────────────────────────────────
+ * Daily-driver depth — ship-light & ship-dark get a barely-there
+ * noise grain so the page surface isn't a perfect flat color, plus a
+ * subtle vertical lift on --surface-0. Both stay invisible until you
+ * look for them; together they make the daily themes feel alive
+ * without competing with content.
+ * ─────────────────────────────────────────────────────────────────── */
+:root[data-theme='ship-light'] body,
+:root[data-theme='ship-dark'] body {
+  background-image: linear-gradient(
+    to bottom,
+    color-mix(in oklch, var(--surface-0) 100%, white 1.5%) 0%,
+    var(--surface-0) 60%,
+    color-mix(in oklch, var(--surface-0) 100%, black 1.5%) 100%
+  );
+  background-attachment: fixed;
+}
+
+:root[data-theme='ship-light'] body::before,
+:root[data-theme='ship-dark'] body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme='ship-light'] body::before,
+  :root[data-theme='ship-dark'] body::before { display: none; }
 }

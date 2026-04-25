@@ -96,7 +96,7 @@
                 {{ bind('draft') }}
                 {{ loading('sending') }}
                 {{ on('keydown', "if (evt.key === 'Enter' && !evt.shiftKey) { evt.preventDefault(); evt.target.form.requestSubmit(); }") }}></textarea>
-      <ship-button type="submit" tone="accent" variant="solid" size="sm"
+      <ship-button type="submit" tone="primary" variant="solid" size="sm"
                    {{ attr('disabled', '$sending') }}>Send</ship-button>
     </form>
   </div>

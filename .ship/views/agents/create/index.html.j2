@@ -226,12 +226,12 @@
   </ship-button>
   <span class="spacer"></span>
   <ship-button variant="ghost" size="sm" {{ nav('/agents') }}>Cancel</ship-button>
-  <ship-button tone="accent" variant="solid" size="sm"
+  <ship-button tone="primary" variant="solid" size="sm"
     {{ show('$step < 3') }} {{ on_click('$step = $step + 1') }}>
     Continue
     <ship-icon slot="trailing" name="arrow-right" size="xs"></ship-icon>
   </ship-button>
-  <ship-button tone="accent" variant="solid" size="sm"
+  <ship-button tone="primary" variant="solid" size="sm"
     {{ show('$step == 3') }}
     {{ attr_if('$_creating || !$id', 'disabled') }}
     {{ on_click("$_creating = true; $_err = ''; @post('/api/agents', {

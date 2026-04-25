@@ -53,10 +53,10 @@
     margin-bottom: var(--space-6);
   }
   .ship-pipelines-title {
-    font-family: var(--font-display);
+    font-family: var(--heading-font);
     font-size: var(--text-2xl);
-    font-weight: var(--font-weight-bold);
-    letter-spacing: -0.01em;
+    font-weight: var(--heading-weight);
+    letter-spacing: var(--heading-tracking);
     margin: 0;
     color: var(--foreground);
   }
@@ -64,6 +64,16 @@
     font-size: var(--text-sm);
     color: var(--muted-foreground);
     margin-top: var(--space-1);
+  }
+  .ship-pipelines-head > div:first-child { position: relative; }
+  .ship-pipelines-head > div:first-child::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 4px;
+    margin-top: var(--space-2);
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--primary), transparent);
   }
   .ship-pipelines-head-actions {
     display: flex;
@@ -107,7 +117,7 @@
           New pipeline
         </ship-button>
         {% endif %}
-        <ship-button tone="accent" variant="solid" size="sm"
+        <ship-button tone="primary" variant="solid" size="sm"
           {{ on_click("document.getElementById('dispatch-dialog').showModal()") }}>
           <ship-icon slot="leading" name="play" size="sm"></ship-icon>
           Dispatch
@@ -146,7 +156,7 @@
         {{ on_click("document.getElementById('new-pipeline-dialog').close()") }}>
         Cancel
       </ship-button>
-      <ship-button tone="accent" variant="solid"
+      <ship-button tone="primary" variant="solid"
         {{ attr_if('$new_pipe_creating', 'loading') }}
         {{ attr_if('$new_pipe_creating', 'disabled') }}
         {{ on_click("window.createPipeline('" ~ workspace_id ~ "', $new_pipe_name, document.querySelector('.ship-view-pipelines'))") }}>

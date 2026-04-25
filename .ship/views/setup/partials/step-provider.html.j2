@@ -84,7 +84,7 @@
     Skip, configure later
   </ship-button>
 
-  <ship-button tone="accent" variant="solid" size="md"
+  <ship-button tone="primary" variant="solid" size="md"
                {{ attr_if("$provider_test_result != 'ok'", 'disabled') }}
                {{ on_click("$step = 4; @post('/api/settings', {payload: {provider: $provider, key: $api_key}})") }}>
     Save &amp; continue

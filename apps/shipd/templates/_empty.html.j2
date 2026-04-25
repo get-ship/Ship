@@ -15,7 +15,7 @@
   <span slot="title">{{ title }}</span>
   {% if body is defined %}{{ body | safe }}{% endif %}
   {% if cta is defined %}
-    <ship-button slot="actions" tone="accent" variant="solid"
+    <ship-button slot="actions" tone="primary" variant="solid"
       {% if cta.onclick is defined %} data-on-click="{{ cta.onclick }}"{% endif %}>
       {{ cta.label }}
     </ship-button>

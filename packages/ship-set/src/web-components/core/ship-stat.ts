@@ -43,11 +43,11 @@ export class ShipStat extends LitElement {
     }
     .label {
       font-size: var(--text-xs);
-      font-weight: var(--font-weight-medium);
+      font-family: var(--label-font);
+      font-weight: var(--label-weight);
+      letter-spacing: var(--label-tracking);
       text-transform: uppercase;
-      letter-spacing: 0.08em;
       color: var(--muted-foreground);
-      font-family: var(--font-body);
     }
     .value-row {
       display: flex;
@@ -58,7 +58,7 @@ export class ShipStat extends LitElement {
     .value {
       font-family: var(--heading-font);
       font-size: var(--text-3xl);
-      font-weight: var(--font-weight-semibold);
+      font-weight: var(--heading-weight);
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.02em;
       color: var(--foreground);

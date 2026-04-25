@@ -233,7 +233,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   <pre slot="details">{{ err.details | e }}</pre>
   {%- endif %}
   {%- if retry %}
-  <ship-button slot="action" tone="accent" variant="solid" size="{{ size }}"
+  <ship-button slot="action" tone="primary" variant="solid" size="{{ size }}"
                slot-name="retry"
                data-on:click="@get('{{ retry }}')">
     <ship-icon slot="leading" name="refresh-cw" size="xs"></ship-icon>

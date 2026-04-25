@@ -175,7 +175,7 @@ export class ShipSegmented extends LitElement {
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       // activate whatever button currently has focus
-      const focused = this.renderRoot.activeElement as HTMLButtonElement | null
+      const focused = (this.renderRoot as ShadowRoot).activeElement as HTMLButtonElement | null
       if (focused?.dataset.value) this.select(focused.dataset.value)
       return
     } else {

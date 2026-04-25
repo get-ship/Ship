@@ -8,7 +8,13 @@ import { installErrorReporter } from "./error-reporter";
 // on first `connectedCallback`. The custom-element registration fires
 // before the element in index.html upgrades, so the shell is ready by
 // the time view code starts calling `window.ship.*`.
-import "@ship/shell";
+import "./chrome";
+// Side-effect import: registers every `<ship-*>` web component in the
+// same module graph as the shell chrome. Sharing the graph means a
+// single Lit copy at runtime (no "Multiple versions" warning) and
+// removes the need for a daemon-served `/api/assets/ship-elements.js`
+// from the SPA bootstrap.
+import "@ship/set/web-components";
 
 // Install as early as possible so any boot-time throw gets captured.
 installErrorReporter();
@@ -160,11 +166,18 @@ function mountThemePicker() {
     const id = (e as CustomEvent<{ id: string }>).detail?.id;
     if (isValidTheme(id)) {
       setActive(id);
-      const status = document.getElementById("status-theme");
-      if (status) status.textContent = id;
     }
   });
 }
+
+// applyTheme() in @ship/set/themes always dispatches `ship:theme:change`
+// — listen here to repaint the status bar regardless of caller (UI
+// picker, programmatic `setShipTheme`, or external code calling
+// applyTheme directly). Cleaner than a MutationObserver on dataset.
+document.addEventListener("ship:theme:change", (e) => {
+  const id = (e as CustomEvent<{ id: string }>).detail?.id;
+  if (typeof id === "string" && statusTheme) statusTheme.textContent = id;
+});
 
 // Wait for <ship-nav-top> to render its light-DOM theme-picker host before
 // wiring up the grid. firstUpdated on nav-top dispatches ship:nav-top:ready.
@@ -219,6 +232,18 @@ shellEl?.addEventListener("ship:chat:close", () => {
 const dock = document.getElementById("panel-dock")!;
 dock.addEventListener("ship:dock:close", () => {
   document.body.classList.remove("dock-open");
+});
+// Clear → forward to the active pane via a `clear` method if present.
+dock.addEventListener("ship:dock:clear", (ev) => {
+  const tab = (ev as CustomEvent<{ tab: string }>).detail.tab;
+  const pane = dock.querySelector(`[slot="${tab}"]`) as
+    | (Element & { clear?: () => void; refresh?: () => void })
+    | null;
+  pane?.clear?.() ?? pane?.refresh?.();
+});
+// Pop-out → maximize the dock to fill the viewport (toggle a body class).
+dock.addEventListener("ship:dock:popout", () => {
+  document.body.classList.toggle("dock-popout");
 });
 document.querySelector("ship-shell")?.addEventListener("ship:dock:toggle", () => {
   document.body.classList.toggle("dock-open");
@@ -417,6 +442,14 @@ async function mount(endpoint: string) {
   newView.style.pointerEvents = "";
   view = newView;
 
+  // Mark the freshly mounted view root as the cascade origin. Direct
+  // children get a staggered reveal via the [data-view-enter] keyframe in
+  // index.html. Cap --i at 8 so the 9th+ child resets and the cascade
+  // never feels indefinitely delayed.
+  newView.setAttribute("data-view-enter", "");
+  const kids = Array.from(newView.children) as HTMLElement[];
+  kids.forEach((el, i) => el.style.setProperty("--i", String(i % 9)));
+
   // Fade in new view.
   requestAnimationFrame(() => {
     newView.classList.remove("ship-content-entering");
@@ -495,7 +528,7 @@ const router = new Navigo("/");
 // Register with <ship-shell> so `window.ship.navigate/back/current`
 // delegates here. Has to happen after the element upgrades — we defer
 // to the next microtask since customElements.define() ran via the
-// `@ship/shell` side-effect import at the top of this file.
+// `./chrome` side-effect import at the top of this file.
 queueMicrotask(() => {
   const shell = document.querySelector("ship-shell") as
     | (HTMLElement & {
@@ -686,6 +719,31 @@ document.addEventListener("keydown", (e) => {
       on ? "Edit mode on — hover to highlight, click to annotate." : "Edit mode off.",
       "info",
     );
+  }
+
+  // ⌥1–⌥6 — Jump to dock tab N (only when dock is open).
+  if (e.altKey && !meta && !e.shiftKey && /^[1-6]$/.test(e.key)) {
+    if (document.body.classList.contains("dock-open")) {
+      e.preventDefault();
+      const idx = Number.parseInt(e.key, 10) - 1;
+      const dockEl = document.getElementById("panel-dock") as
+        | (HTMLElement & {
+            tabs?: Array<{ id: string }>;
+            activate?: (t: string) => void;
+          })
+        | null;
+      const tab = dockEl?.tabs?.[idx]?.id;
+      if (tab) dockEl?.activate?.(tab);
+    }
+  }
+
+  // Escape — close dock if it has focus and active tab body is empty.
+  if (e.key === "Escape" && document.body.classList.contains("dock-open")) {
+    const dockEl = document.getElementById("panel-dock");
+    if (dockEl && dockEl.contains(document.activeElement)) {
+      e.preventDefault();
+      document.body.classList.remove("dock-open");
+    }
   }
 
   // F11 — Fullscreen
