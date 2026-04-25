@@ -146,7 +146,7 @@ mod tests {
     use std::fs;
 
     fn init_ship_dir(tmp: &std::path::Path) -> std::path::PathBuf {
-        let ship_dir = tmp.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp);
         fs::create_dir_all(&ship_dir).unwrap();
         ship_dir
     }

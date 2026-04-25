@@ -341,7 +341,7 @@ mod tests {
         std::fs::create_dir_all(&git_dir).unwrap();
         std::fs::write(git_dir.join("HEAD"), "ref: refs/heads/feature/auth\n").unwrap();
 
-        let ship_dir = project.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&project);
         let branch = read_current_branch(&ship_dir);
         assert_eq!(branch, Some("feature/auth".to_string()));
     }
@@ -354,7 +354,7 @@ mod tests {
         std::fs::create_dir_all(&git_dir).unwrap();
         std::fs::write(git_dir.join("HEAD"), "abc123def456\n").unwrap();
 
-        let ship_dir = project.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&project);
         let branch = read_current_branch(&ship_dir);
         assert!(branch.is_none());
     }

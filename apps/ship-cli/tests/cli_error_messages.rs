@@ -72,7 +72,7 @@ fn use_nonexistent_agent_with_no_agents_dir_suggests_init() {
         .assert()
         .success();
     // Remove agents dir to simulate empty project
-    let _ = fs::remove_dir_all(tmp.path().join(".ship/agents"));
+    let _ = fs::remove_dir_all(runtime::ShipHome::project_ship_dir(tmp.path()).join("agents"));
 
     let output = ship_in(&tmp)
         .args(["use", "anything", "--path", tmp.path().to_str().unwrap()])
@@ -240,7 +240,7 @@ fn install_frozen_out_of_sync_suggests_run_without_frozen() {
 #[test]
 fn install_no_manifest_suggests_how_to_create() {
     let tmp = TempDir::new().unwrap();
-    fs::create_dir_all(tmp.path().join(".ship")).unwrap();
+    fs::create_dir_all(runtime::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
     let output = ship()
         .args(["install"])
@@ -303,7 +303,7 @@ fn publish_dry_run_without_auth_succeeds() {
   "exports": { "skills": ["agents/skills/a"] }
 }"#,
     );
-    let skill_dir = tmp.path().join(".ship/agents/skills/a");
+    let skill_dir = runtime::ShipHome::project_ship_dir(tmp.path()).join("agents/skills/a");
     fs::create_dir_all(&skill_dir).unwrap();
     fs::write(skill_dir.join("SKILL.md"), "# Skill A").unwrap();
 
@@ -321,7 +321,7 @@ fn publish_dry_run_without_auth_succeeds() {
 fn init_in_existing_project_is_idempotent() {
     let tmp = TempDir::new().unwrap();
     ship().args(["init"]).current_dir(tmp.path()).assert().success();
-    let original = fs::read_to_string(tmp.path().join(".ship/ship.jsonc")).unwrap();
+    let original = fs::read_to_string(runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
 
     ship()
         .args(["init"])
@@ -330,7 +330,7 @@ fn init_in_existing_project_is_idempotent() {
         .success()
         .stdout(predicate::str::contains("initialized .ship/"));
 
-    let after = fs::read_to_string(tmp.path().join(".ship/ship.jsonc")).unwrap();
+    let after = fs::read_to_string(runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
     assert_eq!(original, after, "init must not overwrite existing ship.jsonc");
 }
 

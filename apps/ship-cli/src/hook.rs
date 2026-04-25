@@ -5,11 +5,11 @@ use cli_framework::hooks::{
 use std::io::Read;
 
 fn agent_id() -> Option<String> {
-    std::env::var("SHIP_AGENT_ID").ok().filter(|s| !s.is_empty())
+    runtime::env::read_raw(runtime::env::Var::AgentId).ok().filter(|s| !s.is_empty())
 }
 
 fn workspace_id() -> Option<String> {
-    std::env::var("SHIP_WORKSPACE_ID").ok().filter(|s| !s.is_empty())
+    runtime::env::read_raw(runtime::env::Var::WorkspaceId).ok().filter(|s| !s.is_empty())
 }
 
 fn read_stdin() -> Result<String> {
@@ -62,9 +62,9 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
         .or_else(|| parsed.get("output"))
         .cloned();
 
-    let agent = std::env::var("SHIP_AGENT_ID").ok();
-    let workspace = std::env::var("SHIP_WORKSPACE_ID").ok();
-    let session = std::env::var("SHIP_SESSION_ID").ok();
+    let agent = runtime::env::read_raw(runtime::env::Var::AgentId).ok();
+    let workspace = runtime::env::read_raw(runtime::env::Var::WorkspaceId).ok();
+    let session = runtime::env::read_raw(runtime::env::Var::SessionId).ok();
 
     let mut event = serde_json::json!({
         "provider": provider,
@@ -99,7 +99,7 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
 /// For hooks, we don't auto-start — hooks must be fast and non-blocking.
 /// Use `crate::daemon::ensure_daemon()` for commands that can afford the wait.
 fn daemon_info() -> Option<(u16, String)> {
-    let home = dirs::home_dir()?.join(".ship");
+    let home = runtime::ShipHome::project_ship_dir(dirs::home_dir()?);
     let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;
     let port = port_str.trim().parse::<u16>().ok()?;
     let token = std::fs::read_to_string(home.join("daemon.token")).ok()?;
@@ -205,7 +205,7 @@ pub fn run_session_end() -> Result<()> {
             println!("{}", serde_json::to_string(&event)?);
             broadcast_session_ended(&actor, &workspace);
         }
-        if let Ok(slug) = std::env::var("SHIP_MESH_ID") {
+        if let Ok(slug) = runtime::env::read_raw(runtime::env::Var::MeshId) {
             signal_job_completed(&slug);
         }
         Ok(())
@@ -215,7 +215,7 @@ pub fn run_session_end() -> Result<()> {
 /// Signal job completion to the daemon via REST API.
 /// Non-fatal — best-effort fallback for pipeline advancement.
 fn signal_job_completed(slug: &str) {
-    let home = dirs::home_dir().unwrap_or_default().join(".ship");
+    let home = runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap_or_default());
     let port = match std::fs::read_to_string(home.join("daemon.port")) {
         Ok(p) => p.trim().to_string(),
         Err(_) => return,
@@ -241,9 +241,9 @@ mod tests {
     fn normalize_stdin_carries_env_identity() {
         // SAFETY: single-threaded test, no other threads read env here.
         unsafe {
-            std::env::set_var("SHIP_AGENT_ID", "agent.rust-lane");
-            std::env::set_var("SHIP_SESSION_ID", "job-abc");
-            std::env::set_var("SHIP_WORKSPACE_ID", "ws-1");
+            runtime::env::set(runtime::env::Var::AgentId, "agent.rust-lane");
+            runtime::env::set(runtime::env::Var::SessionId, "job-abc");
+            runtime::env::set(runtime::env::Var::WorkspaceId, "ws-1");
         }
         let stdin = r#"{"tool_name":"Bash","tool_input":{"command":"ls"}}"#;
         let event = normalize_stdin(stdin, "before-tool");
@@ -253,9 +253,9 @@ mod tests {
         assert_eq!(event["workspace"], "ws-1");
         assert_eq!(event["hook_type"], "before-tool");
         unsafe {
-            std::env::remove_var("SHIP_AGENT_ID");
-            std::env::remove_var("SHIP_SESSION_ID");
-            std::env::remove_var("SHIP_WORKSPACE_ID");
+            runtime::env::remove(runtime::env::Var::AgentId);
+            runtime::env::remove(runtime::env::Var::SessionId);
+            runtime::env::remove(runtime::env::Var::WorkspaceId);
         }
     }
 

@@ -133,7 +133,7 @@ impl ShipServer {
         let actor_id = self.resolve_actor_id().await;
 
         // Compute skill-derived subscriptions
-        let ship_dir = project_dir.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
         let skills_list = runtime::list_skills(&ship_dir).unwrap_or_default();
         let skill_subs =
             runtime::workspace::artifact_events::skill_event_subscriptions(&skills_list);
@@ -281,7 +281,7 @@ impl ShipServer {
     /// `agent.mcp.{branch}` if no agent config is set.
     async fn resolve_actor_id(&self) -> String {
         // SHIP_MESH_ID takes precedence — set by daemon when dispatching jobs.
-        if let Ok(mesh_id) = std::env::var("SHIP_MESH_ID")
+        if let Ok(mesh_id) = runtime::env::read_raw(runtime::env::Var::MeshId)
             && !mesh_id.is_empty()
         {
             tracing::info!(actor_id = %mesh_id, "resolved actor ID from SHIP_MESH_ID");
@@ -291,7 +291,7 @@ impl ShipServer {
         let project_dir = self.get_effective_project_dir().await.ok();
         let agent_name = project_dir
             .as_ref()
-            .and_then(|d| runtime::get_active_agent(Some(d.join(".ship"))).ok().flatten())
+            .and_then(|d| runtime::get_active_agent(Some(runtime::ShipHome::project_ship_dir(d))).ok().flatten())
             .map(|a| a.id)
             .unwrap_or_else(|| "mcp".to_string());
 
@@ -330,7 +330,7 @@ impl ShipServer {
             Ok(d) => d,
             Err(_) => return,
         };
-        let ship_dir = project_dir.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&project_dir);
         let branch = match tool_gate::current_branch(&project_dir) {
             Ok(b) => b,
             Err(_) => return,
@@ -710,7 +710,7 @@ impl ShipServer {
             let label = req.name.as_deref().unwrap_or("inline");
             lint::lint_view_source(label, &source)
         } else if let Some(name) = req.name {
-            let views_dir = project_dir.join(".ship").join("views").join(&name);
+            let views_dir = runtime::ShipHome::project_ship_dir(project_dir).join("views").join(&name);
             if !views_dir.exists() {
                 return format!("Error: view '{}' not found under .ship/views/", name);
             }

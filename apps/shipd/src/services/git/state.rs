@@ -97,7 +97,7 @@ pub fn resolve_root(
 ) -> Result<PathBuf, String> {
     if let Some(id) = workspace_id.filter(|s| !s.is_empty() && *s != "project") {
         if let Ok((root, _)) = runtime::workspace::resolve_project_root(ship_dir, id) {
-            if root.join(".git").exists() || root.join(".ship").exists() {
+            if root.join(".git").exists() || runtime::ShipHome::project_ship_dir(&root).exists() {
                 return Ok(root);
             }
         }

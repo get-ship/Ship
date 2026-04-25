@@ -34,7 +34,7 @@ pub fn fetch_and_store(
         .with_context(|| format!("fetching {dep_path} @ {commit}"))?;
 
     // Ship-native packages land in tmp/.ship/; root-manifest packages land in tmp/.
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     let content_dir = if ship_dir.is_dir() {
         ship_dir.as_path()
     } else {

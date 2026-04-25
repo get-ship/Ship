@@ -44,13 +44,14 @@ pub fn track_install(package_path: &str, offline: bool) {
     }
 
     // Check opt-out: SHIP_REGISTRY_URL set to empty string.
-    match std::env::var("SHIP_REGISTRY_URL") {
-        Ok(val) if val.is_empty() => return,
-        _ => {}
+    if let Ok(val) = crate::env::read_raw(crate::env::Var::RegistryUrl)
+        && val.is_empty()
+    {
+        return;
     }
 
-    let base_url =
-        std::env::var("SHIP_REGISTRY_URL").unwrap_or_else(|_| "https://getship.dev".to_string());
+    let base_url = crate::env::read(crate::env::Var::RegistryUrl)
+        .unwrap_or_else(|| "https://getship.dev".to_string());
     let encoded = percent_encode(package_path);
     let endpoint = format!("{}/api/registry/{}/install", base_url, encoded);
 
@@ -106,12 +107,12 @@ mod tests {
     fn track_install_skipped_when_opted_out() {
         // Set SHIP_REGISTRY_URL to empty to opt out.
         // SAFETY: test is single-threaded; env var is restored immediately after.
-        let prev = std::env::var("SHIP_REGISTRY_URL").ok();
-        unsafe { std::env::set_var("SHIP_REGISTRY_URL", "") };
+        let prev = crate::env::read_raw(crate::env::Var::RegistryUrl).ok();
+        unsafe { crate::env::set(crate::env::Var::RegistryUrl, "") };
         track_install("github.com/test/pkg", false);
         match prev {
-            Some(val) => unsafe { std::env::set_var("SHIP_REGISTRY_URL", val) },
-            None => unsafe { std::env::remove_var("SHIP_REGISTRY_URL") },
+            Some(val) => unsafe { crate::env::set(crate::env::Var::RegistryUrl, &val) },
+            None => unsafe { crate::env::remove(crate::env::Var::RegistryUrl) },
         }
     }
 
@@ -119,14 +120,14 @@ mod tests {
     fn track_install_does_not_block_on_bad_url() {
         // Point to a URL that won't resolve — should still return quickly.
         // SAFETY: test is single-threaded; env var is restored immediately after.
-        let prev = std::env::var("SHIP_REGISTRY_URL").ok();
-        unsafe { std::env::set_var("SHIP_REGISTRY_URL", "http://127.0.0.1:1") };
+        let prev = crate::env::read_raw(crate::env::Var::RegistryUrl).ok();
+        unsafe { crate::env::set(crate::env::Var::RegistryUrl, "http://127.0.0.1:1") };
         track_install("github.com/test/pkg", false);
         // Give the spawned thread a moment, but the main thread should not block.
         std::thread::sleep(std::time::Duration::from_millis(50));
         match prev {
-            Some(val) => unsafe { std::env::set_var("SHIP_REGISTRY_URL", val) },
-            None => unsafe { std::env::remove_var("SHIP_REGISTRY_URL") },
+            Some(val) => unsafe { crate::env::set(crate::env::Var::RegistryUrl, &val) },
+            None => unsafe { crate::env::remove(crate::env::Var::RegistryUrl) },
         }
     }
 }

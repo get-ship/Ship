@@ -8,7 +8,7 @@ pub fn push_bundle(project_dir: &Path, bundle_json: &str) -> String {
         Err(e) => return format!("Error: invalid bundle JSON: {e}"),
     };
 
-    let ship_dir = project_dir.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
     if !ship_dir.exists() {
         return "Error: .ship/ not found. Run `ship init` first.".into();
     }

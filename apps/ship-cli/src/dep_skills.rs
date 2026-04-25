@@ -310,7 +310,7 @@ pub fn resolve_dep_skills(
         Some(p) => p,
         None => {
             let home = dirs::home_dir().context("cannot determine home directory")?;
-            default_cache = home.join(".ship").join("cache");
+            default_cache = runtime::ShipHome::project_ship_dir(home).join("cache");
             &default_cache
         }
     };

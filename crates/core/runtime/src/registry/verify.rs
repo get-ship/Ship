@@ -42,7 +42,7 @@ pub fn fetch_registry_hash(package_path: &str, version: &str) -> Option<String> 
 ///
 /// Returns `None` if `SHIP_REGISTRY_URL` is explicitly set to empty (opt-out).
 fn registry_base_url() -> Option<String> {
-    match std::env::var("SHIP_REGISTRY_URL") {
+    match crate::env::read_raw(crate::env::Var::RegistryUrl) {
         Ok(val) if val.is_empty() => None,
         Ok(val) => Some(val),
         Err(_) => Some("https://getship.dev".to_string()),

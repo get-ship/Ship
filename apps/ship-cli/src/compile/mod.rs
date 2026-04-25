@@ -49,7 +49,7 @@ pub struct CompileOptions<'a> {
 }
 
 pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
-    let ship_dir = opts.project_root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&opts.project_root);
     let output_root = opts.output_root.unwrap_or(opts.project_root);
 
     // 1. Load raw library from .ship/ (flat layout)
@@ -68,7 +68,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
     {
         let all_skill_refs = collect_all_skill_refs(&library);
         if !all_skill_refs.is_empty() {
-            let lock_path = opts.project_root.join(".ship").join("ship.lock");
+            let lock_path = runtime::ShipHome::project_ship_dir(&opts.project_root).join("ship.lock");
             let dep_skills = resolve_dep_skills(
                 &all_skill_refs,
                 &library.skills,

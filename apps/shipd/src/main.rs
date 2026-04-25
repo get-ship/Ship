@@ -69,7 +69,7 @@ fn discover_workspace() -> Option<std::path::PathBuf> {
         if Some(cur) == home.as_deref() {
             return None;
         }
-        if cur.join(".ship").is_dir() {
+        if runtime::ShipHome::project_ship_dir(&cur).is_dir() {
             return Some(cur.to_path_buf());
         }
         match cur.parent() {

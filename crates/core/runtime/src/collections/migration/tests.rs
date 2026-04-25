@@ -20,7 +20,7 @@ fn empty_query(collection: &str) -> QueryRequest {
 
 fn setup_data_service() -> (DataService, tempfile::TempDir) {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     // Use open_raw to bypass the auto-startup — these tests exercise
     // migration directly rather than letting it run as a side effect.

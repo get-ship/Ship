@@ -156,7 +156,7 @@ fn discover_returns_path_for_ship_dir() -> anyhow::Result<()> {
     // Boundary: discover_projects should find a project when .ship/ is a direct child
     // of root. Fails today because the function only scans children for a nested .ship/,
     // not root itself.
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     fs::create_dir_all(&ship_dir)?;
     fs::write(ship_dir.join("ship.jsonc"), b"{}")?;
     let projects = discover_projects(tmp.path().to_path_buf())?;

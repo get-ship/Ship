@@ -6,7 +6,7 @@ use tempfile::TempDir;
 
 fn make_api_state() -> (ApiState, TempDir) {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();

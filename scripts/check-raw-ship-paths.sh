@@ -5,9 +5,6 @@
 # `crates/core/runtime/src/home/` module. Per ADR
 # `home-layout-and-scope-convention`, `ShipHome` is the only permitted
 # origin of paths under `~/.ship/`.
-#
-# TODO(phase-2): flip `exit 0` at the bottom to `exit $violations` once
-# every existing call site has been migrated. Until then this is warn-only.
 
 set -u
 
@@ -19,15 +16,16 @@ ALLOW_PREFIX="crates/core/runtime/src/home/"
 # Patterns we treat as raw-`~/.ship/` path construction.
 PATTERNS=(
     'home_dir\(\)\.join\("\.ship'
-    '\.join\("\.ship"\)'
+    '\.join\("\.ship[/"]'
     '"~/\.ship'
 )
 
 violations=0
 for pat in "${PATTERNS[@]}"; do
-    # rg returns 1 when there are no matches; we don't want that to kill us
-    # under `set -e` (which we didn't set, but be explicit anyway).
-    matches=$(rg -n --no-heading "$pat" "${SEARCH_PATHS[@]}" 2>/dev/null || true)
+    matches=$(rg -n --no-heading \
+        --glob '!apps/docs/**' \
+        --glob '!docs/**' \
+        "$pat" "${SEARCH_PATHS[@]}" 2>/dev/null || true)
     if [ -z "$matches" ]; then
         continue
     fi
@@ -47,8 +45,7 @@ for pat in "${PATTERNS[@]}"; do
 done
 
 if [ $violations -gt 0 ]; then
-    echo "check-raw-ship-paths: $violations violation(s) found (warn-only; phase-2 will fail the build)"
+    echo "check-raw-ship-paths: $violations violation(s) found"
+    exit 1
 fi
-
-# TODO(phase-2): change to `exit $violations` (> 0 means fail).
 exit 0

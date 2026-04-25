@@ -30,7 +30,7 @@ fn collect_agent_ids(agents_dir: &Path) -> Vec<String> {
 // ── List ────────────────────────────────────────────────────────────────
 
 pub fn list_local_agents(project_dir: &Path) -> String {
-    let mut ids = collect_agent_ids(&project_dir.join(".ship").join("agents"));
+    let mut ids = collect_agent_ids(&runtime::ShipHome::project_ship_dir(&project_dir).join("agents"));
     if let Some(lib) = library_dir() {
         for id in collect_agent_ids(&lib.join("agents")) {
             if !ids.contains(&id) {
@@ -114,7 +114,7 @@ pub fn pull_agents(project_dir: &Path) -> String {
     let mut seen_ids = std::collections::HashSet::new();
 
     // Project agents (.ship/agents/)
-    let ship_dir = project_dir.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&project_dir);
     pull_agents_from_dir(&ship_dir, "project", &mut agents, &mut seen_ids);
 
     // Library agents (~/.ship/agents/) — skip IDs already found in project
@@ -435,7 +435,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path().join("project");
         std::fs::create_dir_all(&project).unwrap();
-        write_agent_file(&project.join(".ship"), "agent-a", "");
+        write_agent_file(&runtime::ShipHome::project_ship_dir(&project), "agent-a", "");
 
         let raw = pull_agents(&project);
         let resp: compiler::PullResponse = serde_json::from_str(&raw).unwrap();
@@ -450,13 +450,13 @@ mod tests {
         let library = tmp.path().join("library");
         std::fs::create_dir_all(&project).unwrap();
 
-        write_agent_file(&project.join(".ship"), "shared-agent", "");
+        write_agent_file(&runtime::ShipHome::project_ship_dir(&project), "shared-agent", "");
         write_agent_file(&library, "shared-agent", "");
         write_agent_file(&library, "lib-only", "");
 
         let mut agents = Vec::new();
         let mut seen = std::collections::HashSet::new();
-        pull_agents_from_dir(&project.join(".ship"), "project", &mut agents, &mut seen);
+        pull_agents_from_dir(&runtime::ShipHome::project_ship_dir(&project), "project", &mut agents, &mut seen);
         pull_agents_from_dir(&library, "library", &mut agents, &mut seen);
 
         agents.sort_by(|a, b| a.profile.id.cmp(&b.profile.id));
@@ -476,7 +476,7 @@ mod tests {
         let project = tmp.path().join("project");
         std::fs::create_dir_all(&project).unwrap();
         write_agent_file(
-            &project.join(".ship"),
+            &runtime::ShipHome::project_ship_dir(&project),
             "full-agent",
             r#",
             "model": "claude-sonnet-4-20250514",
@@ -527,7 +527,7 @@ mod tests {
     fn resolve_skills_finds_across_paths() {
         let tmp = tempfile::tempdir().unwrap();
         let project_root = tmp.path();
-        let ship_dir = project_root.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&project_root);
         std::fs::create_dir_all(&ship_dir).unwrap();
         write_manifest_skill_paths(&ship_dir, &["docs/"]);
 
@@ -547,7 +547,7 @@ mod tests {
     fn resolve_skills_first_path_wins() {
         let tmp = tempfile::tempdir().unwrap();
         let project_root = tmp.path();
-        let ship_dir = project_root.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&project_root);
         std::fs::create_dir_all(&ship_dir).unwrap();
         write_manifest_skill_paths(&ship_dir, &["first/", "second/"]);
 
@@ -563,7 +563,7 @@ mod tests {
     #[test]
     fn list_local_agents_project_only() {
         let tmp = tempfile::tempdir().unwrap();
-        write_agent_file(&tmp.path().join(".ship"), "my-agent", "");
+        write_agent_file(&runtime::ShipHome::project_ship_dir(tmp.path()), "my-agent", "");
         let raw = list_local_agents(tmp.path());
         let resp: ListAgentsResponse = serde_json::from_str(&raw).unwrap();
         assert!(resp.agents.contains(&"my-agent".to_string()));
@@ -573,7 +573,7 @@ mod tests {
     fn push_then_pull_round_trips_all_fields() {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path();
-        std::fs::create_dir_all(project.join(".ship")).unwrap();
+        std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(&project)).unwrap();
 
         // Push a fully-configured agent
         let bundle = serde_json::json!({
@@ -698,7 +698,7 @@ mod tests {
     fn pull_explicit_icon_from_agent() {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path().join("project");
-        let ship_dir = project.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&project);
         let agents_dir = ship_dir.join("agents");
         std::fs::create_dir_all(&agents_dir).unwrap();
         let content = format!(
@@ -716,7 +716,7 @@ mod tests {
     fn pull_derives_icon_from_tags_when_absent() {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path().join("project");
-        let ship_dir = project.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&project);
         let agents_dir = ship_dir.join("agents");
         std::fs::create_dir_all(&agents_dir).unwrap();
         std::fs::write(
@@ -734,7 +734,7 @@ mod tests {
     fn pull_explicit_icon_overrides_tag_default() {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path().join("project");
-        let ship_dir = project.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&project);
         let agents_dir = ship_dir.join("agents");
         std::fs::create_dir_all(&agents_dir).unwrap();
         let content = format!(
@@ -753,7 +753,7 @@ mod tests {
     fn push_then_pull_round_trips_icon() {
         let tmp = tempfile::tempdir().unwrap();
         let project = tmp.path();
-        std::fs::create_dir_all(project.join(".ship")).unwrap();
+        std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(&project)).unwrap();
 
         let icon = "\u{1f9ea}";
         let bundle = serde_json::json!({

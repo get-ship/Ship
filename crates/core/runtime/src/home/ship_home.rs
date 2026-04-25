@@ -65,6 +65,16 @@ impl ShipHome {
         Self { root }
     }
 
+    /// Test helper — construct a `ShipHome` rooted at `<tmp>/.ship`.
+    ///
+    /// This is the blessed test helper. Every test that previously did
+    /// `tmp.path().join(".ship")` should call `ShipHome::for_test(tmp.path())`
+    /// and use the typed accessors. Per the home-layout ADR, no test should
+    /// hand-roll `.ship` paths.
+    pub fn for_test(tmp: &Path) -> Self {
+        Self { root: tmp.join(SHIP_DIR_NAME) }
+    }
+
     /// The root directory (i.e. `~/.ship/`).
     pub fn root(&self) -> &Path {
         &self.root
@@ -113,6 +123,22 @@ impl ShipHome {
         self.machine_dir().join(MACHINE_DAEMON_DIR).join(file.as_str())
     }
 
+    /// Project-scope `.ship/` directory at the given project root.
+    ///
+    /// This is the canonical accessor for `<project_root>/.ship/`. Code that
+    /// previously did `project_root.join(".ship")` migrates to this call.
+    /// Accepts anything path-like (`&Path`, `PathBuf`, `&PathBuf`).
+    pub fn project_ship_dir<P: AsRef<Path>>(project_root: P) -> PathBuf {
+        project_root.as_ref().join(SHIP_DIR_NAME)
+    }
+
+    /// On-disk name of the project ship directory (`.ship`). Exposed so that
+    /// path checks like `path.ends_with(ShipHome::ship_dir_name())` and
+    /// component scans don't hard-code the literal.
+    pub fn ship_dir_name() -> &'static str {
+        SHIP_DIR_NAME
+    }
+
     /// `~/.ship/library/settings.jsonc` — portable user preferences.
     pub fn settings_path(&self) -> PathBuf {
         self.library_dir().join(SETTINGS_FILE)
@@ -138,6 +164,38 @@ mod tests {
         let tmp = tempdir().unwrap();
         let h = home(tmp.path());
         assert_eq!(h.root(), tmp.path().join(".ship"));
+    }
+
+    #[test]
+    fn for_test_helper_roots_under_tmp() {
+        let tmp = tempdir().unwrap();
+        let h = ShipHome::for_test(tmp.path());
+        assert_eq!(h.root(), tmp.path().join(".ship"));
+        assert_eq!(h.library_dir(), tmp.path().join(".ship/library"));
+        assert_eq!(h.machine_dir(), tmp.path().join(".ship/machine"));
+        assert_eq!(
+            h.db_path(Db::Platform),
+            tmp.path().join(".ship/machine/db/platform.db")
+        );
+        assert_eq!(
+            h.daemon_file(DaemonFile::Token),
+            tmp.path().join(".ship/machine/daemon/token")
+        );
+    }
+
+    #[test]
+    fn for_test_vector_dirs_match_user_scope() {
+        let tmp = tempdir().unwrap();
+        let h = ShipHome::for_test(tmp.path());
+        assert_eq!(
+            h.vector_dir(Scope::User, Vector::Agents, None),
+            tmp.path().join(".ship/library/agents")
+        );
+        let proj = tmp.path().join("proj");
+        assert_eq!(
+            h.vector_dir(Scope::Project, Vector::Skills, Some(&proj)),
+            proj.join(".ship/skills")
+        );
     }
 
     #[test]

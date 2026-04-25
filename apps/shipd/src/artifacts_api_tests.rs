@@ -86,7 +86,7 @@ mod tests {
         let id = up.body["data"]["id"].as_str().unwrap().to_string();
 
         // Walk the project-scoped artifacts dir and nuke any blob present.
-        let artifacts_root = daemon.temp_dir.path().join(".ship").join("artifacts");
+        let artifacts_root = runtime::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("artifacts");
         remove_all_files(&artifacts_root);
 
         let resp = daemon.get(&format!("/api/artifacts/{id}")).await;
@@ -173,7 +173,7 @@ mod tests {
             .post_multipart("/api/artifacts", &upload_parts("p.txt", "text/plain", b"p"))
             .await;
         assert_eq!(up.status, 201);
-        let artifacts_root = daemon.temp_dir.path().join(".ship").join("artifacts");
+        let artifacts_root = runtime::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("artifacts");
         // Exactly one slug dir should exist.
         let slugs: Vec<_> = std::fs::read_dir(&artifacts_root)
             .unwrap()

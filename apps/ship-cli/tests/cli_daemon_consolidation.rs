@@ -123,7 +123,7 @@ fn test_daemon_uses_single_pid_file() {
         .output()
         .expect("failed to run daemon start");
 
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     assert!(
         !ship_dir.join("network.pid").exists(),
         "network.pid must not exist — daemon uses daemon.pid now",

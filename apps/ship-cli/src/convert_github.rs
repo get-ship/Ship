@@ -86,7 +86,7 @@ pub fn extract_github_slug(url: &str) -> Option<String> {
 }
 
 pub fn github_api_base() -> String {
-    std::env::var("SHIP_API_URL").unwrap_or_else(|_| "https://ship-studio.com".to_string())
+    runtime::env::read_raw(runtime::env::Var::ApiUrl).unwrap_or_else(|_| "https://ship-studio.com".to_string())
 }
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
@@ -115,7 +115,7 @@ pub fn convert_from_github(url: &str) -> Result<()> {
 
 pub fn convert_from_github_with_base(url: &str, base_url: &str) -> Result<()> {
     let project_root = std::env::current_dir()?;
-    let ship_dir = project_root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
     std::fs::create_dir_all(&ship_dir)?;
 
     let creds = Credentials::load();

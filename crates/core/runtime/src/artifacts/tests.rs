@@ -13,7 +13,7 @@ use crate::events::KernelRouter;
 
 fn test_kernel() -> Arc<Mutex<KernelRouter>> {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     crate::db::ensure_db_at(&ship_dir).unwrap();
     let ship_dir = Box::leak(Box::new(ship_dir));
@@ -22,7 +22,7 @@ fn test_kernel() -> Arc<Mutex<KernelRouter>> {
 
 fn setup() -> (ArtifactService, DataService, Arc<Mutex<KernelRouter>>, tempfile::TempDir) {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let svc = ArtifactService::new(&ship_dir);
     let data = DataService::open(&ship_dir).unwrap();
@@ -225,7 +225,7 @@ async fn dedup_delete_first_row_keeps_blob_for_second() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn gc_removes_expired_run_scope() {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let svc = ArtifactService::new(&ship_dir);
     let mut data = DataService::open(&ship_dir).unwrap();
@@ -249,7 +249,7 @@ async fn gc_removes_expired_run_scope() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn gc_skips_non_expired() {
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let svc = ArtifactService::new(&ship_dir);
     let mut data = DataService::open(&ship_dir).unwrap();
@@ -335,7 +335,7 @@ async fn backfill_legacy_null_scope_rows_resolve_as_project() {
     use crate::artifacts::schema::artifacts_schema;
 
     let tmp = tempfile::tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
 
     let mut data = DataService::open(&ship_dir).unwrap();

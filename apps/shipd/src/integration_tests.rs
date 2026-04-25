@@ -10,7 +10,7 @@ use runtime::events::{ActorConfig, EventEnvelope};
 async fn harness_provides_clean_environment() {
     let daemon = TestDaemon::new().await;
     assert!(daemon.temp_dir.path().exists());
-    assert!(daemon.temp_dir.path().join(".ship").exists());
+    assert!(runtime::ShipHome::project_ship_dir(daemon.temp_dir.path()).exists());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

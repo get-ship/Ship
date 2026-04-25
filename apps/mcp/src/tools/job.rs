@@ -49,7 +49,7 @@ pub async fn update_job(req: UpdateJobRequest) -> String {
 /// step-done endpoint. The daemon resolves the active step from its
 /// projection and emits `step.done_declared` through the kernel.
 pub async fn step_done(req: StepDoneRequest) -> String {
-    let slug = match std::env::var("SHIP_MESH_ID") {
+    let slug = match runtime::env::read_raw(runtime::env::Var::MeshId) {
         Ok(id) if !id.is_empty() => id,
         _ => {
             return "Error: SHIP_MESH_ID not set — step_done can only be called from a \

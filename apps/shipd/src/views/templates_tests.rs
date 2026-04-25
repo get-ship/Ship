@@ -184,7 +184,7 @@ fn sibling_partial_edit_busts_cache() {
     struct Ctx {}
 
     let dir = TempDir::new().unwrap();
-    let view_dir = dir.path().join(".ship/views/cache-bust");
+    let view_dir = runtime::ShipHome::project_ship_dir(dir.path()).join("views/cache-bust");
     std::fs::create_dir_all(view_dir.join("partials")).unwrap();
 
     let index_path = view_dir.join("index.html.j2");
@@ -195,9 +195,9 @@ fn sibling_partial_edit_busts_cache() {
 
     // Point discovery at our temp project dir.
     // SAFETY: tests in this binary serially, and we restore prior state.
-    let prior = std::env::var("SHIP_DIR").ok();
+    let prior = runtime::env::read_raw(runtime::env::Var::Dir).ok();
     unsafe {
-        std::env::set_var("SHIP_DIR", dir.path().join(".ship"));
+        runtime::env::set(runtime::env::Var::Dir, runtime::ShipHome::project_ship_dir(dir.path()));
     }
 
     let first = render_view_source("cache-bust/index.html.j2", index_src, &Ctx {})
@@ -213,8 +213,8 @@ fn sibling_partial_edit_busts_cache() {
 
     unsafe {
         match prior {
-            Some(v) => std::env::set_var("SHIP_DIR", v),
-            None => std::env::remove_var("SHIP_DIR"),
+            Some(v) => runtime::env::set(runtime::env::Var::Dir, v),
+            None => runtime::env::remove(runtime::env::Var::Dir),
         }
     }
 

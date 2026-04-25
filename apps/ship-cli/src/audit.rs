@@ -9,7 +9,7 @@ pub fn run_audit(path: Option<PathBuf>, json: bool) -> Result<()> {
         Some(p) => p,
         None => {
             let cwd = std::env::current_dir()?;
-            let ship = cwd.join(".ship");
+            let ship = runtime::ShipHome::project_ship_dir(&cwd);
             if ship.is_dir() { ship } else { cwd }
         }
     };

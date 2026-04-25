@@ -24,7 +24,7 @@ pub async fn resolve_resource_uri(
     dir: &Path,
     project_info: impl std::future::Future<Output = String>,
 ) -> Option<String> {
-    let ship_dir = dir.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir);
 
     if uri == "ship://project_info" {
         return Some(project_info.await);

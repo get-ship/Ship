@@ -147,7 +147,7 @@ pub fn run_publish(
     is_dry_run: bool,
     tag: Option<&str>,
 ) -> Result<()> {
-    let ship_dir = root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(root);
     let manifest_path = ship_dir.join("ship.jsonc");
     let manifest = ShipManifest::from_file(&manifest_path)
         .context("reading .ship/ship.jsonc — is this a Ship project?")?;

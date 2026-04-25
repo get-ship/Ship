@@ -29,7 +29,7 @@ use crate::profile::WorkspaceState;
 /// 3. Write updated `.ship/ship.lock`.
 /// 4. Compile resolved packages into provider targets.
 pub fn run_install(project_root: &Path, frozen: bool, offline: bool) -> Result<()> {
-    let ship_dir = project_root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
     // Prefer ship.jsonc over ship.toml
     let jsonc_path = ship_dir.join("ship.jsonc");
     let manifest_path = if jsonc_path.exists() {
@@ -114,11 +114,11 @@ fn compiler_to_registry_manifest(m: &ShipManifest) -> RegistryManifest {
 
 /// Detect configured providers from the project's manifest (best-effort).
 fn detect_providers_from_project(project_root: &Path) -> String {
-    let jsonc_path = project_root.join(".ship").join("ship.jsonc");
+    let jsonc_path = runtime::ShipHome::project_ship_dir(project_root).join("ship.jsonc");
     let path = if jsonc_path.exists() {
         jsonc_path
     } else {
-        project_root.join(".ship").join("ship.toml")
+        runtime::ShipHome::project_ship_dir(project_root).join("ship.toml")
     };
     if let Ok(content) = std::fs::read_to_string(&path)
         && let Ok(val) = toml::from_str::<toml::Value>(&content)
@@ -165,7 +165,7 @@ mod tests {
     #[test]
     fn install_no_ship_toml_errors() {
         let tmp = TempDir::new().unwrap();
-        std::fs::create_dir_all(tmp.path().join(".ship")).unwrap();
+        std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(tmp.path())).unwrap();
         let err = run_install(tmp.path(), false, false).unwrap_err();
         assert!(
             err.to_string()
@@ -209,7 +209,7 @@ mod tests {
         // compile succeeds when .ship/agents/ is absent (loads empty library)
         // lockfile should be written with version=1 and no packages
         if result.is_ok() {
-            let lock_path = tmp.path().join(".ship").join("ship.lock");
+            let lock_path = runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.lock");
             assert!(lock_path.exists(), "ship.lock must be written");
             let content = std::fs::read_to_string(&lock_path).unwrap();
             assert!(content.contains("version = 1"));

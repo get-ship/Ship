@@ -28,10 +28,12 @@ pub fn complete_workspace(project_dir: &Path, req: CompleteWorkspaceRequest) -> 
 
     let should_prune = req.prune_worktree.unwrap_or(ws_kind == "imperative");
 
-    let ship_dir = project_root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
     let slug = runtime::project::project_slug_from_ship_dir(&ship_dir);
     let global_dir = runtime::project::get_global_dir().unwrap_or_else(|_| {
-        std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default()).join(".ship")
+        runtime::ShipHome::project_ship_dir(std::path::PathBuf::from(
+            std::env::var("HOME").unwrap_or_default(),
+        ))
     });
     let sessions_dir = global_dir.join("sessions").join(&slug).join(workspace_id);
     if let Err(e) = std::fs::create_dir_all(&sessions_dir) {

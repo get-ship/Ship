@@ -87,7 +87,7 @@ pub async fn write_agent(
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let agents_dir = worktree.join(".ship").join("agents");
+    let agents_dir = runtime::ShipHome::project_ship_dir(&worktree).join("agents");
 
     std::fs::create_dir_all(&agents_dir).map_err(|e| {
         err_response(
@@ -161,7 +161,7 @@ pub async fn write_skill_file(
 
     validate_skill_id(&skill_id)?;
 
-    let skill_dir = worktree.join(".ship").join("skills").join(&skill_id);
+    let skill_dir = runtime::ShipHome::project_ship_dir(&worktree).join("skills").join(&skill_id);
     let dest = safe_join(&skill_dir, &file_path)?;
 
     if let Some(parent) = dest.parent() {
@@ -215,7 +215,7 @@ pub async fn delete_skill_file(
 
     validate_skill_id(&skill_id)?;
 
-    let skill_dir = worktree.join(".ship").join("skills").join(&skill_id);
+    let skill_dir = runtime::ShipHome::project_ship_dir(&worktree).join("skills").join(&skill_id);
     let target = safe_join(&skill_dir, &file_path)?;
 
     if !target.exists() {
@@ -257,7 +257,7 @@ pub async fn get_skill_vars(
     Path((id, skill_id)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let ship_dir = worktree.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&worktree);
 
     validate_skill_id(&skill_id)?;
 
@@ -309,7 +309,7 @@ pub async fn set_skill_var(
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let ship_dir = worktree.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&worktree);
 
     validate_skill_id(&skill_id)?;
 
@@ -352,7 +352,7 @@ mod tests {
 
     fn make_test_state() -> (ApiState, tempfile::TempDir) {
         let dir = tempfile::TempDir::new().unwrap();
-        let ship_dir = dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
         let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();

@@ -224,7 +224,7 @@ pub fn resolve_project_ship_dir(start_dir: &Path) -> Option<PathBuf> {
 /// Supports `SHIP_DIR` environment variable override.
 pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
     // 1. Check for environment variable override
-    if let Ok(env_path) = env::var("SHIP_DIR") {
+    if let Some(env_path) = crate::env::read(crate::env::Var::Dir) {
         let path = PathBuf::from(env_path);
         if path.exists() && path.is_dir() {
             return Ok(path);

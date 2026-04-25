@@ -38,18 +38,17 @@ fn has_gemini_policy_overrides(permissions: &Permissions) -> bool {
 }
 
 fn managed_hooks_enabled() -> bool {
-    match std::env::var("SHIP_MANAGED_HOOKS") {
-        Ok(raw) => matches!(
+    match crate::env::read(crate::env::Var::ManagedHooks) {
+        Some(raw) => matches!(
             raw.trim().to_ascii_lowercase().as_str(),
             "1" | "true" | "on" | "yes"
         ),
-        Err(_) => false,
+        None => false,
     }
 }
 
 fn managed_hooks_command() -> Option<String> {
-    if let Some(explicit) = std::env::var("SHIP_HOOKS_BIN")
-        .ok()
+    if let Some(explicit) = crate::env::read(crate::env::Var::HooksBin)
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty())
     {

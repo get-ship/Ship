@@ -7,7 +7,7 @@ use runtime::events::{init_kernel_router, KernelRouter};
 use super::NetworkServer;
 
 fn make_kernel(dir: &TempDir) -> Arc<Mutex<KernelRouter>> {
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     init_kernel_router(ship_dir).unwrap()
 }

@@ -4,9 +4,7 @@ use std::path::PathBuf;
 // ── Global (~/.ship/) ─────────────────────────────────────────────────────────
 
 pub fn global_dir() -> PathBuf {
-    dirs::home_dir()
-        .unwrap_or_else(|| PathBuf::from("."))
-        .join(".ship")
+    runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")))
 }
 
 pub fn global_skills_dir() -> PathBuf {
@@ -34,7 +32,7 @@ pub fn ensure_global_dirs() -> anyhow::Result<()> {
 // ── Project (.ship/) ──────────────────────────────────────────────────────────
 
 pub fn project_dir() -> PathBuf {
-    PathBuf::from(".ship")
+    PathBuf::from(runtime::ShipHome::ship_dir_name())
 }
 pub fn agents_dir() -> PathBuf {
     project_dir().join("agents")

@@ -68,7 +68,7 @@ steps:
 #[test]
 fn two_step_yaml_loads_with_expected_name_and_steps() {
     let tmp = tempfile::tempdir().expect("tmpdir");
-    let pipelines_dir = tmp.path().join(".ship").join("pipelines");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
     std::fs::create_dir_all(&pipelines_dir).unwrap();
     std::fs::write(pipelines_dir.join("smoke-two-step.yaml"), TWO_STEP_YAML).unwrap();
 
@@ -92,7 +92,7 @@ fn malformed_yaml_surfaces_error_with_file_path() {
     // The surfaced error must reference the file path so the user sees which
     // pipeline file is broken, not a generic "pipeline not found".
     let tmp = tempfile::tempdir().expect("tmpdir");
-    let pipelines_dir = tmp.path().join(".ship").join("pipelines");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
     std::fs::create_dir_all(&pipelines_dir).unwrap();
     let bad = "---\nname: broken\nsteps:\n\t- id: x\n";
     let bad_path = pipelines_dir.join("broken.yaml");
@@ -119,7 +119,7 @@ fn missing_pipeline_returns_ok_none() {
     // callers that fall through to other resolution strategies rely on
     // this distinction (Ok(None) continues, Err stops).
     let tmp = tempfile::tempdir().expect("tmpdir");
-    let pipelines_dir = tmp.path().join(".ship").join("pipelines");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
     std::fs::create_dir_all(&pipelines_dir).unwrap();
 
     let _guard = CwdGuard::enter(tmp.path());
@@ -153,7 +153,7 @@ steps:
 #[test]
 fn canonical_gate_shape_loads_cleanly() {
     let tmp = tempfile::tempdir().expect("tmpdir");
-    let pipelines_dir = tmp.path().join(".ship").join("pipelines");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
     std::fs::create_dir_all(&pipelines_dir).unwrap();
     std::fs::write(pipelines_dir.join("canonical-gate.yaml"), CANONICAL_GATE_YAML).unwrap();
     let _guard = CwdGuard::enter(tmp.path());
@@ -184,7 +184,7 @@ steps:
         min: 1
 "#;
     let tmp = tempfile::tempdir().expect("tmpdir");
-    let pipelines_dir = tmp.path().join(".ship").join("pipelines");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
     std::fs::create_dir_all(&pipelines_dir).unwrap();
     std::fs::write(pipelines_dir.join("legacy-gate.yaml"), yaml).unwrap();
     let _guard = CwdGuard::enter(tmp.path());

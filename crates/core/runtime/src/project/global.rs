@@ -41,7 +41,7 @@ pub fn get_global_dir() -> Result<PathBuf> {
         return Ok(test_dir);
     }
 
-    if let Ok(env_path) = env::var("SHIP_GLOBAL_DIR") {
+    if let Some(env_path) = crate::env::read(crate::env::Var::GlobalDir) {
         let path = PathBuf::from(env_path.trim());
         if !path.as_os_str().is_empty() {
             // Guard: reject production paths from test code.  Developers must

@@ -473,7 +473,7 @@ pub fn load_step_specs_by_name(name: &str) -> Option<Vec<String>> {
 pub(crate) fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, PipelineMeta)>, String> {
     let mut dir = std::env::current_dir().map_err(|e| format!("cwd lookup failed: {e}"))?;
     loop {
-        let ship_dir = dir.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(&dir);
         if ship_dir.is_dir() {
             // Prefer .jsonc, fall back to .yaml for backwards compat
             let jsonc_path = ship_dir.join("pipelines").join(format!("{name}.jsonc"));

@@ -16,7 +16,7 @@ mod mesh_scope {
     fn ev(t: &str) -> EventEnvelope { EventEnvelope::new(t, "e", &serde_json::json!({})).unwrap() }
     fn rt() -> EmitContext { EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, workspace_id: None, session_id: None } }
     fn mcp() -> EmitContext { EmitContext { caller_kind: CallerKind::Mcp, skill_id: None, workspace_id: None, session_id: None } }
-    fn setup() -> (tempfile::TempDir, KernelRouter) { let t = tempdir().unwrap(); let r = KernelRouter::new(t.path().join(".ship")).unwrap(); (t, r) }
+    fn setup() -> (tempfile::TempDir, KernelRouter) { let t = tempdir().unwrap(); let r = KernelRouter::new(crate::ShipHome::project_ship_dir(t.path())).unwrap(); (t, r) }
 
     fn sub(ns: &str, scope: DeliveryScope) -> PermittedSubscription {
         PermittedSubscription { namespace: ns.into(), scope }

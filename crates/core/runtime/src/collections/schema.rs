@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn load_schemas_from_empty_dir() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(ship_dir.join("collections")).unwrap();
         let schemas = load_schemas(&ship_dir).unwrap();
         assert!(schemas.is_empty());
@@ -354,7 +354,7 @@ mod tests {
     #[test]
     fn load_schemas_from_dir() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         let schemas_dir = ship_dir.join("collections");
         std::fs::create_dir_all(&schemas_dir).unwrap();
         std::fs::write(
@@ -369,7 +369,7 @@ mod tests {
     #[test]
     fn load_schemas_skips_non_schema_dir() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         // No collections/ directory at all
         std::fs::create_dir_all(&ship_dir).unwrap();
         let schemas = load_schemas(&ship_dir).unwrap();
@@ -379,8 +379,8 @@ mod tests {
     #[test]
     fn load_schemas_merged_combines_global_and_project() {
         let tmp = tempfile::tempdir().unwrap();
-        let global_dir = tmp.path().join("global").join(".ship");
-        let project_dir = tmp.path().join("project").join(".ship");
+        let global_dir = crate::ShipHome::project_ship_dir(tmp.path().join("global"));
+        let project_dir = crate::ShipHome::project_ship_dir(tmp.path().join("project"));
         let global_col = global_dir.join("collections");
         let project_col = project_dir.join("collections");
         std::fs::create_dir_all(&global_col).unwrap();
@@ -405,8 +405,8 @@ mod tests {
     #[test]
     fn load_schemas_merged_project_shadows_global() {
         let tmp = tempfile::tempdir().unwrap();
-        let global_dir = tmp.path().join("global").join(".ship");
-        let project_dir = tmp.path().join("project").join(".ship");
+        let global_dir = crate::ShipHome::project_ship_dir(tmp.path().join("global"));
+        let project_dir = crate::ShipHome::project_ship_dir(tmp.path().join("project"));
         std::fs::create_dir_all(global_dir.join("collections")).unwrap();
         std::fs::create_dir_all(project_dir.join("collections")).unwrap();
 
@@ -427,7 +427,7 @@ mod tests {
     #[test]
     fn load_schemas_merged_no_project_equals_global() {
         let tmp = tempfile::tempdir().unwrap();
-        let global_dir = tmp.path().join(".ship");
+        let global_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(global_dir.join("collections")).unwrap();
         std::fs::write(
             global_dir.join("collections").join("task.jsonc"),
