@@ -4,7 +4,7 @@
  * One script owns:
  *   - plate scene auto-morph (4.2s) + tab override + 1/2/3 keys
  *   - headline copy variants (4) with default "vibe"
- *   - vibe-chip swatches + `t` key: both go through @ship/ui/themes so
+ *   - vibe-chip swatches + `t` key: both go through @ship/set/themes so
  *     localStorage stays canonical, then dispatch `ship-theme-change` so
  *     <ThemeSwitcher> updates its trigger label/active state.
  *   - tweaks panel (hidden; opened via Claude artifact postMessage)
@@ -17,7 +17,7 @@ import {
   readStoredTheme,
   isValidTheme,
   type ThemeId,
-} from '@ship/ui/themes';
+} from '@ship/set/themes';
 
 type SceneKey = 'session' | 'pipeline' | 'view';
 type HeadlineKey = 'vibe' | 'build' | 'thirty' | 'reactive';
