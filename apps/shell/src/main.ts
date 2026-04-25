@@ -8,7 +8,7 @@ import { installErrorReporter } from "./error-reporter";
 // on first `connectedCallback`. The custom-element registration fires
 // before the element in index.html upgrades, so the shell is ready by
 // the time view code starts calling `window.ship.*`.
-import "@ship/shell";
+import "./chrome";
 
 // Install as early as possible so any boot-time throw gets captured.
 installErrorReporter();
@@ -495,7 +495,7 @@ const router = new Navigo("/");
 // Register with <ship-shell> so `window.ship.navigate/back/current`
 // delegates here. Has to happen after the element upgrades — we defer
 // to the next microtask since customElements.define() ran via the
-// `@ship/shell` side-effect import at the top of this file.
+// `./chrome` side-effect import at the top of this file.
 queueMicrotask(() => {
   const shell = document.querySelector("ship-shell") as
     | (HTMLElement & {

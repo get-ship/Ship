@@ -1,4 +1,4 @@
-//! `@ship/shell` — shell framework for the Ship browser app.
+//! Shell chrome — framework for the Ship browser app.
 //!
 //! Side effects: registers custom elements `<ship-shell>`, `<ship-rail>`,
 //! `<ship-launcher>`, `<ship-nav-top>`, `<ship-panel-dock>`,

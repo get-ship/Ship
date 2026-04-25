@@ -8,6 +8,8 @@
     "noEmit": true,
     "skipLibCheck": true,
     "isolatedModules": true,
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "types": ["vite/client"]
