@@ -6,23 +6,20 @@
     <title>Ship</title>
     <link rel="icon" href="/favicon.ico" />
     <script>
-      // Load daemon-served core assets dynamically (avoids Vite pre-transform
-      // errors). Only core runtime + element registry load here — heavy
-      // island bundles (code editor, markdown editor, terminal) arrive per
-      // view via the `packs:` declaration in each view's manifest. The
-      // daemon injects `<script type="module" src=...>` tags for the
-      // declared packs; mount.ts rehydrates them after innerHTML assignment
-      // so fragment navigation still fires the module loads.
+      // Load daemon-served stylesheet + datastar runtime. Web-component
+      // registrations (`ship-elements`) are imported into the Vite bundle
+      // via main.ts — keeping them in the same module graph ensures a
+      // single Lit copy at runtime (no "Multiple versions" warning).
+      // Heavy island bundles still arrive per view via each view's
+      // `packs:` manifest, injected by the daemon at render time.
       (function() {
         var base = '/api/assets/';
         var css = document.createElement('link');
         css.rel = 'stylesheet'; css.href = base + 'view-tokens.css';
         document.head.appendChild(css);
-        ['datastar.js','ship-elements.js'].forEach(function(f) {
-          var s = document.createElement('script');
-          s.type = 'module'; s.src = base + f;
-          document.head.appendChild(s);
-        });
+        var s = document.createElement('script');
+        s.type = 'module'; s.src = base + 'datastar.js';
+        document.head.appendChild(s);
       })();
     </script>
     <script>

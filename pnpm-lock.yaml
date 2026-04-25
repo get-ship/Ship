@@ -329,9 +329,6 @@ importers:
       '@xterm/xterm':
         specifier: ^6.0.0
         version: 6.0.0
-      lit:
-        specifier: ^3.2.0
-        version: 3.3.2
       lucide-react:
         specifier: ^0.575.0
         version: 0.575.0(react@19.2.4)
@@ -360,6 +357,9 @@ importers:
       jsdom:
         specifier: ^28.1.0
         version: 28.1.0(@noble/hashes@2.0.1)
+      lit:
+        specifier: ^3.2.0
+        version: 3.3.2
       typescript:
         specifier: ~5.8.3
         version: 5.8.3

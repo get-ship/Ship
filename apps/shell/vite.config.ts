@@ -29,8 +29,18 @@ export default defineConfig(({ mode }) => {
   function currentToken(): string {
     return resolveToken(env.VITE_DAEMON_TOKEN);
   }
+  // Embedded production assets are served at /shell/ by shipd
+  // (apps/shipd/src/shell_assets.rs). Dev mode runs at the Vite root and
+  // proxies /api → daemon, so base must stay `/` there.
+  const isDev = mode === "development";
   return {
-    base: "/",
+    base: isDev ? "/" : "/shell/",
+    resolve: {
+      // Single Lit copy at runtime — both shell chrome (Vite) and
+      // @ship/set web-components (Vite) resolve to the same module
+      // instance, so Lit's "Multiple versions" warning stays quiet.
+      dedupe: ["lit"],
+    },
     define: {
       // Client sees empty string → relative URLs → Vite proxy forwards to
       // daemon with fresh token. The `daemon` var above is the proxy target
