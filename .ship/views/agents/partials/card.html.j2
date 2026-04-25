@@ -62,10 +62,14 @@
         future `<ship-provider-blob>` primitive would remove the span-
         wrapping boilerplate. Tracked in SDK roadmap. -#}
     {% if a.providers %}
+    {%- set provider_cap = 4 -%}
     <div class="agents-card-providers" aria-label="Compiles to">
-      {% for p in a.providers %}
+      {% for p in a.providers[:provider_cap] %}
       <ship-provider-blob provider="{{ p }}" size="sm" variant="glyph" title="{{ p }}"></ship-provider-blob>
       {% endfor %}
+      {% if a.providers | length > provider_cap %}
+      <ship-chip tone="muted" variant="outline" size="sm">+{{ a.providers | length - provider_cap }}</ship-chip>
+      {% endif %}
     </div>
     {% endif %}
     <div class="agents-card-badges">

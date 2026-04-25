@@ -63,7 +63,7 @@
 
     <div class="specs-launch-bar">
       <div class="specs-launch-bar-inner">
-        <ship-button variant="solid" tone="accent" size="lg"
+        <ship-button variant="solid" tone="primary" size="lg"
           {% if not selected.pipeline %}disabled{% endif %}
           {{ on_click("@post('/api/specs/" ~ selected.id ~ "/launch')") }}>
           {{ selected.launch_label }}

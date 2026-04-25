@@ -160,7 +160,7 @@
           {{ on_click("$edit_mode = false; $edit_error = ''; $edit_issue_count = 0; window.resetPipelineEditor()") }}>
           Cancel
         </ship-button>
-        <ship-button tone="accent" variant="solid" {{ show('$edit_mode') }}
+        <ship-button tone="primary" variant="solid" {{ show('$edit_mode') }}
           {{ attr_if('$edit_saving', 'loading') }}
           {{ attr_if('$edit_saving', 'disabled') }}
           {{ on_click("window.savePipeline('" ~ workspace_id ~ "', '" ~ name ~ "')") }}>
@@ -173,7 +173,7 @@
           Delete
         </ship-button>
         {% endif %}
-        <ship-button tone="accent" variant="solid" {{ show('!$edit_mode') }}
+        <ship-button tone="primary" variant="solid" {{ show('!$edit_mode') }}
           {{ on_click("document.getElementById('dispatch-dialog').showModal()") }}>
           <ship-icon slot="leading" name="play" size="sm"></ship-icon>
           Dispatch

@@ -59,7 +59,7 @@
   {#- Optimistic advance; `on_fetch_error` scopes a listener on this
       element so a 4xx / 5xx / non-SSE response patches $ws_error into
       the inline error slot without any custom JS.                   -#}
-  <ship-button tone="accent" variant="solid" size="md"
+  <ship-button tone="primary" variant="solid" size="md"
                {{ attr_if("($ws_mode == 'new' ? !$ws_name : !$ws_path)", 'disabled') }}
                {{ on_click("$step = 3; @post('/api/projects', {payload: {mode: $ws_mode, name: $ws_name, path: $ws_path}})") }}
                {{ on_fetch_error('ws_error', "'Could not create workspace (HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?') + ')'") }}>
