@@ -70,6 +70,8 @@ export const shipDialogStyles = [reducedMotion, css`
     box-shadow:
       0 0 0 1px color-mix(in oklch, black 4%, transparent),
       var(--shadow-xl);
+    backdrop-filter: var(--card-backdrop-filter);
+    -webkit-backdrop-filter: var(--card-backdrop-filter);
     font-family: var(--font-body);
     color-scheme: light dark;
     overflow: visible;

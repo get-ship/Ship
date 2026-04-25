@@ -168,6 +168,8 @@ export class ShipListTile extends LitElement {
         background: var(--card);
         border-color: var(--border-subtle);
         box-shadow: var(--shadow-card-rest);
+        backdrop-filter: var(--card-backdrop-filter);
+        -webkit-backdrop-filter: var(--card-backdrop-filter);
       }
       :host([variant='card']) .tile:hover {
         border-color: var(--tone-primary-border);

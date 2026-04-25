@@ -36,6 +36,8 @@ export const shipCardStyles = [
       border: 1px solid var(--border);
       border-radius: var(--card-radius);
       box-shadow: var(--shadow-card-rest);
+      backdrop-filter: var(--card-backdrop-filter);
+      -webkit-backdrop-filter: var(--card-backdrop-filter);
       /* Density channel — overridden per :host([padding=…]) below.
        * Defaults match pre-polish 16px/20px so existing composites
        * (ship-pipeline-definition, ship-pipeline-run, settings cards)
