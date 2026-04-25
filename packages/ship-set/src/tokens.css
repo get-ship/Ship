@@ -137,16 +137,24 @@
   --density-text: var(--text-base);
   --density-icon: 16px;
 
-  /* Elevation — light mode defaults. Dark mode + accent themes override. */
+  /* Elevation — light mode defaults. Dark mode + accent themes override.
+   * Layered (close + far) shadows give cards visible lift against the page
+   * surface; flat 1-stop shadows read as "sticker on paper" and the QA pass
+   * called them out for it. Numbers are tuned so a card on --surface-0
+   * reads its edge without bleeding into the page. */
   --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 5%);
-  --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 8%), 0 1px 2px -1px oklch(0 0 0 / 6%);
-  --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 10%), 0 2px 4px -2px oklch(0 0 0 / 6%);
-  --shadow-lg: 0 12px 24px -4px oklch(0 0 0 / 10%), 0 4px 8px -4px oklch(0 0 0 / 6%);
-  --shadow-xl: 0 20px 40px -8px oklch(0 0 0 / 12%);
+  --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 7%), 0 1px 2px -1px oklch(0 0 0 / 5%);
+  --shadow-md: 0 4px 12px -2px oklch(0 0 0 / 9%), 0 2px 4px -2px oklch(0 0 0 / 6%);
+  --shadow-lg: 0 12px 32px -6px oklch(0 0 0 / 13%), 0 4px 12px -4px oklch(0 0 0 / 8%);
+  --shadow-xl: 0 24px 64px -12px oklch(0 0 0 / 18%), 0 8px 24px -8px oklch(0 0 0 / 10%);
   /* Semantic shadows — components read these for intent, not depth. */
-  --shadow-hover: 0 2px 6px -1px oklch(0 0 0 / 8%), 0 1px 3px -1px oklch(0 0 0 / 5%);
-  --shadow-sticky: 0 2px 4px -2px oklch(0 0 0 / 6%);
-  --shadow-accent: 0 8px 24px -6px color-mix(in oklch, var(--primary) 45%, transparent);
+  --shadow-card-rest: 0 1px 2px 0 oklch(0 0 0 / 4%), 0 0 0 1px oklch(0 0 0 / 3%);
+  --shadow-hover: 0 6px 16px -4px oklch(0 0 0 / 12%), 0 2px 6px -2px oklch(0 0 0 / 8%);
+  --shadow-sticky: 0 2px 6px -2px oklch(0 0 0 / 8%), 0 1px 2px oklch(0 0 0 / 4%);
+  --shadow-accent: 0 0 0 3px color-mix(in oklch, var(--primary) 22%, transparent);
+  --shadow-inset-soft: inset 0 1px 2px oklch(0 0 0 / 5%);
+  /* Top-edge cue for floating panels seated above content (debug dock). */
+  --shadow-edge-top: 0 -8px 24px -8px oklch(0 0 0 / 8%), 0 -1px 0 oklch(0 0 0 / 4%);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -184,7 +192,7 @@
 /* ─── Brand palette — light (:root) ──────────────────────────────────
  * The canonical palette. Themes override this layer. */
 :root {
-  --background: oklch(0.99 0.001 106.423);
+  --background: oklch(0.975 0.002 106.423);
   --foreground: oklch(0.147 0.004 49.25);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.147 0.004 49.25);
@@ -364,11 +372,11 @@
 
 /* ─── Dark mode overrides ─────────────────────────────────────────── */
 .dark {
-  --background: oklch(0.18 0.01 250);
+  --background: oklch(0.158 0.012 250);
   --foreground: oklch(0.98 0.001 106);
-  --card: oklch(0.18 0.01 50);
+  --card: oklch(0.205 0.012 250);
   --card-foreground: oklch(0.98 0.001 106);
-  --popover: oklch(0.18 0.01 50);
+  --popover: oklch(0.235 0.014 250);
   --popover-foreground: oklch(0.985 0.001 106.423);
   --primary: oklch(0.77 0.16 70);
   --primary-foreground: oklch(0.2 0.01 50);
@@ -392,14 +400,20 @@
   --sidebar-border: oklch(1 0 0 / 15%);
   --sidebar-ring: oklch(0.77 0.16 70 / 25%);
 
-  /* Dark elevation — deeper, lower-alpha blacks preserve contrast. */
-  --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 30%);
-  --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 35%), 0 1px 2px -1px oklch(0 0 0 / 25%);
-  --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 40%), 0 2px 4px -2px oklch(0 0 0 / 25%);
-  --shadow-lg: 0 12px 24px -4px oklch(0 0 0 / 45%), 0 4px 8px -4px oklch(0 0 0 / 30%);
-  --shadow-xl: 0 20px 40px -8px oklch(0 0 0 / 50%);
-  --shadow-hover: 0 2px 6px -1px oklch(0 0 0 / 35%), 0 1px 3px -1px oklch(0 0 0 / 25%);
-  --shadow-sticky: 0 2px 4px -2px oklch(0 0 0 / 30%);
+  /* Dark elevation — flat blacks vanish on a dark warm-navy background.
+   * Tint the shadow with a cool blue at very low L so it reads as a true
+   * cast shadow against the page. Higher alpha because the contrast
+   * delta is what creates the depth cue here. */
+  --shadow-xs: 0 1px 2px 0 oklch(0.05 0.02 250 / 40%);
+  --shadow-sm: 0 1px 3px 0 oklch(0.05 0.02 250 / 45%), 0 1px 2px -1px oklch(0.05 0.02 250 / 30%);
+  --shadow-md: 0 4px 14px -2px oklch(0.05 0.03 250 / 50%), 0 2px 6px -2px oklch(0.05 0.02 250 / 35%);
+  --shadow-lg: 0 14px 32px -6px oklch(0.05 0.03 250 / 60%), 0 4px 12px -4px oklch(0.05 0.02 250 / 40%);
+  --shadow-xl: 0 28px 64px -12px oklch(0.05 0.03 250 / 65%), 0 8px 24px -8px oklch(0.05 0.02 250 / 45%);
+  --shadow-card-rest: 0 1px 2px 0 oklch(0.05 0.02 250 / 35%), 0 0 0 1px oklch(1 0 0 / 4%);
+  --shadow-hover: 0 8px 20px -4px oklch(0.05 0.03 250 / 60%), 0 3px 8px -2px oklch(0.05 0.02 250 / 40%);
+  --shadow-sticky: 0 2px 6px -2px oklch(0.05 0.02 250 / 45%), 0 1px 2px oklch(0.05 0.02 250 / 30%);
+  --shadow-inset-soft: inset 0 1px 2px oklch(0 0 0 / 25%);
+  --shadow-edge-top: 0 -8px 24px -8px oklch(0.05 0.03 250 / 45%), 0 -1px 0 oklch(1 0 0 / 4%);
 
   --backdrop: oklch(0 0 0 / 55%);
   --scrim: oklch(0 0 0 / 30%);
