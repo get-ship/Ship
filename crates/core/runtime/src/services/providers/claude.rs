@@ -10,10 +10,21 @@ pub struct ClaudeAdapter;
 
 impl ClaudeAdapter {
     fn base_args(slug: &str, profile: &LaunchProfile) -> (Vec<String>, HashMap<String, String>) {
+        // Register the Ship MCP server under a private name (`ship-bridge`)
+        // via inline JSON so it cannot be silently disabled by Claude's
+        // per-project trust gate on the cwd `.mcp.json`. The trust gate
+        // pins the `ship` name to "disabled" the first time a user
+        // dismisses Claude's project-trust prompt; using a Ship-managed
+        // name avoids that user-state entirely. Tool names become
+        // `mcp__ship-bridge__<name>`; the agent's tool resolver matches
+        // by suffix so prompts can keep using `chat_reply` etc.
+        let inline_mcp = r#"{"mcpServers":{"ship-bridge":{"command":"ship","args":["mcp","serve"]}}}"#;
         let mut args = vec![
             "--dangerously-skip-permissions".to_string(),
             "--dangerously-load-development-channels".to_string(),
             "server:ship".to_string(),
+            "--mcp-config".to_string(),
+            inline_mcp.to_string(),
         ];
 
         if let Some(ref name) = profile.session_name {
@@ -27,6 +38,14 @@ impl ClaudeAdapter {
         if let Some(ref session_id) = profile.resume_session {
             args.push("--resume".to_string());
             args.push(session_id.clone());
+            // `--fork-session` re-initialises MCP server connections for
+            // the new turn while still carrying the conversation context
+            // forward. Without it, resumed turns inherit the original
+            // session's MCP set (which was empty in the cwd-trust-disabled
+            // first turn) and our `--mcp-config` is silently ignored.
+            // The session id rotates per turn — captured by the adapter's
+            // SessionStarted parse and stored in meta for the next call.
+            args.push("--fork-session".to_string());
         }
 
         if let Some(ref model) = profile.model {

@@ -23,6 +23,22 @@ impl ShipServer {
         "create_workspace",
         "complete_workspace",
         "set_skill_var",
+        // The chat protocol — every agent spawned into a Ship command-bar
+        // session needs `chat_reply` to address the user, independent of
+        // role/preset. Without it visible, the agent has no path back to
+        // the UI bubble and falls through to stdout (which the parser
+        // catches but loses structure).
+        "chat_reply",
+        // View editing surface — Shipwright (and any iteration agent)
+        // reads + writes views inline; gating these behind a preset
+        // breaks the in-UI editing loop on cold sessions where the
+        // active-agent resolver hasn't populated yet. Names are
+        // post-`normalize_mode_tool_id` (the `ship_` prefix is stripped
+        // before lookup, so list the suffixes here).
+        "view_lint",
+        "view_scaffold",
+        "sdk_query",
+        "view_errors",
     ];
 
     #[cfg(feature = "unstable")]
