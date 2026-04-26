@@ -1,0 +1,190 @@
+<script>
+  // <ship-tabs> — declarative, child-composition tabs.
+  //
+  // Children are <ship-tab> (data carriers) and <ship-tab-panel> (shown
+  // when active). The parent owns the active-tab state, observes child
+  // mutations to rebuild its tab bar, syncs panel visibility, and handles
+  // keyboard navigation (Arrow / Home / End / Enter / Space).
+  //
+  // This is the SFC port of packages/ship-set/src/web-components/core/ship-tabs.ts.
+  // Functional surface: complete. Visual polish: stripped down to the
+  // minimum that still looks like tabs (no tone variants, no segmented
+  // variant, no size scale). The original ship-tabs.styles.ts is 291 lines;
+  // inlining all of it would blow the 300-line cap. External-style-import
+  // is gap #3 in the conversion notes — fix lifts that constraint.
+
+  const {
+    active = '',
+    orientation = 'horizontal',
+  } = props
+
+  // Local state. $active tracks the currently selected tab name; $tabs
+  // holds the discovered child tab descriptors.
+  const $active = signal(active)
+  const $tabs = signal([])
+
+  // When $active changes, sync panel visibility AND emit the change event.
+  // Also reflect the new active name to the host attribute for CSS hooks
+  // and external observers.
+  effect($active, () => {
+    const name = $active.get()
+    syncPanels(name)
+    reflectActive(name)
+    emit('ship-tab-change', { name })
+  })
+
+  // Rebuild the tab list whenever children change. This is the
+  // MutationObserver pattern from the original — child <ship-tab> elements
+  // can appear/disappear or have their attributes edited at runtime.
+  let mutationObserver
+  let host
+  function rebuildTabs() {
+    const tabs = Array.from(host.querySelectorAll(':scope > ship-tab')).map(t => ({
+      name: t.getAttribute('name') || '',
+      label: t.getAttribute('label') || t.getAttribute('name') || '',
+      count: t.hasAttribute('count') ? Number(t.getAttribute('count')) : null,
+      disabled: t.hasAttribute('disabled'),
+    }))
+    $tabs.set(tabs)
+    // Default-activate the first enabled tab if no active is set.
+    if (!$active.get() && tabs.length) {
+      const first = tabs.find(t => !t.disabled)
+      if (first) $active.set(first.name)
+    }
+  }
+
+  function syncPanels(activeName) {
+    if (!host) return
+    for (const p of host.querySelectorAll(':scope > ship-tab-panel')) {
+      if (p.getAttribute('name') === activeName) p.setAttribute('active', '')
+      else p.removeAttribute('active')
+    }
+  }
+
+  function reflectActive(name) {
+    if (host && host.getAttribute('active') !== name) host.setAttribute('active', name)
+  }
+
+  function activate(name) {
+    if ($active.get() === name) return
+    $active.set(name)
+  }
+
+  function onKeydown(e) {
+    const vertical = orientation === 'vertical'
+    const nextKey = vertical ? 'ArrowDown' : 'ArrowRight'
+    const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft'
+    const nav = [nextKey, prevKey, 'Home', 'End']
+    const activateKey = ['Enter', ' ']
+    if (!nav.includes(e.key) && !activateKey.includes(e.key)) return
+    e.preventDefault()
+    const enabled = $tabs.get().filter(t => !t.disabled)
+    if (!enabled.length) return
+    const names = enabled.map(t => t.name)
+    const i = Math.max(0, names.indexOf($active.get()))
+    let next = i
+    if (e.key === nextKey) next = (i + 1) % names.length
+    else if (e.key === prevKey) next = (i - 1 + names.length) % names.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = names.length - 1
+    activate(names[next])
+    queueMicrotask(() => {
+      const btn = host.querySelector(`button[data-name="${names[next]}"]`)
+      btn?.focus()
+    })
+  }
+
+  onConnect(el => {
+    host = el
+    rebuildTabs()
+    mutationObserver = new MutationObserver(() => rebuildTabs())
+    mutationObserver.observe(el, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['name', 'label', 'count', 'disabled'],
+    })
+    el.addEventListener('keydown', onKeydown)
+  })
+
+  onDisconnect(() => {
+    mutationObserver?.disconnect()
+  })
+</script>
+
+<div class="tablist" role="tablist" data-attr:aria-orientation="orientation">
+  <template data-for="t in $tabs" data-key="t.name">
+    <button
+      class="tab"
+      role="tab"
+      data-attr:id="'ship-tab-' + t.name"
+      data-attr:data-name="t.name"
+      data-attr:aria-selected="t.name === $active ? 'true' : 'false'"
+      data-attr:aria-controls="'ship-tabpanel-' + t.name"
+      data-attr:aria-disabled="t.disabled ? 'true' : 'false'"
+      data-attr:tabindex="t.name === $active ? '0' : '-1'"
+      data-attr:disabled="t.disabled"
+      data-class:active="t.name === $active"
+      data-on:click="!t.disabled && (signal('active').set(t.name))"
+    >
+      <span class="label" data-text="t.label"></span>
+      <span class="count" data-show="t.count !== null" data-text="t.count" aria-hidden="true"></span>
+    </button>
+  </template>
+</div>
+
+<div class="panels">
+  <slot></slot>
+</div>
+
+<style>
+  /* Minimal chrome — enough for tabs to look like tabs. The full
+     polish (tone variants, segmented variant, size scale, indicator
+     animation) is in the original ship-tabs.styles.ts; pulling that in
+     blocks on the external-style-import gap. */
+
+  :host { display: block; font-family: var(--font-body); }
+  :host([hidden]) { display: none; }
+
+  .tablist {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    border-bottom: 1px solid var(--border, #ddd);
+  }
+
+  .tab {
+    background: transparent;
+    border: 0;
+    padding: 8px 14px;
+    font: inherit;
+    color: var(--muted-foreground, #666);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+
+  .tab:hover:not([disabled]) { color: var(--foreground, #111); }
+  .tab[aria-selected="true"] {
+    color: var(--foreground, #111);
+    border-bottom-color: var(--primary, #0066cc);
+    font-weight: 600;
+  }
+  .tab[disabled] { opacity: 0.4; cursor: not-allowed; }
+
+  .count {
+    font-size: 11px;
+    background: var(--muted, #eee);
+    color: var(--muted-foreground, #666);
+    padding: 1px 6px;
+    border-radius: 999px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  .panels { padding-top: 12px; }
+</style>
