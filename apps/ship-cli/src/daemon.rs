@@ -911,7 +911,7 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
 
 /// Try to read daemon info and verify it responds to /api/v1/health.
 fn daemon_info_if_healthy() -> Option<(u16, String)> {
-    let home = runtime::ShipHome::project_ship_dir(dirs::home_dir()?);
+    let home = runtime::ShipHome::from_env().root().to_path_buf();
     let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;
     let port = port_str.trim().parse::<u16>().ok()?;
     let token = std::fs::read_to_string(home.join("daemon.token")).ok()?;

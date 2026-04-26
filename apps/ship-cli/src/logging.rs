@@ -8,7 +8,7 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 ///
 /// Returns the file appender guard — keep it alive for the duration of the process.
 pub fn init() -> Option<tracing_appender::non_blocking::WorkerGuard> {
-    let logs_dir = runtime::ShipHome::project_ship_dir(dirs::home_dir()?).join("logs");
+    let logs_dir = runtime::ShipHome::from_env().root().join("logs");
     if std::fs::create_dir_all(&logs_dir).is_err() {
         return None;
     }

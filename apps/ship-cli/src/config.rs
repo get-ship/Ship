@@ -87,8 +87,7 @@ impl Credentials {
     }
 
     fn path() -> PathBuf {
-        runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap_or_default())
-            .join("credentials")
+        runtime::ShipHome::from_env().root().join("credentials")
     }
 
     pub fn token(&self) -> Option<&str> {
@@ -119,8 +118,7 @@ impl ShipConfig {
     }
 
     pub fn path() -> PathBuf {
-        runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap_or_default())
-            .join("config.toml")
+        runtime::ShipHome::from_env().root().join("config.toml")
     }
 
     /// Get a config value by dot-path key. Returns None if unset.
