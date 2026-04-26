@@ -19,12 +19,15 @@
   function pick() {
     emit('select', { stepId: props.stepId })
   }
+
+  onConnect(host => {
+    host.addEventListener('click', () => pick())
+  })
 </script>
 
 <button type="button" class="step"
         data-attr:data-status="props.status"
         data-attr:data-active="props.active ? 'true' : 'false'"
-        data-on:click="pick"
         aria-label="step">
   <span class="dot" aria-hidden="true"></span>
   <span class="id">{{ props.stepId }}</span>
@@ -36,6 +39,8 @@
 </button>
 
 <style>
+  :host { display: block; }
+  .step { width: 100%; }
   .step {
     display: grid;
     grid-template-columns: auto 1fr auto;

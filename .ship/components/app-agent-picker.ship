@@ -27,12 +27,9 @@
   // Selection — internal state, separate from the prop defaults.
   const $agentId = signal('')
   const $provider = signal('')
-
-  // Derive the selectable lists from the fetch results. The
-  // /agents endpoint returns { ok, items }; /providers/installed
-  // returns { providers }.
   const $agents = signal([])
   const $providers = signal([])
+
   effect($agentsResp, () => {
     const r = $agentsResp.get()
     if (!r) return
@@ -68,7 +65,21 @@
     if (e.key === 'Escape') { e.preventDefault(); cancel() }
   }
 
-  onConnect(host => host.addEventListener('keydown', onKey))
+  // Datastar's data-on handlers can't reach functions declared in the
+  // SFC's IIFE — Datastar evaluates the expression in its own scope
+  // with access to signals + el/event but not user closures. Wire
+  // handlers via addEventListener instead. Tracked as SFC framework
+  // gap; the docs imply data-on works for arbitrary expressions but
+  // bare function references resolve to ReferenceError at runtime.
+  onConnect(host => {
+    host.addEventListener('keydown', onKey)
+    host.addEventListener('click', (e) => {
+      const t = e.target.closest('button')
+      if (!t) return
+      if (t.classList.contains('primary')) commit()
+      else if (t.classList.contains('ghost')) cancel()
+    })
+  })
 </script>
 
 <div class="picker">
@@ -77,8 +88,8 @@
   <div class="row" data-show="$agentsResp && $providersResp">
     <label class="field">
       <span class="label">Agent</span>
-      <select data-bind:value="$agentId">
-        <template data-for="a in $agents" data-key="a.id">
+      <select data-bind="$agentId">
+        <template data-for="a in ($agentsResp?.items ?? [])" data-key="a.id">
           <option data-attr:value="a.id" data-text="a.id"></option>
         </template>
       </select>
@@ -86,8 +97,8 @@
 
     <label class="field">
       <span class="label">Provider</span>
-      <select data-bind:value="$provider">
-        <template data-for="p in $providers" data-key="p">
+      <select data-bind="$provider">
+        <template data-for="p in ($providersResp?.providers ?? [])" data-key="p">
           <option data-attr:value="p" data-text="p"></option>
         </template>
       </select>
@@ -95,9 +106,8 @@
   </div>
 
   <div class="actions" data-show="$agentsResp && $providersResp">
-    <button type="button" class="ghost" data-on:click="cancel">Cancel</button>
+    <button type="button" class="ghost">Cancel</button>
     <button type="button" class="primary"
-            data-on:click="commit"
             data-attr:disabled="!$agentId || !$provider">
       Start chat
     </button>
@@ -105,6 +115,7 @@
 </div>
 
 <style>
+  :host { display: block; }
   .picker {
     display: flex;
     flex-direction: column;

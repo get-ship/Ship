@@ -72,6 +72,15 @@
     el.querySelector('textarea').addEventListener('keydown', onKey)
     window.addEventListener('ship:chat:annotate', onAnnotate)
     window.addEventListener('ship:chat:annotations:clear', clearAnnotations)
+    el.addEventListener('click', (e) => {
+      const btn = e.target.closest('button')
+      if (!btn) return
+      if (btn.classList.contains('send')) send()
+      else if (btn.classList.contains('chip')) {
+        const idx = Number(btn.dataset.idx)
+        if (!isNaN(idx)) removeAnnotation(idx)
+      }
+    })
   })
 
   onDisconnect(() => {
@@ -83,7 +92,7 @@
 <div class="composer">
   <div class="annotations" data-show="$annotations.length > 0">
     <template data-for="(ann, i) in $annotations" data-key="i">
-      <button type="button" class="chip" data-on:click="removeAnnotation(i)">
+      <button type="button" class="chip" data-attr:data-idx="i">
         <span class="chip-kind" data-text="ann.type"></span>
         <span class="chip-source" data-text="ann.source?.ref || ''"></span>
         <span class="chip-x" aria-hidden="true">×</span>
@@ -94,11 +103,10 @@
   <div class="input-row">
     <textarea
       placeholder="{{ props.placeholder }}"
-      data-bind:value="$draft"
+      data-bind="$draft"
       data-attr:disabled="$sending"
       rows="1"></textarea>
     <button type="button" class="send"
-            data-on:click="send"
             data-attr:disabled="$sending || !$draft.trim()">
       Send
     </button>
@@ -106,6 +114,7 @@
 </div>
 
 <style>
+  :host { display: block; }
   .composer {
     display: flex;
     flex-direction: column;

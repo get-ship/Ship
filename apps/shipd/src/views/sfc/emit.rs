@@ -117,6 +117,7 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
       this.__bootstrap(props);
       const html = TEMPLATE.replaceAll("__SHIP_INST__", String(this.__inst));
       this.innerHTML = html;
+      this.__wireDataFor();
       for (const fn of this.__hooks.connect) {{
         try {{ fn(this); }} catch (e) {{ console.error("[ship:" + TAG + "] onConnect error:", e); }}
       }}
@@ -124,9 +125,11 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
     attributeChangedCallback(attrName, _old, newValue) {{
       // When a host attribute changes after mount, sync the matching
       // prop signal so templates and effects react. The attribute name
-      // is kebab-case; map back to the camelCase prop / signal name.
-      const camel = attrName.replace(/-([a-z])/g, function(_, c) {{ return c.toUpperCase(); }});
-      const sig = this.__signals[camel];
+      // is kebab-case; the __signals map keys are lowercased
+      // camelCase. Strip dashes (`fetch-url` → `fetchurl`) for the
+      // lookup — matches __makeSignal's `.toLowerCase()` storage.
+      const key = attrName.replace(/-/g, "");
+      const sig = this.__signals[key];
       if (sig && typeof sig.set === "function") sig.set(newValue);
     }}
     disconnectedCallback() {{
@@ -142,7 +145,180 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
 {prop_decoders}
       return props;
     }}
-    __sigKey(name) {{ return "_" + TAG.replace(/-/g, "_") + "_" + this.__inst + "_" + name; }}
+    /// Wire `<template data-for="X in expr" data-key="K">…</template>`
+    /// elements after innerHTML is set. Datastar v1.0.0-RC.7 has no
+    /// for/each plugin; the SFC framework owns iteration. Each
+    /// template is replaced by an anchor `<!--ship-for-->` comment
+    /// plus a sibling fragment that re-renders whenever the iterated
+    /// expression's signal dependencies change.
+    ///
+    /// Reactivity model: the expression is parsed for signal
+    /// references (`$_<tag>_<inst>_<name>`); the renderer subscribes
+    /// to each via __subscribe(). Item references (`a.id`,
+    /// `(item, i) in $list` → `item.id`) are resolved via
+    /// `new Function` evaluation at render time, with the array
+    /// element bound as the `item` (or named) variable.
+    ///
+    /// Item-scoped Datastar reactivity is intentionally NOT supported:
+    /// references inside an iterated child to its own item are baked
+    /// at render time, not re-bound on item update. The whole iteration
+    /// re-runs when the array signal changes — replace the array, not
+    /// individual items.
+    __wireDataFor() {{
+      const host = this;
+      const templates = Array.from(host.querySelectorAll("template[data-for]"));
+      for (const tmpl of templates) {{
+        const expr = tmpl.getAttribute("data-for") || "";
+        const m = expr.match(/^\s*(\([^)]+\)|\w+)\s+in\s+(.+)$/);
+        if (!m) continue;
+        const bindRaw = m[1].replace(/[()\s]/g, "").split(",");
+        const itemName = bindRaw[0] || "item";
+        const indexName = bindRaw[1] || "__i";
+        const arrayExpr = m[2];
+
+        // The compiler has rewritten user signal references in attribute
+        // values to `$_<safe_tag>_<inst>_<name>`. Strip that prefix to
+        // recover the user-declared name we use to look up handles in
+        // `__signals`. Anything that doesn't match the prefix is left
+        // alone (e.g. `$item.foo` in nested cases — handled by bake).
+        const safeTag = TAG.replace(/-/g, "_");
+        const prefix = "_" + safeTag + "_" + host.__inst + "_";
+        const sigRefs = [];
+        for (const m2 of arrayExpr.matchAll(/\$([A-Za-z_][\w]*)/g)) {{
+          const ref = m2[1];
+          if (ref.indexOf(prefix) === 0) {{
+            sigRefs.push(ref.slice(prefix.length));
+          }} else {{
+            sigRefs.push(ref);
+          }}
+        }}
+
+        // Replace the template with a placeholder comment we'll append
+        // siblings AFTER. Keep the template element to clone from.
+        const anchor = document.createComment("ship-for");
+        tmpl.parentNode.insertBefore(anchor, tmpl);
+        tmpl.remove();
+
+        const innerHtml = (() => {{
+          // Concat the children of the <template> into a string. We
+          // cloneNode children but going via outerHTML means we re-
+          // process the element via DOMParser at render time, which
+          // gives us a fresh subtree per item without sharing event
+          // listeners.
+          const tpl = document.createElement("div");
+          for (const c of tmpl.content.childNodes) tpl.appendChild(c.cloneNode(true));
+          return tpl.innerHTML;
+        }})();
+
+        let renderedNodes = [];
+        const sigStore = host.__signals;
+        function evalArray() {{
+          // Replace `$<scoped-name>` refs with reads from the user-named
+          // signal cache. Strips the `<safe_tag>_<inst>_` prefix to
+          // recover the user-declared signal name on this host.
+          const body = arrayExpr.replace(/\$([A-Za-z_][\w]*)/g, (_, n) => {{
+            const userName = n.indexOf(prefix) === 0 ? n.slice(prefix.length) : n;
+            return `(__store[${{JSON.stringify(userName)}}] && __store[${{JSON.stringify(userName)}}].__cache)`;
+          }});
+          try {{
+            return new Function("__store", "return (" + body + ");")(sigStore) || [];
+          }} catch (e) {{
+            console.error("[ship-for] eval failed:", arrayExpr, e);
+            return [];
+          }}
+        }}
+        function lookupItem(item, path) {{
+          if (!path) return item;
+          const parts = path.split(".");
+          let v = item;
+          for (const p of parts) {{ if (v == null) break; v = v[p]; }}
+          return v;
+        }}
+        function evalItemExpr(expr, item, index) {{
+          // Evaluate a JS expression in a scope where `<itemName>` is
+          // bound to `item` and `<indexName>` is `index`. Used to
+          // resolve attribute values + text content at iteration time
+          // — no Datastar reactivity inside iterated children, which
+          // is the documented data-for contract (snapshot per render).
+          try {{
+            return new Function(itemName, indexName, "return (" + expr + ");")(item, index);
+          }} catch (e) {{
+            console.warn("[ship-for] item expr failed:", expr, e);
+            return "";
+          }}
+        }}
+        function bakeNode(node, item, index) {{
+          if (node.nodeType === 3) return; // text — leave alone
+          if (node.nodeType !== 1) return;
+          const el = node;
+          // Resolve data-attr:NAME → NAME, data-text → textContent,
+          // data-class:NAME → toggleClass, data-show → display.
+          // Walk attributes once and collect actions; mutate after.
+          const toRemove = [];
+          for (const a of Array.from(el.attributes)) {{
+            const n = a.name, v = a.value;
+            if (n.startsWith("data-attr:")) {{
+              const target = n.slice("data-attr:".length);
+              const result = evalItemExpr(v, item, index);
+              if (result === false || result == null) el.removeAttribute(target);
+              else el.setAttribute(target, result === true ? "" : String(result));
+              toRemove.push(n);
+            }} else if (n === "data-text") {{
+              el.textContent = String(evalItemExpr(v, item, index) ?? "");
+              toRemove.push(n);
+            }} else if (n.startsWith("data-class:")) {{
+              const cls = n.slice("data-class:".length);
+              if (evalItemExpr(v, item, index)) el.classList.add(cls);
+              else el.classList.remove(cls);
+              toRemove.push(n);
+            }} else if (n === "data-show") {{
+              if (!evalItemExpr(v, item, index)) el.style.display = "none";
+              toRemove.push(n);
+            }}
+          }}
+          for (const n of toRemove) el.removeAttribute(n);
+          for (const child of Array.from(el.childNodes)) bakeNode(child, item, index);
+        }}
+        function render() {{
+          for (const n of renderedNodes) n.remove();
+          renderedNodes = [];
+          const arr = evalArray();
+          if (!Array.isArray(arr)) return;
+          arr.forEach((item, i) => {{
+            const tpl = document.createElement("template");
+            tpl.innerHTML = innerHtml;
+            const frag = tpl.content;
+            // Walk the cloned subtree resolving data-* attributes
+            // against the per-item scope, then insert into the
+            // parent right after the anchor.
+            for (const child of Array.from(frag.childNodes)) bakeNode(child, item, i);
+            const nodes = Array.from(frag.childNodes);
+            for (const n of nodes) {{
+              anchor.parentNode.insertBefore(n, anchor.nextSibling);
+            }}
+            renderedNodes.push(...nodes);
+          }});
+        }}
+
+        // Subscribe to each referenced signal so updates re-render.
+        for (const name of sigRefs) {{
+          const s = sigStore[name];
+          if (s && typeof s.__subscribe === "function") s.__subscribe(render);
+        }}
+        render();
+      }}
+    }}
+
+    __sigKey(name) {{
+      // Lowercase the entire key so it survives HTML's attribute-name
+      // case-folding (data-* attribute NAMES are stored lowercase by
+      // every HTML parser; if we keep camelCase here, the storage key
+      // mismatches the rewritten reference in attribute VALUES, which
+      // preserve case). Signal names with collisions after lowercase
+      // are reported as a script-block error at compile time —
+      // see script.rs::extract_signals.
+      return ("_" + TAG.replace(/-/g, "_") + "_" + this.__inst + "_" + name).toLowerCase();
+    }}
     __onSignalPatch(e) {{
       const detail = e && e.detail;
       if (!detail) return;
@@ -182,7 +358,10 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
         }},
         __subscribe(fn) {{ subs.add(fn); return () => subs.delete(fn); }},
       }};
-      this.__signals[name] = handle;
+      // Lowercase the map key to match the __sigKey lowercasing —
+      // both attribute storage and __wireDataFor lookups are
+      // case-insensitive in resolution.
+      this.__signals[name.toLowerCase()] = handle;
       return handle;
     }}
     __bootstrap(props) {{

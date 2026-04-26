@@ -93,12 +93,29 @@
     if ((e.metaKey || e.ctrlKey) && e.key === 'j') { e.preventDefault(); toggle() }
   }
 
-  onConnect(() => {
+  onConnect(host => {
     window.addEventListener('ship:chat:open', onOpen)
     window.addEventListener('ship:chat:close', onClose)
     window.addEventListener('ship:chat:toggle', onToggle)
     window.addEventListener('ship:chat:annotate', onAnnotate)
     window.addEventListener('keydown', onKey)
+
+    // Datastar's data-on: handlers can't reach IIFE functions.
+    // Wire DOM-level handlers manually here.
+    host.addEventListener('click', (e) => {
+      const t = e.target
+      if (!t) return
+      if (t.classList?.contains('close')) close()
+      else if (t.classList?.contains('title-btn')) changeAgent()
+      // Backdrop click — only if the click was directly on the backdrop.
+      else if (t === host.querySelector('.agent-modal') && t === e.currentTarget) close()
+    })
+    // Backdrop close: bind to the modal-backdrop div directly.
+    host.querySelector('.agent-modal')?.addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) close()
+    })
+    host.addEventListener('select', (e) => onPick(e))
+    host.addEventListener('cancel', () => onPickerCancel())
   })
 
   onDisconnect(() => {
@@ -110,30 +127,36 @@
   })
 </script>
 
-<div class="agent-modal" data-show="$open" data-on:click="if (event.target === el) close()" role="dialog" aria-modal="true">
+<div class="agent-modal" data-show="$open" role="dialog" aria-modal="true">
   <div class="modal-card">
     <header class="modal-head">
-      <button type="button" class="title-btn" data-on:click="changeAgent" data-attr:disabled="$spawning" data-show="$sessionId">
+      <button type="button" class="title-btn" data-attr:disabled="$spawning" data-show="$sessionId">
         <span class="title" data-text="$activeAgent || 'agent'"></span>
         <span class="provider"> · </span><span class="provider" data-text="$activeProvider || 'provider'"></span>
         <span class="swap-hint">change ▾</span>
       </button>
       <span class="title placeholder" data-show="!$sessionId">Select an agent</span>
-      <button type="button" class="close" data-on:click="close" aria-label="Close">×</button>
+      <button type="button" class="close" aria-label="Close">×</button>
     </header>
     <div class="state spawning" data-show="$spawning">spawning agent…</div>
     <div class="state error" data-show="$error" data-text="$error"></div>
 
-    <app-agent-picker
-      data-show="$pickerOpen"
-      data-attr:default-agent="$defaultAgent || $activeAgent"
-      data-attr:default-provider="$defaultProvider || $activeProvider"
-      data-on:select="onPick(event)"
-      data-on:cancel="onPickerCancel">
-    </app-agent-picker>
+    <!-- Wrap each child component in a div so data-show binds on a
+         plain element. Datastar treats `data-component=*` as a scope
+         boundary (signals declared in the parent don't propagate
+         into a child component's element binding context); a div
+         hop sidesteps it. Documented for the SFC framework team. -->
+    <div data-show="$pickerOpen">
+      <app-agent-picker
+        data-attr:default-agent="$defaultAgent || $activeAgent"
+        data-attr:default-provider="$defaultProvider || $activeProvider">
+      </app-agent-picker>
+    </div>
 
-    <app-agent-thread data-show="!$pickerOpen && $sessionId" data-attr:session-id="$sessionId"></app-agent-thread>
-    <app-agent-composer data-show="!$pickerOpen && $sessionId" data-attr:session-id="$sessionId" placeholder="Message…"></app-agent-composer>
+    <div class="thread-pane" data-show="!$pickerOpen && $sessionId">
+      <app-agent-thread data-attr:session-id="$sessionId"></app-agent-thread>
+      <app-agent-composer data-attr:session-id="$sessionId" placeholder="Message…"></app-agent-composer>
+    </div>
   </div>
 </div>
 
@@ -146,7 +169,8 @@
     backdrop-filter: blur(2px);
   }
   .modal-card {
-    width: min(720px, 90vw); max-height: 80vh;
+    width: min(720px, 90vw);
+    height: min(80vh, 720px);
     display: flex; flex-direction: column;
     background: var(--ship-color-background);
     border: 1px solid var(--ship-color-border);
@@ -184,4 +208,11 @@
     color: var(--ship-color-muted); font-size: 0.875rem;
   }
   .state.error { color: var(--ship-color-danger, var(--ship-color-muted)); }
+  .thread-pane {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
 </style>

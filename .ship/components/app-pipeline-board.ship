@@ -84,8 +84,22 @@
     return `${Math.round(sec / 86400)}d ago`
   }
 
-  onConnect(() => {
+  onConnect(host => {
     timer = setInterval(() => { $now.set(Date.now()); refresh() }, props.refreshMs)
+    // Datastar's data-on can't reach IIFE functions; wire here.
+    host.addEventListener('click', (e) => {
+      const card = e.target.closest('.run-card')
+      if (card?.dataset.jobId) selectJob(card.dataset.jobId)
+    })
+    // Step cards bubble a `select` CustomEvent from <app-pipeline-step>.
+    host.addEventListener('select', (e) => {
+      const t = e.target
+      if (t?.tagName?.toLowerCase() === 'app-pipeline-step') {
+        const slug = t.dataset.jobSlug
+        const stepId = e.detail?.stepId
+        if (slug && stepId) selectStep(stepId, slug)
+      }
+    })
   })
 
   onDisconnect(() => {
@@ -101,7 +115,7 @@
     <div class="state empty" data-show="$initialResp && $jobs.length === 0">no runs yet</div>
     <template data-for="job in $jobs" data-key="job.job_id">
       <button type="button" class="run-card"
-              data-on:click="selectJob(job.job_id)"
+              data-attr:data-job-id="job.job_id"
               data-attr:data-active="job.job_id === $selected ? 'true' : 'false'"
               data-attr:data-status="job.status">
         <span class="run-head">
@@ -138,8 +152,20 @@
               data-attr:step-id="step.id"
               data-attr:status="(job.completed_steps ?? []).includes(step.id) ? 'done' : (job.current_step === step.id ? 'running' : 'queued')"
               data-attr:active="step.id === $selectedStep ? 'active' : ''"
-              data-on:select="selectStep(event.detail.stepId, job.slug)"></app-pipeline-step>
+              data-attr:data-job-slug="job.slug"></app-pipeline-step>
           </template>
+        </div>
+
+        <!-- Live PTY attach when the selected step is the currently
+             running one. Pipeline steps share the job slug as their
+             actor id (see pipeline.rs::JobContext.slug + the
+             SHIP_ACTOR_ID env). When the step finishes the broadcast
+             closes and the panel shows "stream closed". -->
+        <div class="step-output" data-show="$selectedStep && $selectedStep === job.current_step">
+          <header class="step-output-head">
+            <span class="step-label">live output · <span data-text="$selectedStep"></span></span>
+          </header>
+          <app-pty-attach data-attr:actor-id="job.slug" readonly on-exit="keep"></app-pty-attach>
         </div>
       </div>
     </template>
@@ -147,6 +173,7 @@
 </div>
 
 <style>
+  :host { display: block; height: 100%; min-height: 0; }
   .board { display: grid; grid-template-columns: 18rem 1fr; gap: var(--ship-space-3); height: 100%; min-height: 0; }
   .list {
     display: flex; flex-direction: column; gap: var(--ship-space-1);
@@ -196,6 +223,21 @@
     font-family: ui-monospace, monospace; font-size: 0.8125rem; white-space: pre-wrap;
   }
   .steps { display: flex; flex-direction: column; gap: var(--ship-space-2); }
+  .step-output {
+    margin-top: var(--ship-space-4);
+    display: flex;
+    flex-direction: column;
+    min-height: 16rem;
+    max-height: 24rem;
+  }
+  .step-output-head {
+    padding: var(--ship-space-1) var(--ship-space-2);
+    color: var(--ship-color-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .step-output app-pty-attach { flex: 1; min-height: 0; }
   @media (max-width: 720px) {
     .board { grid-template-columns: 1fr; }
     .list { border-right: none; border-bottom: 1px solid var(--ship-color-border); max-height: 14rem; }

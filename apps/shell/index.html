@@ -952,11 +952,24 @@
     <script type="module" src="/src/main.ts"></script>
     <!-- Agent UI single-file components. The auto-loader is future
          work in the SDK; until then each component used here lists
-         its module URL explicitly. -->
-    <script type="module" src="/_ship/components/app-agent-thread.js"></script>
-    <script type="module" src="/_ship/components/app-agent-composer.js"></script>
-    <script type="module" src="/_ship/components/app-agent-picker.js"></script>
-    <script type="module" src="/_ship/components/app-pty-attach.js"></script>
-    <script type="module" src="/_ship/components/app-agent-modal.js"></script>
+         its module URL. Injected via runtime IIFE (not <script src>)
+         so Vite's build step doesn't try to resolve daemon-served
+         URLs at compile time — same pattern the inline-loader at the
+         top of <head> uses for /api/assets/. -->
+    <script>
+      (function() {
+        var tags = [
+          'app-agent-thread', 'app-agent-composer', 'app-agent-picker',
+          'app-pty-attach', 'app-agent-modal',
+          'app-pipeline-step', 'app-pipeline-board',
+        ];
+        tags.forEach(function(tag) {
+          var s = document.createElement('script');
+          s.type = 'module';
+          s.src = '/_ship/components/' + tag + '.js';
+          document.body.appendChild(s);
+        });
+      })();
+    </script>
   </body>
 </html>
