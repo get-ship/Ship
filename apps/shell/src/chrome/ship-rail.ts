@@ -152,7 +152,10 @@ export class ShipRail extends LitElement {
 
   private onChatsClick(e: MouseEvent): void {
     e.preventDefault();
-    window.ship?.navigate("/chats");
+    // /chats consolidated into /mesh upstream — the rail icon's
+    // semantics ("Mission Control" / live chat sessions) belong with
+    // the unified mesh view now.
+    window.ship?.navigate("/mesh");
   }
 
   createRenderRoot(): Element {
@@ -230,10 +233,10 @@ export class ShipRail extends LitElement {
       </div>
       ${rest.map((name) => this.renderItem(name))}
       <a
-        class="rail-item rail-chats${this.active === "chats" ? " active" : ""}"
-        title="Chats (${this.activeSessionCount} active)"
+        class="rail-item rail-chats${this.active === "mesh" ? " active" : ""}"
+        title="Mission Control · ${this.activeSessionCount} active"
         aria-label="Mission Control"
-        href="/chats"
+        href="/mesh"
         data-badge=${this.activeSessionCount > 0
           ? String(this.activeSessionCount)
           : ""}

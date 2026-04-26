@@ -608,7 +608,18 @@ queueMicrotask(() => {
 function viewRoute(path: string, endpoint: string) {
   router.on(path, () => {
     updateNav(path);
-    void mount(endpoint);
+    // Preserve browser fullscreen across SPA navigation. mount() rebuilds
+    // #ship-view-root which DOES NOT exit fullscreen (target is
+    // documentElement) — but some browsers emit a `fullscreenchange` event
+    // on history.pushState anyway, and routers using location-based
+    // navigation can drop fullscreen. Capture the state, navigate, then
+    // re-request if the user gesture chain is still valid (no-op if not).
+    const wasFullscreen = !!document.fullscreenElement;
+    void mount(endpoint).then(() => {
+      if (wasFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    });
   });
 }
 

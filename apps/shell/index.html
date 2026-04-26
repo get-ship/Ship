@@ -687,6 +687,20 @@
         overflow: auto;
         background: var(--background);
         min-width: 0;
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+      }
+      .ship-content::-webkit-scrollbar { width: var(--scrollbar-width-thin, 6px); height: var(--scrollbar-width-thin, 6px); }
+      .ship-content::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+      .ship-content::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: var(--scrollbar-radius, 999px);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: background-color var(--duration-fast) var(--ease-out);
+      }
+      .ship-content::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
+      .ship-content {
         /* Soften view-swap flash. mount() marks the new root as
            `ship-content-entering` before the fetch, and removes the class
            only AFTER content lands — so the blank interval is invisible
