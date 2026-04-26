@@ -9,32 +9,32 @@ name = "mcp"
 path = "src/lib.rs"
 
 [dependencies]
-tokio = { version = "1.0", features = ["full"] }
-rmcp = { version = "0.16.0", features = ["server", "transport-io", "transport-streamable-http-server"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
+tokio = { workspace = true, features = ["full"] }
+rmcp = { workspace = true, features = ["server", "transport-io", "transport-streamable-http-server"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
 mcp-framework = { path = "../../crates/core/mcp-framework" }
-async-trait = "0.1"
+async-trait = { workspace = true }
 compiler = { path = "../../crates/core/compiler" }
 lint = { path = "../../crates/core/lint" }
 runtime = { path = "../../crates/core/runtime" }
-anyhow = "1.0"
-base64 = "0.22"
-chrono = "0.4"
-axum = { version = "0.8", features = ["http1", "tokio"] }
-toml = "0.8"
-tokio-util = { version = "0.7", features = ["full"] }
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-appender = "0.2"
-dirs = "6"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "multipart"] }
-futures-util = "0.3"
+anyhow = { workspace = true }
+base64 = { workspace = true }
+chrono = { workspace = true }
+axum = { workspace = true, features = ["http1", "tokio"] }
+toml = { workspace = true }
+tokio-util = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-appender = { workspace = true }
+dirs = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls", "stream", "multipart"] }
+futures-util = { workspace = true }
 
 [features]
 unstable = ["runtime/unstable"]
 
 [dev-dependencies]
-tempfile = "3.13"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
-rmcp = { version = "0.16.0", features = ["server", "client", "transport-io"] }
+tempfile = { workspace = true }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+rmcp = { workspace = true, features = ["server", "client", "transport-io"] }

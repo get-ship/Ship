@@ -14,10 +14,10 @@ compiler = { path = "../core/compiler", features = ["specta"] }
 runtime = { path = "../core/runtime" }
 ship-types = { path = "../core/ship-types", features = ["specta"] }
 shipd = { path = "../../apps/shipd" }
-specta = { version = "=2.0.0-rc.22", features = ["derive", "chrono", "serde_json"] }
+specta = { workspace = true, features = ["chrono", "serde_json"] }
 specta-typescript = "0.0.9"
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"
-regex = "1"
-anyhow = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
+regex = { workspace = true }
+anyhow = { workspace = true }
 utoipa = { version = "5", features = ["axum_extras"] }

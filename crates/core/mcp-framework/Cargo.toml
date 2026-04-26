@@ -6,8 +6,8 @@ license = "MIT"
 publish = false
 
 [dependencies]
-anyhow = "1.0"
-async-trait = "0.1"
+anyhow = { workspace = true }
+async-trait = { workspace = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt"] }
+tokio = { workspace = true, features = ["macros", "rt"] }

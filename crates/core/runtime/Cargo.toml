@@ -10,45 +10,45 @@ compiler = { path = "../compiler", features = ["specta"] }
 ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }
 ship-jobs = { path = "../ship-jobs" }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = { version = "1.0", features = ["preserve_order"] }
-serde_yaml = "0.9"
-toml = { version = "0.8", features = ["preserve_order"] }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+serde_yaml = { workspace = true }
+toml = { workspace = true, features = ["preserve_order"] }
 home = "0.5"
-anyhow = "1.0"
-thiserror = "2"
-chrono = { version = "0.4", features = ["serde"] }
-nanoid = "0.4"
-ulid = "1"
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+nanoid = { workspace = true }
+ulid = { workspace = true }
 walkdir = "2.3"
-specta = { version = "=2.0.0-rc.22", features = ["derive", "chrono", "serde_json"] }
+specta = { workspace = true, features = ["chrono", "serde_json"] }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
-tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
 portable-pty = "0.9"
-async-trait = "0.1"
-sha2 = "0.10"
-semver = { version = "1.0", features = ["serde"] }
-tempfile = "3.3"
-ureq = { version = "3", features = ["json"] }
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+async-trait = { workspace = true }
+sha2 = { workspace = true }
+semver = { workspace = true, features = ["serde"] }
+tempfile = { workspace = true }
+ureq = { workspace = true, features = ["json"] }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 flate2 = "1"
 tar = "0.4"
 rmp-serde = "1"
-tracing = "0.1"
+tracing = { workspace = true }
 sea-query = { version = "0.32.7", features = ["backend-sqlite"] }
-indexmap = { version = "2.14.0", features = ["serde"] }
+indexmap = { workspace = true, features = ["serde"] }
 globset = "0.4"
-minijinja = "2"
-notify = { version = "7", default-features = false, features = ["macos_fsevent"] }
+minijinja = { workspace = true }
+notify = { workspace = true }
 cron = "0.12"
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 jsonschema = { version = "0.46", default-features = false }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2"
+libc = { workspace = true }
 
 [features]
 unstable = []
 
 [dev-dependencies]
-tokio = { version = "1", features = ["test-util"] }
+tokio = { workspace = true, features = ["test-util"] }
