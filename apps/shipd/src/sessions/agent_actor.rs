@@ -58,10 +58,10 @@ pub fn spawn_or_attach(
     }
 
     let adapter = adapter_for(provider).map_err(|e| anyhow!(e))?;
-    if !adapter.caps().channels {
+    if !adapter.caps().persistent_session {
         anyhow::bail!(
-            "agent_actor::spawn_or_attach: provider '{provider}' is not channels-capable; \
-             use the legacy per-turn path"
+            "agent_actor::spawn_or_attach: provider '{provider}' has no persistent-session \
+             support; respawn-per-turn is not handled here"
         );
     }
 
@@ -147,14 +147,18 @@ fn spawn_reader_middleware(
         }
         let menu_state = Arc::new(Mutex::new(MenuState::default()));
         let adapter = adapter_for(&provider).ok();
+        // Auto-dismiss only applies to Claude — the dev-channels TUI
+        // confirmation menu is Claude-specific. Other providers don't
+        // render it; running the matcher would just burn cycles + the
+        // 16K menu_buf budget for nothing.
+        let needs_menu_dismiss = provider == "claude";
         let mut line_buf = String::new();
 
         loop {
             match rx.recv().await {
                 Ok(chunk) => {
-                    // Auto-dismiss the dev-channels menu once.
-                    if try_dismiss_menu(&handle, &menu_state, &chunk) {
-                        // No-op; side-effect handled inside.
+                    if needs_menu_dismiss {
+                        try_dismiss_menu(&handle, &menu_state, &chunk);
                     }
 
                     // Provider parse → event_tx.

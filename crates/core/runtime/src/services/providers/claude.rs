@@ -96,7 +96,8 @@ impl ProviderAdapter for ClaudeAdapter {
             mcp: true,
             hooks: true,
             session_resume: false,
-            channels: true,
+            persistent_session: true,
+            push_mechanism: super::super::provider_adapter::PushMechanism::Channel,
         }
     }
 

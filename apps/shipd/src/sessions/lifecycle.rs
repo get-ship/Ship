@@ -70,7 +70,7 @@ pub fn spawn_agent(
     // and shell sessions share the PTY-holding lifecycle. Pipeline
     // executors stay one-shot for now; future consolidation can route
     // them through this primitive too.
-    if adapter.caps().channels {
+    if adapter.caps().persistent_session {
         return spawn_long_lived_agent(
             registry,
             workspace_id,
@@ -223,11 +223,11 @@ pub fn send_agent_message(
     tracing::info!(
         session = %slug,
         provider = %provider,
-        channels = adapter.caps().channels,
+        channels = adapter.caps().persistent_session,
         has_long_lived = has_long_lived_process,
         "send_agent_message: routing decision"
     );
-    if adapter.caps().channels && has_long_lived_process {
+    if adapter.caps().persistent_session && has_long_lived_process {
         let _ = text; // Delivered via the channel event from the HTTP layer.
         set_status(&session.0, SessionStatus::Thinking);
         return Ok(());
