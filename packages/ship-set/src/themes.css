@@ -629,3 +629,115 @@
   --radius-sm: 4px;
   --card-backdrop-filter: none;
 }
+
+/* ───────────────────────────────────────────────────────────────────
+ * Preview-tile isolation. The picker tile carries [data-theme-preview]
+ * and reads a small set of tokens to render a mini card. Without these
+ * resets, a live theme that remaps cross-cutting tokens (paper / console
+ * fonts, console / paper overlays, glass backdrop-filter, halo / glass /
+ * console radii) would bleed into every preview tile. Each block below
+ * fills the gap so a tile renders its own theme regardless of the
+ * document root.
+ *
+ * Order: appears AFTER every theme block, so within the same selector
+ * specificity (0,1,0) these declarations win. Each block only overrides
+ * the cross-cutting tokens; palette/shadow/etc are already set in the
+ * theme's own mirror block earlier in this file.
+ * ─────────────────────────────────────────────────────────────────── */
+[data-theme-preview='ship-light'],
+[data-theme-preview='ship-dark'] {
+  --font-body: var(--font-sans, system-ui, sans-serif);
+  --body-font: var(--font-body);
+  --heading-font: var(--font-display, var(--font-body));
+  --label-font: var(--font-body);
+  --heading-weight: var(--font-weight-semibold);
+  --heading-tracking: var(--tracking-tight);
+  --label-weight: var(--font-weight-semibold);
+  --label-tracking: var(--tracking-normal);
+  --card-backdrop-filter: none;
+  --surface-overlay: none;
+  --surface-overlay-blend: normal;
+  --surface-overlay-opacity: 1;
+}
+
+[data-theme-preview='paper'] {
+  --font-body: var(--font-sans, system-ui, sans-serif);
+  --body-font: var(--font-body);
+  --card-backdrop-filter: none;
+  --radius-md: 6px;
+  --radius-sm: 4px;
+}
+
+[data-theme-preview='halo'] {
+  --font-body: var(--font-sans, system-ui, sans-serif);
+  --body-font: var(--font-body);
+  --heading-font: var(--font-display, var(--font-body));
+  --label-font: var(--font-body);
+  --heading-weight: var(--font-weight-semibold);
+  --heading-tracking: var(--tracking-tight);
+  --label-weight: var(--font-weight-semibold);
+  --label-tracking: var(--tracking-normal);
+  --card-backdrop-filter: none;
+  --surface-overlay: none;
+  --surface-overlay-blend: normal;
+  --surface-overlay-opacity: 1;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+}
+
+[data-theme-preview='glass'] {
+  --font-body: var(--font-sans, system-ui, sans-serif);
+  --body-font: var(--font-body);
+  --heading-font: var(--font-display, var(--font-body));
+  --label-font: var(--font-body);
+  --heading-weight: var(--font-weight-semibold);
+  --heading-tracking: var(--tracking-tight);
+  --label-weight: var(--font-weight-semibold);
+  --label-tracking: var(--tracking-normal);
+  --surface-overlay: none;
+  --surface-overlay-blend: normal;
+  --surface-overlay-opacity: 1;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --card-backdrop-filter: blur(24px) saturate(180%);
+}
+
+[data-theme-preview='console'] {
+  --font-body: var(--font-mono);
+  --body-font: var(--font-mono);
+  --heading-font: var(--font-mono);
+  --label-font: var(--font-mono);
+  --heading-weight: var(--font-weight-bold);
+  --heading-tracking: var(--tracking-normal);
+  --label-weight: var(--font-weight-bold);
+  --label-tracking: var(--tracking-wide);
+  --card-backdrop-filter: none;
+  --radius-md: 2px;
+  --radius-sm: 2px;
+  --surface-overlay: repeating-linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 1px,
+    oklch(0 0 0 / 8%) 1px,
+    oklch(0 0 0 / 8%) 2px
+  );
+  --surface-overlay-blend: multiply;
+  --surface-overlay-opacity: 0.55;
+}
+
+[data-theme-preview='contrast'] {
+  --font-body: var(--font-sans, system-ui, sans-serif);
+  --body-font: var(--font-body);
+  --heading-font: var(--font-display, var(--font-body));
+  --label-font: var(--font-body);
+  --heading-weight: var(--font-weight-bold);
+  --heading-tracking: var(--tracking-tight);
+  --label-weight: var(--font-weight-bold);
+  --label-tracking: var(--tracking-normal);
+  --card-backdrop-filter: none;
+  --surface-overlay: none;
+  --surface-overlay-blend: normal;
+  --surface-overlay-opacity: 1;
+  --radius-md: 3px;
+  --radius-sm: 2px;
+}
