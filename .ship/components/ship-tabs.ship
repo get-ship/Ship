@@ -6,36 +6,35 @@
   // mutations to rebuild its tab bar, syncs panel visibility, and handles
   // keyboard navigation (Arrow / Home / End / Enter / Space).
   //
-  // This is the SFC port of packages/ship-set/src/web-components/core/ship-tabs.ts.
-  // Functional surface: complete. Visual polish: stripped down to the
-  // minimum that still looks like tabs (no tone variants, no segmented
-  // variant, no size scale). The original ship-tabs.styles.ts is 291 lines;
-  // inlining all of it would blow the 300-line cap. External-style-import
-  // is gap #3 in the conversion notes — fix lifts that constraint.
+  // SFC port of packages/ship-set/src/web-components/core/ship-tabs.ts.
+  //
+  // Props are auto-lifted to per-instance signals — `$active`,
+  // `$orientation` work directly in templates without manual `signal()`
+  // calls. The wrapper keeps them in sync via attributeChangedCallback,
+  // so external setAttribute('active', '...') reactively updates everything.
 
   const {
     active = '',
+    variant = 'underline',
+    size = 'md',
+    tone = '',
+    sticky = false,
     orientation = 'horizontal',
   } = props
 
-  // Local state. $active tracks the currently selected tab name; $tabs
-  // holds the discovered child tab descriptors.
-  const $active = signal(active)
+  // Local state. $tabs holds the discovered child tab descriptors;
+  // rebuilt by the MutationObserver as children mount/unmount/edit.
   const $tabs = signal([])
 
-  // When $active changes, sync panel visibility AND emit the change event.
-  // Also reflect the new active name to the host attribute for CSS hooks
-  // and external observers.
+  // When $active changes, sync panel visibility, reflect to host,
+  // and emit the change event.
   effect($active, () => {
     const name = $active.get()
     syncPanels(name)
-    reflectActive(name)
+    if (host && host.getAttribute('active') !== name) host.setAttribute('active', name)
     emit('ship-tab-change', { name })
   })
 
-  // Rebuild the tab list whenever children change. This is the
-  // MutationObserver pattern from the original — child <ship-tab> elements
-  // can appear/disappear or have their attributes edited at runtime.
   let mutationObserver
   let host
   function rebuildTabs() {
@@ -61,17 +60,8 @@
     }
   }
 
-  function reflectActive(name) {
-    if (host && host.getAttribute('active') !== name) host.setAttribute('active', name)
-  }
-
-  function activate(name) {
-    if ($active.get() === name) return
-    $active.set(name)
-  }
-
   function onKeydown(e) {
-    const vertical = orientation === 'vertical'
+    const vertical = $orientation.get() === 'vertical'
     const nextKey = vertical ? 'ArrowDown' : 'ArrowRight'
     const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft'
     const nav = [nextKey, prevKey, 'Home', 'End']
@@ -87,7 +77,7 @@
     else if (e.key === prevKey) next = (i - 1 + names.length) % names.length
     else if (e.key === 'Home') next = 0
     else if (e.key === 'End') next = names.length - 1
-    activate(names[next])
+    $active.set(names[next])
     queueMicrotask(() => {
       const btn = host.querySelector(`button[data-name="${names[next]}"]`)
       btn?.focus()
@@ -112,7 +102,7 @@
   })
 </script>
 
-<div class="tablist" role="tablist" data-attr:aria-orientation="orientation">
+<div class="tablist" data-attr:class="'tablist ' + $variant" role="tablist" data-attr:aria-orientation="$orientation">
   <template data-for="t in $tabs" data-key="t.name">
     <button
       class="tab"
@@ -124,8 +114,7 @@
       data-attr:aria-disabled="t.disabled ? 'true' : 'false'"
       data-attr:tabindex="t.name === $active ? '0' : '-1'"
       data-attr:disabled="t.disabled"
-      data-class:active="t.name === $active"
-      data-on:click="!t.disabled && (signal('active').set(t.name))"
+      data-on:click="!t.disabled && ($active = t.name)"
     >
       <span class="label" data-text="t.label"></span>
       <span class="count" data-show="t.count !== null" data-text="t.count" aria-hidden="true"></span>
@@ -137,54 +126,4 @@
   <slot></slot>
 </div>
 
-<style>
-  /* Minimal chrome — enough for tabs to look like tabs. The full
-     polish (tone variants, segmented variant, size scale, indicator
-     animation) is in the original ship-tabs.styles.ts; pulling that in
-     blocks on the external-style-import gap. */
-
-  :host { display: block; font-family: var(--font-body); }
-  :host([hidden]) { display: none; }
-
-  .tablist {
-    position: relative;
-    display: flex;
-    align-items: stretch;
-    gap: 2px;
-    border-bottom: 1px solid var(--border, #ddd);
-  }
-
-  .tab {
-    background: transparent;
-    border: 0;
-    padding: 8px 14px;
-    font: inherit;
-    color: var(--muted-foreground, #666);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -1px;
-  }
-
-  .tab:hover:not([disabled]) { color: var(--foreground, #111); }
-  .tab[aria-selected="true"] {
-    color: var(--foreground, #111);
-    border-bottom-color: var(--primary, #0066cc);
-    font-weight: 600;
-  }
-  .tab[disabled] { opacity: 0.4; cursor: not-allowed; }
-
-  .count {
-    font-size: 11px;
-    background: var(--muted, #eee);
-    color: var(--muted-foreground, #666);
-    padding: 1px 6px;
-    border-radius: 999px;
-    min-width: 18px;
-    text-align: center;
-  }
-
-  .panels { padding-top: 12px; }
-</style>
+<style src="./ship-tabs.css"></style>
