@@ -31,6 +31,7 @@ pub mod stream;
 pub mod state;
 pub mod chat_state;
 pub mod events_state;
+pub mod sdk_macros;
 pub mod setup;
 pub mod templates;
 pub mod session;

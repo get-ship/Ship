@@ -172,6 +172,31 @@ fn section_macro_omits_link_region_when_label_missing() {
     assert!(!html.contains(r#"href="/x""#), "no link should render without label: {html}");
 }
 
+/// SDK macro globalization: a view that calls `head(...)` without an
+/// explicit `{% from '_ship.html.j2' import head %}` line still renders.
+/// The view loader prepends the import automatically.
+#[test]
+fn sdk_macros_callable_without_explicit_import() {
+    #[derive(Serialize)]
+    struct Ctx {}
+    let source = r#"<html><head>{{ head('Auto') }}</head></html>"#;
+    let html = render_view_source("test-auto-head", source, &Ctx {})
+        .expect("render must succeed without explicit import");
+    assert!(html.contains("<title>Auto</title>"), "html: {html}");
+    assert!(html.contains("datastar.js"), "head() macro body must render: {html}");
+}
+
+/// Sanity: views that still write the explicit import line keep working
+/// — the auto-prelude is skipped to avoid duplicate imports.
+#[test]
+fn sdk_macros_explicit_import_still_works() {
+    #[derive(Serialize)]
+    struct Ctx {}
+    let source = r#"{% from '_ship.html.j2' import head %}<html><head>{{ head('Explicit') }}</head></html>"#;
+    let html = render_view_source("test-explicit-head", source, &Ctx {}).unwrap();
+    assert!(html.contains("<title>Explicit</title>"), "html: {html}");
+}
+
 /// Regression: editing a sibling partial must invalidate the user-env
 /// cache so the next render sees the new partial. Before this fix the
 /// cache key hashed only the top view's source, so partial edits
