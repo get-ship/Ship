@@ -17,6 +17,42 @@ Today only `.ship/components/*.ship` get the full SFC treatment (script + templa
 
 **Cost:** none for now. The `.html.j2` extension is identical syntactically to a script-less `.ship` file.
 
+## ~~No external style import~~ — fixed
+
+Previously the `<style>` block had to be inline, which capped components at ~250 lines of CSS before bumping the file-size cap. Now:
+
+```html
+<style src="./shared.css">
+  /* optional inline rules — appended after the external content */
+  .local-override { padding: 8px; }
+</style>
+```
+
+The daemon resolves the path relative to the `.ship` file. External + inline can coexist (external loads first, inline appends). Both go through the scoping pass unless `global` is set.
+
+Reference: `.ship/components/ship-tabs.ship` uses this pattern with a sibling `ship-tabs.css`.
+
+## ~~Auto prop signals — `$<propName>` works directly~~ — fixed
+
+Every declared prop is now a per-instance signal automatically:
+
+```js
+const { placeholder = 'Search' } = props
+// $placeholder is auto-created with the decoded value, scoped per instance.
+```
+
+```html
+<input data-attr:placeholder="$placeholder" />
+```
+
+The signal stays in sync via `attributeChangedCallback` — external `setAttribute('placeholder', '...')` triggers the signal update. Templates and effects react automatically.
+
+`{{ props.X }}` in the template still evaluates at compile time (Jinja, not signal-aware). Use `$X` in Datastar attribute expressions for runtime values.
+
+## ~~`emit()` doesn't set `composed: true`~~ — fixed
+
+Custom events dispatched via `emit()` now include `composed: true` so they cross shadow-DOM boundaries when the component is consumed inside a shadow root.
+
 ## No `data:` mount-time fetch declaration
 
 The eventual shorthand will let components declare data dependencies inline:
@@ -91,9 +127,12 @@ A specific async-closure pattern in `runtime::services::orchestrator::pipeline::
 | Component authoring | ✅ Full (`.ship/components/*.ship`) |
 | Mount + lifecycle | ✅ |
 | Per-instance signal scoping | ✅ |
+| Auto prop signals (`$<propName>` works directly) | ✅ |
 | Style scoping | ✅ |
+| External style import (`<style src="...">`) | ✅ |
+| `:host`-aware scoping (no double-prefixing) | ✅ |
 | Slots | ✅ |
-| Events | ✅ |
+| Events (with `composed: true`) | ✅ |
 | SDK macro globals | ✅ |
 | Cookie-authed fetch from `onConnect` | ✅ |
 | Hot-reload of template + style | ✅ |
@@ -103,6 +142,6 @@ A specific async-closure pattern in `runtime::services::orchestrator::pipeline::
 | `data:` mount-time declaration | ❌ deferred |
 | View-side `<script>` block execution | ❌ deferred |
 | `script` block hot-reload | ❌ deferred |
-| `ship-set` migration | ❌ post-launch |
+| `ship-set` migration | ⏳ in progress (`ship-tabs` ported) |
 
 None of the deferred items block real authoring. They're polish layers that compound across many components — worth landing as authors hit the friction.
