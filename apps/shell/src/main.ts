@@ -674,17 +674,17 @@ router.on("/agents/:id", ({ data }) => {
 
 router.on("/skills/:id", ({ data }) => {
   updateNav("/skills");
-  void mount(`/api/v1/view/skills/detail/${data!.id}`);
+  void mount(`/api/v1/v/skills/${data!.id}?file=SKILL.md`);
 });
 
 router.on("/skills/:id/:file", ({ data }) => {
   updateNav("/skills");
-  void mount(`/api/v1/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
+  void mount(`/api/v1/v/skills/${data!.id}?file=${encodeURIComponent(data!.file)}`);
 });
 
 router.on("/canvas/:doc", ({ data }) => {
   updateNav("/canvas");
-  void mount(`/api/v1/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
+  void mount(`/api/v1/v/canvas?doc=${encodeURIComponent(data!.doc)}`);
 });
 
 router.on("/pipelines/focus/:name", ({ data }) => {
