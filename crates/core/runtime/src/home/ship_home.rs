@@ -2,7 +2,7 @@
 //!
 //! Per ADR `home-layout-and-scope-convention`, no other code is permitted to
 //! compute paths under `~/.ship/` directly. A CI grep guard at
-//! `scripts/check-raw-ship-paths.sh` enforces this (warn-only until Phase 2).
+//! `scripts/lint/check-raw-ship-paths.sh` enforces this (warn-only until Phase 2).
 
 use std::path::{Path, PathBuf};
 
