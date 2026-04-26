@@ -219,6 +219,43 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
         }}
         run();
       }};
+      // reflectAttr(name, sig) — keep a host attribute in sync with a
+      // signal value. Useful for state that needs to reach CSS hooks
+      // or external observers without going through inline styles.
+      const reflectAttr = (name, sig) => {{
+        if (!sig || typeof sig.__subscribe !== "function") return;
+        const apply = () => {{
+          const v = sig.get();
+          if (v == null || v === false) host.removeAttribute(name);
+          else host.setAttribute(name, v === true ? "" : String(v));
+        }};
+        sig.__subscribe(apply);
+        apply();
+      }};
+      // data(fn) — async signal sourcing for mount-time fetches. Same
+      // shape as signal(): consumes one SIGNAL_NAMES slot in declaration
+      // order. The signal initializes to null, then resolves to fn()'s
+      // return value. fn receives `{{ signal }}` (an AbortSignal) so
+      // authors can wire it into fetch() and the in-flight request
+      // cancels on disconnect.
+      const data = (fn) => {{
+        const name = SIGNAL_NAMES[__signalIdx++];
+        const sig = host.__makeSignal(name || ("__data" + __signalIdx), null);
+        const ac = new AbortController();
+        host.__hooks.disconnect.push(() => ac.abort());
+        Promise.resolve()
+          .then(() => fn({{ signal: ac.signal }}))
+          .then((v) => {{ if (!ac.signal.aborted) sig.set(v); }})
+          .catch((e) => {{
+            if (!ac.signal.aborted) {{
+              console.error("[ship:" + TAG + "] data() error:", e);
+              host.dispatchEvent(new CustomEvent("data-error", {{
+                detail: {{ name: name, error: e }}, bubbles: true, composed: true
+              }}));
+            }}
+          }});
+        return sig;
+      }};
       try {{
         // ---- begin user script ----
 {user_script}

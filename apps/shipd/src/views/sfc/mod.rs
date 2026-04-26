@@ -304,6 +304,19 @@ mod tests {
     }
 
     #[test]
+    fn jinja_comments_are_stripped_from_template() {
+        // {# ... #} should not survive into the served TEMPLATE constant
+        // — minijinja strips them at render time.
+        let src = "<script></script>\n{# private comment #}\n<div>visible</div>";
+        let out = compile_component("my-x", "components/my-x.ship", src).unwrap();
+        assert!(
+            !out.contains("private comment"),
+            "Jinja comment leaked into served JS: {out}"
+        );
+        assert!(out.contains("<div>visible</div>"));
+    }
+
+    #[test]
     fn props_become_scoped_signals_in_template() {
         // `$placeholder` in the template should rewrite to the scoped
         // namespace even though no `signal('placeholder')` call exists in

@@ -306,7 +306,10 @@ fn siblings_hash(siblings: &[(String, String)]) -> u64 {
 
 pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Result<String, String> {
     // If the source contains no Jinja syntax, return it as-is (fast path).
-    if !source.contains("{%") && !source.contains("{{") {
+    // `{#` is the comment delimiter — comment-only templates need to go
+    // through minijinja so the comments get stripped (otherwise they
+    // leak into served HTML / SFC template literals as visible text).
+    if !source.contains("{%") && !source.contains("{{") && !source.contains("{#") {
         return Ok(source.to_string());
     }
 
