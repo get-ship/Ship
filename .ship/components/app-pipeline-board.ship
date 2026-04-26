@@ -1,0 +1,217 @@
+<script>
+  // Pipeline runs board. Left column: list of recent jobs (by status,
+  // newest first). Right column: selected job's steps + meta.
+  //
+  // Polls /api/v1/jobs at refreshMs cadence. Selecting a step emits
+  // `step-selected` so a host can mount <app-pty-attach> at the
+  // step's actor id (the step's slug = its actor id by convention,
+  // see ProcessExecutor::spawn → ActorProfile.actor_id_hint).
+  //
+  // Props:
+  //   refresh-ms  — poll interval (default 2000)
+  //   limit       — max runs to list (default 50)
+  const { refreshMs = 2000, limit = 50 } = props
+
+  const $jobs = signal([])
+  const $loading = signal(true)
+  const $error = signal('')
+  const $selected = signal('')             // job_id
+  const $selectedStep = signal('')         // step id
+  const $now = signal(Date.now())          // for relative durations
+
+  let timer = null
+
+  async function load() {
+    try {
+      const r = await fetch('/api/v1/jobs', { credentials: 'include' })
+      if (!r.ok) throw new Error(`HTTP ${r.status}`)
+      const body = await r.json()
+      const jobs = body.data?.jobs ?? []
+      // Sort by updated_at desc, capped to limit.
+      jobs.sort((a, b) => (b.updated_at || '').localeCompare(a.updated_at || ''))
+      $jobs.set(jobs.slice(0, props.limit))
+      if (!$selected.get() && jobs.length) $selected.set(jobs[0].job_id)
+      $loading.set(false)
+      $error.set('')
+    } catch (e) {
+      $error.set(`load failed: ${e?.message ?? e}`)
+      $loading.set(false)
+    }
+  }
+
+  function selectJob(jobId) {
+    $selected.set(jobId)
+    $selectedStep.set('')
+    emit('job-selected', { jobId })
+  }
+
+  function selectStep(stepId, jobSlug) {
+    $selectedStep.set(stepId)
+    emit('step-selected', { stepId, jobSlug })
+  }
+
+  function fmtAgo(ts) {
+    if (!ts) return ''
+    const t = typeof ts === 'string' ? Date.parse(ts) : ts
+    const sec = Math.max(0, Math.round(($now.get() - t) / 1000))
+    if (sec < 60) return `${sec}s ago`
+    if (sec < 3600) return `${Math.round(sec / 60)}m ago`
+    if (sec < 86400) return `${Math.round(sec / 3600)}h ago`
+    return `${Math.round(sec / 86400)}d ago`
+  }
+
+  // Expose helpers to the template body via globals (signals + refs
+  // are scoped per-instance; functions need to be reachable from
+  // data-on:click etc. — they already are through closure).
+
+  onConnect(() => {
+    load()
+    timer = setInterval(() => { $now.set(Date.now()); load() }, props.refreshMs)
+  })
+
+  onDisconnect(() => {
+    if (timer) clearInterval(timer)
+  })
+</script>
+
+<div class="board">
+  <aside class="list">
+    <div class="state" data-show="$loading">loading…</div>
+    <div class="state error" data-show="$error" data-text="$error"></div>
+    <div class="state empty" data-show="!$loading && !$error && $jobs.length === 0">
+      no runs yet
+    </div>
+    <template data-for="job in $jobs" data-key="job.job_id">
+      <button type="button" class="run-card"
+              data-on:click="selectJob(job.job_id)"
+              data-attr:data-active="job.job_id === $selected ? 'true' : 'false'"
+              data-attr:data-status="job.status">
+        <span class="run-head">
+          <span class="dot" aria-hidden="true"></span>
+          <span class="slug" data-text="job.slug"></span>
+          <span class="status" data-text="job.status"></span>
+        </span>
+        <span class="run-meta">
+          <span class="agent" data-text="job.agent"></span>
+          <span class="dot-sep"> · </span>
+          <span class="ago" data-text="fmtAgo(job.updated_at)"></span>
+        </span>
+      </button>
+    </template>
+  </aside>
+
+  <section class="detail">
+    <template data-for="job in $jobs" data-key="job.job_id">
+      <div class="run" data-show="job.job_id === $selected">
+        <header class="run-header">
+          <span class="run-title" data-text="job.slug"></span>
+          <span class="run-status" data-attr:data-status="job.status" data-text="job.status"></span>
+        </header>
+        <div class="run-meta-row">
+          <span class="kv"><span class="k">agent</span><span class="v" data-text="job.agent"></span></span>
+          <span class="kv"><span class="k">branch</span><span class="v" data-text="job.branch"></span></span>
+          <span class="kv" data-show="job.provider"><span class="k">provider</span><span class="v" data-text="job.provider"></span></span>
+        </div>
+        <div class="run-error" data-show="job.error" data-text="job.error"></div>
+
+        <div class="steps">
+          <template data-for="step in (job.steps?.steps ?? [])" data-key="step.id">
+            <app-pipeline-step
+              data-attr:step-id="step.id"
+              data-attr:status="(job.completed_steps ?? []).includes(step.id) ? 'done' : (job.current_step === step.id ? 'running' : 'queued')"
+              data-attr:active="step.id === $selectedStep ? 'active' : ''"
+              data-on:select="selectStep(event.detail.stepId, job.slug)"></app-pipeline-step>
+          </template>
+        </div>
+      </div>
+    </template>
+  </section>
+</div>
+
+<style>
+  .board {
+    display: grid;
+    grid-template-columns: 18rem 1fr;
+    gap: var(--ship-space-3);
+    height: 100%;
+    min-height: 0;
+  }
+  .list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ship-space-1);
+    padding: var(--ship-space-3);
+    border-right: 1px solid var(--ship-color-border);
+    overflow-y: auto;
+  }
+  .state { color: var(--ship-color-muted); font-size: 0.875rem; padding: var(--ship-space-2); }
+  .state.error { color: var(--ship-color-danger, var(--ship-color-muted)); }
+  .run-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ship-space-1);
+    padding: var(--ship-space-2) var(--ship-space-3);
+    border: 1px solid transparent;
+    border-radius: var(--ship-radius-md, 6px);
+    background: transparent;
+    color: var(--ship-color-foreground);
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .run-card:hover { background: var(--ship-color-surface); }
+  .run-card[data-active="true"] { background: var(--ship-color-surface); border-color: var(--ship-color-accent); }
+  .run-head { display: flex; align-items: center; gap: var(--ship-space-2); font-weight: 500; }
+  .run-head .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--ship-color-muted);
+  }
+  .run-card[data-status="running"] .dot { background: var(--ship-color-accent); }
+  .run-card[data-status="completed"] .dot,
+  .run-card[data-status="merged"] .dot   { background: var(--ship-color-success, #4caf50); }
+  .run-card[data-status="failed"] .dot   { background: var(--ship-color-danger, #f44); }
+  .run-card .status { margin-left: auto; color: var(--ship-color-muted); font-size: 0.75rem; }
+  .run-meta { color: var(--ship-color-muted); font-size: 0.75rem; }
+  .detail { padding: var(--ship-space-4); overflow-y: auto; min-height: 0; }
+  .run-header { display: flex; align-items: baseline; gap: var(--ship-space-3); margin-bottom: var(--ship-space-3); }
+  .run-title { font-size: 1.25rem; font-weight: 600; }
+  .run-status {
+    padding: 0.125rem var(--ship-space-2);
+    border-radius: var(--ship-radius-pill, 999px);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    background: var(--ship-color-surface);
+    color: var(--ship-color-muted);
+  }
+  .run-status[data-status="running"] { background: var(--ship-color-accent-soft, var(--ship-color-surface)); color: var(--ship-color-accent); }
+  .run-status[data-status="failed"]  { background: var(--ship-color-danger-soft, var(--ship-color-surface)); color: var(--ship-color-danger, #f44); }
+  .run-meta-row { display: flex; flex-wrap: wrap; gap: var(--ship-space-3); margin-bottom: var(--ship-space-3); font-size: 0.875rem; }
+  .kv .k {
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    color: var(--ship-color-muted);
+    margin-right: var(--ship-space-1);
+  }
+  .run-error {
+    padding: var(--ship-space-2) var(--ship-space-3);
+    background: var(--ship-color-danger-soft, var(--ship-color-surface));
+    border: 1px solid var(--ship-color-danger, var(--ship-color-border));
+    border-radius: var(--ship-radius-md, 6px);
+    color: var(--ship-color-danger, var(--ship-color-foreground));
+    margin-bottom: var(--ship-space-3);
+    font-family: ui-monospace, monospace;
+    font-size: 0.8125rem;
+    white-space: pre-wrap;
+  }
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ship-space-2);
+  }
+  @media (max-width: 720px) {
+    .board { grid-template-columns: 1fr; }
+    .list { border-right: none; border-bottom: 1px solid var(--ship-color-border); max-height: 14rem; }
+  }
+</style>

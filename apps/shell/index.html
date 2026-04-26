@@ -943,8 +943,10 @@
     <ship-toast-host position="bottom-right"></ship-toast-host>
 
     <!-- Agent modal: cmdk-style chat surface. Listens for ship:chat:*
-         window events. Phase 1 — auto-attaches to (shipwright, claude). -->
-    <app-agent-modal default-agent="shipwright" default-provider="claude"></app-agent-modal>
+         window events. With no default-agent / default-provider attrs,
+         the picker (app-agent-picker) opens first; explicit defaults
+         can be set on this element to skip the picker. -->
+    <app-agent-modal></app-agent-modal>
     </ship-shell>
 
     <script type="module" src="/src/main.ts"></script>
@@ -953,6 +955,8 @@
          its module URL explicitly. -->
     <script type="module" src="/_ship/components/app-agent-thread.js"></script>
     <script type="module" src="/_ship/components/app-agent-composer.js"></script>
+    <script type="module" src="/_ship/components/app-agent-picker.js"></script>
+    <script type="module" src="/_ship/components/app-pty-attach.js"></script>
     <script type="module" src="/_ship/components/app-agent-modal.js"></script>
   </body>
 </html>

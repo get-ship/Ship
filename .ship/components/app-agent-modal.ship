@@ -19,8 +19,13 @@
   const $sessionId = signal('')
   const $spawning = signal(false)
   const $error = signal('')
+  const $pickerOpen = signal(false)
+  // Once-per-session label so the modal head shows what we're chatting
+  // with after a pick. Falls back to props on first open.
+  const $activeAgent = signal('')
+  const $activeProvider = signal('')
 
-  async function ensureSession() {
+  async function ensureSession(agentId, provider) {
     if ($sessionId.get()) return $sessionId.get()
     if ($spawning.get()) return ''
     $spawning.set(true)
@@ -33,13 +38,16 @@
         body: JSON.stringify({
           workspace_id: props.workspaceId,
           kind: 'agent',
-          agent_id: props.defaultAgent,
-          provider: props.defaultProvider,
+          agent_id: agentId,
+          provider: provider,
         }),
       })
       if (!r.ok) throw new Error(`spawn HTTP ${r.status}`)
       const data = await r.json()
       $sessionId.set(data.session_id || '')
+      $activeAgent.set(agentId)
+      $activeProvider.set(provider)
+      $pickerOpen.set(false)
       return data.session_id
     } catch (e) {
       $error.set(`spawn failed: ${e?.message ?? e}`)
@@ -49,9 +57,31 @@
     }
   }
 
+  function onPick(e) {
+    const { agentId, provider } = e.detail ?? {}
+    if (!agentId || !provider) return
+    ensureSession(agentId, provider)
+  }
+
+  function onPickerCancel() {
+    if (!$sessionId.get()) close()
+    else $pickerOpen.set(false)
+  }
+
+  function changeAgent() {
+    $pickerOpen.set(true)
+  }
+
   async function open() {
     $open.set(true)
-    await ensureSession()
+    if ($sessionId.get()) return
+    // First open with no remembered defaults: show picker. With
+    // explicit defaults set on the host element: spawn directly.
+    if (props.defaultAgent && props.defaultProvider) {
+      await ensureSession(props.defaultAgent, props.defaultProvider)
+    } else {
+      $pickerOpen.set(true)
+    }
   }
 
   function close() {
@@ -103,13 +133,27 @@
 <div class="agent-modal" data-show="$open" data-on:click="if (event.target === el) close()" role="dialog" aria-modal="true">
   <div class="modal-card">
     <header class="modal-head">
-      <span class="title">{{ props.defaultAgent }} <span class="provider">· {{ props.defaultProvider }}</span></span>
+      <button type="button" class="title-btn" data-on:click="changeAgent" data-attr:disabled="$spawning" data-show="$sessionId">
+        <span class="title" data-text="$activeAgent || 'agent'"></span>
+        <span class="provider"> · </span><span class="provider" data-text="$activeProvider || 'provider'"></span>
+        <span class="swap-hint">change ▾</span>
+      </button>
+      <span class="title placeholder" data-show="!$sessionId">Select an agent</span>
       <button type="button" class="close" data-on:click="close" aria-label="Close">×</button>
     </header>
     <div class="state spawning" data-show="$spawning">spawning agent…</div>
     <div class="state error" data-show="$error" data-text="$error"></div>
-    <app-agent-thread data-attr:session-id="$sessionId"></app-agent-thread>
-    <app-agent-composer data-attr:session-id="$sessionId" placeholder="Message {{ props.defaultAgent }}…"></app-agent-composer>
+
+    <app-agent-picker
+      data-show="$pickerOpen"
+      data-attr:default-agent="props.defaultAgent || $activeAgent"
+      data-attr:default-provider="props.defaultProvider || $activeProvider"
+      data-on:select="onPick(event)"
+      data-on:cancel="onPickerCancel">
+    </app-agent-picker>
+
+    <app-agent-thread data-show="!$pickerOpen && $sessionId" data-attr:session-id="$sessionId"></app-agent-thread>
+    <app-agent-composer data-show="!$pickerOpen && $sessionId" data-attr:session-id="$sessionId" placeholder="Message…"></app-agent-composer>
   </div>
 </div>
 
@@ -144,6 +188,23 @@
     border-bottom: 1px solid var(--ship-color-border);
   }
   .title { font-weight: 600; }
+  .title.placeholder { color: var(--ship-color-muted); font-weight: 500; }
+  .title-btn {
+    display: inline-flex;
+    align-items: baseline;
+    gap: var(--ship-space-1);
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--ship-radius-md, 6px);
+    padding: var(--ship-space-1) var(--ship-space-2);
+    font-family: inherit;
+    font-size: inherit;
+    color: var(--ship-color-foreground);
+    cursor: pointer;
+  }
+  .title-btn:hover { border-color: var(--ship-color-border); background: var(--ship-color-surface); }
+  .title-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .swap-hint { color: var(--ship-color-muted); font-size: 0.75rem; margin-left: var(--ship-space-1); }
   .provider { color: var(--ship-color-muted); font-weight: 400; }
   .close {
     background: none;
