@@ -5,13 +5,23 @@ default:
 
 # ── Dev ────────────────────────────────────────────────────────────────────────
 
-# Start Studio dev server (Vite + local D1)
+# Start the shell app dev server (Vite). Daemon must be running separately.
 dev:
-    pnpm --filter web dev
+    pnpm --filter shell dev
 
 # Watch and rebuild Rust on changes (unstable — includes all dev tools)
 watch:
     cargo watch -x "build --features unstable -p ship-cli -p mcp"
+
+# Point the running daemon at THIS worktree's binary + .ship dir.
+# Common when developing views/themes from a worktree — the installed
+# ~/.local/bin/shipd serves bundled bytes, not your edits.
+dev-daemon:
+    @scripts/dev-daemon.sh
+
+# Tail the daemon log (Ctrl+C to stop).
+daemon-logs:
+    tail -f ~/.ship/shipd.log
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 
@@ -64,8 +74,8 @@ wasm:
 
 # ── Test ───────────────────────────────────────────────────────────────────────
 
-# Run all tests (Rust + web + loops)
-test: test-rust test-web test-loops
+# Run all tests (Rust + loops)
+test: test-rust test-loops
 
 # End-to-end loop tests against a running daemon (headless only).
 # Each loop is a single-purpose sanity gate exercising one substrate
@@ -95,19 +105,11 @@ test-runtime:
 test-compiler:
     cargo test -p compiler
 
-# Web app tests (vitest)
-test-web:
-    pnpm --filter web test
-
-# TypeScript type check
+# TypeScript type check (shell app)
 typecheck:
-    pnpm --filter web exec tsc --noEmit
+    pnpm --filter shell exec tsc --noEmit
 
-# ── Database ───────────────────────────────────────────────────────────────────
-
-# Apply D1 migrations locally
-db-migrate:
-    cd apps/web && npx wrangler d1 migrations apply ship --local
+# ── Code generation ────────────────────────────────────────────────────────────
 
 # Regenerate Specta types (Rust → packages/ship-set/src/generated.ts)
 gen-types:
@@ -116,10 +118,6 @@ gen-types:
 # Regenerate the Ship SDK manifest (→ packages/ship-set/sdk/*.json)
 gen-sdk:
     cargo run -p xtask -- gen-sdk
-
-# Regenerate Cloudflare worker types from wrangler.jsonc
-cf-types:
-    cd apps/web && npx wrangler types
 
 # ── Lint & Format ──────────────────────────────────────────────────────────────
 
@@ -170,16 +168,6 @@ docs-regen:
 check-docs-drift:
     cd apps/docs && pnpm run docs:check-drift
 
-# ── Deploy ─────────────────────────────────────────────────────────────────────
-
-# Deploy Studio to Cloudflare Workers
-deploy:
-    pnpm --filter web deploy
-
-# Apply D1 migrations to remote (production)
-db-migrate-remote:
-    cd apps/web && npx wrangler d1 migrations apply ship --remote
-
 # ── Registry ───────────────────────────────────────────────────────────────────
 
 # Seed the local registry with @unofficial packages
@@ -199,34 +187,35 @@ publish repo:
 
 # ── Ship CLI ──────────────────────────────────────────────────────────────────
 
-# Compile agent config for current project
+# Compile the active agent for the current project
 compile:
     ship compile
 
-# Activate an agent profile
-use profile="default":
-    ship use {{profile}}
+# Activate an agent (default looks up `.ship/agents/default.jsonc`)
+use agent="default":
+    ship use {{agent}}
 
-# View targets, capabilities, jobs in TUI
-view:
-    ship view
+# Reconcile recorded migration checksums against current files. Non-
+# destructive — touches only _sqlx_migrations, never any data table.
+# Use after merging a branch that intentionally edited a baseline migration.
+repair-migrations:
+    ship daemon repair-migrations
+
+# Mark a specific migration version as applied without executing it.
+# For when a migration's effects already landed via a renamed file
+# (running it would fail on duplicate columns / existing tables).
+repair-migrations-mark version:
+    ship daemon repair-migrations --mark-applied {{version}}
 
 # ── Housekeeping ───────────────────────────────────────────────────────────────
 
 # Remove build artifacts
 clean:
     cargo clean
-    rm -rf apps/web/dist apps/web/.wrangler/deploy
-
-# Nuke local D1 and re-migrate
-db-reset:
-    rm -rf apps/web/.wrangler/state/v3/d1
-    just db-migrate
 
 # Rebuild everything from scratch
 rebuild: clean build wasm
     pnpm install
-    just db-migrate
 
 # Verify both stable and unstable compile (CI check)
 check-gates:
