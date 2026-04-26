@@ -242,7 +242,11 @@ pub fn build_shell(source: &str, raw: RawBlocks) -> super::ast::SailFile {
 /// shell building. Body parsing of each block lands incrementally.
 pub fn parse_file(source: &str) -> Result<super::ast::SailFile> {
     let raw = extract_blocks(source).context("extract blocks")?;
-    Ok(build_shell(source, raw))
+    let mut file = build_shell(source, raw);
+    if let Some(script) = file.script.as_mut() {
+        super::script::scan(script);
+    }
+    Ok(file)
 }
 
 #[cfg(test)]
