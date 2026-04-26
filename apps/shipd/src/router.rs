@@ -249,6 +249,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ActorEvents_template(), actors_api::list_actor_events_handler)
         .ship_route(Route::ActorInput_template(), actors_api::actor_input_handler)
         .ship_route(Route::MeshSnapshot, actors_api::mesh_snapshot_handler)
+        .ship_route(Route::MeshEventsStream, actors_api::mesh_events_handler)
         .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)

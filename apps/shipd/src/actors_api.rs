@@ -177,40 +177,18 @@ pub struct ActorInputReq {
     pub text: String,
 }
 
-/// `GET /api/v1/mesh/snapshot` — single-shot bundle for the mesh view.
-///
-/// Returns:
-/// - `actors`: every row from the projection, enriched with live process
-///   stats (rss, threads, state, cpu_ticks) where the pid is alive
-/// - `mesh`: the kernel router's view of what's currently mailboxable
-///   (count + per-actor subscribe namespaces) — source of truth for
-///   "can I reach this right now"
-/// - `system`: daemon uptime, total event count, kernel actor count
-///
-/// One read for cold load. The view tails for diffs via SSE separately.
-pub async fn mesh_snapshot_handler(
-    State(state): State<ApiState>,
-    Extension(_auth): Extension<AuthContext>,
-) -> impl IntoResponse {
+/// Build the mesh snapshot payload — actors + mesh + system. Shared
+/// between the one-shot endpoint and the SSE diff stream.
+async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, String> {
     use runtime::supervisor::process_stats;
 
-    let mut rows = match list_actors(&ListActorsFilter::default()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse { ok: false, data: json!(format!("query: {e}")) }),
-            )
-                .into_response();
-        }
-    };
+    let mut rows = list_actors(&ListActorsFilter::default())
+        .map_err(|e| format!("query: {e}"))?;
 
     let kernel_actors = state.kernel().lock().await.list_actors();
     let on_mesh: std::collections::HashSet<String> =
         kernel_actors.iter().map(|(id, _)| id.clone()).collect();
 
-    // Enrich each row with live OS stats. Best-effort; returns null on
-    // any read miss (process exited, no pid, non-Linux).
     let enriched: Vec<serde_json::Value> = rows
         .iter_mut()
         .map(|r| {
@@ -266,17 +244,85 @@ pub async fn mesh_snapshot_handler(
             .count(),
     });
 
-    (
-        StatusCode::OK,
-        Json(MeshResponse {
-            ok: true,
-            data: json!({
-                "actors": enriched,
-                "mesh": mesh,
-                "system": system,
-            }),
-        }),
-    )
+    Ok(json!({
+        "actors": enriched,
+        "mesh": mesh,
+        "system": system,
+    }))
+}
+
+/// `GET /api/v1/mesh/snapshot` — single-shot bundle for the mesh view.
+///
+/// Returns:
+/// - `actors`: every row from the projection, enriched with live process
+///   stats (rss, threads, state, cpu_ticks) where the pid is alive
+/// - `mesh`: the kernel router's view of what's currently mailboxable
+///   (count + per-actor subscribe namespaces) — source of truth for
+///   "can I reach this right now"
+/// - `system`: daemon uptime, total event count, kernel actor count
+///
+/// One read for cold load. The view tails for diffs via /mesh/events.
+pub async fn mesh_snapshot_handler(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    match build_mesh_snapshot(&state).await {
+        Ok(data) => (
+            StatusCode::OK,
+            Json(MeshResponse { ok: true, data }),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse { ok: false, data: json!(e) }),
+        )
+            .into_response(),
+    }
+}
+
+/// `GET /api/v1/mesh/events` — SSE stream of mesh snapshots, one per
+/// tick. Cheap path to live: the view diffs locally. Tick interval is
+/// 1.5s — fast enough to feel live for typical use, slow enough to
+/// keep /proc reads + DB queries cheap. The first frame fires
+/// immediately on connect so the view doesn't show stale data while
+/// waiting for the first tick.
+pub async fn mesh_events_handler(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> axum::response::Response {
+    use axum::response::sse::{Event, KeepAlive, Sse};
+    use std::convert::Infallible;
+    use std::time::Duration;
+    use tokio_stream::StreamExt;
+
+    let stream = async_stream::stream! {
+        // Immediate first frame.
+        if let Ok(data) = build_mesh_snapshot(&state).await {
+            let payload = serde_json::to_string(&data).unwrap_or_else(|_| "{}".into());
+            yield Ok::<_, Infallible>(Event::default().event("snapshot").data(payload));
+        }
+        let mut tick = tokio::time::interval(Duration::from_millis(1500));
+        // First tick fires immediately; we already sent the first frame
+        // above, so skip it.
+        tick.tick().await;
+        loop {
+            tick.tick().await;
+            match build_mesh_snapshot(&state).await {
+                Ok(data) => {
+                    let payload = serde_json::to_string(&data).unwrap_or_else(|_| "{}".into());
+                    yield Ok(Event::default().event("snapshot").data(payload));
+                }
+                Err(e) => {
+                    let payload = serde_json::json!({ "error": e }).to_string();
+                    yield Ok(Event::default().event("error").data(payload));
+                }
+            }
+        }
+    };
+
+    let stream = stream.map(|r: Result<Event, Infallible>| r);
+    Sse::new(stream)
+        .keep_alive(KeepAlive::new().interval(Duration::from_secs(15)))
         .into_response()
 }
 

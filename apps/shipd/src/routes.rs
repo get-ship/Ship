@@ -595,6 +595,9 @@ pub enum Route {
     /// @route GET "/api/v1/mesh/snapshot"
     MeshSnapshot,
 
+    /// @route GET "/api/v1/mesh/events"
+    MeshEventsStream,
+
     /// @route POST "/api/v1/actors/{actor_id}/kill-tree"
     KillTree { actor_id: String },
 
