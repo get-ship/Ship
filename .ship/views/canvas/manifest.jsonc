@@ -11,7 +11,7 @@
 
   "rail": {
     "label": "Canvas",
-    "icon": "image"
+    "icon": "frame"
   },
 
   // SSE subscriptions. The rail listens for canvas-artifact mutations and
