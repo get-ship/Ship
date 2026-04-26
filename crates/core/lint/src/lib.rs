@@ -97,7 +97,11 @@ pub fn lint_view_dir(view_dir: &Path) -> Vec<Finding> {
     findings
 }
 
-/// Recursively collect every `.html.j2` file under a view directory.
+/// Recursively collect every `.html.j2` and `.ship` file under a view directory.
+///
+/// Both extensions render through the same Jinja-aware lint pipeline; the
+/// `.ship` SFC's script and style blocks are treated as opaque text for v1
+/// diagnostics (block-aware lint is LSP v2 work).
 pub fn collect_view_files(dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     collect_view_files_inner(dir, &mut out);
@@ -115,7 +119,7 @@ fn collect_view_files_inner(dir: &Path, out: &mut Vec<PathBuf>) {
             collect_view_files_inner(&p, out);
         } else if p
             .to_str()
-            .map(|s| s.ends_with(".html.j2"))
+            .map(|s| s.ends_with(".html.j2") || s.ends_with(".ship"))
             .unwrap_or(false)
         {
             out.push(p);
