@@ -23,7 +23,14 @@ function resolveToken(envToken: string | undefined): string {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const daemon = env.VITE_DAEMON_URL ?? "http://127.0.0.1:9315";
+  // Daemon target — explicit URL wins; otherwise fall back to SHIP_DAEMON_PORT
+  // (set by scripts/dev-daemon.sh when binding a non-default port for
+  // multi-worktree dev), then to 127.0.0.1:9315.
+  const daemonPort = env.SHIP_DAEMON_PORT ?? process.env.SHIP_DAEMON_PORT ?? "9315";
+  const daemon = env.VITE_DAEMON_URL ?? `http://127.0.0.1:${daemonPort}`;
+  // Vite dev server port follows the daemon's offset so two worktrees
+  // can run side-by-side: daemon :9315 → vite :3100; daemon :9316 → vite :3101, etc.
+  const vitePort = Number(env.VITE_PORT ?? process.env.VITE_PORT ?? (3100 + (Number(daemonPort) - 9315)));
   // Token resolved per-request in the proxy below so daemon restarts (which
   // mint a new token) don't require a Vite restart.
   function currentToken(): string {
@@ -60,7 +67,7 @@ export default defineConfig(({ mode }) => {
       ],
     },
     server: {
-      port: 3100,
+      port: vitePort,
       strictPort: true,
       proxy: {
         // Forward daemon API + view endpoints so the browser sees everything

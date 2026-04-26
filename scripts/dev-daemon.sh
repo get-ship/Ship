@@ -27,15 +27,21 @@
 #   installed binary takes :9315 again.
 #
 # FLAGS
-#   --no-build   Skip `cargo build -p shipd`.
-#   --status     Report whether :9315 is up and which binary is serving.
-#   --stop       Kill the worktree daemon. No rebuild, no restart.
+#   --no-build       Skip `cargo build -p shipd`.
+#   --status         Report whether the configured port is up and which binary serves.
+#   --stop           Kill the worktree daemon. No rebuild, no restart.
+#   --port <N>       Bind to port N instead of 9315. Default also reads SHIP_DAEMON_PORT.
+#                    Pair with vite.config.ts which respects SHIP_DAEMON_PORT for proxy.
+#   --keep-installed Leave a separately-running ship daemon (e.g. another worktree's)
+#                    on a different port alone instead of warning about it.
 
 set -euo pipefail
 
-PORT=9315
-LOG=/tmp/shipd-qa.log
+# Per-worktree slug for log paths so two worktrees don't clobber each other's logs.
 ROOT="$(git -C "$(dirname "$0")/.." rev-parse --show-toplevel)"
+SLUG="$(basename "$ROOT")"
+PORT="${SHIP_DAEMON_PORT:-9315}"
+LOG="/tmp/shipd-${SLUG}.log"
 SHIP_DIR="$ROOT/.ship"
 BIN="$ROOT/target/debug/shipd"
 
@@ -141,10 +147,16 @@ cmd_start() {
     # 4. Start in background. nohup so an accidental shell exit doesn't
     # SIGHUP the daemon mid-test. setsid detaches from controlling tty.
     : > "$LOG"
-    # Both signals point project resolution at this worktree:
+    # Three signals point project resolution at this worktree:
     #   - SHIP_DIR env: honored by runtime::project::get_project_dir()
     #   - --workspace flag: bypasses CWD-walk discovery in main.rs
-    SHIP_DIR="$SHIP_DIR" nohup setsid "$BIN" --port "$PORT" --workspace "$ROOT" >>"$LOG" 2>&1 &
+    #   - SHIP_RESPECT_WORKTREE=1: opts the runtime out of the
+    #     worktree-redirect-to-main behavior in discovery.rs, so this
+    #     worktree's local .ship/views/, .ship/agents/, etc. are served
+    #     instead of falling back to the main checkout's.
+    SHIP_DIR="$SHIP_DIR" \
+        SHIP_RESPECT_WORKTREE=1 \
+        nohup setsid "$BIN" --port "$PORT" --workspace "$ROOT" >>"$LOG" 2>&1 &
     local launched=$!
     echo "launched pid=$launched · binary=$BIN · SHIP_DIR=$SHIP_DIR"
     echo "log: $LOG"
@@ -171,15 +183,19 @@ cmd_start() {
 
 main() {
     local action=start no_build=0
-    for arg in "$@"; do
-        case "$arg" in
+    while [ $# -gt 0 ]; do
+        case "$1" in
             --status) action=status ;;
             --stop)   action=stop ;;
             --no-build) no_build=1 ;;
+            --port)   shift; PORT="$1" ;;
+            --port=*) PORT="${1#--port=}" ;;
+            --keep-installed) KEEP_INSTALLED=1 ;;
             -h|--help)
-                sed -n '1,40p' "$0"; exit 0 ;;
-            *) echo "unknown flag: $arg" >&2; exit 2 ;;
+                sed -n '1,45p' "$0"; exit 0 ;;
+            *) echo "unknown flag: $1" >&2; exit 2 ;;
         esac
+        shift
     done
     case "$action" in
         status) cmd_status ;;
