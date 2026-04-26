@@ -26,6 +26,23 @@ export type { Patch, PatchOp, PathToken } from './patch'
 export { bindFor, bindForSignal } from './for'
 export type { BindForOptions, RenderedItem } from './for'
 
-// Remaining modules (component, slot, data, morph, decode) land per
-// the implementation phasing in 03-runtime-architecture.md.
-// Import sites stay stable.
+export { resolveSlots, snapshotChildren } from './slot'
+export type { SlotDecl } from './slot'
+
+export { defineComponent, camelOf } from './component'
+export type { ComponentFactory, ComponentSchema } from './component'
+
+export {
+  decodeString,
+  decodeNumber,
+  decodeBoolean,
+  decodeJson,
+  decodeEnum,
+} from './decode'
+export type { Decoder } from './decode'
+
+export { data } from './data'
+export type { DataOpts, DataHandle } from './data'
+
+// Remaining: morph.ts (vendored idiomorph) lands next per
+// 03-runtime-architecture.md § Implementation phasing.
