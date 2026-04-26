@@ -177,6 +177,181 @@ pub struct ActorInputReq {
     pub text: String,
 }
 
+/// `GET /api/v1/mesh/snapshot` — single-shot bundle for the mesh view.
+///
+/// Returns:
+/// - `actors`: every row from the projection, enriched with live process
+///   stats (rss, threads, state, cpu_ticks) where the pid is alive
+/// - `mesh`: the kernel router's view of what's currently mailboxable
+///   (count + per-actor subscribe namespaces) — source of truth for
+///   "can I reach this right now"
+/// - `system`: daemon uptime, total event count, kernel actor count
+///
+/// One read for cold load. The view tails for diffs via SSE separately.
+pub async fn mesh_snapshot_handler(
+    State(state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    use runtime::supervisor::process_stats;
+
+    let mut rows = match list_actors(&ListActorsFilter::default()) {
+        Ok(r) => r,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse { ok: false, data: json!(format!("query: {e}")) }),
+            )
+                .into_response();
+        }
+    };
+
+    let kernel_actors = state.kernel().lock().await.list_actors();
+    let on_mesh: std::collections::HashSet<String> =
+        kernel_actors.iter().map(|(id, _)| id.clone()).collect();
+
+    // Enrich each row with live OS stats. Best-effort; returns null on
+    // any read miss (process exited, no pid, non-Linux).
+    let enriched: Vec<serde_json::Value> = rows
+        .iter_mut()
+        .map(|r| {
+            r.live = on_mesh.contains(&r.id);
+            let stats = r
+                .pid
+                .and_then(|p| (p > 0).then(|| process_stats::read_pid(p as u32)).flatten());
+            json!({
+                "id": r.id,
+                "kind": r.kind,
+                "status": r.status,
+                "workspace_id": r.workspace_id,
+                "agent_id": r.agent_id,
+                "provider": r.provider,
+                "model": r.model,
+                "transport": r.transport,
+                "persistence": r.persistence,
+                "pid": r.pid,
+                "parent_actor_id": r.parent_actor_id,
+                "restart_count": r.restart_count,
+                "exit_code": r.exit_code,
+                "duration_ms": r.duration_ms,
+                "created_at": r.created_at,
+                "last_event_at": r.last_event_at,
+                "live": r.live,
+                "process": stats.map(|s| json!({
+                    "rss_bytes": s.rss_bytes,
+                    "vsize_bytes": s.vsize_bytes,
+                    "threads": s.threads,
+                    "state": s.state.to_string(),
+                    "cpu_ticks": s.cpu_ticks,
+                })),
+            })
+        })
+        .collect();
+
+    let mesh: Vec<MeshActor> = kernel_actors
+        .into_iter()
+        .map(|(id, cfg)| MeshActor {
+            actor_id: id,
+            subscribe_namespaces: cfg.subscribe_namespaces,
+            write_namespaces: cfg.write_namespaces,
+        })
+        .collect();
+
+    let system = json!({
+        "uptime_secs": state.uptime().as_secs(),
+        "kernel_actor_count": mesh.len(),
+        "projection_actor_count": enriched.len(),
+        "live_process_count": enriched
+            .iter()
+            .filter(|a| a.get("process").map(|p| !p.is_null()).unwrap_or(false))
+            .count(),
+    });
+
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: json!({
+                "actors": enriched,
+                "mesh": mesh,
+                "system": system,
+            }),
+        }),
+    )
+        .into_response()
+}
+
+/// `POST /api/v1/actors/{id}/kill-tree` — stop the actor and every
+/// descendant by `parent_actor_id`. Walks the projection to collect
+/// the tree, stops each actor via the appropriate registry (actor
+/// then legacy session), and reports counts.
+pub async fn kill_tree_handler(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
+        return e.into_response();
+    }
+
+    // BFS over parent_actor_id. Cap depth to avoid pathological loops
+    // (parent cycles shouldn't happen but defense-in-depth).
+    let mut to_visit: Vec<String> = vec![id.clone()];
+    let mut targets: Vec<String> = Vec::new();
+    let mut depth = 0usize;
+    while !to_visit.is_empty() && depth < 32 {
+        let mut next: Vec<String> = Vec::new();
+        for actor_id in to_visit.drain(..) {
+            if targets.contains(&actor_id) {
+                continue;
+            }
+            targets.push(actor_id.clone());
+            // Find children: actors whose parent_actor_id == this id.
+            let children = list_actors(&ListActorsFilter::default())
+                .unwrap_or_default()
+                .into_iter()
+                .filter(|r| r.parent_actor_id.as_deref() == Some(&actor_id))
+                .map(|r| r.id)
+                .collect::<Vec<_>>();
+            next.extend(children);
+        }
+        to_visit = next;
+        depth += 1;
+    }
+
+    // Stop deepest first so children unwind before parents notice.
+    let mut stopped: Vec<String> = Vec::new();
+    for actor_id in targets.iter().rev() {
+        let mut hit = false;
+        if let Some(entry) = state.actor_sessions().get(actor_id) {
+            let _ = entry.stop();
+            state.actor_sessions().remove(actor_id);
+            hit = true;
+        }
+        if !hit {
+            // Fall through to the legacy session registry.
+            if crate::sessions::lifecycle::stop(state.pty_sessions(), actor_id) {
+                hit = true;
+            }
+        }
+        if hit {
+            stopped.push(actor_id.clone());
+        }
+    }
+
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: json!({
+                "root": id,
+                "tree": targets,
+                "stopped": stopped,
+            }),
+        }),
+    )
+        .into_response()
+}
+
 /// `POST /api/actors/{id}/input` — push a turn into the actor's mailbox
 /// via directed-delivery on `studio.chat_turn`. 404 if the actor isn't
 /// in the projection; 409 if it's stopped or crashed.

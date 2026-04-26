@@ -172,6 +172,8 @@
 {%- macro get_actor(actor_id) -%}/api/actors/{{ actor_id }}{%- endmacro -%}
 {%- macro actor_events(actor_id) -%}/api/actors/{{ actor_id }}/events{%- endmacro -%}
 {%- macro actor_input(actor_id) -%}/api/actors/{{ actor_id }}/input{%- endmacro -%}
+{%- macro mesh_snapshot() -%}/api/v1/mesh/snapshot{%- endmacro -%}
+{%- macro kill_tree(actor_id) -%}/api/v1/actors/{{ actor_id }}/kill-tree{%- endmacro -%}
 {%- macro list_collections() -%}/api/v1/collections{%- endmacro -%}
 {%- macro get_collection_schema(collection) -%}/api/v1/collections/{{ collection }}/schema{%- endmacro -%}
 {%- macro update_collection_schema(collection) -%}/api/v1/collections/{{ collection }}/schema{%- endmacro -%}

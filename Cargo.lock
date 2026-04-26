@@ -3397,6 +3397,7 @@ dependencies = [
  "home",
  "indexmap",
  "jsonschema",
+ "libc",
  "minijinja",
  "nanoid",
  "notify",
