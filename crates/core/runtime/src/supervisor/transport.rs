@@ -126,6 +126,15 @@ impl ChildHandle {
     pub fn spawned_at(&self) -> chrono::DateTime<Utc> {
         self.spawned_at
     }
+
+    /// Non-blocking exit probe. `Some(code)` if the child has exited,
+    /// `None` if still running. Mostly useful immediately after the
+    /// output broadcast closes — the reader exits on EOF, then the
+    /// child status becomes available within a beat.
+    pub fn try_exit(&self) -> Option<i32> {
+        let mut guard = self.child.lock().unwrap();
+        guard.as_mut().and_then(|c| c.try_wait().ok().flatten())
+    }
 }
 
 impl Transport for PtyTransport {

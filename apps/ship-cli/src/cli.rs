@@ -373,6 +373,19 @@ pub enum DaemonCommands {
     Status,
     /// Remove orphaned worktrees for merged and failed jobs
     Cleanup,
+    /// Reconcile recorded migration checksums to the current files.
+    /// Non-destructive: touches only `_sqlx_migrations`, never any data
+    /// table. Use after merging branches that legitimately edited a
+    /// baseline migration file.
+    #[command(name = "repair-migrations")]
+    RepairMigrations {
+        /// Mark a migration version as applied without executing it.
+        /// Use when a migration's effects already landed via a renamed
+        /// file (running it would fail on duplicate columns / existing
+        /// tables). Schema-level no-op; only writes the bookkeeping row.
+        #[arg(long, value_name = "VERSION")]
+        mark_applied: Option<i64>,
+    },
     /// Run the daemon in the foreground (internal — used by `start`, also useful for Docker/systemd)
     #[command(hide = true)]
     Run {

@@ -72,6 +72,10 @@ impl ActorHandle {
     pub fn is_alive(&self) -> bool {
         self.child.is_alive()
     }
+
+    pub fn try_exit(&self) -> Option<i32> {
+        self.child.try_exit()
+    }
 }
 
 /// Spawn an actor according to `profile`. The daemon mints the actor

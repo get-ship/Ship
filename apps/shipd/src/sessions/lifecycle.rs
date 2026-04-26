@@ -251,99 +251,22 @@ pub fn send_agent_message(
     // fast to the HTTP handler; the spawned process + reader continue.
     set_status(&session.0, SessionStatus::Thinking);
 
-    let session_clone = session.clone();
     let adapter_id = adapter.id().to_string();
-    std::thread::spawn(move || {
-        if let Err(e) = run_agent_turn(&session_clone, &launch, &adapter_id, work_dir) {
-            tracing::error!(session = %session_clone.0.meta.lock().unwrap().id, error = %e, "agent turn failed");
-            let _ = session_clone.0.event_tx.send(
-                runtime::services::provider_adapter::ProviderEvent::Message {
-                    text: format!("[ship] turn failed: {e}"),
-                },
-            );
-            set_status(&session_clone.0, SessionStatus::Idle);
-        }
-    });
-
-    Ok(())
-}
-
-fn run_agent_turn(
-    session: &PtySession,
-    launch: &LaunchCommand,
-    provider_id: &str,
-    work_dir: PathBuf,
-) -> Result<()> {
-    use std::io::BufRead;
-    use std::process::{Command, Stdio};
-
-    let mut cmd = Command::new(&launch.bin);
-    for arg in &launch.args {
-        cmd.arg(arg);
-    }
-    cmd.current_dir(&work_dir);
-    for (k, v) in &launch.env {
-        cmd.env(k, v);
-    }
-    // Advertised to the MCP server so `chat_reply` knows which session
-    // bubble to target without the agent having to carry the id.
-    cmd.env("SHIP_ACTOR_ID", &session.0.meta.lock().unwrap().id);
-    cmd.stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    let mut child = cmd
-        .spawn()
-        .with_context(|| format!("spawn {}", launch.bin))?;
-    {
-        let mut m = session.0.meta.lock().unwrap();
-        m.pid = child.id().into();
-        m.last_activity = Utc::now();
+    if let Err(e) = super::agent_actor::run_headless_turn(
+        session.clone(),
+        launch,
+        adapter_id,
+        work_dir,
+    ) {
+        tracing::error!(session = %session.0.meta.lock().unwrap().id, error = %e, "headless turn spawn failed");
+        let _ = session.0.event_tx.send(
+            runtime::services::provider_adapter::ProviderEvent::Message {
+                text: format!("[ship] turn failed: {e}"),
+            },
+        );
+        set_status(&session.0, SessionStatus::Idle);
     }
 
-    let stdout = child.stdout.take().ok_or_else(|| anyhow!("no stdout"))?;
-    let log_path = session.0.log_path.clone();
-    let adapter = adapter_for(provider_id).map_err(|e| anyhow!(e))?;
-    let mut log = std::fs::OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(&log_path)
-        .ok();
-
-    let reader = std::io::BufReader::new(stdout);
-    for line in reader.lines() {
-        let Ok(line) = line else { continue };
-        if let Some(ref mut f) = log {
-            let _ = writeln!(f, "{line}");
-        }
-        // Broadcast raw for terminal/raw-mode subscribers.
-        let _ = session
-            .0
-            .output_tx
-            .send((line.clone() + "\n").into_bytes());
-        if let Some(ev) = adapter.parse_output(&line) {
-            // Capture provider session id for next-turn --resume.
-            if let runtime::services::provider_adapter::ProviderEvent::SessionStarted {
-                session_id: sid,
-            } = &ev
-            {
-                let mut m = session.0.meta.lock().unwrap();
-                m.provider_session_id = Some(sid.clone());
-            }
-            let _ = session.0.event_tx.send(ev);
-            let mut m = session.0.meta.lock().unwrap();
-            m.last_activity = Utc::now();
-        }
-    }
-
-    let status = child.wait().ok();
-    let mut m = session.0.meta.lock().unwrap();
-    m.status = SessionStatus::Idle;
-    m.last_activity = Utc::now();
-    m.pid = None;
-    if let Some(s) = status {
-        m.exit_code = Some(s.code().unwrap_or(-1));
-    }
     Ok(())
 }
 

@@ -13,10 +13,11 @@
 //! 3. Updates the sidecar `SessionMeta` (status, last_activity).
 //! 4. Emits `actor.stopped` when the byte stream closes.
 //!
-//! Per-turn providers (codex, opencode, cursor, gemini) are NOT migrated
-//! here — they have no live process between turns. Those stay on the
-//! legacy path until per-turn spawns can be folded into the supervisor
-//! as one-shot transports.
+//! Per-turn providers (codex, opencode, cursor, gemini) keep their
+//! parent metadata on the legacy `SessionRegistry` (no persistent
+//! child between turns), but `run_headless_turn` spawns the per-turn
+//! child through the supervisor's Headless transport — same primitive,
+//! different lifetime.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -205,6 +206,106 @@ fn spawn_reader_middleware(
             );
         });
     });
+}
+
+/// Run a per-turn headless agent through the supervisor.
+///
+/// Per-turn "sessions" (metadata + event_tx) keep living on the legacy
+/// `SessionRegistry` — they have no persistent child between turns, so
+/// they don't fit ActorRegistry's "live ActorHandle" model. But the
+/// child for each turn now spawns through the supervisor: fresh actor
+/// id per turn, Headless transport, lifetime bounded by the turn.
+///
+/// Stream-json on stdout drains through the provider adapter and the
+/// parsed `ProviderEvent`s forward to the parent session's event_tx
+/// (so SSE consumers tailing /events keep working). Child exit
+/// captures exit code into the parent session meta and flips status
+/// back to Idle.
+pub fn run_headless_turn(
+    session: super::types::PtySession,
+    launch: runtime::services::dispatch_ports::LaunchCommand,
+    provider_id: String,
+    work_dir: PathBuf,
+) -> Result<()> {
+    let profile = ActorProfile {
+        actor_id_hint: None,
+        kind: ActorKind::Agent,
+        transport: TransportKind::Headless,
+        one_shot: true,
+        bin: launch.bin,
+        args: launch.args,
+        env: launch.env,
+        work_dir,
+        workspace_id: None,
+        agent_id: None,
+        provider: Some(provider_id.clone()),
+        parent_actor_id: Some(session.0.meta.lock().unwrap().id.clone()),
+        log_dir: None,
+        subscribe_namespaces: vec![],
+    };
+
+    let handle = spawn_actor(profile)?;
+    let mut rx = handle.subscribe_output();
+    let session_clone = session.clone();
+    let handle_for_wait = handle.clone();
+
+    tokio::spawn(async move {
+        let adapter = match adapter_for(&provider_id) {
+            Ok(a) => a,
+            Err(e) => {
+                tracing::error!(provider = %provider_id, "adapter lookup failed: {e}");
+                return;
+            }
+        };
+        let mut line_buf = String::new();
+        loop {
+            match rx.recv().await {
+                Ok(chunk) => {
+                    let _ = session_clone.0.output_tx.send(chunk.clone());
+                    line_buf.push_str(&String::from_utf8_lossy(&chunk));
+                    while let Some(nl) = line_buf.find('\n') {
+                        let line: String = line_buf.drain(..=nl).collect();
+                        let trimmed = line.trim_end_matches(['\n', '\r']);
+                        if trimmed.is_empty() {
+                            continue;
+                        }
+                        if let Some(ev) = adapter.parse_output(trimmed) {
+                            if let ProviderEvent::SessionStarted { session_id } = &ev {
+                                let mut m = session_clone.0.meta.lock().unwrap();
+                                m.provider_session_id = Some(session_id.clone());
+                            }
+                            let _ = session_clone.0.event_tx.send(ev);
+                            let mut m = session_clone.0.meta.lock().unwrap();
+                            m.last_activity = chrono::Utc::now();
+                        }
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+            }
+        }
+
+        // Stream closed = child done. Poll briefly for exit code (the
+        // reader threads exit slightly before the OS marks the child
+        // reapable).
+        let exit = (0..40).find_map(|_| {
+            if let Some(c) = handle_for_wait.try_exit() {
+                Some(c)
+            } else {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                None
+            }
+        });
+        let mut m = session_clone.0.meta.lock().unwrap();
+        m.status = super::types::SessionStatus::Idle;
+        m.last_activity = chrono::Utc::now();
+        m.pid = None;
+        if let Some(code) = exit {
+            m.exit_code = Some(code);
+        }
+    });
+
+    Ok(())
 }
 
 #[derive(Default)]

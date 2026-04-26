@@ -28,6 +28,7 @@ pub enum DaemonCommand {
     Restart { host: String, dev: bool },
     Status,
     Cleanup,
+    RepairMigrations { mark_applied: Option<i64> },
     Run { host: String, port: u16, dev: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
     Supervise { host: String, dev: bool },
@@ -100,6 +101,7 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
         }
         DaemonCommand::Status => daemon_status(),
         DaemonCommand::Cleanup => daemon_cleanup(),
+        DaemonCommand::RepairMigrations { mark_applied } => daemon_repair_migrations(mark_applied),
         DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
         DaemonCommand::InstallService { shipd_path, no_start, no_autostart } => {
@@ -721,6 +723,59 @@ fn format_relative_time(ts: &str) -> String {
     } else {
         format!("{}d ago", secs / 86400)
     }
+}
+
+fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
+    use runtime::db::repair;
+
+    let global_dir = runtime::project::get_global_dir()
+        .context("resolve global ship dir")?;
+    let db_path = global_dir.join("platform.db");
+    if !db_path.exists() {
+        println!("no platform.db at {} — nothing to repair", db_path.display());
+        return Ok(());
+    }
+    let mut conn = runtime::db::open_db_at(&db_path)?;
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()
+        .context("build tokio runtime")?;
+
+    if let Some(version) = mark_applied {
+        let inserted =
+            rt.block_on(async { repair::mark_applied(&mut conn, version).await })?;
+        if inserted {
+            println!("marked migration {version} as applied (no SQL executed)");
+        } else {
+            println!("migration {version} already recorded — nothing to do");
+        }
+        return Ok(());
+    }
+
+    let report = rt.block_on(async move { repair::repair_migrations(&mut conn).await })?;
+
+    println!("migration repair: {}", db_path.display());
+    println!("  updated:   {} migrations", report.updated.len());
+    if !report.updated.is_empty() {
+        println!("    versions: {:?}", report.updated);
+    }
+    println!("  unchanged: {} migrations", report.unchanged.len());
+    if !report.orphaned.is_empty() {
+        println!(
+            "  orphaned (recorded but no embedded migration — investigate): {:?}",
+            report.orphaned
+        );
+    }
+    if !report.pending.is_empty() {
+        println!(
+            "  pending (embedded but not yet applied): {:?}",
+            report.pending
+        );
+    }
+    if report.updated.is_empty() && report.orphaned.is_empty() {
+        println!("nothing to repair — checksums already match.");
+    }
+    Ok(())
 }
 
 fn daemon_cleanup() -> Result<()> {
