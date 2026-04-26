@@ -242,6 +242,18 @@ async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, Stri
         })
         .collect();
 
+    let total_msg_rate: u64 = enriched
+        .iter()
+        .filter_map(|a| a.get("msg_rate").and_then(|v| v.as_u64()))
+        .sum();
+    let total_rss_bytes: u64 = enriched
+        .iter()
+        .filter_map(|a| a.get("process").and_then(|p| p.get("rss_bytes")).and_then(|v| v.as_u64()))
+        .sum();
+    let platform_db_bytes = std::fs::metadata(state.ship_dir().join("platform.db"))
+        .ok()
+        .map(|m| m.len())
+        .unwrap_or(0);
     let system = json!({
         "uptime_secs": state.uptime().as_secs(),
         "kernel_actor_count": mesh.len(),
@@ -250,6 +262,9 @@ async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, Stri
             .iter()
             .filter(|a| a.get("process").map(|p| !p.is_null()).unwrap_or(false))
             .count(),
+        "total_msg_rate": total_msg_rate,
+        "total_rss_bytes": total_rss_bytes,
+        "platform_db_bytes": platform_db_bytes,
     });
 
     Ok(json!({
