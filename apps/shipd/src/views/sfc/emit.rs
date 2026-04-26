@@ -56,6 +56,15 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
         .map(|p| format!("\"{}\"", to_attr_name(&p.name)))
         .collect::<Vec<_>>()
         .join(", ");
+    // Camel-case prop names — used to look up props on the decoded
+    // object and to match attributeChangedCallback names back to signals.
+    let prop_names_camel_js = inputs
+        .schema
+        .props
+        .iter()
+        .map(|p| format!("\"{}\"", p.name))
+        .collect::<Vec<_>>()
+        .join(", ");
     let signal_names_js = inputs
         .schema
         .signals
@@ -74,6 +83,9 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
   const TEMPLATE = `{template_literal}`;
   const STYLE = `{style_literal}`;
   const PROP_NAMES = [{prop_names_js}];
+  // Camel-case prop names — used to seed per-instance signals and to
+  // route attributeChangedCallback updates back to the matching signal.
+  const PROP_NAMES_CAMEL = [{prop_names_camel_js}];
   const SIGNAL_NAMES = [{signal_names_js}];
   let __seq = 0;
   let __styleInjected = false;
@@ -108,6 +120,14 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
       for (const fn of this.__hooks.connect) {{
         try {{ fn(this); }} catch (e) {{ console.error("[ship:" + TAG + "] onConnect error:", e); }}
       }}
+    }}
+    attributeChangedCallback(attrName, _old, newValue) {{
+      // When a host attribute changes after mount, sync the matching
+      // prop signal so templates and effects react. The attribute name
+      // is kebab-case; map back to the camelCase prop / signal name.
+      const camel = attrName.replace(/-([a-z])/g, function(_, c) {{ return c.toUpperCase(); }});
+      const sig = this.__signals[camel];
+      if (sig && typeof sig.set === "function") sig.set(newValue);
     }}
     disconnectedCallback() {{
       if (this.__patchListener) {{
@@ -167,6 +187,13 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
     }}
     __bootstrap(props) {{
       const host = this;
+      // Auto-seed a per-instance signal for every declared prop so
+      // templates can reference `$<propName>` directly and stay reactive
+      // when attributes change. Prop signals share the same scoped key
+      // namespace as user-declared signals.
+      for (const name of PROP_NAMES_CAMEL) {{
+        host.__makeSignal(name, props[name]);
+      }}
       const onConnect = (fn) => host.__hooks.connect.push(fn);
       const onDisconnect = (fn) => host.__hooks.disconnect.push(fn);
       // composed: true so the event crosses shadow-DOM boundaries when
