@@ -23,7 +23,7 @@
         <ship-app-icon class="dash-logo" name="dashboard" variant="solid"
                        size="lg" radius="md" aria-hidden="true"></ship-app-icon>
         <div>
-          <h1 class="dash-title">Ship</h1>
+          <h1 class="dash-title">SHIP</h1>
           <p class="dash-workspace">
             {%- if settings is defined and settings.workspace_name is defined -%}
               {{ settings.workspace_name }}
@@ -165,10 +165,17 @@
                interactive
                navigable="/agents/{{ agent.id }}"
                class="dash-agent-tile">
-              <ship-avatar slot="leading" size="md" shape="square"
-                           identity-hue="{{ agent.id }}"
-                           initials="{{ agent_letter }}"
-                           name="{{ agent_name }}"></ship-avatar>
+              {#- Brand-aware leading avatar: routes through shared resolver
+                  so an agent with `icon: 'simpleicons:rust'` shows a Rust mark
+                  instead of an "R" letter tile. Falls back to initials when no
+                  icon is declared (current behavior preserved). -#}
+              {%- set _agent_id = agent.id -%}
+              {%- set _agent_name = agent_name -%}
+              {%- set _agent_icon = agent.icon if agent.icon is defined else '' -%}
+              {%- set _agent_letter = agent_letter -%}
+              {%- set _avatar_size = 'md' -%}
+              {%- set _avatar_shape = 'square' -%}
+              {% include '_shared/agent_avatar.html.j2' %}
               <div class="dash-agent-body">
                 <div class="dash-agent-head">
                   <span class="dash-agent-name">{{ agent_name }}</span>
