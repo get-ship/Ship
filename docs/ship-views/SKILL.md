@@ -16,4 +16,6 @@ Three pages for views:
 - **[Manifest & SDK reference](/reference/ship-views/reference/)** — `manifest.json` fields, the `_ship.html.j2` macro surface, signal/bind/event conventions.
 - **[Runtime](/reference/views/runtime/)** — shipd's view serving stack: resolve, render, session registry, SSE topics, ship-elements bundling.
 
+For **authoring custom components** (`<my-tag>` elements you write to compose into views), see the **`ship-components`** skill — `.ship` single-file components with props, signals, lifecycle, and scoped styles.
+
 The operational counterpart is `.ship/skills/ship-views/SKILL.md` — a bundled skill agents load when authoring views. Different audience, overlapping content. The bundled skill teaches you to write a view; this reference describes what Ship provides.
