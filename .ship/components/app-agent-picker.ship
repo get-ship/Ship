@@ -1,10 +1,11 @@
 <script>
-  // Agent + provider picker for the chat modal. Renders before a session
-  // is established; on selection, emits `select` with {agentId, provider}
-  // for the parent (<app-agent-modal>) to spawn-or-attach against.
+  // Agent + provider picker for the chat modal. Renders before a
+  // session is established; on selection emits `select` with
+  // {agentId, provider} for the parent (<app-agent-modal>) to spawn-
+  // or-attach against.
   //
-  // Props:
-  //   default-agent     — pre-select this id (string match on agent.id)
+  // Props (auto-signal: $defaultAgent / $defaultProvider work directly)
+  //   default-agent     — pre-select this id
   //   default-provider  — pre-select this provider id
   //
   // Emits:
@@ -12,44 +13,46 @@
   //   cancel  — operator dismissed without picking
   const { defaultAgent = '', defaultProvider = '' } = props
 
-  const $agents = signal([])
-  const $providers = signal([])
+  // Mount-time fetches. AbortSignal wired to disconnectedCallback so
+  // unmounting mid-request cancels cleanly.
+  const $agentsResp = data(({ signal }) =>
+    fetch('/api/v1/agents', { signal, credentials: 'same-origin' })
+      .then(r => r.json())
+  )
+  const $providersResp = data(({ signal }) =>
+    fetch('/api/v1/providers/installed', { signal, credentials: 'same-origin' })
+      .then(r => r.json())
+  )
+
+  // Selection — internal state, separate from the prop defaults.
   const $agentId = signal('')
   const $provider = signal('')
-  const $loading = signal(true)
-  const $error = signal('')
 
-  async function load() {
-    $loading.set(true)
-    $error.set('')
-    try {
-      const [agentsRes, providersRes] = await Promise.all([
-        fetch('/api/v1/agents', { credentials: 'include' }),
-        fetch('/api/v1/providers/installed', { credentials: 'include' }),
-      ])
-      if (!agentsRes.ok) throw new Error(`agents ${agentsRes.status}`)
-      if (!providersRes.ok) throw new Error(`providers ${providersRes.status}`)
-      const agentsBody = await agentsRes.json()
-      const providersBody = await providersRes.json()
-      const agents = agentsBody.items ?? agentsBody.data?.agents ?? agentsBody.data ?? []
-      const providers = providersBody.providers ?? []
-      $agents.set(agents)
-      $providers.set(providers)
-
-      // Pre-select defaults if available; else first option.
-      const wantAgent = props.defaultAgent || agents[0]?.id || ''
-      if (agents.find(a => a.id === wantAgent)) $agentId.set(wantAgent)
-      else if (agents[0]) $agentId.set(agents[0].id)
-
-      const wantProvider = props.defaultProvider || providers[0] || ''
-      if (providers.includes(wantProvider)) $provider.set(wantProvider)
-      else if (providers[0]) $provider.set(providers[0])
-    } catch (e) {
-      $error.set(`load failed: ${e?.message ?? e}`)
-    } finally {
-      $loading.set(false)
+  // Derive the selectable lists from the fetch results. The
+  // /agents endpoint returns { ok, items }; /providers/installed
+  // returns { providers }.
+  const $agents = signal([])
+  const $providers = signal([])
+  effect($agentsResp, () => {
+    const r = $agentsResp.get()
+    if (!r) return
+    const list = r.items ?? r.data?.agents ?? r.data ?? []
+    $agents.set(list)
+    if (!$agentId.get()) {
+      const want = props.defaultAgent
+      $agentId.set(list.find(a => a.id === want) ? want : (list[0]?.id ?? ''))
     }
-  }
+  })
+  effect($providersResp, () => {
+    const r = $providersResp.get()
+    if (!r) return
+    const list = r.providers ?? []
+    $providers.set(list)
+    if (!$provider.get()) {
+      const want = props.defaultProvider
+      $provider.set(list.includes(want) ? want : (list[0] ?? ''))
+    }
+  })
 
   function commit() {
     const agentId = $agentId.get()
@@ -58,29 +61,23 @@
     emit('select', { agentId, provider })
   }
 
-  function cancel() {
-    emit('cancel')
-  }
+  function cancel() { emit('cancel') }
 
   function onKey(e) {
     if (e.key === 'Enter') { e.preventDefault(); commit() }
     if (e.key === 'Escape') { e.preventDefault(); cancel() }
   }
 
-  onConnect(host => {
-    load()
-    host.addEventListener('keydown', onKey)
-  })
+  onConnect(host => host.addEventListener('keydown', onKey))
 </script>
 
 <div class="picker">
-  <div class="state" data-show="$loading">loading agents…</div>
-  <div class="state error" data-show="$error" data-text="$error"></div>
+  <div class="state" data-show="!$agentsResp || !$providersResp">loading…</div>
 
-  <div class="row" data-show="!$loading && !$error">
+  <div class="row" data-show="$agentsResp && $providersResp">
     <label class="field">
       <span class="label">Agent</span>
-      <select data-bind:value="$agentId" data-attr:disabled="$loading">
+      <select data-bind:value="$agentId">
         <template data-for="a in $agents" data-key="a.id">
           <option data-attr:value="a.id" data-text="a.id"></option>
         </template>
@@ -89,7 +86,7 @@
 
     <label class="field">
       <span class="label">Provider</span>
-      <select data-bind:value="$provider" data-attr:disabled="$loading">
+      <select data-bind:value="$provider">
         <template data-for="p in $providers" data-key="p">
           <option data-attr:value="p" data-text="p"></option>
         </template>
@@ -97,7 +94,7 @@
     </label>
   </div>
 
-  <div class="actions" data-show="!$loading && !$error">
+  <div class="actions" data-show="$agentsResp && $providersResp">
     <button type="button" class="ghost" data-on:click="cancel">Cancel</button>
     <button type="button" class="primary"
             data-on:click="commit"
@@ -115,7 +112,6 @@
     padding: var(--ship-space-4);
   }
   .state { color: var(--ship-color-muted); font-size: 0.875rem; }
-  .state.error { color: var(--ship-color-danger, var(--ship-color-muted)); }
   .row { display: flex; gap: var(--ship-space-3); flex-wrap: wrap; }
   .field { display: flex; flex-direction: column; gap: var(--ship-space-1); flex: 1; min-width: 12rem; }
   .label {
@@ -133,26 +129,14 @@
     font-family: inherit;
     font-size: inherit;
   }
-  .actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: var(--ship-space-2);
-  }
+  .actions { display: flex; justify-content: flex-end; gap: var(--ship-space-2); }
   button {
     padding: var(--ship-space-2) var(--ship-space-4);
     border-radius: var(--ship-radius-md, 6px);
     font-family: inherit;
     cursor: pointer;
   }
-  .ghost {
-    background: transparent;
-    border: 1px solid var(--ship-color-border);
-    color: var(--ship-color-foreground);
-  }
-  .primary {
-    background: var(--ship-color-accent);
-    color: var(--ship-color-on-accent, white);
-    border: 1px solid var(--ship-color-accent);
-  }
+  .ghost { background: transparent; border: 1px solid var(--ship-color-border); color: var(--ship-color-foreground); }
+  .primary { background: var(--ship-color-accent); color: var(--ship-color-on-accent, white); border: 1px solid var(--ship-color-accent); }
   .primary:disabled, .ghost:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

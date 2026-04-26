@@ -1,29 +1,30 @@
 <script>
   // Top container: cmdk-style overlay that hosts the agent thread +
   // composer. Listens for window-level ship:chat:* events to drive
-  // open/close/spawn-or-attach. Phase 1: auto-attaches to a default
-  // (agent_id, provider) pair on first open; phase 2 swaps in
-  // <app-agent-picker> for selection.
+  // open/close/spawn-or-attach. Picker (<app-agent-picker>) opens
+  // first when no defaults; explicit default-agent / default-provider
+  // attrs skip the picker.
   //
-  // Props:
-  //   default-agent     — agent id to spawn-or-attach for
+  // Props (auto-signal):
+  //   default-agent     — agent id to spawn-or-attach (skip picker)
   //   default-provider  — provider id (claude, codex, ...)
-  //   workspace-id      — optional, falls back to '' (daemon resolves)
-  const {
-    defaultAgent = 'shipwright',
-    defaultProvider = 'claude',
-    workspaceId = '',
-  } = props
+  //   workspace-id      — daemon resolves '' to current workspace
+  //
+  // Host attrs reflected for outside CSS/parent observation:
+  //   open  — present while the modal is mounted
+  //   session-id  — current session id (after spawn)
+  const { defaultAgent = '', defaultProvider = '', workspaceId = '' } = props
 
   const $open = signal(false)
   const $sessionId = signal('')
   const $spawning = signal(false)
   const $error = signal('')
   const $pickerOpen = signal(false)
-  // Once-per-session label so the modal head shows what we're chatting
-  // with after a pick. Falls back to props on first open.
   const $activeAgent = signal('')
   const $activeProvider = signal('')
+
+  reflectAttr('open', $open)
+  reflectAttr('session-id', $sessionId)
 
   async function ensureSession(agentId, provider) {
     if ($sessionId.get()) return $sessionId.get()
@@ -34,7 +35,7 @@
       const r = await fetch('/api/v1/sessions/spawn', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        credentials: 'same-origin',
         body: JSON.stringify({
           workspace_id: props.workspaceId,
           kind: 'agent',
@@ -68,52 +69,31 @@
     else $pickerOpen.set(false)
   }
 
-  function changeAgent() {
-    $pickerOpen.set(true)
-  }
+  function changeAgent() { $pickerOpen.set(true) }
 
   async function open() {
     $open.set(true)
     if ($sessionId.get()) return
-    // First open with no remembered defaults: show picker. With
-    // explicit defaults set on the host element: spawn directly.
     if (props.defaultAgent && props.defaultProvider) {
       await ensureSession(props.defaultAgent, props.defaultProvider)
     } else {
       $pickerOpen.set(true)
     }
   }
+  function close()  { $open.set(false) }
+  function toggle() { $open.get() ? close() : open() }
 
-  function close() {
-    $open.set(false)
-  }
-
-  function toggle() {
-    if ($open.get()) close()
-    else open()
-  }
-
-  function onOpen(e) { open() }
-  function onClose(e) { close() }
-  function onToggle(e) { toggle() }
-  function onAnnotate(e) {
-    // Annotation arriving while modal is closed → open + stack the
-    // annotation. The composer's own listener will catch it.
-    if (!$open.get()) open()
-  }
+  function onOpen()     { open() }
+  function onClose()    { close() }
+  function onToggle()   { toggle() }
+  function onAnnotate() { if (!$open.get()) open() }
 
   function onKey(e) {
-    if (e.key === 'Escape' && $open.get()) {
-      e.preventDefault()
-      close()
-    }
-    if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
-      e.preventDefault()
-      toggle()
-    }
+    if (e.key === 'Escape' && $open.get()) { e.preventDefault(); close() }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'j') { e.preventDefault(); toggle() }
   }
 
-  onConnect(el => {
+  onConnect(() => {
     window.addEventListener('ship:chat:open', onOpen)
     window.addEventListener('ship:chat:close', onClose)
     window.addEventListener('ship:chat:toggle', onToggle)
@@ -146,8 +126,8 @@
 
     <app-agent-picker
       data-show="$pickerOpen"
-      data-attr:default-agent="props.defaultAgent || $activeAgent"
-      data-attr:default-provider="props.defaultProvider || $activeProvider"
+      data-attr:default-agent="$defaultAgent || $activeAgent"
+      data-attr:default-provider="$defaultProvider || $activeProvider"
       data-on:select="onPick(event)"
       data-on:cancel="onPickerCancel">
     </app-agent-picker>
@@ -159,21 +139,15 @@
 
 <style>
   .agent-modal {
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(0, 0, 0, 0.4);
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 10vh;
-    z-index: 9000;
+    display: flex; align-items: flex-start; justify-content: center;
+    padding-top: 10vh; z-index: 9000;
     backdrop-filter: blur(2px);
   }
   .modal-card {
-    width: min(720px, 90vw);
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
+    width: min(720px, 90vw); max-height: 80vh;
+    display: flex; flex-direction: column;
     background: var(--ship-color-background);
     border: 1px solid var(--ship-color-border);
     border-radius: var(--ship-radius-lg, 8px);
@@ -181,43 +155,33 @@
     overflow: hidden;
   }
   .modal-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: flex; align-items: center; justify-content: space-between;
     padding: var(--ship-space-3) var(--ship-space-4);
     border-bottom: 1px solid var(--ship-color-border);
   }
   .title { font-weight: 600; }
   .title.placeholder { color: var(--ship-color-muted); font-weight: 500; }
   .title-btn {
-    display: inline-flex;
-    align-items: baseline;
-    gap: var(--ship-space-1);
-    background: transparent;
-    border: 1px solid transparent;
+    display: inline-flex; align-items: baseline; gap: var(--ship-space-1);
+    background: transparent; border: 1px solid transparent;
     border-radius: var(--ship-radius-md, 6px);
     padding: var(--ship-space-1) var(--ship-space-2);
-    font-family: inherit;
-    font-size: inherit;
-    color: var(--ship-color-foreground);
-    cursor: pointer;
+    font-family: inherit; font-size: inherit;
+    color: var(--ship-color-foreground); cursor: pointer;
   }
   .title-btn:hover { border-color: var(--ship-color-border); background: var(--ship-color-surface); }
   .title-btn:disabled { opacity: 0.6; cursor: not-allowed; }
   .swap-hint { color: var(--ship-color-muted); font-size: 0.75rem; margin-left: var(--ship-space-1); }
   .provider { color: var(--ship-color-muted); font-weight: 400; }
   .close {
-    background: none;
-    border: none;
+    background: none; border: none;
     color: var(--ship-color-foreground);
-    font-size: 1.25rem;
-    cursor: pointer;
+    font-size: 1.25rem; cursor: pointer;
     padding: 0 var(--ship-space-2);
   }
   .state {
     padding: var(--ship-space-2) var(--ship-space-4);
-    color: var(--ship-color-muted);
-    font-size: 0.875rem;
+    color: var(--ship-color-muted); font-size: 0.875rem;
   }
   .state.error { color: var(--ship-color-danger, var(--ship-color-muted)); }
 </style>
