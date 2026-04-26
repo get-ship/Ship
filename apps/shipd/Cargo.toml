@@ -69,6 +69,10 @@ jsonschema = { version = "0.46", default-features = false }
 # Windows). Used by ProcessExecutor so spawned agents see a real TTY —
 # stream-json and human output stay line-buffered, isatty checks work.
 portable-pty = "0.9"
+# Regex used by the SFC pipeline (apps/shipd/src/views/sfc) for block
+# splitting and signal-attribute rewriting. The patterns are small and
+# anchored — full PCRE features are not required.
+regex = "1"
 
 [features]
 unstable = ["runtime/unstable"]

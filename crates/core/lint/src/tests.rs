@@ -558,6 +558,26 @@ fn ast_real_git_view_baseline() {
 }
 
 #[test]
+fn collect_view_files_includes_ship_extension() {
+    let tmp = TempDir::new().unwrap();
+    write(tmp.path(), "demo/index.html.j2", "<div></div>\n");
+    write(
+        tmp.path(),
+        "demo/widget.ship",
+        "<script>const $x = signal(0)</script>\n<div></div>\n",
+    );
+    write(tmp.path(), "demo/notes.txt", "ignored\n");
+    let files = collect_view_files(&tmp.path().join("demo"));
+    let names: Vec<String> = files
+        .iter()
+        .map(|p| p.file_name().unwrap().to_string_lossy().into_owned())
+        .collect();
+    assert!(names.contains(&"index.html.j2".to_string()), "{names:?}");
+    assert!(names.contains(&"widget.ship".to_string()), "{names:?}");
+    assert!(!names.contains(&"notes.txt".to_string()), "{names:?}");
+}
+
+#[test]
 fn stale_pack_ignores_unknown_pack_names() {
     let tmp = TempDir::new().unwrap();
     write(

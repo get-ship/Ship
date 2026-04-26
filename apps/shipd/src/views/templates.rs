@@ -310,6 +310,14 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
         return Ok(source.to_string());
     }
 
+    // SDK macro globalization: prepend `{% from '_ship.html.j2' import ... %}`
+    // unless the source already imports the SDK explicitly. This lets views
+    // call SDK macros (head, signal, show, live, ...) without an import line.
+    // The owned `String` is kept for the lifetime of this call; it's hashed
+    // and (on cache miss) leaked into the env, same as before.
+    let effective_source = super::sdk_macros::maybe_inject(source);
+    let effective: &str = effective_source.as_str();
+
     // Scan siblings upfront so the cache key reflects both the top
     // template and every partial it can {% include %}. Editing a
     // partial without touching the top file must invalidate the cache.
@@ -317,7 +325,7 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
     let cache_key = format!(
         "{}:{:x}:{:x}",
         name,
-        source_hash(source),
+        source_hash(effective),
         siblings_hash(&sibling_sources),
     );
     {
@@ -369,8 +377,10 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
         let leaked_s: &'static str = Box::leak(s.into_boxed_str());
         let _ = local_env.add_template(leaked_n, leaked_s);
     }
-    // Add the view source as a named template.
-    let leaked_source: &'static str = Box::leak(source.to_string().into_boxed_str());
+    // Add the view source as a named template. The SDK-prelude-injected
+    // form is what minijinja parses; the original `source` is retained for
+    // error overlays so line numbers line up with what the author wrote.
+    let leaked_source: &'static str = Box::leak(effective.to_string().into_boxed_str());
     let leaked_name: &'static str = Box::leak(name.to_string().into_boxed_str());
     if let Err(e) = local_env.add_template(leaked_name, leaked_source) {
         let msg = format!("view '{name}' template parse error: {e}");

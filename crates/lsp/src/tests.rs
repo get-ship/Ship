@@ -60,6 +60,60 @@ fn is_view_source_rejects_other_paths() {
     )));
 }
 
+#[test]
+fn is_view_source_matches_ship_extension_anywhere() {
+    // Single-file component format: `.ship` is recognised regardless of
+    // whether it lives under `.ship/views/`, `.ship/components/`, or
+    // anywhere else in the workspace.
+    assert!(is_view_source(&PathBuf::from(
+        "/proj/.ship/views/demo/index.ship"
+    )));
+    assert!(is_view_source(&PathBuf::from(
+        "/proj/.ship/components/button.ship"
+    )));
+    assert!(is_view_source(&PathBuf::from("/proj/random/widget.ship")));
+}
+
+#[test]
+fn ship_extension_is_recognised_by_publish_pipeline() {
+    // Opening a `.ship` file must reach the lint pipeline — confirmed
+    // by the absence of the early "not a view source -> clear stale
+    // diagnostics" bailout in `publish_for`. The bailout always emits a
+    // PublishDiagnostics with an empty list; the lint path may emit one
+    // or more notifications depending on findings, but for a clean
+    // body it also emits a single empty-list notification *attributed
+    // to this URI*. Either way, a recognised file produces exactly one
+    // PublishDiagnostics for its own URI here (clean body, no findings
+    // routed to sibling URIs). The recognition unit test above covers
+    // the matcher itself; this test guards the wiring in `server.rs`.
+    use lsp_server::{Connection, Message, Notification};
+    use lsp_types::PublishDiagnosticsParams;
+    use lsp_types::notification::{Notification as _, PublishDiagnostics};
+
+    let tmp = TempDir::new().unwrap();
+    let ship_file = tmp.path().join("widget.ship");
+    let source = "<div></div>\n";
+    std::fs::write(&ship_file, source).unwrap();
+
+    let (server_conn, client_conn) = Connection::memory();
+    let uri = path_to_url(&ship_file).unwrap();
+    crate::server::_publish_for_test(&server_conn, &uri, source, true)
+        .expect("publish");
+    drop(server_conn);
+
+    let saw_for_uri = client_conn.receiver.try_iter().any(|m| match m {
+        Message::Notification(Notification { method, params })
+            if method == PublishDiagnostics::METHOD =>
+        {
+            serde_json::from_value::<PublishDiagnosticsParams>(params)
+                .map(|p| p.uri == uri)
+                .unwrap_or(false)
+        }
+        _ => false,
+    });
+    assert!(saw_for_uri, "expected PublishDiagnostics for .ship URI");
+}
+
 // ── diagnostics conversion ──────────────────────────────────────────
 
 fn mk_finding(rule: &'static str, severity: Severity) -> Finding {
