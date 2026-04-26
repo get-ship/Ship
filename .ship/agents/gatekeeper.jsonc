@@ -4,6 +4,7 @@
   "agent": {
     "id": "gatekeeper",
     "name": "Gatekeeper",
+    "icon": "shield-check",
     "version": "0.2.0",
     "description": "Gates job branches against acceptance criteria and reviews PRs for security, correctness, and architecture drift.",
     "tags": ["gate", "review", "security", "pr", "code-quality"],

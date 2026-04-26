@@ -4,6 +4,7 @@
   "agent": {
     "id": "test-writer",
     "name": "Test Writer",
+    "icon": "flask-conical",
     "version": "0.1.0",
     "description": "Writes failing tests for behaviors that don't exist yet. Tests define the spec. They MUST fail — if a test passes, delete it. Never touches implementation code.",
     "tags": ["testing", "unit-tests", "integration", "quality"],

@@ -3,6 +3,7 @@
   "agent": {
     "id": "shipwright",
     "name": "Shipwright",
+    "icon": "wrench",
     "version": "0.1.0",
     "description": "Creates and iterates on Ship's own feature surfaces: views, skills, agents, pipelines, triggers, themes. Triggered by the shell's create dialog and by CLI. Stays live for the session so the user can iterate through chat while editing on disk.",
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],

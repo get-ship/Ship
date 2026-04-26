@@ -269,6 +269,13 @@ pub(crate) fn collect_siblings(name: &str) -> Vec<(String, String)> {
         let view_dir = views_root.join(view_name);
         let mut found: Vec<(String, String)> = Vec::new();
         walk_templates(&view_dir, &views_root, name, &mut found);
+        // Also pick up cross-view shared partials at `<views_root>/_shared/`.
+        // These let multiple views {% include '_shared/foo.html.j2' %} without
+        // duplicating partials inside each view dir.
+        let shared_dir = views_root.join("_shared");
+        if shared_dir.is_dir() {
+            walk_templates(&shared_dir, &views_root, name, &mut found);
+        }
         for (n, s) in found {
             if registered.insert(n.clone()) {
                 sibling_sources.push((n, s));

@@ -79,14 +79,14 @@ async function main() {
   // Wait for mesh-register.
   const meshDeadline = Date.now() + 25_000;
   while (Date.now() < meshDeadline) {
-    const { data } = await api("/api/mesh");
+    const { data } = await api("/api/v1/mesh");
     if ((data?.data?.actors ?? []).some((a) => a.actor_id === actorId)) break;
     await new Promise((r) => setTimeout(r, 1000));
   }
 
   // Hammer: 3 hooks + a chat turn. Maximizes write paths exercised.
   for (let i = 0; i < 3; i++) {
-    await api("/api/hooks/before-tool", {
+    await api("/api/v1/hooks/before-tool", {
       method: "POST",
       body: JSON.stringify({
         actor_id: actorId,
@@ -94,7 +94,7 @@ async function main() {
         tool_input: { i },
       }),
     });
-    await api("/api/hooks/after-tool", {
+    await api("/api/v1/hooks/after-tool", {
       method: "POST",
       body: JSON.stringify({
         actor_id: actorId,
@@ -103,7 +103,7 @@ async function main() {
       }),
     });
   }
-  await api(`/api/actors/${actorId}/input`, {
+  await api(`/api/v1/actors/${actorId}/input`, {
     method: "POST",
     body: JSON.stringify({ text: "loop3 probe" }),
   });

@@ -58,10 +58,10 @@ pub fn spawn_or_attach(
     }
 
     let adapter = adapter_for(provider).map_err(|e| anyhow!(e))?;
-    if !adapter.caps().channels {
+    if !adapter.caps().persistent_session {
         anyhow::bail!(
-            "agent_actor::spawn_or_attach: provider '{provider}' is not channels-capable; \
-             use the legacy per-turn path"
+            "agent_actor::spawn_or_attach: provider '{provider}' has no persistent-session \
+             support; respawn-per-turn is not handled here"
         );
     }
 
@@ -147,14 +147,18 @@ fn spawn_reader_middleware(
         }
         let menu_state = Arc::new(Mutex::new(MenuState::default()));
         let adapter = adapter_for(&provider).ok();
+        // Auto-dismiss only applies to Claude — the dev-channels TUI
+        // confirmation menu is Claude-specific. Other providers don't
+        // render it; running the matcher would just burn cycles + the
+        // 16K menu_buf budget for nothing.
+        let needs_menu_dismiss = provider == "claude";
         let mut line_buf = String::new();
 
         loop {
             match rx.recv().await {
                 Ok(chunk) => {
-                    // Auto-dismiss the dev-channels menu once.
-                    if try_dismiss_menu(&handle, &menu_state, &chunk) {
-                        // No-op; side-effect handled inside.
+                    if needs_menu_dismiss {
+                        try_dismiss_menu(&handle, &menu_state, &chunk);
                     }
 
                     // Provider parse → event_tx.
@@ -165,6 +169,19 @@ fn spawn_reader_middleware(
                             let trimmed = line.trim_end_matches(['\n', '\r']);
                             if !trimmed.is_empty() {
                                 if let Some(ev) = adapter.parse_output(trimmed) {
+                                    // Studio.reply parity: long-lived
+                                    // non-Claude providers (codex,
+                                    // opencode, cursor, gemini via stdin
+                                    // push) emit Message events here.
+                                    // Claude has its own chat_reply
+                                    // path; emitting again would be a
+                                    // double — but parse_output rarely
+                                    // produces Message from a Claude
+                                    // TUI rendering, so the duplicate
+                                    // case is unlikely in practice.
+                                    if let ProviderEvent::Message { text } = &ev {
+                                        emit_studio_reply(&actor_id, text);
+                                    }
                                     let _ = event_tx.send(ev);
                                 }
                             }
@@ -274,6 +291,17 @@ pub fn run_headless_turn(
                                 let mut m = session_clone.0.meta.lock().unwrap();
                                 m.provider_session_id = Some(session_id.clone());
                             }
+                            // Studio.reply parity: emit a kernel event on
+                            // every Message ProviderEvent so the chat
+                            // thread sees codex/opencode/cursor/gemini
+                            // replies on the same rail Claude uses via
+                            // chat_reply. Best-effort; in-memory event_tx
+                            // broadcast still fires below for SSE
+                            // consumers tailing /events.
+                            if let ProviderEvent::Message { text: msg } = &ev {
+                                let parent_id = session_clone.0.meta.lock().unwrap().id.clone();
+                                emit_studio_reply(&parent_id, msg);
+                            }
                             let _ = session_clone.0.event_tx.send(ev);
                             let mut m = session_clone.0.meta.lock().unwrap();
                             m.last_activity = chrono::Utc::now();
@@ -306,6 +334,42 @@ pub fn run_headless_turn(
     });
 
     Ok(())
+}
+
+/// Emit a `studio.reply` kernel event for `text` keyed on `actor_id`.
+/// Fire-and-forget — we're inside a non-async parse loop and don't
+/// want to block on kernel availability. Spawned on a std::thread so
+/// the block_on inside the kernel router doesn't deadlock the tokio
+/// runtime that's driving the reader.
+fn emit_studio_reply(actor_id: &str, text: &str) {
+    let actor_id = actor_id.to_string();
+    let text = text.to_string();
+    std::thread::spawn(move || {
+        let Some(kr) = runtime::events::kernel_router() else { return };
+        let payload = serde_json::json!({ "actor_id": &actor_id, "text": text });
+        let envelope = match runtime::events::EventEnvelope::new(
+            runtime::events::types::event_types::STUDIO_REPLY,
+            &actor_id,
+            &payload,
+        ) {
+            Ok(e) => e.with_actor_id(&actor_id).with_target(&actor_id),
+            Err(e) => {
+                tracing::debug!(actor = %actor_id, "studio.reply envelope failed: {e}");
+                return;
+            }
+        };
+        let ctx = runtime::events::EmitContext {
+            caller_kind: runtime::events::CallerKind::Runtime,
+            skill_id: None,
+            workspace_id: None,
+            session_id: None,
+        };
+        if let Err(e) = runtime::db::block_on_anyhow(async move {
+            kr.lock().await.emit(envelope, &ctx).await
+        }) {
+            tracing::debug!(actor = %actor_id, "studio.reply emit failed: {e}");
+        }
+    });
 }
 
 #[derive(Default)]

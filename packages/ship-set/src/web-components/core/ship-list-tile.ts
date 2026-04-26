@@ -168,6 +168,27 @@ export class ShipListTile extends LitElement {
         background: var(--card);
         border-color: var(--border-subtle);
         box-shadow: var(--shadow-card-rest);
+        backdrop-filter: var(--card-backdrop-filter);
+        -webkit-backdrop-filter: var(--card-backdrop-filter);
+        position: relative;
+      }
+      /* Card-texture overlay (token-driven, default none). Sits above
+       * the fill, below slotted content. Mirrors ship-card so a tile and
+       * a card on the same page share the same surface aesthetic. */
+      :host([variant='card']) .tile::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: var(--card-texture);
+        mix-blend-mode: var(--card-texture-blend);
+        opacity: var(--card-texture-opacity);
+        border-radius: inherit;
+        z-index: 0;
+      }
+      :host([variant='card']) .tile > * { position: relative; z-index: 1; }
+      @media (prefers-reduced-motion: reduce) {
+        :host([variant='card']) .tile::after { background: none; }
       }
       :host([variant='card']) .tile:hover {
         border-color: var(--tone-primary-border);

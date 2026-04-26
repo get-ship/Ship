@@ -58,16 +58,9 @@
 
     {#- File-routed view — data pulled inline via ship.* SDK. The
         `live()` directive still subscribes to the legacy SSE endpoint
-        for settings-save echo updates. -#}
-    {% set s = ship.settings.state() %}
-    {% set providers = s.providers %}
-    {% set default_provider = s.default_provider %}
-    {% set default_model = s.default_model %}
-    {% set terminal = s.terminal %}
-    {% set advanced_registry = s.advanced_registry %}
-    {% set daemon_endpoint = s.daemon_endpoint %}
-    {% set about = s.about %}
-
+        for settings-save echo updates. The `{% set %}` rehydration
+        lives inside content.html.j2 so SSE re-renders of the partial
+        in isolation still have all the variables they need. -#}
     <div id="settings-panel"
          {{ live('settings') }}>
       {% include 'settings/partials/content.html.j2' %}

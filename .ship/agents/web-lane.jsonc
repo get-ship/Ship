@@ -4,6 +4,7 @@
   "agent": {
     "id": "web-lane",
     "name": "Web Lane",
+    "icon": "simpleicons:javascript",
     "version": "0.1.0",
     "description": "Active context for the Web lane agent",
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],

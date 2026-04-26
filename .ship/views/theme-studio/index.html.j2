@@ -177,16 +177,27 @@
     data-effect="document.getElementById('ts-preview')?.setAttribute('style', $tokens_css); (async () => { try { const r = await fetch('/api/v1/themes/contrast', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tokens: $tokens }) }); if (r.ok) $report = await r.json(); } catch {} })()"
   ></div>
 
+  {#- Token list is rendered server-side from ship_tokens() (mirrors
+      packages/ship-set/tokens.json). Read-only for now — a future PR
+      will wire each row back into the $tokens preview signal. -#}
+  {% set _tokens_catalog = ship_tokens() %}
   <aside class="ts-editor">
     <h2>Tokens</h2>
-    <template data-for="name in Object.keys($tokens)">
+    {% for name, meta in _tokens_catalog.tokens|default({}) | items %}
       <div class="ts-row">
-        <label data-text="name"></label>
-        <span class="ts-swatch" data-attr-style="'background: ' + $tokens[name]"></span>
-        <input type="text" data-attr-value="$tokens[name]"
-               data-on-change="$tokens = {...$tokens, [name]: evt.target.value}" />
+        <label>{{ name }}</label>
+        {% if meta.type == 'color' %}
+          <span class="ts-swatch" style="background: {{ meta.default }}"></span>
+        {% else %}
+          <span class="ts-swatch" style="background: transparent; border-style: dashed"></span>
+        {% endif %}
+        <input type="text" value="{{ meta.default }}" readonly
+               aria-label="{{ name }} default value" />
+        {% if meta.intent %}
+          <span style="grid-column: 1 / -1; font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 2px">{{ meta.intent }}</span>
+        {% endif %}
       </div>
-    </template>
+    {% endfor %}
   </aside>
 
   <section class="ts-preview" id="ts-preview" data-theme-draft>

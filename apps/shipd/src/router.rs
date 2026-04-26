@@ -192,7 +192,7 @@ pub fn build_router(
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
         .merge(api_ship_routes)
-        .nest("/api", hook_routes)
+        .nest("/api/v1", hook_routes)
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
         .layer(axum::Extension(feedback_guard))
@@ -256,6 +256,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::GetActor_template(), actors_api::get_actor_handler)
         .ship_route(Route::ActorEvents_template(), actors_api::list_actor_events_handler)
         .ship_route(Route::ActorInput_template(), actors_api::actor_input_handler)
+        .ship_route(Route::MeshSnapshot, actors_api::mesh_snapshot_handler)
+        .ship_route(Route::MeshEventsStream, actors_api::mesh_events_handler)
+        .ship_route(Route::KillTree_template(), actors_api::kill_tree_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Runtime
@@ -526,8 +529,18 @@ pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Res
 pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<serde_json::Value> {
     let tasks = rt.health_registry().snapshot();
     let all_healthy = tasks.iter().all(|t| t.alive);
+    // Resolved project dir: workspace if attached, else the global dir
+    // (which is what the runtime falls back to for global-only mode).
+    let ship_dir = rt
+        .workspace_dir()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| rt.ship_dir().display().to_string());
     Json(serde_json::json!({
+        "ok": all_healthy,
         "healthy": all_healthy,
+        "version": env!("CARGO_PKG_VERSION"),
+        "commit": env!("SHIPD_GIT_COMMIT"),
+        "ship_dir": ship_dir,
         "pid": std::process::id(),
         "dev_mode": pairing::is_dev_mode(),
         "tasks": tasks,

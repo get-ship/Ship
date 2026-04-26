@@ -12,10 +12,9 @@
 //! - `unstable` feature extras: `actor_meta`, `event_log`, `actor_cursors`,
 //!   `spawn_actor_with_permissions*`, scope-filtered delivery
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-#[cfg(feature = "unstable")]
-use std::collections::HashMap;
 #[cfg(feature = "unstable")]
 use std::sync::Mutex;
 #[cfg(feature = "unstable")]
@@ -38,6 +37,47 @@ pub(crate) use ship_kernel::router::MAILBOX_CAPACITY;
 
 pub use ship_types::ActorConfig;
 
+/// Rolling per-actor event-rate counter. Six 10-second buckets cover
+/// a 60-second window; reads return events-per-minute scaled to the
+/// elapsed window. Stale buckets reset lazily on next bump or read.
+#[derive(Default)]
+struct RateCounter {
+    /// `(epoch_seconds_at_bucket_start, count)` for six 10s buckets.
+    buckets: [(u64, u32); 6],
+}
+
+impl RateCounter {
+    const BUCKET_SECS: u64 = 10;
+    const WINDOW_SECS: u64 = 60;
+
+    fn now() -> u64 {
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    }
+
+    fn bump(&mut self) {
+        let now = Self::now();
+        let bucket_start = (now / Self::BUCKET_SECS) * Self::BUCKET_SECS;
+        let idx = ((now / Self::BUCKET_SECS) % 6) as usize;
+        if self.buckets[idx].0 != bucket_start {
+            self.buckets[idx] = (bucket_start, 0);
+        }
+        self.buckets[idx].1 = self.buckets[idx].1.saturating_add(1);
+    }
+
+    fn per_minute(&self) -> u32 {
+        let now = Self::now();
+        let cutoff = now.saturating_sub(Self::WINDOW_SECS);
+        self.buckets
+            .iter()
+            .filter(|(start, _)| *start >= cutoff)
+            .map(|(_, count)| *count)
+            .sum()
+    }
+}
+
 /// Kernel-managed event router with per-actor isolation.
 ///
 /// Delegates routing, persistence, and mailbox management to
@@ -52,6 +92,10 @@ pub struct KernelRouter {
     validators: Vec<Box<dyn EventValidator>>,
     /// Pure kernel router — owns mailboxes, actor_configs, subscriptions, sink.
     pub(crate) inner: ship_kernel::KernelRouter,
+    /// Rolling 60s event-rate counter, keyed by both originator
+    /// (`event.actor_id`) and target (`event.target_actor_id`) so the
+    /// mesh view can show "events received" parity with "events emitted."
+    rate_counters: std::sync::Mutex<HashMap<String, RateCounter>>,
     #[cfg(feature = "unstable")]
     pub(crate) actor_meta: HashMap<String, ActorMeta>,
     #[cfg(feature = "unstable")]
@@ -85,6 +129,7 @@ impl KernelRouter {
             kernel_store_path,
             validators: Vec::new(),
             inner,
+            rate_counters: std::sync::Mutex::new(HashMap::new()),
             #[cfg(feature = "unstable")]
             actor_meta: HashMap::new(),
             #[cfg(feature = "unstable")]
@@ -147,6 +192,23 @@ impl KernelRouter {
             v.validate(&event, ctx).map_err(|e| anyhow!("{e}"))?;
         }
         self.enforce_write_namespaces(&event, ctx)?;
+
+        // Bump per-actor rate counters before delivery — best-effort,
+        // mutex contention is bounded (six 10s buckets, single hashmap
+        // lookup per actor reference).
+        {
+            let mut counters = self.rate_counters.lock().unwrap();
+            let originator = event.actor_id.as_deref().unwrap_or("");
+            if !originator.is_empty() {
+                counters.entry(originator.to_string()).or_default().bump();
+            }
+            if let Some(target) = event.target_actor_id.as_deref() {
+                if !target.is_empty() && target != originator {
+                    counters.entry(target.to_string()).or_default().bump();
+                }
+            }
+        }
+
         #[cfg(feature = "unstable")]
         self.enforce_emit_permissions(&event, ctx)?;
 
@@ -218,6 +280,17 @@ impl KernelRouter {
     }
 
     /// Return a snapshot of all active actor IDs and their configs.
+    /// Events per minute (rolling 60s) for `actor_id`. Counts both
+    /// originator and target events. Returns 0 for unknown actors.
+    pub fn msg_rate(&self, actor_id: &str) -> u32 {
+        self.rate_counters
+            .lock()
+            .unwrap()
+            .get(actor_id)
+            .map(|c| c.per_minute())
+            .unwrap_or(0)
+    }
+
     pub fn list_actors(&self) -> Vec<(String, ActorConfig)> {
         self.inner.list_actors()
     }

@@ -3,6 +3,7 @@
   "agent": {
     "id": "ship-designer",
     "name": "Ship Designer",
+    "icon": "palette",
     "version": "0.1.0",
     "description": "UI component work — ship-set (Lit web components), minijinja templates, Datastar reactivity, accessibility, visual polish",
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],

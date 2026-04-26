@@ -3,7 +3,7 @@ name: dashboard
 type: html
 rail:
   label: Dashboard
-  icon: sparkles
+  icon: layout-dashboard
 events:
   - job.
   - step.

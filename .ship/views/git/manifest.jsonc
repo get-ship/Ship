@@ -6,7 +6,7 @@
   "claims": [],
   "rail": {
     "label": "Git",
-    "icon": "git"
+    "icon": "git-branch"
   },
   "packs": ["git"]
 }

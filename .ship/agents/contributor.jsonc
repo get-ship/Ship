@@ -6,6 +6,7 @@
   "agent": {
     "id": "contributor",
     "name": "Ship Contributor",
+    "icon": "simpleicons:git",
     "version": "0.1.0",
     "description": "Elevated access for Ship development — can modify .ship/, start daemon, access internals. Not for end users.",
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],

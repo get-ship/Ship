@@ -22,6 +22,15 @@ interface ApiView {
   rail?: { label: string; icon: string };
 }
 
+// Match the rail's registry — known Ship apps render via <ship-app-icon>
+// (per-app glyph tinted by --app-accent-{name}). Unknown view ids fall
+// back to <ship-icon> using the manifest's rail.icon Lucide glyph.
+const KNOWN_APP_NAMES = new Set([
+  "dashboard", "pipelines", "agents", "skills", "git", "collections",
+  "canvas", "settings", "chat", "events", "specs", "theme",
+  "theme-studio", "setup", "overview", "mesh",
+]);
+
 interface Project {
   id: string;
   name: string;
@@ -112,7 +121,7 @@ export class ShipLauncher extends LitElement {
 
   private async fetchViews(): Promise<void> {
     try {
-      const resp = await fetch("/api/views", { credentials: "same-origin" });
+      const resp = await fetch("/api/v1/views", { credentials: "same-origin" });
       if (!resp.ok) return;
       const body = (await resp.json()) as { data?: { views?: ApiView[] } };
       this.views = body.data?.views ?? [];
@@ -123,7 +132,7 @@ export class ShipLauncher extends LitElement {
 
   private async fetchProject(): Promise<Project | null> {
     try {
-      const resp = await fetch("/api/projects", { credentials: "same-origin" });
+      const resp = await fetch("/api/v1/projects", { credentials: "same-origin" });
       if (!resp.ok) return null;
       const body = (await resp.json()) as {
         projects: Project[];
@@ -377,7 +386,8 @@ export class ShipLauncher extends LitElement {
 
   private renderRow(v: ApiView, idx: number, isPinned: boolean) {
     const label = v.rail?.label ?? humanize(v.name);
-    const icon = v.rail?.icon ?? v.name;
+    const fallbackIcon = v.rail?.icon ?? "app-window";
+    const known = KNOWN_APP_NAMES.has(v.name);
     const pinned = this.pins.includes(v.name);
     const isCursor = idx === this.cursor;
     const isDragOver = this.dragOver === v.name;
@@ -403,7 +413,9 @@ export class ShipLauncher extends LitElement {
         @drop=${(e: DragEvent) => isPinned && this.onDrop(e, v.name)}
         @dragend=${this.onDragEnd}
       >
-        <ship-app-icon name=${icon} variant="tile" size="md"></ship-app-icon>
+        ${known
+          ? html`<ship-app-icon name=${v.name} variant="tile" size="md"></ship-app-icon>`
+          : html`<ship-icon name=${fallbackIcon} size="md"></ship-icon>`}
         <span class="launcher-row-name">
           <span class="launcher-row-label">${label}</span>
           <span class="launcher-row-path">${v.source}</span>

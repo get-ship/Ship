@@ -127,36 +127,61 @@ export class ShipViewChrome extends LitElement {
       if (t) t.textContent = this.title
     }
 
-    const branch = document.querySelector<HTMLElement>(ATTR_TARGETS.branch)
-    if (branch) branch.textContent = this.branch || ''
-
-    const ab = document.querySelector<HTMLElement>('#status-ab')
-    if (ab) {
-      const parts: string[] = []
-      if (this.ahead > 0) parts.push(`↑${this.ahead}`)
-      if (this.behind > 0) parts.push(`↓${this.behind}`)
-      ab.textContent = parts.join(' ')
+    // Only overwrite chrome fields the view actually declared.
+    // A view that doesn't set `branch=`/`ahead=`/etc. should leave the
+    // shell-owned defaults (current git branch, theme name) intact —
+    // otherwise it wipes them on mount.
+    //
+    // We can't use `hasAttribute('branch')` here because Lit reflects
+    // the default empty-string property to the attribute on construction,
+    // so the attr is always present. Instead, treat empty/zero/default
+    // values as "view did not contribute this field."
+    if (this.branch) {
+      const branch = document.querySelector<HTMLElement>(ATTR_TARGETS.branch)
+      if (branch) branch.textContent = this.branch
     }
 
-    const dot = document.querySelector<HTMLElement>('#status-dot')
-    if (dot) {
-      dot.dataset.tone = this.tone
-      if (this.busy) dot.setAttribute('data-busy', '')
-      else dot.removeAttribute('data-busy')
+    if (this.ahead > 0 || this.behind > 0) {
+      const ab = document.querySelector<HTMLElement>('#status-ab')
+      if (ab) {
+        const parts: string[] = []
+        if (this.ahead > 0) parts.push(`↑${this.ahead}`)
+        if (this.behind > 0) parts.push(`↓${this.behind}`)
+        ab.textContent = parts.join(' ')
+      }
+    }
+
+    if (this.tone !== 'default' || this.busy) {
+      const dot = document.querySelector<HTMLElement>('#status-dot')
+      if (dot) {
+        dot.dataset.tone = this.tone
+        if (this.busy) dot.setAttribute('data-busy', '')
+        else dot.removeAttribute('data-busy')
+      }
     }
   }
 
   private _clearAttrs() {
+    // Mirror _applyAttrs: only clear chrome fields this view actually
+    // contributed. The shell will repopulate its owned fields (branch,
+    // theme) on the next render — but only if we didn't blank them.
+    // Empty defaults => view did not contribute that field.
     const t = document.querySelector<HTMLElement>(ATTR_TARGETS.title)
     if (t) t.textContent = ''
-    const branch = document.querySelector<HTMLElement>(ATTR_TARGETS.branch)
-    if (branch) branch.textContent = ''
-    const ab = document.querySelector<HTMLElement>('#status-ab')
-    if (ab) ab.textContent = ''
-    const dot = document.querySelector<HTMLElement>('#status-dot')
-    if (dot) {
-      delete dot.dataset.tone
-      dot.removeAttribute('data-busy')
+    if (this.branch) {
+      const branch = document.querySelector<HTMLElement>(ATTR_TARGETS.branch)
+      if (branch) branch.textContent = ''
+    }
+    if (this.ahead > 0 || this.behind > 0) {
+      const ab = document.querySelector<HTMLElement>('#status-ab')
+      if (ab) ab.textContent = ''
+    }
+    if (this.tone !== 'default' || this.busy) {
+      const dot = document.querySelector<HTMLElement>('#status-dot')
+      if (dot) {
+        delete dot.dataset.tone
+        dot.removeAttribute('data-busy')
+      }
     }
   }
 }

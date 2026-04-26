@@ -27,8 +27,8 @@
       // Applies the persisted ship-set theme id (data-theme + .dark class).
       // Must stay in sync with @ship/set/themes → persistTheme / applyTheme.
       (() => {
-        const VALID = new Set(["ship-light","ship-dark","paper","halo","console","contrast"]);
-        const DARK = new Set(["ship-dark","contrast"]);
+        const VALID = new Set(["ship-light","ship-dark","paper","halo","console","contrast","glass"]);
+        const DARK = new Set(["ship-dark","contrast","console"]);
         const PREFERS_DARK = matchMedia("(prefers-color-scheme: dark)").matches;
         const raw = localStorage.getItem("ship-site-theme");
         const id = VALID.has(raw) ? raw : (PREFERS_DARK ? "ship-dark" : "ship-light");
@@ -164,47 +164,212 @@
         margin-left: auto;
       }
 
-      /* ── Theme picker ── */
+      /* ── Theme picker — grouped popover, listbox semantics ── */
       .theme-grid {
-        display: flex; flex-direction: column; gap: 12px;
-        padding: 4px; width: 320px; max-height: min(70vh, 520px);
+        display: flex; flex-direction: column; gap: 10px;
+        padding: 8px; width: 332px; max-height: min(80vh, 720px);
         overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
       }
-      .theme-group-cards {
-        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+      .theme-grid::-webkit-scrollbar { width: var(--scrollbar-width-thin, 6px); }
+      .theme-grid::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+      .theme-grid::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: var(--scrollbar-radius, 999px);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: background-color var(--duration-fast) var(--ease-out);
       }
+      .theme-grid::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
+      .theme-group { display: flex; flex-direction: column; gap: 2px; }
+      .theme-group-h {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted-foreground);
+        padding: 0 8px 2px;
+        opacity: 0.7;
+      }
+      .theme-group-rows { display: flex; flex-direction: column; gap: 4px; }
       .theme-card {
         appearance: none;
-        background: var(--swatch-bg);
-        border: 2px solid color-mix(in oklch, var(--swatch-primary) 0%, transparent);
+        background: transparent;
+        border: 0;
         border-radius: 10px;
-        padding: 8px;
+        padding: 6px;
         cursor: pointer;
         text-align: left;
         font: inherit;
-        display: flex; flex-direction: column; gap: 8px;
+        display: flex; flex-direction: column; gap: 6px;
+        outline: none;
         transition:
-          border-color var(--duration-fast) var(--ease-out),
-          box-shadow var(--duration-fast) var(--ease-out),
+          background var(--duration-fast) var(--ease-out),
           transform var(--duration-fast) var(--ease-out);
       }
-      .theme-card:hover {
-        border-color: color-mix(in oklch, var(--swatch-primary) 50%, transparent);
-        transform: translateY(-1px);
+      .theme-card:hover { background: var(--hover-bg, var(--muted)); }
+      .theme-card:focus-visible {
+        background: var(--hover-bg, var(--muted));
+        box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 50%, transparent);
       }
       .theme-card[aria-selected='true'] {
-        border-color: var(--swatch-primary);
-        box-shadow: 0 0 0 3px color-mix(in oklch, var(--swatch-primary) 22%, transparent);
+        background: color-mix(in oklch, var(--primary) 10%, transparent);
       }
-      .theme-card-swatches {
-        display: flex; gap: 3px; height: 22px; border-radius: 6px;
+      .tc-row {
+        display: flex; align-items: center; gap: 8px;
+        padding: 0 4px;
+      }
+      .theme-card-name {
+        flex: 1;
+        font-family: var(--font-body);
+        font-size: 12.5px;
+        font-weight: 500;
+        color: var(--foreground);
+        white-space: nowrap;
         overflow: hidden;
-        border: 1px solid color-mix(in oklch, var(--swatch-primary) 35%, transparent);
+        text-overflow: ellipsis;
       }
-      .theme-card-swatches > span { flex: 1; display: block; }
-      .theme-card-name { font-size: 12px; font-weight: 600; }
-      .theme-card[data-dark='true']  .theme-card-name { color: #f5f5f5; }
-      .theme-card[data-dark='false'] .theme-card-name { color: #0a0a0a; }
+      .theme-card-radio {
+        width: 12px; height: 12px;
+        border-radius: 999px;
+        border: 1.5px solid color-mix(in oklch, var(--foreground) 40%, transparent);
+        background: transparent;
+        position: relative;
+        flex-shrink: 0;
+      }
+      .theme-card[aria-selected='true'] .theme-card-radio {
+        border-color: var(--primary);
+      }
+      .theme-card[aria-selected='true'] .theme-card-radio::after {
+        content: '';
+        position: absolute;
+        inset: 2px;
+        border-radius: 999px;
+        background: var(--primary);
+      }
+
+      /* ── Mini card preview tile ───────────────────────────────── */
+      /* The tile carries [data-theme-preview], so every Ship token (palette,
+       * surfaces, shadows, fonts, overlays, backdrop-filter) cascades to its
+       * descendants identically to a live page under :root[data-theme]. */
+      .tc-bg {
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        width: 100%; height: 132px;
+        background: var(--background);
+        color: var(--foreground);
+        border-radius: 8px;
+        overflow: hidden;
+        isolation: isolate;
+        box-shadow: inset 0 0 0 1px color-mix(in oklch, currentColor 14%, transparent);
+      }
+      .tc-overlay {
+        position: absolute; inset: 0;
+        pointer-events: none;
+        background: var(--surface-overlay, none);
+        mix-blend-mode: var(--surface-overlay-blend, normal);
+        opacity: var(--surface-overlay-opacity, 1);
+        z-index: 1;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .tc-overlay { display: none; }
+      }
+      .tc-card {
+        position: relative;
+        z-index: 2;
+        display: flex; flex-direction: column; gap: 7px;
+        width: calc(100% - 24px);
+        padding: 10px 12px 11px;
+        background: var(--card);
+        color: var(--card-foreground);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md, 6px);
+        box-shadow: var(--shadow-card-rest, var(--shadow-sm, 0 1px 2px oklch(0 0 0 / 8%)));
+        backdrop-filter: var(--card-backdrop-filter, none);
+        -webkit-backdrop-filter: var(--card-backdrop-filter, none);
+      }
+      .tc-card-head {
+        display: flex; flex-direction: column; gap: 2px;
+      }
+      .tc-eyebrow {
+        font-family: var(--label-font, var(--font-mono));
+        font-weight: var(--label-weight, 600);
+        letter-spacing: var(--label-tracking, 0.08em);
+        font-size: 8px;
+        line-height: 1;
+        text-transform: uppercase;
+        color: var(--muted-foreground);
+      }
+      .tc-heading {
+        font-family: var(--heading-font, var(--font-body));
+        font-weight: var(--heading-weight, 600);
+        letter-spacing: var(--heading-tracking, normal);
+        font-size: 13px;
+        line-height: 1.05;
+        color: var(--card-foreground);
+      }
+      .tc-typo {
+        display: flex; align-items: baseline; gap: 6px;
+        font-family: var(--body-font, var(--font-body));
+        font-size: 9.5px;
+        line-height: 1;
+        color: var(--muted-foreground);
+      }
+      .tc-body { color: var(--card-foreground); opacity: 0.85; }
+      .tc-mono {
+        font-family: var(--font-mono);
+        font-size: 9px;
+        padding: 1px 4px;
+        border-radius: 3px;
+        background: color-mix(in oklch, var(--foreground) 6%, transparent);
+        color: var(--muted-foreground);
+      }
+      .tc-controls {
+        display: flex; align-items: center; gap: 5px; flex-wrap: wrap;
+      }
+      .tc-cta {
+        display: inline-flex; align-items: center;
+        font-family: var(--label-font, var(--body-font, var(--font-body)));
+        font-weight: var(--label-weight, 500);
+        font-size: 9.5px;
+        line-height: 1;
+        padding: 4px 8px;
+        border-radius: var(--radius-sm, 4px);
+        background: var(--primary);
+        color: var(--primary-foreground);
+        box-shadow: var(--shadow-xs, 0 1px 0 oklch(1 0 0 / 18%) inset);
+      }
+      .tc-ghost {
+        display: inline-flex; align-items: center;
+        font-family: var(--label-font, var(--body-font, var(--font-body)));
+        font-weight: var(--label-weight, 500);
+        font-size: 9.5px;
+        line-height: 1;
+        padding: 4px 8px;
+        border-radius: var(--radius-sm, 4px);
+        background: transparent;
+        color: var(--muted-foreground);
+        border: 1px solid var(--border);
+      }
+      .tc-chip {
+        display: inline-flex; align-items: center;
+        font-family: var(--label-font, var(--font-body));
+        font-weight: 600;
+        font-size: 8.5px;
+        line-height: 1;
+        padding: 3px 6px;
+        border-radius: 999px;
+      }
+      .tc-chip-accent {
+        background: color-mix(in oklch, var(--accent) 18%, transparent);
+        color: var(--accent);
+        box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--accent) 30%, transparent);
+      }
+      .tc-chip-muted {
+        background: color-mix(in oklch, var(--foreground) 8%, transparent);
+        color: var(--muted-foreground);
+      }
 
       /* ── Nav rail: toggleable, left edge ── */
       .ship-rail {
@@ -341,7 +506,7 @@
         left: 56px;
         top: 50%;
         transform: translateY(-50%);
-        width: 360px;
+        width: 440px;
         max-height: min(640px, calc(100vh - 32px));
         background: var(--surface-3, var(--popover, var(--background)));
         color: var(--foreground);
@@ -415,8 +580,22 @@
       }
       .launcher-body {
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 4px 0 6px;
+        min-width: 0;
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
       }
+      .launcher-body::-webkit-scrollbar { width: var(--scrollbar-width-thin, 6px); height: var(--scrollbar-width-thin, 6px); }
+      .launcher-body::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+      .launcher-body::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: var(--scrollbar-radius, 999px);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: background-color var(--duration-fast) var(--ease-out);
+      }
+      .launcher-body::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
       .launcher-empty {
         padding: 16px 14px;
         font-size: var(--text-xs);
@@ -562,6 +741,20 @@
         overflow: auto;
         background: var(--background);
         min-width: 0;
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+      }
+      .ship-content::-webkit-scrollbar { width: var(--scrollbar-width-thin, 6px); height: var(--scrollbar-width-thin, 6px); }
+      .ship-content::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+      .ship-content::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: var(--scrollbar-radius, 999px);
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: background-color var(--duration-fast) var(--ease-out);
+      }
+      .ship-content::-webkit-scrollbar-thumb:hover { background-color: var(--scrollbar-thumb-hover); }
+      .ship-content {
         /* Soften view-swap flash. mount() marks the new root as
            `ship-content-entering` before the fetch, and removes the class
            only AFTER content lands — so the blank interval is invisible

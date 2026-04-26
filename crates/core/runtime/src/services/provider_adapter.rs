@@ -44,15 +44,35 @@ pub struct ProviderCapabilities {
     /// Provider supports resuming a prior session in headless/server mode
     /// (codex exec resume, opencode REST sessions).
     pub session_resume: bool,
-    /// Provider supports bidirectional channel notifications — user turns
-    /// can be pushed into a long-lived process via provider-specific
-    /// channel protocol (Claude Code's `notifications/claude/channel`).
-    /// Enables persistent chat sessions without per-turn subprocess spawn.
-    pub channels: bool,
+    /// The provider process can hold across turns — a long-lived TUI /
+    /// REPL we keep alive and feed new turns to, instead of spawning
+    /// fresh per turn. All five CLI agents support this; they're TUIs.
+    pub persistent_session: bool,
+    /// How we deliver a new user turn to a persistent session. Only
+    /// meaningful when `persistent_session = true`.
+    pub push_mechanism: PushMechanism,
+}
+
+/// How a new user turn reaches a long-lived provider process.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum PushMechanism {
+    /// Provider-specific MCP channel notification (Claude Code's
+    /// `notifications/claude/channel`). Bidirectional, structured.
+    Channel,
+    /// Write the prompt + newline to the PTY master. Works for any TUI
+    /// that's just a REPL waiting at a prompt. Provider has no inkling
+    /// it's being driven programmatically.
+    Stdin,
+    /// Kill the process and respawn with `--resume <session_id>` plus
+    /// the new prompt. Universal fallback — any provider with
+    /// `session_resume = true` supports this.
+    #[default]
+    Respawn,
 }
 
 impl ProviderCapabilities {
-    /// Conservative defaults — headless + interactive only.
+    /// Conservative defaults — headless + interactive only, no
+    /// persistence story (every turn respawns).
     pub const MINIMAL: Self = Self {
         headless: true,
         interactive: true,
@@ -61,7 +81,8 @@ impl ProviderCapabilities {
         mcp: false,
         hooks: false,
         session_resume: false,
-        channels: false,
+        persistent_session: false,
+        push_mechanism: PushMechanism::Respawn,
     };
 }
 
@@ -140,6 +161,42 @@ mod adapter_for_tests {
     use super::*;
 
     #[test]
+    fn all_providers_advertise_persistent_session() {
+        // Every TUI agent CLI is a long-lived REPL we can hold across
+        // turns. If a new provider lands without persistent_session=true,
+        // it'd quietly fall to the legacy per-turn-respawn path; this
+        // test pins the parity contract.
+        for name in ["claude", "codex", "cursor", "gemini", "opencode"] {
+            let adapter = adapter_for(name).unwrap();
+            assert!(
+                adapter.caps().persistent_session,
+                "provider '{name}' must support persistent_session"
+            );
+        }
+    }
+
+    #[test]
+    fn push_mechanism_per_provider() {
+        // Pin which mechanism each provider uses. Drift in this map is
+        // a behavior change — surface it in review.
+        use PushMechanism::*;
+        let expected: &[(&str, PushMechanism)] = &[
+            ("claude", Channel),
+            ("codex", Stdin),
+            ("cursor", Stdin),
+            ("gemini", Stdin),
+            ("opencode", Stdin),
+        ];
+        for (name, want) in expected {
+            assert_eq!(
+                adapter_for(name).unwrap().caps().push_mechanism,
+                *want,
+                "provider '{name}' push_mechanism drifted"
+            );
+        }
+    }
+
+    #[test]
     fn adapter_for_cursor_returns_cursor_adapter() {
         assert_eq!(adapter_for("cursor").unwrap().id(), "cursor");
     }
@@ -216,17 +273,18 @@ mod adapter_for_tests {
         assert!(!m.mcp);
         assert!(!m.hooks);
         assert!(!m.session_resume);
-        assert!(!m.channels);
+        assert!(!m.persistent_session);
+        assert_eq!(m.push_mechanism, PushMechanism::Respawn);
     }
 
     #[test]
-    fn only_claude_declares_channels() {
+    fn only_claude_uses_channel_push() {
         let caps = capabilities();
-        let channel_capable: Vec<&str> = caps
+        let channel_users: Vec<&str> = caps
             .iter()
-            .filter(|(_, c)| c.channels)
+            .filter(|(_, c)| c.push_mechanism == PushMechanism::Channel)
             .map(|(id, _)| *id)
             .collect();
-        assert_eq!(channel_capable, vec!["claude"]);
+        assert_eq!(channel_users, vec!["claude"]);
     }
 }

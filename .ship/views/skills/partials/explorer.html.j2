@@ -181,7 +181,7 @@
               {% set is_expanded = is_active %}
               <div role="treeitem">
                 <button class="se-skill"
-                  {{ on_click("@get('/api/v1/v/skills/" ~ s.id ~ "?q=" ~ rail.q ~ "&kind=" ~ rail.active_kind ~ "&file=SKILL.md')") }}
+                  {{ on_click("window.ship && window.ship.navigate('/skills/" ~ s.id ~ "/SKILL.md')") }}
                   title="{{ s.description }}">
                   <span class="se-chevron" aria-hidden="true">
                     {% if is_expanded %}
@@ -206,7 +206,7 @@
                     {% set is_file_active = file and (file.path == f) %}
                     <button class="se-file{% if is_file_active %} is-active{% endif %}"
                       role="treeitem"
-                      {{ on_click("@get('/api/v1/v/skills/" ~ s.id ~ "?q=" ~ rail.q ~ "&kind=" ~ rail.active_kind ~ "&file=" ~ f ~ "')") }}
+                      {{ on_click("window.ship && window.ship.navigate('/skills/" ~ s.id ~ "/" ~ f ~ "')") }}
                       title="{{ f }}">
                       {% if f == 'SKILL.md' %}
                         <ship-icon name="file" size="xs" tone="info"></ship-icon>

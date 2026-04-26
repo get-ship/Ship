@@ -20,7 +20,8 @@ impl ProviderAdapter for GeminiAdapter {
             mcp: true,
             hooks: true,
             session_resume: false,
-            channels: false,
+            persistent_session: true,
+            push_mechanism: super::super::provider_adapter::PushMechanism::Stdin,
         }
     }
 

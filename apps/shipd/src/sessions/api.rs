@@ -221,10 +221,53 @@ pub async fn session_message(
         let _ = state.kernel().lock().await.emit(envelope, &ctx).await;
     }
 
-    // Long-lived channels agents live in ActorRegistry; the
-    // studio.chat_turn event above is the only delivery they need.
-    // Mark status=Thinking so list/detail reflect the in-flight turn.
+    // Persistent-session agents live in ActorRegistry. Delivery branches
+    // on the provider's push_mechanism: channel (event-only, the emit
+    // above is enough), stdin (write prompt + newline to the PTY master),
+    // respawn (kill + spawn fresh — not yet implemented; falls through
+    // to the legacy per-turn path).
     if let Some(entry) = state.actor_sessions().get(&id) {
+        use runtime::services::provider_adapter::{adapter_for, PushMechanism};
+        let provider = entry
+            .meta_snapshot()
+            .provider
+            .unwrap_or_default();
+        let mechanism = adapter_for(&provider)
+            .map(|a| a.caps().push_mechanism)
+            .unwrap_or(PushMechanism::Respawn);
+
+        match mechanism {
+            PushMechanism::Channel => {
+                // Channel push delivers via the studio.chat_turn event
+                // emitted above. Just flip status.
+            }
+            PushMechanism::Stdin => {
+                // Write the prompt directly into the PTY master. The
+                // long-lived TUI sees it as if the user typed at the
+                // prompt + hit enter.
+                let mut payload = text.clone();
+                payload.push('\n');
+                if let Err(e) = entry.write_input(payload.as_bytes()) {
+                    return err(StatusCode::INTERNAL_SERVER_ERROR, format!("stdin write: {e}"));
+                }
+            }
+            PushMechanism::Respawn => {
+                // Not yet implemented at this layer — fall through to
+                // legacy per-turn spawn (which respawns headless with
+                // --resume internally for providers that support it).
+                let work_dir = work_dir_for(&state, "main");
+                return match super::lifecycle::send_agent_message(
+                    state.pty_sessions(),
+                    &id,
+                    &text,
+                    work_dir,
+                ) {
+                    Ok(_) => (StatusCode::ACCEPTED, ()).into_response(),
+                    Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+                };
+            }
+        }
+
         let mut m = entry.meta.lock().unwrap();
         m.status = super::types::SessionStatus::Thinking;
         m.last_activity = chrono::Utc::now();
@@ -350,12 +393,12 @@ pub async fn spawn_session(
                 _ => return err(StatusCode::BAD_REQUEST, "provider required for agent kind"),
             };
 
-            // Channels-capable providers (Claude today) go through the
-            // supervisor primitive + ActorRegistry. Per-turn providers
-            // stay on the legacy path until per-turn spawns can fold
-            // into the supervisor as one-shot transports.
+            // Persistent-session providers (all five CLI agents today)
+            // go through the supervisor primitive + ActorRegistry. The
+            // push_mechanism (channel / stdin / respawn) is decided at
+            // send-time; the spawn shape is identical regardless.
             if let Ok(adapter) = runtime::services::provider_adapter::adapter_for(provider) {
-                if adapter.caps().channels {
+                if adapter.caps().persistent_session {
                     let append = lifecycle::load_agent_rules(&work_dir, agent_id);
                     return match super::agent_actor::spawn_or_attach(
                         state.actor_sessions(),

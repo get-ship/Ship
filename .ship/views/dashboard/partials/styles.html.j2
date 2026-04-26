@@ -15,13 +15,13 @@
 }
 .dash-wordmark { display: flex; align-items: center; gap: var(--space-3); }
 .dash-logo {
-  width: 36px; height: 36px; border-radius: var(--radius-md); background: var(--primary);
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  --tile-size: 36px; --glyph-size: 22px;
+  width: 36px; height: 36px; flex-shrink: 0;
 }
-.dash-logo svg { display: block; }
 .dash-title {
   font-family: var(--heading-font); font-size: var(--text-2xl); font-weight: var(--heading-weight);
-  letter-spacing: var(--heading-tracking); line-height: 1; margin: 0 0 var(--space-1); color: var(--foreground);
+  /* Slight tightening for the all-caps short wordmark — confident display weight without crowding. */
+  letter-spacing: -0.04em; line-height: 1; margin: 0 0 var(--space-1); color: var(--foreground);
 }
 .dash-wordmark > div { position: relative; }
 .dash-wordmark > div::after {

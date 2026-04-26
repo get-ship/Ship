@@ -23,6 +23,7 @@
 //! supervisor's only job at runtime is owning OS-level child processes
 //! and translating their lifecycle into kernel events.
 
+pub mod process_stats;
 pub mod profile;
 pub mod transport;
 

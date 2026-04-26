@@ -63,7 +63,7 @@ async function main() {
     // Mesh presence — kernel mailbox attached.
     let onMesh = false;
     for (let i = 0; i < 20; i++) {
-      const { data } = await api("/api/mesh");
+      const { data } = await api("/api/v1/mesh");
       if ((data?.data?.actors ?? []).some((a) => a.actor_id === id)) {
         onMesh = true;
         break;
@@ -76,7 +76,7 @@ async function main() {
     // the row materialises rather than racing it.
     let row = null;
     for (let i = 0; i < 20; i++) {
-      const detail = await api(`/api/actors/${id}`);
+      const detail = await api(`/api/v1/actors/${id}`);
       const a = detail?.data?.data;
       if (a && a.kind === "shell") { row = a; break; }
       await new Promise((r) => setTimeout(r, 250));
@@ -90,7 +90,7 @@ async function main() {
   // After kill, it should drop from the mesh within a beat.
   let cleared = false;
   for (let i = 0; i < 20; i++) {
-    const { data } = await api("/api/mesh");
+    const { data } = await api("/api/v1/mesh");
     if (!(data?.data?.actors ?? []).some((a) => a.actor_id === id)) {
       cleared = true;
       break;

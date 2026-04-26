@@ -3,7 +3,7 @@ name: skills
 type: html
 rail:
   label: Skills
-  icon: zap
+  icon: sparkles
 events:
   - config.changed
   - workspace.changed

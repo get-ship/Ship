@@ -577,20 +577,29 @@ pub enum Route {
     /// @route POST "/api/v1/events/route"
     EventRoute,
 
-    /// @route GET "/api/actors"
+    /// @route GET "/api/v1/actors"
     ListActors,
 
-    /// @route GET "/api/mesh"
+    /// @route GET "/api/v1/mesh"
     ListMesh,
 
-    /// @route GET "/api/actors/{actor_id}"
+    /// @route GET "/api/v1/actors/{actor_id}"
     GetActor { actor_id: String },
 
-    /// @route GET "/api/actors/{actor_id}/events"
+    /// @route GET "/api/v1/actors/{actor_id}/events"
     ActorEvents { actor_id: String },
 
-    /// @route POST "/api/actors/{actor_id}/input"
+    /// @route POST "/api/v1/actors/{actor_id}/input"
     ActorInput { actor_id: String },
+
+    /// @route GET "/api/v1/mesh/snapshot"
+    MeshSnapshot,
+
+    /// @route GET "/api/v1/mesh/events"
+    MeshEventsStream,
+
+    /// @route POST "/api/v1/actors/{actor_id}/kill-tree"
+    KillTree { actor_id: String },
 
     // ── Collections ──────────────────────────────────────────────────────
 

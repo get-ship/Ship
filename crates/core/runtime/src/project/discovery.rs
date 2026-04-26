@@ -164,9 +164,23 @@ fn resolve_project_dir_from_start(
     loop {
         let ship_path = current_dir.join(SHIP_DIR_NAME);
         if ship_path.exists() && ship_path.is_dir() {
-            // If this .ship/ lives inside a linked git worktree, redirect to
-            // the main working tree's .ship/ so worktrees never register as
-            // separate projects in ~/.ship/projects/.
+            // Worktree dev opt-out: when SHIP_RESPECT_WORKTREE=1 (set by
+            // scripts/dev-daemon.sh and other dev tooling), the worktree's
+            // local .ship/ wins. This lets developers iterate on per-worktree
+            // views/themes/agents without having every edit redirect to the
+            // main checkout. Production / single-worktree dev: leave unset
+            // and the redirect-to-main behavior below stays canonical.
+            let respect_worktree = std::env::var("SHIP_RESPECT_WORKTREE")
+                .ok()
+                .filter(|v| v == "1" || v.eq_ignore_ascii_case("true"))
+                .is_some();
+            if respect_worktree {
+                return Ok(Some(canonicalize_lossy(&ship_path)));
+            }
+
+            // Default: if this .ship/ lives inside a linked git worktree,
+            // redirect to the main working tree's .ship/ so worktrees never
+            // register as separate projects in ~/.ship/projects/.
             // Primary detection: git worktree list --porcelain.
             // Fallback: parse the .git file pointer directly (no subprocess).
             let redirected = main_worktree_root_for(&current_dir)
