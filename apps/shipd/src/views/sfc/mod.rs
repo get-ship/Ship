@@ -8,8 +8,12 @@
 //! 3. **Render template** ([`crate::views::templates`]) — turn the Jinja
 //!    body into HTML. SDK macros are auto-imported (see `sdk_macros`).
 //! 4. **Signal rewrite** ([`template`]) — replace `$name` with
-//!    `$_<tag>___SHIP_INST___<name>` inside `data-*` attributes so
+//!    `$_<safe_tag>___SHIP_INST___<name>` inside `data-*` attributes so
 //!    multiple instances on a page never share a signal namespace.
+//!    `safe_tag` is the component tag with hyphens replaced by
+//!    underscores (custom-element tags must contain a hyphen, but
+//!    Datastar parses attribute values as JS expressions where `-`
+//!    means subtraction).
 //! 5. **Style scope** ([`style`]) — prepend
 //!    `[data-component="<tag>"] ` to each top-level selector unless
 //!    `<style global>` is set.
@@ -28,6 +32,9 @@ pub mod script_scan;
 pub mod style;
 pub mod style_walk;
 pub mod template;
+
+#[cfg(test)]
+mod emit_tests;
 
 use crate::views::templates::render_view_source;
 use parser::{split, style_is_global};
@@ -116,7 +123,9 @@ mod tests {
         let src = "<script>const $x = signal(0)</script>\n<div data-text=\"$x\"></div>\n<style>div { color: red }</style>";
         let out = compile_component("my-x", "components/my-x.ship", src).unwrap();
         assert!(out.contains("customElements.define(TAG, ShipComponent)"));
-        assert!(out.contains("$_my-x___SHIP_INST___x"));
+        // Tag hyphen is sanitized to `_` in the rewritten signal namespace
+        // so Datastar's expression evaluator doesn't parse `-` as subtraction.
+        assert!(out.contains("$_my_x___SHIP_INST___x"));
         assert!(out.contains("[data-component=\"my-x\"] div"));
         assert!(out.contains("SIGNAL_NAMES = [\"x\"]"));
     }
@@ -149,9 +158,11 @@ mod tests {
             );
         }
 
-        // Per-instance signal scoping landed in data-* attributes.
-        assert!(out.contains("$_app-typeahead___SHIP_INST___query"));
-        assert!(out.contains("$_app-typeahead___SHIP_INST___open"));
+        // Per-instance signal scoping landed in data-* attributes. Tag
+        // hyphen sanitized to `_` so the JS-side `__sigKey` (which does
+        // the same sanitization) and the attribute reference agree.
+        assert!(out.contains("$_app_typeahead___SHIP_INST___query"));
+        assert!(out.contains("$_app_typeahead___SHIP_INST___open"));
 
         // Style is scoped, not global. The CSS lives inside a JS
         // template literal so double quotes appear unescaped.

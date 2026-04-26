@@ -41,13 +41,20 @@ pub fn rewrite_signals(template_html: &str, tag: &str, signals: &[String]) -> St
     if signals.is_empty() {
         return template_html.to_string();
     }
+    // Custom-element tags must contain a hyphen per HTML spec, but hyphens
+    // are not valid JS identifier chars. Datastar evaluates attribute values
+    // as JS expressions, so a literal `-` in the namespace would parse as
+    // subtraction (`$_app-typeahead_1_query` → `$_app - typeahead_1_query`).
+    // The JS-side wrapper (`emit.rs::__sigKey`) does the same `'-' → '_'`
+    // sanitization when storing the signal; both sides must agree on the key.
+    let safe_tag = tag.replace("-", "_");
     let re = attr_re();
     let result = re.replace_all(template_html, |caps: &regex::Captures<'_>| {
         let attr = caps.get(1).unwrap().as_str();
         let val_with_quotes = caps.get(2).unwrap().as_str();
         let q = &val_with_quotes[..1];
         let inner = &val_with_quotes[1..val_with_quotes.len() - 1];
-        let rewritten = rewrite_inside(inner, tag, signals);
+        let rewritten = rewrite_inside(inner, &safe_tag, signals);
         format!("{attr}={q}{rewritten}{q}")
     });
     result.into_owned()
@@ -117,7 +124,51 @@ mod tests {
     fn rewrites_signal_in_data_bind() {
         let html = r#"<input data-bind:value="$query" />"#;
         let out = rewrite_signals(html, "app-typeahead", &signals(&["query"]));
-        assert!(out.contains(r#"data-bind:value="$_app-typeahead___SHIP_INST___query""#));
+        // Tag hyphen sanitized to underscore so the JS-side `_app_typeahead_*`
+        // signal key matches the attribute reference (Datastar parses the
+        // attribute value as a JS expression — `-` would be subtraction).
+        assert!(
+            out.contains(r#"data-bind:value="$_app_typeahead___SHIP_INST___query""#),
+            "tag hyphen must be sanitized; got: {out}"
+        );
+    }
+
+    #[test]
+    fn double_dollar_left_alone() {
+        // `$$count` is the Rocket convention, not Ship's. The leading `$`
+        // before `$count` blocks rewrite via the prev-char check.
+        let html = r#"<div data-text="$$count"></div>"#;
+        let out = rewrite_signals(html, "tag", &signals(&["count"]));
+        assert!(
+            out.contains(r#"data-text="$$count""#),
+            "$$ should be left alone; got: {out}"
+        );
+    }
+
+    #[test]
+    fn mid_identifier_dollar_left_alone() {
+        // `foo$bar` is a JS identifier-continuation context; the `$` is not
+        // a signal-reference position. The prev-char check (alphanum/_)
+        // blocks the rewrite.
+        let html = r#"<div data-text="foo$bar"></div>"#;
+        let out = rewrite_signals(html, "tag", &signals(&["bar"]));
+        assert!(
+            out.contains(r#"data-text="foo$bar""#),
+            "mid-identifier $ should be left alone; got: {out}"
+        );
+    }
+
+    #[test]
+    fn js_template_literal_dollar_brace_left_alone() {
+        // `${expr}` is JS template-literal interpolation, not a signal
+        // reference. The `{` after `$` blocks the rewrite (next byte isn't
+        // an identifier-start).
+        let html = r#"<div data-text="`${count}`"></div>"#;
+        let out = rewrite_signals(html, "tag", &signals(&["count"]));
+        assert!(
+            out.contains(r#"data-text="`${count}`""#),
+            "${{}} interpolation should be left alone; got: {out}"
+        );
     }
 
     #[test]
