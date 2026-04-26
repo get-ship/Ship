@@ -123,7 +123,15 @@ pub fn build_router(
         // First-run flow — both routes are unauthenticated so a fresh
         // install can reach the setup wizard before any browser is paired.
         .ship_route(Route::Index, views::setup::index_handler)
-        .ship_route(Route::Setup, views::setup::setup_handler);
+        .ship_route(Route::Setup, views::setup::setup_handler)
+        // `.ship/components/*.ship` compiled to ES modules. Public so
+        // the browser can pull the script tag without a bearer; the
+        // file scope is `.ship/components/` only and the served body is
+        // generated JS, not user secrets.
+        .route(
+            "/_ship/components/{file}",
+            axum::routing::get(views::components::serve_component_js),
+        );
 
     let auth_token = token;
     let auth_registry = session_registry;
