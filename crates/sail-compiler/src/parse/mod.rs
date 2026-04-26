@@ -22,6 +22,12 @@ pub use ast::*;
 use anyhow::Result;
 
 /// Parse a `.sail` source string into a `SailFile` AST.
-pub fn parse(_source: &str) -> Result<SailFile> {
-    todo!("phase 1 parser — implement per 02-compiler-architecture.md § Phase 1")
+///
+/// Phase 1 in stages:
+/// - Three-block extraction (implemented; `parser::extract_blocks`)
+/// - Block attributes (script lang, style global+src) — implemented
+/// - Script body keyword scan — landing next per spec
+/// - Template body parsing (HTML + interpolations + control flow) — landing next
+pub fn parse(source: &str) -> Result<SailFile> {
+    parser::parse_file(source)
 }

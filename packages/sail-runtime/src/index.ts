@@ -6,6 +6,20 @@
 export { signal, derived, effect, batch, untrack } from './signal'
 export type { Signal, Derived } from './signal'
 
-// The remaining modules (component, bind, on, for, slot, patch, data,
-// morph, decode) land per the implementation phasing in
-// 03-runtime-architecture.md. Import sites stay stable.
+export {
+  bindText,
+  bindShow,
+  bindAttr,
+  bindClass,
+  bindProp,
+  bindValue,
+  bindChecked,
+} from './bind'
+export type { Disposer } from './bind'
+
+export { on, matchesKey } from './on'
+export type { OnOptions, Modifier } from './on'
+
+// Remaining modules (component, for, slot, patch, data, morph, decode)
+// land per the implementation phasing in 03-runtime-architecture.md.
+// Import sites stay stable.
