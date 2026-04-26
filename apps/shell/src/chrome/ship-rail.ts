@@ -20,6 +20,16 @@ interface ApiView {
   rail?: { label: string; icon: string };
 }
 
+// Apps with a canonical <ship-app-icon> entry. Mirrors the registry in
+// packages/ship-set/src/web-components/core/ship-app-icon.ts. Anything
+// outside this set falls back to a plain <ship-icon> using the
+// manifest-declared rail.icon glyph name.
+const KNOWN_APP_NAMES = new Set([
+  "dashboard", "pipelines", "agents", "skills", "git", "collections",
+  "canvas", "settings", "chat", "events", "specs", "theme",
+  "theme-studio", "setup", "overview", "mesh",
+]);
+
 @customElement("ship-rail")
 export class ShipRail extends LitElement {
   @state() private pins: string[] = [];
@@ -310,8 +320,16 @@ export class ShipRail extends LitElement {
   private renderItem(name: string) {
     const v = this.viewsByName.get(name);
     const label = v?.rail?.label ?? humanize(name);
-    const icon = v?.rail?.icon ?? "app-window";
+    const fallbackIcon = v?.rail?.icon ?? "app-window";
     const classes = `rail-item${this.active === name ? " active" : ""}`;
+    // Known Ship apps render via <ship-app-icon> so each glyph is the
+    // canonical per-app mark tinted by --app-accent-{name}. Unknown
+    // view ids (third-party, extensions) fall back to <ship-icon> with
+    // the glyph name from the manifest's rail.icon.
+    const known = KNOWN_APP_NAMES.has(name);
+    const inner = known
+      ? html`<ship-app-icon name=${name} variant="glyph" size="md"></ship-app-icon>`
+      : html`<ship-icon name=${fallbackIcon}></ship-icon>`;
     return html`
       <a
         class=${classes}
@@ -321,7 +339,7 @@ export class ShipRail extends LitElement {
         @click=${(e: MouseEvent) => this.onItemClick(e, name)}
         @contextmenu=${(e: MouseEvent) => this.onItemContext(e, name)}
       >
-        <ship-icon name=${icon}></ship-icon>
+        ${inner}
       </a>
     `;
   }

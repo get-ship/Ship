@@ -37,7 +37,7 @@ import './ship-icon'
 type AppName =
   | 'dashboard' | 'pipelines' | 'agents' | 'skills' | 'git'
   | 'collections' | 'canvas' | 'settings' | 'chat' | 'events'
-  | 'specs' | 'theme' | 'setup' | 'overview'
+  | 'specs' | 'theme' | 'setup' | 'overview' | 'mesh'
 
 type AppVariant = 'glyph' | 'tile' | 'solid'
 type AppSize = 'sm' | 'md' | 'lg'
@@ -57,9 +57,17 @@ const APP_GLYPH: Record<AppName, string> = {
   theme: 'palette',
   setup: 'rocket',
   overview: 'compass',
+  mesh: 'network',
 }
 
-const APP_NAMES = new Set(Object.keys(APP_GLYPH))
+// Aliases — accept common variant ids that map to a canonical app.
+// `theme-studio` is the view id for the theme editor surface; both that
+// and the canonical `theme` should render the palette glyph.
+const APP_ALIASES: Record<string, AppName> = {
+  'theme-studio': 'theme',
+}
+
+const APP_NAMES = new Set([...Object.keys(APP_GLYPH), ...Object.keys(APP_ALIASES)])
 
 export class ShipAppIcon extends LitElement {
   static styles = css`
@@ -99,6 +107,8 @@ export class ShipAppIcon extends LitElement {
     :host([name='theme'])       { --app-accent: var(--app-accent-theme); }
     :host([name='setup'])       { --app-accent: var(--app-accent-setup); }
     :host([name='overview'])    { --app-accent: var(--app-accent-overview); }
+    :host([name='mesh'])        { --app-accent: var(--app-accent-mesh); }
+    :host([name='theme-studio']) { --app-accent: var(--app-accent-theme); }
 
     /* Size channel. */
     :host([size='sm']) { --tile-size: 16px; --glyph-size: 12px; --tile-radius: var(--radius-sm); }
@@ -183,8 +193,9 @@ export class ShipAppIcon extends LitElement {
   }
 
   render() {
+    const resolved = (APP_ALIASES[this.name] ?? this.name) as AppName
     const known = APP_NAMES.has(this.name)
-    const glyph = known ? APP_GLYPH[this.name as AppName] : 'dot'
+    const glyph = known ? APP_GLYPH[resolved] : 'dot'
     return html`
       <span class="frame" part="frame">
         <slot>

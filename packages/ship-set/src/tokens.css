@@ -402,6 +402,7 @@ body::after {
   --app-accent-theme:        oklch(0.66 0.20 320);
   --app-accent-setup:        oklch(0.68 0.16 110);
   --app-accent-overview:     oklch(0.60 0.10 230);
+  --app-accent-mesh:         oklch(0.64 0.14 195);
 
   /* ─── Scrollbar channel ──────────────────────────────────────────
    * Tokenized scrollbars. Themes can sharpen the radius (console),
@@ -480,6 +481,7 @@ body::after {
   --app-accent-theme:        oklch(0.78 0.20 320);
   --app-accent-setup:        oklch(0.80 0.16 110);
   --app-accent-overview:     oklch(0.74 0.10 230);
+  --app-accent-mesh:         oklch(0.76 0.14 195);
 }
 
 /* ─── Scrollbar utility classes ─────────────────────────────────────
