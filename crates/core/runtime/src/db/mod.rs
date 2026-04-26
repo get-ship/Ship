@@ -10,6 +10,7 @@ pub mod artifact_registry;
 pub mod envelope;
 pub mod events;
 pub mod integrity;
+pub mod repair;
 #[cfg(test)]
 mod events_tests;
 #[cfg(test)]
@@ -119,9 +120,9 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     }) {
         tracing::error!(
             "migrations failed on {}: {e}\n\
-             This usually means a different Ship binary created this database.\n\
-             To reset: ship daemon reset-db (backs up first)\n\
-             To keep data: use the same Ship binary that created this database.",
+             If this is a checksum mismatch from merging a branch that edited a baseline migration, \
+             run: ship daemon repair-migrations (non-destructive — patches recorded checksums to \
+             match the current files; never touches your data).",
             path.display()
         );
         return Err(anyhow!("migration failed on {}: {e}", path.display()));

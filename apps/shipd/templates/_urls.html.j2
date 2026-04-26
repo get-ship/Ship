@@ -167,6 +167,11 @@
 {%- macro mesh_events(agent_id) -%}/api/v1/mesh/events/{{ agent_id }}{%- endmacro -%}
 {%- macro actor_spawn() -%}/api/v1/actor/spawn{%- endmacro -%}
 {%- macro event_route() -%}/api/v1/events/route{%- endmacro -%}
+{%- macro list_actors() -%}/api/actors{%- endmacro -%}
+{%- macro list_mesh() -%}/api/mesh{%- endmacro -%}
+{%- macro get_actor(actor_id) -%}/api/actors/{{ actor_id }}{%- endmacro -%}
+{%- macro actor_events(actor_id) -%}/api/actors/{{ actor_id }}/events{%- endmacro -%}
+{%- macro actor_input(actor_id) -%}/api/actors/{{ actor_id }}/input{%- endmacro -%}
 {%- macro list_collections() -%}/api/v1/collections{%- endmacro -%}
 {%- macro get_collection_schema(collection) -%}/api/v1/collections/{{ collection }}/schema{%- endmacro -%}
 {%- macro update_collection_schema(collection) -%}/api/v1/collections/{{ collection }}/schema{%- endmacro -%}

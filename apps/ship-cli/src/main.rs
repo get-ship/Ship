@@ -190,6 +190,9 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Restart { host, dev } => DaemonCommand::Restart { host, dev },
                     DaemonCommands::Status => DaemonCommand::Status,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
+                    DaemonCommands::RepairMigrations { mark_applied } => {
+                        DaemonCommand::RepairMigrations { mark_applied }
+                    }
                     DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
                     DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
                     DaemonCommands::InstallService { shipd_path, no_start, no_autostart } => {

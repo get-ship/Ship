@@ -122,6 +122,61 @@ fn spawn_rejects_non_ulid_hint() {
 }
 
 #[test]
+fn spawn_headless_drains_stdout_and_exits() {
+    // /bin/echo writes to stdout, exits cleanly. Headless transport
+    // captures bytes on the broadcast and the child exits within a
+    // beat. Exercises stdout reader thread + ChildProcess::try_wait.
+    let log_dir = tmp_log_dir();
+    let profile = ActorProfile {
+        actor_id_hint: None,
+        kind: ActorKind::Agent,
+        transport: TransportKind::Headless,
+        one_shot: true,
+        bin: "/bin/echo".into(),
+        args: vec!["hello-headless".into()],
+        env: HashMap::new(),
+        work_dir: std::env::temp_dir(),
+        workspace_id: None,
+        agent_id: None,
+        provider: None,
+        parent_actor_id: None,
+        log_dir: Some(log_dir.clone()),
+        subscribe_namespaces: vec![],
+    };
+
+    let handle = spawn_actor(profile).expect("spawn_actor failed");
+    assert_eq!(handle.actor_id.len(), 26);
+    assert!(handle.pid().is_some());
+
+    let mut rx = handle.subscribe_output();
+    let received = std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + Duration::from_secs(2);
+        let mut total = Vec::new();
+        while std::time::Instant::now() < deadline {
+            if let Ok(chunk) = rx.try_recv() {
+                total.extend_from_slice(&chunk);
+                if !total.is_empty() {
+                    break;
+                }
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+        total
+    })
+    .join()
+    .unwrap();
+
+    assert!(
+        String::from_utf8_lossy(&received).contains("hello-headless"),
+        "expected 'hello-headless' in headless stdout, got {:?}",
+        String::from_utf8_lossy(&received)
+    );
+
+    // Headless write_input should fail — no stdin pipe.
+    assert!(handle.write_input(b"x").is_err());
+}
+
+#[test]
 fn stop_terminates_child() {
     let profile = ActorProfile {
         actor_id_hint: None,

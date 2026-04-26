@@ -27,7 +27,7 @@ pub mod profile;
 pub mod transport;
 
 pub use profile::{ActorKind, ActorProfile, Transport as TransportKind};
-pub use transport::{ChildHandle, PtyTransport, Transport};
+pub use transport::{ChildHandle, HeadlessTransport, PtyTransport, Transport};
 
 use anyhow::{Context, Result};
 use std::path::PathBuf;
@@ -71,6 +71,10 @@ impl ActorHandle {
 
     pub fn is_alive(&self) -> bool {
         self.child.is_alive()
+    }
+
+    pub fn try_exit(&self) -> Option<i32> {
+        self.child.try_exit()
     }
 }
 
@@ -126,6 +130,10 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
         TransportKind::Pty => {
             PtyTransport::default().spawn(&actor_id, &profile)
                 .with_context(|| format!("pty spawn for {actor_id}"))?
+        }
+        TransportKind::Headless => {
+            HeadlessTransport::default().spawn(&actor_id, &profile)
+                .with_context(|| format!("headless spawn for {actor_id}"))?
         }
     };
     let child = Arc::new(child);
