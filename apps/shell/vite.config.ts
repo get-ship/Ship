@@ -4,6 +4,33 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
 /**
+ * Vite plugin: treat `.svg` imports as raw text strings.
+ *
+ * Mirrors esbuild's `--loader:.svg=text` (set in
+ * `packages/ship-set/package.json` `bundle:elements` script). Without
+ * this, Vite resolves `import claudeSvg from '...claude.svg'` to an
+ * asset URL — `<ship-provider-blob>` then renders the URL instead of
+ * the inline SVG markup, so brand glyphs disappear.
+ *
+ * Applies to all .svg imports during dev + build. Excludes SVGs
+ * imported with explicit `?url` (lets callers opt out if they want
+ * the URL form).
+ */
+function svgAsText() {
+  return {
+    name: "svg-as-text",
+    enforce: "pre" as const,
+    transform(_code: string, id: string) {
+      const [path, query = ""] = id.split("?");
+      if (!path.endsWith(".svg")) return null;
+      if (query.includes("url")) return null;
+      const text = readFileSync(path, "utf8");
+      return { code: `export default ${JSON.stringify(text)};`, map: null };
+    },
+  };
+}
+
+/**
  * Resolve the daemon bearer token. Precedence:
  *   1. VITE_DAEMON_TOKEN env var
  *   2. ~/.ship/daemon.token file (auto, so `pnpm dev` Just Works)
@@ -42,6 +69,7 @@ export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
   return {
     base: isDev ? "/" : "/shell/",
+    plugins: [svgAsText()],
     resolve: {
       // Single Lit copy at runtime — both shell chrome (Vite) and
       // @ship/set web-components (Vite) resolve to the same module
