@@ -53,20 +53,49 @@ The signal stays in sync via `attributeChangedCallback` — external `setAttribu
 
 Custom events dispatched via `emit()` now include `composed: true` so they cross shadow-DOM boundaries when the component is consumed inside a shadow root.
 
-## No `data:` mount-time fetch declaration
+## ~~No `data:` mount-time fetch declaration~~ — fixed
 
-The eventual shorthand will let components declare data dependencies inline:
+`data(fn)` is now an injectable in the script block. Same shape as `signal()`:
 
 ```js
-// Future API — not implemented
-const $agent = data(() => ship.agents.detail({ id: props.agentId }))
+const $agent = data(({ signal }) =>
+  fetch('/api/v1/agents/' + props.agentId, { signal, credentials: 'same-origin' })
+    .then(r => r.json())
+)
 ```
 
-Until that lands, authors handle the fetch manually inside `onConnect` or an `effect`.
+The signal initializes to `null`, then resolves to the fetch result. `signal` is an `AbortSignal` wired to the component's `disconnectedCallback` — pass it to `fetch` so in-flight requests cancel cleanly when the component unmounts. Errors are logged and dispatched as a `data-error` CustomEvent from the host (composed + bubbles).
 
-**Workaround:** see [Data fetching](./data-fetching.md) for the manual `fetch()` + `credentials: 'same-origin'` pattern. ~5 lines per component that needs server data.
+In the template, reference the signal directly:
 
-**Cost:** boilerplate. Not capability.
+```html
+<div data-show="$agent">
+  <h3 data-text="$agent.name"></h3>
+</div>
+```
+
+For dep-aware refetch (signal A changes → re-fetch from URL derived from A), use `effect()` explicitly:
+
+```js
+const $agent = signal(null)
+effect($agentId, async () => {
+  const r = await fetch('/api/v1/agents/' + $agentId.get(), { credentials: 'same-origin' })
+  $agent.set(await r.json())
+})
+```
+
+`data()` is the simpler one-shot path; `effect() + signal()` is the reactive-refetch path.
+
+## ~~Reflecting state to host attributes is manual~~ — fixed
+
+`reflectAttr(name, $signal)` is an injectable in the script block. Subscribes to the signal and mirrors changes to the host attribute:
+
+```js
+const $active = signal('home')
+reflectAttr('active', $active)
+```
+
+Boolean `true` → empty attribute; `null` / `false` → attribute removed; everything else → `String(value)`. No infinite-loop risk — the attribute change fires `attributeChangedCallback` which calls `signal.set()`, but the signal short-circuits on unchanged values.
 
 ## LSP doesn't lint inside `<script>` or `<style>` blocks
 
@@ -87,6 +116,10 @@ The 200+ pre-built `<ship-*>` components in `packages/ship-set/` are LitElement 
 **Workaround:** none needed. They already work. Compose them in views as before. The SFC format is for NEW components you author; the SDK primitives stay where they are.
 
 **Cost:** mixed-vocabulary in the SDK (some primitives are TypeScript, some will be `.ship`). When reading the SDK to learn patterns, you encounter both shapes. Long-term we want consistency; short-term the cost is "two reading patterns instead of one".
+
+## ~~Jinja comments leak into served output~~ — fixed
+
+`{# ... #}` Jinja comments now strip cleanly at compile time. Previously a fast-path in the template renderer bypassed Jinja for sources that contained no `{%` or `{{`, which inadvertently let `{#` survive verbatim into the served HTML / SFC template literal. Fast-path now also gates on `{#` absence.
 
 ## Component signals don't deep-watch nested structures
 
@@ -128,9 +161,12 @@ A specific async-closure pattern in `runtime::services::orchestrator::pipeline::
 | Mount + lifecycle | ✅ |
 | Per-instance signal scoping | ✅ |
 | Auto prop signals (`$<propName>` works directly) | ✅ |
+| `data(fn)` mount-time async fetch | ✅ |
+| `reflectAttr(name, sig)` for host-attr mirroring | ✅ |
 | Style scoping | ✅ |
 | External style import (`<style src="...">`) | ✅ |
 | `:host`-aware scoping (no double-prefixing) | ✅ |
+| Jinja comment stripping | ✅ |
 | Slots | ✅ |
 | Events (with `composed: true`) | ✅ |
 | SDK macro globals | ✅ |
@@ -138,8 +174,7 @@ A specific async-closure pattern in `runtime::services::orchestrator::pipeline::
 | Hot-reload of template + style | ✅ |
 | LSP recognizes `.ship` extension | ✅ |
 | LSP lints Jinja content | ✅ |
-| LSP lints inner JS/CSS | ❌ deferred |
-| `data:` mount-time declaration | ❌ deferred |
+| LSP lints inner JS/CSS | ❌ deferred (v2) |
 | View-side `<script>` block execution | ❌ deferred |
 | `script` block hot-reload | ❌ deferred |
 | `ship-set` migration | ⏳ in progress (`ship-tabs` ported) |
