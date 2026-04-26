@@ -56,12 +56,15 @@ pub fn compile_file(path: &Path, _opts: &CompileOpts) -> Result<CompileResult> {
 /// Compile a `.sail` source string with an explicit tag name.
 pub fn compile_source(source: &str, tag: &str) -> Result<CompileResult> {
     let file = parse::parse(source).context("parse")?;
-    let js = emit::runtime::emit(&file, tag);
+    let (js, _html) = emit::runtime::emit_with_html(&file, tag);
+    let ssr = emit::ssr::emit(&file, tag);
+    let dts = emit::types::emit(&file, tag);
+    let schema = emit::schema::emit(&file, tag);
     Ok(CompileResult {
         js,
-        ssr: String::new(),
-        dts: String::new(),
-        schema: String::new(),
+        ssr,
+        dts,
+        schema,
         diagnostics: Vec::new(),
     })
 }

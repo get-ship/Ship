@@ -28,6 +28,12 @@ use crate::parse::ast::{Attr, AttrValue, EventModifier, Node, ScriptBlock, SailF
 /// Emit the JS module source for a parsed Sail file. `tag` is the
 /// custom-element tag name (typically the file basename, kebab-cased).
 pub fn emit(file: &SailFile, tag: &str) -> String {
+    let (js, _html) = emit_with_html(file, tag);
+    js
+}
+
+/// Emit both the JS module and the static HTML (for SSR reuse).
+pub fn emit_with_html(file: &SailFile, tag: &str) -> (String, String) {
     let mut e = Emitter::new(tag);
     if let Some(s) = &file.script {
         e.collect_reactive_names(s);
@@ -35,7 +41,9 @@ pub fn emit(file: &SailFile, tag: &str) -> String {
     if let Some(t) = &file.template {
         e.emit_template(t);
     }
-    e.render(file.script.as_ref())
+    let html = e.html.clone();
+    let js = e.render(file.script.as_ref());
+    (js, html)
 }
 
 struct Emitter<'a> {
@@ -460,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn bind_value_emits_bindValue() {
+    fn bind_value_emits_bind_value() {
         let js = compile(
             "<script>state draft = ''</script>\n<template><input bind:value={draft} /></template>",
         );
@@ -468,7 +476,7 @@ mod tests {
     }
 
     #[test]
-    fn bind_checked_emits_bindChecked() {
+    fn bind_checked_emits_bind_checked() {
         let js = compile(
             "<script>state ok = false</script>\n<template><input bind:checked={ok} /></template>",
         );
