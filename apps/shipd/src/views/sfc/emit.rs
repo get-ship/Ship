@@ -18,10 +18,15 @@
 //!                            with `bubbles: true`.
 //! - `onConnect(fn)` / `onDisconnect(fn)` — register lifecycle hooks.
 //!
-//! The wrapper stores signals on `window.__ShipSignals` keyed by the
-//! namespaced name. When Datastar's signal store is wired in directly,
-//! the `signal(init)` body in this template is the only thing that has
-//! to change.
+//! Signal storage is bridged into Datastar's signal store. For each
+//! declared signal, the wrapper writes `data-signals:<scoped_key>` on
+//! the host element with the JSON-encoded initial value; Datastar's
+//! `signals` plugin (data-* MutationObserver) ingests the attribute
+//! and creates the reactive signal. Programmatic `.set(v)` re-writes
+//! the same attribute, which Datastar re-applies. The wrapper listens
+//! to the `datastar-signal-patch` event on `document` to keep a local
+//! cache for `.get()` and to fan out changes to `effect(...)`
+//! subscribers. `window.__ShipSignals` is kept as a debug mirror only.
 //!
 //! Helper functions (attribute-name conversion, prop-decoder
 //! generation, JS template-literal escaping) live in
@@ -83,6 +88,7 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
       this.__hooks = {{ connect: [], disconnect: [] }};
       this.__signals = {{}};
       this.__effects = [];
+      this.__patchListener = null;
     }}
     connectedCallback() {{
       if (!__styleInjected && STYLE) {{
@@ -93,8 +99,10 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
         __styleInjected = true;
       }}
       this.setAttribute("data-component", TAG);
+      this.__patchListener = (e) => this.__onSignalPatch(e);
+      document.addEventListener("datastar-signal-patch", this.__patchListener);
       const props = this.__readProps();
-      const ctx = this.__bootstrap(props);
+      this.__bootstrap(props);
       const html = TEMPLATE.replaceAll("__SHIP_INST__", String(this.__inst));
       this.innerHTML = html;
       for (const fn of this.__hooks.connect) {{
@@ -102,6 +110,10 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
       }}
     }}
     disconnectedCallback() {{
+      if (this.__patchListener) {{
+        document.removeEventListener("datastar-signal-patch", this.__patchListener);
+        this.__patchListener = null;
+      }}
       for (const fn of this.__hooks.disconnect) {{
         try {{ fn(this); }} catch (e) {{ console.error("[ship:" + TAG + "] onDisconnect error:", e); }}
       }}
@@ -111,22 +123,44 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
       return props;
     }}
     __sigKey(name) {{ return "_" + TAG.replace(/-/g, "_") + "_" + this.__inst + "_" + name; }}
+    __onSignalPatch(e) {{
+      const detail = e && e.detail;
+      if (!detail) return;
+      for (const name in this.__signals) {{
+        const handle = this.__signals[name];
+        if (handle && handle.__key in detail) {{
+          const v = detail[handle.__key];
+          if (handle.__cache !== v) {{
+            handle.__cache = v;
+            for (const fn of handle.__subs) {{
+              try {{ fn(); }} catch (err) {{ console.error("[ship:" + TAG + "] effect error:", err); }}
+            }}
+          }}
+        }}
+      }}
+    }}
+    __writeDsSignal(key, value) {{
+      this.setAttribute("data-signals:" + key, JSON.stringify(value));
+    }}
     __makeSignal(name, initial) {{
       const key = this.__sigKey(name);
       const host = this;
-      const store = window.__ShipSignals;
-      store[key] = initial;
+      window.__ShipSignals[key] = initial;
+      host.__writeDsSignal(key, initial);
       const subs = new Set();
       const handle = {{
-        get() {{ return store[key]; }},
+        __key: key,
+        __cache: initial,
+        __subs: subs,
+        get() {{ return handle.__cache; }},
         set(v) {{
-          if (store[key] === v) return;
-          store[key] = v;
+          if (handle.__cache === v) return;
+          handle.__cache = v;
+          window.__ShipSignals[key] = v;
+          host.__writeDsSignal(key, v);
           for (const fn of subs) {{ try {{ fn(); }} catch (e) {{ console.error(e); }} }}
-          host.dispatchEvent(new CustomEvent("ship:signal", {{ detail: {{ key, value: v }} }}));
         }},
         __subscribe(fn) {{ subs.add(fn); return () => subs.delete(fn); }},
-        __key: key,
       }};
       this.__signals[name] = handle;
       return handle;
@@ -237,6 +271,30 @@ mod tests {
             scoped_css: "",
         });
         assert!(out.contains("\\`back\\$tick"));
+    }
+
+    #[test]
+    fn emit_bridges_signals_to_datastar() {
+        let s = schema(vec![], vec!["q"]);
+        let out = emit(&EmitInputs {
+            tag: "ta",
+            schema: &s,
+            user_script: "const $q = signal('')",
+            rendered_html: "<div></div>",
+            scoped_css: "",
+        });
+        assert!(
+            out.contains("setAttribute(\"data-signals:\" + key"),
+            "wrapper must write data-signals:<key> on host so Datastar ingests it"
+        );
+        assert!(
+            out.contains("datastar-signal-patch"),
+            "wrapper must subscribe to Datastar's signal-patch event for .get() / effect()"
+        );
+        assert!(
+            out.contains("removeEventListener(\"datastar-signal-patch\""),
+            "wrapper must clean up the listener on disconnect"
+        );
     }
 
     #[test]
