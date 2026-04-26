@@ -260,7 +260,7 @@ pub async fn serve_view_routed(
 
 /// Compose the render-time Value that carries the `ship` namespace
 /// alongside the flat context fields.
-fn build_render_ctx(
+pub(crate) fn build_render_ctx(
     ctx_json: serde_json::Value,
     state: &ApiState,
     m: &crate::views::router::RouteMatch,
@@ -297,7 +297,7 @@ fn build_render_ctx(
 /// We don't use the cached user-view renderer because we need to
 /// pass a minijinja::Value (holding the ShipNs Object, which owns
 /// ApiState) rather than a Serialize ctx.
-fn render_source(
+pub(crate) fn render_source(
     template_path: &std::path::Path,
     source: &str,
     view_name: &str,

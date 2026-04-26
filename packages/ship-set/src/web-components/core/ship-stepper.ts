@@ -55,17 +55,23 @@ export class ShipStepper extends LitElement {
         flex-shrink: 0;
       }
 
-      /* Current step — widened pill in the tone color. Default tone
-       * falls back to --primary so this works out-of-the-box. */
+      /* Current step — widened pill in the brand primary color by
+       * default. A 'tone' attribute opts into the shared tone ramp. */
       .dot[data-state='active'] {
         width: var(--dot-active-w);
-        background: var(--tone-fg, var(--primary));
+        background: var(--primary);
+      }
+      :host([tone]) .dot[data-state='active'] {
+        background: var(--tone-fg);
       }
 
-      /* Completed steps — same tone but faded so the current step still
+      /* Completed steps — same color but faded so the current step still
        * reads as "you are here". */
       .dot[data-state='done'] {
-        background: color-mix(in oklch, var(--tone-fg, var(--primary)) 55%, transparent);
+        background: color-mix(in oklch, var(--primary) 55%, transparent);
+      }
+      :host([tone]) .dot[data-state='done'] {
+        background: color-mix(in oklch, var(--tone-fg) 55%, transparent);
       }
     `,
   ]

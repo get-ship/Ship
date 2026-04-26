@@ -7,7 +7,7 @@
   "description": "Three-step pipeline that switches providers across steps with auto-merge.",
   "auto_merge": true,
   "steps": [
-    { "id": "implement", "agent": "default", "provider": "claude" },
+    { "id": "implement", "agent": "commander", "provider": "claude" },
     {
       "id": "verify",
       "after": ["implement"],

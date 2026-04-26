@@ -6,7 +6,7 @@
 
   "rail": {
     "label": "Pipelines",
-    "icon": "play"
+    "icon": "workflow"
   },
 
   // Heavy island bundles this view needs. The `pipelines/focus` sub-route

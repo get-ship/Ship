@@ -758,7 +758,7 @@ export class ShipCommandBar extends LitElement {
 
   private async _loadCurrentSession(): Promise<void> {
     try {
-      const resp = await fetch("/api/pty-sessions", {
+      const resp = await fetch("/api/v1/pty-sessions", {
         credentials: "same-origin",
       });
       if (resp.ok) {
@@ -798,7 +798,7 @@ export class ShipCommandBar extends LitElement {
 
   private async _loadAgents(): Promise<void> {
     try {
-      const resp = await fetch("/api/agents", { credentials: "same-origin" });
+      const resp = await fetch("/api/v1/agents", { credentials: "same-origin" });
       if (!resp.ok) return;
       const body = (await resp.json()) as {
         items?: Array<{ id: string; scope?: string }>;
@@ -817,7 +817,7 @@ export class ShipCommandBar extends LitElement {
 
   private async _loadViews(): Promise<void> {
     try {
-      const resp = await fetch("/api/views", { credentials: "same-origin" });
+      const resp = await fetch("/api/v1/views", { credentials: "same-origin" });
       if (!resp.ok) return;
       const body = (await resp.json()) as
         | { data?: { views?: Array<{ name: string }> } }
@@ -834,7 +834,7 @@ export class ShipCommandBar extends LitElement {
 
   private async _loadProviders(): Promise<void> {
     try {
-      const resp = await fetch("/api/providers/installed", {
+      const resp = await fetch("/api/v1/providers/installed", {
         credentials: "same-origin",
       });
       if (!resp.ok) return;
@@ -852,7 +852,7 @@ export class ShipCommandBar extends LitElement {
     this._detachStream();
     const ac = new AbortController();
     this._streamAbort = ac;
-    const es = new EventSource(`/api/sessions/${sessionId}/events`, {
+    const es = new EventSource(`/api/v1/sessions/${sessionId}/events`, {
       withCredentials: true,
     });
     // Accumulate text_delta fragments into the most recent agent
@@ -930,7 +930,7 @@ export class ShipCommandBar extends LitElement {
     this._spawning = true;
     this._spawnError = null;
     try {
-      const resp = await fetch("/api/sessions/spawn", {
+      const resp = await fetch("/api/v1/sessions/spawn", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -1046,7 +1046,7 @@ export class ShipCommandBar extends LitElement {
       ];
       this._value = "";
       try {
-        await fetch(`/api/sessions/${this._session.id}/message`, {
+        await fetch(`/api/v1/sessions/${this._session.id}/message`, {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
@@ -1101,7 +1101,7 @@ export class ShipCommandBar extends LitElement {
     this._createError = null;
     try {
       const resp = await fetch(
-        `/api/create/${encodeURIComponent(this._createSurface)}`,
+        `/api/v1/create/${encodeURIComponent(this._createSurface)}`,
         {
           method: "POST",
           credentials: "same-origin",
@@ -1163,7 +1163,7 @@ export class ShipCommandBar extends LitElement {
 
   private async _endSession(id: string): Promise<void> {
     try {
-      await fetch(`/api/sessions/${id}`, {
+      await fetch(`/api/v1/sessions/${id}`, {
         method: "DELETE",
         credentials: "same-origin",
       });
@@ -1499,7 +1499,7 @@ export class ShipCommandBar extends LitElement {
             return;
           }
           try {
-            const resp = await fetch("/api/lint/view", {
+            const resp = await fetch("/api/v1/lint/view", {
               method: "POST",
               credentials: "same-origin",
               headers: { "Content-Type": "application/json" },

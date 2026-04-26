@@ -18,33 +18,18 @@
       - empty/undefined       → first-letter initials (a.letter)
     In every branch the tile stays orange + square so the grid reads
     consistently even when a subset of agents provide branded icons. -#}
-{% set _icon_raw = a.icon if a.icon is defined else '' %}
-{% set _icon_s = _icon_raw | string %}
-{#- MiniJinja lacks `.startswith`; use the slice trick: `s[:N] == prefix`.
-    `simpleicons:` is 12 chars. -#}
-{% set _is_simpleicons = _icon_s and _icon_s[:12] == 'simpleicons:' %}
-{% set _slug = _icon_s[12:] if _is_simpleicons else '' %}
-{% set _is_short = (not _is_simpleicons) and _icon_s and _icon_s|length <= 3 %}
-{% set _is_registry = (not _is_simpleicons) and _icon_s and _icon_s|length > 3 %}
 <ship-list-tile variant="card" density="normal" interactive
                 navigable="/agents/{{ a.id }}"
                 class="agents-card-tile">
-  {% if _is_simpleicons and _slug %}
-    <ship-avatar slot="leading" size="lg" shape="square" identity-hue="{{ a.id }}"
-                 icon-slug="{{ _slug }}" name="{{ a.name }}"></ship-avatar>
-  {% elif _is_short %}
-    <ship-avatar slot="leading" size="lg" shape="square" identity-hue="{{ a.id }}"
-                 initials="{{ _icon_s }}" name="{{ a.name }}"></ship-avatar>
-  {% elif _is_registry %}
-    {#- Registry name — render ship-icon centered inside a manually-
-        styled square tile so the tone/shape treatment matches. -#}
-    <span slot="leading" class="agents-card-icon-tile" aria-label="{{ a.name }}">
-      <ship-icon name="{{ _icon_s }}" size="md"></ship-icon>
-    </span>
-  {% else %}
-    <ship-avatar slot="leading" size="lg" shape="square" identity-hue="{{ a.id }}"
-                 initials="{{ a.letter }}" name="{{ a.name }}"></ship-avatar>
-  {% endif %}
+  {#- Resolve leading avatar/icon through the shared partial so dashboard
+      and agents views render identical brand-aware tiles. -#}
+  {%- set _agent_id = a.id -%}
+  {%- set _agent_name = a.name -%}
+  {%- set _agent_icon = a.icon if a.icon is defined else '' -%}
+  {%- set _agent_letter = a.letter -%}
+  {%- set _avatar_size = 'lg' -%}
+  {%- set _avatar_shape = 'square' -%}
+  {% include '_shared/agent_avatar.html.j2' %}
   <div class="agents-card-body">
     <div class="agents-card-head">
       <div class="agents-card-title">{{ a.name }}</div>

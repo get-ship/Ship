@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
   "name": "theme-studio",
-  "type": "component",
+  "type": "html",
   "rail": {
     "label": "Theme Studio",
     "icon": "palette"

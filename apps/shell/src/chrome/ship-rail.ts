@@ -3,7 +3,7 @@
 //! Light-DOM, uses the existing `.ship-rail` stylesheet from the shell's
 //! index.html. Pin state lives in daemon settings (`shell.rail.pinned`);
 //! display metadata (label, icon) comes from each view's manifest via
-//! `/api/views`. Subscribes to `ship:navigate` on `<ship-shell>` to
+//! `/api/v1/views`. Subscribes to `ship:navigate` on `<ship-shell>` to
 //! highlight the active item. Right-click on an item unpins. A bottom
 //! "+" button dispatches `ship:launcher:open`.
 
@@ -19,6 +19,16 @@ interface ApiView {
   source: string;
   rail?: { label: string; icon: string };
 }
+
+// Apps with a canonical <ship-app-icon> entry. Mirrors the registry in
+// packages/ship-set/src/web-components/core/ship-app-icon.ts. Anything
+// outside this set falls back to a plain <ship-icon> using the
+// manifest-declared rail.icon glyph name.
+const KNOWN_APP_NAMES = new Set([
+  "dashboard", "pipelines", "agents", "skills", "git", "collections",
+  "canvas", "settings", "chat", "events", "specs", "theme",
+  "theme-studio", "setup", "overview", "mesh",
+]);
 
 @customElement("ship-rail")
 export class ShipRail extends LitElement {
@@ -64,7 +74,7 @@ export class ShipRail extends LitElement {
 
   private async loadProjects(): Promise<void> {
     try {
-      const resp = await fetch("/api/projects", {
+      const resp = await fetch("/api/v1/projects", {
         credentials: "same-origin",
       });
       if (!resp.ok) return;
@@ -81,7 +91,7 @@ export class ShipRail extends LitElement {
 
   private async switchProject(id: string): Promise<void> {
     try {
-      await fetch("/api/projects/switch", {
+      await fetch("/api/v1/projects/switch", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -125,7 +135,7 @@ export class ShipRail extends LitElement {
 
   private async pollSessions(): Promise<void> {
     try {
-      const resp = await fetch("/api/pty-sessions", {
+      const resp = await fetch("/api/v1/pty-sessions", {
         credentials: "same-origin",
       });
       if (!resp.ok) return;
@@ -142,7 +152,10 @@ export class ShipRail extends LitElement {
 
   private onChatsClick(e: MouseEvent): void {
     e.preventDefault();
-    window.ship?.navigate("/chats");
+    // /chats consolidated into /mesh upstream — the rail icon's
+    // semantics ("Mission Control" / live chat sessions) belong with
+    // the unified mesh view now.
+    window.ship?.navigate("/mesh");
   }
 
   createRenderRoot(): Element {
@@ -220,10 +233,10 @@ export class ShipRail extends LitElement {
       </div>
       ${rest.map((name) => this.renderItem(name))}
       <a
-        class="rail-item rail-chats${this.active === "chats" ? " active" : ""}"
-        title="Chats (${this.activeSessionCount} active)"
+        class="rail-item rail-chats${this.active === "mesh" ? " active" : ""}"
+        title="Mission Control · ${this.activeSessionCount} active"
         aria-label="Mission Control"
-        href="/chats"
+        href="/mesh"
         data-badge=${this.activeSessionCount > 0
           ? String(this.activeSessionCount)
           : ""}
@@ -284,7 +297,7 @@ export class ShipRail extends LitElement {
     const path = window.prompt("Path to project directory:");
     if (!path) return;
     try {
-      const resp = await fetch("/api/projects", {
+      const resp = await fetch("/api/v1/projects", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -310,8 +323,16 @@ export class ShipRail extends LitElement {
   private renderItem(name: string) {
     const v = this.viewsByName.get(name);
     const label = v?.rail?.label ?? humanize(name);
-    const icon = v?.rail?.icon ?? "app-window";
+    const fallbackIcon = v?.rail?.icon ?? "app-window";
     const classes = `rail-item${this.active === name ? " active" : ""}`;
+    // Known Ship apps render via <ship-app-icon> so each glyph is the
+    // canonical per-app mark tinted by --app-accent-{name}. Unknown
+    // view ids (third-party, extensions) fall back to <ship-icon> with
+    // the glyph name from the manifest's rail.icon.
+    const known = KNOWN_APP_NAMES.has(name);
+    const inner = known
+      ? html`<ship-app-icon name=${name} variant="glyph" size="md"></ship-app-icon>`
+      : html`<ship-icon name=${fallbackIcon}></ship-icon>`;
     return html`
       <a
         class=${classes}
@@ -321,7 +342,7 @@ export class ShipRail extends LitElement {
         @click=${(e: MouseEvent) => this.onItemClick(e, name)}
         @contextmenu=${(e: MouseEvent) => this.onItemContext(e, name)}
       >
-        <ship-icon name=${icon}></ship-icon>
+        ${inner}
       </a>
     `;
   }
@@ -329,7 +350,7 @@ export class ShipRail extends LitElement {
 
 async function fetchViews(): Promise<ApiView[]> {
   try {
-    const resp = await fetch("/api/views", { credentials: "same-origin" });
+    const resp = await fetch("/api/v1/views", { credentials: "same-origin" });
     if (!resp.ok) return [];
     const body = (await resp.json()) as { data?: { views?: ApiView[] } };
     return body.data?.views ?? [];

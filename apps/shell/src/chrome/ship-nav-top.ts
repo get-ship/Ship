@@ -61,7 +61,7 @@ export class ShipNavTop extends LitElement {
 
   private async loadLabels(): Promise<void> {
     try {
-      const resp = await fetch("/api/views", { credentials: "same-origin" });
+      const resp = await fetch("/api/v1/views", { credentials: "same-origin" });
       if (!resp.ok) return;
       const body = (await resp.json()) as { data?: { views?: ApiView[] } };
       const next = new Map<string, string>();
@@ -147,7 +147,7 @@ export class ShipNavTop extends LitElement {
         >
           <ship-icon slot="leading" name="palette"></ship-icon>
         </ship-button>
-        <div class="theme-grid" role="listbox" aria-label="Theme"></div>
+        <div class="theme-grid ship-scroll-thin" role="listbox" aria-label="Theme"></div>
       </ship-popover>
       <ship-button
         variant="ghost"

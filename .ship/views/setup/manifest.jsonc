@@ -6,6 +6,11 @@
   "type": "html",
   "description": "First-run setup wizard (welcome → workspace → provider → done)",
 
+  "rail": {
+    "label": "Setup",
+    "icon": "rocket"
+  },
+
   // Reactive signals declared on the root container via {{ signal(...) }}.
   // Listed here for documentation / tooling — the source of truth remains
   // index.html.j2.

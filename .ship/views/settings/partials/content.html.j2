@@ -3,6 +3,18 @@
    Matches React /studio/settings parity spec. -#}
 {% from '_ship.html.j2' import section, endsection %}
 {% from '_urls.html.j2' import update_setting %}
+{#- Rehydrate state inside the partial so SSE re-renders (which render
+    this partial in isolation) self-contain all the variables they read.
+    The parent index.html.j2 also relies on these names, but `set` in
+    Jinja is idempotent — both code paths reach the same shape. -#}
+{% set s = ship.settings.state() %}
+{% set providers = s.providers %}
+{% set default_provider = s.default_provider %}
+{% set default_model = s.default_model %}
+{% set terminal = s.terminal %}
+{% set advanced_registry = s.advanced_registry %}
+{% set daemon_endpoint = s.daemon_endpoint %}
+{% set about = s.about %}
 <div id="settings-content" class="s-sections">
   {% include 'settings/partials/styles.html.j2' %}
 

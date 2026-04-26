@@ -4,6 +4,33 @@ import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
 /**
+ * Vite plugin: treat `.svg` imports as raw text strings.
+ *
+ * Mirrors esbuild's `--loader:.svg=text` (set in
+ * `packages/ship-set/package.json` `bundle:elements` script). Without
+ * this, Vite resolves `import claudeSvg from '...claude.svg'` to an
+ * asset URL — `<ship-provider-blob>` then renders the URL instead of
+ * the inline SVG markup, so brand glyphs disappear.
+ *
+ * Applies to all .svg imports during dev + build. Excludes SVGs
+ * imported with explicit `?url` (lets callers opt out if they want
+ * the URL form).
+ */
+function svgAsText() {
+  return {
+    name: "svg-as-text",
+    enforce: "pre" as const,
+    transform(_code: string, id: string) {
+      const [path, query = ""] = id.split("?");
+      if (!path.endsWith(".svg")) return null;
+      if (query.includes("url")) return null;
+      const text = readFileSync(path, "utf8");
+      return { code: `export default ${JSON.stringify(text)};`, map: null };
+    },
+  };
+}
+
+/**
  * Resolve the daemon bearer token. Precedence:
  *   1. VITE_DAEMON_TOKEN env var
  *   2. ~/.ship/daemon.token file (auto, so `pnpm dev` Just Works)
@@ -23,7 +50,14 @@ function resolveToken(envToken: string | undefined): string {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const daemon = env.VITE_DAEMON_URL ?? "http://127.0.0.1:9315";
+  // Daemon target — explicit URL wins; otherwise fall back to SHIP_DAEMON_PORT
+  // (set by scripts/dev-daemon.sh when binding a non-default port for
+  // multi-worktree dev), then to 127.0.0.1:9315.
+  const daemonPort = env.SHIP_DAEMON_PORT ?? process.env.SHIP_DAEMON_PORT ?? "9315";
+  const daemon = env.VITE_DAEMON_URL ?? `http://127.0.0.1:${daemonPort}`;
+  // Vite dev server port follows the daemon's offset so two worktrees
+  // can run side-by-side: daemon :9315 → vite :3100; daemon :9316 → vite :3101, etc.
+  const vitePort = Number(env.VITE_PORT ?? process.env.VITE_PORT ?? (3100 + (Number(daemonPort) - 9315)));
   // Token resolved per-request in the proxy below so daemon restarts (which
   // mint a new token) don't require a Vite restart.
   function currentToken(): string {
@@ -35,6 +69,7 @@ export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
   return {
     base: isDev ? "/" : "/shell/",
+    plugins: [svgAsText()],
     resolve: {
       // Single Lit copy at runtime — both shell chrome (Vite) and
       // @ship/set web-components (Vite) resolve to the same module
@@ -60,7 +95,7 @@ export default defineConfig(({ mode }) => {
       ],
     },
     server: {
-      port: 3100,
+      port: vitePort,
       strictPort: true,
       proxy: {
         // Forward daemon API + view endpoints so the browser sees everything

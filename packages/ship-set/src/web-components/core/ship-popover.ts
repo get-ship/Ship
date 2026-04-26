@@ -31,6 +31,8 @@ export class ShipPopover extends LitElement {
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow-md);
+      backdrop-filter: var(--card-backdrop-filter);
+      -webkit-backdrop-filter: var(--card-backdrop-filter);
       font-family: var(--font-body);
       font-size: var(--text-base);
       opacity: 0;

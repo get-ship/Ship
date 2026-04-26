@@ -119,7 +119,7 @@ export class ShipShell extends LitElement {
           emit("ship:chat:close");
         },
         async send(text: string, workspace_id?: string) {
-          const resp = await fetch("/api/chat/send", {
+          const resp = await fetch("/api/v1/chat/send", {
             method: "POST",
             credentials: "same-origin",
             headers: { "Content-Type": "application/json" },

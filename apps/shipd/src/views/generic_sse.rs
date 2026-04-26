@@ -5,12 +5,14 @@
 //! event, and pushes them to the browser via Datastar's PatchElements.
 
 use axum::extract::{Path, State};
+use minijinja::Value;
 use runtime::events::ActorConfig;
 use runtime::gen_ulid;
 use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::rest_api::ApiState;
+use crate::services::ship_ns::ShipNs;
 use crate::views::stream::{ViewSse, ViewStream};
 
 /// Parse Datastar signals from the raw query string.
@@ -50,15 +52,36 @@ fn event_namespaces(events: &Option<Vec<String>>) -> Vec<String> {
 }
 
 /// Render the content partial for a view from disk (hot-reload friendly).
+///
+/// Injects the `ship.*` SDK namespace so partials can call
+/// `ship.settings.state()`, `ship.actors.list()`, etc. on SSE re-render
+/// — matching what the file-routed handler exposes. Without this, any
+/// partial that reads `ship.foo.bar()` blew up with "undefined value"
+/// the moment SSE patched it back in over the parent's full-page render.
 fn render_partial(
+    state: &ApiState,
     view_name: &str,
     view_dir: &std::path::Path,
-    ctx: &serde_json::Value,
+    ctx_json: &serde_json::Value,
+    query_params: &HashMap<String, String>,
 ) -> Option<String> {
     let partial_path = view_dir.join("partials/content.html.j2");
     let source = std::fs::read_to_string(&partial_path).ok()?;
     let tpl_name = format!("{view_name}/partials/content");
-    match super::templates::render_view_source(&tpl_name, &source, ctx) {
+
+    let ship = Value::from_object(ShipNs {
+        state: state.clone(),
+        route: Value::from_serialize(&serde_json::json!({})),
+        query: Value::from_serialize(query_params),
+        signals: Value::from_serialize(ctx_json.get("signals").cloned().unwrap_or_default()),
+        session: Value::from_serialize(ctx_json.get("session").cloned().unwrap_or_default()),
+        workspace: Value::from_serialize(ctx_json.get("workspace").cloned().unwrap_or_default()),
+        env: Value::from_serialize(ctx_json.get("env").cloned().unwrap_or_default()),
+    });
+    let base = Value::from_serialize(ctx_json);
+    let ctx = minijinja::context! { ship, ..base };
+
+    match super::routed_handler::render_source(&partial_path, &source, view_name, ctx) {
         Ok(html) => Some(html),
         Err(e) => {
             tracing::error!(view = %view_name, error = %e, "partial render failed");
@@ -123,7 +146,7 @@ pub async fn serve_view_sse(
 
         // Initial render.
         let ctx = super::context::build_generic_context(&name, &signals, &manifest_data, &query_params);
-        if let Some(html) = render_partial(&name, &view_dir, &ctx) {
+        if let Some(html) = render_partial(&state, &name, &view_dir, &ctx, &query_params) {
             if vs.patch(&selector, html).await.is_err() {
                 return;
             }
@@ -156,7 +179,7 @@ pub async fn serve_view_sse(
             }
             let ctx =
                 super::context::build_generic_context(&name, &signals, &manifest_data, &query_params);
-            let Some(html) = render_partial(&name, &view_dir, &ctx) else {
+            let Some(html) = render_partial(&state, &name, &view_dir, &ctx, &query_params) else {
                 continue;
             };
             if vs.patch(&selector, html).await.is_err() {

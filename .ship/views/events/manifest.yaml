@@ -3,6 +3,6 @@ name: events
 type: html
 rail:
   label: Events
-  icon: sparkles
+  icon: radio
 events:
   - ""

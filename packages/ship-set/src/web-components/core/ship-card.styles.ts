@@ -36,6 +36,8 @@ export const shipCardStyles = [
       border: 1px solid var(--border);
       border-radius: var(--card-radius);
       box-shadow: var(--shadow-card-rest);
+      backdrop-filter: var(--card-backdrop-filter);
+      -webkit-backdrop-filter: var(--card-backdrop-filter);
       /* Density channel — overridden per :host([padding=…]) below.
        * Defaults match pre-polish 16px/20px so existing composites
        * (ship-pipeline-definition, ship-pipeline-run, settings cards)
@@ -52,6 +54,30 @@ export const shipCardStyles = [
         transform var(--duration-fast) var(--ease-out);
     }
     :host([hidden]) { display: none; }
+
+    /* Card-texture overlay channel — themes set --card-texture to a
+     * data-URI SVG noise pattern (or any background value). Default is
+     * none (no-op). Painted via ::after so it sits above the card fill
+     * but below slotted content, with pointer-events disabled. The
+     * variant=outline rule below clears it for borderless cards.
+     * prefers-reduced-motion users see no texture. */
+    :host::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: var(--card-texture);
+      mix-blend-mode: var(--card-texture-blend);
+      opacity: var(--card-texture-opacity);
+      border-radius: inherit;
+      z-index: 0;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      :host::after { background: none; }
+    }
+    :host([variant='outline'])::after { background: none; }
+    /* Keep slotted content above the texture layer. */
+    ::slotted(*), .header, .footer { position: relative; z-index: 1; }
 
     /* Density channel. 'none' is useful for nested composites that want
      * total control over internal spacing. */

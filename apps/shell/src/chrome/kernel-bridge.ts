@@ -1,4 +1,4 @@
-//! Kernel-event bridge. One SSE socket to `/api/events/stream`,
+//! Kernel-event bridge. One SSE socket to `/api/v1/events/stream`,
 //! multiplexed to any number of subscribers by event-namespace prefix.
 //!
 //! Connects lazily on the first subscribe; closes 30s after the last
@@ -32,7 +32,7 @@ export class KernelBridge {
   }
 
   private connect(): void {
-    const src = new EventSource("/api/events/stream");
+    const src = new EventSource("/api/v1/events/stream");
     this.socket = src;
     src.onmessage = (e) => {
       let ev: KernelEvent;
