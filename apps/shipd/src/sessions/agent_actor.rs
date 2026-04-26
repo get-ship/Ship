@@ -169,6 +169,19 @@ fn spawn_reader_middleware(
                             let trimmed = line.trim_end_matches(['\n', '\r']);
                             if !trimmed.is_empty() {
                                 if let Some(ev) = adapter.parse_output(trimmed) {
+                                    // Studio.reply parity: long-lived
+                                    // non-Claude providers (codex,
+                                    // opencode, cursor, gemini via stdin
+                                    // push) emit Message events here.
+                                    // Claude has its own chat_reply
+                                    // path; emitting again would be a
+                                    // double — but parse_output rarely
+                                    // produces Message from a Claude
+                                    // TUI rendering, so the duplicate
+                                    // case is unlikely in practice.
+                                    if let ProviderEvent::Message { text } = &ev {
+                                        emit_studio_reply(&actor_id, text);
+                                    }
                                     let _ = event_tx.send(ev);
                                 }
                             }
