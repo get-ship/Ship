@@ -23,6 +23,9 @@ export type { OnOptions, Modifier } from './on'
 export { applyPatch, applyPatches, tokenizePath } from './patch'
 export type { Patch, PatchOp, PathToken } from './patch'
 
-// Remaining modules (component, for, slot, data, morph, decode) land
-// per the implementation phasing in 03-runtime-architecture.md.
+export { bindFor, bindForSignal } from './for'
+export type { BindForOptions, RenderedItem } from './for'
+
+// Remaining modules (component, slot, data, morph, decode) land per
+// the implementation phasing in 03-runtime-architecture.md.
 // Import sites stay stable.
