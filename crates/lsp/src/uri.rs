@@ -27,15 +27,18 @@ pub fn url_to_path(url: &Url) -> Result<PathBuf> {
 
 /// True if a path looks like a Ship view source we should lint.
 ///
-/// Today: `**/*.html.j2` under any `.ship/views/` directory.
-///
-/// TODO(ship-extension): when the `.ship` extension rename ships,
-/// also accept `**/*.ship` here. Keep `.html.j2` for back-compat.
+/// Recognised:
+/// - `**/*.html.j2` under any `.ship/views/` directory (legacy layout).
+/// - `**/*.ship` anywhere — single-file component format. v1 lint
+///   treats the entire file body as Jinja; block-aware lint is v2.
 pub fn is_view_source(path: &Path) -> bool {
     let s = match path.to_str() {
         Some(s) => s,
         None => return false,
     };
+    if s.ends_with(".ship") {
+        return true;
+    }
     if !s.ends_with(".html.j2") {
         return false;
     }
