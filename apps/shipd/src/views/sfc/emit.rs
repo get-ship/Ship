@@ -169,8 +169,11 @@ pub fn emit(inputs: &EmitInputs<'_>) -> String {
       const host = this;
       const onConnect = (fn) => host.__hooks.connect.push(fn);
       const onDisconnect = (fn) => host.__hooks.disconnect.push(fn);
+      // composed: true so the event crosses shadow-DOM boundaries when
+      // the component is consumed inside a shadow root. bubbles: true so
+      // ancestor listeners (and Datastar's data-on:* attribute hooks) fire.
       const emit = (name, payload) => host.dispatchEvent(
-        new CustomEvent(name, {{ detail: payload, bubbles: true }})
+        new CustomEvent(name, {{ detail: payload, bubbles: true, composed: true }})
       );
       let __signalIdx = 0;
       const signal = (initial) => {{

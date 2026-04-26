@@ -82,6 +82,24 @@ fn emit_bridges_signals_to_datastar() {
 }
 
 #[test]
+fn emit_dispatches_composed_events() {
+    // emit() must set composed: true so events cross shadow-DOM boundaries
+    // when the component is consumed inside a shadow root.
+    let s = schema(vec![], vec![]);
+    let out = emit(&EmitInputs {
+        tag: "t",
+        schema: &s,
+        user_script: "",
+        rendered_html: "<div></div>",
+        scoped_css: "",
+    });
+    assert!(
+        out.contains("composed: true"),
+        "emit() must include composed: true on the CustomEvent"
+    );
+}
+
+#[test]
 fn prop_decoders_use_kebab_attr() {
     let s = schema(vec![("fetchUrl", None), ("minChars", Some("1"))], vec![]);
     let out = emit(&EmitInputs {
