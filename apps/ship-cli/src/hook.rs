@@ -99,7 +99,7 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
 /// For hooks, we don't auto-start — hooks must be fast and non-blocking.
 /// Use `crate::daemon::ensure_daemon()` for commands that can afford the wait.
 fn daemon_info() -> Option<(u16, String)> {
-    let home = runtime::ShipHome::project_ship_dir(dirs::home_dir()?);
+    let home = runtime::ShipHome::from_env().root().to_path_buf();
     let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;
     let port = port_str.trim().parse::<u16>().ok()?;
     let token = std::fs::read_to_string(home.join("daemon.token")).ok()?;
@@ -215,7 +215,7 @@ pub fn run_session_end() -> Result<()> {
 /// Signal job completion to the daemon via REST API.
 /// Non-fatal — best-effort fallback for pipeline advancement.
 fn signal_job_completed(slug: &str) {
-    let home = runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap_or_default());
+    let home = runtime::ShipHome::from_env().root().to_path_buf();
     let port = match std::fs::read_to_string(home.join("daemon.port")) {
         Ok(p) => p.trim().to_string(),
         Err(_) => return,
