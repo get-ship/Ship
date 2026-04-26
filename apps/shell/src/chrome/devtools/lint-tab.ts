@@ -1,4 +1,4 @@
-//! `<ship-devtools-lint>` — runs `POST /api/lint/view` for the
+//! `<ship-devtools-lint>` — runs `POST /api/v1/lint/view` for the
 //! mounted view's top-level directory and renders findings.
 //!
 //! Findings are file:line:col [rule] message entries. Errors render
@@ -156,7 +156,7 @@ export class ShipDevtoolsLint extends LitElement {
     this._loading = true;
     this._error = null;
     try {
-      const resp = await fetch("/api/lint/view", {
+      const resp = await fetch("/api/v1/lint/view", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },

@@ -227,6 +227,9 @@ pub fn register_all(env: &mut minijinja::Environment) {
     env.add_filter("take", filter_take);
     env.add_filter("tojson", filter_tojson);
     env.add_filter("to_attr_json", filter_to_attr_json);
+    // Tests used by SDK macros (e.g. _ship.html.j2's section() macro).
+    env.add_test("startingwith", |s: &str, prefix: &str| s.starts_with(prefix));
+    env.add_test("endingwith", |s: &str, suffix: &str| s.ends_with(suffix));
 }
 
 /// Global function: `ship_tokens()`.

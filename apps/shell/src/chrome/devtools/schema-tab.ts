@@ -1,6 +1,6 @@
 //! `<ship-devtools-schema>` — lists the `ship.*` ops referenced by the
 //! mounted view's template + manifest, cross-linked to the registry
-//! catalog served at `/api/ship/schema`.
+//! catalog served at `/api/v1/ship/schema`.
 //!
 //! Purely read-only. Unknown ops (not in the catalog) render with a
 //! warning tone — the ast lint rule catches these too, but surfacing
@@ -181,7 +181,7 @@ export class ShipDevtoolsSchema extends LitElement {
   private async _loadOps(): Promise<void> {
     if (this._ops.size > 0) return;
     try {
-      const resp = await fetch("/api/ship/schema", {
+      const resp = await fetch("/api/v1/ship/schema", {
         credentials: "same-origin",
       });
       if (!resp.ok) return;
@@ -211,7 +211,7 @@ export class ShipDevtoolsSchema extends LitElement {
     await this._loadOps();
     try {
       const resp = await fetch(
-        `/api/view-source/${encodeURI(stripped)}`,
+        `/api/v1/view-source/${encodeURI(stripped)}`,
         { credentials: "same-origin" },
       );
       if (resp.status === 404) {

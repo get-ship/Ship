@@ -1,13 +1,13 @@
 //! `<ship-devtools-source>` — Source tab body for the panel dock.
 //!
 //! Phase 1: read-only pane showing the mounted view's `index.html.j2`
-//! + manifest from `/api/view-source/{*path}`.
+//! + manifest from `/api/v1/view-source/{*path}`.
 //!
 //! Phase 2: edit mode. For user-scoped views the template editor is
 //! editable; ⌘/Ctrl+S (or the Save button) PUTs to
-//! `/api/views/{name}/template`. Lint diagnostics on failure render
+//! `/api/v1/views/{name}/template`. Lint diagnostics on failure render
 //! inline. Project-scoped views show a "Fork to edit" affordance
-//! which calls `POST /api/views/{name}/fork` and reloads the source.
+//! which calls `POST /api/v1/views/{name}/fork` and reloads the source.
 //!
 //! Requires the `code-editor` pack to be loaded before first render.
 
@@ -229,7 +229,7 @@ export class ShipDevtoolsSource extends LitElement {
       fetch("/api/assets/jinja-macros.json", { credentials: "same-origin" })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
-      fetch("/api/ship/schema", { credentials: "same-origin" })
+      fetch("/api/v1/ship/schema", { credentials: "same-origin" })
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
     ]);
@@ -311,7 +311,7 @@ export class ShipDevtoolsSource extends LitElement {
 
   private async _loadLintMarkers(viewName: string): Promise<void> {
     try {
-      const resp = await fetch("/api/lint/view", {
+      const resp = await fetch("/api/v1/lint/view", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -391,7 +391,7 @@ export class ShipDevtoolsSource extends LitElement {
     this._error = null;
     try {
       const resp = await fetch(
-        `/api/view-source/${encodeURI(stripped)}`,
+        `/api/v1/view-source/${encodeURI(stripped)}`,
         { credentials: "same-origin" },
       );
       if (resp.status === 404) {
@@ -420,7 +420,7 @@ export class ShipDevtoolsSource extends LitElement {
     }
   }
 
-  /** Strip `/api/v/` prefix so only the view path remains. */
+  /** Strip `/api/v1/v/` prefix so only the view path remains. */
   private _stripPrefix(path: string): string {
     const m = path.match(/^\/api\/v\/(.+)$/);
     if (m) return m[1];
@@ -475,7 +475,7 @@ export class ShipDevtoolsSource extends LitElement {
     try {
       const viewName = this._src.view_name.split(".")[0];
       const resp = await fetch(
-        `/api/views/${encodeURIComponent(viewName)}/template`,
+        `/api/v1/views/${encodeURIComponent(viewName)}/template`,
         {
           method: "PUT",
           credentials: "same-origin",
@@ -530,7 +530,7 @@ export class ShipDevtoolsSource extends LitElement {
     this._saveError = null;
     try {
       const resp = await fetch(
-        `/api/views/${encodeURIComponent(viewName)}/fork`,
+        `/api/v1/views/${encodeURIComponent(viewName)}/fork`,
         { method: "POST", credentials: "same-origin" },
       );
       if (!resp.ok) {

@@ -6,7 +6,7 @@
 //! because it's an app-level UX decision, not a user preference.
 //!
 //! Per-view display metadata (label, icon) now comes from each view's
-//! `manifest.rail` block, served via `/api/views`. See
+//! `manifest.rail` block, served via `/api/v1/views`. See
 //! `packages/ship-shell/src/ship-rail.ts` for the consumer.
 
 /** First-run dock. Order is the initial display order; users immediately

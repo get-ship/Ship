@@ -121,7 +121,7 @@ export class ShipLauncher extends LitElement {
 
   private async fetchViews(): Promise<void> {
     try {
-      const resp = await fetch("/api/views", { credentials: "same-origin" });
+      const resp = await fetch("/api/v1/views", { credentials: "same-origin" });
       if (!resp.ok) return;
       const body = (await resp.json()) as { data?: { views?: ApiView[] } };
       this.views = body.data?.views ?? [];
@@ -132,7 +132,7 @@ export class ShipLauncher extends LitElement {
 
   private async fetchProject(): Promise<Project | null> {
     try {
-      const resp = await fetch("/api/projects", { credentials: "same-origin" });
+      const resp = await fetch("/api/v1/projects", { credentials: "same-origin" });
       if (!resp.ok) return null;
       const body = (await resp.json()) as {
         projects: Project[];

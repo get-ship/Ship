@@ -3,7 +3,7 @@
 //! Light-DOM, uses the existing `.ship-rail` stylesheet from the shell's
 //! index.html. Pin state lives in daemon settings (`shell.rail.pinned`);
 //! display metadata (label, icon) comes from each view's manifest via
-//! `/api/views`. Subscribes to `ship:navigate` on `<ship-shell>` to
+//! `/api/v1/views`. Subscribes to `ship:navigate` on `<ship-shell>` to
 //! highlight the active item. Right-click on an item unpins. A bottom
 //! "+" button dispatches `ship:launcher:open`.
 
@@ -74,7 +74,7 @@ export class ShipRail extends LitElement {
 
   private async loadProjects(): Promise<void> {
     try {
-      const resp = await fetch("/api/projects", {
+      const resp = await fetch("/api/v1/projects", {
         credentials: "same-origin",
       });
       if (!resp.ok) return;
@@ -91,7 +91,7 @@ export class ShipRail extends LitElement {
 
   private async switchProject(id: string): Promise<void> {
     try {
-      await fetch("/api/projects/switch", {
+      await fetch("/api/v1/projects/switch", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -135,7 +135,7 @@ export class ShipRail extends LitElement {
 
   private async pollSessions(): Promise<void> {
     try {
-      const resp = await fetch("/api/pty-sessions", {
+      const resp = await fetch("/api/v1/pty-sessions", {
         credentials: "same-origin",
       });
       if (!resp.ok) return;
@@ -294,7 +294,7 @@ export class ShipRail extends LitElement {
     const path = window.prompt("Path to project directory:");
     if (!path) return;
     try {
-      const resp = await fetch("/api/projects", {
+      const resp = await fetch("/api/v1/projects", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -347,7 +347,7 @@ export class ShipRail extends LitElement {
 
 async function fetchViews(): Promise<ApiView[]> {
   try {
-    const resp = await fetch("/api/views", { credentials: "same-origin" });
+    const resp = await fetch("/api/v1/views", { credentials: "same-origin" });
     if (!resp.ok) return [];
     const body = (await resp.json()) as { data?: { views?: ApiView[] } };
     return body.data?.views ?? [];

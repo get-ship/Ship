@@ -14,7 +14,7 @@ const SETTING_KEY = "shell.rail.pinned";
 
 export async function fetchPins(): Promise<string[]> {
   try {
-    const resp = await fetch("/api/settings", { credentials: "same-origin" });
+    const resp = await fetch("/api/v1/settings", { credentials: "same-origin" });
     if (!resp.ok) return DEFAULT_PINS;
     const body = (await resp.json()) as { data?: Record<string, unknown> };
     const raw = body.data?.[SETTING_KEY];
@@ -38,7 +38,7 @@ export async function fetchPins(): Promise<string[]> {
 
 export async function savePins(pins: string[]): Promise<void> {
   try {
-    await fetch("/api/settings", {
+    await fetch("/api/v1/settings", {
       method: "PUT",
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
