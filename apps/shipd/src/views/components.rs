@@ -26,7 +26,7 @@ use std::collections::HashMap;
 use std::sync::{OnceLock, RwLock};
 use std::time::SystemTime;
 
-use super::sfc::{compile_component, tag_from_stem};
+use super::sfc::{compile_component_with_path, tag_from_stem};
 
 #[derive(Debug, Clone)]
 struct CacheEntry {
@@ -81,7 +81,7 @@ pub async fn serve_component_js(Path(file): Path<String>) -> Response {
         Err(e) => return server_error(&format!("read: {e}")),
     };
     let template_name = format!("components/{tag}.ship");
-    let js = match compile_component(&tag, &template_name, &source) {
+    let js = match compile_component_with_path(&tag, &template_name, &source, Some(&path)) {
         Ok(s) => s,
         Err(e) => return server_error(&format!("compile {tag}: {e}")),
     };
