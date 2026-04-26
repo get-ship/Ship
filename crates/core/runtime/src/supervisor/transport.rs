@@ -18,28 +18,69 @@ use super::profile::ActorProfile;
 
 const OUTPUT_CAP: usize = 1024;
 
-/// Marker trait for transports — gates the spawn primitive. Today PTY
-/// is the only impl; headless / tmux / server arrive as the
-/// migration progresses.
+/// Marker trait for transports — gates the spawn primitive. PTY for
+/// long-lived interactive children, Headless for one-shot per-turn /
+/// pipeline runs. Future variants (tmux, server-session) bolt on here.
 pub trait Transport: Send + Sync {
     fn spawn(&self, actor_id: &str, profile: &ActorProfile) -> Result<ChildHandle>;
+}
+
+/// Type-erased child process — both portable_pty::Child and
+/// std::process::Child fit. The supervisor only needs `kill` and a
+/// non-blocking exit-code probe.
+pub trait ChildProcess: Send + Sync {
+    fn kill(&mut self) -> Result<()>;
+    /// Returns `Some(exit_code)` if the child exited, `None` if still alive.
+    fn try_wait(&mut self) -> Result<Option<i32>>;
+}
+
+impl ChildProcess for Box<dyn portable_pty::Child + Send + Sync> {
+    fn kill(&mut self) -> Result<()> {
+        self.as_mut().kill().map_err(|e| anyhow!("pty kill: {e}"))?;
+        Ok(())
+    }
+    fn try_wait(&mut self) -> Result<Option<i32>> {
+        Ok(self
+            .as_mut()
+            .try_wait()
+            .map_err(|e| anyhow!("pty try_wait: {e}"))?
+            .map(|s| s.exit_code() as i32))
+    }
+}
+
+impl ChildProcess for std::process::Child {
+    fn kill(&mut self) -> Result<()> {
+        std::process::Child::kill(self).map_err(|e| anyhow!("kill: {e}"))?;
+        Ok(())
+    }
+    fn try_wait(&mut self) -> Result<Option<i32>> {
+        Ok(std::process::Child::try_wait(self)?
+            .map(|s| s.code().unwrap_or(-1)))
+    }
 }
 
 #[derive(Default)]
 pub struct PtyTransport;
 
-/// Live child handle. Holds the writer + master so input flows back
-/// through the same fd; spawns a reader thread that tees output to
+#[derive(Default)]
+pub struct HeadlessTransport;
+
+/// Live child handle. Holds writer + child so input flows back to
+/// stdin (PTY master or stdin pipe); a reader thread tees output to
 /// the log file and broadcast channel. Drop semantics are deliberate:
 /// dropping does NOT kill the child. Call `stop()` for that.
 pub struct ChildHandle {
     actor_id: String,
     pid: Mutex<Option<u32>>,
+    /// Stdin writer. `Some` for PTY (master fd) and Headless with
+    /// piped stdin; `None` for Headless without stdin (the common
+    /// per-turn case where the prompt is in argv).
     writer: Mutex<Option<Box<dyn Write + Send>>>,
-    /// Master kept alive for the lifetime of the child — dropping the
-    /// master closes the slave's stdio.
+    /// PTY master kept alive for the lifetime of a PTY child —
+    /// dropping the master closes the slave's stdio. `None` for
+    /// Headless.
     _master: Mutex<Option<Box<dyn MasterPty + Send>>>,
-    child: Mutex<Option<Box<dyn portable_pty::Child + Send + Sync>>>,
+    child: Mutex<Option<Box<dyn ChildProcess>>>,
     output_tx: broadcast::Sender<Vec<u8>>,
     log_path: PathBuf,
     spawned_at: chrono::DateTime<Utc>,
@@ -135,12 +176,13 @@ impl Transport for PtyTransport {
 
         let (output_tx, _) = broadcast::channel(OUTPUT_CAP);
 
+        let child_box: Box<dyn ChildProcess> = Box::new(child);
         let handle = ChildHandle {
             actor_id: actor_id.to_string(),
             pid: Mutex::new(pid),
             writer: Mutex::new(Some(writer)),
             _master: Mutex::new(Some(pair.master)),
-            child: Mutex::new(Some(child)),
+            child: Mutex::new(Some(child_box)),
             output_tx: output_tx.clone(),
             log_path: log_path.clone(),
             spawned_at: Utc::now(),
@@ -153,6 +195,73 @@ impl Transport for PtyTransport {
         let actor = actor_id.to_string();
         std::thread::spawn(move || {
             reader_loop(reader, log_file, output_tx, actor);
+        });
+
+        Ok(handle)
+    }
+}
+
+impl Transport for HeadlessTransport {
+    fn spawn(&self, actor_id: &str, profile: &ActorProfile) -> Result<ChildHandle> {
+        use std::process::{Command, Stdio};
+
+        let log_dir = match &profile.log_dir {
+            Some(p) => p.clone(),
+            None => super::default_log_dir()?,
+        };
+        std::fs::create_dir_all(&log_dir)
+            .with_context(|| format!("create log dir {}", log_dir.display()))?;
+        let log_path = log_dir.join(format!("{actor_id}.log"));
+        let log_file = File::create(&log_path)
+            .with_context(|| format!("create log {}", log_path.display()))?;
+
+        let mut cmd = Command::new(&profile.bin);
+        for arg in &profile.args {
+            cmd.arg(arg);
+        }
+        cmd.current_dir(&profile.work_dir);
+        for (k, v) in &profile.env {
+            cmd.env(k, v);
+        }
+        cmd.env("SHIP_ACTOR_ID", actor_id);
+        if let Some(a) = profile.agent_id.as_deref() {
+            cmd.env("SHIP_AGENT_ID", a);
+        }
+        cmd.stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        let mut child = cmd
+            .spawn()
+            .with_context(|| format!("spawn {}", profile.bin))?;
+        let pid = child.id();
+        let stdout = child.stdout.take().ok_or_else(|| anyhow!("no stdout"))?;
+        let stderr = child.stderr.take().ok_or_else(|| anyhow!("no stderr"))?;
+
+        let (output_tx, _) = broadcast::channel(OUTPUT_CAP);
+
+        let handle = ChildHandle {
+            actor_id: actor_id.to_string(),
+            pid: Mutex::new(Some(pid)),
+            writer: Mutex::new(None),
+            _master: Mutex::new(None),
+            child: Mutex::new(Some(Box::new(child))),
+            output_tx: output_tx.clone(),
+            log_path: log_path.clone(),
+            spawned_at: Utc::now(),
+        };
+
+        // stdout reader: bytes → log + broadcast.
+        let stdout_actor = actor_id.to_string();
+        let stdout_tx = output_tx.clone();
+        let stdout_log = log_file.try_clone().context("clone log file")?;
+        std::thread::spawn(move || {
+            reader_loop(Box::new(stdout), stdout_log, stdout_tx, stdout_actor);
+        });
+        // stderr reader: same broadcast (merged stream).
+        let stderr_actor = actor_id.to_string();
+        std::thread::spawn(move || {
+            reader_loop(Box::new(stderr), log_file, output_tx, stderr_actor);
         });
 
         Ok(handle)

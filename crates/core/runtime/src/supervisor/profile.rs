@@ -77,13 +77,24 @@ impl ActorKind {
 /// when a new transport lands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Transport {
+    /// Pseudo-terminal — long-lived interactive children. Used by
+    /// shells and channels-capable agents (Claude). Output broadcasts
+    /// raw bytes; input writes through the master fd.
     Pty,
+    /// Headless one-shot — child with piped stdout/stderr, no PTY.
+    /// Used by per-turn agent runs (codex, opencode, cursor, gemini)
+    /// and pipeline jobs. Output broadcasts merged stdout+stderr;
+    /// input is not supported (caller writes via stdin pipe at spawn
+    /// time via `ActorProfile.stdin`). Terminates when the child
+    /// exits, then auto-deregisters from its registry.
+    Headless,
 }
 
 impl Transport {
     pub fn as_str(&self) -> &'static str {
         match self {
             Transport::Pty => "pty",
+            Transport::Headless => "headless",
         }
     }
 }
