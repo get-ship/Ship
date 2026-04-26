@@ -1,10 +1,10 @@
-# Handoff — `feat/agents-on-supervisor`
+# `feat/agents-on-supervisor` — punch list
 
-Last commit on push: `70976c93`. All work pushed to `origin/feat/agents-on-supervisor`. **Not** merged to main since the components need browser verification.
+Branch is on `origin`. Components compile and serve; none has been opened in a real browser yet. Work below is what's left before merging to main.
 
-## What landed this session
+## What's already in
 
-Commits since `687831ce` (the last thing on main when we started this segment), in order:
+Commits since `687831ce` (the last thing on main when this slice started), in order:
 
 1. `8158d5a0` — provider parity: `persistent_session` + `push_mechanism`. All 5 providers now run persistent sessions; mechanism is data not behavior.
 2. `205eb12a` — mesh substrate: `/proc` reader, `/api/v1/mesh/snapshot`, `kill-tree` primitive.
@@ -34,7 +34,7 @@ Commits since `687831ce` (the last thing on main when we started this segment), 
 | `app-pipeline-board.ship` | Job list + selected-run DAG; polls `/api/v1/jobs` at 2s | ❌ |
 | `app-pipeline-step.ship` | Single step card with status dot | ❌ |
 
-All compile (`/_ship/components/<name>.js` returns 200). None has been opened in a real browser this session — no way to do that from here.
+All compile (`/_ship/components/<name>.js` returns 200). None has been opened in a real browser yet.
 
 ## Backend additions
 
@@ -55,9 +55,9 @@ Issues encountered while authoring the seven SFCs above. Documenting because the
 5. **`emit('exit', ...)` from `<app-pty-attach>` triggers a CustomEvent on the host element with bubbles=true.** That's the docs' claim. Haven't verified the bubble actually reaches a `data-on-app:exit__window` listener on a far-away ancestor, but the event should propagate up through the DOM normally.
 6. **Style-token availability.** I used a few tokens that may or may not exist (`--ship-color-danger`, `--ship-color-success`, `--ship-color-accent-soft`, `--ship-color-on-accent`, `--ship-radius-pill`, `--ship-radius-lg`, `--ship-shadow-lg`). All have `var(--token, fallback)` fallbacks but the fallback in some cases is just `--ship-color-surface`, which isn't right semantically. Worth grepping `tokens.css` and aligning, or having the LSP catch unknown token references.
 
-## Known gaps — needs your judgment
+## Known gaps
 
-1. **No browser verification.** Every component compiles; none has been opened in a browser. First task on resume: `just dev-daemon` then visit the shell and `⌘J` to open the modal, navigate to `/pipelines-board` to see the new board. Note any visual / behavior issues.
+1. **Browser verification.** Every component compiles; none has been opened in a browser. First check: `just dev-daemon` then visit the shell, `⌘J` to open the modal, navigate to `/pipelines-board` to see the new board.
 2. **Per-step `actor_id` wiring on pipeline board.** `<app-pipeline-step>` emits `select` with `stepId`, but the board doesn't know each step's `actor_id` to mount `<app-pty-attach>`. ProcessExecutor sets `actor_id_hint = ctx.slug`, so the per-step actor id is predictable from the slug — but the slug-construction convention varies across executors. To wire output: add `actor_id` to each step's projection record, OR compute `{job_slug}-{step_id}` (verify against ProcessExecutor's actual slug-builder) and try mounting. Skipped here because it needs verification I can't do.
 3. **Annotation source wiring (phase 4).** The backend accepts `annotations[]`; the existing `<ship-edit-overlay>` already dispatches `ship:chat:annotate` on `<ship-shell>`. Need to verify the new modal's window-level `ship:chat:annotate` listener catches that event (overlay dispatches on `<ship-shell>`; modal listens on `window` — the DOM event bubbles up so it should reach window). If not, change the dispatch target or the listener target. Then add markdown selection + git diff comment as additional annotation sources — pure UI work in those views.
 4. **Old chat impl deletion.** Per the deletion criteria laid out earlier:
@@ -71,7 +71,7 @@ Issues encountered while authoring the seven SFCs above. Documenting because the
 6. **Pipeline-board promotion.** Currently lives at `/pipelines-board` alongside the legacy `/pipelines`. When verified equivalent or better, swap routes.
 7. **Respawn `push_mechanism`.** Cursor + Gemini default to Respawn (no stdin tested), but the modal calls the legacy `lifecycle::send_agent_message` for that mechanism. Per-turn middleware handles the spawn but the parent placeholder still lives in `SessionRegistry`. Migration path to fold Respawn into `agent_actor` exists in commits but isn't done.
 
-## Browser verification checklist (when you resume)
+## Browser verification checklist
 
 ```
 just dev-daemon                             # daemon on :9315 with project SHIP_DIR
@@ -129,12 +129,10 @@ just dev                                    # vite on :3100 (or 3100 + offset)
 | Per-actor msg_rate | `crates/core/runtime/src/events/kernel_router.rs::RateCounter` |
 | Pipeline board polling | `.ship/components/app-pipeline-board.ship::load` |
 
-## Recommended order on resume
+## Order
 
-1. Browser-verify the chat modal end-to-end. Hit the SFC ergonomic concerns above as you go — many will resolve in 5 minutes once you can see it.
-2. Wire per-step `actor_id` so the pipeline board can mount `<app-pty-attach>` per step. This is the next user-facing win.
-3. Decide: delete the old `/chat` view + right drawer? Or keep both temporarily.
-4. Phase 4 — wire markdown selection + git diff comment as annotation sources.
-5. Promote `/pipelines-board` to `/pipelines` when it's at parity.
-
-— Done.
+1. Browser-verify the chat modal end-to-end. Most SFC ergonomic concerns resolve once it's visible.
+2. Wire per-step `actor_id` so the pipeline board can mount `<app-pty-attach>` per step. Next user-facing win.
+3. Decide on old `/chat` view + right drawer: keep, delete, or hold for parity gate.
+4. Wire markdown selection + git diff comment as annotation sources.
+5. Promote `/pipelines-board` to `/pipelines` once at parity.

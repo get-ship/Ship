@@ -1,6 +1,6 @@
 # SDK + SFC roadmap
 
-Plan for taking the `.ship` SFC format from its current 7/10 to the platform Ship deserves. Authored after writing seven non-trivial components against the format and merging the framework's gap-fix wave.
+Plan for taking the `.ship` SFC format from its current 7/10 to the platform Ship deserves. Grounded in writing seven non-trivial components against the format and merging the framework's gap-fix wave.
 
 The framework today is gap-driven (commits literally name "gap #N"). That's the right discipline; the work below extends it with structural moves the gap-list won't surface on its own.
 
@@ -212,7 +212,7 @@ The contract-freeze landed `packs/`. SFCs should be packageable. Dependency: 4.x
 
 ## Sequencing
 
-If I were running this with two people for two months:
+Two-person, eight-week shape:
 
 **Sprint 1 (week 1–2):** 1.1 (prop schema) + 3.1 (auto-loader). These are foundational and unblock most other items.
 
@@ -247,5 +247,3 @@ Three signals:
 2. **Old chat impl + right drawer deletion.** When the agent modal hits parity (see `agents-on-supervisor.md` deletion criteria), and the right drawer audit lands, those go. That's the proof point that the SFC modal can replace the legacy view-rendered surface.
 
 3. **First non-Ship-team author ships an SFC.** Outside contributor lands `<app-something>` without DM-ing the framework team for help. Means the docs + LSP + format are self-serve.
-
-— Plan owner.
