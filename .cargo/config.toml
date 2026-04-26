@@ -1,0 +1,11 @@
+# Workspace cargo config — committed per devx-01.
+#
+# Every cargo invocation across every worktree resolves `target-dir` to the
+# worktree's own `target/`. Cross-worktree binary isolation is handled by the
+# per-worktree binary stash (devx-04), not by collapsing target dirs.
+#
+# Per-user overrides go in `.cargo/config.local.toml` (gitignored). Cargo
+# loads both and merges; the local file wins on conflict.
+
+[build]
+target-dir = "target"
