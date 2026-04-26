@@ -36,22 +36,58 @@ pub mod lower;
 pub mod emit;
 pub mod schema_source;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::path::Path;
 
 /// Compile a single `.sail` file. Returns the four emission outputs:
 /// the runtime ES module, the SSR template, the TypeScript declaration,
 /// and the JSON schema.
 ///
-/// Phases 1-10 wired here. The actual phase implementations are stubs
-/// to be filled in per the spec.
-pub fn compile_file(_path: &Path, _opts: &CompileOpts) -> Result<CompileResult> {
-    // Phase 1: parse
-    // Phase 2-3: analyze (schema + types)
-    // Phase 4-5: lower (template + reactivity classification)
-    // Phase 6: scope CSS
-    // Phase 7-10: emit
-    todo!("phases not yet implemented — see 02-compiler-architecture.md")
+/// Currently wired phases:
+/// - Phase 1 (parse) — full
+/// - Phase 8 (runtime emit) — MVP subset (see `emit::runtime`)
+/// - Phases 2-7, 9-10 — stubs (`ssr`, `dts`, `schema` strings empty)
+pub fn compile_file(path: &Path, _opts: &CompileOpts) -> Result<CompileResult> {
+    let source =
+        std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
+    compile_source(&source, &tag_for(path))
+}
+
+/// Compile a `.sail` source string with an explicit tag name.
+pub fn compile_source(source: &str, tag: &str) -> Result<CompileResult> {
+    let file = parse::parse(source).context("parse")?;
+    let js = emit::runtime::emit(&file, tag);
+    Ok(CompileResult {
+        js,
+        ssr: String::new(),
+        dts: String::new(),
+        schema: String::new(),
+        diagnostics: Vec::new(),
+    })
+}
+
+/// Derive the custom-element tag from a file path: stem in kebab-case.
+/// `MyCounter.sail` → `my-counter`; `app-counter.sail` → `app-counter`.
+/// Single-word stems get a `sail-` prefix so they remain valid custom
+/// element names (which require a hyphen).
+pub fn tag_for(path: &Path) -> String {
+    let stem = path
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("component");
+    let mut out = String::new();
+    for (i, c) in stem.chars().enumerate() {
+        if c.is_ascii_uppercase() {
+            if i > 0 { out.push('-'); }
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push(c);
+        }
+    }
+    if !out.contains('-') {
+        out = format!("sail-{out}");
+    }
+    out
 }
 
 /// Options to the compiler. Schema sources are pluggable so the same
