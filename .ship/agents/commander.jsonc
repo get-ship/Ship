@@ -3,6 +3,7 @@
   "agent": {
     "id": "commander",
     "name": "Commander",
+    "icon": "simpleicons:starship",
     "version": "0.2.0",
     "role": "commander",
     "description": "Ship orchestrator — captures intent, dispatches specialists, monitors via mesh, gates before merge",

@@ -440,7 +440,7 @@
         left: 56px;
         top: 50%;
         transform: translateY(-50%);
-        width: 360px;
+        width: 440px;
         max-height: min(640px, calc(100vh - 32px));
         background: var(--surface-3, var(--popover, var(--background)));
         color: var(--foreground);
@@ -514,7 +514,9 @@
       }
       .launcher-body {
         overflow-y: auto;
+        overflow-x: hidden;
         padding: 4px 0 6px;
+        min-width: 0;
       }
       .launcher-empty {
         padding: 16px 14px;
