@@ -17,6 +17,7 @@ pub mod ast;
 pub mod lexer;
 pub mod parser;
 pub mod script;
+pub mod template;
 
 pub use ast::*;
 

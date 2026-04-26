@@ -246,6 +246,13 @@ pub fn parse_file(source: &str) -> Result<super::ast::SailFile> {
     if let Some(script) = file.script.as_mut() {
         super::script::scan(script);
     }
+    if let Some(template) = file.template.as_mut() {
+        // The shell stuffed the raw body into a single Text node — pull
+        // it back out and run the proper template parser.
+        if let Some(super::ast::Node::Text(body)) = template.root.first().cloned() {
+            *template = super::template::parse(&body)?;
+        }
+    }
     Ok(file)
 }
 
