@@ -193,6 +193,25 @@ pub async fn run_network(
     tracing::info!("shipd: listening on http://{addr}/mcp");
     tracing::info!("shipd: shell: http://{addr}/shell/");
     eprintln!("shell: http://{addr}/shell/");
+
+    // Daemon identity line — single source of truth for "which binary,
+    // which checkout, which project dir is serving :{port}". Surfaced in
+    // both the structured log and on stderr so `scripts/dev-daemon.sh`
+    // can confirm the worktree's daemon (not the installed one) is live.
+    let identity_ship_dir = rt
+        .workspace_dir()
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|| format!("{} (global-only)", global_dir.display()));
+    let identity = format!(
+        "shipd {}-{} listening on {} · SHIP_DIR={} · pid={}",
+        env!("CARGO_PKG_VERSION"),
+        env!("SHIPD_GIT_COMMIT"),
+        port,
+        identity_ship_dir,
+        std::process::id(),
+    );
+    tracing::info!("{identity}");
+    eprintln!("{identity}");
     let listener = match tokio::net::TcpListener::bind(&addr).await {
         Ok(l) => l,
         Err(e) => {
