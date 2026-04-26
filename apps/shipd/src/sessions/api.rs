@@ -161,6 +161,67 @@ pub async fn installed_providers() -> axum::response::Response {
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct MessageBody {
     pub text: String,
+    /// Optional context attachments. Rendered into the prompt as
+    /// XML-tagged blocks so any provider's TUI / stream-json sees them
+    /// as part of the user turn — provider-agnostic, no per-mechanism
+    /// branching. Empty / absent → no annotation prefix.
+    #[serde(default)]
+    pub annotations: Vec<Annotation>,
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct Annotation {
+    /// `"text" | "file" | "diff" | "comment"` — drives the wrapping
+    /// XML tag and any per-type formatting. Unknown values pass
+    /// through as `<context type="…">…</context>`.
+    #[serde(rename = "type")]
+    pub kind: String,
+    pub content: String,
+    #[serde(default)]
+    pub source: Option<AnnotationSource>,
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct AnnotationSource {
+    /// e.g. "file", "selection", "diff-hunk", "comment"
+    pub kind: String,
+    /// e.g. "src/foo.rs:42-58", "review/comment-12"
+    pub r#ref: String,
+}
+
+/// Render `annotations` into a single block prepended to `text`.
+/// Provider-agnostic XML so claude / codex / opencode all see the
+/// same shape; the agent's prompt template can pick the tags it
+/// cares about. Empty `annotations` returns `text` unchanged.
+fn render_message_with_annotations(text: &str, annotations: &[Annotation]) -> String {
+    if annotations.is_empty() {
+        return text.to_string();
+    }
+    let mut out = String::with_capacity(text.len() + annotations.len() * 64);
+    out.push_str("<context>\n");
+    for ann in annotations {
+        let src_attr = ann
+            .source
+            .as_ref()
+            .map(|s| format!(" source-kind=\"{}\" source-ref=\"{}\"", xml_escape(&s.kind), xml_escape(&s.r#ref)))
+            .unwrap_or_default();
+        out.push_str(&format!(
+            "  <attachment type=\"{}\"{}>\n{}\n  </attachment>\n",
+            xml_escape(&ann.kind),
+            src_attr,
+            ann.content,
+        ));
+    }
+    out.push_str("</context>\n\n");
+    out.push_str(text);
+    out
+}
+
+fn xml_escape(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
 }
 
 #[utoipa::path(
@@ -182,10 +243,14 @@ pub async fn session_message(
     Path(id): Path<String>,
     Json(body): Json<MessageBody>,
 ) -> axum::response::Response {
-    let text = body.text.trim().to_string();
-    if text.is_empty() {
+    let raw_text = body.text.trim().to_string();
+    if raw_text.is_empty() {
         return err(StatusCode::BAD_REQUEST, "empty message");
     }
+    // Render annotations as a <context> prefix so every push_mechanism
+    // (channel / stdin / respawn) sees the same prompt shape — provider-
+    // agnostic.
+    let text = render_message_with_annotations(&raw_text, &body.annotations);
 
     // Emit `studio.chat_turn` for channel-capable long-lived agents.
     // Per-turn providers ignore this path; they still get driven by the
@@ -207,7 +272,16 @@ pub async fn session_message(
     let payload = serde_json::json!({
         "session_id": id,
         "text": text,
+        "raw_text": raw_text,
         "agent_id": agent_id,
+        "annotations": body.annotations.iter().map(|a| serde_json::json!({
+            "type": a.kind,
+            "content": a.content,
+            "source": a.source.as_ref().map(|s| serde_json::json!({
+                "kind": s.kind,
+                "ref": s.r#ref,
+            })),
+        })).collect::<Vec<_>>(),
     });
     if let Ok(envelope) = EventEnvelope::new(
         event_types::STUDIO_CHAT_TURN,
