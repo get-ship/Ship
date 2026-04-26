@@ -13,27 +13,27 @@ use crate::ship_runtime::ShipRuntime;
 fn router_for(state: ApiState, auth: AuthContext) -> Router {
     Router::new()
         .route(
-            "/api/view-sessions",
+            "/api/v1/view-sessions",
             axum::routing::post(super::open_session),
         )
         .route(
-            "/api/view-sessions/{id}",
+            "/api/v1/view-sessions/{id}",
             axum::routing::get(super::subscribe_session).delete(super::close_session),
         )
         .route(
-            "/api/view-sessions/{id}/patch",
+            "/api/v1/view-sessions/{id}/patch",
             axum::routing::post(super::patch_session),
         )
         .route(
-            "/api/view-sessions/{id}/append",
+            "/api/v1/view-sessions/{id}/append",
             axum::routing::post(super::append_session),
         )
         .route(
-            "/api/view-sessions/{id}/signal",
+            "/api/v1/view-sessions/{id}/signal",
             axum::routing::post(super::signal_session),
         )
         .route(
-            "/api/view-sessions/{id}/raw",
+            "/api/v1/view-sessions/{id}/raw",
             axum::routing::get(super::raw_session),
         )
         .with_state(state)
@@ -42,7 +42,7 @@ fn router_for(state: ApiState, auth: AuthContext) -> Router {
 
 fn fresh_state() -> (ApiState, TempDir) {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = Arc::new(tokio::sync::Mutex::new(
@@ -96,7 +96,7 @@ async fn open_surfaces_mcp_apps_meta() {
     let (status, body) = send_json(
         &router,
         "POST",
-        "/api/view-sessions",
+        "/api/v1/view-sessions",
         serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
@@ -116,7 +116,7 @@ async fn open_then_patch_then_close_succeeds() {
     let (status, body) = send_json(
         &router,
         "POST",
-        "/api/view-sessions",
+        "/api/v1/view-sessions",
         serde_json::json!({ "template": "canvas/blank" }),
     )
     .await;
@@ -127,7 +127,7 @@ async fn open_then_patch_then_close_succeeds() {
     let (status, _) = send_json(
         &router,
         "POST",
-        &format!("/api/view-sessions/{view_id}/patch"),
+        &format!("/api/v1/view-sessions/{view_id}/patch"),
         serde_json::json!({"selector": "#root", "html": "<p>hi</p>"}),
     )
     .await;
@@ -136,7 +136,7 @@ async fn open_then_patch_then_close_succeeds() {
     let (status, _) = send_empty(
         &router,
         "DELETE",
-        &format!("/api/view-sessions/{view_id}"),
+        &format!("/api/v1/view-sessions/{view_id}"),
     )
     .await;
     assert_eq!(status, 200);
@@ -150,7 +150,7 @@ async fn non_owner_patch_returns_403() {
     let (_, body) = send_json(
         &router_owner,
         "POST",
-        "/api/view-sessions",
+        "/api/v1/view-sessions",
         serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
@@ -160,7 +160,7 @@ async fn non_owner_patch_returns_403() {
     let (status, body) = send_json(
         &router_intruder,
         "POST",
-        &format!("/api/view-sessions/{view_id}/patch"),
+        &format!("/api/v1/view-sessions/{view_id}/patch"),
         serde_json::json!({"selector": "#root", "html": "<p/>"}),
     )
     .await;
@@ -182,7 +182,7 @@ async fn open_without_agent_is_unauthenticated() {
     let (status, body) = send_json(
         &router,
         "POST",
-        "/api/view-sessions",
+        "/api/v1/view-sessions",
         serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
@@ -200,7 +200,7 @@ async fn quota_returns_structured_conflict() {
         let (s, _) = send_json(
             &router,
             "POST",
-            "/api/view-sessions",
+            "/api/v1/view-sessions",
             serde_json::json!({"template": "canvas/blank"}),
         )
         .await;
@@ -209,7 +209,7 @@ async fn quota_returns_structured_conflict() {
     let (status, body) = send_json(
         &router,
         "POST",
-        "/api/view-sessions",
+        "/api/v1/view-sessions",
         serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
@@ -225,7 +225,7 @@ async fn subscribe_receives_broadcast_patches() {
     let (_, body) = send_json(
         &router,
         "POST",
-        "/api/view-sessions",
+        "/api/v1/view-sessions",
         serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
@@ -244,7 +244,7 @@ async fn subscribe_receives_broadcast_patches() {
     let (s, _) = send_json(
         &router,
         "POST",
-        &format!("/api/view-sessions/{view_id}/patch"),
+        &format!("/api/v1/view-sessions/{view_id}/patch"),
         serde_json::json!({"selector": "#root", "html": "<p>beacon-xyz</p>"}),
     )
     .await;
@@ -253,7 +253,7 @@ async fn subscribe_receives_broadcast_patches() {
     let (s, _) = send_empty(
         &router,
         "DELETE",
-        &format!("/api/view-sessions/{view_id}"),
+        &format!("/api/v1/view-sessions/{view_id}"),
     )
     .await;
     assert_eq!(s, 200);

@@ -26,7 +26,7 @@ vs what is scaffolded. It is deliberately not on the public site.
   a bundle name the daemon knows about. When a third-party pack ships,
   we need either a dynamic registration endpoint or a config-file
   convention. Neither exists.
-- **Lint coverage for pack authors is partial.** `stale-pack-declaration`
+- **Lint coverage for pack authors is partial.** `pkg-stale-pack-declaration`
   catches typos in a view's `packs: [...]`. There is no lint that
   enforces the distribution test at author time on a new
   `<ship-*>` element.

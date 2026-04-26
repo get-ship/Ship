@@ -1,6 +1,6 @@
 //! Runtime read API — exposes live platform state for Studio.
 //!
-//! Routes are mounted under `/api/runtime` in lib.rs.
+//! Routes are mounted under `/api/v1/runtime` in lib.rs.
 //! All handlers are read-only and use the existing `ApiState`.
 
 use axum::{
@@ -27,14 +27,14 @@ pub struct SessionsQuery {
 
 // ---- Handlers ----
 
-/// GET /api/runtime/workspaces
+/// GET /api/v1/runtime/workspaces
 ///
 /// Returns only active workspaces. Archived/dead workspaces are excluded
 /// from the API surface — the reconciler handles cleanup internally.
 #[utoipa::path(
     operation_id = "listWorkspaces",
     get,
-    path = "/api/workspaces",
+    path = "/api/v1/workspaces",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -134,11 +134,11 @@ fn git_worktrees() -> Option<Vec<(String, String)>> {
     Some(out)
 }
 
-/// GET /api/runtime/sessions[?workspace_id=<id>]
+/// GET /api/v1/runtime/sessions[?workspace_id=<id>]
 #[utoipa::path(
     operation_id = "listSessions",
     get,
-    path = "/api/sessions",
+    path = "/api/v1/sessions",
     params(SessionsQuery),
     responses(
         (status = 200, body = MeshResponse),
@@ -197,11 +197,11 @@ pub async fn list_sessions(
         .into_response()
 }
 
-/// GET /api/runtime/agents
+/// GET /api/v1/runtime/agents
 #[utoipa::path(
     operation_id = "listAgents",
     get,
-    path = "/api/agents",
+    path = "/api/v1/agents",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -309,7 +309,7 @@ pub struct CreateJobRequest {
     pub headless: bool,
 }
 
-/// GET /api/runtime/jobs
+/// GET /api/v1/runtime/jobs
 ///
 /// Returns each `JobRecord` with two operator-visibility annotations:
 ///
@@ -321,7 +321,7 @@ pub struct CreateJobRequest {
 #[utoipa::path(
     operation_id = "listJobs",
     get,
-    path = "/api/jobs",
+    path = "/api/v1/jobs",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -486,11 +486,11 @@ pub struct EventSummary {
     payload_preview: String,
 }
 
-/// GET /api/runtime/jobs/{job_id}
+/// GET /api/v1/runtime/jobs/{job_id}
 #[utoipa::path(
     operation_id = "getJobDetail",
     get,
-    path = "/api/jobs/{job_id}",
+    path = "/api/v1/jobs/{job_id}",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -575,7 +575,7 @@ pub async fn get_job_detail(
         .into_response()
 }
 
-/// POST /api/runtime/jobs — emit job.created event through the kernel.
+/// POST /api/v1/runtime/jobs — emit job.created event through the kernel.
 ///
 /// The kernel persists the event and routes it to subscribers.
 /// The job_dispatch service handles all heavy lifting (worktree creation,
@@ -583,7 +583,7 @@ pub async fn get_job_detail(
 #[utoipa::path(
     operation_id = "createJob",
     post,
-    path = "/api/jobs",
+    path = "/api/v1/jobs",
     request_body = CreateJobRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -681,13 +681,13 @@ fn default_cancel_reason() -> String {
     "operator-cancelled".to_string()
 }
 
-/// POST /api/runtime/jobs/{slug}/cancel — emit `job.cancelled` for the
+/// POST /api/v1/runtime/jobs/{slug}/cancel — emit `job.cancelled` for the
 /// job with this slug. Idempotent: returns 409 with the current status
 /// when the job is already in a terminal state, and emits no event.
 #[utoipa::path(
     operation_id = "cancelJob",
     post,
-    path = "/api/jobs/{slug}/cancel",
+    path = "/api/v1/jobs/{slug}/cancel",
     request_body = CancelJobRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -795,7 +795,7 @@ pub struct JobEndRequest {
     pub slug: String,
 }
 
-/// POST /api/runtime/jobs/end — signal that a provider turn ended for a job.
+/// POST /api/v1/runtime/jobs/end — signal that a provider turn ended for a job.
 ///
 /// Called by the session Stop hook when an agent finishes a response turn.
 /// For multi-step pipeline jobs, this sends a TurnEnded signal to the step
@@ -804,7 +804,7 @@ pub struct JobEndRequest {
 #[utoipa::path(
     operation_id = "endJob",
     post,
-    path = "/api/jobs/end",
+    path = "/api/v1/jobs/end",
     request_body = JobEndRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -901,13 +901,13 @@ pub struct SteerAgentRequest {
     pub message: String,
 }
 
-/// POST /api/runtime/agents/{slug}/stop — stop a running agent by slug.
+/// POST /api/v1/runtime/agents/{slug}/stop — stop a running agent by slug.
 ///
 /// Uses the process registry and executor to terminate the agent process.
 #[utoipa::path(
     operation_id = "stopAgent",
     post,
-    path = "/api/agents/{slug}/stop",
+    path = "/api/v1/agents/{slug}/stop",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -959,11 +959,11 @@ pub async fn stop_agent(
     }
 }
 
-/// POST /api/runtime/agents/{slug}/steer — inject a message into a running agent.
+/// POST /api/v1/runtime/agents/{slug}/steer — inject a message into a running agent.
 #[utoipa::path(
     operation_id = "steerAgent",
     post,
-    path = "/api/agents/{slug}/steer",
+    path = "/api/v1/agents/{slug}/steer",
     request_body = SteerAgentRequest,
     responses(
         (status = 200, body = MeshResponse),
@@ -1024,7 +1024,7 @@ pub struct ProcsQuery {
     pub limit: Option<usize>,
 }
 
-/// GET /api/runtime/procs[?slug=X][&limit=N]
+/// GET /api/v1/runtime/procs[?slug=X][&limit=N]
 ///
 /// Returns process records from the `process.*` projection. Without
 /// `slug`, returns the most recent `limit` records (default 100), sorted
@@ -1032,7 +1032,7 @@ pub struct ProcsQuery {
 #[utoipa::path(
     operation_id = "listProcs",
     get,
-    path = "/api/procs",
+    path = "/api/v1/procs",
     params(ProcsQuery),
     responses(
         (status = 200, body = MeshResponse),
@@ -1081,7 +1081,7 @@ pub struct EventsPollQuery {
     pub limit: Option<usize>,
 }
 
-/// GET /api/runtime/events/poll
+/// GET /api/v1/runtime/events/poll
 ///
 /// Polling fallback for `ship tail`. SSE replays only future events;
 /// poll allows the CLI to walk the log forward from a known cursor.
@@ -1089,7 +1089,7 @@ pub struct EventsPollQuery {
 #[utoipa::path(
     operation_id = "pollEvents",
     get,
-    path = "/api/events/poll",
+    path = "/api/v1/events/poll",
     params(EventsPollQuery),
     responses(
         (status = 200, body = MeshResponse),
@@ -1160,7 +1160,7 @@ pub async fn poll_events(
     )
 }
 
-/// GET /api/runtime/daemon/status
+/// GET /api/v1/runtime/daemon/status
 ///
 /// Real, live status for `ship daemon status` — pid, version, uptime,
 /// job counts by status, last sweep timestamp, drift count over the
@@ -1168,7 +1168,7 @@ pub async fn poll_events(
 #[utoipa::path(
     operation_id = "daemonStatus",
     get,
-    path = "/api/daemon/status",
+    path = "/api/v1/daemon/status",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -1232,11 +1232,11 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
     )
 }
 
-/// POST /api/runtime/rebuild-projections — rebuild all projections from events.
+/// POST /api/v1/runtime/rebuild-projections — rebuild all projections from events.
 #[utoipa::path(
     operation_id = "rebuildProjections",
     post,
-    path = "/api/rebuild-projections",
+    path = "/api/v1/rebuild-projections",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -1290,11 +1290,11 @@ impl Drop for ActorGuard {
     }
 }
 
-/// GET /api/runtime/events — SSE stream of all kernel events.
+/// GET /api/v1/runtime/events — SSE stream of all kernel events.
 #[utoipa::path(
     operation_id = "eventStream",
     get,
-    path = "/api/events",
+    path = "/api/v1/events",
     responses(
         (status = 200, description = "SSE stream of kernel events"),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -1364,7 +1364,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn make_api_state(dir: &TempDir) -> ApiState {
-        let ship_dir = dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
         // Isolated per-test kernel — init_kernel_router uses a OnceLock that
@@ -2126,14 +2126,14 @@ pub struct DispatchRequest {
     pub depends_on: Option<Vec<String>>,
 }
 
-/// POST /api/jobs/dispatch
+/// POST /api/v1/jobs/dispatch
 ///
 /// UI-facing dispatch — mirrors `ship run` on the CLI. Loads the
 /// named pipeline, generates slug/branch/agent, and emits
 /// `job.created`. The orchestrator picks it up from there.
 #[utoipa::path(
     post,
-    path = "/api/jobs/dispatch",
+    path = "/api/v1/jobs/dispatch",
     request_body = DispatchRequest,
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
@@ -2154,7 +2154,7 @@ pub async fn dispatch_pipeline(
         let mut dir = std::env::current_dir().ok();
         let mut found = None;
         while let Some(d) = dir.as_ref() {
-            let pipelines_dir = d.join(".ship").join("pipelines");
+            let pipelines_dir = runtime::ShipHome::project_ship_dir(&d).join("pipelines");
             if pipelines_dir.is_dir() {
                 for ext in ["yaml", "yml", "jsonc", "json"] {
                     let candidate = pipelines_dir.join(format!("{}.{ext}", req.pipeline));

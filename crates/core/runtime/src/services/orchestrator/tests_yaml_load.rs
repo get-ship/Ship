@@ -68,7 +68,7 @@ steps:
 #[test]
 fn two_step_yaml_loads_with_expected_name_and_steps() {
     let tmp = tempfile::tempdir().expect("tmpdir");
-    let pipelines_dir = tmp.path().join(".ship").join("pipelines");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
     std::fs::create_dir_all(&pipelines_dir).unwrap();
     std::fs::write(pipelines_dir.join("smoke-two-step.yaml"), TWO_STEP_YAML).unwrap();
 
@@ -92,7 +92,7 @@ fn malformed_yaml_surfaces_error_with_file_path() {
     // The surfaced error must reference the file path so the user sees which
     // pipeline file is broken, not a generic "pipeline not found".
     let tmp = tempfile::tempdir().expect("tmpdir");
-    let pipelines_dir = tmp.path().join(".ship").join("pipelines");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
     std::fs::create_dir_all(&pipelines_dir).unwrap();
     let bad = "---\nname: broken\nsteps:\n\t- id: x\n";
     let bad_path = pipelines_dir.join("broken.yaml");
@@ -119,11 +119,83 @@ fn missing_pipeline_returns_ok_none() {
     // callers that fall through to other resolution strategies rely on
     // this distinction (Ok(None) continues, Err stops).
     let tmp = tempfile::tempdir().expect("tmpdir");
-    let pipelines_dir = tmp.path().join(".ship").join("pipelines");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
     std::fs::create_dir_all(&pipelines_dir).unwrap();
 
     let _guard = CwdGuard::enter(tmp.path());
     let result = load_pipeline_file("does-not-exist")
         .expect("missing file is not an error");
     assert!(result.is_none(), "missing file must map to Ok(None)");
+}
+
+/// Pipeline using the canonical (post-contract-freeze) gate shape:
+/// list-of-rules + list-of-globs. This is the only shape the loader
+/// accepts after contract-freeze Item 1.
+const CANONICAL_GATE_YAML: &str = r#"---
+name: canonical-gate
+steps:
+  - id: implement
+    agent: coder
+  - id: review
+    type: review
+    agent: reviewer
+    after: [implement]
+    gate:
+      require_changed:
+        - match: ["**/*.rs"]
+          not_match: ["**/tests/**"]
+          min: 1
+      forbid_changed:
+        - match: [".artifacts/**"]
+          min: 0
+"#;
+
+#[test]
+fn canonical_gate_shape_loads_cleanly() {
+    let tmp = tempfile::tempdir().expect("tmpdir");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
+    std::fs::create_dir_all(&pipelines_dir).unwrap();
+    std::fs::write(pipelines_dir.join("canonical-gate.yaml"), CANONICAL_GATE_YAML).unwrap();
+    let _guard = CwdGuard::enter(tmp.path());
+    let (pipeline, _meta) = load_pipeline_file("canonical-gate")
+        .expect("loader must not error")
+        .expect("loader must find file");
+    let review = pipeline.steps.iter().find(|s| s.id == "review").unwrap();
+    let gate = review.gate.as_ref().expect("gate present");
+    assert_eq!(gate.require_changed.len(), 1, "exactly one require rule");
+    assert_eq!(gate.require_changed[0].match_patterns,
+        vec!["**/*.rs".to_string()]);
+    assert_eq!(gate.require_changed[0].not_match,
+        vec!["**/tests/**".to_string()]);
+    assert_eq!(gate.forbid_changed.len(), 1);
+}
+
+#[test]
+fn legacy_single_object_gate_shape_is_rejected_at_load() {
+    let yaml = r#"---
+name: legacy-gate
+steps:
+  - id: review
+    type: review
+    agent: reviewer
+    gate:
+      require_changed:
+        match: "**/*.rs"
+        min: 1
+"#;
+    let tmp = tempfile::tempdir().expect("tmpdir");
+    let pipelines_dir = crate::ShipHome::project_ship_dir(tmp.path()).join("pipelines");
+    std::fs::create_dir_all(&pipelines_dir).unwrap();
+    std::fs::write(pipelines_dir.join("legacy-gate.yaml"), yaml).unwrap();
+    let _guard = CwdGuard::enter(tmp.path());
+    let err = load_pipeline_file("legacy-gate")
+        .expect_err("legacy single-object gate shape must be rejected");
+    assert!(
+        err.contains("legacy-gate.yaml"),
+        "error must name the source file: {err}"
+    );
+    assert!(
+        err.contains("array") || err.contains("contract freeze"),
+        "error must describe canonical shape: {err}"
+    );
 }

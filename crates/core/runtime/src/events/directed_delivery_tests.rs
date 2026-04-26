@@ -38,7 +38,7 @@ mod directed_delivery {
 
     fn setup() -> (tempfile::TempDir, KernelRouter) {
         let tmp = tempdir().unwrap();
-        let router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+        let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
         (tmp, router)
     }
 

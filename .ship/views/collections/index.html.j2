@@ -53,7 +53,7 @@
           stored in <span class="mono-snip">~/.ship/data.db</span>.
         </div>
         <div class="data-index-actions">
-          <ship-button size="sm" tone="primary" variant="solid"
+          <ship-button size="sm" tone="accent" variant="solid"
             {{ on_click('$_newColOpen = true') }}>
             <ship-icon slot="leading" name="plus"></ship-icon>New collection
           </ship-button>
@@ -119,7 +119,7 @@
               <ship-segmented-option value="schema" icon="columns">Schema</ship-segmented-option>
             </ship-segmented>
             <span class="col-head-sep" aria-hidden="true"></span>
-            <ship-button size="sm" tone="primary" variant="solid"
+            <ship-button size="sm" tone="accent" variant="solid"
               {{ on_click('$_rowDraft = {}; $_newRowOpen = true') }}>
               <ship-icon slot="leading" name="plus"></ship-icon>New row
             </ship-button>
@@ -127,7 +127,7 @@
         </div>
 
         {# Rows tab — table body. Data inline via ship.collections.state();
-           routed SSE at /api/sse/collections re-renders on item events. #}
+           routed SSE at /api/v1/sse/collections re-renders on item events. #}
         <div {{ tab_panel('tab', 'rows') }} class="col-tab-panel rows-panel"
           {{ class_if("$_density == 'compact'", 'is-dense') }}>
           {% include 'collections/partials/content.html.j2' %}
@@ -173,7 +173,7 @@
             <form class="schema-form"
                   {{ signal('schemaDraft', '') }}
                   data-signals:schemaDraft="{id: '{{ active_collection }}', name: '{{ schema.name or active_collection }}', fields: [{{- _field_json_parts | join(', ') -}}]}"
-                  {{ on_submit("@put('/api/collections/" ~ active_collection ~ "/schema', {contentType: 'json', body: $schemaDraft}); $_savedAt = Date.now(); $_saveError = ''") }}>
+                  {{ on_submit("@put('/api/v1/collections/" ~ active_collection ~ "/schema', {contentType: 'json', body: $schemaDraft}); $_savedAt = Date.now(); $_saveError = ''") }}>
               <div class="schema-edit-table">
                 <div class="schema-edit-head">
                   <span>Type</span>
@@ -217,7 +217,7 @@
                 <span class="schema-edit-spacer"></span>
                 <span class="schema-edit-saved" data-show="$_savedAt > 0">Saved</span>
                 <span class="schema-edit-error" data-text="$_saveError" data-show="$_saveError"></span>
-                <ship-button size="sm" tone="primary" variant="solid" type="submit">
+                <ship-button size="sm" tone="accent" variant="solid" type="submit">
                   <ship-icon slot="leading" name="check"></ship-icon>Save schema
                 </ship-button>
               </div>
@@ -271,8 +271,8 @@
     <div slot="footer">
       <ship-button variant="ghost"
         {{ on_click("$_newRowOpen = false; $_drawerError = ''") }}>Cancel</ship-button>
-      <ship-button tone="primary" variant="solid"
-        {{ on_click("@post('/api/collections/" ~ active_collection ~ "/items', {contentType: 'json', body: {data: $_rowDraft}}); $_newRowOpen = false; $_rowDraft = {}; $_drawerError = ''") }}>
+      <ship-button tone="accent" variant="solid"
+        {{ on_click("@post('/api/v1/collections/" ~ active_collection ~ "/items', {contentType: 'json', body: {data: $_rowDraft}}); $_newRowOpen = false; $_rowDraft = {}; $_drawerError = ''") }}>
         Save
       </ship-button>
     </div>
@@ -316,13 +316,13 @@
     </div>
     <div slot="footer">
       <ship-button tone="destructive" variant="soft" style="margin-right:auto"
-        {{ on_click("if(confirm('Delete this row?')) { @delete('/api/collections/" ~ active_collection ~ "/items/' + $_editId); $_editOpen = false; $_drawerError = '' }") }}>
+        {{ on_click("if(confirm('Delete this row?')) { @delete('/api/v1/collections/" ~ active_collection ~ "/items/' + $_editId); $_editOpen = false; $_drawerError = '' }") }}>
         Delete
       </ship-button>
       <ship-button variant="ghost"
         {{ on_click("$_editOpen = false; $_drawerError = ''") }}>Cancel</ship-button>
-      <ship-button tone="primary" variant="solid"
-        {{ on_click("@put('/api/collections/" ~ active_collection ~ "/items/' + $_editId, {contentType: 'json', body: {data: $_editDraft}}); $_editOpen = false; $_drawerError = ''") }}>
+      <ship-button tone="accent" variant="solid"
+        {{ on_click("@put('/api/v1/collections/" ~ active_collection ~ "/items/' + $_editId, {contentType: 'json', body: {data: $_editDraft}}); $_editOpen = false; $_drawerError = ''") }}>
         Save
       </ship-button>
     </div>
@@ -385,8 +385,8 @@
     <div slot="footer">
       <ship-button variant="ghost"
         {{ on_click("$_newColOpen = false; $_drawerError = ''") }}>Cancel</ship-button>
-      <ship-button tone="primary" variant="solid"
-        {{ on_click("@post('/api/collections', {contentType: 'json', body: {id: $_newColDraft.id, name: $_newColDraft.name, fields: Object.fromEntries($_newColDraft.fields.map(f => [f.name, {type: f.type, required: f.required}]))}}); $_newColOpen = false; window.router && window.router.navigate('/collections/' + $_newColDraft.id)") }}>
+      <ship-button tone="accent" variant="solid"
+        {{ on_click("@post('/api/v1/collections', {contentType: 'json', body: {id: $_newColDraft.id, name: $_newColDraft.name, fields: Object.fromEntries($_newColDraft.fields.map(f => [f.name, {type: f.type, required: f.required}]))}}); $_newColOpen = false; window.router && window.router.navigate('/collections/' + $_newColDraft.id)") }}>
         Create collection
       </ship-button>
     </div>

@@ -1,14 +1,14 @@
 //! REST API handlers for the three-scope artifacts platform.
 //!
 //! Routes:
-//!   POST   /api/artifacts           — upload (scope + optional run_id)
-//!   GET    /api/artifacts            — list with filters
-//!   GET    /api/artifacts/:id        — download bytes
-//!   HEAD   /api/artifacts/:id        — metadata headers only
-//!   GET    /api/artifacts/:id/metadata — JSON metadata
-//!   PATCH  /api/artifacts/:id        — update name / owner_actor / expires_at
-//!   DELETE /api/artifacts/:id        — soft delete
-//!   POST   /api/artifacts/:id/promote — promote to target scope
+//!   POST   /api/v1/artifacts           — upload (scope + optional run_id)
+//!   GET    /api/v1/artifacts            — list with filters
+//!   GET    /api/v1/artifacts/:id        — download bytes
+//!   HEAD   /api/v1/artifacts/:id        — metadata headers only
+//!   GET    /api/v1/artifacts/:id/metadata — JSON metadata
+//!   PATCH  /api/v1/artifacts/:id        — update name / owner_actor / expires_at
+//!   DELETE /api/v1/artifacts/:id        — soft delete
+//!   POST   /api/v1/artifacts/:id/promote — promote to target scope
 
 use axum::{
     Extension, Json,
@@ -62,7 +62,7 @@ fn parse_scope(scope_str: &str, run_id: Option<&str>, user_id: Option<&str>, pro
     }
 }
 
-// ── POST /api/artifacts ───────────────────────────────────────────────────────
+// ── POST /api/v1/artifacts ───────────────────────────────────────────────────────
 
 #[derive(Deserialize, Default, utoipa::IntoParams)]
 pub struct UploadQuery {
@@ -77,7 +77,7 @@ pub struct UploadQuery {
 #[utoipa::path(
     operation_id = "uploadArtifact",
     post,
-    path = "/api/artifacts",
+    path = "/api/v1/artifacts",
     params(UploadQuery),
     request_body(content_type = "multipart/form-data", description = "File upload with optional collection_id, item_id, expires_at fields"),
     responses(
@@ -191,12 +191,12 @@ pub async fn upload_artifact(
     }
 }
 
-// ── GET /api/artifacts/:id ────────────────────────────────────────────────────
+// ── GET /api/v1/artifacts/:id ────────────────────────────────────────────────────
 
 #[utoipa::path(
     operation_id = "downloadArtifact",
     get,
-    path = "/api/artifacts/{id}",
+    path = "/api/v1/artifacts/{id}",
     params(("id" = String, Path, description = "Artifact id")),
     responses(
         (status = 200, description = "Artifact bytes stream", content_type = "application/octet-stream"),
@@ -251,12 +251,12 @@ pub async fn download_artifact(
     }
 }
 
-// ── HEAD /api/artifacts/:id ───────────────────────────────────────────────────
+// ── HEAD /api/v1/artifacts/:id ───────────────────────────────────────────────────
 
 #[utoipa::path(
     operation_id = "headArtifact",
     head,
-    path = "/api/artifacts/{id}",
+    path = "/api/v1/artifacts/{id}",
     params(("id" = String, Path, description = "Artifact id")),
     responses(
         (status = 200, description = "Metadata-only response; body empty, headers carry size/mime/scope/hash"),
@@ -298,12 +298,12 @@ pub async fn head_artifact(
     }
 }
 
-// ── GET /api/artifacts/:id/metadata ──────────────────────────────────────────
+// ── GET /api/v1/artifacts/:id/metadata ──────────────────────────────────────────
 
 #[utoipa::path(
     operation_id = "artifactMetadata",
     get,
-    path = "/api/artifacts/{id}/metadata",
+    path = "/api/v1/artifacts/{id}/metadata",
     params(("id" = String, Path, description = "Artifact id")),
     responses(
         (status = 200, description = "Artifact metadata as JSON"),
@@ -338,7 +338,7 @@ pub async fn artifact_metadata(
     }
 }
 
-// ── PATCH /api/artifacts/:id ──────────────────────────────────────────────────
+// ── PATCH /api/v1/artifacts/:id ──────────────────────────────────────────────────
 
 #[derive(Deserialize, utoipa::ToSchema)]
 #[schema(example = json!({
@@ -355,7 +355,7 @@ pub struct PatchBody {
 #[utoipa::path(
     operation_id = "patchArtifact",
     patch,
-    path = "/api/artifacts/{id}",
+    path = "/api/v1/artifacts/{id}",
     params(("id" = String, Path, description = "Artifact id")),
     request_body = PatchBody,
     responses(
@@ -400,12 +400,12 @@ pub async fn patch_artifact(
     }
 }
 
-// ── DELETE /api/artifacts/:id ─────────────────────────────────────────────────
+// ── DELETE /api/v1/artifacts/:id ─────────────────────────────────────────────────
 
 #[utoipa::path(
     operation_id = "deleteArtifact",
     delete,
-    path = "/api/artifacts/{id}",
+    path = "/api/v1/artifacts/{id}",
     params(("id" = String, Path, description = "Artifact id")),
     responses(
         (status = 200, description = "Artifact soft-deleted"),
@@ -444,7 +444,7 @@ pub async fn delete_artifact(
     }
 }
 
-// ── POST /api/artifacts/:id/promote ──────────────────────────────────────────
+// ── POST /api/v1/artifacts/:id/promote ──────────────────────────────────────────
 
 #[derive(Deserialize, utoipa::ToSchema)]
 #[schema(example = json!({
@@ -461,7 +461,7 @@ pub struct PromoteBody {
 #[utoipa::path(
     operation_id = "promoteArtifact",
     post,
-    path = "/api/artifacts/{id}/promote",
+    path = "/api/v1/artifacts/{id}/promote",
     params(("id" = String, Path, description = "Artifact id")),
     request_body = PromoteBody,
     responses(
@@ -507,7 +507,7 @@ pub async fn promote_artifact(
     }
 }
 
-// ── GET /api/artifacts ────────────────────────────────────────────────────────
+// ── GET /api/v1/artifacts ────────────────────────────────────────────────────────
 
 #[derive(Deserialize, Default, utoipa::IntoParams)]
 pub struct ListQuery {
@@ -525,7 +525,7 @@ pub struct ListQuery {
 #[utoipa::path(
     operation_id = "listArtifacts",
     get,
-    path = "/api/artifacts",
+    path = "/api/v1/artifacts",
     params(ListQuery),
     responses(
         (status = 200, description = "Filtered, paginated list of artifacts"),

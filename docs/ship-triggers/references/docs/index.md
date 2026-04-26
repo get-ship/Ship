@@ -43,6 +43,13 @@ Fields:
 | `actions` | yes | Ordered list. Each step has a `type` and type-specific fields. |
 | `actions[].when` | no | Jinja expression — action skips if falsy. |
 
+The `actions[].type` vocabulary is a **closed enum at v1**: only
+`collection.insert`, `collection.update`, `event.emit`, and
+`pipeline.trigger` are accepted. Unknown action types fail schema
+validation at load time. Adding a new action type is a coordinated
+change across `schemas/trigger.schema.json`, the loader at
+`crates/core/runtime/src/hooks/`, and this page.
+
 ## External sources
 
 Instead of `trigger.event`, a trigger can use `trigger.source` to react to external signals.

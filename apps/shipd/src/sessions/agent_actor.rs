@@ -1,0 +1,237 @@
+//! Long-lived agent sessions on the supervisor primitive.
+//!
+//! Replaces `lifecycle::spawn_long_lived_agent` for channels-capable
+//! providers (Claude). Builds an `ActorProfile` from the provider
+//! adapter's `build_interactive`, calls `runtime::supervisor::spawn_actor`,
+//! and attaches a reader-middleware thread that:
+//!
+//! 1. Auto-dismisses Claude's `--dangerously-load-development-channels`
+//!    confirmation menu by sending a single CR when the menu pattern
+//!    appears in the byte stream. State-aware, fires once per session.
+//! 2. Feeds bytes through the provider adapter line-by-line and
+//!    publishes parsed `ProviderEvent`s on the entry's `event_tx`.
+//! 3. Updates the sidecar `SessionMeta` (status, last_activity).
+//! 4. Emits `actor.stopped` when the byte stream closes.
+//!
+//! Per-turn providers (codex, opencode, cursor, gemini) are NOT migrated
+//! here — they have no live process between turns. Those stay on the
+//! legacy path until per-turn spawns can be folded into the supervisor
+//! as one-shot transports.
+
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::Mutex;
+
+use anyhow::{anyhow, Result};
+use chrono::Utc;
+use runtime::services::dispatch_ports::LaunchProfile;
+use runtime::services::provider_adapter::{adapter_for, ProviderEvent};
+use runtime::supervisor::{spawn_actor, ActorKind, ActorProfile, TransportKind};
+use tokio::sync::broadcast;
+
+use super::actor_registry::{ActorEntry, ActorRegistry};
+use super::types::{SessionKind, SessionMeta, SessionStatus};
+
+const NEEDLE: &[u8] = b"dangerously-load-development-channels";
+const EVENT_CAP: usize = 256;
+
+pub struct SpawnOutcome {
+    pub entry: ActorEntry,
+    pub attached: bool,
+}
+
+pub fn spawn_or_attach(
+    registry: &ActorRegistry,
+    workspace_id: &str,
+    agent_id: &str,
+    provider: &str,
+    work_dir: PathBuf,
+    log_dir: PathBuf,
+    append_system_prompt: Option<String>,
+) -> Result<SpawnOutcome> {
+    if let Some(entry) = registry.find_agent_session(workspace_id, agent_id, provider) {
+        return Ok(SpawnOutcome {
+            entry,
+            attached: true,
+        });
+    }
+
+    let adapter = adapter_for(provider).map_err(|e| anyhow!(e))?;
+    if !adapter.caps().channels {
+        anyhow::bail!(
+            "agent_actor::spawn_or_attach: provider '{provider}' is not channels-capable; \
+             use the legacy per-turn path"
+        );
+    }
+
+    let slug_prefix = format!("agent-{agent_id}");
+    let lp = LaunchProfile {
+        provider: Some(provider.to_string()),
+        persist_session: true,
+        structured_output: true,
+        append_system_prompt,
+        ..LaunchProfile::default()
+    };
+    let launch = adapter.build_interactive(&slug_prefix, &lp);
+
+    let profile = ActorProfile {
+        actor_id_hint: None,
+        kind: ActorKind::Agent,
+        transport: TransportKind::Pty,
+        one_shot: false,
+        bin: launch.bin,
+        args: launch.args,
+        env: launch.env,
+        work_dir,
+        workspace_id: Some(workspace_id.to_string()),
+        agent_id: Some(agent_id.to_string()),
+        provider: Some(provider.to_string()),
+        parent_actor_id: None,
+        log_dir: Some(log_dir),
+        // Channel-listening lives in the MCP-side actor_spawn path
+        // (it captures the mailbox for SSE drain). We deliberately
+        // leave subscribe_namespaces empty here: the long-lived
+        // claude binary has its own MCP child that registers itself
+        // as an actor and owns chat_turn delivery.
+        subscribe_namespaces: vec![],
+    };
+
+    let handle = spawn_actor(profile)?;
+    let (event_tx, _) = broadcast::channel::<ProviderEvent>(EVENT_CAP);
+
+    let now = Utc::now();
+    let meta = SessionMeta {
+        id: handle.actor_id.clone(),
+        kind: SessionKind::Agent,
+        workspace_id: workspace_id.to_string(),
+        agent_id: Some(agent_id.to_string()),
+        provider: Some(provider.to_string()),
+        pid: handle.pid(),
+        status: SessionStatus::Spawning,
+        log_path: handle.child.log_path().display().to_string(),
+        spawned_at: now,
+        last_activity: now,
+        exit_code: None,
+        provider_session_id: None,
+    };
+
+    let entry = registry.insert_with(handle.clone(), meta, Some(event_tx.clone()));
+
+    spawn_reader_middleware(entry.clone(), provider.to_string(), event_tx);
+
+    Ok(SpawnOutcome {
+        entry,
+        attached: false,
+    })
+}
+
+fn spawn_reader_middleware(
+    entry: ActorEntry,
+    provider: String,
+    event_tx: broadcast::Sender<ProviderEvent>,
+) {
+    let mut rx = entry.handle.subscribe_output();
+    let handle = entry.handle.clone();
+    let meta = entry.meta.clone();
+    let actor_id = handle.actor_id.clone();
+    let workspace_id = meta.lock().unwrap().workspace_id.clone();
+    let spawned_at = meta.lock().unwrap().spawned_at;
+
+    tokio::spawn(async move {
+        // Idle on entry — child is up but not yet thinking.
+        {
+            let mut m = meta.lock().unwrap();
+            m.status = SessionStatus::Idle;
+            m.last_activity = Utc::now();
+        }
+        let menu_state = Arc::new(Mutex::new(MenuState::default()));
+        let adapter = adapter_for(&provider).ok();
+        let mut line_buf = String::new();
+
+        loop {
+            match rx.recv().await {
+                Ok(chunk) => {
+                    // Auto-dismiss the dev-channels menu once.
+                    if try_dismiss_menu(&handle, &menu_state, &chunk) {
+                        // No-op; side-effect handled inside.
+                    }
+
+                    // Provider parse → event_tx.
+                    if let Some(ref adapter) = adapter {
+                        line_buf.push_str(&String::from_utf8_lossy(&chunk));
+                        while let Some(nl) = line_buf.find('\n') {
+                            let line: String = line_buf.drain(..=nl).collect();
+                            let trimmed = line.trim_end_matches(['\n', '\r']);
+                            if !trimmed.is_empty() {
+                                if let Some(ev) = adapter.parse_output(trimmed) {
+                                    let _ = event_tx.send(ev);
+                                }
+                            }
+                        }
+                    }
+
+                    {
+                        let mut m = meta.lock().unwrap();
+                        m.last_activity = Utc::now();
+                        m.status = SessionStatus::Thinking;
+                    }
+                }
+                Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                Err(broadcast::error::RecvError::Closed) => break,
+            }
+        }
+
+        // Stream closed = child exited.
+        {
+            let mut m = meta.lock().unwrap();
+            m.status = SessionStatus::Ended;
+            m.last_activity = Utc::now();
+        }
+
+        let duration_ms = (Utc::now() - spawned_at).num_milliseconds().max(0) as u64;
+        let payload = runtime::events::types::ActorStopped {
+            reason: "process_exit".to_string(),
+            exit_code: None,
+            duration_ms: Some(duration_ms),
+        };
+        let stopped_id = actor_id.clone();
+        let stopped_ws = workspace_id.clone();
+        std::thread::spawn(move || {
+            let _ = runtime::db::actor_events::emit_actor_stopped(
+                &stopped_id,
+                &payload,
+                Some(&stopped_ws),
+                None,
+            );
+        });
+    });
+}
+
+#[derive(Default)]
+struct MenuState {
+    dismissed: bool,
+    buf: Vec<u8>,
+}
+
+fn try_dismiss_menu(
+    handle: &runtime::supervisor::ActorHandle,
+    state: &Arc<Mutex<MenuState>>,
+    chunk: &[u8],
+) -> bool {
+    let mut s = state.lock().unwrap();
+    if s.dismissed {
+        return false;
+    }
+    s.buf.extend_from_slice(chunk);
+    if s.buf.len() > 16_384 {
+        s.dismissed = true;
+        return false;
+    }
+    if s.buf.windows(NEEDLE.len()).any(|w| w == NEEDLE) {
+        let _ = handle.write_input(b"\r");
+        s.dismissed = true;
+        return true;
+    }
+    false
+}
+

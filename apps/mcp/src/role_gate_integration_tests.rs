@@ -233,11 +233,10 @@ fn mesh_send_allowed_with_explicit_active_tools() {
         .expect("mesh_broadcast allowed with explicit active_tools");
 }
 
-// ── event integration gating ───────────────────────────────────────
+// ── emit_event integration gating ──────────────────────────────────
 
 #[test]
-#[cfg(feature = "unstable")]
-fn event_allowed_with_unstable_and_explicit_active_tools() {
+fn emit_event_is_core_and_callable_under_any_mode() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
@@ -247,7 +246,7 @@ fn event_allowed_with_unstable_and_explicit_active_tools() {
             id: "event-explicit".to_string(),
             name: "Event Explicit".to_string(),
             role: Some("worker".to_string()),
-            active_tools: vec!["event".to_string()],
+            active_tools: vec!["log_progress".to_string()],
             ..Default::default()
         },
     )
@@ -255,13 +254,16 @@ fn event_allowed_with_unstable_and_explicit_active_tools() {
     runtime::set_active_agent(Some(project_dir.clone()), Some("event-explicit"))
         .expect("set active agent");
 
+    // emit_event is core — bypasses mode gating regardless of active_tools.
+    ShipServer::enforce_mode_tool_gate(&project_dir, "emit_event")
+        .expect("emit_event must bypass mode gate as a core tool");
+    // The deprecated alias resolves to the same canonical name.
     ShipServer::enforce_mode_tool_gate(&project_dir, "event")
-        .expect("event allowed with unstable + explicit active_tools");
+        .expect("`event` alias must resolve to canonical `emit_event` and bypass gate");
 }
 
-// ── view.* tool gating (Phase 1 canvas framework, unstable only) ───
+// ── canvas view tool gating (always registered, runtime-experimental) ─
 
-#[cfg(feature = "unstable")]
 #[test]
 fn worker_role_allows_view_tools_by_default() {
     let tmp = tempdir().expect("tempdir");
@@ -280,13 +282,17 @@ fn worker_role_allows_view_tools_by_default() {
     runtime::set_active_agent(Some(project_dir.clone()), Some("view-worker"))
         .expect("set active agent");
 
-    for tool in &["view_open", "view_patch", "view_append", "view_signal", "view_close"] {
+    for tool in &["open_view", "patch_view", "append_view", "signal_view", "close_view"] {
         ShipServer::enforce_mode_tool_gate(&project_dir, tool)
             .unwrap_or_else(|e| panic!("{tool} must be allowed for worker role: {e}"));
     }
+    // Deprecated aliases resolve to the canonical names through the gate.
+    for legacy in &["view_open", "view_patch", "view_append", "view_signal", "view_close"] {
+        ShipServer::enforce_mode_tool_gate(&project_dir, legacy)
+            .unwrap_or_else(|e| panic!("legacy alias {legacy} must still pass: {e}"));
+    }
 }
 
-#[cfg(feature = "unstable")]
 #[test]
 fn explicit_active_tools_without_view_blocks_view_tools() {
     let tmp = tempdir().expect("tempdir");
@@ -307,7 +313,7 @@ fn explicit_active_tools_without_view_blocks_view_tools() {
         .expect("set active agent");
 
     assert!(
-        ShipServer::enforce_mode_tool_gate(&project_dir, "view_open").is_err(),
-        "explicit active_tools without view_open must block it"
+        ShipServer::enforce_mode_tool_gate(&project_dir, "open_view").is_err(),
+        "explicit active_tools without open_view must block it"
     );
 }

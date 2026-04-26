@@ -31,8 +31,28 @@ loads the two core bundles (`datastar.js`, `ship-elements.js`); every
 pack bundle arrives per-view. Source of truth:
 `apps/shipd/src/views/packs.rs`.
 
-Unknown pack names are silently dropped — the lint rule
-`stale-pack-declaration` surfaces typos at author time.
+## Closed enum (v1)
+
+The pack vocabulary is a **closed enum** at v1: `editor`, `terminal`,
+`git`. Two enforcement layers:
+
+1. **Schema** — `schemas/view-manifest.schema.json` declares
+   `packs.items.enum: ["editor", "terminal", "git"]`. Editors with
+   JSON-Schema awareness flag unknown names as you type.
+2. **Runtime** — the daemon's manifest loader
+   (`apps/shipd/src/views/packs.rs`) is the source of truth. At load
+   time it validates each declared pack against the `KNOWN_PACKS`
+   constant; an unknown value drops the **whole** pack list for that
+   view and logs `tracing::error!` with the manifest path and the
+   offending name. Partial injection of "the known half" of a broken
+   declaration is intentionally avoided so author mistakes surface.
+
+The lint rule `pkg-stale-pack-declaration` continues to surface typos
+at author time as a double-check. Pack extensibility for third-party
+pro-packs is a **Phase B** concern: see [Roadmap](./roadmap.md).
+Adding a new first-party pack at v1 requires updating the schema enum,
+the runtime `KNOWN_PACKS` list, the `pack_bundles` mapping, and a
+`bundle:*` script in `packages/ship-set` — coordinated as one change.
 
 ## Pack → bundle mapping
 

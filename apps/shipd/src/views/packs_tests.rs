@@ -93,6 +93,60 @@ fn inject_packs_fragment_prepends() {
 }
 
 #[test]
+fn validate_packs_accepts_known_names() {
+    let manifest = std::path::PathBuf::from("/tmp/view/manifest.jsonc");
+    let packs = vec!["editor".to_string(), "git".to_string(), "terminal".to_string()];
+    let out = validate_packs(&manifest, &packs).expect("known packs validate");
+    assert_eq!(out, packs);
+}
+
+#[test]
+fn validate_packs_rejects_unknown_with_path_and_offender() {
+    let manifest = std::path::PathBuf::from("/tmp/view/manifest.jsonc");
+    let packs = vec!["editor".to_string(), "viz".to_string()];
+    let err = validate_packs(&manifest, &packs).expect_err("unknown pack must reject");
+    assert_eq!(err.offending, "viz");
+    assert_eq!(err.manifest, manifest);
+    let msg = err.to_string();
+    assert!(msg.contains("/tmp/view/manifest.jsonc"), "msg names path: {msg}");
+    assert!(msg.contains("\"viz\""), "msg names offender: {msg}");
+}
+
+#[test]
+fn validate_packs_empty_is_ok() {
+    let manifest = std::path::PathBuf::from("/tmp/view/manifest.jsonc");
+    assert_eq!(validate_packs(&manifest, &[]).unwrap(), Vec::<String>::new());
+}
+
+#[test]
+fn read_view_packs_drops_list_when_unknown_pack_present() {
+    // A manifest with one valid + one invalid pack must drop the entire
+    // list — partial injection would mask the typo. The valid `editor`
+    // bundles must NOT show up in the output.
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let dir = tmp.path().to_path_buf();
+    std::fs::write(
+        dir.join("manifest.jsonc"),
+        r#"{"name":"x","type":"html","packs":["editor","viz"]}"#,
+    )
+    .unwrap();
+    let out = read_view_packs(&dir);
+    assert!(out.is_empty(), "unknown pack rejects whole list: {out:?}");
+}
+
+#[test]
+fn read_view_packs_returns_known_packs_unchanged() {
+    let tmp = tempfile::tempdir().expect("tempdir");
+    let dir = tmp.path().to_path_buf();
+    std::fs::write(
+        dir.join("manifest.jsonc"),
+        r#"{"name":"x","type":"html","packs":["git"]}"#,
+    )
+    .unwrap();
+    assert_eq!(read_view_packs(&dir), vec!["git".to_string()]);
+}
+
+#[test]
 fn inject_packs_full_page_no_head_prepends() {
     // Malformed or fragment-shaped HTML misclassified as full page still
     // gets the scripts prepended rather than silently dropped.

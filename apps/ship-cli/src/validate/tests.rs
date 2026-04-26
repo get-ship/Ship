@@ -23,7 +23,7 @@ preset = "ship-standard"
 
 fn setup() -> (TempDir, std::path::PathBuf) {
     let tmp = TempDir::new().unwrap();
-    let agents_dir = tmp.path().join(".ship").join("agents");
+    let agents_dir = runtime::ShipHome::project_ship_dir(tmp.path()).join("agents");
     std::fs::create_dir_all(&agents_dir).unwrap();
     write(
         tmp.path(),

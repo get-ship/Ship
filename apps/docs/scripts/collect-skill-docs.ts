@@ -25,7 +25,11 @@ const SCRIPT_DIR = dirname(new URL(import.meta.url).pathname)
 const REPO_ROOT = resolve(SCRIPT_DIR, "../../../")
 const SKILLS_DIR = join(REPO_ROOT, "docs")
 const OUTPUT_DIR = join(SCRIPT_DIR, "../src/content/docs")
-const GENERATED_DIR = join(OUTPUT_DIR, "reference")
+// Output is treated as build artifact (gitignored). Override via
+// COLLECT_DOCS_OUT for the drift checker which collects into a tempdir.
+const GENERATED_DIR = process.env.COLLECT_DOCS_OUT
+  ? resolve(process.env.COLLECT_DOCS_OUT)
+  : join(OUTPUT_DIR, "reference")
 const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
 const SHIP_ELEMENTS_SRC = join(REPO_ROOT, "apps/shipd/assets/ship-elements.js")
 const SHIP_ELEMENTS_DEST = join(PUBLIC_DIR, "ship-elements.js")

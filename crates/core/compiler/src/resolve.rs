@@ -88,6 +88,12 @@ pub struct ResolvedConfig {
     /// set to the Studio MCP URL (e.g. `http://localhost:51741/agent`).
     /// The compiler uses it to emit HTTP transport config instead of stdio.
     pub studio_mcp_url: Option<String>,
+    /// Absolute path to the ship home (e.g. `/home/alice/.ship`). Injected
+    /// by callers (CLI/daemon) that resolve via `runtime::ShipHome`. The
+    /// compiler is WASM-safe and does not read environment variables —
+    /// when this is `None` (e.g. WASM frontends), the compiler emits an
+    /// MCP entry without the `SHIP_GLOBAL_DIR` env injection.
+    pub ship_home_dir: Option<String>,
 }
 
 /// Resolve the effective agent config from pre-loaded project data.
@@ -448,6 +454,7 @@ pub fn resolve(
         claude_auto_updates: None,
         claude_include_co_authored_by: None,
         studio_mcp_url: None,
+        ship_home_dir: None,
     }
 }
 

@@ -99,7 +99,7 @@ mod tests {
     fn resolves_docs_skill_via_skill_paths() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let ship = project.join(".ship");
+        let ship = runtime::ShipHome::project_ship_dir(project);
         fs::create_dir_all(&ship).unwrap();
         write(
             &ship,
@@ -122,7 +122,7 @@ mod tests {
     fn resolves_skill_with_audience_internal() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let ship = project.join(".ship");
+        let ship = runtime::ShipHome::project_ship_dir(project);
         fs::create_dir_all(&ship).unwrap();
         write(
             &ship,
@@ -146,7 +146,7 @@ mod tests {
     fn resolves_across_multiple_skill_paths() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let ship = project.join(".ship");
+        let ship = runtime::ShipHome::project_ship_dir(project);
         fs::create_dir_all(&ship).unwrap();
         write(
             &ship,
@@ -175,7 +175,7 @@ mod tests {
     fn missing_skill_absent_from_library() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let ship = project.join(".ship");
+        let ship = runtime::ShipHome::project_ship_dir(project);
         fs::create_dir_all(&ship).unwrap();
         write(
             &ship,
@@ -194,7 +194,7 @@ mod tests {
     fn loose_md_in_custom_path_ignored() {
         let tmp = TempDir::new().unwrap();
         let project = tmp.path();
-        let ship = project.join(".ship");
+        let ship = runtime::ShipHome::project_ship_dir(project);
         fs::create_dir_all(&ship).unwrap();
         write(
             &ship,

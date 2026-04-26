@@ -70,7 +70,7 @@
 
           <ship-log-stream slot="footer"
             id="logs-{{ run.slug }}"
-            url="/api/pipelines/runs/{{ run.slug }}/log/stream"
+            url="/api/v1/pipelines/runs/{{ run.slug }}/log/stream"
             autoscroll></ship-log-stream>
         </ship-pipeline-run>
       {% endfor %}

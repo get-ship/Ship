@@ -11,7 +11,7 @@ use crate::requests::{
 use crate::tools::skill_files::{collect_reference_docs, collect_skill_files, parse_skill_frontmatter};
 
 pub fn list_skills(project_dir: &Path, req: ListSkillsRequest) -> String {
-    let ship_dir = project_dir.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
     let skills = match list_effective_skills(&ship_dir) {
         Ok(s) => s,
         Err(e) => return format!("Error listing skills: {}", e),
@@ -52,8 +52,8 @@ pub fn list_skills(project_dir: &Path, req: ListSkillsRequest) -> String {
 pub fn list_project_skills(project_dir: &Path, req: ListProjectSkillsRequest) -> String {
     // project_dir is the project root (e.g. /workspaces/ship).
     // read_skill_paths expects the .ship directory.
-    let ship_dir = if project_dir.join(".ship").is_dir() {
-        project_dir.join(".ship")
+    let ship_dir = if runtime::ShipHome::project_ship_dir(project_dir).is_dir() {
+        runtime::ShipHome::project_ship_dir(project_dir)
     } else {
         project_dir.to_path_buf()
     };
@@ -139,7 +139,7 @@ fn read_skill_from_dir(id: &str, skill_dir: &Path) -> Option<PullSkill> {
 
 /// `get_skill_vars` MCP tool — return merged variable state for a skill.
 pub fn get_skill_vars_tool(project_dir: &Path, req: GetSkillVarsRequest) -> String {
-    let ship_dir = project_dir.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
     match get_skill_vars(&ship_dir, &req.skill_id) {
         Ok(Some(vars)) => match serde_json::to_string_pretty(&vars) {
             Ok(json) => json,
@@ -155,7 +155,7 @@ pub fn get_skill_vars_tool(project_dir: &Path, req: GetSkillVarsRequest) -> Stri
 
 /// `set_skill_var` MCP tool — write a single variable value.
 pub fn set_skill_var_tool(project_dir: &Path, req: SetSkillVarRequest) -> String {
-    let ship_dir = project_dir.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
     let value: serde_json::Value = match serde_json::from_str(&req.value_json) {
         Ok(v) => v,
         Err(e) => {
@@ -174,7 +174,7 @@ pub fn set_skill_var_tool(project_dir: &Path, req: SetSkillVarRequest) -> String
 
 /// `list_skill_vars` MCP tool — list all skills with configured variables.
 pub fn list_skill_vars_tool(project_dir: &Path, req: ListSkillVarsRequest) -> String {
-    let ship_dir = project_dir.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
     let all = match list_skill_vars(&ship_dir) {
         Ok(v) => v,
         Err(e) => return format!("Error listing skill vars: {e}"),

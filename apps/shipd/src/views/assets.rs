@@ -52,7 +52,7 @@ const VIEW_TOKENS_CSS: &str = concat!(
     include_str!("../../../../packages/ship-set/src/themes.css"),
 );
 
-/// GET /api/runtime/assets/datastar.js
+/// GET /api/v1/runtime/assets/datastar.js
 #[utoipa::path(
     operation_id = "serveDatastarJs",
     get,
@@ -73,7 +73,7 @@ pub async fn serve_datastar_js() -> axum::response::Response {
         .unwrap()
 }
 
-/// GET /api/runtime/assets/view-tokens.css
+/// GET /api/v1/runtime/assets/view-tokens.css
 #[utoipa::path(
     operation_id = "serveViewTokens",
     get,
@@ -96,7 +96,7 @@ pub async fn serve_view_tokens() -> axum::response::Response {
         .unwrap()
 }
 
-/// GET /api/runtime/assets/ship-elements.js
+/// GET /api/v1/runtime/assets/ship-elements.js
 #[utoipa::path(
     operation_id = "serveShipElements",
     get,
@@ -117,7 +117,7 @@ pub async fn serve_ship_elements() -> axum::response::Response {
         .unwrap()
 }
 
-/// GET /api/runtime/assets/custom-elements.json
+/// GET /api/v1/runtime/assets/custom-elements.json
 #[utoipa::path(
     operation_id = "serveElementsManifest",
     get,
@@ -144,7 +144,7 @@ const SHIP_CODE_EDITOR_JS: &str = include_str!("../../assets/ship-code-editor.js
 const SHIP_MARKDOWN_EDITOR_JS: &str = include_str!("../../assets/ship-markdown-editor.js");
 const SHIP_TERMINAL_JS: &str = include_str!("../../assets/ship-terminal.js");
 
-/// GET /api/runtime/assets/ship-code-editor.js
+/// GET /api/v1/runtime/assets/ship-code-editor.js
 #[utoipa::path(
     operation_id = "serveCodeEditor",
     get,
@@ -165,7 +165,7 @@ pub async fn serve_code_editor() -> axum::response::Response {
         .unwrap()
 }
 
-/// GET /api/runtime/assets/ship-markdown-editor.js
+/// GET /api/v1/runtime/assets/ship-markdown-editor.js
 #[utoipa::path(
     operation_id = "serveMarkdownEditor",
     get,
@@ -186,7 +186,7 @@ pub async fn serve_markdown_editor() -> axum::response::Response {
         .unwrap()
 }
 
-/// GET /api/runtime/assets/ship-terminal.js
+/// GET /api/v1/runtime/assets/ship-terminal.js
 #[utoipa::path(
     operation_id = "serveTerminal",
     get,
@@ -267,7 +267,7 @@ pub async fn serve_jinja_macros_md() -> axum::response::Response {
         .unwrap()
 }
 
-/// GET /api/runtime/assets/ship-elements.md
+/// GET /api/v1/runtime/assets/ship-elements.md
 /// Compact, token-efficient catalog for agent context.
 #[utoipa::path(
     operation_id = "serveElementsCatalog",
@@ -289,7 +289,7 @@ pub async fn serve_elements_catalog() -> axum::response::Response {
         .unwrap()
 }
 
-/// GET /api/runtime/assets/theme.css
+/// GET /api/v1/runtime/assets/theme.css
 /// Returns the active theme's CSS overrides. No-cache so theme changes apply immediately.
 #[utoipa::path(
     operation_id = "serveThemeCss",
@@ -312,12 +312,12 @@ pub async fn serve_theme_css() -> axum::response::Response {
         .unwrap()
 }
 
-/// GET /api/runtime/themes
+/// GET /api/v1/runtime/themes
 /// Returns JSON list of all available themes.
 #[utoipa::path(
     operation_id = "serveThemesList",
     get,
-    path = "/api/themes",
+    path = "/api/v1/themes",
     responses(
         (status = 200, description = "Available themes", content_type = "application/json"),
         (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),

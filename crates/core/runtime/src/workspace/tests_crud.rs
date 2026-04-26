@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod tests {
-    use crate::db::branch_context::get_branch_link;
     use crate::workspace::*;
     use anyhow::Result;
     use tempfile::tempdir;
@@ -48,7 +47,6 @@ mod tests {
             },
         )?;
         assert_eq!(workspace.name, "main");
-        assert!(get_branch_link("main")?.is_none());
         Ok(())
     }
 
@@ -94,7 +92,6 @@ mod tests {
         delete_workspace(&ship_dir, "feature/delete-me")?;
 
         assert!(get_workspace(&ship_dir, "feature/delete-me")?.is_none());
-        assert!(get_branch_link("feature/delete-me")?.is_none());
         assert!(list_workspace_sessions(&ship_dir, None, 10)?.is_empty());
         Ok(())
     }

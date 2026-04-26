@@ -1,14 +1,14 @@
 //! Write endpoints for views — template, manifest, fork.
 //!
-//! - `PUT /api/views/{name}/template` writes a `.html.j2` file under the
+//! - `PUT /api/v1/views/{name}/template` writes a `.html.j2` file under the
 //!   view's directory. Body: `{ file?, content }`. `file` defaults to
 //!   `index.html.j2` and may be any relative path ending in `.html.j2`
 //!   for nested routes or partials. Lint runs inline; errors block the
 //!   write.
-//! - `PUT /api/views/{name}/manifest` writes `manifest.{jsonc|yaml|json}`.
+//! - `PUT /api/v1/views/{name}/manifest` writes `manifest.{jsonc|yaml|json}`.
 //!   Body: `{ content, format }`. Validated against the bundled JSON
 //!   schema before the file lands on disk.
-//! - `POST /api/views/{name}/fork` copies a view from the project
+//! - `POST /api/v1/views/{name}/fork` copies a view from the project
 //!   (repo-shipped) scope into the user-global `<ship-dir>/views/`
 //!   scope so subsequent edits don't mutate bundled files.
 //!
@@ -118,7 +118,7 @@ fn resolve_view(state: &ApiState, name: &str) -> Option<(PathBuf, &'static str)>
 #[utoipa::path(
     operation_id = "writeViewTemplate",
     put,
-    path = "/api/views/{name}/template",
+    path = "/api/v1/views/{name}/template",
     params(("name" = String, Path, description = "View name")),
     request_body = WriteTemplateRequest,
     responses(
@@ -201,7 +201,7 @@ fn finding_to_lint(f: &lint::Finding) -> LintFinding {
 #[utoipa::path(
     operation_id = "writeViewManifest",
     put,
-    path = "/api/views/{name}/manifest",
+    path = "/api/v1/views/{name}/manifest",
     params(("name" = String, Path, description = "View name")),
     request_body = WriteManifestRequest,
     responses(
@@ -285,7 +285,7 @@ fn validate_manifest(value: &serde_json::Value) -> Result<(), String> {
 #[utoipa::path(
     operation_id = "forkView",
     post,
-    path = "/api/views/{name}/fork",
+    path = "/api/v1/views/{name}/fork",
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "View forked to user scope", body = WriteResponse),

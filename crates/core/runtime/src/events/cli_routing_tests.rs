@@ -52,7 +52,7 @@ fn ev(event_type: &str) -> EventEnvelope {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn workspace_event_reaches_kernel_store() {
     let tmp = tempdir().unwrap();
-    let router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+    let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
     let event = ev(event_types::WORKSPACE_CREATED);
     // emit persists + delivers. route is delivery-only.
@@ -74,7 +74,7 @@ async fn workspace_event_reaches_kernel_store() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn session_event_delivered_to_subscribed_mailbox() {
     let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
     let (_store, mut mailbox) = router.spawn_actor("agent.mcp", agent_config()).unwrap();
 
@@ -91,7 +91,7 @@ async fn session_event_delivered_to_subscribed_mailbox() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn gate_outcome_with_cli_context_reaches_kernel_store() {
     let tmp = tempdir().unwrap();
-    let router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+    let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
     let event = ev(event_types::GATE_PASSED);
     // CallerKind::Cli is trusted — must not be rejected by validators.
@@ -113,7 +113,7 @@ async fn gate_outcome_with_cli_context_reaches_kernel_store() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn gate_outcome_delivered_to_subscribed_mailbox() {
     let tmp = tempdir().unwrap();
-    let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+    let mut router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
 
     let (_store, mut mailbox) = router.spawn_actor("agent.mcp", agent_config()).unwrap();
 

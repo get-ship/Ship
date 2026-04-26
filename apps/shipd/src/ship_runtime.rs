@@ -88,6 +88,10 @@ pub struct ShipRuntime {
     /// PTY session registry — chat, pipelines, dock terminal all go
     /// through here. See `crate::sessions`.
     pty_sessions: crate::sessions::SessionRegistry,
+    /// Actor-backed session registry — destination of the supervisor-
+    /// primitive migration. Shells live here today; agents and pipelines
+    /// follow as 1.1.c / 1.1.d land.
+    actor_sessions: crate::sessions::ActorRegistry,
     /// Project workspace dir (e.g. `/path/to/repo`) when the daemon was
     /// started with `--workspace`. Drives project-scoped artifact storage.
     workspace_dir: Option<PathBuf>,
@@ -155,10 +159,25 @@ impl ShipRuntime {
         }
 
         // Ensure DB exists and init kernel.
+        //
+        // Ordering matters: open `data.db` (which runs the collections
+        // migration that copies legacy user-content rows out of
+        // `platform.db`) BEFORE `ensure_db_at` applies sqlx migrations —
+        // migration 0006 drops the legacy tables, so any data left there
+        // would be lost. `DataService::open` reads platform.db through a
+        // raw connection that does not touch sqlx migrations.
+        //
         // Use spawn_blocking because the DB layer uses block_in_place internally,
         // which requires the multi-threaded runtime. spawn_blocking works in both.
         let dir = global_dir.clone();
         let kernel = tokio::task::spawn_blocking(move || {
+            // Phase 3: one-shot home-layout migrator. Idempotent; runs before
+            // any DB open so the canonical `~/.ship/library` + `~/.ship/machine`
+            // shape is in place when callers resolve paths.
+            runtime::home::migrate::migrate_home(&runtime::ShipHome::at(dir.clone()))
+                .context("home-layout migration")?;
+            // Open data.db + run collections migration first.
+            let _ = runtime::data::DataService::open(&dir)?;
             runtime::db::ensure_db_at(&dir)?;
             runtime::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
@@ -221,6 +240,7 @@ impl ShipRuntime {
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
+            actor_sessions: crate::sessions::ActorRegistry::new(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -286,6 +306,10 @@ impl ShipRuntime {
 
     pub fn pty_sessions(&self) -> &crate::sessions::SessionRegistry {
         &self.pty_sessions
+    }
+
+    pub fn actor_sessions(&self) -> &crate::sessions::ActorRegistry {
+        &self.actor_sessions
     }
 
     pub fn session_registry(&self) -> &SessionRegistry {
@@ -492,6 +516,7 @@ impl ShipRuntime {
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
+            actor_sessions: crate::sessions::ActorRegistry::new(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -522,6 +547,7 @@ impl ShipRuntime {
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
+            actor_sessions: crate::sessions::ActorRegistry::new(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),

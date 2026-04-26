@@ -9,7 +9,8 @@ use crate::fs_util::write_atomic;
 
 use super::install::migrate_legacy_project_skills;
 use super::types::{
-    Skill, SkillSource, SkillSpecFrontmatter, SkillSpecMetadata, validate_skill_spec_frontmatter,
+    Skill, SkillSource, SkillSpecFrontmatter, SkillSpecMetadata, validate_against_schema,
+    validate_skill_spec_frontmatter,
 };
 
 pub(super) fn skills_dir(project_dir: &Path) -> PathBuf {
@@ -64,7 +65,21 @@ pub(super) fn parse_skill_spec(dir: &Path) -> Result<Skill> {
     let yaml = &rest[..end];
     let body = rest[end + 4..].trim_start_matches('\n').to_string();
 
-    let fm: SkillSpecFrontmatter = serde_yaml::from_str(yaml)
+    // Round-trip the YAML through serde_json::Value so we can apply the
+    // canonical JSON Schema. This is the load-time contract enforcement: any
+    // unknown field, missing required field, or wrong-shape value is rejected
+    // here with the skill directory and offending field path in the message.
+    let yaml_value: serde_yaml::Value = serde_yaml::from_str(yaml)
+        .with_context(|| format!("Failed to parse SKILL.md frontmatter in {}", path.display()))?;
+    let json_value: serde_json::Value = serde_json::to_value(&yaml_value).with_context(|| {
+        format!(
+            "Failed to convert SKILL.md frontmatter to JSON in {}",
+            path.display()
+        )
+    })?;
+    validate_against_schema(&json_value, &path)?;
+
+    let fm: SkillSpecFrontmatter = serde_yaml::from_value(yaml_value)
         .with_context(|| format!("Failed to parse SKILL.md frontmatter in {}", path.display()))?;
     validate_skill_spec_frontmatter(&fm, &path)?;
 
@@ -105,8 +120,11 @@ pub(super) fn parse_skill_spec(dir: &Path) -> Result<Skill> {
         id,
         name,
         description: Some(fm.description),
-        version: None,
-        author: None,
+        version: fm.version,
+        authors: fm.authors,
+        stable_id: Some(fm.stable_id),
+        tags: fm.tags,
+        audience: fm.audience,
         content: body,
         source,
         artifacts: fm.artifacts.unwrap_or_default(),
@@ -117,10 +135,28 @@ pub(super) fn write_skill_spec(dir: &Path, skill: &Skill) -> Result<()> {
     fs::create_dir_all(dir)?;
     let frontmatter = SkillSpecFrontmatter {
         name: skill.id.clone(),
+        stable_id: skill
+            .stable_id
+            .clone()
+            .unwrap_or_else(|| skill.id.clone()),
         description: skill
             .description
             .clone()
             .unwrap_or_else(|| format!("Project skill '{}'", skill.id)),
+        tags: if skill.tags.is_empty() {
+            vec!["custom".to_string()]
+        } else {
+            skill.tags.clone()
+        },
+        authors: if skill.authors.is_empty() {
+            vec!["local".to_string()]
+        } else {
+            skill.authors.clone()
+        },
+        audience: skill.audience.clone(),
+        version: skill.version.clone(),
+        supersedes: None,
+        superseded_by: None,
         compatibility: None,
         allowed_tools: None,
         license: None,

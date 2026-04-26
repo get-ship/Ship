@@ -1,4 +1,4 @@
-//! GET /api/mcp/servers — MCP registry proxy with in-memory caching.
+//! GET /api/v1/mcp/servers — MCP registry proxy with in-memory caching.
 //!
 //! Fetches from the official MCP registry (24 h TTL). Falls back to a
 //! curated list when the upstream registry is unreachable.
@@ -404,7 +404,7 @@ pub fn apply_filters(
 #[utoipa::path(
     operation_id = "listMcpServers",
     get,
-    path = "/api/mcp/servers",
+    path = "/api/v1/mcp/servers",
     params(McpServersQuery),
     responses(
         (status = 200, description = "Filtered MCP server catalog", body = McpServersResponse),

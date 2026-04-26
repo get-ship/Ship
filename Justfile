@@ -64,8 +64,20 @@ wasm:
 
 # ── Test ───────────────────────────────────────────────────────────────────────
 
-# Run all tests (Rust + web)
-test: test-rust test-web
+# Run all tests (Rust + web + loops)
+test: test-rust test-web test-loops
+
+# End-to-end loop tests against a running daemon (headless only).
+# Each loop is a single-purpose sanity gate exercising one substrate
+# concern (channel delivery, hook correlation, write-path idempotency,
+# id minting, etc.). Run UI-mode loops with `just test-loops-ui`.
+test-loops:
+    node tests/loops/run.mjs
+
+# All loops including Playwright-driven UI checks. Slower, separate
+# CI gate — needs a daemon AND a browser.
+test-loops-ui:
+    node tests/loops/run.mjs --ui
 
 # Rust workspace tests (unstable)
 test-rust:
@@ -147,6 +159,17 @@ openapi-regen:
 check-openapi-drift:
     cd apps/docs && pnpm run openapi:check-drift
 
+# Regenerate the Astro reference tree from docs/<skill>/references/docs/.
+# The output (apps/docs/src/content/docs/reference/) is gitignored build
+# output; predev/prebuild run this automatically.
+docs-regen:
+    cd apps/docs && AUDIENCE=internal pnpm run collect
+
+# Fail if the on-disk Astro reference tree disagrees with what the collector
+# would produce from source. CI gate against hand-edited generated docs.
+check-docs-drift:
+    cd apps/docs && pnpm run docs:check-drift
+
 # ── Deploy ─────────────────────────────────────────────────────────────────────
 
 # Deploy Studio to Cloudflare Workers
@@ -211,6 +234,16 @@ check-gates:
     cargo build --features unstable -p ship-cli -p mcp
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
+
+# Run home-layout grep guards (warn-only in phase-1; phase-2 will flip to hard-fail)
+check-raw:
+    @scripts/check-raw-ship-paths.sh
+    @scripts/check-raw-env-reads.sh
+    @just check-migrations
+
+# Enforce platform.db migration naming discipline (timestamp-prefixed; 0001–0006 frozen)
+check-migrations:
+    @scripts/check-migration-naming.sh
 
 # Fail if any test uses set_var("SHIP_GLOBAL_DIR") — causes env var races
 check-no-set-var-global-dir:

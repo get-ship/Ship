@@ -1,4 +1,4 @@
-//! Integration tests for `POST /api/annotations`.
+//! Integration tests for `POST /api/v1/annotations`.
 
 use axum::{Router, body::Body, http::Request};
 use http_body_util::BodyExt;
@@ -14,7 +14,7 @@ use crate::ship_runtime::ShipRuntime;
 fn router_for(state: ApiState, auth: AuthContext) -> Router {
     Router::new()
         .route(
-            "/api/annotations",
+            "/api/v1/annotations",
             axum::routing::post(super::post_annotation),
         )
         .with_state(state)
@@ -23,7 +23,7 @@ fn router_for(state: ApiState, auth: AuthContext) -> Router {
 
 fn fresh_state() -> (ApiState, TempDir) {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = Arc::new(tokio::sync::Mutex::new(
@@ -46,7 +46,7 @@ fn human_auth() -> AuthContext {
 async fn send_json(router: &Router, body: serde_json::Value) -> (u16, serde_json::Value) {
     let req = Request::builder()
         .method("POST")
-        .uri("/api/annotations")
+        .uri("/api/v1/annotations")
         .header("content-type", "application/json")
         .body(Body::from(serde_json::to_vec(&body).unwrap()))
         .unwrap();

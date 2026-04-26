@@ -1,8 +1,6 @@
-use crate::db::branch_context::clear_branch_link;
 use crate::project::sanitize_file_name;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use std::path::Path;
 
 use super::types::*;
 
@@ -71,18 +69,9 @@ pub(crate) fn new_workspace(branch: &str, now: DateTime<Utc>) -> Workspace {
     }
 }
 
-// ---- Branch links ----------------------------------------------------------
-
-pub(crate) fn persist_branch_link_from_workspace(
-    _ship_dir: &Path,
-    workspace: &Workspace,
-) -> Result<()> {
-    clear_branch_link(&workspace.name)
-}
-
 // ---- Agent validation ------------------------------------------------------
 
-pub(crate) fn validate_agent_exists(ship_dir: &Path, agent_id: &str) -> Result<String> {
+pub(crate) fn validate_agent_exists(ship_dir: &std::path::Path, agent_id: &str) -> anyhow::Result<String> {
     let normalized = normalize_agent_ref(agent_id)
         .ok_or_else(|| anyhow::anyhow!("Workspace agent cannot be empty"))?;
     let effective = crate::config::get_effective_config(Some(ship_dir.to_path_buf()))?;

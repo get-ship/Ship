@@ -1,7 +1,7 @@
 //! `ship tail <slug>` — stream events for a single slug.
 //!
-//! Implementation: 1-second polling against `/api/events/poll`.
-//! SSE would be cleaner, but the existing /api/events/stream SSE only
+//! Implementation: 1-second polling against `/api/v1/events/poll`.
+//! SSE would be cleaner, but the existing /api/v1/events/stream SSE only
 //! delivers future events from the kernel mailbox — it has no replay
 //! cursor. Polling lets the caller resume cleanly across reconnects with
 //! a ULID `since_id`.
@@ -17,7 +17,7 @@ pub fn run(slug: &str, namespace: Option<&str>) -> Result<()> {
     println!("Tailing events for slug='{slug}' (Ctrl+C to stop)");
     loop {
         let mut url = format!(
-            "http://127.0.0.1:{port}/api/events/poll?slug={}",
+            "http://127.0.0.1:{port}/api/v1/events/poll?slug={}",
             urlencode(slug),
         );
         if let Some(ref c) = since {

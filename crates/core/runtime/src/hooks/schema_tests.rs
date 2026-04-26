@@ -24,7 +24,7 @@ fn workspace_root() -> std::path::PathBuf {
     let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     manifest
         .ancestors()
-        .find(|p| p.join("Cargo.toml").exists() && p.join(".ship").exists())
+        .find(|p| p.join("Cargo.toml").exists() && crate::ShipHome::project_ship_dir(p).exists())
         .expect("workspace root not found")
         .to_path_buf()
 }
@@ -45,7 +45,7 @@ fn committed_hooks_validate_against_trigger_schema() {
     let schema = load_json(&schema_path);
     let validator = validator_for(&schema).expect("trigger schema must compile");
 
-    let hooks_dir = root.join(".ship/hooks");
+    let hooks_dir = crate::ShipHome::project_ship_dir(root).join("hooks");
     let entries = std::fs::read_dir(&hooks_dir)
         .unwrap_or_else(|e| panic!("cannot read {}: {e}", hooks_dir.display()));
 
@@ -85,7 +85,7 @@ fn committed_view_manifests_validate_against_view_manifest_schema() {
     let schema = load_json(&schema_path);
     let validator = validator_for(&schema).expect("view-manifest schema must compile");
 
-    let views_dir = root.join(".ship/views");
+    let views_dir = crate::ShipHome::project_ship_dir(root).join("views");
     let entries = std::fs::read_dir(&views_dir)
         .unwrap_or_else(|e| panic!("cannot read {}: {e}", views_dir.display()));
 

@@ -150,7 +150,7 @@ fn undefined_signal_fires_on_missing_declaration() {
         .filter(|f| f.rule == RULE_UNDEFINED_SIGNAL)
         .collect();
     assert_eq!(hits.len(), 1, "{findings:?}");
-    assert_eq!(hits[0].severity, Severity::Warn);
+    assert_eq!(hits[0].severity, Severity::Error);
     assert!(hits[0].message.contains("count"));
 }
 

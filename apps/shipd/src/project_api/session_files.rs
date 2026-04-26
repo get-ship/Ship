@@ -76,11 +76,11 @@ pub(super) fn collect_files_recursive(
     Ok(())
 }
 
-/// GET /api/workspaces/{id}/session-files
+/// GET /api/v1/workspaces/{id}/session-files
 #[utoipa::path(
     operation_id = "listSessionFiles",
     get,
-    path = "/api/workspaces/{id}/session-files",
+    path = "/api/v1/workspaces/{id}/session-files",
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Files list under .artifacts/", body = MeshResponse),
@@ -107,11 +107,11 @@ pub async fn list_session_files(
     Ok(ok_response(serde_json::json!({ "files": files })))
 }
 
-/// GET /api/workspaces/{id}/session-files/*path
+/// GET /api/v1/workspaces/{id}/session-files/*path
 #[utoipa::path(
     operation_id = "readSessionFile",
     get,
-    path = "/api/workspaces/{id}/session-files/{path}",
+    path = "/api/v1/workspaces/{id}/session-files/{path}",
     params(
         ("id" = String, Path, description = "Workspace id"),
         ("path" = String, Path, description = "Relative path under .artifacts/"),
@@ -177,11 +177,11 @@ pub struct WriteFileReq {
     pub content: String,
 }
 
-/// PUT /api/workspaces/{id}/session-files/*path
+/// PUT /api/v1/workspaces/{id}/session-files/*path
 #[utoipa::path(
     operation_id = "writeSessionFile",
     put,
-    path = "/api/workspaces/{id}/session-files/{path}",
+    path = "/api/v1/workspaces/{id}/session-files/{path}",
     params(
         ("id" = String, Path, description = "Workspace id"),
         ("path" = String, Path, description = "Relative path under .artifacts/"),
@@ -233,11 +233,11 @@ pub async fn write_session_file(
     Ok(ok_response(serde_json::json!({ "path": file_path })))
 }
 
-/// DELETE /api/workspaces/{id}/session-files/*path
+/// DELETE /api/v1/workspaces/{id}/session-files/*path
 #[utoipa::path(
     operation_id = "deleteSessionFile",
     delete,
-    path = "/api/workspaces/{id}/session-files/{path}",
+    path = "/api/v1/workspaces/{id}/session-files/{path}",
     params(
         ("id" = String, Path, description = "Workspace id"),
         ("path" = String, Path, description = "Relative path under .artifacts/"),

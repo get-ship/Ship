@@ -3,7 +3,7 @@
   shipped view on the right, contrast report beneath. Uses a CSS
   layer (`@layer theme-draft`) so draft tokens win over the user's
   currently-applied theme without mutating :root globally — easy to
-  roll back on exit. Calls POST /api/themes/contrast on every debounced
+  roll back on exit. Calls POST /api/v1/themes/contrast on every debounced
   change so the pass/fail counts update inline.
 -#}
 {% from '_ship.html.j2' import head, signal, signals, on, init %}
@@ -171,10 +171,10 @@
 
   <!-- Draft token propagation: mirror each $tokens key into --draft-<key>
        on the preview container so CSS vars cascade into the sample view.
-       Also POST to /api/themes/contrast whenever tokens change. -->
+       Also POST to /api/v1/themes/contrast whenever tokens change. -->
   <div
     data-computed-tokens-css="Object.entries($tokens).map(([k,v]) => `--draft-${k}: ${v}`).join('; ')"
-    data-effect="document.getElementById('ts-preview')?.setAttribute('style', $tokens_css); (async () => { try { const r = await fetch('/api/themes/contrast', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tokens: $tokens }) }); if (r.ok) $report = await r.json(); } catch {} })()"
+    data-effect="document.getElementById('ts-preview')?.setAttribute('style', $tokens_css); (async () => { try { const r = await fetch('/api/v1/themes/contrast', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tokens: $tokens }) }); if (r.ok) $report = await r.json(); } catch {} })()"
   ></div>
 
   {#- Token list is rendered server-side from ship_tokens() (mirrors

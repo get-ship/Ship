@@ -73,7 +73,7 @@ mod tests {
     fn defaults_to_skills_when_absent() {
         let tmp = tempdir().unwrap();
         let project_root = tmp.path();
-        let ship_dir = project_root.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(project_root);
         write_manifest(&ship_dir, r#"{"id": "test123"}"#);
 
         let paths = read_skill_paths(&ship_dir, project_root);
@@ -85,7 +85,7 @@ mod tests {
     fn defaults_when_no_manifest() {
         let tmp = tempdir().unwrap();
         let project_root = tmp.path();
-        let ship_dir = project_root.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(project_root);
         fs::create_dir_all(&ship_dir).unwrap();
 
         let paths = read_skill_paths(&ship_dir, project_root);
@@ -97,7 +97,7 @@ mod tests {
     fn reads_custom_skill_paths() {
         let tmp = tempdir().unwrap();
         let project_root = tmp.path();
-        let ship_dir = project_root.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(project_root);
         write_manifest(
             &ship_dir,
             r#"{"id": "test123", "project": {"skill_paths": ["docs/", "internal/skills/"]}}"#,
@@ -114,7 +114,7 @@ mod tests {
     fn rejects_absolute_paths() {
         let tmp = tempdir().unwrap();
         let project_root = tmp.path();
-        let ship_dir = project_root.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(project_root);
         write_manifest(
             &ship_dir,
             r#"{"id": "test123", "project": {"skill_paths": ["/etc/evil/"]}}"#,
@@ -129,7 +129,7 @@ mod tests {
     fn empty_array_falls_back_to_default() {
         let tmp = tempdir().unwrap();
         let project_root = tmp.path();
-        let ship_dir = project_root.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(project_root);
         write_manifest(
             &ship_dir,
             r#"{"id": "test123", "project": {"skill_paths": []}}"#,
@@ -144,7 +144,7 @@ mod tests {
     fn project_root_relative_custom_path() {
         let tmp = tempdir().unwrap();
         let project_root = tmp.path();
-        let ship_dir = project_root.join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(project_root);
         write_manifest(
             &ship_dir,
             r#"{"id": "test123", "project": {"skill_paths": ["custom-skills/"]}}"#,

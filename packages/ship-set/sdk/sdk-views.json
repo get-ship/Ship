@@ -20,6 +20,15 @@
         "studio.annotation.created"
       ]
     },
+    "chats": {
+      "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
+      "name": "chats",
+      "type": "component",
+      "rail": {
+        "label": "Chats",
+        "icon": "messages-square"
+      }
+    },
     "git": {
       "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
       "name": "git",
@@ -181,6 +190,15 @@
         "icon": "file"
       }
     },
+    "theme-studio": {
+      "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
+      "name": "theme-studio",
+      "type": "component",
+      "rail": {
+        "label": "Theme Studio",
+        "icon": "palette"
+      }
+    },
     "agents": {
       "source": "manifest.yaml",
       "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
@@ -194,6 +212,10 @@
       "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
     },
     "dashboard": {
+      "source": "manifest.yaml",
+      "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
+    },
+    "data": {
       "source": "manifest.yaml",
       "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
     },

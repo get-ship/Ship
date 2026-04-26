@@ -1,4 +1,4 @@
-//! REST handler for `POST /api/feedback`.
+//! REST handler for `POST /api/v1/feedback`.
 //!
 //! Accepts a `FeedbackEvent` payload and routes it to the right subscriber:
 //!
@@ -97,7 +97,7 @@ impl FeedbackGuard {
 #[utoipa::path(
     operation_id = "postFeedback",
     post,
-    path = "/api/feedback",
+    path = "/api/v1/feedback",
     request_body(content_type = "application/json", description = "FeedbackEvent — kind, author_kind, target, payload"),
     responses(
         (status = 200, description = "Feedback accepted"),

@@ -175,22 +175,9 @@ fn spawn_long_lived_agent(
         extras,
     )?;
 
-    // Claude's interactive mode opens with a one-shot dev-channels
-    // confirmation TUI menu (`--dangerously-load-development-channels`)
-    // and a project-trust dialog. Both block at "press Enter to confirm".
-    // Auto-dismiss them by writing a few newlines once the PTY is alive.
-    // Harmless on providers that don't show menus — the bytes land at
-    // their input prompt and get echoed back. Phase 2.5 should detect
-    // the actual menu pattern in the reader loop instead of best-effort
-    // timing.
-    let confirm_session = session.clone();
-    std::thread::spawn(move || {
-        std::thread::sleep(Duration::from_millis(1500));
-        for _ in 0..3 {
-            let _ = write_input(&confirm_session, b"\r");
-            std::thread::sleep(Duration::from_millis(800));
-        }
-    });
+    // The dev-channels confirmation menu is auto-dismissed by the
+    // reader_loop when it sees the menu pattern in the PTY output —
+    // state-aware, fires exactly once per session. No timer here.
 
     Ok(session)
 }
@@ -534,6 +521,8 @@ fn spawn_command(
         .take_writer()
         .map_err(|e| anyhow!("take pty writer: {e}"))?;
 
+    let agent_id_for_kernel = meta.agent_id.clone();
+
     let inner = Arc::new(Inner {
         meta: StdMutex::new(meta),
         writer: StdMutex::new(Some(writer)),
@@ -545,6 +534,17 @@ fn spawn_command(
     });
 
     registry.insert(id.clone(), inner.clone());
+
+    // Register Shell + Pipeline kinds with the kernel router so they
+    // appear on the mesh. Agents register via their MCP child's
+    // `actor_spawn` HTTP call (which also captures the mailbox in
+    // state.agent_mailboxes for SSE drain) — registering again here
+    // would orphan the mailbox between paths and silently drop
+    // channel pushes. Daemon-side registration is for kinds that
+    // DON'T have an MCP-bridge child of their own.
+    if !matches!(kind, SessionKind::Agent) {
+        register_with_kernel(&id, kind, agent_id_for_kernel.as_deref());
+    }
 
     // Reader thread: bytes → log file + broadcast. Updates status on
     // activity + quiet-timeout. Cleans up on child exit.
@@ -566,6 +566,12 @@ fn spawn_command(
     Ok(PtySession(inner))
 }
 
+/// Distinctive unbroken byte sequence in Claude's dev-channels
+/// warning. The visible "Enter to confirm" prompt has cursor-movement
+/// escape sequences between words; this string is contiguous in the
+/// byte stream and uniquely identifies the menu's presence.
+const NEEDLE: &[u8] = b"dangerously-load-development-channels";
+
 fn reader_loop(
     mut reader: Box<dyn Read + Send>,
     mut log_file: std::fs::File,
@@ -584,6 +590,14 @@ fn reader_loop(
 
     let mut buf = [0u8; 4096];
     let mut line_buf = String::new();
+    // Detect Claude's `--dangerously-load-development-channels` menu
+    // pattern in the rendered TUI bytes. When seen, send a single CR
+    // to dismiss it. State-aware: fires once per session; we don't
+    // brute-force keystrokes that can land at the main prompt and
+    // submit empty inputs (which under some conditions causes early
+    // exit).
+    let mut menu_dismissed = false;
+    let mut menu_buf: Vec<u8> = Vec::with_capacity(4096);
     loop {
         match reader.read(&mut buf) {
             Ok(0) => break,
@@ -592,6 +606,24 @@ fn reader_loop(
                 let _ = log_file.write_all(chunk);
                 let _ = log_file.flush();
                 let _ = inner.output_tx.send(chunk.to_vec());
+
+                if !menu_dismissed {
+                    menu_buf.extend_from_slice(chunk);
+                    if menu_buf.len() > 16_384 {
+                        // Bound: if we haven't seen the menu in ~16KB
+                        // of TUI output, claude isn't going to show it.
+                        menu_dismissed = true;
+                    } else if menu_buf.windows(NEEDLE.len()).any(|w| w == NEEDLE) {
+                        // Menu rendered. Single CR accepts the
+                        // pre-selected first option. Match against the
+                        // unbroken token in the warning header — the
+                        // visible "Enter to confirm" prompt has cursor-
+                        // movement escapes between words and isn't a
+                        // contiguous byte match.
+                        let _ = write_input(&PtySession(inner.clone()), b"\r");
+                        menu_dismissed = true;
+                    }
+                }
                 if let Some(ref adapter) = adapter {
                     // Accumulate into a line buffer and flush on \n so
                     // parse_output sees whole lines. ANSI codes pass
@@ -728,13 +760,56 @@ pub fn stop(registry: &SessionRegistry, id: &str) -> bool {
     true
 }
 
+/// Register the freshly-spawned PtySession with the kernel router so
+/// it appears on the mesh. Different session kinds get different
+/// subscription sets — agents listen for chat turns, shells/pipelines
+/// don't subscribe to anything by default (still receive directed
+/// events via target_actor_id). Failures are logged, not propagated;
+/// process visibility doesn't depend on mesh registration succeeding.
+fn register_with_kernel(actor_id: &str, kind: SessionKind, agent_id: Option<&str>) {
+    let subscribe_namespaces: Vec<String> = match kind {
+        SessionKind::Agent => vec![
+            "studio.chat_turn".to_string(),
+            "studio.reply".to_string(),
+            "inbox.".to_string(),
+            "human.".to_string(),
+            "mesh.message".to_string(),
+        ],
+        SessionKind::Pipeline | SessionKind::Shell => vec![],
+    };
+    let config = runtime::events::ActorConfig {
+        namespace: actor_id.to_string(),
+        write_namespaces: vec!["".to_string()],
+        read_namespaces: vec!["agent.".to_string()],
+        subscribe_namespaces,
+    };
+    let actor_id_owned = actor_id.to_string();
+    let _ = agent_id; // reserved for future per-agent subscription extensions
+    if let Some(kr) = runtime::events::kernel_router() {
+        let res = runtime::db::block_on_anyhow(async move {
+            let mut kernel = kr.lock().await;
+            if !kernel.has_actor(&actor_id_owned) {
+                kernel
+                    .spawn_actor(&actor_id_owned, config)
+                    .map(|_| ())
+                    .map_err(|e| anyhow!("{e}"))
+            } else {
+                Ok(())
+            }
+        });
+        if let Err(e) = res {
+            tracing::warn!(actor_id, "register_with_kernel failed: {e}");
+        }
+    }
+}
+
 /// Load an agent's `rules.inline` from `.ship/agents/<agent_id>.jsonc` in
 /// the work directory. Prepended with a Ship-specific preamble so the agent
 /// knows which session id to reply into. Returns `None` if the file is
 /// absent, unreadable, or has no inline rules — callers fall back to vanilla
 /// provider behaviour.
-fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
-    let path = work_dir.join(".ship").join("agents").join(format!("{agent_id}.jsonc"));
+pub fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
+    let path = runtime::ShipHome::project_ship_dir(work_dir).join("agents").join(format!("{agent_id}.jsonc"));
     let raw = std::fs::read_to_string(&path).ok()?;
     let stripped = strip_jsonc(&raw);
     let v: serde_json::Value = serde_json::from_str(&stripped).ok()?;

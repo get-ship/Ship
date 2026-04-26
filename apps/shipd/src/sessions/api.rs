@@ -1,11 +1,11 @@
 //! HTTP endpoints for the PTY session registry.
 //!
-//! * `POST /api/sessions/spawn` — agent or shell spawn
-//! * `GET /api/sessions` — list all (active + ended)
-//! * `GET /api/sessions/{id}` — single snapshot
-//! * `DELETE /api/sessions/{id}` — graceful stop
-//! * `POST /api/sessions/{id}/input` — write stdin bytes
-//! * `GET /api/sessions/{id}/stream` — SSE replay + live tail
+//! * `POST /api/v1/sessions/spawn` — agent or shell spawn
+//! * `GET /api/v1/sessions` — list all (active + ended)
+//! * `GET /api/v1/sessions/{id}` — single snapshot
+//! * `DELETE /api/v1/sessions/{id}` — graceful stop
+//! * `POST /api/v1/sessions/{id}/input` — write stdin bytes
+//! * `GET /api/v1/sessions/{id}/stream` — SSE replay + live tail
 //!
 //! SSE is the default for subscribers because our existing asset
 //! pipeline (EventSource, same-origin cookie) handles it cleanly.
@@ -139,7 +139,7 @@ fn binary_exists(bin: &str) -> bool {
 #[utoipa::path(
     operation_id = "installedProviders",
     get,
-    path = "/api/providers/installed",
+    path = "/api/v1/providers/installed",
     responses(
         (status = 200, description = "Providers detected on PATH", body = InstalledProvidersResponse),
     ),
@@ -166,7 +166,7 @@ pub struct MessageBody {
 #[utoipa::path(
     operation_id = "sessionMessage",
     post,
-    path = "/api/sessions/{id}/message",
+    path = "/api/v1/sessions/{id}/message",
     params(("id" = String, Path, description = "Agent session id")),
     request_body = MessageBody,
     responses(
@@ -191,14 +191,19 @@ pub async fn session_message(
     // Per-turn providers ignore this path; they still get driven by the
     // spawn + stdin prompt below. The event is scoped to `session_id` so
     // the MCP `EventRelay` can filter it to the exact Claude instance.
-    let (workspace_id, agent_id) = state
-        .pty_sessions()
-        .get(&id)
-        .map(|s| {
-            let m = s.meta();
-            (m.workspace_id, m.agent_id)
-        })
-        .unwrap_or_default();
+    let (workspace_id, agent_id) = if let Some(entry) = state.actor_sessions().get(&id) {
+        let m = entry.meta_snapshot();
+        (m.workspace_id, m.agent_id)
+    } else {
+        state
+            .pty_sessions()
+            .get(&id)
+            .map(|s| {
+                let m = s.meta();
+                (m.workspace_id, m.agent_id)
+            })
+            .unwrap_or_default()
+    };
     let payload = serde_json::json!({
         "session_id": id,
         "text": text,
@@ -216,6 +221,16 @@ pub async fn session_message(
         let _ = state.kernel().lock().await.emit(envelope, &ctx).await;
     }
 
+    // Long-lived channels agents live in ActorRegistry; the
+    // studio.chat_turn event above is the only delivery they need.
+    // Mark status=Thinking so list/detail reflect the in-flight turn.
+    if let Some(entry) = state.actor_sessions().get(&id) {
+        let mut m = entry.meta.lock().unwrap();
+        m.status = super::types::SessionStatus::Thinking;
+        m.last_activity = chrono::Utc::now();
+        return (StatusCode::ACCEPTED, ()).into_response();
+    }
+
     let work_dir = work_dir_for(&state, "main");
     match super::lifecycle::send_agent_message(
         state.pty_sessions(),
@@ -231,7 +246,7 @@ pub async fn session_message(
 #[utoipa::path(
     operation_id = "sessionReply",
     post,
-    path = "/api/sessions/{id}/reply",
+    path = "/api/v1/sessions/{id}/reply",
     params(("id" = String, Path, description = "Agent session id")),
     request_body = MessageBody,
     responses(
@@ -242,6 +257,7 @@ pub async fn session_message(
 )]
 pub async fn session_reply(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<MessageBody>,
 ) -> axum::response::Response {
@@ -249,11 +265,32 @@ pub async fn session_reply(
     if text.is_empty() {
         return err(StatusCode::BAD_REQUEST, "empty reply");
     }
-    let Some(session) = state.pty_sessions().get(&id) else {
-        return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
-    };
+
+    // Emit `studio.reply` to the event log keyed on the actor id. This
+    // is the canonical reply path: every actor in the projection gets
+    // their reply written to the log regardless of whether a legacy
+    // PtySession also exists. Dashboards / views tail this event.
+    let payload = serde_json::json!({ "actor_id": id, "text": &text });
+    if let Ok(envelope) = EventEnvelope::new(event_types::STUDIO_REPLY, &id, &payload) {
+        let envelope = envelope.with_target(&id);
+        let ctx = auth.to_daemon_emit_context();
+        if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
+            tracing::warn!(actor = %id, "studio.reply emit failed: {e}");
+        }
+    }
+
+    // In-memory broadcast for SSE consumers tailing the session's
+    // parsed-event stream. Check both registries so reply works
+    // regardless of which substrate owns the session.
     let ev = runtime::services::provider_adapter::ProviderEvent::Message { text };
-    let _ = session.0.event_tx.send(ev);
+    if let Some(entry) = state.actor_sessions().get(&id) {
+        if let Some(tx) = entry.event_tx.as_ref() {
+            let _ = tx.send(ev);
+        }
+    } else if let Some(session) = state.pty_sessions().get(&id) {
+        let _ = session.0.event_tx.send(ev);
+    }
+
     (StatusCode::ACCEPTED, ()).into_response()
 }
 
@@ -285,7 +322,7 @@ fn work_dir_for(state: &ApiState, workspace_id: &str) -> std::path::PathBuf {
 #[utoipa::path(
     operation_id = "spawnSession",
     post,
-    path = "/api/sessions/spawn",
+    path = "/api/v1/sessions/spawn",
     request_body = SpawnBody,
     responses(
         (status = 200, description = "Session spawned or attached", body = SpawnResponse),
@@ -312,6 +349,35 @@ pub async fn spawn_session(
                 Some(p) if !p.is_empty() => p,
                 _ => return err(StatusCode::BAD_REQUEST, "provider required for agent kind"),
             };
+
+            // Channels-capable providers (Claude today) go through the
+            // supervisor primitive + ActorRegistry. Per-turn providers
+            // stay on the legacy path until per-turn spawns can fold
+            // into the supervisor as one-shot transports.
+            if let Ok(adapter) = runtime::services::provider_adapter::adapter_for(provider) {
+                if adapter.caps().channels {
+                    let append = lifecycle::load_agent_rules(&work_dir, agent_id);
+                    return match super::agent_actor::spawn_or_attach(
+                        state.actor_sessions(),
+                        &req.workspace_id,
+                        agent_id,
+                        provider,
+                        work_dir,
+                        log_dir,
+                        append,
+                    ) {
+                        Ok(outcome) => {
+                            let resp = SpawnResponse {
+                                session_id: outcome.entry.handle.actor_id.clone(),
+                                attached: outcome.attached,
+                            };
+                            (StatusCode::OK, Json(resp)).into_response()
+                        }
+                        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+                    };
+                }
+            }
+
             match lifecycle::spawn_agent(
                 registry,
                 &req.workspace_id,
@@ -341,18 +407,20 @@ pub async fn spawn_session(
             }
         }
         "shell" => {
-            match lifecycle::spawn_shell(registry, &req.workspace_id, work_dir, log_dir) {
-                Ok(session) => {
-                    lifecycle::emit_actor_created_for(
-                        &session,
-                        &lifecycle::ActorSpawnExtras {
-                            transport: Some("pty".to_string()),
-                            persistence: Some("long-lived".to_string()),
-                            ..Default::default()
-                        },
-                    );
+            // Shell sessions go through the supervisor primitive +
+            // ActorRegistry. Kernel registration, PTY hold, log file,
+            // and `actor.created` emission all happen inside
+            // `runtime::supervisor::spawn_actor` — no second registry
+            // write, no second event emit.
+            match super::shell_actor::spawn_shell(
+                state.actor_sessions(),
+                &req.workspace_id,
+                work_dir,
+                log_dir,
+            ) {
+                Ok(entry) => {
                     let resp = SpawnResponse {
-                        session_id: session.meta().id,
+                        session_id: entry.handle.actor_id.clone(),
                         attached: false,
                     };
                     (StatusCode::OK, Json(resp)).into_response()
@@ -367,7 +435,7 @@ pub async fn spawn_session(
 #[utoipa::path(
     operation_id = "listSessions",
     get,
-    path = "/api/sessions",
+    path = "/api/v1/sessions",
     responses(
         (status = 200, description = "All known sessions", body = SessionListResponse),
     ),
@@ -377,19 +445,26 @@ pub async fn list_sessions(State(state): State<ApiState>) -> axum::response::Res
     // Cheap housekeeping — flip thinking → idle as needed before
     // handing the snapshot to the client.
     lifecycle::sweep_idle(state.pty_sessions());
-    let sessions = state
+    let mut sessions: Vec<SessionMetaWire> = state
         .pty_sessions()
         .list()
         .into_iter()
         .map(SessionMetaWire::from)
         .collect();
+    sessions.extend(
+        state
+            .actor_sessions()
+            .list()
+            .into_iter()
+            .map(SessionMetaWire::from),
+    );
     (StatusCode::OK, Json(SessionListResponse { sessions })).into_response()
 }
 
 #[utoipa::path(
     operation_id = "getSession",
     get,
-    path = "/api/sessions/{id}",
+    path = "/api/v1/sessions/{id}",
     params(("id" = String, Path, description = "Session id")),
     responses(
         (status = 200, description = "Session snapshot", body = SessionMetaWire),
@@ -401,6 +476,10 @@ pub async fn get_session(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
+    if let Some(entry) = state.actor_sessions().get(&id) {
+        let wire: SessionMetaWire = entry.meta_snapshot().into();
+        return (StatusCode::OK, Json(wire)).into_response();
+    }
     match state.pty_sessions().get(&id) {
         Some(session) => {
             let wire: SessionMetaWire = session.meta().into();
@@ -413,7 +492,7 @@ pub async fn get_session(
 #[utoipa::path(
     operation_id = "stopSession",
     delete,
-    path = "/api/sessions/{id}",
+    path = "/api/v1/sessions/{id}",
     params(("id" = String, Path, description = "Session id")),
     responses(
         (status = 204, description = "Stopped"),
@@ -425,7 +504,9 @@ pub async fn stop_session(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
-    if lifecycle::stop(state.pty_sessions(), &id) {
+    if super::shell_actor::stop(state.actor_sessions(), &id)
+        || lifecycle::stop(state.pty_sessions(), &id)
+    {
         (StatusCode::NO_CONTENT, ()).into_response()
     } else {
         err(StatusCode::NOT_FOUND, format!("session '{id}' not found"))
@@ -435,7 +516,7 @@ pub async fn stop_session(
 #[utoipa::path(
     operation_id = "sessionInput",
     post,
-    path = "/api/sessions/{id}/input",
+    path = "/api/v1/sessions/{id}/input",
     params(("id" = String, Path, description = "Session id")),
     request_body = InputBody,
     responses(
@@ -449,6 +530,12 @@ pub async fn session_input(
     Path(id): Path<String>,
     Json(body): Json<InputBody>,
 ) -> axum::response::Response {
+    if let Some(entry) = state.actor_sessions().get(&id) {
+        if let Err(e) = entry.write_input(body.data.as_bytes()) {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+        }
+        return (StatusCode::NO_CONTENT, ()).into_response();
+    }
     let Some(session) = state.pty_sessions().get(&id) else {
         return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
     };
@@ -461,7 +548,7 @@ pub async fn session_input(
 #[utoipa::path(
     operation_id = "streamSessionEvents",
     get,
-    path = "/api/sessions/{id}/events",
+    path = "/api/v1/sessions/{id}/events",
     params(("id" = String, Path, description = "Session id")),
     responses(
         (status = 200, description = "SSE stream of parsed ProviderEvents", content_type = "text/event-stream"),
@@ -473,10 +560,13 @@ pub async fn stream_session_events(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
-    let Some(session) = state.pty_sessions().get(&id) else {
+    let rx = if let Some(entry) = state.actor_sessions().get(&id) {
+        entry.subscribe_events()
+    } else if let Some(session) = state.pty_sessions().get(&id) {
+        session.subscribe_events()
+    } else {
         return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
     };
-    let rx = session.subscribe_events();
     let ev_stream = BroadcastStream::new(rx)
         .filter_map(|r| r.ok())
         .map(|ev| {
@@ -490,7 +580,7 @@ pub async fn stream_session_events(
 #[utoipa::path(
     operation_id = "streamSession",
     get,
-    path = "/api/sessions/{id}/stream",
+    path = "/api/v1/sessions/{id}/stream",
     params(("id" = String, Path, description = "Session id")),
     responses(
         (status = 200, description = "SSE stream of PTY bytes + status events", content_type = "text/event-stream"),
@@ -502,18 +592,19 @@ pub async fn stream_session(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
-    let Some(session) = state.pty_sessions().get(&id) else {
+    let (log_path, live) = if let Some(entry) = state.actor_sessions().get(&id) {
+        (entry.log_path(), entry.subscribe())
+    } else if let Some(session) = state.pty_sessions().get(&id) {
+        (session.0.log_path.clone(), session.subscribe())
+    } else {
         return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
     };
 
     // Replay log content first, then live tail. The log is written by
     // the reader thread; opening + reading once captures a snapshot.
-    let log_path = session.0.log_path.clone();
     let replay = tokio::task::spawn_blocking(move || std::fs::read(&log_path).unwrap_or_default())
         .await
         .unwrap_or_default();
-
-    let live = session.subscribe();
     let live_stream = BroadcastStream::new(live).filter_map(|r| r.ok());
 
     let replay_stream = stream::iter(std::iter::once(replay));

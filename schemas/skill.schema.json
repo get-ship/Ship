@@ -2,37 +2,62 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://getship.dev/schemas/skill.schema.json",
   "title": "SKILL.md Frontmatter Schema",
-  "description": "YAML frontmatter fields for a Ship smart skill (SKILL.md). Fields marked 'ship' are Ship-specific extensions beyond the agentskills.io base spec.",
+  "description": "Canonical YAML frontmatter contract for a Ship smart skill (SKILL.md). Enforced by the runtime skill loader. The fields here are the only fields a committed SKILL.md may carry; unknown fields are rejected so that the contract is monitorable.",
   "type": "object",
-  "required": ["name", "description"],
+  "required": ["name", "stable-id", "description", "tags", "authors"],
   "additionalProperties": false,
   "properties": {
     "name": {
       "type": "string",
       "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$",
       "maxLength": 64,
-      "description": "Skill id. Lowercase alphanumeric with hyphens. No leading/trailing/consecutive hyphens. Used as the skill id when no stable-id is set."
+      "description": "Skill id. Kebab-case; must equal the containing directory name (e.g. docs/ship-triggers/SKILL.md => name: ship-triggers)."
+    },
+    "stable-id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$|^[a-z0-9]$",
+      "maxLength": 64,
+      "description": "Stable storage key for variable state. Survives directory renames. By convention equals `name` unless the skill has been renamed."
     },
     "description": {
       "type": "string",
       "minLength": 1,
       "maxLength": 1024,
-      "description": "One sentence describing when to use this skill. Start with 'Use when...' for reliable trigger matching."
-    },
-    "stable-id": {
-      "type": "string",
-      "pattern": "^[a-z0-9][a-z0-9-]*$",
-      "description": "[Ship] Stable storage key for variable state. Survives directory renames. Defaults to the directory name if absent."
+      "description": "One-sentence purpose. Start with 'Use when...' for reliable trigger matching."
     },
     "tags": {
       "type": "array",
-      "items": { "type": "string" },
-      "description": "[Ship] Category labels for discovery on getship.dev."
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z0-9][a-z0-9-]*$"
+      },
+      "description": "Category labels. Lowercase kebab strings. At least one tag is required so skills surface in discovery."
     },
     "authors": {
       "type": "array",
-      "items": { "type": "string" },
-      "description": "[Ship] Skill authors. Free-form strings."
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Skill authors. Free-form strings, but the array must not be empty."
+    },
+    "audience": {
+      "type": "string",
+      "enum": ["public", "internal", "agent-only"],
+      "description": "Visibility. `public` (default) ships in published docs. `internal` is excluded from the docs collector. `agent-only` is loaded by agents but never published."
+    },
+    "version": {
+      "type": "string",
+      "description": "Optional semver-ish version string. Absent means unversioned/rolling."
+    },
+    "supersedes": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Stable-id of the skill this one replaces."
+    },
+    "superseded-by": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Stable-id of the skill that replaces this one."
     },
     "license": {
       "type": "string",
@@ -54,12 +79,12 @@
         "type": "string",
         "enum": ["html", "pdf", "markdown", "image", "adr", "note", "json", "url", "svg"]
       },
-      "description": "[Ship] Artifact types this skill produces. The platform infers rendering and interaction capabilities from these types."
+      "description": "Artifact types this skill produces. The platform infers rendering and interaction capabilities from these types."
     },
     "metadata": {
       "type": "object",
       "additionalProperties": { "type": "string" },
-      "description": "Arbitrary key-value string metadata."
+      "description": "Arbitrary key-value string metadata. Reserved keys: `display_name`, `source`."
     }
   }
 }

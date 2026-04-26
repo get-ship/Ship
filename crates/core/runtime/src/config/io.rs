@@ -5,8 +5,7 @@ use super::merge::{
 use super::modes::{get_modes_config, save_modes_config};
 use super::project::{ProjectConfig, default_providers};
 use super::runtime_settings::{
-    get_legacy_agents_config, get_runtime_settings, migrate_json_config, normalize_git_config,
-    remove_legacy_agents_config, save_runtime_settings,
+    get_runtime_settings, migrate_json_config, normalize_git_config, save_runtime_settings,
 };
 use super::types::PRIMARY_CONFIG_FILE;
 use crate::project::get_global_dir;
@@ -59,14 +58,6 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
             if let Some(namespaces) = namespaces {
                 config.namespaces = namespaces;
             }
-        } else if let Some(legacy) = get_legacy_agents_config(&config_dir)? {
-            // One-time compatibility path: bootstrap SQLite runtime settings from
-            // legacy .ship/agents/config.toml if present.
-            config.providers = legacy.providers;
-            config.active_agent = legacy.active_agent;
-            config.hooks = legacy.hooks;
-            save_runtime_settings(&config_dir, &config)?;
-            remove_legacy_agents_config(&config_dir)?;
         }
     }
 
@@ -134,9 +125,10 @@ pub fn save_config(config: &ProjectConfig, project_dir: Option<PathBuf>) -> Resu
     }
 
     if project_dir.is_none() {
-        // Global config stays file-backed for now.
-        let toml_str = toml::to_string_pretty(config)?;
-        crate::fs_util::write_atomic(&path, toml_str)?;
+        // Global config is JSONC. The home-layout migrator converts any
+        // pre-existing legacy TOML user-config into the settings/local pair.
+        let json = serde_json::to_string_pretty(config)?;
+        crate::fs_util::write_atomic(&path, json)?;
         return Ok(());
     }
 

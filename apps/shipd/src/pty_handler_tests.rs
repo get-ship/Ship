@@ -6,7 +6,7 @@ use tempfile::TempDir;
 
 fn make_api_state() -> (ApiState, TempDir) {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
@@ -30,7 +30,7 @@ async fn pty_returns_404_for_unknown_workspace() {
     let (state, _tmp) = make_api_state();
 
     let req = axum::http::Request::builder()
-        .uri("/api/workspaces/nonexistent/pty")
+        .uri("/api/v1/workspaces/nonexistent/pty")
         .header("host", "localhost")
         .header("connection", "upgrade")
         .header("upgrade", "websocket")
@@ -41,7 +41,7 @@ async fn pty_returns_404_for_unknown_workspace() {
 
     let app = axum::Router::new()
         .route(
-            "/api/workspaces/{id}/pty",
+            "/api/v1/workspaces/{id}/pty",
             axum::routing::get(workspace_pty),
         )
         .layer(axum::Extension(full_auth()))
@@ -74,7 +74,7 @@ async fn pty_returns_404_when_no_tmux_session() {
     let ws_id = ws.id.clone();
 
     let req = axum::http::Request::builder()
-        .uri(format!("/api/workspaces/{ws_id}/pty"))
+        .uri(format!("/api/v1/workspaces/{ws_id}/pty"))
         .header("host", "localhost")
         .header("connection", "upgrade")
         .header("upgrade", "websocket")
@@ -85,7 +85,7 @@ async fn pty_returns_404_when_no_tmux_session() {
 
     let app = axum::Router::new()
         .route(
-            "/api/workspaces/{id}/pty",
+            "/api/v1/workspaces/{id}/pty",
             axum::routing::get(workspace_pty),
         )
         .layer(axum::Extension(full_auth()))
@@ -131,7 +131,7 @@ async fn pty_returns_429_when_over_connection_limit() {
     }
 
     let req = axum::http::Request::builder()
-        .uri(format!("/api/workspaces/{ws_id}/pty"))
+        .uri(format!("/api/v1/workspaces/{ws_id}/pty"))
         .header("host", "localhost")
         .header("connection", "upgrade")
         .header("upgrade", "websocket")
@@ -142,7 +142,7 @@ async fn pty_returns_429_when_over_connection_limit() {
 
     let app = axum::Router::new()
         .route(
-            "/api/workspaces/{id}/pty",
+            "/api/v1/workspaces/{id}/pty",
             axum::routing::get(workspace_pty),
         )
         .layer(axum::Extension(full_auth()))

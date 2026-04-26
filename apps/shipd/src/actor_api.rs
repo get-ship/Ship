@@ -22,7 +22,14 @@ use crate::rest_api::{ApiState, MeshResponse};
     "capabilities": ["writes.prose", "reads.repo"]
 }))]
 pub struct ActorSpawnReq {
-    pub actor_id: String,
+    /// Optional client-suggested id. When present, must be a ULID
+    /// (used by daemon-spawned agents that pre-mint via `gen_ulid`
+    /// and propagate via SHIP_ACTOR_ID env). When absent, the daemon
+    /// mints a fresh ULID — the canonical path. Synthesis like
+    /// `agent.{name}.{branch}` is gone; the daemon is the only id
+    /// minter.
+    #[serde(default)]
+    pub actor_id: Option<String>,
     #[schema(value_type = Object)]
     pub config: runtime::events::ActorConfig,
     /// Optional mesh capabilities for auto-registration.
@@ -49,7 +56,7 @@ pub struct EventRouteReq {
 #[utoipa::path(
     operation_id = "actorSpawn",
     post,
-    path = "/api/actor/spawn",
+    path = "/api/v1/actor/spawn",
     request_body = ActorSpawnReq,
     responses(
         (status = 200, body = MeshResponse),
@@ -69,34 +76,62 @@ pub async fn actor_spawn(
     if let Err(e) = require_scope(&auth, Scope::MeshSend) {
         return e;
     }
+
+    // Resolve the actor id. Daemon is the only minter — clients
+    // either send the ULID a daemon-spawn already minted (propagated
+    // via SHIP_ACTOR_ID env), or omit it and we mint fresh. Any
+    // other shape (synthesized `agent.X.Y` from old code paths, or
+    // arbitrary strings) is accepted only as a backwards-compat
+    // bridge and logged so we can clean up call sites.
+    let actor_id = match req.actor_id.as_deref() {
+        Some(id) if !id.is_empty() => {
+            if !is_ulid_shape(id) {
+                tracing::warn!(
+                    actor_id = id,
+                    "actor_spawn: client sent non-ULID id; backwards-compat path"
+                );
+            }
+            id.to_string()
+        }
+        _ => runtime::gen_ulid(),
+    };
+
     {
         let mut kernel = state.kernel().lock().await;
-        let _ = kernel.stop_actor(&req.actor_id);
-        match kernel.spawn_actor(&req.actor_id, req.config) {
-            Ok((_store, mailbox)) => {
-                state.agent_mailboxes().lock().await
-                    .insert(req.actor_id.clone(), mailbox);
-            }
-            Err(e) => {
-                let status = match &e {
-                    runtime::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
-                    runtime::KernelError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
-                    _ => StatusCode::INTERNAL_SERVER_ERROR,
-                };
-                return (status, Json(MeshResponse {
-                    ok: false, data: serde_json::json!(e.to_string()),
-                }));
+        // Idempotent: if the actor is already registered (e.g. rmcp
+        // framework calling on_initialized twice, or a reconnect), keep
+        // the existing mailbox. Tearing it down invalidates the relay's
+        // handle and silently drops in-flight events. Only spawn if
+        // truly new.
+        if !kernel.has_actor(&actor_id) {
+            match kernel.spawn_actor(&actor_id, req.config) {
+                Ok((_store, mailbox)) => {
+                    state.agent_mailboxes().lock().await
+                        .insert(actor_id.clone(), mailbox);
+                }
+                Err(e) => {
+                    let status = match &e {
+                        runtime::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
+                        runtime::KernelError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
+                        _ => StatusCode::INTERNAL_SERVER_ERROR,
+                    };
+                    return (status, Json(MeshResponse {
+                        ok: false, data: serde_json::json!(e.to_string()),
+                    }));
+                }
             }
         }
     }
 
-    if let Some(caps) = req.capabilities {
+    if let Some(ref caps) = req.capabilities {
+        // Directed at the registering actor so ONLY that actor's tui
+        // sees the join confirmation. Self-confirmation, not broadcast.
         let envelope = match EventEnvelope::new(
             "mesh.register",
-            &req.actor_id,
-            &serde_json::json!({ "agent_id": &req.actor_id, "capabilities": caps }),
+            &actor_id,
+            &serde_json::json!({ "agent_id": &actor_id, "capabilities": caps }),
         )
-        .map(|e| e.with_actor_id(&req.actor_id))
+        .map(|e| e.with_actor_id(&actor_id).with_target(&actor_id))
         {
             Ok(e) => e,
             Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse {
@@ -105,19 +140,65 @@ pub async fn actor_spawn(
         };
         let ctx = auth.to_daemon_emit_context();
         if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
-            tracing::warn!(actor_id = %req.actor_id, "mesh.register emit failed: {e}");
+            tracing::warn!(actor_id = %actor_id, "mesh.register emit failed: {e}");
         }
     }
 
+    // Emit `actor.created` only if the projection has no row for this
+    // id yet — i.e., the actor was NOT spawned by the daemon's own
+    // lifecycle path (which emits its own rich metadata).
+    let emit_actor_id = actor_id.clone();
+    let capabilities = req.capabilities.clone().unwrap_or_default();
+    std::thread::spawn(move || {
+        let already_exists = runtime::projections::actor::get_actor(&emit_actor_id)
+            .map(|opt| opt.is_some())
+            .unwrap_or(false);
+        if already_exists {
+            return;
+        }
+        let payload = runtime::events::types::ActorCreated {
+            kind: "agent".to_string(),
+            environment_type: "local".to_string(),
+            transport: Some("stdio".to_string()),
+            persistence: Some("long-lived".to_string()),
+            capabilities,
+            ..Default::default()
+        };
+        if let Err(e) = runtime::db::actor_events::emit_actor_created(
+            &emit_actor_id,
+            &payload,
+            None,
+            None,
+        ) {
+            tracing::debug!(actor_id = %emit_actor_id, "actor.created emit failed: {e}");
+        }
+    });
+
+    // Return the canonical id the daemon registered the actor under.
+    // Clients (the MCP child) MUST adopt this for SHIP_ACTOR_ID env
+    // and any subsequent calls. Synthesis fallback is dead.
     (StatusCode::OK, Json(MeshResponse {
-        ok: true, data: serde_json::json!(format!("spawned: {}", req.actor_id)),
+        ok: true,
+        data: serde_json::json!({ "actor_id": actor_id }),
     }))
+}
+
+/// Crockford-base32 ULID — 26 chars from the alphabet
+/// `0123456789ABCDEFGHJKMNPQRSTVWXYZ`. The daemon mints these via
+/// `runtime::gen_ulid()`; clients send them back verbatim.
+fn is_ulid_shape(s: &str) -> bool {
+    s.len() == 26 && s.bytes().all(|b| {
+        matches!(b,
+            b'0'..=b'9' | b'A'..=b'H' | b'J' | b'K' | b'M'..=b'N' |
+            b'P'..=b'T' | b'V'..=b'Z'
+        )
+    })
 }
 
 #[utoipa::path(
     operation_id = "eventRoute",
     post,
-    path = "/api/events/route",
+    path = "/api/v1/events/route",
     request_body = EventRouteReq,
     responses(
         (status = 200, body = MeshResponse),

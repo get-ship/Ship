@@ -13,7 +13,7 @@ fn actor_config(ns: &str) -> ActorConfig {
 
 fn setup() -> (tempfile::TempDir, KernelRouter) {
     let tmp = tempdir().unwrap();
-    let router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+    let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
     (tmp, router)
 }
 
@@ -54,7 +54,7 @@ fn kernel_error_display_is_readable() {
 #[test]
 fn workspace_not_found_via_get_provider_matrix() {
     let tmp = tempdir().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     crate::db::ensure_db_at(&ship_dir).unwrap();
 

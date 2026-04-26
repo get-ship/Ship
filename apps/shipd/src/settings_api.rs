@@ -84,7 +84,7 @@ fn cached_providers() -> Vec<ProviderStatus> {
 #[utoipa::path(
     operation_id = "listSettings",
     get,
-    path = "/api/settings",
+    path = "/api/v1/settings",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
@@ -116,7 +116,7 @@ pub async fn list_settings(
 #[utoipa::path(
     operation_id = "updateSetting",
     put,
-    path = "/api/settings",
+    path = "/api/v1/settings",
     request_body = SettingsUpdateReq,
     responses(
         (status = 200, body = MeshResponse),
@@ -162,7 +162,7 @@ pub async fn update_setting(
 #[utoipa::path(
     operation_id = "getSetting",
     get,
-    path = "/api/settings/{key}",
+    path = "/api/v1/settings/{key}",
     params(("key" = String, Path, description = "Setting key (e.g. defaults.provider)")),
     responses(
         (status = 200, body = MeshResponse),
@@ -204,7 +204,7 @@ pub async fn get_setting(
 #[utoipa::path(
     operation_id = "listProviders",
     get,
-    path = "/api/providers",
+    path = "/api/v1/providers",
     responses(
         (status = 200, body = MeshResponse),
         (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),

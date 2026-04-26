@@ -101,8 +101,8 @@
             <ship-icon class="dash-section-icon" name="workflow" aria-hidden="true"></ship-icon>
             Recent jobs
           </h2>
-          <a class="dash-section-link" href="/api/view/pipelines"
-             {{ on_click_prevent("@get('/api/view/pipelines')") }}>
+          <a class="dash-section-link" href="/api/v1/view/pipelines"
+             {{ on_click_prevent("@get('/api/v1/view/pipelines')") }}>
             View all <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
           </a>
         </div>
@@ -148,8 +148,8 @@
             Agents
             <ship-badge tone="muted" variant="soft" size="sm">{{ all_agents | length }}</ship-badge>
           </h2>
-          <a class="dash-section-link" href="/api/v/agents"
-             {{ on_click_prevent("@get('/api/v/agents')") }}>
+          <a class="dash-section-link" href="/api/v1/v/agents"
+             {{ on_click_prevent("@get('/api/v1/v/agents')") }}>
             Manage <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
           </a>
         </div>
@@ -219,8 +219,8 @@
             <ship-icon class="dash-section-icon" name="activity" aria-hidden="true"></ship-icon>
             Latest events
           </h2>
-          <a class="dash-section-link" href="/api/view/events"
-             {{ on_click_prevent("@get('/api/view/events')") }}>
+          <a class="dash-section-link" href="/api/v1/view/events"
+             {{ on_click_prevent("@get('/api/v1/view/events')") }}>
             Full stream <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
           </a>
         </div>

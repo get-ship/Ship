@@ -80,7 +80,10 @@ description: Linked skill
             &dir.join("SKILL.md"),
             r#"---
 name: rust-runtime
+stable-id: rust-runtime
 description: Rust runtime and service layer implementation guidance.
+tags: [runtime]
+authors: [ship]
 metadata:
   display_name: Rust Runtime
   source: custom
@@ -110,7 +113,10 @@ Use this skill when changing runtime internals.
             &dir.join("SKILL.md"),
             r#"---
 name: wrong-id
+stable-id: wrong-id
 description: Should fail because skill id does not match folder.
+tags: [test]
+authors: [test]
 ---
 
 Bad skill.
@@ -131,7 +137,10 @@ Bad skill.
             &dir.join("SKILL.md"),
             r#"---
 name: Bad_Name
+stable-id: bad-name
 description: Invalid name format.
+tags: [test]
+authors: [test]
 ---
 
 Bad.
@@ -139,9 +148,10 @@ Bad.
         )?;
 
         let err = get_skill(tmp.path(), "Bad_Name").expect_err("expected parse failure");
+        let msg = err.to_string();
         assert!(
-            err.to_string()
-                .contains("must match ^[a-z0-9]+(-[a-z0-9]+)*$")
+            msg.contains("/name") && msg.contains("Invalid SKILL.md frontmatter"),
+            "expected schema validation failure naming /name, got: {msg}"
         );
         Ok(())
     }
@@ -155,7 +165,10 @@ Bad.
             &dir.join("SKILL.md"),
             r#"---
 name: empty-description
+stable-id: empty-description
 description: "   "
+tags: [test]
+authors: [test]
 ---
 
 Body.
@@ -232,7 +245,10 @@ Body.
             &legacy_skill_dir.join("SKILL.md"),
             r#"---
 name: legacy-skill
+stable-id: legacy-skill
 description: Legacy skill migrated into repo-local project storage.
+tags: [legacy]
+authors: [ship]
 metadata:
   display_name: Legacy Skill
   source: imported
@@ -347,4 +363,122 @@ Legacy body.
         ));
         assert!(!looks_like_skills_cli_command("npx -y skills list"));
         assert!(!looks_like_skills_cli_command("echo skills add"));
+    }
+
+    // ── canonical SKILL.md schema enforcement ───────────────────────────────
+
+    /// A SKILL.md that violates the canonical schema must be rejected with a
+    /// clear error that names both the skill directory and the offending field
+    /// path. Acceptance criterion #3 of the SKILL.md canonicalization job.
+    #[test]
+    fn rejects_malformed_skill_md_with_named_field() -> Result<()> {
+        let tmp = tempdir()?;
+        let dir = skill_dir(tmp.path(), "broken-fields");
+        fs::create_dir_all(&dir)?;
+        // Missing required: stable-id, tags, authors. Carries forbidden `packs`.
+        write_atomic(
+            &dir.join("SKILL.md"),
+            r#"---
+name: broken-fields
+description: Missing required fields and includes a forbidden `packs` key.
+packs: ["unsupported"]
+---
+
+body
+"#,
+        )?;
+        let err = get_skill(tmp.path(), "broken-fields").expect_err("expected schema failure");
+        let msg = err.to_string();
+        assert!(
+            msg.contains("broken-fields"),
+            "error must reference the skill directory: {msg}"
+        );
+        assert!(
+            msg.contains("Invalid SKILL.md frontmatter"),
+            "error must signal schema failure: {msg}"
+        );
+        // jsonschema reports missing-required at the root path.
+        assert!(
+            msg.contains("stable-id") || msg.contains("required"),
+            "error must name a missing required field: {msg}"
+        );
+        // additionalProperties violation surfaces the forbidden field.
+        assert!(
+            msg.contains("packs") || msg.contains("Additional"),
+            "error must mention the forbidden `packs` field: {msg}"
+        );
+        Ok(())
+    }
+
+    /// Every committed `docs/ship-*/SKILL.md` must round-trip through the
+    /// runtime loader (and therefore through the canonical schema).
+    /// Acceptance criterion #2.
+    #[test]
+    fn every_committed_docs_skill_validates() {
+        let manifest = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let workspace_root = manifest
+            .ancestors()
+            .find(|p| p.join("Cargo.toml").exists() && p.join("docs").is_dir())
+            .expect("workspace root not found");
+        let docs = workspace_root.join("docs");
+        let mut failures = Vec::new();
+        let mut checked = 0usize;
+        for entry in fs::read_dir(&docs).expect("read docs/") {
+            let entry = entry.expect("dir entry");
+            let path = entry.path();
+            if !path.is_dir() {
+                continue;
+            }
+            let Some(name) = path.file_name().and_then(|n| n.to_str()) else {
+                continue;
+            };
+            if !name.starts_with("ship-") {
+                continue;
+            }
+            if !path.join("SKILL.md").is_file() {
+                continue;
+            }
+            checked += 1;
+            if let Err(err) = super::storage::parse_skill(&path) {
+                failures.push(format!("{name}: {err}"));
+            }
+        }
+        assert!(
+            checked >= 20,
+            "sanity: expected to find a corpus of ship-* SKILL.md files, found {checked}"
+        );
+        assert!(
+            failures.is_empty(),
+            "{} committed docs/ship-*/SKILL.md files failed schema validation:\n{}",
+            failures.len(),
+            failures.join("\n")
+        );
+    }
+
+    /// `packs:` is reserved — schema must forbid it.
+    #[test]
+    fn schema_forbids_packs_field() -> Result<()> {
+        let tmp = tempdir()?;
+        let dir = skill_dir(tmp.path(), "uses-packs");
+        fs::create_dir_all(&dir)?;
+        write_atomic(
+            &dir.join("SKILL.md"),
+            r#"---
+name: uses-packs
+stable-id: uses-packs
+description: Demonstrates the reserved-`packs` rule.
+tags: [test]
+authors: [test]
+packs: [some-pack]
+---
+
+body
+"#,
+        )?;
+        let err = get_skill(tmp.path(), "uses-packs").expect_err("packs must be rejected");
+        assert!(
+            err.to_string().contains("Invalid SKILL.md frontmatter"),
+            "got: {err}"
+        );
+        Ok(())
     }

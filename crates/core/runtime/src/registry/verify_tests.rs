@@ -62,7 +62,7 @@ fn find_hash_versions_not_array() {
 
 #[test]
 fn base_url_defaults_to_getship() {
-    let prev = std::env::var("SHIP_REGISTRY_URL").ok();
+    let prev = crate::env::read_raw(crate::env::Var::RegistryUrl).ok();
     unsafe { std::env::remove_var("SHIP_REGISTRY_URL") };
 
     let url = registry_base_url();
@@ -76,7 +76,7 @@ fn base_url_defaults_to_getship() {
 
 #[test]
 fn base_url_respects_env_override() {
-    let prev = std::env::var("SHIP_REGISTRY_URL").ok();
+    let prev = crate::env::read_raw(crate::env::Var::RegistryUrl).ok();
     unsafe { std::env::set_var("SHIP_REGISTRY_URL", "http://localhost:3000") };
 
     let url = registry_base_url();
@@ -90,7 +90,7 @@ fn base_url_respects_env_override() {
 
 #[test]
 fn base_url_empty_string_opts_out() {
-    let prev = std::env::var("SHIP_REGISTRY_URL").ok();
+    let prev = crate::env::read_raw(crate::env::Var::RegistryUrl).ok();
     unsafe { std::env::set_var("SHIP_REGISTRY_URL", "") };
 
     let url = registry_base_url();
@@ -113,7 +113,7 @@ fn check_skipped_when_offline() {
 #[test]
 fn check_returns_none_when_registry_unavailable() {
     // Point to a URL that won't resolve.
-    let prev = std::env::var("SHIP_REGISTRY_URL").ok();
+    let prev = crate::env::read_raw(crate::env::Var::RegistryUrl).ok();
     unsafe { std::env::set_var("SHIP_REGISTRY_URL", "http://127.0.0.1:1") };
 
     let result = check_registry_hash("github.com/owner/pkg", "v1.0.0", "sha256:abc", false);
@@ -127,7 +127,7 @@ fn check_returns_none_when_registry_unavailable() {
 
 #[test]
 fn check_returns_none_when_opted_out() {
-    let prev = std::env::var("SHIP_REGISTRY_URL").ok();
+    let prev = crate::env::read_raw(crate::env::Var::RegistryUrl).ok();
     unsafe { std::env::set_var("SHIP_REGISTRY_URL", "") };
 
     let result = check_registry_hash("github.com/owner/pkg", "v1.0.0", "sha256:abc", false);
@@ -143,7 +143,7 @@ fn check_returns_none_when_opted_out() {
 
 #[test]
 fn fetch_returns_none_on_unreachable_registry() {
-    let prev = std::env::var("SHIP_REGISTRY_URL").ok();
+    let prev = crate::env::read_raw(crate::env::Var::RegistryUrl).ok();
     unsafe { std::env::set_var("SHIP_REGISTRY_URL", "http://127.0.0.1:1") };
 
     let result = fetch_registry_hash("github.com/owner/pkg", "v1.0.0");
@@ -157,7 +157,7 @@ fn fetch_returns_none_on_unreachable_registry() {
 
 #[test]
 fn fetch_returns_none_when_opted_out() {
-    let prev = std::env::var("SHIP_REGISTRY_URL").ok();
+    let prev = crate::env::read_raw(crate::env::Var::RegistryUrl).ok();
     unsafe { std::env::set_var("SHIP_REGISTRY_URL", "") };
 
     let result = fetch_registry_hash("github.com/owner/pkg", "v1.0.0");

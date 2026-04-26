@@ -12,7 +12,7 @@ use crate::rest_api::*;
 use crate::test_harness::TestDaemon;
 
 fn make_api_state(dir: &TempDir) -> ApiState {
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     // Create a fresh KernelRouter per test — never use init_kernel_router(),
@@ -237,7 +237,7 @@ async fn status_update_returns_ok() {
 #[tokio::test(flavor = "multi_thread")]
 async fn checkout_hook_with_valid_ship_dir() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     // init_project creates the markers that get_project_dir looks for.
@@ -387,8 +387,8 @@ async fn cli_caller_can_register_any_agent() {
 #[tokio::test(flavor = "multi_thread")]
 async fn capabilities_endpoint_exists() {
     let daemon = TestDaemon::new().await;
-    let resp = daemon.get("/api/capabilities").await;
-    assert_eq!(resp.status, 200, "GET /api/capabilities must return 200");
+    let resp = daemon.get("/api/v1/capabilities").await;
+    assert_eq!(resp.status, 200, "GET /api/v1/capabilities must return 200");
     assert!(resp.body.get("authenticated").is_some(), "response must contain 'authenticated'");
     assert!(resp.body.get("mode").is_some(), "response must contain 'mode'");
     assert!(resp.body.get("tier").is_some(), "response must contain 'tier'");
@@ -397,7 +397,7 @@ async fn capabilities_endpoint_exists() {
 #[tokio::test(flavor = "multi_thread")]
 async fn capabilities_returns_local_mode_with_daemon_token() {
     let daemon = TestDaemon::new().await;
-    let resp = daemon.get("/api/capabilities").await;
+    let resp = daemon.get("/api/v1/capabilities").await;
     assert_eq!(resp.status, 200);
     assert_eq!(resp.body["authenticated"], true);
     assert_eq!(resp.body["mode"], "local");
@@ -408,7 +408,7 @@ async fn capabilities_returns_unauthenticated_without_token() {
     // A browser request from localhost with no token must be rejected.
     // Today this PASSES through due to the localhost exemption — test must fail.
     let temp_dir = TempDir::new().unwrap();
-    let ship_dir = temp_dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(temp_dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
 
@@ -419,7 +419,7 @@ async fn capabilities_returns_unauthenticated_without_token() {
         tokio::sync::Mutex::new(std::collections::HashMap::new()),
     );
     let router = axum::Router::new()
-        .route("/api/capabilities", axum::routing::get(|| async { "ok" }))
+        .route("/api/v1/capabilities", axum::routing::get(|| async { "ok" }))
         .layer(axum::middleware::from_fn(move |req, next| {
             crate::auth::auth_middleware(token_arc.clone(), registry.clone(), req, next)
         }));
@@ -427,7 +427,7 @@ async fn capabilities_returns_unauthenticated_without_token() {
     // Simulate a browser request from localhost — no token.
     let req = axum::http::Request::builder()
         .method("GET")
-        .uri("/api/capabilities")
+        .uri("/api/v1/capabilities")
         .header("origin", "http://localhost:3000")
         .body(axum::body::Body::empty())
         .unwrap();

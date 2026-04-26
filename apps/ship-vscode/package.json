@@ -1,0 +1,52 @@
+{
+  "name": "ship-vscode",
+  "displayName": "Ship Lint",
+  "description": "Inline diagnostics for Ship view templates (.ship/views/**/*.html.j2) via the ship-lsp language server.",
+  "version": "0.1.0",
+  "publisher": "ship",
+  "license": "MIT",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Linters", "Programming Languages"],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/.ship/views/**/*.html.j2"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "ship-view",
+        "aliases": ["Ship View", "ship-view"],
+        "extensions": [".html.j2"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "configuration": {
+      "type": "object",
+      "title": "Ship Lint",
+      "properties": {
+        "ship.lsp.path": {
+          "type": "string",
+          "default": "ship",
+          "description": "Path to the `ship` CLI binary. The extension spawns `ship lsp` over stdio."
+        },
+        "ship.lsp.enable": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable the Ship language server. Disable to silence diagnostics without uninstalling."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

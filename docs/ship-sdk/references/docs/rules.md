@@ -64,9 +64,9 @@ skill is the full tour.
 
 Heavy island bundles — code editors, terminals, pack-specific
 components like `<ship-git-view>` — are gated behind `packs:` in the
-view manifest. The linter fires `missing-pack-declaration` when a
+view manifest. The linter fires `pkg-missing-pack-declaration` when a
 template uses a pack-only tag without the declaration, and
-`stale-pack-declaration` when a declared pack has no matching tag.
+`pkg-stale-pack-declaration` when a declared pack has no matching tag.
 
 ```yaml
 # .ship/views/skills/manifest.yaml

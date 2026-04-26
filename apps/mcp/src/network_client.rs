@@ -43,14 +43,27 @@ async fn get_effective_token() -> Result<String> {
 }
 
 fn base_url() -> Result<String> {
-    Ok(format!("http://127.0.0.1:{}/api", get_network_port()?))
+    Ok(format!("http://127.0.0.1:{}/api/v1", get_network_port()?))
+}
+
+/// Default per-call timeout. Without this, `reqwest::Client::new()`
+/// has NO timeout — a stalled daemon connection would hang any caller
+/// indefinitely. Claude's `/mcp` panel blocks on our `on_initialized`,
+/// which calls `actor_spawn`/`auto_session_start` synchronously; an
+/// unreachable daemon froze the entire MCP UI. 5s is generous for
+/// localhost HTTP.
+fn http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(5))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new())
 }
 
 /// POST JSON to a REST endpoint, return the response body.
 async fn post(path: &str, body: Value) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .post(&url)
         .bearer_auth(&token)
         .json(&body)
@@ -70,7 +83,7 @@ async fn post(path: &str, body: Value) -> Result<String> {
 async fn get(path: &str) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .get(&url)
         .bearer_auth(&token)
         .send()
@@ -121,16 +134,36 @@ pub async fn mesh_status(agent_id: &str, status: &str) -> Result<String> {
 
 /// Spawn an actor in the daemon's KernelRouter with the given config.
 /// The daemon stashes the mailbox for SSE delivery via /mesh/events/{actor_id}.
+/// Register an actor with the daemon kernel. The daemon is the only
+/// id minter — pass `None` for `actor_id` and adopt whatever ULID
+/// comes back. The legacy form accepts a client-side hint id (for
+/// daemon-spawned agents that pre-mint via SHIP_ACTOR_ID); the daemon
+/// honours hints that are ULID-shape and mints fresh otherwise.
+///
+/// Returns the canonical actor_id the daemon registered under.
 pub async fn actor_spawn(
-    actor_id: &str,
+    actor_id: Option<&str>,
     config: &runtime::events::ActorConfig,
     capabilities: Option<Vec<String>>,
 ) -> Result<String> {
-    post("/actor/spawn", serde_json::json!({
-        "actor_id": actor_id,
-        "config": config,
-        "capabilities": capabilities,
-    })).await
+    let body = post(
+        "/actor/spawn",
+        serde_json::json!({
+            "actor_id": actor_id,
+            "config": config,
+            "capabilities": capabilities,
+        }),
+    )
+    .await?;
+    // Daemon returns `{"ok": true, "data": {"actor_id": "01..."}}`.
+    let parsed: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| anyhow!("actor_spawn response: {e}"))?;
+    parsed
+        .get("data")
+        .and_then(|d| d.get("actor_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| anyhow!("actor_spawn response missing data.actor_id: {body}"))
 }
 
 /// Create a job via the daemon's REST API. The daemon handles pipeline
@@ -163,7 +196,7 @@ pub async fn steer_agent_via_daemon(slug: &str, message: &str) -> Result<String>
 async fn post_as_agent(path: &str, agent_id: &str, body: Value) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .post(&url)
         .bearer_auth(&token)
         .header("x-ship-agent-id", agent_id)
@@ -182,7 +215,7 @@ async fn post_as_agent(path: &str, agent_id: &str, body: Value) -> Result<String
 async fn delete_as_agent(path: &str, agent_id: &str) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .delete(&url)
         .bearer_auth(&token)
         .header("x-ship-agent-id", agent_id)
@@ -256,6 +289,29 @@ pub async fn artifact_download(artifact_id: &str) -> Result<String> {
     get(&format!("/artifacts/{artifact_id}")).await
 }
 
+/// Emit a high-level domain event through the daemon's `/api/v1/events/emit`
+/// endpoint. The daemon validates reserved namespaces (when
+/// `validate_domain: true`), builds the envelope, persists it, and routes
+/// through the kernel — triggering projection updates and subscriber
+/// delivery on the same rail every other writer uses.
+pub async fn emit_event_via_daemon(body: Value) -> Result<String> {
+    post("/events/emit", body).await
+}
+
+/// Update a job's status through the daemon. The daemon builds the
+/// appropriate `job.*` envelope server-side, persists it, and routes via
+/// the kernel so projections (jobs table, pipeline state, dispatch) advance.
+pub async fn update_job_status_via_daemon(job_id: &str, body: Value) -> Result<String> {
+    post(&format!("/jobs/{job_id}/status"), body).await
+}
+
+/// Declare a job's current pipeline step complete via the daemon. The
+/// daemon resolves the active step from its projection and emits the
+/// `step.done_declared` event through the kernel.
+pub async fn job_step_done_via_daemon(slug: &str, body: Value) -> Result<String> {
+    post(&format!("/jobs/{slug}/step-done"), body).await
+}
+
 /// Route a pre-built EventEnvelope through the daemon's KernelRouter.
 /// This ensures events reach daemon subscribers (job-dispatch, workspace-sync, etc).
 pub async fn event_route(
@@ -291,9 +347,11 @@ pub async fn register_session(
     role: Option<&str>,
     workspace_id: Option<&str>,
 ) -> Result<String> {
-    let url = format!("{}/session/register", base_url()?);
+    // Auth surface lives at the unversioned `/api/session/register` path —
+    // session issuance predates `/api/v1` and stays stable across versions.
+    let url = format!("http://127.0.0.1:{}/api/session/register", get_network_port()?);
     let daemon_token = get_network_token()?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .post(&url)
         .bearer_auth(&daemon_token)
         .json(&serde_json::json!({
@@ -336,7 +394,7 @@ pub fn mesh_subscribe(
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     tokio::spawn(async move {
-        let resp = match reqwest::Client::new()
+        let resp = match http_client()
             .get(&url)
             .bearer_auth(&token)
             .header("Accept", "text/event-stream")
@@ -416,7 +474,7 @@ pub fn mesh_subscribe(
 async fn delete(path: &str) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .delete(&url)
         .bearer_auth(&token)
         .send()
@@ -434,7 +492,7 @@ async fn delete(path: &str) -> Result<String> {
 async fn put(path: &str, body: Value) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
     let token = get_effective_token().await?;
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .put(&url)
         .bearer_auth(&token)
         .json(&body)
@@ -496,7 +554,7 @@ pub async fn artifact_upload(
     let port = get_network_port()?;
     let token = get_effective_token().await?;
 
-    let mut url = format!("http://127.0.0.1:{port}/api/artifacts?scope={scope}");
+    let mut url = format!("http://127.0.0.1:{port}/api/v1/artifacts?scope={scope}");
     if let Some(rid) = run_id {
         url.push_str(&format!("&run_id={rid}"));
     }
@@ -512,7 +570,7 @@ pub async fn artifact_upload(
         form = form.text("expires_at", exp.to_string());
     }
 
-    let resp = reqwest::Client::new()
+    let resp = http_client()
         .post(&url)
         .bearer_auth(&token)
         .multipart(form)

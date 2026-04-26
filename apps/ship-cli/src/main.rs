@@ -107,6 +107,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             } => run_compile_cmd(provider.as_deref(), dry_run, path),
             Commands::Workspace { action } => dispatch_workspace(action),
             Commands::Lint { action } => dispatch_lint(action),
+            Commands::Lsp => lsp::run_stdio().map_err(|e: anyhow::Error| e),
             Commands::Mcp { action } => dispatch_mcp(action),
             Commands::Convert { source } => convert::run_convert(&source),
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
@@ -284,7 +285,7 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
     try_init_kernel_router();
     let ship_dir = match path {
         Some(ref p) => {
-            let sd = std::fs::canonicalize(p)?.join(".ship");
+            let sd = runtime::ShipHome::project_ship_dir(std::fs::canonicalize(p)?);
             anyhow::ensure!(
                 sd.exists(),
                 ".ship/ not found in {}. Run: ship init",
@@ -318,7 +319,7 @@ fn run_status(path: Option<PathBuf>) -> Result<()> {
         .transpose()?
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-    let ship_dir = target.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&target);
     let state = profile::WorkspaceState::load(&ship_dir);
     match state.active_agent {
         Some(ref p) => {
@@ -347,11 +348,11 @@ fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>)
         .transpose()?
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-    if !project_root.join(".ship").exists() {
+    if !runtime::ShipHome::project_ship_dir(&project_root).exists() {
         anyhow::bail!(".ship/ not found. Run: ship init");
     }
 
-    let state = profile::WorkspaceState::load(&project_root.join(".ship"));
+    let state = profile::WorkspaceState::load(&runtime::ShipHome::project_ship_dir(&project_root));
     compile::run_compile(compile::CompileOptions {
         project_root: &project_root,
         output_root: None,

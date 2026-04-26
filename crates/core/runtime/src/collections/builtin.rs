@@ -18,54 +18,51 @@ pub const NOTES_ID: &str = "notes";
 pub const FEEDBACK_ID: &str = "feedback";
 pub const ANNOTATIONS_ID: &str = "annotations";
 
-fn field(field_type: FieldType) -> FieldDef {
+fn bare(field_type: FieldType) -> FieldDef {
     FieldDef {
         field_type,
         required: false,
         filterable: false,
         default: None,
         values: None,
+        items: None,
+        properties: None,
+        required_keys: None,
     }
+}
+
+fn field(field_type: FieldType) -> FieldDef {
+    bare(field_type)
 }
 
 fn required(field_type: FieldType) -> FieldDef {
     FieldDef {
-        field_type,
         required: true,
-        filterable: false,
-        default: None,
-        values: None,
+        ..bare(field_type)
     }
 }
 
 fn filterable(field_type: FieldType) -> FieldDef {
     FieldDef {
-        field_type,
-        required: false,
         filterable: true,
-        default: None,
-        values: None,
+        ..bare(field_type)
     }
 }
 
 fn enum_field(values: &[&str], filterable_flag: bool) -> FieldDef {
     FieldDef {
-        field_type: FieldType::Enum,
-        required: false,
         filterable: filterable_flag,
-        default: None,
         values: Some(values.iter().map(|s| s.to_string()).collect()),
+        ..bare(FieldType::Enum)
     }
 }
 
 pub fn specs_schema() -> CollectionSchema {
     let mut fields: IndexMap<String, FieldDef> = IndexMap::new();
     fields.insert("title".into(), FieldDef {
-        field_type: FieldType::String,
         required: true,
         filterable: true,
-        default: None,
-        values: None,
+        ..bare(FieldType::String)
     });
     fields.insert(
         "status".into(),
@@ -87,11 +84,9 @@ pub fn specs_schema() -> CollectionSchema {
 pub fn adrs_schema() -> CollectionSchema {
     let mut fields: IndexMap<String, FieldDef> = IndexMap::new();
     fields.insert("title".into(), FieldDef {
-        field_type: FieldType::String,
         required: true,
         filterable: true,
-        default: None,
-        values: None,
+        ..bare(FieldType::String)
     });
     fields.insert(
         "status".into(),
@@ -130,10 +125,8 @@ pub fn feedback_schema() -> CollectionSchema {
     fields.insert(
         "target_type".into(),
         FieldDef {
-            field_type: FieldType::Enum,
             required: true,
             filterable: true,
-            default: None,
             values: Some(vec![
                 "pipeline_run".into(),
                 "agent_output".into(),
@@ -141,16 +134,15 @@ pub fn feedback_schema() -> CollectionSchema {
                 "file".into(),
                 "session".into(),
             ]),
+            ..bare(FieldType::Enum)
         },
     );
     fields.insert(
         "target_id".into(),
         FieldDef {
-            field_type: FieldType::String,
             required: true,
             filterable: true,
-            default: None,
-            values: None,
+            ..bare(FieldType::String)
         },
     );
     fields.insert("rating".into(), field(FieldType::Number));
@@ -269,7 +261,7 @@ mod tests {
     #[test]
     fn register_creates_all_tables() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let mut svc = DataService::open(&ship_dir).unwrap();
 
@@ -290,7 +282,7 @@ mod tests {
     #[test]
     fn register_is_idempotent() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let mut svc = DataService::open(&ship_dir).unwrap();
 

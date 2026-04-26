@@ -8,11 +8,11 @@ use super::packs::{inject_packs, read_view_packs};
 use super::resolve::{is_valid_view_name, read_manifest_file, resolve_view_dir, scan_views_dir};
 use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 
-/// GET /api/views
+/// GET /api/v1/views
 #[utoipa::path(
     operation_id = "listViews",
     get,
-    path = "/api/views",
+    path = "/api/v1/views",
     responses(
         (status = 200, description = "Catalog of available views"),
         (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
@@ -28,7 +28,7 @@ pub async fn list_views() -> impl IntoResponse {
     mesh_ok(serde_json::json!({ "views": list }))
 }
 
-/// GET /api/view/{name}/asset/{file} — serve static assets from view dir.
+/// GET /api/v1/view/{name}/asset/{file} — serve static assets from view dir.
 pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axum::response::Response {
     use axum::http::header;
 
@@ -70,11 +70,11 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
         .unwrap()
 }
 
-/// GET /api/view/{name}/manifest
+/// GET /api/v1/view/{name}/manifest
 #[utoipa::path(
     operation_id = "serveViewManifest",
     get,
-    path = "/api/view/{name}/manifest",
+    path = "/api/v1/view/{name}/manifest",
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "View manifest JSON"),
@@ -107,18 +107,18 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
         return mesh_ok(serde_json::json!(ViewManifest {
             name: name.clone(), view_type: "component".into(),
             element_name: Some(format!("ship-{name}-view")),
-            bundle_url: Some(format!("/api/view/{name}/bundle")),
+            bundle_url: Some(format!("/api/v1/view/{name}/bundle")),
             claims: None, entry: None,
         }));
     }
     mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no servable content"))
 }
 
-/// GET /api/view/{name}/bundle — raw JS, not JSON-wrapped.
+/// GET /api/v1/view/{name}/bundle — raw JS, not JSON-wrapped.
 #[utoipa::path(
     operation_id = "serveViewBundle",
     get,
-    path = "/api/view/{name}/bundle",
+    path = "/api/v1/view/{name}/bundle",
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "View module bundle (JavaScript)", content_type = "application/javascript"),

@@ -1,4 +1,4 @@
-//! `POST /api/chat/send` — emit a `studio.message` kernel event.
+//! `POST /api/v1/chat/send` — emit a `studio.message` kernel event.
 
 use axum::Json;
 use axum::extract::State;
@@ -17,7 +17,7 @@ pub struct ChatSendRequest {
 #[utoipa::path(
     operation_id = "chatSend",
     post,
-    path = "/api/chat/send",
+    path = "/api/v1/chat/send",
     request_body = ChatSendRequest,
     responses(
         (status = 200, description = "Message emitted as studio.message kernel event"),

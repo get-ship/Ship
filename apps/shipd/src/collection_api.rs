@@ -91,11 +91,11 @@ fn generate_item_id() -> String {
 
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
-/// GET /api/collections — list registered schemas.
+/// GET /api/v1/collections — list registered schemas.
 #[utoipa::path(
     operation_id = "listCollections",
     get,
-    path = "/api/collections",
+    path = "/api/v1/collections",
     responses(
         (status = 200, description = "List of registered collection schemas"),
         (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
@@ -124,7 +124,7 @@ pub async fn list_collections(
     }
 }
 
-/// POST /api/collections — create a new user-defined collection schema.
+/// POST /api/v1/collections — create a new user-defined collection schema.
 /// Body: full `CollectionSchema` JSON (id, name, fields).
 /// Rejects built-in ids and duplicates (409).
 pub async fn create_collection(
@@ -187,11 +187,11 @@ pub async fn create_collection(
         .into_response()
 }
 
-/// GET /api/collections/{collection}/schema — get schema definition.
+/// GET /api/v1/collections/{collection}/schema — get schema definition.
 #[utoipa::path(
     operation_id = "getSchema",
     get,
-    path = "/api/collections/{collection}/schema",
+    path = "/api/v1/collections/{collection}/schema",
     params(("collection" = String, Path, description = "Collection id")),
     responses(
         (status = 200, description = "Collection schema"),
@@ -216,7 +216,7 @@ pub async fn get_schema(
     }
 }
 
-/// PUT /api/collections/{collection}/schema — write the user-defined schema
+/// PUT /api/v1/collections/{collection}/schema — write the user-defined schema
 /// to `.ship/collections/<collection>.jsonc`. Rejects writes to built-in
 /// collections (specs, adrs, notes, feedback, annotations) — those are
 /// owned by the runtime and shipped as code.
@@ -311,11 +311,11 @@ pub struct CreateItemRequest {
     pub data: serde_json::Value,
 }
 
-/// POST /api/collections/{collection}/items — create item.
+/// POST /api/v1/collections/{collection}/items — create item.
 #[utoipa::path(
     operation_id = "createItem",
     post,
-    path = "/api/collections/{collection}/items",
+    path = "/api/v1/collections/{collection}/items",
     params(("collection" = String, Path, description = "Collection id")),
     request_body = CreateItemRequest,
     responses(
@@ -359,11 +359,11 @@ pub async fn create_item(
     }
 }
 
-/// GET /api/collections/{collection}/items/{item_id} — get item.
+/// GET /api/v1/collections/{collection}/items/{item_id} — get item.
 #[utoipa::path(
     operation_id = "getItem",
     get,
-    path = "/api/collections/{collection}/items/{item_id}",
+    path = "/api/v1/collections/{collection}/items/{item_id}",
     params(
         ("collection" = String, Path, description = "Collection id"),
         ("item_id" = String, Path, description = "Item id"),
@@ -406,11 +406,11 @@ pub struct UpdateItemRequest {
     pub data: serde_json::Value,
 }
 
-/// PUT /api/collections/{collection}/items/{item_id} — update item (partial merge).
+/// PUT /api/v1/collections/{collection}/items/{item_id} — update item (partial merge).
 #[utoipa::path(
     operation_id = "updateItem",
     put,
-    path = "/api/collections/{collection}/items/{item_id}",
+    path = "/api/v1/collections/{collection}/items/{item_id}",
     params(
         ("collection" = String, Path, description = "Collection id"),
         ("item_id" = String, Path, description = "Item id"),
@@ -456,11 +456,11 @@ pub async fn update_item(
     }
 }
 
-/// DELETE /api/collections/{collection}/items/{item_id} — delete item.
+/// DELETE /api/v1/collections/{collection}/items/{item_id} — delete item.
 #[utoipa::path(
     operation_id = "deleteItem",
     delete,
-    path = "/api/collections/{collection}/items/{item_id}",
+    path = "/api/v1/collections/{collection}/items/{item_id}",
     params(
         ("collection" = String, Path, description = "Collection id"),
         ("item_id" = String, Path, description = "Item id"),
@@ -495,11 +495,11 @@ pub async fn delete_item(
     }
 }
 
-/// POST /api/collections/{collection}/query — query items with filter/sort/limit.
+/// POST /api/v1/collections/{collection}/query — query items with filter/sort/limit.
 #[utoipa::path(
     operation_id = "queryItems",
     post,
-    path = "/api/collections/{collection}/query",
+    path = "/api/v1/collections/{collection}/query",
     params(("collection" = String, Path, description = "Collection id")),
     request_body(content_type = "application/json", description = "Query request: filter, sort, limit, offset"),
     responses(

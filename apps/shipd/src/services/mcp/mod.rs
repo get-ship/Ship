@@ -1,15 +1,15 @@
-//! McpService — HTTP surface at `/api/mcp/*`.
+//! McpService — HTTP surface at `/api/v1/mcp/*`.
 //!
 //! Singleton-file-with-entries: each scope has one `mcp.jsonc` with
 //! `mcp.servers.<id>` sub-objects. The service exposes those entries as
 //! if they were a collection.
 //!
-//! - GET    /api/mcp                list entries (both scopes, annotated)
-//! - GET    /api/mcp/{id}           one entry
-//! - PUT    /api/mcp/{id}           replace one entry
-//! - PATCH  /api/mcp/{id}           RFC 6902 ops against the entry body
-//! - DELETE /api/mcp/{id}           remove entry
-//! - POST   /api/mcp                create { id, server, scope? }
+//! - GET    /api/v1/mcp                list entries (both scopes, annotated)
+//! - GET    /api/v1/mcp/{id}           one entry
+//! - PUT    /api/v1/mcp/{id}           replace one entry
+//! - PATCH  /api/v1/mcp/{id}           RFC 6902 ops against the entry body
+//! - DELETE /api/v1/mcp/{id}           remove entry
+//! - POST   /api/v1/mcp                create { id, server, scope? }
 
 pub mod state;
 
@@ -76,14 +76,14 @@ fn files(state: &ApiState) -> FilesService {
     FilesService::resolve_roots(state.ship_dir())
 }
 
-/// GET /api/mcp
+/// GET /api/v1/mcp
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
     let svc = files(&state);
     let items = state::list(&svc);
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
-/// GET /api/mcp/{id}
+/// GET /api/v1/mcp/{id}
 pub async fn get(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -100,7 +100,7 @@ pub async fn get(
     })))
 }
 
-/// PUT /api/mcp/{id}
+/// PUT /api/v1/mcp/{id}
 pub async fn put(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -120,7 +120,7 @@ pub async fn put(
     })))
 }
 
-/// PATCH /api/mcp/{id}
+/// PATCH /api/v1/mcp/{id}
 pub async fn patch(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -138,7 +138,7 @@ pub async fn patch(
     })))
 }
 
-/// DELETE /api/mcp/{id}
+/// DELETE /api/v1/mcp/{id}
 pub async fn delete(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -153,7 +153,7 @@ pub async fn delete(
     })))
 }
 
-/// POST /api/mcp
+/// POST /api/v1/mcp
 #[derive(Deserialize)]
 pub struct CreateBody {
     pub id: String,

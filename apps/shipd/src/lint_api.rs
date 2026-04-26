@@ -1,4 +1,4 @@
-//! POST /api/lint/view — lint a view by name or inline source.
+//! POST /api/v1/lint/view — lint a view by name or inline source.
 //!
 //! Auth: ReadWorkspace scope (linting is read-only).
 
@@ -42,7 +42,7 @@ fn json_err(status: StatusCode, msg: impl Into<String>) -> axum::response::Respo
     (status, Json(serde_json::json!({ "ok": false, "error": msg.into() }))).into_response()
 }
 
-/// POST /api/lint/view
+/// POST /api/v1/lint/view
 pub async fn lint_view(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<LintViewRequest>,

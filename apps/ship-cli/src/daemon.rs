@@ -42,7 +42,7 @@ const SHIPD_PORT: u16 = 9315;
 
 fn ship_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().context("cannot determine home directory")?;
-    Ok(home.join(".ship"))
+    Ok(runtime::ShipHome::project_ship_dir(home))
 }
 
 fn pid_file() -> Result<PathBuf> {
@@ -613,7 +613,7 @@ fn print_supervision_only(s: &SupervisionStatus) {
 
 fn print_live_status(port: u16, token: &str, supervision: &SupervisionStatus) -> Result<()> {
     let supervisor_pid = supervision.pid;
-    let url = format!("http://127.0.0.1:{port}/api/daemon/status");
+    let url = format!("http://127.0.0.1:{port}/api/v1/daemon/status");
     let mut resp = ureq::get(&url)
         .header("Authorization", &format!("Bearer {token}"))
         .config()
@@ -729,7 +729,7 @@ fn daemon_cleanup() -> Result<()> {
     let jobs = load_jobs().context("failed to load job projection")?;
 
     let worktrees_base = {
-        if let Ok(dir) = std::env::var("SHIP_WORKTREE_DIR") {
+        if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::WorktreeDir) {
             PathBuf::from(dir)
         } else {
             let home = std::env::var("HOME")
@@ -739,7 +739,7 @@ fn daemon_cleanup() -> Result<()> {
         }
     };
 
-    let repo_dir = if let Ok(dir) = std::env::var("SHIP_REPO_DIR") {
+    let repo_dir = if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::RepoDir) {
         PathBuf::from(dir)
     } else {
         std::env::current_dir().context("cannot determine working directory")?
@@ -854,9 +854,9 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
     anyhow::bail!("shipd: daemon started but did not become healthy within 5 seconds")
 }
 
-/// Try to read daemon info and verify it responds to /api/health.
+/// Try to read daemon info and verify it responds to /api/v1/health.
 fn daemon_info_if_healthy() -> Option<(u16, String)> {
-    let home = dirs::home_dir()?.join(".ship");
+    let home = runtime::ShipHome::project_ship_dir(dirs::home_dir()?);
     let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;
     let port = port_str.trim().parse::<u16>().ok()?;
     let token = std::fs::read_to_string(home.join("daemon.token")).ok()?;

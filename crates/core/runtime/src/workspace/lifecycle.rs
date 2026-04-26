@@ -30,7 +30,6 @@ pub fn create_workspace(ship_dir: &Path, request: CreateWorkspaceRequest) -> Res
     workspace.id = workspace_id_from_branch(&branch);
     workspace.name = branch;
 
-    persist_branch_link_from_workspace(ship_dir, &workspace)?;
     upsert_workspace_on_created(
         ship_dir,
         &workspace.name,

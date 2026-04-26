@@ -42,10 +42,10 @@
     padding: var(--space-3) var(--space-3) var(--space-2);
   }
   .specs-rail-head h1 {
-    font-family: var(--heading-font);
+    font-family: var(--font-display);
     font-size: var(--text-md);
-    font-weight: var(--heading-weight);
-    letter-spacing: var(--heading-tracking);
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: -0.01em;
     margin: 0;
   }
   .specs-rail-filter { padding: 0 var(--space-3) var(--space-2); }
@@ -195,15 +195,15 @@
     <aside class="specs-rail" aria-label="Spec list">
       <div class="specs-rail-head">
         <h1>Specs</h1>
-        <ship-button variant="solid" tone="primary" size="sm"
-                     {{ on_click("@post('/api/specs', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] '})})") }}>
+        <ship-button variant="solid" tone="accent" size="sm"
+                     {{ on_click("@post('/api/v1/specs', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] '})})") }}>
           + New
         </ship-button>
       </div>
       <div class="specs-rail-filter">
         <ship-input size="sm" placeholder="Filter..." value="{{ q }}"
                     {{ bind('q') }}
-                    {{ on('input.debounce.200ms', "@get('/api/v/specs?q=' + encodeURIComponent($q)" ~ ((" + '&id=" ~ selected_id ~ "'") if selected_id else '') ~ ")") }}></ship-input>
+                    {{ on('input.debounce.200ms', "@get('/api/v1/v/specs?q=' + encodeURIComponent($q)" ~ ((" + '&id=" ~ selected_id ~ "'") if selected_id else '') ~ ")") }}></ship-input>
       </div>
       <div id="specs-rail-list">
         {% include 'specs/partials/rail.html.j2' %}

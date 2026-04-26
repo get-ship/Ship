@@ -78,7 +78,7 @@ fn dispatch_config() -> ActorConfig {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn simple_job_lifecycle_through_event_store() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -144,7 +144,7 @@ async fn simple_job_lifecycle_through_event_store() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pipeline_advances_through_all_steps() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     let worktree_root = dir.path().join("worktrees");
     let worktree_path = worktree_root.join("e2e-pipe");
     std::fs::create_dir_all(&ship_dir).unwrap();
@@ -244,7 +244,7 @@ async fn pipeline_advances_through_all_steps() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dependent_job_dispatches_after_upstream_completes() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -311,7 +311,7 @@ async fn dependent_job_dispatches_after_upstream_completes() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn restart_recovery_finds_stale_jobs() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -381,7 +381,7 @@ async fn restart_recovery_finds_stale_jobs() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_step_advances_to_agent_step() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     let worktree_root = dir.path().join("worktrees");
     let worktree_path = worktree_root.join("run-advance");
     std::fs::create_dir_all(&ship_dir).unwrap();
@@ -492,7 +492,7 @@ async fn run_step_advances_to_agent_step() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn first_step_run_executes_without_agent() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     let worktree_root = dir.path().join("worktrees");
     let worktree_path = worktree_root.join("run-first");
     std::fs::create_dir_all(&ship_dir).unwrap();

@@ -9,7 +9,7 @@ use crate::add_from::{AgentBundle, SkillBundle, TransferBundle};
 
 /// Write the transfer bundle to `.ship/`.
 pub fn write_bundle(project_root: &Path, bundle: &TransferBundle) -> Result<()> {
-    let ship_dir = project_root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
 
     // 1. Write agent profile as JSONC.
     write_agent(&ship_dir, &bundle.agent)?;

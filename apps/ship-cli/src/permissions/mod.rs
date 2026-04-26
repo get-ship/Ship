@@ -59,7 +59,7 @@ struct ProfilePermissionsForSync {
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 pub fn run_permissions_sync(project_root: &Path) -> Result<()> {
-    let ship_dir = project_root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
 
     // 1. Find the active agent.
     let state = WorkspaceState::load(&ship_dir);

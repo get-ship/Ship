@@ -77,6 +77,13 @@ pub const ARTIFACT_DELETED: &str = "artifact.deleted";
 /// to the intended long-lived agent. Payload: `{ session_id, text, agent_id? }`.
 pub const STUDIO_CHAT_TURN: &str = "studio.chat_turn";
 
+/// Emitted when an agent replies into a Ship chat. The `entity_id` carries
+/// the target actor's id; the payload is `{ actor_id, text }`. Dashboards
+/// and views tail this event to render reply bubbles. Replaces the
+/// in-memory event_tx broadcast that only worked for registry-backed
+/// PtySessions.
+pub const STUDIO_REPLY: &str = "studio.reply";
+
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_DELETED,
@@ -151,6 +158,7 @@ pub const ALL: &[&str] = &[
     ARTIFACT_MOVED,
     ARTIFACT_DELETED,
     STUDIO_CHAT_TURN,
+    STUDIO_REPLY,
 ];
 
 #[cfg(test)]

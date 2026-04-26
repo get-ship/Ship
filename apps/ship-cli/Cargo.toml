@@ -15,6 +15,7 @@ shipd = { path = "../shipd" }
 tokio = { version = "1.0", features = ["rt", "rt-multi-thread"] }
 cli-framework = { path = "../../crates/core/cli-framework" }
 lint = { path = "../../crates/core/lint" }
+lsp = { path = "../../crates/lsp" }
 compiler = { path = "../../crates/core/compiler" }
 runtime = { path = "../../crates/core/runtime" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }

@@ -93,13 +93,6 @@ CREATE TABLE IF NOT EXISTS branch_config (
   updated_at   TEXT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS branch_context (
-  branch      TEXT PRIMARY KEY,
-  link_type   TEXT NOT NULL,
-  link_id     TEXT NOT NULL,
-  last_synced TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS event_log (
   id             TEXT PRIMARY KEY NOT NULL,
   actor          TEXT NOT NULL DEFAULT 'ship',
@@ -190,43 +183,6 @@ CREATE TABLE IF NOT EXISTS managed_mcp_state (
 -- Workflow layer — opinionated planning
 -- ═══════════════════════════════════════════════════════════════════
 
-CREATE TABLE IF NOT EXISTS target (
-  id              TEXT PRIMARY KEY,
-  kind            TEXT NOT NULL,
-  title           TEXT NOT NULL,
-  description     TEXT,
-  status          TEXT NOT NULL DEFAULT 'active',
-  goal            TEXT,
-  phase           TEXT,
-  due_date        TEXT,
-  body_markdown   TEXT,
-  file_scope_json TEXT,
-  created_at      TEXT NOT NULL,
-  updated_at      TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS target_kind_idx ON target(kind, status);
-CREATE INDEX IF NOT EXISTS target_phase_status_idx ON target(phase, status);
-
-CREATE TABLE IF NOT EXISTS capability (
-  id                  TEXT PRIMARY KEY,
-  target_id           TEXT NOT NULL,
-  title               TEXT NOT NULL,
-  status              TEXT NOT NULL DEFAULT 'aspirational',
-  evidence            TEXT,
-  milestone_id        TEXT,
-  phase               TEXT,
-  acceptance_criteria TEXT NOT NULL DEFAULT '[]',
-  assigned_to         TEXT,
-  priority            INTEGER NOT NULL DEFAULT 0,
-  file_scope          TEXT,
-  created_at          TEXT NOT NULL,
-  updated_at          TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS capability_target_idx ON capability(target_id, status);
-CREATE INDEX IF NOT EXISTS capability_milestone_idx ON capability(milestone_id, status);
-CREATE INDEX IF NOT EXISTS capability_phase_idx ON capability(target_id, phase, status);
-CREATE INDEX IF NOT EXISTS capability_assignment_idx ON capability(assigned_to, status);
-
 CREATE TABLE IF NOT EXISTS jobs (
   id            TEXT PRIMARY KEY,
   kind          TEXT NOT NULL,
@@ -255,29 +211,3 @@ CREATE TABLE IF NOT EXISTS file_claim (
   claimed_at   TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_file_claim_job ON file_claim(job_id);
-
-CREATE TABLE IF NOT EXISTS note (
-  id         TEXT PRIMARY KEY,
-  title      TEXT NOT NULL,
-  content    TEXT NOT NULL DEFAULT '',
-  tags_json  TEXT NOT NULL DEFAULT '[]',
-  branch     TEXT,
-  synced_at  TEXT,
-  created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS note_branch_idx ON note(branch, updated_at DESC);
-
-CREATE TABLE IF NOT EXISTS adr (
-  id            TEXT PRIMARY KEY,
-  title         TEXT NOT NULL,
-  status        TEXT NOT NULL DEFAULT 'proposed',
-  date          TEXT NOT NULL,
-  context       TEXT NOT NULL DEFAULT '',
-  decision      TEXT NOT NULL DEFAULT '',
-  tags_json     TEXT NOT NULL DEFAULT '[]',
-  supersedes_id TEXT,
-  created_at    TEXT NOT NULL,
-  updated_at    TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_adr_status ON adr(status);

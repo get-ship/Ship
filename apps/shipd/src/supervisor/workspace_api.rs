@@ -1,6 +1,6 @@
 //! Workspace start API endpoint.
 //!
-//! Route: POST /api/supervisor/workspaces/:id/start
+//! Route: POST /api/v1/supervisor/workspaces/:id/start
 
 use axum::{
     Json,
@@ -51,11 +51,11 @@ fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<serde_js
     (status, Json(json!({ "error": msg.into() })))
 }
 
-/// POST /api/supervisor/workspaces/:id/start
+/// POST /api/v1/supervisor/workspaces/:id/start
 #[utoipa::path(
     operation_id = "startWorkspace",
     post,
-    path = "/api/supervisor/workspaces/{id}/start",
+    path = "/api/v1/supervisor/workspaces/{id}/start",
     params(("id" = String, Path, description = "Workspace id")),
     request_body = StartWorkspaceRequest,
     responses(

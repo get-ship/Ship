@@ -135,14 +135,14 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 
   Args:
     view_name: View slug registered with the daemon. Resolves to
-      `/api/view/<view_name>/sse`.
+      `/api/v1/view/<view_name>/sse`.
 
   Example:
     <div {{ live('tasks') }}>
       <div id="tasks-content">Loading...</div>
     </div>
 -#}
-{% macro live(view_name) %}data-init="@get('/api/view/{{ view_name }}/sse')"{% endmacro %}
+{% macro live(view_name) %}data-init="@get('/api/v1/view/{{ view_name }}/sse')"{% endmacro %}
 
 {#-
   live_topic(topics, into='events')
@@ -160,14 +160,14 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       `$<name>`. Pass without the leading `$` (convention — like `signal()`).
 
   Emits:
-    data-init="@get('/api/events/stream?mode=datastar&topics=<topics>&signal=<name>')"
+    data-init="@get('/api/v1/events/stream?mode=datastar&topics=<topics>&signal=<name>')"
 
   Example:
     <div {{ live_topic('job.updated,job.failed', into='jobs') }}>
       <template data-for="$jobs" ...>...</template>
     </div>
 -#}
-{% macro live_topic(topics, into='events') %}data-init="@get('/api/events/stream?mode=datastar&topics={{ topics }}&signal={{ into }}')"{% endmacro %}
+{% macro live_topic(topics, into='events') %}data-init="@get('/api/v1/events/stream?mode=datastar&topics={{ topics }}&signal={{ into }}')"{% endmacro %}
 
 {#- === Loading & Indicators === -#}
 
@@ -223,7 +223,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       own URL for a full reload.
 
   Example:
-    {% if error %}{{ error_state(error, retry='/api/v/git') }}{% endif %}
+    {% if error %}{{ error_state(error, retry='/api/v1/v/git') }}{% endif %}
 -#}
 {% macro error_state(err, size='md', variant='default', retry=none) -%}
 <ship-error-state size="{{ size }}" variant="{{ variant }}"
@@ -252,7 +252,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   (e.g. `@get('/x')` or `$y = true`) passed through verbatim.
 
   Example:
-    <ship-button {{ on_click("@get('/api/v/foo')") }}>Refresh</ship-button>
+    <ship-button {{ on_click("@get('/api/v1/v/foo')") }}>Refresh</ship-button>
 -#}
 {% macro on_click(action) %}data-on:click="{{ action }}"{% endmacro %}
 
@@ -264,7 +264,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   submit.
 
   Example:
-    <a href="/foo" {{ on_click_prevent("@get('/api/v/foo')") }}>Foo</a>
+    <a href="/foo" {{ on_click_prevent("@get('/api/v1/v/foo')") }}>Foo</a>
 -#}
 {% macro on_click_prevent(action) %}data-on:click.prevent="{{ action }}"{% endmacro %}
 
@@ -275,7 +275,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   submission. `action` is Datastar syntax.
 
   Example:
-    <form {{ on_submit("@post('/api/collections/task/items', {payload: $form})") }}>
+    <form {{ on_submit("@post('/api/v1/collections/task/items', {payload: $form})") }}>
 -#}
 {% macro on_submit(action) %}data-on:submit.prevent="{{ action }}"{% endmacro %}
 
@@ -320,7 +320,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   bootstrap an SSE subscription or seed signals on mount.
 
   Example:
-    <div {{ init("@get('/api/sse/chat')") }}>...</div>
+    <div {{ init("@get('/api/v1/sse/chat')") }}>...</div>
 -#}
 {% macro init(action) %}data-init="{{ action }}"{% endmacro %}
 
@@ -342,7 +342,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     <ship-button {{ create('task', '$form') }}
                  {{ loading('_creating') }}>Create</ship-button>
 -#}
-{% macro create(collection, data) %}data-on:click="@post('/api/collections/{{ collection }}/items', {payload: {data: {{ data }}}})"{% endmacro %}
+{% macro create(collection, data) %}data-on:click="@post('/api/v1/collections/{{ collection }}/items', {payload: {data: {{ data }}}})"{% endmacro %}
 
 {#-
   update(collection, id, data)
@@ -358,7 +358,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   Example:
     <ship-button {{ update('task', item.id, '$form') }}>Save</ship-button>
 -#}
-{% macro update(collection, id, data) %}data-on:click="@put('/api/collections/{{ collection }}/items/{{ id }}', {payload: {data: {{ data }}}})"{% endmacro %}
+{% macro update(collection, id, data) %}data-on:click="@put('/api/v1/collections/{{ collection }}/items/{{ id }}', {payload: {data: {{ data }}}})"{% endmacro %}
 
 {#-
   delete(collection, id)
@@ -373,7 +373,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   Example:
     <ship-button {{ delete('task', item.id) }}>Delete</ship-button>
 -#}
-{% macro delete(collection, id) %}data-on:click="@delete('/api/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
+{% macro delete(collection, id) %}data-on:click="@delete('/api/v1/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
 
 {#- === Navigation === -#}
 
@@ -385,10 +385,10 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   current view. For full shell-level routing use `nav()` or `view()`.
 
   Args:
-    url: URL to GET (typically under `/api/view/...`).
+    url: URL to GET (typically under `/api/v1/view/...`).
 
   Example:
-    <ship-button {{ navigate('/api/view/pipelines') }}>
+    <ship-button {{ navigate('/api/v1/view/pipelines') }}>
       Pipelines
     </ship-button>
 -#}
@@ -454,7 +454,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     url: Fully-qualified path to GET.
 
   Example:
-    <ship-button {{ get('/api/jobs') }}>Refresh jobs</ship-button>
+    <ship-button {{ get('/api/v1/jobs') }}>Refresh jobs</ship-button>
 -#}
 {% macro get(url) %}data-on:click="@get('{{ url }}')"{% endmacro %}
 
@@ -470,7 +470,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       body. Defaults to an empty object.
 
   Example:
-    <ship-button {{ post('/api/jobs', '$newJob') }}>Run</ship-button>
+    <ship-button {{ post('/api/v1/jobs', '$newJob') }}>Run</ship-button>
 -#}
 {% macro post(url, payload='{}') %}data-on:click="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
 
@@ -484,7 +484,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     payload: Request body expression. Defaults to an empty object.
 
   Example:
-    <ship-button {{ put('/api/settings', '{theme: $theme}') }}>Save</ship-button>
+    <ship-button {{ put('/api/v1/settings', '{theme: $theme}') }}>Save</ship-button>
 -#}
 {% macro put(url, payload='{}') %}data-on:click="@put('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
 
@@ -501,7 +501,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 
   Example:
     <ship-input {{ bind('theme') }}
-                {{ put_on_change('/api/settings', '{theme: $theme}') }}>
+                {{ put_on_change('/api/v1/settings', '{theme: $theme}') }}>
     </ship-input>
 -#}
 {% macro put_on_change(url, payload='{}') %}data-on:change="@put('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
@@ -516,7 +516,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     payload: Request body expression. Defaults to an empty object.
 
   Example:
-    <form {{ submit('/api/specs', '$form') }}>...</form>
+    <form {{ submit('/api/v1/specs', '$form') }}>...</form>
 -#}
 {% macro submit(url, payload='{}') %}data-on:submit="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
 
@@ -555,12 +555,12 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       Run
     </ship-button>
 -#}
-{% macro create_job(agent_expr, pipeline='') %}data-on:click="@post('/api/jobs', {payload: {agent: {{ agent_expr }}{% if pipeline %}, pipeline: '{{ pipeline }}'{% endif %}}})"{% endmacro %}
+{% macro create_job(agent_expr, pipeline='') %}data-on:click="@post('/api/v1/jobs', {payload: {agent: {{ agent_expr }}{% if pipeline %}, pipeline: '{{ pipeline }}'{% endif %}}})"{% endmacro %}
 
 {#-
   emit(event_type, data_expr='{}')
 
-  Wire a click handler that posts a kernel event via `/api/events/emit`.
+  Wire a click handler that posts a kernel event via `/api/v1/events/emit`.
   Use to trigger backend side-effects that other views listen to over SSE.
 
   Args:
@@ -573,7 +573,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       Request
     </ship-button>
 -#}
-{% macro emit(event_type, data_expr='{}') %}data-on:click="@post('/api/events/emit', {payload: {event_type: '{{ event_type }}', data: {{ data_expr }}}})"{% endmacro %}
+{% macro emit(event_type, data_expr='{}') %}data-on:click="@post('/api/v1/events/emit', {payload: {event_type: '{{ event_type }}', data: {{ data_expr }}}})"{% endmacro %}
 
 {#- === Agent Feedback === -#}
 
@@ -598,7 +598,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       Pick A
     </ship-button>
 -#}
-{% macro feedback(payload_expr) %}data-on:click="@post('/api/feedback', {contentType: 'json', body: JSON.stringify({id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}})})"{% endmacro %}
+{% macro feedback(payload_expr) %}data-on:click="@post('/api/v1/feedback', {contentType: 'json', body: JSON.stringify({id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}})})"{% endmacro %}
 
 {#- === Tabs === -#}
 
@@ -649,14 +649,14 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   Args:
     signal_name: Filter signal.
     value: Value this chip selects.
-    view_name: When set, a `@get('/api/view/<view_name>/sse')` is
+    view_name: When set, a `@get('/api/v1/view/<view_name>/sse')` is
       appended to refresh results. Defaults to the empty string
       (client-only filter).
 
   Example:
     <ship-chip {{ chip('status', 'active', 'tasks') }}>Active</ship-chip>
 -#}
-{% macro chip(signal_name, value, view_name='') %}data-on:click="${{ signal_name }} = '{{ value }}'{% if view_name %}; @get('/api/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+{% macro chip(signal_name, value, view_name='') %}data-on:click="${{ signal_name }} = '{{ value }}'{% if view_name %}; @get('/api/v1/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
 
 {#-
   chip_all(signal_name, view_name='')
@@ -667,13 +667,13 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 
   Args:
     signal_name: Filter signal to clear.
-    view_name: When set, refreshes `/api/view/<view_name>/sse`
+    view_name: When set, refreshes `/api/v1/view/<view_name>/sse`
       after clearing.
 
   Example:
     <ship-chip {{ chip_all('status', 'tasks') }}>All</ship-chip>
 -#}
-{% macro chip_all(signal_name, view_name='') %}data-on:click="${{ signal_name }} = ''{% if view_name %}; @get('/api/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == ''"{% endmacro %}
+{% macro chip_all(signal_name, view_name='') %}data-on:click="${{ signal_name }} = ''{% if view_name %}; @get('/api/v1/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == ''"{% endmacro %}
 
 {#- === Search & Debounce === -#}
 
@@ -692,7 +692,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   Example:
     <ship-input {{ search('q', 'tasks') }} placeholder="Search..."></ship-input>
 -#}
-{% macro search(signal_name, view_name, delay='300ms') %}data-bind="{{ signal_name }}" data-on:input__debounce.{{ delay }}="@get('/api/view/{{ view_name }}/sse')"{% endmacro %}
+{% macro search(signal_name, view_name, delay='300ms') %}data-bind="{{ signal_name }}" data-on:input__debounce.{{ delay }}="@get('/api/v1/view/{{ view_name }}/sse')"{% endmacro %}
 
 {#-
   on_change_debounced(expr, delay='300ms')
@@ -706,7 +706,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 
   Example:
     <ship-input {{ bind('name') }}
-                {{ on_change_debounced("@put('/api/settings', {payload: {name: $name}})") }}>
+                {{ on_change_debounced("@put('/api/v1/settings', {payload: {name: $name}})") }}>
     </ship-input>
 -#}
 {% macro on_change_debounced(expr, delay='300ms') %}data-on:change__debounce.{{ delay }}="{{ expr }}"{% endmacro %}
@@ -745,7 +745,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   Example:
     <ship-button {{ confirm_delete('task', item.id) }}>Delete</ship-button>
 -#}
-{% macro confirm_delete(collection, id) %}data-on:click="confirm('Delete this item?') && @delete('/api/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
+{% macro confirm_delete(collection, id) %}data-on:click="confirm('Delete this item?') && @delete('/api/v1/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
 
 {#-
   confirm(message, action_expr)
@@ -758,7 +758,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     action_expr: Datastar expression to run when the user confirms.
 
   Example:
-    <ship-button {{ confirm('Cancel this job?', "@post('/api/jobs/" ~ job.id ~ "/cancel')") }}>
+    <ship-button {{ confirm('Cancel this job?', "@post('/api/v1/jobs/" ~ job.id ~ "/cancel')") }}>
       Cancel
     </ship-button>
 -#}
@@ -782,7 +782,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       <div id="events-content"></div>
     </div>
 -#}
-{% macro live_persistent(view_name) %}data-init="@get('/api/view/{{ view_name }}/sse', {requestCancellation: 'disabled'})"{% endmacro %}
+{% macro live_persistent(view_name) %}data-init="@get('/api/v1/view/{{ view_name }}/sse', {requestCancellation: 'disabled'})"{% endmacro %}
 
 {#- === Fetch error handling === -#}
 
@@ -806,7 +806,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 
   Example:
     <ship-button
-      data-on:click="$step = 3; @post('/api/projects', {payload: ...})"
+      data-on:click="$step = 3; @post('/api/v1/projects', {payload: ...})"
       {{ on_fetch_error('ws_error') }}>
       Continue
     </ship-button>
@@ -1084,7 +1084,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   (muted text + right-chevron) on the right. Must be paired with
   `endsection()`.
 
-  When `link_href` starts with `/api/view/`, the trailing link
+  When `link_href` starts with `/api/v1/view/`, the trailing link
   is wired to `@get(link_href)` with `.prevent` so SSE-aware navigation
   takes over. Otherwise it is a plain anchor.
 
@@ -1100,7 +1100,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 
   Example:
     {{ section('Recent jobs', icon='activity',
-               link_href='/api/view/pipelines',
+               link_href='/api/v1/view/pipelines',
                link_label='View all') }}
       <ship-list-tile>...</ship-list-tile>
     {{ endsection() }}
@@ -1114,7 +1114,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     </h2>
     {% if link_href and link_label %}
     <a href="{{ link_href }}"
-       {% if link_href is startingwith('/api/view/') %}data-on:click.prevent="@get('{{ link_href }}')"{% endif %}
+       {% if link_href is startingwith('/api/v1/view/') %}data-on:click.prevent="@get('{{ link_href }}')"{% endif %}
        style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);font-size:var(--text-xs);color:var(--muted-foreground);text-decoration:none;border-radius:var(--radius-sm)">
       {{ link_label }}
       <ship-icon name="chevron-right" style="width:10px;height:10px"></ship-icon>

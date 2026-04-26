@@ -56,14 +56,42 @@ impl ServerHandler for ShipServer {
                 ..Default::default()
             },
             instructions: Some(
-                "Ship project intelligence — three-stage workflow:\n\n\
+                "Ship project intelligence — three-stage workflow:\n\
                  PLANNING: get_project_info → create_adr\n\
                  WORKSPACE: list_workspaces → activate_workspace → set_agent\n\
                  SESSION: start_session → (work) → log_progress → end_session\n\n\
                  By default only core workflow tools are visible. To access extended tools, \
                  activate a mode that includes them in its active_tools list. \
                  Call open_project first if the project is not auto-detected. \
-                 Use resources (ship://) for read-heavy workflows."
+                 Use resources (ship://) for read-heavy workflows.\n\n\
+                 \
+                 ## Channel events (claude/channel)\n\n\
+                 Ship is a channel server. Events arrive in your context wrapped \
+                 in <channel source=\"ship\" ...> tags. The opening tag carries \
+                 routing metadata as attributes; the body is the event content. \
+                 Common attributes:\n\
+                 \
+                 - event_type: the kernel event name (e.g. studio.chat_turn, \
+                   workspace.compiled, job.completed). Drives how you react.\n\
+                 - actor_id: the Ship actor that originated or targets this event. \
+                   Treat as the canonical reply destination for chat turns.\n\
+                 - workspace_id, session_id: scope identifiers for context.\n\n\
+                 \
+                 ### How to react\n\n\
+                 - event_type=studio.chat_turn — a user turn from the Ship command \
+                   bar. Read <channel> body as the user's message; respond by \
+                   calling the `chat_reply` tool with `actor_id` from the meta and \
+                   your plain-text reply. Do NOT print the reply to stdout — it \
+                   won't render in the Ship UI; only `chat_reply` does.\n\
+                 - event_type=workspace.* / job.* / session.* — lifecycle context. \
+                   Treat as background information; act only if the user has \
+                   asked you to react to such events.\n\
+                 - Other event types — read for context; reply only if the meta \
+                   carries an actor_id and the body is clearly addressed to you.\n\n\
+                 \
+                 Replies should be concise plain text. The Ship command bar is \
+                 not a markdown renderer; skip headers, bullets, and code fences \
+                 unless the user explicitly asks for them."
                     .into(),
             ),
         }
@@ -93,7 +121,7 @@ impl ServerHandler for ShipServer {
     ) -> Result<CallToolResult, ErrorData> {
         let tool_name = request.name.to_string();
         if let Ok(project_dir) = self.get_effective_project_dir().await
-            && let Err(message) = Self::enforce_mode_tool_gate(&project_dir.join(".ship"), &tool_name)
+            && let Err(message) = Self::enforce_mode_tool_gate(&runtime::ShipHome::project_ship_dir(project_dir), &tool_name)
         {
             return Ok(CallToolResult::error(vec![Content::text(message)]));
         }
@@ -129,7 +157,7 @@ impl ServerHandler for ShipServer {
         let all_tools = self.tool_router.list_all();
         let dispatched = Self::is_dispatched_context();
         let visible = if let Ok(project_dir) = self.get_effective_project_dir().await {
-            let ship_dir = project_dir.join(".ship");
+            let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
             let active_agent = get_active_agent(Some(ship_dir)).unwrap_or(None);
             all_tools
                 .into_iter()

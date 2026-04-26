@@ -6,7 +6,10 @@
 
 pub mod agents_skills;
 pub mod agents_skills_write;
+pub mod jobs_status;
 pub mod session_files;
+
+pub use jobs_status::{JobStatusReq, StepDoneReq, job_step_done, update_job_status};
 
 pub use agents_skills::{list_agents, list_skills};
 pub use agents_skills_write::{
@@ -43,7 +46,7 @@ pub(crate) fn resolve_worktree(
     // 1. DB-backed workspace resolution — only trust explicit paths.
     if let Ok((root, ws)) = runtime::workspace::resolve_project_root(ship_dir, id)
         && ws.path.is_some()
-        && (root.join(".ship").exists() || root.join(".git").exists())
+        && (runtime::ShipHome::project_ship_dir(&root).exists() || root.join(".git").exists())
     {
         return Ok(root);
     }
@@ -194,9 +197,10 @@ pub(crate) fn safe_resolve(
 
 #[derive(Deserialize, utoipa::ToSchema)]
 #[schema(example = json!({
-    "event_type": "job.completed",
+    "event_type": "deployment.completed",
     "entity_id": "write-readme",
     "workspace_id": "default",
+    "actor_id": "agent-writer",
     "payload": { "slug": "write-readme", "status": "ok" }
 }))]
 pub struct EmitEventReq {
@@ -204,13 +208,30 @@ pub struct EmitEventReq {
     pub entity_id: String,
     pub workspace_id: Option<String>,
     pub payload: serde_json::Value,
+    /// Optional actor attribution. When set, the envelope's actor_id is bound
+    /// to this value (cannot be overridden by the payload).
+    #[serde(default)]
+    pub actor_id: Option<String>,
+    /// Optional namespace actor (e.g. "studio") — sets envelope.actor.
+    /// Defaults to "ship". Used by Studio's event emitter so subscribers
+    /// can route on namespace.
+    #[serde(default)]
+    pub actor: Option<String>,
+    /// Optional elevation flag — only honoured when the auth context permits.
+    #[serde(default)]
+    pub elevated: Option<bool>,
+    /// When true, enforce the agent-domain rules: event_type must contain a
+    /// dot and must not start with a reserved platform namespace. Used by
+    /// MCP's `event` tool so platform namespaces stay daemon-controlled.
+    #[serde(default)]
+    pub validate_domain: Option<bool>,
 }
 
-/// POST /api/events/emit
+/// POST /api/v1/events/emit
 #[utoipa::path(
     operation_id = "emitEvent",
     post,
-    path = "/api/events/emit",
+    path = "/api/v1/events/emit",
     request_body = EmitEventReq,
     responses(
         (status = 200, description = "Event persisted and routed", body = MeshResponse),
@@ -228,14 +249,49 @@ pub async fn emit_event(
     if let Some(axum::Extension(ref ac)) = auth {
         require_scope(ac, Scope::EmitEvents)?;
     }
+
+    if body.validate_domain.unwrap_or(false) {
+        if body.event_type.is_empty() {
+            return Err(err_response(StatusCode::BAD_REQUEST, "event_type must not be empty"));
+        }
+        if !body.event_type.contains('.') {
+            return Err(err_response(
+                StatusCode::BAD_REQUEST,
+                &format!(
+                    "event_type '{}' must be namespaced with a dot (e.g. 'deployment.completed')",
+                    body.event_type
+                ),
+            ));
+        }
+        for prefix in runtime::events::RESERVED_NAMESPACES {
+            if body.event_type.starts_with(prefix) {
+                return Err(err_response(
+                    StatusCode::BAD_REQUEST,
+                    &format!(
+                        "event_type '{}' is reserved: '{}' prefix is platform-controlled",
+                        body.event_type, prefix
+                    ),
+                ));
+            }
+        }
+    }
+
     let mut envelope =
         runtime::events::EventEnvelope::new(&body.event_type, &body.entity_id, &body.payload)
             .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e.to_string()))?;
 
-    envelope = envelope.with_actor_id("studio");
+    let actor = body.actor_id.as_deref().unwrap_or("studio");
+    envelope = envelope.with_actor_id(actor);
+    if let Some(ref ns) = body.actor {
+        envelope.actor = ns.clone();
+    }
     if let Some(ref ws_id) = body.workspace_id {
         envelope = envelope.with_context(Some(ws_id), None);
     }
+    if body.elevated.unwrap_or(false) {
+        envelope = envelope.elevate();
+    }
+    let envelope_id: String = envelope.id.clone();
 
     // Use auth context if available (token-based), otherwise treat as CLI caller.
     // Studio (localhost browser) is exempted from auth but needs Cli caller kind
@@ -261,16 +317,16 @@ pub async fn emit_event(
             err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
         })?;
 
-    Ok(ok_response(json!({})))
+    Ok(ok_response(json!({ "id": envelope_id })))
 }
 
 // ---- Workspace delete endpoint ----
 
-/// DELETE /api/workspaces/{id}
+/// DELETE /api/v1/workspaces/{id}
 #[utoipa::path(
     operation_id = "deleteWorkspace",
     delete,
-    path = "/api/workspaces/{id}",
+    path = "/api/v1/workspaces/{id}",
     params(("id" = String, Path, description = "Workspace id / branch")),
     responses(
         (status = 200, description = "Workspace deleted", body = MeshResponse),
@@ -295,14 +351,14 @@ pub async fn delete_workspace(
 
 // ---- Workspace ensure endpoint (replaces activate) ----
 
-/// POST /api/workspaces/{id}/activate
+/// POST /api/v1/workspaces/{id}/activate
 ///
 /// Creates the workspace if it doesn't exist. No-op if it does.
 /// Kept as /activate for API backward compat.
 #[utoipa::path(
     operation_id = "activateWorkspace",
     post,
-    path = "/api/workspaces/{id}/activate",
+    path = "/api/v1/workspaces/{id}/activate",
     params(("id" = String, Path, description = "Workspace id / branch")),
     responses(
         (status = 200, description = "Workspace created or already existed", body = MeshResponse),
@@ -341,7 +397,7 @@ mod tests_inline {
 
     fn make_test_state() -> (ApiState, tempfile::TempDir) {
         let dir = tempfile::TempDir::new().unwrap();
-        let ship_dir = dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
         let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();

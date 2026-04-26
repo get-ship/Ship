@@ -1,43 +1,38 @@
-use anyhow::anyhow;
-use runtime::events::{EventEnvelope, RESERVED_NAMESPACES};
+//! Transport for the `emit_event` MCP tool.
+//!
+//! The agent calls `event(event_type, payload, elevated)`. The handler injects
+//! `actor_id` (MCP connection context) and `workspace_id` (current branch),
+//! then POSTs `/api/v1/events/emit` with `validate_domain=true`. The daemon
+//! enforces the reserved-namespace and dotted-event-type rules and routes the
+//! envelope through its kernel — so projection updates, audit, and subscriber
+//! delivery happen on the same single rail every other event uses.
 
-/// Build and validate an agent-emitted domain event.
+use crate::network_client;
+
+/// Forward an agent-emitted domain event to the daemon. Returns the daemon's
+/// JSON response on success or a human-readable error string on failure.
 ///
-/// `actor_id` and `workspace_id` are injected by the MCP handler from connection context.
-/// Agents cannot supply or override these values.
-pub fn handle_ship_event(
+/// `actor_id` and `workspace_id` are injected by the caller from MCP
+/// connection context — they cannot be supplied by the agent payload.
+pub async fn emit_domain_event(
     actor_id: &str,
     workspace_id: &str,
     event_type: &str,
     payload: serde_json::Value,
     elevated: bool,
-) -> anyhow::Result<EventEnvelope> {
-    if event_type.is_empty() {
-        return Err(anyhow!("event_type must not be empty"));
-    }
-    if !event_type.contains('.') {
-        return Err(anyhow!(
-            "event_type '{}' must be namespaced with a dot (e.g. 'deployment.completed')",
-            event_type
-        ));
-    }
-    for prefix in RESERVED_NAMESPACES {
-        if event_type.starts_with(prefix) {
-            return Err(anyhow!(
-                "event_type '{}' is reserved: '{}' prefix is platform-controlled",
-                event_type,
-                prefix
-            ));
-        }
-    }
-
-    let mut envelope = EventEnvelope::new(event_type, workspace_id, &payload)?
-        .with_actor_id(actor_id)
-        .with_context(Some(workspace_id), None);
-    if elevated {
-        envelope = envelope.elevate();
-    }
-    Ok(envelope)
+) -> Result<String, String> {
+    let body = serde_json::json!({
+        "event_type": event_type,
+        "entity_id": workspace_id,
+        "workspace_id": workspace_id,
+        "actor_id": actor_id,
+        "payload": payload,
+        "elevated": elevated,
+        "validate_domain": true,
+    });
+    network_client::emit_event_via_daemon(body)
+        .await
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]

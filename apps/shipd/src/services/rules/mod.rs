@@ -1,14 +1,14 @@
-//! RuleService — HTTP surface at `/api/rules/*`.
+//! RuleService — HTTP surface at `/api/v1/rules/*`.
 //!
 //! Rules are plain markdown documents at `<scope>/rules/<id>.md`. PATCH
 //! is intentionally omitted — rules carry no structured payload, so the
 //! PUT/POST + full-body flow is the only sane write path.
 //!
-//! - GET    /api/rules                list (project + user, scope-annotated)
-//! - GET    /api/rules/{id}           markdown body
-//! - PUT    /api/rules/{id}           replace body
-//! - DELETE /api/rules/{id}           trash
-//! - POST   /api/rules                create { id, content, scope? }
+//! - GET    /api/v1/rules                list (project + user, scope-annotated)
+//! - GET    /api/v1/rules/{id}           markdown body
+//! - PUT    /api/v1/rules/{id}           replace body
+//! - DELETE /api/v1/rules/{id}           trash
+//! - POST   /api/v1/rules                create { id, content, scope? }
 
 pub mod state;
 
@@ -75,14 +75,14 @@ fn files(state: &ApiState) -> FilesService {
     FilesService::resolve_roots(state.ship_dir())
 }
 
-/// GET /api/rules
+/// GET /api/v1/rules
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
     let svc = files(&state);
     let items = state::list(&svc);
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
-/// GET /api/rules/{id}
+/// GET /api/v1/rules/{id}
 pub async fn get(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -99,7 +99,7 @@ pub async fn get(
     })))
 }
 
-/// PUT /api/rules/{id}
+/// PUT /api/v1/rules/{id}
 /// Body: `{ "content": "..." }` or the raw string inside the JSON value.
 pub async fn put(
     State(state): State<ApiState>,
@@ -121,7 +121,7 @@ pub async fn put(
     })))
 }
 
-/// DELETE /api/rules/{id}
+/// DELETE /api/v1/rules/{id}
 pub async fn delete(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -136,7 +136,7 @@ pub async fn delete(
     })))
 }
 
-/// POST /api/rules
+/// POST /api/v1/rules
 #[derive(Deserialize)]
 pub struct CreateBody {
     pub id: String,

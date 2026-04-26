@@ -75,7 +75,7 @@
     </div>
 
     <div id="chat-messages" class="chat-messages"
-         {{ init("@get('/api/view/chat/sse" ~ (('?workspace_id=' ~ workspace_id) if workspace_id else '') ~ "', {requestCancellation: 'disabled'})") }}>
+         {{ init("@get('/api/v1/view/chat/sse" ~ (('?workspace_id=' ~ workspace_id) if workspace_id else '') ~ "', {requestCancellation: 'disabled'})") }}>
       {% include 'chat/partials/content.html.j2' %}
     </div>
 
@@ -91,7 +91,7 @@
     </div>
 
     <form id="chat-composer" class="chat-composer"
-          {{ on('submit', "event.preventDefault(); $sending = true; const annBlock = $annotations.length ? '\\n\\nContext:\\n' + $annotations.map(a => '- ' + (a.selector || a.tag || 'ref') + (a.preview ? ': ' + a.preview : '')).join('\\n') : ''; @post('/api/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft + annBlock, workspace_id: $workspace_id || null})}); $draft = ''; $annotations = []; $sending = false") }}>
+          {{ on('submit', "event.preventDefault(); $sending = true; const annBlock = $annotations.length ? '\\n\\nContext:\\n' + $annotations.map(a => '- ' + (a.selector || a.tag || 'ref') + (a.preview ? ': ' + a.preview : '')).join('\\n') : ''; @post('/api/v1/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft + annBlock, workspace_id: $workspace_id || null})}); $draft = ''; $annotations = []; $sending = false") }}>
       <textarea name="text" placeholder="Message the agent..."
                 {{ bind('draft') }}
                 {{ loading('sending') }}

@@ -3,6 +3,8 @@ name: ship-coordination
 stable-id: ship-coordination
 audience: internal
 description: Use when logging progress or tracking work status in the Ship project. Covers ship MCP tools for session and workspace management.
+tags: [ship, coordination, mcp, internal]
+authors: [ship]
 ---
 
 # Ship Coordination Protocol

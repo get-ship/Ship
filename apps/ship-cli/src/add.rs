@@ -29,7 +29,7 @@ use runtime::registry::{
 /// 7. Compile.
 /// 8. On error after step 3, restore backup.
 pub fn run_add(project_root: &Path, package_spec: &str) -> Result<()> {
-    let ship_dir = project_root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
     // Prefer ship.jsonc over ship.toml
     let jsonc_path = ship_dir.join("ship.jsonc");
     let manifest_path = if jsonc_path.exists() {
@@ -148,7 +148,7 @@ pub(crate) fn append_dependency(raw: &str, path: &str, version: &str) -> String 
 
 /// Resolve, fetch, lock, and compile after modifying the manifest.
 fn do_add(project_root: &Path, pkg_path: &str, _version: &str) -> Result<()> {
-    let ship_dir = project_root.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
     // Prefer ship.jsonc over ship.toml
     let jsonc_path = ship_dir.join("ship.jsonc");
     let manifest_path = if jsonc_path.exists() {
@@ -350,7 +350,7 @@ mod tests {
     #[test]
     fn add_no_ship_toml_errors() {
         let tmp = TempDir::new().unwrap();
-        std::fs::create_dir_all(tmp.path().join(".ship")).unwrap();
+        std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(tmp.path())).unwrap();
         let err = run_add(tmp.path(), "github.com/owner/repo").unwrap_err();
         assert!(
             err.to_string()
@@ -367,14 +367,14 @@ mod tests {
             ".ship/ship.toml",
             "[module]\nname = \"github.com/test/repo\"\nversion = \"0.1.0\"\n\n[dependencies]\n\"github.com/owner/pkg\" = \"main\"\n",
         );
-        let original = std::fs::read_to_string(tmp.path().join(".ship/ship.toml")).unwrap();
+        let original = std::fs::read_to_string(runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.toml")).unwrap();
         let err = run_add(tmp.path(), "github.com/owner/pkg").unwrap_err();
         assert!(
             err.to_string().contains("already in dependencies"),
             "got: {err}"
         );
         // ship.toml must be unchanged
-        let after = std::fs::read_to_string(tmp.path().join(".ship/ship.toml")).unwrap();
+        let after = std::fs::read_to_string(runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.toml")).unwrap();
         assert_eq!(
             original, after,
             "ship.toml must be unchanged on duplicate error"

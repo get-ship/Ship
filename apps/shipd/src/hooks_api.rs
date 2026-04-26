@@ -8,6 +8,7 @@
 //! and custom rules are Phase 2.
 
 use axum::{extract::State, Extension, Json, http::StatusCode, response::IntoResponse};
+use runtime::events::EventEnvelope;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -68,11 +69,11 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
     event.session_id.clone().or_else(|| auth.session_id.clone())
 }
 
-/// POST /api/hooks/session-start
+/// POST /api/v1/hooks/session-start
 #[utoipa::path(
     operation_id = "hookSessionStart",
     post,
-    path = "/api/hooks/session-start",
+    path = "/api/v1/hooks/session-start",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
@@ -99,11 +100,11 @@ pub async fn hook_session_start(
     (StatusCode::OK, Json(HookResponse::allow()))
 }
 
-/// POST /api/hooks/before-tool
+/// POST /api/v1/hooks/before-tool
 #[utoipa::path(
     operation_id = "hookBeforeTool",
     post,
-    path = "/api/hooks/before-tool",
+    path = "/api/v1/hooks/before-tool",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook allow or block decision", body = HookResponse),
@@ -124,10 +125,36 @@ pub async fn hook_before_tool(
 
     tracing::debug!(actor = %actor, tool = %tool, session = ?session, "hook: before-tool");
 
+    // Existing session-narrative bookkeeping (heartbeat / tool count)
+    // stays — it's the workspace-session vocabulary, separate from the
+    // actor event log.
     if let Some(ref sid) = session {
         let _ = runtime::db::session_drain::increment_tool_count(sid);
         let _ = runtime::db::session_drain::update_heartbeat(sid);
         broadcast_tool_use(&state, sid, tool, event.tool_input.as_ref());
+    }
+
+    // Emit a kernel event correlated by actor_id. Lands in the actor's
+    // event stream (queryable via /api/actors/{id}/events) so chat
+    // threads and dashboards can render tool cards regardless of
+    // whether the actor is in the legacy PtySession registry. No more
+    // broadcast_tool_use silently dropping when the registry doesn't
+    // have a matching provider_session_id.
+    if actor != "unknown" {
+        let payload = json!({
+            "tool": tool,
+            "input_preview": event.tool_input.as_ref().map(|v| {
+                let s = v.to_string();
+                if s.len() > 400 { s.chars().take(400).collect::<String>() } else { s }
+            }),
+        });
+        if let Ok(env) = EventEnvelope::new("hook.tool_use_started", &actor, &payload) {
+            let env = env.with_target(&actor).with_actor_id(&actor);
+            let ctx = auth.to_daemon_emit_context();
+            if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
+                tracing::debug!(actor, "hook.tool_use_started emit failed: {e}");
+            }
+        }
     }
 
     (StatusCode::OK, Json(HookResponse::allow()))
@@ -163,11 +190,11 @@ fn broadcast_tool_use(
     let _ = session.0.event_tx.send(ev);
 }
 
-/// POST /api/hooks/after-tool
+/// POST /api/v1/hooks/after-tool
 #[utoipa::path(
     operation_id = "hookAfterTool",
     post,
-    path = "/api/hooks/after-tool",
+    path = "/api/v1/hooks/after-tool",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
@@ -197,14 +224,34 @@ pub async fn hook_after_tool(
         broadcast_tool_use(&state, sid, tool, event.tool_response.as_ref());
     }
 
+    // Actor-correlated tool-completed event — symmetric with the
+    // before-tool emission. Threads / dashboards transition the tool
+    // card from "running" to "done" by arrival order.
+    if actor != "unknown" {
+        let payload = json!({
+            "tool": tool,
+            "response_preview": event.tool_response.as_ref().map(|v| {
+                let s = v.to_string();
+                if s.len() > 400 { s.chars().take(400).collect::<String>() } else { s }
+            }),
+        });
+        if let Ok(env) = EventEnvelope::new("hook.tool_use_completed", &actor, &payload) {
+            let env = env.with_target(&actor).with_actor_id(&actor);
+            let ctx = auth.to_daemon_emit_context();
+            if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
+                tracing::debug!(actor, "hook.tool_use_completed emit failed: {e}");
+            }
+        }
+    }
+
     (StatusCode::OK, Json(HookResponse::allow()))
 }
 
-/// POST /api/hooks/session-end
+/// POST /api/v1/hooks/session-end
 #[utoipa::path(
     operation_id = "hookSessionEnd",
     post,
-    path = "/api/hooks/session-end",
+    path = "/api/v1/hooks/session-end",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),

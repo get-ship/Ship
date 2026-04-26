@@ -4,7 +4,7 @@ use anyhow::Result;
 use std::path::PathBuf;
 
 pub(crate) fn worktrees_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("SHIP_WORKTREE_DIR") {
+    if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::WorktreeDir) {
         return PathBuf::from(dir);
     }
     let home = std::env::var("HOME")
@@ -14,7 +14,7 @@ pub(crate) fn worktrees_dir() -> PathBuf {
 }
 
 pub(crate) fn repo_dir() -> PathBuf {
-    if let Ok(dir) = std::env::var("SHIP_REPO_DIR") {
+    if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::RepoDir) {
         return PathBuf::from(dir);
     }
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
