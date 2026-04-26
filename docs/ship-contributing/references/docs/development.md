@@ -57,12 +57,6 @@ just watch      # Watch and rebuild Rust on changes (cargo-watch)
 just docs-dev   # Docs site on port 4321
 ```
 
-The docs site has a single source of truth: `docs/<skill>/references/docs/`.
-The Astro tree at `apps/docs/src/content/docs/reference/` is generated build
-output (gitignored) — never edit it by hand. Predev/prebuild regenerate it
-automatically; `just docs-regen` runs the collector on demand and
-`just check-docs-drift` is the CI gate.
-
 ### Building
 
 ```bash
