@@ -121,7 +121,15 @@ fn emit_prefixed_selector(out: &mut String, sel: &str, prefix: &str) {
         out.push_str(prefix);
         return;
     }
-    if s.starts_with(":host") || s.starts_with('&') || s.starts_with(prefix) {
+    // The prelude buffer in `rewrite` includes any CSS comments that
+    // appeared between rules (`/* ... */`). The pseudo-element/element
+    // checks below want to inspect the actual selector start, so strip
+    // comments from the selector text first.
+    let s_no_comments = strip_css_comments(s);
+    let s_check = s_no_comments.trim();
+    if s_check.starts_with(":host") || s_check.starts_with('&') || s_check.starts_with(prefix) {
+        // Emit the original (with comments preserved) so authors keep
+        // their notes; just don't prefix.
         out.push_str(s);
         return;
     }
@@ -130,9 +138,56 @@ fn emit_prefixed_selector(out: &mut String, sel: &str, prefix: &str) {
     out.push_str(s);
 }
 
+/// Strip `/* ... */` comments from a string. Preserves everything else
+/// verbatim. Used so the selector-classification check ignores comments
+/// that authors might place in front of a `:host` rule.
+fn strip_css_comments(s: &str) -> String {
+    let bytes = s.as_bytes();
+    let mut out = String::with_capacity(s.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        if i + 1 < bytes.len() && bytes[i] == b'/' && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(bytes.len());
+            continue;
+        }
+        out.push(bytes[i] as char);
+        i += 1;
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn host_with_preceding_comment_is_not_prefixed() {
+        // Regression: a CSS comment before a `:host` rule used to confuse
+        // the scoper into treating the comment as the selector head, which
+        // failed the `:host` predicate and prefixed the whole thing — emitting
+        // invalid CSS like `[data-component="x"] /* ... */ :host(...)`.
+        let css = "/* note */ :host([active]) { display: block; }";
+        let out = scope_css(css, "ship-tab-panel");
+        // `:host(...)` selector is preserved verbatim (with comment) because
+        // we don't add the `[data-component]` prefix in front of it.
+        assert!(
+            !out.contains("[data-component=\"ship-tab-panel\"] /*"),
+            "comment must not appear between the prefix and the rule: {out}"
+        );
+        assert!(out.contains(":host([active])"), "out: {out}");
+    }
+
+    #[test]
+    fn host_selector_alone_is_not_prefixed() {
+        let css = ":host { display: none; }";
+        let out = scope_css(css, "x-y");
+        assert!(!out.contains("[data-component=\"x-y\"] :host"), "out: {out}");
+        assert!(out.contains(":host { display: none; }"));
+    }
 
     #[test]
     fn prefixes_simple_selector() {

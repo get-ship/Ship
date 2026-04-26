@@ -47,8 +47,10 @@ pub struct PropDecl {
 #[derive(Debug, Clone, Default)]
 pub struct ScriptSchema {
     pub props: Vec<PropDecl>,
-    /// Names of `const $x = signal(...)` bindings, **without** the
-    /// leading `$`. (`$query` → `"query"`.)
+    /// Names of `const $x = signal(...)` and `const $x = data(...)`
+    /// bindings, **without** the leading `$`. (`$query` → `"query"`.)
+    /// Order is preserved so the JS wrapper hands each call the
+    /// right SIGNAL_NAMES slot.
     pub signals: Vec<String>,
     /// Count of top-level `onConnect(` invocations.
     pub on_connect_calls: usize,
@@ -116,7 +118,15 @@ fn extract_signals(cleaned: &str) -> Vec<String> {
                     if m < bytes.len()
                         && bytes[m] == b'='
                         && let Some(rest) = cleaned.get(m + 1..)
-                        && rest.trim_start().starts_with("signal(")
+                        && {
+                            let trimmed = rest.trim_start();
+                            // Both `signal(` and `data(` contribute to the
+                            // per-instance signal name set. They share the
+                            // same SIGNAL_NAMES positional slots so the
+                            // wrapper can hand each call the right name in
+                            // declaration order.
+                            trimmed.starts_with("signal(") || trimmed.starts_with("data(")
+                        }
                     {
                         let name = std::str::from_utf8(&bytes[name_start..k])
                             .unwrap_or("")
@@ -190,6 +200,15 @@ mod tests {
         let src = "const $query = signal('')\nconst $items = signal([])\nconst $loading=signal(false)";
         let s = extract(src);
         assert_eq!(s.signals, vec!["query", "items", "loading"]);
+    }
+
+    #[test]
+    fn extracts_signals_from_data_bindings() {
+        // `data(...)` is a sibling to `signal(...)` — both contribute to
+        // the per-instance signal name set in declaration order.
+        let src = "const $query = signal('')\nconst $agent = data(() => fetch('/x'))";
+        let s = extract(src);
+        assert_eq!(s.signals, vec!["query", "agent"]);
     }
 
     #[test]

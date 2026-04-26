@@ -37,8 +37,9 @@ pub mod template;
 mod emit_tests;
 
 use crate::views::templates::render_view_source;
-use parser::{split, style_is_global};
+use parser::{split, style_is_global, style_src};
 use script::extract;
+use std::path::Path;
 use style::scope_css;
 use template::rewrite_signals;
 
@@ -52,6 +53,19 @@ pub fn compile_component(
     tag: &str,
     template_name: &str,
     source: &str,
+) -> Result<String, String> {
+    compile_component_with_path(tag, template_name, source, None)
+}
+
+/// Like [`compile_component`] but accepts the source-file path so
+/// `<style src="./shared.css">` external imports can resolve relative to
+/// the .ship file's directory. Pass `None` if no on-disk path exists
+/// (tests that compile from a string in memory).
+pub fn compile_component_with_path(
+    tag: &str,
+    template_name: &str,
+    source: &str,
+    source_path: Option<&Path>,
 ) -> Result<String, String> {
     let blocks = split(source);
     let schema = blocks
@@ -68,12 +82,29 @@ pub fn compile_component(
     let rendered = render_view_source(template_name, &blocks.template, &context)
         .map_err(|e| format!("template render: {e}"))?;
 
-    let scoped_html = rewrite_signals(&rendered, tag, &schema.signals);
+    // Prop names join the signal set for the namespace mangling so
+    // `data-text="$placeholder"` (a prop reference) gets the same
+    // per-instance scoping as `data-text="$count"` (a signal reference).
+    // The wrapper auto-creates a signal for every prop at mount time.
+    let mut scoped_names: Vec<String> = schema.signals.clone();
+    scoped_names.extend(schema.props.iter().map(|p| p.name.clone()));
+    let scoped_html = rewrite_signals(&rendered, tag, &scoped_names);
 
-    let scoped_css = match blocks.style.as_deref() {
-        Some(css) if style_is_global(&blocks.style_attrs) => css.to_string(),
-        Some(css) => scope_css(css, tag),
+    // Style sourcing: in priority order, take the first non-empty:
+    // - external file via <style src="./shared.css">
+    // - inline <style>...</style> body
+    // External + inline CAN coexist; external loads first, inline appends.
+    // Both go through the scoper unless `global` is set.
+    let style_body = match resolve_style_body(&blocks, source_path)? {
+        Some(s) => s,
         None => String::new(),
+    };
+    let scoped_css = if style_body.is_empty() {
+        String::new()
+    } else if style_is_global(&blocks.style_attrs) {
+        style_body
+    } else {
+        scope_css(&style_body, tag)
     };
 
     Ok(emit::emit(&emit::EmitInputs {
@@ -83,6 +114,49 @@ pub fn compile_component(
         rendered_html: &scoped_html,
         scoped_css: &scoped_css,
     }))
+}
+
+/// Resolve the style body for a component, combining `<style src="...">`
+/// external content with the inline body. External content loads first,
+/// inline appends. Returns `None` if neither source produces content.
+fn resolve_style_body(
+    blocks: &parser::SplitBlocks,
+    source_path: Option<&Path>,
+) -> Result<Option<String>, String> {
+    let inline = blocks.style.as_deref().unwrap_or("");
+    let src_attr = style_src(&blocks.style_attrs);
+
+    let external = match (src_attr.as_deref(), source_path) {
+        (Some(rel), Some(src_path)) => {
+            // Resolve relative to the .ship file's directory.
+            let base = src_path.parent().ok_or_else(|| {
+                format!("source path has no parent: {}", src_path.display())
+            })?;
+            let target = base.join(rel);
+            // Reject path traversal beyond the project's .ship dir is
+            // out of scope here; the file is read by the daemon under
+            // the trusted repo, not from user input.
+            std::fs::read_to_string(&target)
+                .map_err(|e| format!("style src `{}` ({}): {e}", rel, target.display()))?
+        }
+        (Some(rel), None) => {
+            return Err(format!(
+                "<style src=\"{rel}\"> requires a source-file path; pass via compile_component_with_path"
+            ));
+        }
+        (None, _) => String::new(),
+    };
+
+    if external.is_empty() && inline.is_empty() {
+        return Ok(None);
+    }
+    let mut combined = String::with_capacity(external.len() + inline.len() + 1);
+    combined.push_str(&external);
+    if !external.is_empty() && !inline.is_empty() {
+        combined.push('\n');
+    }
+    combined.push_str(inline);
+    Ok(Some(combined))
 }
 
 /// Convert a `.ship/components/foo-bar.ship` file path stem into the
@@ -168,6 +242,106 @@ mod tests {
         // template literal so double quotes appear unescaped.
         assert!(out.contains(r#"[data-component="app-typeahead"] .typeahead"#));
         assert!(out.contains(r#"[data-component="app-typeahead"] .suggestions li.active"#));
+    }
+
+    #[test]
+    fn compile_with_external_style_src_loads_file() {
+        // Write a tiny shared CSS file to a temp dir, point a .ship file
+        // at it via <style src=...>, confirm the daemon reads + scopes it.
+        let dir = tempfile::tempdir().expect("tempdir");
+        let css_path = dir.path().join("shared.css");
+        std::fs::write(&css_path, ".tablist { display: flex; }").unwrap();
+
+        let ship_path = dir.path().join("my-comp.ship");
+        let src = r#"<style src="./shared.css"></style>
+<div class="tablist"><slot></slot></div>"#;
+        std::fs::write(&ship_path, src).unwrap();
+
+        let out = compile_component_with_path(
+            "my-comp",
+            "components/my-comp.ship",
+            src,
+            Some(&ship_path),
+        )
+        .unwrap();
+        // Loaded + scoped.
+        assert!(out.contains("[data-component=\"my-comp\"] .tablist"));
+        assert!(out.contains("display: flex;"));
+    }
+
+    #[test]
+    fn compile_with_external_style_concatenates_with_inline() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let css_path = dir.path().join("base.css");
+        std::fs::write(&css_path, ".base { color: red; }").unwrap();
+
+        let ship_path = dir.path().join("my-comp.ship");
+        let src = r#"<style src="./base.css">
+.local { color: blue; }
+</style>
+<div></div>"#;
+        std::fs::write(&ship_path, src).unwrap();
+
+        let out = compile_component_with_path(
+            "my-comp",
+            "components/my-comp.ship",
+            src,
+            Some(&ship_path),
+        )
+        .unwrap();
+        assert!(out.contains("[data-component=\"my-comp\"] .base"));
+        assert!(out.contains("[data-component=\"my-comp\"] .local"));
+    }
+
+    #[test]
+    fn compile_with_external_style_src_no_path_errors() {
+        // If `src=` is set but no source_path is provided, fail loudly
+        // — the import can't be resolved.
+        let src = r#"<style src="./shared.css"></style><div></div>"#;
+        let err = compile_component("my-comp", "components/my-comp.ship", src);
+        assert!(err.is_err(), "should error without source path");
+        assert!(err.unwrap_err().contains("source-file path"));
+    }
+
+    #[test]
+    fn jinja_comments_are_stripped_from_template() {
+        // {# ... #} should not survive into the served TEMPLATE constant
+        // — minijinja strips them at render time.
+        let src = "<script></script>\n{# private comment #}\n<div>visible</div>";
+        let out = compile_component("my-x", "components/my-x.ship", src).unwrap();
+        assert!(
+            !out.contains("private comment"),
+            "Jinja comment leaked into served JS: {out}"
+        );
+        assert!(out.contains("<div>visible</div>"));
+    }
+
+    #[test]
+    fn props_become_scoped_signals_in_template() {
+        // `$placeholder` in the template should rewrite to the scoped
+        // namespace even though no `signal('placeholder')` call exists in
+        // the script — declaring a prop is enough.
+        let src = r#"<script>const { placeholder = 'Search' } = props</script>
+<input data-attr:placeholder="$placeholder" />"#;
+        let out = compile_component("my-input", "components/my-input.ship", src).unwrap();
+        assert!(
+            out.contains("$_my_input___SHIP_INST___placeholder"),
+            "prop name should land in the scoped signal namespace"
+        );
+        // The wrapper should also pre-create the signal for this prop
+        // and route attributeChangedCallback through it.
+        assert!(
+            out.contains("PROP_NAMES_CAMEL = [\"placeholder\"]"),
+            "wrapper should know the camelCase prop name"
+        );
+        assert!(
+            out.contains("host.__makeSignal(name, props[name])"),
+            "wrapper should auto-create per-prop signal at bootstrap"
+        );
+        assert!(
+            out.contains("attributeChangedCallback"),
+            "wrapper should sync prop signals on attribute change"
+        );
     }
 
     #[test]

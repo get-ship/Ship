@@ -157,3 +157,7 @@ pub fn to_json(pretty: bool) -> anyhow::Result<String> {
     };
     Ok(json)
 }
+
+#[cfg(test)]
+#[path = "openapi_tests.rs"]
+mod tests;

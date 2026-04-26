@@ -17,20 +17,85 @@ Today only `.ship/components/*.ship` get the full SFC treatment (script + templa
 
 **Cost:** none for now. The `.html.j2` extension is identical syntactically to a script-less `.ship` file.
 
-## No `data:` mount-time fetch declaration
+## ~~No external style import~~ — fixed
 
-The eventual shorthand will let components declare data dependencies inline:
+Previously the `<style>` block had to be inline, which capped components at ~250 lines of CSS before bumping the file-size cap. Now:
 
-```js
-// Future API — not implemented
-const $agent = data(() => ship.agents.detail({ id: props.agentId }))
+```html
+<style src="./shared.css">
+  /* optional inline rules — appended after the external content */
+  .local-override { padding: 8px; }
+</style>
 ```
 
-Until that lands, authors handle the fetch manually inside `onConnect` or an `effect`.
+The daemon resolves the path relative to the `.ship` file. External + inline can coexist (external loads first, inline appends). Both go through the scoping pass unless `global` is set.
 
-**Workaround:** see [Data fetching](./data-fetching.md) for the manual `fetch()` + `credentials: 'same-origin'` pattern. ~5 lines per component that needs server data.
+Reference: `.ship/components/ship-tabs.ship` uses this pattern with a sibling `ship-tabs.css`.
 
-**Cost:** boilerplate. Not capability.
+## ~~Auto prop signals — `$<propName>` works directly~~ — fixed
+
+Every declared prop is now a per-instance signal automatically:
+
+```js
+const { placeholder = 'Search' } = props
+// $placeholder is auto-created with the decoded value, scoped per instance.
+```
+
+```html
+<input data-attr:placeholder="$placeholder" />
+```
+
+The signal stays in sync via `attributeChangedCallback` — external `setAttribute('placeholder', '...')` triggers the signal update. Templates and effects react automatically.
+
+`{{ props.X }}` in the template still evaluates at compile time (Jinja, not signal-aware). Use `$X` in Datastar attribute expressions for runtime values.
+
+## ~~`emit()` doesn't set `composed: true`~~ — fixed
+
+Custom events dispatched via `emit()` now include `composed: true` so they cross shadow-DOM boundaries when the component is consumed inside a shadow root.
+
+## ~~No `data:` mount-time fetch declaration~~ — fixed
+
+`data(fn)` is now an injectable in the script block. Same shape as `signal()`:
+
+```js
+const $agent = data(({ signal }) =>
+  fetch('/api/v1/agents/' + props.agentId, { signal, credentials: 'same-origin' })
+    .then(r => r.json())
+)
+```
+
+The signal initializes to `null`, then resolves to the fetch result. `signal` is an `AbortSignal` wired to the component's `disconnectedCallback` — pass it to `fetch` so in-flight requests cancel cleanly when the component unmounts. Errors are logged and dispatched as a `data-error` CustomEvent from the host (composed + bubbles).
+
+In the template, reference the signal directly:
+
+```html
+<div data-show="$agent">
+  <h3 data-text="$agent.name"></h3>
+</div>
+```
+
+For dep-aware refetch (signal A changes → re-fetch from URL derived from A), use `effect()` explicitly:
+
+```js
+const $agent = signal(null)
+effect($agentId, async () => {
+  const r = await fetch('/api/v1/agents/' + $agentId.get(), { credentials: 'same-origin' })
+  $agent.set(await r.json())
+})
+```
+
+`data()` is the simpler one-shot path; `effect() + signal()` is the reactive-refetch path.
+
+## ~~Reflecting state to host attributes is manual~~ — fixed
+
+`reflectAttr(name, $signal)` is an injectable in the script block. Subscribes to the signal and mirrors changes to the host attribute:
+
+```js
+const $active = signal('home')
+reflectAttr('active', $active)
+```
+
+Boolean `true` → empty attribute; `null` / `false` → attribute removed; everything else → `String(value)`. No infinite-loop risk — the attribute change fires `attributeChangedCallback` which calls `signal.set()`, but the signal short-circuits on unchanged values.
 
 ## LSP doesn't lint inside `<script>` or `<style>` blocks
 
@@ -51,6 +116,10 @@ The 200+ pre-built `<ship-*>` components in `packages/ship-set/` are LitElement 
 **Workaround:** none needed. They already work. Compose them in views as before. The SFC format is for NEW components you author; the SDK primitives stay where they are.
 
 **Cost:** mixed-vocabulary in the SDK (some primitives are TypeScript, some will be `.ship`). When reading the SDK to learn patterns, you encounter both shapes. Long-term we want consistency; short-term the cost is "two reading patterns instead of one".
+
+## ~~Jinja comments leak into served output~~ — fixed
+
+`{# ... #}` Jinja comments now strip cleanly at compile time. Previously a fast-path in the template renderer bypassed Jinja for sources that contained no `{%` or `{{`, which inadvertently let `{#` survive verbatim into the served HTML / SFC template literal. Fast-path now also gates on `{#` absence.
 
 ## Component signals don't deep-watch nested structures
 
@@ -91,18 +160,23 @@ A specific async-closure pattern in `runtime::services::orchestrator::pipeline::
 | Component authoring | ✅ Full (`.ship/components/*.ship`) |
 | Mount + lifecycle | ✅ |
 | Per-instance signal scoping | ✅ |
+| Auto prop signals (`$<propName>` works directly) | ✅ |
+| `data(fn)` mount-time async fetch | ✅ |
+| `reflectAttr(name, sig)` for host-attr mirroring | ✅ |
 | Style scoping | ✅ |
+| External style import (`<style src="...">`) | ✅ |
+| `:host`-aware scoping (no double-prefixing) | ✅ |
+| Jinja comment stripping | ✅ |
 | Slots | ✅ |
-| Events | ✅ |
+| Events (with `composed: true`) | ✅ |
 | SDK macro globals | ✅ |
 | Cookie-authed fetch from `onConnect` | ✅ |
 | Hot-reload of template + style | ✅ |
 | LSP recognizes `.ship` extension | ✅ |
 | LSP lints Jinja content | ✅ |
-| LSP lints inner JS/CSS | ❌ deferred |
-| `data:` mount-time declaration | ❌ deferred |
+| LSP lints inner JS/CSS | ❌ deferred (v2) |
 | View-side `<script>` block execution | ❌ deferred |
 | `script` block hot-reload | ❌ deferred |
-| `ship-set` migration | ❌ post-launch |
+| `ship-set` migration | ⏳ in progress (`ship-tabs` ported) |
 
 None of the deferred items block real authoring. They're polish layers that compound across many components — worth landing as authors hit the friction.

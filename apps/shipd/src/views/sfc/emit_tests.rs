@@ -82,6 +82,51 @@ fn emit_bridges_signals_to_datastar() {
 }
 
 #[test]
+fn emit_dispatches_composed_events() {
+    // emit() must set composed: true so events cross shadow-DOM boundaries
+    // when the component is consumed inside a shadow root.
+    let s = schema(vec![], vec![]);
+    let out = emit(&EmitInputs {
+        tag: "t",
+        schema: &s,
+        user_script: "",
+        rendered_html: "<div></div>",
+        scoped_css: "",
+    });
+    assert!(
+        out.contains("composed: true"),
+        "emit() must include composed: true on the CustomEvent"
+    );
+}
+
+#[test]
+fn emit_provides_data_injectable() {
+    // Wrapper must inject `data(fn)` for mount-time async fetches.
+    // The injectable consumes a SIGNAL_NAMES slot just like signal()
+    // and wires AbortController for clean disconnect.
+    let s = schema(vec![], vec!["agent"]);
+    let out = emit(&EmitInputs {
+        tag: "t",
+        schema: &s,
+        user_script: "const $agent = data(({ signal }) => fetch('/x', { signal }))",
+        rendered_html: "<div></div>",
+        scoped_css: "",
+    });
+    assert!(
+        out.contains("const data = (fn) =>"),
+        "wrapper must inject data() helper"
+    );
+    assert!(
+        out.contains("AbortController"),
+        "wrapper must use AbortController for cancellation"
+    );
+    assert!(
+        out.contains("data-error"),
+        "wrapper must emit data-error event on fetch failure"
+    );
+}
+
+#[test]
 fn prop_decoders_use_kebab_attr() {
     let s = schema(vec![("fetchUrl", None), ("minChars", Some("1"))], vec![]);
     let out = emit(&EmitInputs {

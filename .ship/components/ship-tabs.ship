@@ -1,0 +1,129 @@
+<script>
+  // <ship-tabs> — declarative, child-composition tabs.
+  //
+  // Children are <ship-tab> (data carriers) and <ship-tab-panel> (shown
+  // when active). The parent owns the active-tab state, observes child
+  // mutations to rebuild its tab bar, syncs panel visibility, and handles
+  // keyboard navigation (Arrow / Home / End / Enter / Space).
+  //
+  // SFC port of packages/ship-set/src/web-components/core/ship-tabs.ts.
+  //
+  // Props are auto-lifted to per-instance signals — `$active`,
+  // `$orientation` work directly in templates without manual `signal()`
+  // calls. The wrapper keeps them in sync via attributeChangedCallback,
+  // so external setAttribute('active', '...') reactively updates everything.
+
+  const {
+    active = '',
+    variant = 'underline',
+    size = 'md',
+    tone = '',
+    sticky = false,
+    orientation = 'horizontal',
+  } = props
+
+  // Local state. $tabs holds the discovered child tab descriptors;
+  // rebuilt by the MutationObserver as children mount/unmount/edit.
+  const $tabs = signal([])
+
+  // When $active changes, sync panel visibility, reflect to host,
+  // and emit the change event.
+  effect($active, () => {
+    const name = $active.get()
+    syncPanels(name)
+    if (host && host.getAttribute('active') !== name) host.setAttribute('active', name)
+    emit('ship-tab-change', { name })
+  })
+
+  let mutationObserver
+  let host
+  function rebuildTabs() {
+    const tabs = Array.from(host.querySelectorAll(':scope > ship-tab')).map(t => ({
+      name: t.getAttribute('name') || '',
+      label: t.getAttribute('label') || t.getAttribute('name') || '',
+      count: t.hasAttribute('count') ? Number(t.getAttribute('count')) : null,
+      disabled: t.hasAttribute('disabled'),
+    }))
+    $tabs.set(tabs)
+    // Default-activate the first enabled tab if no active is set.
+    if (!$active.get() && tabs.length) {
+      const first = tabs.find(t => !t.disabled)
+      if (first) $active.set(first.name)
+    }
+  }
+
+  function syncPanels(activeName) {
+    if (!host) return
+    for (const p of host.querySelectorAll(':scope > ship-tab-panel')) {
+      if (p.getAttribute('name') === activeName) p.setAttribute('active', '')
+      else p.removeAttribute('active')
+    }
+  }
+
+  function onKeydown(e) {
+    const vertical = $orientation.get() === 'vertical'
+    const nextKey = vertical ? 'ArrowDown' : 'ArrowRight'
+    const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft'
+    const nav = [nextKey, prevKey, 'Home', 'End']
+    const activateKey = ['Enter', ' ']
+    if (!nav.includes(e.key) && !activateKey.includes(e.key)) return
+    e.preventDefault()
+    const enabled = $tabs.get().filter(t => !t.disabled)
+    if (!enabled.length) return
+    const names = enabled.map(t => t.name)
+    const i = Math.max(0, names.indexOf($active.get()))
+    let next = i
+    if (e.key === nextKey) next = (i + 1) % names.length
+    else if (e.key === prevKey) next = (i - 1 + names.length) % names.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = names.length - 1
+    $active.set(names[next])
+    queueMicrotask(() => {
+      const btn = host.querySelector(`button[data-name="${names[next]}"]`)
+      btn?.focus()
+    })
+  }
+
+  onConnect(el => {
+    host = el
+    rebuildTabs()
+    mutationObserver = new MutationObserver(() => rebuildTabs())
+    mutationObserver.observe(el, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['name', 'label', 'count', 'disabled'],
+    })
+    el.addEventListener('keydown', onKeydown)
+  })
+
+  onDisconnect(() => {
+    mutationObserver?.disconnect()
+  })
+</script>
+
+<div class="tablist" data-attr:class="'tablist ' + $variant" role="tablist" data-attr:aria-orientation="$orientation">
+  <template data-for="t in $tabs" data-key="t.name">
+    <button
+      class="tab"
+      role="tab"
+      data-attr:id="'ship-tab-' + t.name"
+      data-attr:data-name="t.name"
+      data-attr:aria-selected="t.name === $active ? 'true' : 'false'"
+      data-attr:aria-controls="'ship-tabpanel-' + t.name"
+      data-attr:aria-disabled="t.disabled ? 'true' : 'false'"
+      data-attr:tabindex="t.name === $active ? '0' : '-1'"
+      data-attr:disabled="t.disabled"
+      data-on:click="!t.disabled && ($active = t.name)"
+    >
+      <span class="label" data-text="t.label"></span>
+      <span class="count" data-show="t.count !== null" data-text="t.count" aria-hidden="true"></span>
+    </button>
+  </template>
+</div>
+
+<div class="panels">
+  <slot></slot>
+</div>
+
+<style src="./ship-tabs.css"></style>

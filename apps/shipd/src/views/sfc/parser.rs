@@ -98,6 +98,24 @@ pub fn style_is_global(attrs: &str) -> bool {
     false
 }
 
+/// Extract the value of a `src="..."` (or `src='...'`) attribute from a
+/// `<style>` opening-tag attribute string. Returns the raw attribute
+/// value with surrounding quotes stripped; the caller resolves the path
+/// relative to the .ship file location.
+///
+/// Returns `None` if no `src` attribute is present. Whitespace and
+/// other attributes are tolerated.
+pub fn style_src(attrs: &str) -> Option<String> {
+    static SRC_RE: OnceLock<Regex> = OnceLock::new();
+    let re = SRC_RE.get_or_init(|| Regex::new(r#"\bsrc\s*=\s*("([^"]*)"|'([^']*)')"#).unwrap());
+    re.captures(attrs).map(|c| {
+        c.get(2)
+            .or_else(|| c.get(3))
+            .map(|m| m.as_str().to_string())
+            .unwrap_or_default()
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,6 +163,24 @@ mod tests {
         let src = r#"<style data-foo="globalish">.x{}</style>"#;
         let s = split(src);
         assert!(!style_is_global(&s.style_attrs));
+    }
+
+    #[test]
+    fn style_src_attribute_extracted() {
+        let s = split(r#"<style src="./shared.css"></style>"#);
+        assert_eq!(style_src(&s.style_attrs).as_deref(), Some("./shared.css"));
+
+        let s = split(r#"<style src='./shared.css'></style>"#);
+        assert_eq!(style_src(&s.style_attrs).as_deref(), Some("./shared.css"));
+
+        // No src present.
+        let s = split(r#"<style>.x{}</style>"#);
+        assert_eq!(style_src(&s.style_attrs), None);
+
+        // Other attributes don't confuse the matcher.
+        let s = split(r#"<style global src="./shared.css"></style>"#);
+        assert_eq!(style_src(&s.style_attrs).as_deref(), Some("./shared.css"));
+        assert!(style_is_global(&s.style_attrs));
     }
 
     #[test]

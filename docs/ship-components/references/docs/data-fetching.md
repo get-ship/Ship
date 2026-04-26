@@ -1,27 +1,39 @@
 ---
 group: Components
 title: Data fetching
-description: Calling ship.* ops and other endpoints from a component (current manual pattern).
+description: Calling ship.* ops and other endpoints from a component.
 order: 4
 ---
 
 Components don't have direct access to `ship.*` ops the way views do. Views are server-rendered — `{{ ship.agents.detail(id=$id).name }}` happens server-side at the time the daemon serves the view. Components are browser-side — they need to issue an HTTP request.
 
-The pattern is `fetch()` inside a lifecycle hook or effect. Auth comes for free via cookies if the component is mounted inside a paired view.
+`data(fn)` is the canonical mount-time fetch primitive. For dependency-aware refetch, drop down to `effect()` + `signal()`.
 
-## Pattern: fetch on mount
+## Pattern: `data()` for one-shot mount-time fetch
 
 ```js
 const { agentId } = props
-const $agent = signal(null)
-
-onConnect(async () => {
-  const r = await fetch('/api/v1/agents/' + agentId, { credentials: 'same-origin' })
-  if (r.ok) $agent.set(await r.json())
-})
+const $agent = data(({ signal }) =>
+  fetch('/api/v1/agents/' + agentId, { signal, credentials: 'same-origin' })
+    .then(r => r.json())
+)
 ```
 
-`credentials: 'same-origin'` reuses the cookie auth from the parent view. No bearer-token threading needed.
+The signal initializes to `null`, then resolves to the fetch result.
+
+- `signal` is an `AbortSignal` wired to `disconnectedCallback` — pass it to `fetch` so in-flight requests cancel cleanly when the component unmounts.
+- `credentials: 'same-origin'` reuses the cookie auth from the parent view. No bearer-token threading needed.
+- Errors are logged AND dispatched as a `data-error` CustomEvent from the host (composed: true, bubbles: true) — consume in the parent view with `data-on:data-error`.
+
+In the template:
+
+```html
+<div data-show="$agent">
+  <h3 data-text="$agent.name"></h3>
+  <p data-text="$agent.description"></p>
+</div>
+<div data-show="!$agent" class="loading">Loading…</div>
+```
 
 In the template:
 
@@ -32,9 +44,11 @@ In the template:
 </div>
 ```
 
-## Pattern: fetch on a signal change
+`data()` is the simplest case (one fetch at mount). For everything else, use `effect()` directly — see below.
 
-When a prop changes effectively (via consumer remounting with a different key), or when an internal signal triggers a refetch:
+## Pattern: refetch on a signal change
+
+When an internal signal triggers a refetch (typeahead query, filter change, paginated list cursor):
 
 ```js
 const $query = signal('')
@@ -84,17 +98,6 @@ onConnect(el => {
 - **Cookie auth**: works automatically with `credentials: 'same-origin'`, IF the component is mounted in a view that the user already authed into (hit `/views/...` and got a session cookie).
 - **No cookie**: 401. Components mounted from a non-authed page (a public landing page, an embedded iframe on another origin) need explicit token handling. Not the common case for Ship apps; defer until you hit it.
 - **Cross-origin**: don't. Ship's daemon is local-only by default; components fetching from a different origin run into CORS and break the cookie story. Use the local daemon as the proxy.
-
-## Why no `data:` declaration shorthand?
-
-The eventual shorthand will let authors declare data dependencies in the script block:
-
-```js
-// Future API — not yet implemented
-const $agent = data(() => ship.agents.detail({ id: props.agentId }))
-```
-
-The framework would handle the fetch + auth + signal-set + retry + cancellation on unmount. Until that lands, the manual pattern above is the contract.
 
 ## Testing fetch logic
 
