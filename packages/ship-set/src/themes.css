@@ -765,3 +765,138 @@
   --radius-md: 3px;
   --radius-sm: 2px;
 }
+
+/* ───────────────────────────────────────────────────────────────────
+ * Per-theme personality bends. Each block layers small but distinctive
+ * moves on top of the palette/shadow/radius baseline above. These are
+ * the moves that make each theme feel like its own thing — not just a
+ * recolor — and are the answer to "console is my fave; give the others
+ * the same effort."
+ * ─────────────────────────────────────────────────────────────────── */
+
+/* ship-light — brand-tinted shadows, primary focus halo, subtle vertical
+ * page gradient (already wired above), and a confident eyebrow tracking. */
+:root[data-theme='ship-light'] {
+  --shadow-xs: 0 1px 2px 0 oklch(0.55 0.10 58 / 6%), 0 0 0 1px oklch(0 0 0 / 3%);
+  --shadow-sm: 0 2px 4px -1px oklch(0.55 0.10 58 / 9%), 0 1px 2px oklch(0 0 0 / 4%);
+  --shadow-md: 0 6px 18px -4px oklch(0.55 0.10 58 / 12%), 0 2px 6px oklch(0 0 0 / 6%);
+  --shadow-lg: 0 14px 32px -6px oklch(0.55 0.10 58 / 16%), 0 4px 12px oklch(0 0 0 / 8%);
+  --shadow-hover: 0 8px 22px -4px oklch(0.55 0.10 58 / 14%), 0 2px 6px oklch(0 0 0 / 6%);
+  --shadow-accent: 0 0 0 3px oklch(0.67 0.16 58 / 18%), 0 8px 24px -6px oklch(0.67 0.16 58 / 30%);
+  --label-tracking: 0.08em;
+}
+
+/* ship-dark — cool-blue tinted shadows, top-left radial highlight, and
+ * a stronger selected-state pop against the deep navy. */
+:root[data-theme='ship-dark'] body {
+  background-image:
+    radial-gradient(ellipse 60% 40% at 0% 0%, oklch(1 0 0 / 4%), transparent 60%),
+    linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--surface-0) 100%, white 1.5%) 0%,
+      var(--surface-0) 60%,
+      color-mix(in oklch, var(--surface-0) 100%, black 1.5%) 100%
+    );
+  background-attachment: fixed;
+}
+:root[data-theme='ship-dark'] {
+  --shadow-sm: 0 2px 6px -1px oklch(0.10 0.04 250 / 50%), 0 0 0 1px oklch(1 0 0 / 4%);
+  --shadow-md: 0 6px 18px -4px oklch(0.10 0.04 250 / 55%), 0 2px 6px oklch(0 0 0 / 35%);
+  --shadow-lg: 0 14px 32px -6px oklch(0.10 0.04 250 / 60%), 0 4px 12px oklch(0 0 0 / 40%);
+  --shadow-hover: 0 8px 22px -4px oklch(0.10 0.04 250 / 50%), 0 2px 6px oklch(0 0 0 / 35%);
+  --shadow-accent: 0 0 0 3px oklch(0.77 0.16 70 / 22%), 0 8px 24px -6px oklch(0.77 0.16 70 / 38%);
+  --selected-strength: 18%;
+}
+
+/* paper — give cards a subtle deckle-edge feel via a doubled border-image
+ * and add a mono fine-print eyebrow. The clip-path is gentle so cards
+ * still align on a grid. */
+:root[data-theme='paper'] {
+  /* Mono fine-print eyebrow — the editorial fine print at the top of a
+   * column. Affects tiles + page eyebrows that read --label-font. */
+  --label-font: var(--font-mono);
+  --label-tracking: 0.14em;
+  --label-weight: 500;
+}
+:root[data-theme='paper'] ship-card,
+:root[data-theme='paper'] .ship-card,
+:root[data-theme='paper'] [class*='card'] {
+  /* Soft paper-fold corner cue: extra warm inner shadow on the top-left
+   * to hint at a leaf of paper sitting on the page. Skipped under
+   * reduced-motion to keep the page perfectly still on request. */
+  background-image: linear-gradient(
+    135deg,
+    oklch(0.30 0.04 60 / 4%) 0%,
+    transparent 12px
+  );
+}
+
+/* halo — wider radii, a subtle dawn radial at the body top, and a soft
+ * primary-tinted hover halo on interactive elements. */
+:root[data-theme='halo'] {
+  --radius: 16px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+}
+:root[data-theme='halo'] body {
+  background-image:
+    radial-gradient(ellipse 60% 40% at 50% 0%, oklch(0.85 0.06 40 / 28%), transparent 60%),
+    radial-gradient(ellipse 90% 60% at 50% -10%, oklch(1 0 0 / 8%), transparent 70%);
+  background-attachment: fixed;
+}
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme='halo'] ship-button:hover::part(button),
+  :root[data-theme='halo'] button:hover {
+    box-shadow:
+      -3px -3px 8px oklch(1 0 0 / 80%),
+      3px 3px 8px oklch(0 0 0 / 8%),
+      0 0 0 4px oklch(0.62 0.14 50 / 12%);
+  }
+}
+
+/* glass — slow-rotating background mesh under no-preference, iridescent
+ * card edge highlight, and a refractive heading text-shadow. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme='glass'] body {
+    animation: ship-glass-mesh 36s ease-in-out infinite alternate;
+  }
+}
+@keyframes ship-glass-mesh {
+  0%   { background-position: 0% 0%, 100% 100%, 100% 0%; }
+  100% { background-position: 8% 4%, 92% 96%, 96% 4%; }
+}
+:root[data-theme='glass'] ship-card,
+:root[data-theme='glass'] .ship-card {
+  border-image: linear-gradient(
+    135deg,
+    oklch(0.62 0.14 280 / 50%),
+    oklch(1 0 0 / 60%) 30%,
+    oklch(0.62 0.16 50 / 50%) 70%,
+    oklch(1 0 0 / 60%)
+  ) 1;
+}
+:root[data-theme='glass'] h1,
+:root[data-theme='glass'] h2,
+:root[data-theme='glass'] [class*='heading'] {
+  text-shadow:
+    0 1px 0 oklch(1 0 0 / 50%),
+    0 0 12px oklch(0.62 0.14 280 / 14%);
+}
+:root[data-theme='glass'] ship-card:hover,
+:root[data-theme='glass'] .ship-card:hover {
+  --card-backdrop-filter: blur(32px) saturate(220%);
+}
+
+/* console — a single flourish: blinking caret on the focus ring so a
+ * focused control reads like a terminal cursor. Honours reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  :root[data-theme='console'] :focus-visible {
+    animation: ship-console-blink 1.05s steps(2, end) infinite;
+  }
+}
+@keyframes ship-console-blink {
+  0%, 49%   { box-shadow: var(--shadow-accent); }
+  50%, 100% { box-shadow: 0 0 0 2px oklch(0.78 0.20 145 / 20%); }
+}

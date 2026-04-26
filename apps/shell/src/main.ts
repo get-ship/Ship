@@ -127,10 +127,19 @@ function mountThemePicker() {
         <span class="tc-bg" data-theme-preview="${t.id}" aria-hidden="true">
           <span class="tc-overlay"></span>
           <span class="tc-card">
-            <span class="tc-heading">${t.label}</span>
+            <span class="tc-card-head">
+              <span class="tc-eyebrow">THEME</span>
+              <span class="tc-heading">${t.label}</span>
+            </span>
+            <span class="tc-typo">
+              <span class="tc-body">The quick brown fox</span>
+              <span class="tc-mono">{ build: ok }</span>
+            </span>
             <span class="tc-controls">
               <span class="tc-cta">Action</span>
-              <span class="tc-accent" aria-hidden="true"></span>
+              <span class="tc-ghost">Cancel</span>
+              <span class="tc-chip tc-chip-accent">New</span>
+              <span class="tc-chip tc-chip-muted">Idle</span>
             </span>
           </span>
         </span>
