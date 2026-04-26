@@ -34,7 +34,7 @@ Examples:
 - `202605011200_backfill_session_actor_id.sql`
 - `202605120915_drop_legacy_projection_cache.sql`
 
-`scripts/check-migration-naming.sh` (run via `just check-migrations`)
+`scripts/lint/check-migration-naming.sh` (run via `just check-migrations`)
 fails the build if any non-grandfathered file uses the legacy `NNNN_`
 prefix, or if a new file does not match `^\d{12}_[a-z0-9_-]+\.sql$`.
 

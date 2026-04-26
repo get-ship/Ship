@@ -2,7 +2,7 @@
 //!
 //! Per ADR `home-layout-and-scope-convention`, every `SHIP_*` env var the
 //! runtime reads is a variant on `Var`, and `read(Var)` is the single
-//! accessor. A CI grep guard at `scripts/check-raw-env-reads.sh` flags any
+//! accessor. A CI grep guard at `scripts/lint/check-raw-env-reads.sh` flags any
 //! `env::var("SHIP_*")` outside this module (warn-only until Phase 2).
 
 use serde::{Deserialize, Serialize};

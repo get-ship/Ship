@@ -19,7 +19,7 @@ YYYYMMDDHHMM_kebab_description.sql
 
 Example: `202604251430_add_agent_fingerprint.sql`.
 
-The CI guard (`scripts/check-migration-naming.sh`, wired into
+The CI guard (`scripts/lint/check-migration-naming.sh`, wired into
 `just check-migrations`) enforces this pattern.
 
 ## Frozen history — do not edit
