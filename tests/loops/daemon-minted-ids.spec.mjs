@@ -88,7 +88,7 @@ async function main() {
 
   // Verify the actor appears on the mesh under that id.
   await new Promise((r) => setTimeout(r, 500));
-  const mesh = await api("/api/mesh");
+  const mesh = await api("/api/v1/mesh");
   const actors = mesh?.data?.data?.actors ?? [];
   const found = actors.find((a) => a.actor_id === mintedId);
   if (!found) {

@@ -69,7 +69,7 @@ async function main() {
   const meshDeadline = Date.now() + 20_000;
   let onMesh = false;
   while (Date.now() < meshDeadline) {
-    const { data } = await api("/api/mesh");
+    const { data } = await api("/api/v1/mesh");
     if ((data?.data?.actors ?? []).some((a) => a.actor_id === actorId)) {
       onMesh = true;
       break;
@@ -84,14 +84,14 @@ async function main() {
   console.log("actor on mesh");
 
   // Snapshot existing events so we don't false-positive on history.
-  const before = await api(`/api/actors/${actorId}/events?limit=100`);
+  const before = await api(`/api/v1/actors/${actorId}/events?limit=100`);
   const baselineIds = new Set(
     (before.data?.data?.events ?? []).map((e) => e.id),
   );
 
   // Fire a synthetic hook with the actor_id we know.
   const tool = "TestTool";
-  const hookRes = await api("/api/hooks/before-tool", {
+  const hookRes = await api("/api/v1/hooks/before-tool", {
     method: "POST",
     body: JSON.stringify({
       actor_id: actorId,
@@ -109,7 +109,7 @@ async function main() {
   const deadline = Date.now() + 10_000;
   let landed = null;
   while (Date.now() < deadline) {
-    const { data } = await api(`/api/actors/${actorId}/events?limit=50`);
+    const { data } = await api(`/api/v1/actors/${actorId}/events?limit=50`);
     const fresh = (data?.data?.events ?? []).filter((e) => !baselineIds.has(e.id));
     landed = fresh.find(
       (e) =>

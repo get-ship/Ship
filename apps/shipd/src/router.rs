@@ -184,7 +184,7 @@ pub fn build_router(
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
         .merge(api_ship_routes)
-        .nest("/api", hook_routes)
+        .nest("/api/v1", hook_routes)
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
         .layer(axum::Extension(feedback_guard))

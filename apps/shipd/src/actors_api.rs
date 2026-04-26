@@ -185,9 +185,15 @@ async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, Stri
     let mut rows = list_actors(&ListActorsFilter::default())
         .map_err(|e| format!("query: {e}"))?;
 
-    let kernel_actors = state.kernel().lock().await.list_actors();
+    let kernel = state.kernel().lock().await;
+    let kernel_actors = kernel.list_actors();
     let on_mesh: std::collections::HashSet<String> =
         kernel_actors.iter().map(|(id, _)| id.clone()).collect();
+    let rates: std::collections::HashMap<String, u32> = rows
+        .iter()
+        .map(|r| (r.id.clone(), kernel.msg_rate(&r.id)))
+        .collect();
+    drop(kernel);
 
     let enriched: Vec<serde_json::Value> = rows
         .iter_mut()
@@ -196,6 +202,7 @@ async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, Stri
             let stats = r
                 .pid
                 .and_then(|p| (p > 0).then(|| process_stats::read_pid(p as u32)).flatten());
+            let msg_rate = rates.get(&r.id).copied().unwrap_or(0);
             json!({
                 "id": r.id,
                 "kind": r.kind,
@@ -214,6 +221,7 @@ async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, Stri
                 "created_at": r.created_at,
                 "last_event_at": r.last_event_at,
                 "live": r.live,
+                "msg_rate": msg_rate,
                 "process": stats.map(|s| json!({
                     "rss_bytes": s.rss_bytes,
                     "vsize_bytes": s.vsize_bytes,

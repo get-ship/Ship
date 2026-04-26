@@ -167,11 +167,11 @@
 {%- macro mesh_events(agent_id) -%}/api/v1/mesh/events/{{ agent_id }}{%- endmacro -%}
 {%- macro actor_spawn() -%}/api/v1/actor/spawn{%- endmacro -%}
 {%- macro event_route() -%}/api/v1/events/route{%- endmacro -%}
-{%- macro list_actors() -%}/api/actors{%- endmacro -%}
-{%- macro list_mesh() -%}/api/mesh{%- endmacro -%}
-{%- macro get_actor(actor_id) -%}/api/actors/{{ actor_id }}{%- endmacro -%}
-{%- macro actor_events(actor_id) -%}/api/actors/{{ actor_id }}/events{%- endmacro -%}
-{%- macro actor_input(actor_id) -%}/api/actors/{{ actor_id }}/input{%- endmacro -%}
+{%- macro list_actors() -%}/api/v1/actors{%- endmacro -%}
+{%- macro list_mesh() -%}/api/v1/mesh{%- endmacro -%}
+{%- macro get_actor(actor_id) -%}/api/v1/actors/{{ actor_id }}{%- endmacro -%}
+{%- macro actor_events(actor_id) -%}/api/v1/actors/{{ actor_id }}/events{%- endmacro -%}
+{%- macro actor_input(actor_id) -%}/api/v1/actors/{{ actor_id }}/input{%- endmacro -%}
 {%- macro mesh_snapshot() -%}/api/v1/mesh/snapshot{%- endmacro -%}
 {%- macro mesh_events_stream() -%}/api/v1/mesh/events{%- endmacro -%}
 {%- macro kill_tree(actor_id) -%}/api/v1/actors/{{ actor_id }}/kill-tree{%- endmacro -%}

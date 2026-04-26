@@ -72,7 +72,7 @@ async function main() {
     const meshDeadline = Date.now() + 25_000;
     let onMesh = false;
     while (Date.now() < meshDeadline) {
-      const { data } = await api("/api/mesh");
+      const { data } = await api("/api/v1/mesh");
       if ((data?.data?.actors ?? []).some((a) => a.actor_id === actorId)) {
         onMesh = true;
         break;
@@ -83,7 +83,7 @@ async function main() {
     console.log("on mesh");
 
     // Push a chat turn.
-    const inputRes = await api(`/api/actors/${actorId}/input`, {
+    const inputRes = await api(`/api/v1/actors/${actorId}/input`, {
       method: "POST",
       body: JSON.stringify({ text: "ping (channel-roundtrip test)" }),
     });
