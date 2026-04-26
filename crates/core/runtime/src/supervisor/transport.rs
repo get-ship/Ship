@@ -135,6 +135,21 @@ impl ChildHandle {
         let mut guard = self.child.lock().unwrap();
         guard.as_mut().and_then(|c| c.try_wait().ok().flatten())
     }
+
+    /// Resize the PTY, if this child is held over a PTY transport.
+    /// No-op for Headless transport (no master to resize). Returns Ok
+    /// in both cases; the no-op is silent because xterm.js sends a
+    /// resize on every layout change and PTY-less attach is a valid
+    /// readonly state (mesh-view debug attach to a stopped pipeline,
+    /// for example).
+    pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
+        let guard = self._master.lock().unwrap();
+        let Some(master) = guard.as_ref() else { return Ok(()) };
+        master
+            .resize(PtySize { cols, rows, pixel_width: 0, pixel_height: 0 })
+            .map_err(|e| anyhow!("pty resize: {e}"))?;
+        Ok(())
+    }
 }
 
 impl Transport for PtyTransport {

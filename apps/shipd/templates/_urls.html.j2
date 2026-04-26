@@ -87,6 +87,7 @@
 {%- macro get_pty_session(id) -%}/api/v1/sessions/{{ id }}{%- endmacro -%}
 {%- macro stop_pty_session(id) -%}/api/v1/sessions/{{ id }}{%- endmacro -%}
 {%- macro pty_session_input(id) -%}/api/v1/sessions/{{ id }}/input{%- endmacro -%}
+{%- macro pty_session_resize(id) -%}/api/v1/sessions/{{ id }}/resize{%- endmacro -%}
 {%- macro pty_session_message(id) -%}/api/v1/sessions/{{ id }}/message{%- endmacro -%}
 {%- macro pty_session_reply(id) -%}/api/v1/sessions/{{ id }}/reply{%- endmacro -%}
 {%- macro stream_pty_session(id) -%}/api/v1/sessions/{{ id }}/stream{%- endmacro -%}

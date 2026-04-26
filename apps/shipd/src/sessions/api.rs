@@ -620,6 +620,48 @@ pub async fn stream_session_events(
     sse.into_response()
 }
 
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct ResizeBody {
+    pub cols: u16,
+    pub rows: u16,
+}
+
+#[utoipa::path(
+    operation_id = "sessionResize",
+    post,
+    path = "/api/v1/sessions/{id}/resize",
+    params(("id" = String, Path, description = "Session id")),
+    request_body = ResizeBody,
+    responses(
+        (status = 204, description = "PTY resized"),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "sessions"
+)]
+pub async fn session_resize(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Json(body): Json<ResizeBody>,
+) -> axum::response::Response {
+    if let Some(entry) = state.actor_sessions().get(&id) {
+        if let Err(e) = entry.handle.resize(body.cols, body.rows) {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+        }
+        return (StatusCode::NO_CONTENT, ()).into_response();
+    }
+    // Legacy PtySession path: poke portable-pty master directly via
+    // its internal handle. The master sits behind a Mutex inside
+    // Inner; not currently exposed. For now legacy sessions just
+    // 404 on resize — they can opt into the actor path to gain it.
+    if state.pty_sessions().get(&id).is_some() {
+        return err(
+            StatusCode::NOT_IMPLEMENTED,
+            "legacy session: resize not wired (migrate to actor_sessions)",
+        );
+    }
+    err(StatusCode::NOT_FOUND, format!("session '{id}' not found"))
+}
+
 #[utoipa::path(
     operation_id = "streamSession",
     get,

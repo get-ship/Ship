@@ -77,6 +77,10 @@ impl ActorHandle {
     pub fn try_exit(&self) -> Option<i32> {
         self.child.try_exit()
     }
+
+    pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
+        self.child.resize(cols, rows)
+    }
 }
 
 /// Spawn an actor according to `profile`. The daemon mints the actor
