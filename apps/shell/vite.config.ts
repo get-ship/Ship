@@ -116,6 +116,18 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/daemon/, ""),
         },
+        // SFC components — daemon serves compiled .ship files at
+        // /_ship/components/<tag>.js. Same auth + same origin as /api.
+        "/_ship": {
+          target: daemon,
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              const t = currentToken();
+              if (t) proxyReq.setHeader("Authorization", `Bearer ${t}`);
+            });
+          },
+        },
       },
     },
     build: {

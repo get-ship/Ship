@@ -1,0 +1,162 @@
+<script>
+  // Top container: cmdk-style overlay that hosts the agent thread +
+  // composer. Listens for window-level ship:chat:* events to drive
+  // open/close/spawn-or-attach. Phase 1: auto-attaches to a default
+  // (agent_id, provider) pair on first open; phase 2 swaps in
+  // <app-agent-picker> for selection.
+  //
+  // Props:
+  //   default-agent     — agent id to spawn-or-attach for
+  //   default-provider  — provider id (claude, codex, ...)
+  //   workspace-id      — optional, falls back to '' (daemon resolves)
+  const {
+    defaultAgent = 'shipwright',
+    defaultProvider = 'claude',
+    workspaceId = '',
+  } = props
+
+  const $open = signal(false)
+  const $sessionId = signal('')
+  const $spawning = signal(false)
+  const $error = signal('')
+
+  async function ensureSession() {
+    if ($sessionId.get()) return $sessionId.get()
+    if ($spawning.get()) return ''
+    $spawning.set(true)
+    $error.set('')
+    try {
+      const r = await fetch('/api/v1/sessions/spawn', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          workspace_id: props.workspaceId,
+          kind: 'agent',
+          agent_id: props.defaultAgent,
+          provider: props.defaultProvider,
+        }),
+      })
+      if (!r.ok) throw new Error(`spawn HTTP ${r.status}`)
+      const data = await r.json()
+      $sessionId.set(data.session_id || '')
+      return data.session_id
+    } catch (e) {
+      $error.set(`spawn failed: ${e?.message ?? e}`)
+      return ''
+    } finally {
+      $spawning.set(false)
+    }
+  }
+
+  async function open() {
+    $open.set(true)
+    await ensureSession()
+  }
+
+  function close() {
+    $open.set(false)
+  }
+
+  function toggle() {
+    if ($open.get()) close()
+    else open()
+  }
+
+  function onOpen(e) { open() }
+  function onClose(e) { close() }
+  function onToggle(e) { toggle() }
+  function onAnnotate(e) {
+    // Annotation arriving while modal is closed → open + stack the
+    // annotation. The composer's own listener will catch it.
+    if (!$open.get()) open()
+  }
+
+  function onKey(e) {
+    if (e.key === 'Escape' && $open.get()) {
+      e.preventDefault()
+      close()
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+      e.preventDefault()
+      toggle()
+    }
+  }
+
+  onConnect(el => {
+    window.addEventListener('ship:chat:open', onOpen)
+    window.addEventListener('ship:chat:close', onClose)
+    window.addEventListener('ship:chat:toggle', onToggle)
+    window.addEventListener('ship:chat:annotate', onAnnotate)
+    window.addEventListener('keydown', onKey)
+  })
+
+  onDisconnect(() => {
+    window.removeEventListener('ship:chat:open', onOpen)
+    window.removeEventListener('ship:chat:close', onClose)
+    window.removeEventListener('ship:chat:toggle', onToggle)
+    window.removeEventListener('ship:chat:annotate', onAnnotate)
+    window.removeEventListener('keydown', onKey)
+  })
+</script>
+
+<div class="agent-modal" data-show="$open" data-on:click="if (event.target === el) close()" role="dialog" aria-modal="true">
+  <div class="modal-card">
+    <header class="modal-head">
+      <span class="title">{{ props.defaultAgent }} <span class="provider">· {{ props.defaultProvider }}</span></span>
+      <button type="button" class="close" data-on:click="close" aria-label="Close">×</button>
+    </header>
+    <div class="state spawning" data-show="$spawning">spawning agent…</div>
+    <div class="state error" data-show="$error" data-text="$error"></div>
+    <app-agent-thread data-attr:session-id="$sessionId"></app-agent-thread>
+    <app-agent-composer data-attr:session-id="$sessionId" placeholder="Message {{ props.defaultAgent }}…"></app-agent-composer>
+  </div>
+</div>
+
+<style>
+  .agent-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 10vh;
+    z-index: 9000;
+    backdrop-filter: blur(2px);
+  }
+  .modal-card {
+    width: min(720px, 90vw);
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    background: var(--ship-color-background);
+    border: 1px solid var(--ship-color-border);
+    border-radius: var(--ship-radius-lg, 8px);
+    box-shadow: var(--ship-shadow-lg, 0 20px 60px rgba(0,0,0,0.3));
+    overflow: hidden;
+  }
+  .modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--ship-space-3) var(--ship-space-4);
+    border-bottom: 1px solid var(--ship-color-border);
+  }
+  .title { font-weight: 600; }
+  .provider { color: var(--ship-color-muted); font-weight: 400; }
+  .close {
+    background: none;
+    border: none;
+    color: var(--ship-color-foreground);
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: 0 var(--ship-space-2);
+  }
+  .state {
+    padding: var(--ship-space-2) var(--ship-space-4);
+    color: var(--ship-color-muted);
+    font-size: 0.875rem;
+  }
+  .state.error { color: var(--ship-color-danger, var(--ship-color-muted)); }
+</style>
