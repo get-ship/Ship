@@ -148,8 +148,8 @@
   --shadow-lg: 0 12px 32px -6px oklch(0 0 0 / 13%), 0 4px 12px -4px oklch(0 0 0 / 8%);
   --shadow-xl: 0 24px 64px -12px oklch(0 0 0 / 18%), 0 8px 24px -8px oklch(0 0 0 / 10%);
   /* Semantic shadows — components read these for intent, not depth. */
-  --shadow-card-rest: 0 1px 2px 0 oklch(0 0 0 / 4%), 0 0 0 1px oklch(0 0 0 / 3%);
-  --shadow-hover: 0 6px 16px -4px oklch(0 0 0 / 12%), 0 2px 6px -2px oklch(0 0 0 / 8%);
+  --shadow-card-rest: 0 1px 3px oklch(0.20 0.04 60 / 6%), 0 0 0 1px oklch(0.20 0.04 60 / 6%);
+  --shadow-hover: 0 8px 20px oklch(0.20 0.04 60 / 12%), 0 0 0 1px oklch(0.20 0.04 60 / 8%);
   --shadow-sticky: 0 2px 6px -2px oklch(0 0 0 / 8%), 0 1px 2px oklch(0 0 0 / 4%);
   --shadow-accent: 0 0 0 3px color-mix(in oklch, var(--primary) 22%, transparent);
   --shadow-inset-soft: inset 0 1px 2px oklch(0 0 0 / 5%);
@@ -180,6 +180,17 @@
   --surface-overlay: none;
   --surface-overlay-blend: overlay;
   --surface-overlay-opacity: 1;
+
+  /* Card-level texture overlay channel — distinct from --surface-overlay
+   * (which paints the body). Gives elevated surfaces (ship-card,
+   * ship-list-tile[variant=card]) their own subtle "wash" so cards read
+   * differently from the page background even when surface deltas are
+   * close. Default `none` is a no-op; ship-light/ship-dark opt in below.
+   * Themes with their own card aesthetic (paper grain, console scanlines,
+   * halo neumorph, glass frost) override to `none` to keep their look. */
+  --card-texture: none;
+  --card-texture-blend: overlay;
+  --card-texture-opacity: 1;
 }
 
 /* ─── Surface overlay — body-level texture channel ─────────────────────
@@ -298,10 +309,13 @@ body::after {
  * canonical values. A theme that wants a warmer card can shift
  * --surface-1 without touching every component. */
 :root {
-  --surface-0: var(--background);
-  --surface-1: var(--card);
-  --surface-2: color-mix(in oklch, var(--card) 94%, var(--foreground));
-  --surface-3: var(--popover);
+  /* Light-mode surface stack — explicit values give a visible card vs
+   * background delta (~3% L) and keep the page bg slightly warmer than
+   * the pure-white card. Matches the brand-id-2 polish pass. */
+  --surface-0: oklch(0.97 0.004 80);
+  --surface-1: oklch(1 0 0);
+  --surface-2: oklch(0.99 0.005 80);
+  --surface-3: oklch(1 0 0);
   --surface-inverse: var(--foreground);
 
   --backdrop: oklch(0 0 0 / 40%);
@@ -418,11 +432,17 @@ body::after {
 
 /* ─── Dark mode overrides ─────────────────────────────────────────── */
 .dark {
-  --background: oklch(0.158 0.012 250);
+  --background: oklch(0.16 0.012 250);
   --foreground: oklch(0.98 0.001 106);
-  --card: oklch(0.205 0.012 250);
+  --card: oklch(0.22 0.016 250);
   --card-foreground: oklch(0.98 0.001 106);
-  --popover: oklch(0.235 0.014 250);
+  --popover: oklch(0.28 0.020 250);
+  /* Dark surface stack — explicit ~6% L delta from page bg to card so
+   * elevated surfaces read as lifted instead of flush. */
+  --surface-0: oklch(0.16 0.012 250);
+  --surface-1: oklch(0.22 0.016 250);
+  --surface-2: oklch(0.25 0.018 250);
+  --surface-3: oklch(0.28 0.020 250);
   --popover-foreground: oklch(0.985 0.001 106.423);
   --primary: oklch(0.77 0.16 70);
   --primary-foreground: oklch(0.2 0.01 50);
@@ -455,8 +475,11 @@ body::after {
   --shadow-md: 0 4px 14px -2px oklch(0.05 0.03 250 / 50%), 0 2px 6px -2px oklch(0.05 0.02 250 / 35%);
   --shadow-lg: 0 14px 32px -6px oklch(0.05 0.03 250 / 60%), 0 4px 12px -4px oklch(0.05 0.02 250 / 40%);
   --shadow-xl: 0 28px 64px -12px oklch(0.05 0.03 250 / 65%), 0 8px 24px -8px oklch(0.05 0.02 250 / 45%);
-  --shadow-card-rest: 0 1px 2px 0 oklch(0.05 0.02 250 / 35%), 0 0 0 1px oklch(1 0 0 / 4%);
-  --shadow-hover: 0 8px 20px -4px oklch(0.05 0.03 250 / 60%), 0 3px 8px -2px oklch(0.05 0.02 250 / 40%);
+  /* Brand-id-2: visible cool-blue tinted hairline border so the card
+   * silhouette reads against a near-flat dark page surface even at low
+   * monitor brightness. */
+  --shadow-card-rest: 0 1px 3px oklch(0 0 0 / 30%), 0 0 0 1px oklch(0.5 0.04 250 / 14%);
+  --shadow-hover: 0 8px 20px oklch(0 0 0 / 40%), 0 0 0 1px oklch(0.5 0.04 250 / 22%);
   --shadow-sticky: 0 2px 6px -2px oklch(0.05 0.02 250 / 45%), 0 1px 2px oklch(0.05 0.02 250 / 30%);
   --shadow-inset-soft: inset 0 1px 2px oklch(0 0 0 / 25%);
   --shadow-edge-top: 0 -8px 24px -8px oklch(0.05 0.03 250 / 45%), 0 -1px 0 oklch(1 0 0 / 4%);

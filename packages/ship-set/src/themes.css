@@ -469,6 +469,30 @@
 [data-theme-preview='ship-dark'] {
   --surface-overlay: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
   --surface-overlay-blend: overlay;
+  /* Card-level texture wash — higher frequency than the body grain so
+   * cards and the page bg read as different surfaces even when the
+   * lightness delta is small. Held under 3% alpha — barely perceptible,
+   * its job is to break flat fills, not to be visible noise. */
+  --card-texture: url("data:image/svg+xml,%3Csvg viewBox='0 0 120 120' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='c'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23c)' opacity='0.03'/%3E%3C/svg%3E");
+  --card-texture-blend: overlay;
+  --card-texture-opacity: 1;
+}
+
+/* Themes with their own card aesthetic opt out of the default card grain.
+ * paper has its own multiply-blend grain; console has scanlines; halo is
+ * monochromatic neumorph; glass is frosted via backdrop-filter; contrast
+ * is flat-on-purpose. Adding the texture would muddy each. */
+:root[data-theme='paper'],
+:root[data-theme='halo'],
+:root[data-theme='glass'],
+:root[data-theme='console'],
+:root[data-theme='contrast'],
+[data-theme-preview='paper'],
+[data-theme-preview='halo'],
+[data-theme-preview='glass'],
+[data-theme-preview='console'],
+[data-theme-preview='contrast'] {
+  --card-texture: none;
 }
 
 /* ───────────────────────────────────────────────────────────────────
