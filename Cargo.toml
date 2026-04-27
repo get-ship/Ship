@@ -10,6 +10,7 @@ members = [
     "crates/core/ship-kernel",
     "crates/core/ship-types",
     "crates/sail-compiler",
+    "crates/sail-cli",
     "crates/xtask",
     "apps/mcp",
     "apps/shipd",

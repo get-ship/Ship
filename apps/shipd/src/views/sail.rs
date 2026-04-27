@@ -42,6 +42,32 @@ fn cache() -> &'static RwLock<HashMap<String, CacheEntry>> {
     CACHE.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
+/// `GET /sail/{tag}` — full HTML page that mounts `<tag>` with the
+/// SSR'd initial paint, the runtime ES module, and the HMR client.
+pub async fn serve_sail_page(Path(tag): Path<String>) -> Response {
+    if !is_valid_tag(&tag) {
+        return not_found("invalid tag");
+    }
+    let path = match resolve_sail_path(&tag) {
+        Some(p) => p,
+        None => return not_found(&format!("sail component not found: {tag}")),
+    };
+    let entry = match load_or_compile(&tag, &path) {
+        Ok(e) => e,
+        Err(e) => return server_error(&format!("compile {tag}: {e}")),
+    };
+    let html = format!(
+        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>{tag}</title>\n</head>\n<body>\n{ssr}\n  <script type=\"module\" src=\"/_sail/components/{tag}.js\"></script>\n  <script src=\"/_sail/hmr-client.js\" defer></script>\n</body>\n</html>\n",
+        ssr = entry.ssr,
+    );
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(Body::from(html))
+        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+}
+
 /// `GET /_sail/components/{file}` — `file` is `<tag>.<ext>` where
 /// `ext` selects which artifact to serve.
 pub async fn serve_sail(Path(file): Path<String>) -> Response {
@@ -197,6 +223,12 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn unsupported_extension_returns_404() {
         let resp = serve_sail(Path("app-x.exe".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn page_invalid_tag_returns_404() {
+        let resp = serve_sail_page(Path("nohyphen".to_string())).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     }
 }
