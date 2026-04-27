@@ -107,6 +107,9 @@ pub struct ShipRuntime {
     /// through this trait so the cloud worker / browser embed / unit
     /// tests can swap implementations without standing up an HTTP server.
     rules: std::sync::Arc<dyn crate::services::rules::service::RulesService>,
+    /// `PermissionsService` impl — second mr-02 pilot, includes the
+    /// cross-domain `tool_patterns` composition.
+    permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService>,
 }
 
 impl ShipRuntime {
@@ -263,6 +266,7 @@ impl ShipRuntime {
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
             rules: crate::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
+            permissions: crate::services::permissions::service::PermissionsServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -305,6 +309,13 @@ impl ShipRuntime {
     /// call through this rather than reaching into runtime state.
     pub fn rules(&self) -> &dyn crate::services::rules::service::RulesService {
         &*self.rules
+    }
+
+    /// `PermissionsService` accessor — second mr-02 pilot.
+    pub fn permissions(
+        &self,
+    ) -> &dyn crate::services::permissions::service::PermissionsService {
+        &*self.permissions
     }
 
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
@@ -535,6 +546,8 @@ impl ShipRuntime {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let permissions =
+            crate::services::permissions::service::PermissionsServiceImpl::arc(ship_dir.clone());
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -554,6 +567,7 @@ impl ShipRuntime {
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
             rules,
+            permissions,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -570,6 +584,8 @@ impl ShipRuntime {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let permissions =
+            crate::services::permissions::service::PermissionsServiceImpl::arc(ship_dir.clone());
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -589,6 +605,7 @@ impl ShipRuntime {
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
             rules,
+            permissions,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
