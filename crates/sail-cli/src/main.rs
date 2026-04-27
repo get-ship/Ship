@@ -12,7 +12,7 @@
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
-use sail_compiler::{CompileOpts, Severity, compile_source, compile_source_with, tag_for};
+use sail_compiler::{CompileOpts, Severity, compile_file, compile_source_with, tag_for};
 use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
@@ -74,12 +74,14 @@ fn run_build(root: &Path, out: &Path) -> Result<()> {
     }
     std::fs::create_dir_all(out).with_context(|| format!("create {}", out.display()))?;
     let mut count = 0usize;
+    let opts = CompileOpts::default();
     for path in &files {
         let tag = tag_for(path);
-        let source = std::fs::read_to_string(path)
-            .with_context(|| format!("read {}", path.display()))?;
-        let result =
-            compile_source(&source, &tag).with_context(|| format!("compile {}", path.display()))?;
+        // compile_file is path-aware so `<style src="./x.css">` resolves
+        // relative to the source file. compile_source_with would silently
+        // drop external styles — see crates/sail-compiler/src/lib.rs.
+        let result = compile_file(path, &opts)
+            .with_context(|| format!("compile {}", path.display()))?;
         write_artifact(out, &tag, "js", &result.js)?;
         write_artifact(out, &tag, "html", &result.ssr)?;
         write_artifact(out, &tag, "d.ts", &result.dts)?;

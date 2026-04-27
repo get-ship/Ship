@@ -24,7 +24,7 @@ use std::path::PathBuf;
 use std::sync::{OnceLock, RwLock};
 use std::time::SystemTime;
 
-use sail_compiler::{CompileOpts, CompileResult, compile_source};
+use sail_compiler::{CompileOpts, CompileResult, compile_file};
 
 #[derive(Debug, Clone)]
 struct CacheEntry {
@@ -191,10 +191,11 @@ fn load_or_compile(tag: &str, path: &PathBuf) -> Result<CacheEntry, String> {
         return Ok(entry.clone());
     }
 
-    let source = std::fs::read_to_string(path).map_err(|e| format!("read: {e}"))?;
+    // compile_file takes the path so the compiler can resolve sibling
+    // `<style src="./x.css">` and any future path-relative directives.
     let opts = CompileOpts::default();
     let CompileResult { js, ssr, dts, schema, diagnostics: _ } =
-        compile_source(&source, tag).map_err(|e| format!("{e:#}"))?;
+        compile_file(path, &opts).map_err(|e| format!("{e:#}"))?;
     let entry = CacheEntry { mtime, len, js, ssr, dts, schema };
     if let Ok(mut c) = cache().write() {
         c.insert(tag.to_string(), entry.clone());

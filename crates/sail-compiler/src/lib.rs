@@ -50,13 +50,19 @@ use std::path::Path;
 pub fn compile_file(path: &Path, opts: &CompileOpts) -> Result<CompileResult> {
     let source =
         std::fs::read_to_string(path).with_context(|| format!("read {}", path.display()))?;
-    let base = path.parent().map(|p| p.to_path_buf()).unwrap_or_default();
+    // Canonicalize so symlinked entry paths (e.g. .ship/sail/X.set
+    // pointing at packages/.../X.set) resolve their sibling files
+    // (`<style src="./X.css">`, `<include src="./_partial.set">`)
+    // against the real source dir, not the symlink's parent.
+    let real_path = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let base = real_path
+        .parent()
+        .map(|p| p.to_path_buf())
+        .unwrap_or_default();
     let fs_loader: Box<dyn lower::layout::Loader> =
-        Box::new(lower::layout::FsLoader::new(base));
-    // Use the caller's opts but inject our filesystem loader if they
-    // didn't supply one. Other fields stay theirs.
+        Box::new(lower::layout::FsLoader::new(base.clone()));
     let loader = opts.loader.as_deref().unwrap_or(&*fs_loader);
-    compile_source_inner(&source, &tag_for(path), opts, Some(loader))
+    compile_source_inner(&source, &tag_for(path), opts, Some(loader), Some(&base))
 }
 
 /// Compile a `.set` source string with an explicit tag name.
@@ -73,7 +79,7 @@ pub fn compile_source_with(
 ) -> Result<CompileResult> {
     let loader_ref: Option<&dyn lower::layout::Loader> =
         opts.loader.as_deref().map(|l| l as &dyn lower::layout::Loader);
-    compile_source_inner(source, tag, opts, loader_ref)
+    compile_source_inner(source, tag, opts, loader_ref, None)
 }
 
 fn compile_source_inner(
@@ -81,8 +87,28 @@ fn compile_source_inner(
     tag: &str,
     opts: &CompileOpts,
     loader: Option<&dyn lower::layout::Loader>,
+    base: Option<&Path>,
 ) -> Result<CompileResult> {
     let mut file = parse::parse(source).context("parse")?;
+    // Resolve `<style src="./x.css">` — read the sibling file and
+    // inline its contents into the style block. Without this, page-
+    // local CSS extracted to a sibling for the 300-line file cap
+    // disappears at compile time. Only fires when `base` is known
+    // (compile_file path); compile_source_with no path → no resolution.
+    if let (Some(base_dir), Some(style)) = (base, file.style.as_mut()) {
+        if let Some(src_path) = style.src.as_ref() {
+            let resolved = base_dir.join(src_path);
+            let css = std::fs::read_to_string(&resolved)
+                .with_context(|| format!("read external style {}", resolved.display()))?;
+            // Append to existing inline body so authors can mix sibling
+            // CSS with inline rules without losing either.
+            if !style.raw.trim().is_empty() {
+                style.raw.push('\n');
+            }
+            style.raw.push_str(&css);
+            style.src = None;
+        }
+    }
     // Resolve compile-time layout primitives (<extends>, <block>,
     // <fill>, <include>). With no loader, files that don't use
     // extends/include resolve to themselves; files that DO use them
