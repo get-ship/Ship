@@ -37,6 +37,9 @@ pub fn emit(file: &SailFile, tag: &str) -> String {
 /// Emit both the JS module and the static HTML (for SSR reuse).
 pub fn emit_with_html(file: &SailFile, tag: &str) -> (String, String) {
     let mut e = Emitter::new(tag);
+    if let Some(style) = &file.style {
+        e.scoped_css = crate::lower::style::scope_style(style, tag);
+    }
     if let Some(s) = &file.script {
         e.collect_reactive_names(s);
     }
@@ -70,6 +73,8 @@ struct Emitter<'a> {
     /// JS expression naming the array we push disposers into —
     /// `cleanups` at the top level, `_c` inside a captured branch.
     cleanup_array: String,
+    /// Pre-scoped CSS to inject at module load (empty if no style).
+    scoped_css: String,
 }
 
 impl<'a> Emitter<'a> {
@@ -86,6 +91,7 @@ impl<'a> Emitter<'a> {
             imports,
             query_root: "host".into(),
             cleanup_array: "cleanups".into(),
+            scoped_css: String::new(),
         }
     }
 
@@ -518,6 +524,18 @@ impl<'a> Emitter<'a> {
         out.push_str("const HTML = ");
         out.push_str(&render_template_literal(&self.html));
         out.push_str("\n\n");
+
+        // Scoped style (one-shot inject at module load).
+        let scoped = &self.scoped_css;
+        if !scoped.is_empty() {
+            out.push_str("const STYLE = ");
+            out.push_str(&render_template_literal(scoped));
+            out.push_str("\n");
+            out.push_str(&format!(
+                "if (typeof document !== 'undefined' && !document.head.querySelector('style[data-sail={tag:?}]')) {{\n  const _s = document.createElement('style')\n  _s.setAttribute('data-sail', {tag:?})\n  _s.textContent = STYLE\n  document.head.appendChild(_s)\n}}\n\n",
+                tag = self.tag,
+            ));
+        }
 
         // Factory.
         out.push_str(&format!(

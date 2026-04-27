@@ -94,6 +94,29 @@ fn typeahead_compiles() {
 }
 
 #[test]
+fn styled_compiles_with_scoped_css_and_tokens() {
+    let r = compile("styled.sail");
+    let js = r.js;
+
+    // STYLE constant present, scoped, with token rewrite.
+    assert!(js.contains("const STYLE ="));
+    assert!(js.contains("[data-component=\"sail-styled\"] .card"));
+    assert!(js.contains("[data-component=\"sail-styled\"] .body"));
+    // `:host` rewrites to the bare prefix.
+    assert!(js.contains("[data-component=\"sail-styled\"]"));
+    assert!(!js.contains(":host"));
+    // Token interpolation rewrite.
+    assert!(js.contains("var(--ship-space-3)"));
+    assert!(js.contains("var(--ship-color-surface)"));
+    assert!(js.contains("var(--ship-color-fg)"));
+    // Style is injected at module load.
+    assert!(js.contains("document.head.querySelector('style[data-sail=\"sail-styled\"]')"));
+
+    // Control flow is wired.
+    assert!(js.contains("bindIf"));
+}
+
+#[test]
 fn ssr_dts_schema_all_emit_for_typeahead() {
     let r = compile("typeahead.sail");
     // SSR wraps in host element with anchors preserved.
