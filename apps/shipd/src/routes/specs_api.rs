@@ -1,6 +1,7 @@
 //! Specs REST API — CRUD over the `spec` table and pipeline launch.
 //!
-//! Routes are mounted under `/api/v1/runtime` in lib.rs.
+//! Routes are mounted under `/api/v1/runtime` in lib.rs. All real work
+//! delegates through `SpecsService` (mr-02 trait).
 
 use axum::{
     Json,
@@ -8,15 +9,16 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use chrono::Utc;
-use runtime::db::specs::{self, Spec};
-use runtime::events::EventEnvelope;
-use runtime::events::job::{JobCreatedPayload, event_types};
+use runtime::db::specs::Spec;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 
+use crate::access::RuntimeAccess;
 use crate::rest_api::{ApiState, MeshResponse};
+use crate::services::specs::service::{
+    CreateArgs, Error as SpecsError, SpecsService, UpdateArgs,
+};
 
 type Resp = (StatusCode, Json<MeshResponse>);
 
@@ -26,6 +28,20 @@ fn ok(data: serde_json::Value) -> Resp {
 
 fn err(status: StatusCode, msg: impl Into<String>) -> Resp {
     (status, Json(MeshResponse { ok: false, data: serde_json::json!(msg.into()) }))
+}
+
+fn map_err(e: SpecsError) -> Resp {
+    use SpecsError::*;
+    match e {
+        NotFound(m) => err(StatusCode::NOT_FOUND, m),
+        Validation(m) => err(StatusCode::BAD_REQUEST, m),
+        Io(m) => err(StatusCode::INTERNAL_SERVER_ERROR, m),
+        Internal(m) => err(StatusCode::INTERNAL_SERVER_ERROR, m),
+    }
+}
+
+fn specs(state: &ApiState) -> &dyn SpecsService {
+    state.services().specs()
 }
 
 fn spec_to_json(s: &Spec) -> serde_json::Value {
@@ -112,13 +128,13 @@ pub struct UpdateSpecRequest {
     ),
     tag = "specs"
 )]
-pub async fn list_specs() -> impl IntoResponse {
-    match specs::list_specs() {
+pub async fn list_specs(State(state): State<ApiState>) -> impl IntoResponse {
+    match specs(&state).list() {
         Ok(list) => {
             let data: Vec<_> = list.iter().map(spec_to_json).collect();
             ok(serde_json::json!({ "specs": data }))
         }
-        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        Err(e) => map_err(e),
     }
 }
 
@@ -135,16 +151,17 @@ pub async fn list_specs() -> impl IntoResponse {
     ),
     tag = "specs"
 )]
-pub async fn get_spec(Path(id): Path<String>) -> impl IntoResponse {
-    match specs::get_spec(&id) {
-        Ok(Some(s)) => {
-            let body = specs::load_body(&s.body_path).unwrap_or_default();
+pub async fn get_spec(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match specs(&state).get_with_body(&id) {
+        Ok((s, body)) => {
             let mut v = spec_to_json(&s);
             v["body"] = serde_json::Value::String(body);
             ok(v)
         }
-        Ok(None) => err(StatusCode::NOT_FOUND, format!("spec '{id}' not found")),
-        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        Err(e) => map_err(e),
     }
 }
 
@@ -161,30 +178,23 @@ pub async fn get_spec(Path(id): Path<String>) -> impl IntoResponse {
     ),
     tag = "specs"
 )]
-pub async fn create_spec(Json(req): Json<CreateSpecRequest>) -> impl IntoResponse {
-    let id = runtime::gen_ulid();
-    let body_path = format!(".artifacts/specs/{id}.md");
-
-    if let Err(e) = specs::save_body(&body_path, &req.body) {
-        return err(StatusCode::INTERNAL_SERVER_ERROR, format!("save body: {e}"));
-    }
-    let now = Utc::now();
-    let spec = Spec {
-        id: id.clone(),
+pub async fn create_spec(
+    State(state): State<ApiState>,
+    Json(req): Json<CreateSpecRequest>,
+) -> impl IntoResponse {
+    let args = CreateArgs {
         title: req.title,
-        body_path,
-        status: req.status.unwrap_or_else(|| "draft".into()),
+        body: req.body,
+        status: req.status,
         pipeline: req.pipeline,
         vars: req.vars,
         criteria: req.criteria,
         scope: req.scope,
         priority: req.priority,
-        created_at: now,
-        updated_at: now,
     };
-    match specs::upsert_spec(&spec) {
-        Ok(()) => ok(spec_to_json(&spec)),
-        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    match specs(&state).create(args) {
+        Ok(spec) => ok(spec_to_json(&spec)),
+        Err(e) => map_err(e),
     }
 }
 
@@ -204,32 +214,23 @@ pub async fn create_spec(Json(req): Json<CreateSpecRequest>) -> impl IntoRespons
     tag = "specs"
 )]
 pub async fn update_spec(
+    State(state): State<ApiState>,
     Path(id): Path<String>,
     Json(req): Json<UpdateSpecRequest>,
 ) -> impl IntoResponse {
-    let mut spec = match specs::get_spec(&id) {
-        Ok(Some(s)) => s,
-        Ok(None) => return err(StatusCode::NOT_FOUND, format!("spec '{id}' not found")),
-        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    let args = UpdateArgs {
+        title: req.title,
+        body: req.body,
+        status: req.status,
+        pipeline: req.pipeline,
+        vars: req.vars,
+        criteria: req.criteria,
+        scope: req.scope,
+        priority: req.priority,
     };
-
-    if let Some(t) = req.title { spec.title = t; }
-    if let Some(p) = req.pipeline { spec.pipeline = p; }
-    if let Some(s) = req.status { spec.status = s; }
-    if let Some(v) = req.vars { spec.vars = v; }
-    if let Some(c) = req.criteria { spec.criteria = c; }
-    if let Some(s) = req.scope { spec.scope = s; }
-    if let Some(p) = req.priority { spec.priority = p; }
-    spec.updated_at = Utc::now();
-
-    if let Some(body) = req.body
-        && let Err(e) = specs::save_body(&spec.body_path, &body)
-    {
-        return err(StatusCode::INTERNAL_SERVER_ERROR, format!("save body: {e}"));
-    }
-    match specs::upsert_spec(&spec) {
-        Ok(()) => ok(spec_to_json(&spec)),
-        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    match specs(&state).update(&id, args) {
+        Ok(spec) => ok(spec_to_json(&spec)),
+        Err(e) => map_err(e),
     }
 }
 
@@ -246,10 +247,13 @@ pub async fn update_spec(
     ),
     tag = "specs"
 )]
-pub async fn delete_spec(Path(id): Path<String>) -> impl IntoResponse {
-    match specs::delete_spec(&id) {
+pub async fn delete_spec(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> impl IntoResponse {
+    match specs(&state).delete(&id) {
         Ok(()) => ok(serde_json::json!({ "id": id })),
-        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        Err(e) => map_err(e),
     }
 }
 
@@ -271,62 +275,8 @@ pub async fn launch_spec(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    let spec = match specs::get_spec(&id) {
-        Ok(Some(s)) => s,
-        Ok(None) => return err(StatusCode::NOT_FOUND, format!("spec '{id}' not found")),
-        Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
-    };
-
-    let job_id = runtime::gen_ulid();
-    let slug = format!("spec-{}", &spec.id);
-    let branch = format!("job/{slug}");
-
-    let baseline_sha = runtime::project::get_project_dir(None)
-        .ok()
-        .and_then(|p| p.parent().map(std::path::Path::to_path_buf))
-        .and_then(|root| runtime::services::orchestrator::git_helpers::resolve_head_sha(&root));
-    let payload = JobCreatedPayload {
-        job_id: job_id.clone(),
-        slug,
-        agent: "claude".into(),
-        branch,
-        spec_path: spec.body_path.clone(),
-        source_spec_path: Some(spec.body_path.clone()),
-        plan_id: None,
-        model: None,
-        provider: None,
-        depends_on: None,
-        pipeline: None,
-        steps: None,
-        pipeline_name: spec.pipeline.clone(),
-        vars: if spec.vars.is_empty() { None } else { Some(spec.vars.clone()) },
-        spec_content: std::fs::read_to_string(&spec.body_path).ok(),
-        step_specs: None,
-        headless: false,
-        baseline_sha,
-    };
-
-    let payload = match runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
-        Ok(p) => p,
-        Err(e) => return err(StatusCode::BAD_REQUEST, e),
-    };
-
-    let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
-        .map(|e| e.with_actor_id("studio"))
-    {
-        Ok(e) => e,
-        Err(e) => return err(StatusCode::BAD_REQUEST, e.to_string()),
-    };
-
-    if let Err(e) = state.persist_and_route(&envelope).await {
-        return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+    match specs(&state).launch(&id).await {
+        Ok(job_id) => ok(serde_json::json!({ "job_id": job_id, "spec_id": id })),
+        Err(e) => map_err(e),
     }
-
-    // Mark spec as launched.
-    let mut updated = spec;
-    updated.status = "launched".into();
-    updated.updated_at = Utc::now();
-    let _ = specs::upsert_spec(&updated);
-
-    ok(serde_json::json!({ "job_id": job_id, "spec_id": id }))
 }

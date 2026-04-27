@@ -4,4 +4,5 @@
 //! builders in `view_state`. Registry dispatches to these.
 
 pub mod parse;
+pub mod service;
 pub mod view_state;
