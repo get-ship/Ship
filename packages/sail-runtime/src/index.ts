@@ -29,6 +29,9 @@ export type { BindForOptions, RenderedItem } from './for'
 export { bindIf } from './if'
 export type { BindIfOptions, BranchRender } from './if'
 
+export { bindAwait } from './await'
+export type { BindAwaitOptions } from './await'
+
 export { resolveSlots, snapshotChildren } from './slot'
 export type { SlotDecl } from './slot'
 

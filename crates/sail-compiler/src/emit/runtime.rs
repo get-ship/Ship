@@ -156,7 +156,9 @@ impl<'a> Emitter<'a> {
             Node::For { item, iter, key, body, empty } => {
                 self.emit_for(item, iter, key.as_ref(), body, empty.as_deref());
             }
-            Node::Await { .. } => self.html.push_str("<!-- sail: {#await} not yet emitted -->"),
+            Node::Await { promise, loading, then_, catch } => {
+                self.emit_await(promise, loading, then_.as_ref(), catch.as_ref());
+            }
             Node::Slot { .. } | Node::SlotFill { .. } => {
                 self.html.push_str("<!-- sail: <slot> not yet emitted -->");
             }
@@ -395,6 +397,67 @@ impl<'a> Emitter<'a> {
         arrow.push_str("      return { nodes: [_anchor], cleanup: _d }\n");
         arrow.push_str("    }");
         Some(arrow)
+    }
+
+    fn emit_await(
+        &mut self,
+        promise: &Expr,
+        loading: &[Node],
+        then_: Option<&(Pattern, Vec<Node>)>,
+        catch: Option<&(Pattern, Vec<Node>)>,
+    ) {
+        let id = self.next_anchor;
+        self.next_anchor += 1;
+        self.html.push_str(&format!("<template data-sw=\"{id}\"></template>"));
+        self.imports.insert("bindAwait");
+
+        let (loading_html, loading_wires) = self.capture(loading, &[]);
+        let loading_arrow = self.render_branch(&loading_html, &loading_wires, "", "");
+
+        let then_arrow = then_.map(|(pat, body)| {
+            let name = match pat {
+                Pattern::Identifier(n) => n.clone(),
+                Pattern::Tuple(parts) => parts.first().cloned().unwrap_or_else(|| "_v".into()),
+            };
+            let scope = vec![name.clone()];
+            let (h, w) = self.capture(body, &scope);
+            // Need to expose `name` as a signal so inner bindings react.
+            self.imports.insert("signal");
+            let prelude = format!("      const {name} = signal(_v)\n");
+            let arrow = self.render_branch(&h, &w, &prelude, "");
+            arrow.replacen("() => {", "(_v) => {", 1)
+        });
+
+        let catch_arrow = catch.map(|(pat, body)| {
+            let name = match pat {
+                Pattern::Identifier(n) => n.clone(),
+                Pattern::Tuple(parts) => parts.first().cloned().unwrap_or_else(|| "_e".into()),
+            };
+            let scope = vec![name.clone()];
+            let (h, w) = self.capture(body, &scope);
+            self.imports.insert("signal");
+            let prelude = format!("      const {name} = signal(_e)\n");
+            let arrow = self.render_branch(&h, &w, &prelude, "");
+            arrow.replacen("() => {", "(_e) => {", 1)
+        });
+
+        let root = self.query_root.clone();
+        let cl = self.cleanup_array.clone();
+        let mut wire = String::from("  {\n");
+        wire.push_str(&format!(
+            "    const _slot = {root}.querySelector('[data-sw=\"{id}\"]')\n"
+        ));
+        wire.push_str("    const _anchor = document.createComment('sw')\n");
+        wire.push_str("    if (_slot) _slot.replaceWith(_anchor)\n");
+        wire.push_str(&format!(
+            "    {cl}.push(bindAwait({{\n      anchor: _anchor,\n      promise: () => ({p}),\n      loading: {loading}",
+            p = promise.raw,
+            loading = loading_arrow,
+        ));
+        if let Some(t) = then_arrow { wire.push_str(&format!(",\n      then_: {t}")); }
+        if let Some(c) = catch_arrow { wire.push_str(&format!(",\n      catch_: {c}")); }
+        wire.push_str("\n    }))\n  }");
+        self.wires.push(wire);
     }
 
     fn emit_for(
@@ -886,6 +949,21 @@ function inc() { count.set(count() + 1) }
         // Inner bindText reads it() and tracks `it` as a dep.
         assert!(js.contains("String(it.name)"));
         assert!(js.contains("[it]"));
+    }
+
+    #[test]
+    fn await_block_emits_bindAwait() {
+        let js = compile(
+            "<script>state p = Promise.resolve(1)</script>\n<template>{#await p}<i>L</i>{:then v}<b>{v}</b>{:catch e}<u>{e}</u>{/await}</template>",
+        );
+        assert!(js.contains("bindAwait"));
+        assert!(js.contains("data-sw=\"0\""));
+        assert!(js.contains("promise: () => (p)"));
+        assert!(js.contains("loading: () =>"));
+        assert!(js.contains("then_: (_v) =>"));
+        assert!(js.contains("catch_: (_e) =>"));
+        assert!(js.contains("const v = signal(_v)"));
+        assert!(js.contains("const e = signal(_e)"));
     }
 
     #[test]
