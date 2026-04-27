@@ -649,13 +649,61 @@ fn read_expr_until_stmt_end(src: &str, bytes: &[u8], start: usize) -> (String, u
             b']' => depth_bracket -= 1,
             _ => {}
         }
-        if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 && (b == b';' || b == b'\n')
-        {
-            return (src[start..i].to_string(), i);
+        if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
+            if b == b';' {
+                return (src[start..i].to_string(), i);
+            }
+            if b == b'\n' && expr_continues(bytes, i, src) == false {
+                return (src[start..i].to_string(), i);
+            }
         }
         i += 1;
     }
     (src[start..].to_string(), bytes.len())
+}
+
+/// Decide whether the expression that ended at `nl` (a newline byte
+/// at depth 0) actually continues on the next non-empty line. JS-like
+/// rule: an expression continues if the LAST non-whitespace byte
+/// before `nl` is a binary/ternary operator (so the line can't stand
+/// alone as a complete statement) OR the FIRST non-whitespace byte on
+/// the next line begins with an operator/`.`/`?`/`:` (so the next
+/// line is clearly a continuation, not a new statement). We also
+/// continue when the next non-empty line starts with an identifier
+/// that is NOT a Sail top-level keyword — but a safer heuristic is to
+/// only continue on operator-prefix because identifier-prefix could
+/// be a follow-on statement using the same name (rare in practice).
+fn expr_continues(bytes: &[u8], nl: usize, src: &str) -> bool {
+    // Look backward from nl to find the last non-whitespace byte.
+    let mut j = nl;
+    while j > 0 {
+        j -= 1;
+        let b = bytes[j];
+        if b == b' ' || b == b'\t' { continue; }
+        // Continuation operators at end-of-line.
+        return matches!(
+            b,
+            b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' | b'^' | b'~'
+            | b'<' | b'>' | b'=' | b'!' | b'?' | b':' | b','
+            | b'(' | b'[' | b'{' | b'.'
+        ) || look_forward_continues(bytes, nl + 1, src);
+    }
+    look_forward_continues(bytes, nl + 1, src)
+}
+
+fn look_forward_continues(bytes: &[u8], from: usize, _src: &str) -> bool {
+    let mut k = from;
+    while k < bytes.len() && (bytes[k] == b' ' || bytes[k] == b'\t' || bytes[k] == b'\n') {
+        k += 1;
+    }
+    if k >= bytes.len() { return false; }
+    let b = bytes[k];
+    matches!(
+        b,
+        b'+' | b'-' | b'*' | b'/' | b'%' | b'&' | b'|' | b'^'
+        | b'<' | b'>' | b'=' | b'!' | b'?' | b':' | b','
+        | b')' | b']' | b'}' | b'.'
+    )
 }
 
 fn read_until(src: &str, bytes: &[u8], start: usize, stop: u8) -> (String, usize) {
