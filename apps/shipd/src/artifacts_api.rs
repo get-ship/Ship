@@ -9,6 +9,10 @@
 //!   PATCH  /api/v1/artifacts/:id        — update name / owner_actor / expires_at
 //!   DELETE /api/v1/artifacts/:id        — soft delete
 //!   POST   /api/v1/artifacts/:id/promote — promote to target scope
+//!
+//! All data work delegates through `ArtifactsService` (mr-02 trait).
+//! Multipart parsing, scope gating, and content-disposition headers stay
+//! here — those are HTTP transport concerns.
 
 use axum::{
     Extension, Json,
@@ -21,10 +25,14 @@ use serde::Deserialize;
 use serde_json::json;
 use std::collections::BTreeMap;
 
+use crate::access::RuntimeAccess;
 use crate::auth::{AuthContext, Scope};
 use crate::rest_api::ApiState;
 use crate::scopes::{can_delete_artifacts, can_read_artifacts, can_write_artifacts, require_scope};
-use runtime::artifacts::{ARTIFACTS_COLLECTION_ID, ArtifactScope, ArtifactService};
+use crate::services::artifacts::service::{
+    ArtifactsService, Error as ArtifactsError, PatchArgs, StoreArgs,
+};
+use runtime::artifacts::{ARTIFACTS_COLLECTION_ID, ArtifactScope};
 use runtime::collections::query::QueryRequest;
 
 /// Max upload: 50 MB.
@@ -38,13 +46,18 @@ fn err_owned(status: StatusCode, msg: String) -> Response {
     (status, Json(serde_json::json!({ "ok": false, "error": msg }))).into_response()
 }
 
-async fn data_guard(
-    state: &ApiState,
-) -> Result<tokio::sync::MutexGuard<'_, Option<runtime::data::DataService>>, Response> {
-    state
-        .data_service()
-        .await
-        .map_err(|e| err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+fn map_err(e: ArtifactsError) -> Response {
+    use ArtifactsError::*;
+    match e {
+        NotFound(m) => err_owned(StatusCode::NOT_FOUND, m),
+        Validation(m) => err_owned(StatusCode::BAD_REQUEST, m),
+        Io(m) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, m),
+        Internal(m) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, m),
+    }
+}
+
+fn artifacts(state: &ApiState) -> &dyn ArtifactsService {
+    state.services().artifacts()
 }
 
 fn parse_scope(scope_str: &str, run_id: Option<&str>, user_id: Option<&str>, project_slug: &str) -> Result<ArtifactScope, String> {
@@ -151,15 +164,7 @@ pub async fn upload_artifact(
         .or_else(|| mime_from_name(&name))
         .unwrap_or_else(|| "application/octet-stream".to_string());
 
-    let svc = ArtifactService::new(state.ship_dir());
-    let mut guard = match data_guard(&state).await {
-        Ok(g) => g,
-        Err(r) => return r,
-    };
-    let data = guard.as_mut().expect("data service initialized");
-    let owner_actor = auth.agent_id.as_deref();
-
-    // Compute TTL expiry for run-scope if not explicitly provided.
+    // TTL expiry for run-scope when not explicitly provided.
     let computed_expires = if expires_at.is_none() {
         if let ArtifactScope::Run { .. } = &scope {
             let ttl_hours = 24u64; // default; TODO: read from config
@@ -169,25 +174,26 @@ pub async fn upload_artifact(
             None
         }
     } else {
-        expires_at.clone()
+        expires_at
     };
 
-    match svc
-        .store(data, state.kernel(), &name, &mime, &bytes, &scope,
-               collection_id.as_deref(), item_id.as_deref(), owner_actor,
-               computed_expires.as_deref())
-        .await
-    {
+    let args = StoreArgs {
+        name,
+        mime,
+        bytes,
+        scope,
+        collection_id,
+        item_id,
+        owner_actor: auth.agent_id.clone(),
+        expires_at: computed_expires,
+    };
+    match artifacts(&state).store(args).await {
         Ok(record) => (
             StatusCode::CREATED,
             Json(serde_json::json!({ "ok": true, "data": record })),
-        ).into_response(),
-        Err(e) => {
-            let msg = e.to_string();
-            let status = if msg.contains("validation") { StatusCode::BAD_REQUEST }
-                         else { StatusCode::INTERNAL_SERVER_ERROR };
-            err_owned(status, msg)
-        }
+        )
+            .into_response(),
+        Err(e) => map_err(e),
     }
 }
 
@@ -212,25 +218,16 @@ pub async fn download_artifact(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Response {
-    let svc = ArtifactService::new(state.ship_dir());
-    let mut guard = match data_guard(&state).await {
-        Ok(g) => g,
-        Err(r) => return r,
-    };
-    let data = guard.as_mut().expect("data service initialized");
-
     // Fetch metadata first to check scope.
-    let record = match svc.get_record(data, &id) {
-        Ok(Some(r)) => r,
-        Ok(None) => return err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found")),
-        Err(e) => return err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    let record = match artifacts(&state).get_record(&id).await {
+        Ok(r) => r,
+        Err(e) => return map_err(e),
     };
     if !can_read_artifacts(&auth, &record.scope) {
         return err(StatusCode::FORBIDDEN, "insufficient scope for artifact read");
     }
-
-    match svc.get(data, &id) {
-        Ok(Some((rec, bytes))) => {
+    match artifacts(&state).get(&id).await {
+        Ok((rec, bytes)) => {
             let disposition = format!("attachment; filename=\"{}\"", sanitize_filename(&rec.name));
             Response::builder()
                 .status(StatusCode::OK)
@@ -242,12 +239,7 @@ pub async fn download_artifact(
                 .body(Body::from(bytes))
                 .unwrap_or_else(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "response build failed"))
         }
-        Ok(None) => err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found")),
-        Err(e) => {
-            let msg = e.to_string();
-            if msg.contains("blob missing") { err_owned(StatusCode::NOT_FOUND, msg) }
-            else { err_owned(StatusCode::INTERNAL_SERVER_ERROR, msg) }
-        }
+        Err(e) => map_err(e),
     }
 }
 
@@ -272,15 +264,8 @@ pub async fn head_artifact(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Response {
-    let svc = ArtifactService::new(state.ship_dir());
-    let mut guard = match data_guard(&state).await {
-        Ok(g) => g,
-        Err(r) => return r,
-    };
-    let data = guard.as_mut().expect("data service initialized");
-
-    match svc.get_record(data, &id) {
-        Ok(Some(rec)) => {
+    match artifacts(&state).get_record(&id).await {
+        Ok(rec) => {
             if !can_read_artifacts(&auth, &rec.scope) {
                 return err(StatusCode::FORBIDDEN, "insufficient scope");
             }
@@ -293,8 +278,7 @@ pub async fn head_artifact(
                 .body(Body::empty())
                 .unwrap_or_else(|_| err(StatusCode::INTERNAL_SERVER_ERROR, "response build failed"))
         }
-        Ok(None) => err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found")),
-        Err(e) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        Err(e) => map_err(e),
     }
 }
 
@@ -319,22 +303,14 @@ pub async fn artifact_metadata(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Response {
-    let svc = ArtifactService::new(state.ship_dir());
-    let mut guard = match data_guard(&state).await {
-        Ok(g) => g,
-        Err(r) => return r,
-    };
-    let data = guard.as_mut().expect("data service initialized");
-
-    match svc.get_record(data, &id) {
-        Ok(Some(rec)) => {
+    match artifacts(&state).get_record(&id).await {
+        Ok(rec) => {
             if !can_read_artifacts(&auth, &rec.scope) {
                 return err(StatusCode::FORBIDDEN, "insufficient scope");
             }
             (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": rec }))).into_response()
         }
-        Ok(None) => err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found")),
-        Err(e) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        Err(e) => map_err(e),
     }
 }
 
@@ -373,30 +349,21 @@ pub async fn patch_artifact(
     Path(id): Path<String>,
     Json(body): Json<PatchBody>,
 ) -> Response {
-    let svc = ArtifactService::new(state.ship_dir());
-    let mut guard = match data_guard(&state).await {
-        Ok(g) => g,
-        Err(r) => return r,
-    };
-    let data = guard.as_mut().expect("data service initialized");
-
-    let record = match svc.get_record(data, &id) {
-        Ok(Some(r)) => r,
-        Ok(None) => return err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found")),
-        Err(e) => return err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    let record = match artifacts(&state).get_record(&id).await {
+        Ok(r) => r,
+        Err(e) => return map_err(e),
     };
     if !can_write_artifacts(&auth, &record.scope) {
         return err(StatusCode::FORBIDDEN, "insufficient scope for artifact write");
     }
-
-    match svc
-        .patch(data, state.kernel(), &id, body.name.as_deref(),
-               body.owner_actor.as_deref(), body.expires_at.as_deref())
-        .await
-    {
-        Ok(Some(rec)) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": rec }))).into_response(),
-        Ok(None) => err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found")),
-        Err(e) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    let args = PatchArgs {
+        name: body.name,
+        owner_actor: body.owner_actor,
+        expires_at: body.expires_at,
+    };
+    match artifacts(&state).patch(&id, args).await {
+        Ok(rec) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": rec }))).into_response(),
+        Err(e) => map_err(e),
     }
 }
 
@@ -421,26 +388,17 @@ pub async fn delete_artifact(
     Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Response {
-    let svc = ArtifactService::new(state.ship_dir());
-    let mut guard = match data_guard(&state).await {
-        Ok(g) => g,
-        Err(r) => return r,
-    };
-    let data = guard.as_mut().expect("data service initialized");
-
-    let record = match svc.get_record(data, &id) {
-        Ok(Some(r)) => r,
-        Ok(None) => return err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found")),
-        Err(e) => return err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    let record = match artifacts(&state).get_record(&id).await {
+        Ok(r) => r,
+        Err(e) => return map_err(e),
     };
     if !can_delete_artifacts(&auth, &record.scope) {
         return err(StatusCode::FORBIDDEN, "insufficient scope for artifact delete");
     }
-
-    match svc.delete(data, state.kernel(), &id).await {
+    match artifacts(&state).delete(&id).await {
         Ok(true) => (StatusCode::OK, Json(serde_json::json!({ "ok": true }))).into_response(),
         Ok(false) => err_owned(StatusCode::NOT_FOUND, format!("artifact '{id}' not found")),
-        Err(e) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        Err(e) => map_err(e),
     }
 }
 
@@ -483,27 +441,14 @@ pub async fn promote_artifact(
     if let Err(e) = require_scope(&auth, Scope::PromoteArtifact) {
         return e.into_response();
     }
-
     let project_slug = state.project_slug().unwrap_or_default();
     let target = match parse_scope(&body.target_scope, body.run_id.as_deref(), body.user_id.as_deref(), &project_slug) {
         Ok(s) => s,
         Err(e) => return err_owned(StatusCode::BAD_REQUEST, e),
     };
-
-    let svc = ArtifactService::new(state.ship_dir());
-    let mut guard = match data_guard(&state).await {
-        Ok(g) => g,
-        Err(r) => return r,
-    };
-    let data = guard.as_mut().expect("data service initialized");
-
-    match svc.promote(data, state.kernel(), &id, target).await {
+    match artifacts(&state).promote(&id, target).await {
         Ok(rec) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": rec }))).into_response(),
-        Err(e) => {
-            let msg = e.to_string();
-            if msg.contains("not found") { err_owned(StatusCode::NOT_FOUND, msg) }
-            else { err_owned(StatusCode::INTERNAL_SERVER_ERROR, msg) }
-        }
+        Err(e) => map_err(e),
     }
 }
 
@@ -540,12 +485,10 @@ pub async fn list_artifacts(
     Extension(auth): Extension<AuthContext>,
     Query(q): Query<ListQuery>,
 ) -> Response {
-    // Default to project scope if not specified; caller must have read grant.
     let scope_str = q.scope.as_deref().unwrap_or("project");
     if !can_read_artifacts(&auth, scope_str) {
         return err(StatusCode::FORBIDDEN, "insufficient scope for artifact list");
     }
-
     let mut filter: BTreeMap<String, serde_json::Value> = BTreeMap::new();
     filter.insert("scope".into(), serde_json::Value::String(scope_str.to_string()));
     if let Some(m) = q.mime { filter.insert("mime".into(), serde_json::Value::String(m)); }
@@ -553,13 +496,11 @@ pub async fn list_artifacts(
     if let Some(i) = q.item_id { filter.insert("item_id".into(), serde_json::Value::String(i)); }
     if let Some(h) = q.content_hash { filter.insert("content_hash".into(), serde_json::Value::String(h)); }
     if let Some(a) = q.owner_actor { filter.insert("owner_actor".into(), serde_json::Value::String(a)); }
-
     let mut sort: BTreeMap<String, i8> = BTreeMap::new();
     if let Some(s) = q.sort.as_deref() {
         let (field, dir) = if let Some(rest) = s.strip_prefix('-') { (rest, -1i8) } else { (s, 1i8) };
         if !field.is_empty() { sort.insert(field.to_string(), dir); }
     }
-
     let req = QueryRequest {
         collection: ARTIFACTS_COLLECTION_ID.to_string(),
         filter,
@@ -567,20 +508,12 @@ pub async fn list_artifacts(
         limit: q.limit.unwrap_or(50),
         offset: q.offset.unwrap_or(0),
     };
-
-    let svc = ArtifactService::new(state.ship_dir());
-    let mut guard = match data_guard(&state).await {
-        Ok(g) => g,
-        Err(r) => return r,
-    };
-    let data = guard.as_mut().expect("data service initialized");
-
-    match svc.list(data, req) {
+    match artifacts(&state).list(req).await {
         Ok(items) => {
             let count = items.len();
             (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": items, "count": count }))).into_response()
         }
-        Err(e) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+        Err(e) => map_err(e),
     }
 }
 

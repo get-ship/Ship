@@ -22,6 +22,8 @@ pub use runtime::access::{ConfigAccess, KernelAccess, MeshAccess, SharedKernel};
 
 use crate::auth::SessionRegistry;
 use crate::services::agents::service::AgentsService;
+use crate::services::artifacts::service::ArtifactsService;
+use crate::services::collections::service::CollectionsService;
 use crate::services::git::service::GitService;
 use crate::services::mcp::service::McpService;
 use crate::services::permissions::service::PermissionsService;
@@ -42,6 +44,8 @@ pub trait ServicesAccess: Send + Sync {
     fn agents(&self) -> &dyn AgentsService;
     fn pipelines(&self) -> &dyn PipelinesService;
     fn git(&self) -> &dyn GitService;
+    fn collections(&self) -> &dyn CollectionsService;
+    fn artifacts(&self) -> &dyn ArtifactsService;
 }
 
 /// Auth + session registry surface. Today this is just the scoped
@@ -87,6 +91,12 @@ impl ServicesAccess for ShipRuntime {
     }
     fn git(&self) -> &dyn GitService {
         ShipRuntime::git(self)
+    }
+    fn collections(&self) -> &dyn CollectionsService {
+        ShipRuntime::collections(self)
+    }
+    fn artifacts(&self) -> &dyn ArtifactsService {
+        ShipRuntime::artifacts(self)
     }
 }
 

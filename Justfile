@@ -245,6 +245,7 @@ check-raw:
     @scripts/lint/check-raw-ship-paths.sh
     @scripts/lint/check-raw-env-reads.sh
     @scripts/lint/check-leaf-portability.sh
+    @scripts/lint/check-runtime-access.sh
     @just check-migrations
 
 # Enforce platform.db migration naming discipline.
