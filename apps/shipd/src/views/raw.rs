@@ -100,5 +100,5 @@ pub async fn serve_view_raw(
 }
 
 #[cfg(test)]
-#[path = "views_raw_tests.rs"]
-mod views_raw_tests;
+#[path = "raw_tests.rs"]
+mod raw_tests;

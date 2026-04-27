@@ -51,6 +51,14 @@ mod resolve;
 pub mod view_filters;
 pub mod view_filters_list;
 
+// modular-runtime-04 PR 5: view-adjacent files migrated under views/.
+pub mod morph_target;
+pub mod raw;
+
+#[cfg(test)]
+#[path = "views/views_tests.rs"]
+mod views_tests;
+
 #[cfg(test)]
 #[allow(unused_imports)]
 use std::path::PathBuf;
@@ -118,6 +126,4 @@ pub(crate) fn mesh_err(status: StatusCode, msg: impl Into<String>) -> MeshResult
     (StatusCode::from(status), Json(MeshResponse { ok: false, data: serde_json::json!(msg.into()) }))
 }
 
-#[cfg(test)]
-#[path = "views_tests.rs"]
-mod views_tests;
+// views_tests handled at line 62 via the relocated path.
