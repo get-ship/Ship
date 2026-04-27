@@ -36,6 +36,7 @@ pub mod sfc;
 pub mod components;
 pub mod sail;
 pub mod sail_data;
+pub mod sail_data_resolvers;
 pub mod sail_hmr;
 pub mod setup;
 pub mod templates;

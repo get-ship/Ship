@@ -84,6 +84,7 @@ pub fn build_router(
     let pair_status_reg = pairing_registry.clone();
     let attest_verifier = attestation_verifier.clone();
     let attest_sessions = session_registry.clone();
+    let sail_data_state = rt.clone();
     let public_routes = Router::new()
         .route(
             "/auth/pair/init",
@@ -153,7 +154,9 @@ pub fn build_router(
         )
         .route(
             "/_sail/data",
-            axum::routing::get(views::sail_data::serve_data),
+            axum::routing::get(move |q: axum::extract::Query<views::sail_data::DataQuery>| {
+                views::sail_data::serve_data(axum::extract::State(sail_data_state.clone()), q)
+            }),
         )
         .route(
             "/_sail/demo",

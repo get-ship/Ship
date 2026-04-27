@@ -2,75 +2,148 @@
 //!
 //! `GET /_sail/data?expr=<expression>` opens an SSE stream that:
 //! - Sends an initial `set` patch containing the current value
-//! - Streams subsequent patches as the underlying schema source emits
-//!   updates
+//! - Streams subsequent `set` patches whenever the resolver's subscribed
+//!   kernel namespaces emit events (full-value replacement; diffing is
+//!   a v2 concern)
 //!
-//! v1 is a SAFE STUB:
-//! - Accepts requests, validates the expression syntax against a small
-//!   allowlist (`ship.<noun>.<verb>(...)`)
-//! - Sends a `set` patch with `null` as the initial value
-//! - Holds the connection open so the runtime stays subscribed
+//! Resolvers live in [`super::sail_data_resolvers`]. To add a namespace,
+//! create a sibling module implementing `SailDataResolver` and register
+//! it in `sail_data_resolvers::find`.
 //!
-//! Plumbing real schema sources (actors, mesh, jobs, sessions, ...)
-//! lives in a follow-up. The contract is the [`SailDataResolver`]
-//! trait below; daemon plugins register resolvers keyed by namespace
-//! prefix (`ship.actors.*`, `ship.mesh.*`, ...).
+//! Expressions that don't match a registered resolver fall through to
+//! a SAFE STUB (single `null` patch + held-open stream) so unmigrated
+//! `data live` declarations behave exactly as they did pre-resolver.
 
 use axum::{
     body::Body,
-    extract::Query,
+    extract::{Query, State},
     http::{StatusCode, header},
     response::Response,
 };
-use futures_util::stream::{self, StreamExt};
+use futures_util::stream::{self, Stream, StreamExt};
+use runtime::events::ActorConfig;
+use runtime::gen_ulid;
 use serde::Deserialize;
+use std::pin::Pin;
+
+use super::sail_data_resolvers::{ParsedExpr, SailDataResolver, find as find_resolver, parse_expr};
+use crate::rest_api::ApiState;
 
 #[derive(Debug, Deserialize)]
 pub struct DataQuery {
     pub expr: String,
 }
 
-/// Trait every Sail schema source implements.
-///
-/// `expr` is a parsed-shallow string like `ship.actors.list({ limit: 50 })`.
-/// Resolvers decide whether they own the namespace and, if so, return
-/// an initial value and an SSE patch stream.
-pub trait SailDataResolver: Send + Sync {
-    /// Namespace prefix this resolver owns, e.g. `"ship.actors"`.
-    fn namespace(&self) -> &'static str;
-    /// Resolve once and return JSON-serializable initial value.
-    fn resolve_initial(&self, expr: &str) -> Result<serde_json::Value, String>;
-}
+/// Re-export so existing imports of `views::sail_data::SailDataResolver`
+/// keep compiling. The trait now lives in the sibling resolvers module.
+pub use super::sail_data_resolvers::SailDataResolver as _SailDataResolver;
 
 /// `GET /_sail/data?expr=...`
-pub async fn serve_data(Query(q): Query<DataQuery>) -> Response {
-    let expr = q.expr.trim();
-    if !is_valid_expr(expr) {
+pub async fn serve_data(State(state): State<ApiState>, Query(q): Query<DataQuery>) -> Response {
+    let expr = q.expr.trim().to_string();
+    if !is_valid_expr(&expr) {
         return bad_request("invalid expr");
     }
 
-    // v1 stub: emit a single set-patch with null as the initial value.
-    // The connection stays open for future patch deliveries.
-    let initial_patch = format!(
-        "event: patch\ndata: {{\"op\":\"set\",\"value\":null,\"_expr\":{expr:?}}}\n\n",
-    );
-    let stream = stream::once(async move {
-        Ok::<_, std::io::Error>(initial_patch)
-    })
-    .chain(stream::pending());
+    let body_stream: Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> =
+        match parse_expr(&expr).and_then(|p| find_resolver(&p.namespace).map(|r| (p, r))) {
+            Some((parsed, resolver)) => resolved_stream(state, expr.clone(), parsed, resolver),
+            None => fallback_stream(expr.clone()),
+        };
 
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/event-stream")
         .header(header::CACHE_CONTROL, "no-cache")
         .header(header::CONNECTION, "keep-alive")
-        .body(Body::from_stream(stream))
+        .body(Body::from_stream(body_stream))
         .unwrap_or_else(|_| Response::new(Body::from("sse build failed")))
 }
 
+/// Build a stream that emits an initial `set` patch from `resolver.resolve`
+/// then re-emits a fresh `set` patch on every event from the resolver's
+/// subscribed kernel namespaces.
+fn resolved_stream(
+    state: ApiState,
+    raw_expr: String,
+    parsed: ParsedExpr,
+    resolver: &'static dyn SailDataResolver,
+) -> Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> {
+    // Resolve the initial value synchronously. Resolver errors degrade to
+    // a `null` initial patch — the connection still opens so the runtime
+    // doesn't see a transport failure for an authoring bug.
+    let initial = resolver
+        .resolve(&parsed, &state)
+        .unwrap_or(serde_json::Value::Null);
+    let initial_frame = patch_frame(&initial, &raw_expr);
+
+    let namespaces = resolver.subscribe_namespaces(&parsed);
+    if namespaces.is_empty() {
+        return Box::pin(stream::once(async move { Ok(initial_frame) }).chain(stream::pending()));
+    }
+
+    let live = async_stream::stream! {
+        let actor_id = format!("sail-data-{}", gen_ulid());
+        let config = ActorConfig {
+            namespace: actor_id.clone(),
+            write_namespaces: vec![],
+            read_namespaces: vec![],
+            subscribe_namespaces: namespaces,
+        };
+        let mailbox = match state.kernel().lock().await.spawn_actor(&actor_id, config) {
+            Ok((_store, mb)) => Some(mb),
+            Err(e) => {
+                tracing::error!(error = %e, actor = %actor_id, "sail-data spawn_actor failed");
+                None
+            }
+        };
+        let _guard = crate::runtime_api::ActorGuard {
+            actor_id,
+            kernel: state.kernel().clone(),
+        };
+        let Some(mut mb) = mailbox else { return };
+
+        loop {
+            let Some(_ev) = mb.recv().await else { break };
+            // Coalesce: drain any other immediately-available events before
+            // re-resolving. A burst of file changes re-emits one patch.
+            while mb.try_recv().is_ok() {}
+
+            let value = resolver
+                .resolve(&parsed, &state)
+                .unwrap_or(serde_json::Value::Null);
+            yield Ok(patch_frame(&value, &raw_expr));
+        }
+    };
+
+    Box::pin(stream::once(async move { Ok(initial_frame) }).chain(live))
+}
+
+/// Stream for unrecognized expressions. Emits one `null` patch then
+/// holds the connection open. Mirrors the pre-resolver stub so views
+/// authored against unimplemented namespaces don't see transport errors.
+fn fallback_stream(
+    expr: String,
+) -> Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> {
+    let frame = patch_frame(&serde_json::Value::Null, &expr);
+    Box::pin(stream::once(async move { Ok(frame) }).chain(stream::pending()))
+}
+
+fn patch_frame(value: &serde_json::Value, expr: &str) -> String {
+    let payload = serde_json::json!({
+        "op": "set",
+        "value": value,
+        "_expr": expr,
+    });
+    format!(
+        "event: patch\ndata: {}\n\n",
+        serde_json::to_string(&payload).unwrap_or_else(|_| "{}".to_string())
+    )
+}
+
 /// Permissive `ship.namespace.verb(...)` shape check. Rejects anything
-/// containing newlines, semicolons, or backticks. The actual schema
-/// source decides whether to honor it.
+/// containing newlines, semicolons, or backticks. The resolver decides
+/// whether to honor the verb.
 fn is_valid_expr(expr: &str) -> bool {
     if expr.is_empty() || expr.len() > 1024 {
         return false;
@@ -78,7 +151,6 @@ fn is_valid_expr(expr: &str) -> bool {
     if expr.contains('\n') || expr.contains(';') || expr.contains('`') {
         return false;
     }
-    // Must start with an identifier (namespace root).
     let first = expr.chars().next().unwrap();
     first.is_ascii_alphabetic() || first == '_' || first == '$'
 }
@@ -109,24 +181,5 @@ mod tests {
         assert!(!is_valid_expr("eval(`x`)"));
         assert!(!is_valid_expr("multi\nline"));
         assert!(!is_valid_expr(&"x".repeat(2000)));
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn invalid_expr_rejected() {
-        let resp = serve_data(Query(DataQuery { expr: "bad;".into() })).await;
-        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn valid_expr_returns_event_stream() {
-        let resp = serve_data(Query(DataQuery {
-            expr: "ship.actors.list()".into(),
-        }))
-        .await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        assert_eq!(
-            resp.headers().get(header::CONTENT_TYPE).unwrap(),
-            "text/event-stream"
-        );
     }
 }

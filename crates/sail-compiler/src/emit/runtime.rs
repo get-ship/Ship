@@ -781,20 +781,24 @@ impl<'a> Emitter<'a> {
             }
             // `data X = expr`        → signal seeded by expr (static; analyzer
             //                          phase can swap to a server-resolved value)
-            // `data live X = expr`   → data({ initial, subscribe }) where
-            //                          subscribe URL falls back to the expr
-            //                          source string (analyzer rewrites once
-            //                          schema sources resolve it)
+            // `data live X = expr`   → data({ initial: null, subscribe }) —
+            //                          the expression is a server-side
+            //                          schema source (e.g. `ship.agents.summaries()`),
+            //                          NOT a JS expression. Inlining it
+            //                          as JS would throw `ReferenceError`
+            //                          at instantiation. The runtime opens
+            //                          the SSE stream and the first patch
+            //                          carries the real initial value.
             for d in &s.data {
-                let expr = self.rx(&d.expr);
                 if d.live {
                     self.imports.insert("data");
                     out.push_str(&format!(
-                        "  const _d_{name} = data({{ initial: ({expr}), subscribe: {url:?} }})\n  const {name} = _d_{name}.signal\n  cleanups.push(_d_{name}.dispose)\n",
+                        "  const _d_{name} = data({{ initial: null, subscribe: {url:?} }})\n  const {name} = _d_{name}.signal\n  cleanups.push(_d_{name}.dispose)\n",
                         name = d.name,
                         url = format!("/_sail/data?expr={}", d.expr),
                     ));
                 } else {
+                    let expr = self.rx(&d.expr);
                     out.push_str(&format!(
                         "  const {name} = signal(({expr}))\n",
                         name = d.name,

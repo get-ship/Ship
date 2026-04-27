@@ -90,8 +90,15 @@ pub async fn serve_sail_page(Path(tag): Path<String>) -> Response {
         Ok(e) => e,
         Err(e) => return server_error(&format!("compile {tag}: {e}")),
     };
+    // Auto-load any sibling .set components this page references. Scans
+    // both the SSR (initial paint) and the compiled JS (runtime templates
+    // inside `{#if}` / `{#for}` branches and event-driven inserts) for
+    // custom-element tags, deduplicates, and emits a script tag for each
+    // component that resolves under `.ship/sail/`. The page just writes
+    // `<ship-foo>` anywhere; the daemon wires the module loads.
+    let dep_scripts = component_dep_scripts(&tag, &entry.ssr, &entry.js);
     let html = format!(
-        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>{tag}</title>\n</head>\n<body>\n{ssr}\n  <script type=\"module\" src=\"/_sail/components/{tag}.js\"></script>\n  <script src=\"/_sail/hmr-client.js\" defer></script>\n</body>\n</html>\n",
+        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>{tag}</title>\n</head>\n<body>\n{ssr}\n{dep_scripts}  <script type=\"module\" src=\"/_sail/components/{tag}.js\"></script>\n  <script src=\"/_sail/hmr-client.js\" defer></script>\n</body>\n</html>\n",
         ssr = entry.ssr,
     );
     Response::builder()
@@ -153,6 +160,63 @@ fn load_or_compile(tag: &str, path: &PathBuf) -> Result<CacheEntry, String> {
         c.insert(tag.to_string(), entry.clone());
     }
     Ok(entry)
+}
+
+/// Scan SSR HTML and compiled JS for custom-element tag references
+/// (any token starting with a lowercase letter, containing at least
+/// one hyphen, of length 3+). Emit one `<script type="module">` per
+/// unique tag that resolves under `.ship/sail/`. Skips the page tag
+/// itself (already loaded by the caller).
+fn component_dep_scripts(page_tag: &str, ssr: &str, js: &str) -> String {
+    let mut found: std::collections::BTreeSet<String> = std::collections::BTreeSet::new();
+    collect_custom_element_tags(ssr, &mut found);
+    collect_custom_element_tags(js, &mut found);
+    found.remove(page_tag);
+    let mut out = String::new();
+    for tag in found {
+        if resolve_sail_path(&tag).is_some() {
+            out.push_str(&format!(
+                "  <script type=\"module\" src=\"/_sail/components/{tag}.js\"></script>\n"
+            ));
+        }
+    }
+    out
+}
+
+/// Walk a string and append any kebab-case identifier (lowercase
+/// letter start, contains a hyphen, ≥3 chars) into `into`. False
+/// positives are harmless — they get filtered later by
+/// `resolve_sail_path`, which only keeps tags that actually exist.
+fn collect_custom_element_tags(src: &str, into: &mut std::collections::BTreeSet<String>) {
+    let bytes = src.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        let starts_token = if i == 0 {
+            bytes[i].is_ascii_lowercase()
+        } else {
+            let prev = bytes[i - 1];
+            !prev.is_ascii_alphanumeric() && prev != b'-' && prev != b'_'
+                && bytes[i].is_ascii_lowercase()
+        };
+        if starts_token {
+            let start = i;
+            let mut end = i;
+            while end < bytes.len()
+                && (bytes[end].is_ascii_alphanumeric() || bytes[end] == b'-')
+            {
+                end += 1;
+            }
+            if end - start >= 3 {
+                let name = &src[start..end];
+                if name.contains('-') {
+                    into.insert(name.to_string());
+                }
+            }
+            i = end.max(i + 1);
+        } else {
+            i += 1;
+        }
+    }
 }
 
 /// Locate `<tag>.set` in the project's `.ship/sail/` (preferred) or
