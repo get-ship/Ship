@@ -1,3 +1,4 @@
+pub mod access;
 pub mod actor;
 pub mod agents;
 pub mod collections;

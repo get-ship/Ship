@@ -3,6 +3,7 @@
 //! Exposes `run_network` for starting the HTTP/SSE MCP daemon and
 //! `network_status` / `network_stop` for CLI subcommands.
 
+pub mod access;
 pub mod actor_api;
 pub mod actors_api;
 pub mod artifacts_api;
