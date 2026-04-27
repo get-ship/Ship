@@ -16,10 +16,9 @@ pub enum Category {
     /// Runtime identity tokens propagated to child processes
     /// (`SHIP_AGENT_ID`, `SHIP_WORKSPACE_ID`, …).
     RuntimeIdentity,
-    /// Development and debugging toggles (`SHIP_DEV`, `SHIP_TMUX_TESTS`, …).
+    /// Development and debugging toggles (`SHIP_DEV`, `SHIP_TMUX_TESTS`,
+    /// `SHIP_DEV_PROJECT_DIR`, …).
     DevDebug,
-    /// Legacy vars kept for backward compatibility; subject to removal.
-    Legacy,
 }
 
 /// Every `SHIP_*` environment variable the runtime reads.
@@ -53,9 +52,11 @@ pub enum Var {
     /// the worktree's local `.ship/` instead of redirecting to the main
     /// checkout. Used by dev tooling iterating per-worktree views/themes.
     RespectWorktree,
-    // ── Legacy ───────────────────────────────────────────────────────────
-    /// Legacy `SHIP_DIR` — superseded by `SHIP_HOME` / `ShipHome`.
-    Dir,
+    /// `SHIP_DEV_PROJECT_DIR` — project-dir override for tests + dev tooling.
+    /// When set, `runtime::project::get_project_dir(None)` returns this path
+    /// instead of walking up from cwd. Tests use it for parallel-safe
+    /// project-root isolation; production callers should never set it.
+    DevProjectDir,
 }
 
 impl Var {
@@ -83,7 +84,7 @@ impl Var {
             Var::TelegramToken => "SHIP_TELEGRAM_TOKEN",
             Var::TelegramChatId => "SHIP_TELEGRAM_CHAT_ID",
             Var::RespectWorktree => "SHIP_RESPECT_WORKTREE",
-            Var::Dir => "SHIP_DIR",
+            Var::DevProjectDir => "SHIP_DEV_PROJECT_DIR",
         }
     }
 
@@ -108,8 +109,8 @@ impl Var {
             | Var::HooksBin
             | Var::TelegramToken
             | Var::TelegramChatId
-            | Var::RespectWorktree => Category::DevDebug,
-            Var::Dir => Category::Legacy,
+            | Var::RespectWorktree
+            | Var::DevProjectDir => Category::DevDebug,
         }
     }
 }
@@ -155,7 +156,7 @@ mod tests {
         assert_eq!(Var::Home.as_str(), "SHIP_HOME");
         assert_eq!(Var::AgentId.as_str(), "SHIP_AGENT_ID");
         assert_eq!(Var::DaemonPath.as_str(), "SHIPD_PATH");
-        assert_eq!(Var::Dir.as_str(), "SHIP_DIR");
+        assert_eq!(Var::DevProjectDir.as_str(), "SHIP_DEV_PROJECT_DIR");
     }
 
     #[test]
@@ -166,12 +167,12 @@ mod tests {
             Var::Home.category(),
             Var::AgentId.category(),
             Var::Dev.category(),
-            Var::Dir.category(),
+            Var::DevProjectDir.category(),
         ];
         assert_eq!(cats[0], Category::Configuration);
         assert_eq!(cats[1], Category::RuntimeIdentity);
         assert_eq!(cats[2], Category::DevDebug);
-        assert_eq!(cats[3], Category::Legacy);
+        assert_eq!(cats[3], Category::DevDebug);
     }
 
     #[test]
@@ -225,7 +226,8 @@ mod tests {
             Var::HooksBin,
             Var::TelegramToken,
             Var::TelegramChatId,
-            Var::Dir,
+            Var::RespectWorktree,
+            Var::DevProjectDir,
         ];
         let mut seen = std::collections::HashSet::new();
         for v in names {

@@ -90,8 +90,8 @@ fn retained_install_still_works() {
 
     std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(tmp.path())).unwrap();
     std::fs::write(
-        runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.toml"),
-        "[module]\nname = \"github.com/test/repo\"\nversion = \"0.1.0\"\n",
+        runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc"),
+        "{ \"name\": \"github.com/test/repo\" }\n",
     )
     .unwrap();
 

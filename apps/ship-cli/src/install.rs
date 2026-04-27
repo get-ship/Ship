@@ -1,6 +1,6 @@
 //! `ship install` — resolve registry dependencies and populate the cache.
 //!
-//! Reads `.ship/ship.jsonc` (or legacy `.ship/ship.toml`), resolves all
+//! Reads `.ship/ship.jsonc`, resolves all
 //! declared dependencies via the runtime registry, writes the updated
 //! `.ship/ship.lock`, and triggers compilation.
 //!
@@ -30,18 +30,10 @@ use crate::profile::WorkspaceState;
 /// 4. Compile resolved packages into provider targets.
 pub fn run_install(project_root: &Path, frozen: bool, offline: bool) -> Result<()> {
     let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
-    // Prefer ship.jsonc over ship.toml
-    let jsonc_path = ship_dir.join("ship.jsonc");
-    let manifest_path = if jsonc_path.exists() {
-        jsonc_path
-    } else {
-        ship_dir.join("ship.toml")
-    };
+    let manifest_path = ship_dir.join("ship.jsonc");
 
     if !manifest_path.exists() {
-        anyhow::bail!(
-            "No .ship/ship.jsonc or .ship/ship.toml found. Run `ship init` first."
-        );
+        anyhow::bail!("No .ship/ship.jsonc found. Run `ship init` first.");
     }
 
     let compiler_manifest = ShipManifest::from_file(&manifest_path)
@@ -114,12 +106,7 @@ fn compiler_to_registry_manifest(m: &ShipManifest) -> RegistryManifest {
 
 /// Detect configured providers from the project's manifest (best-effort).
 fn detect_providers_from_project(project_root: &Path) -> String {
-    let jsonc_path = runtime::ShipHome::project_ship_dir(project_root).join("ship.jsonc");
-    let path = if jsonc_path.exists() {
-        jsonc_path
-    } else {
-        runtime::ShipHome::project_ship_dir(project_root).join("ship.toml")
-    };
+    let path = runtime::ShipHome::project_ship_dir(project_root).join("ship.jsonc");
     if let Ok(content) = std::fs::read_to_string(&path)
         && let Ok(val) = toml::from_str::<toml::Value>(&content)
     {

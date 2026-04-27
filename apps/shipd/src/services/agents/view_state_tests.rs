@@ -2,7 +2,7 @@
 //! itself stays under the 300-line cap.
 //!
 //! These drive `scopes_from` + `*_with_scopes` variants directly so
-//! parallel tests don't race on the process-global `SHIP_DIR` env var.
+//! parallel tests don't race on the process-global `SHIP_DEV_PROJECT_DIR` env var.
 
 use super::*;
 use std::path::Path;

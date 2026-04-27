@@ -70,7 +70,7 @@ async fn user_view_fallback_reads_index_html() {
     runtime::db::ensure_db_at(&ship_dir).unwrap();
 
     unsafe {
-        std::env::set_var("SHIP_DIR", ship_dir.to_str().unwrap());
+        std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_dir.to_str().unwrap());
     }
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
         runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
@@ -80,7 +80,7 @@ async fn user_view_fallback_reads_index_html() {
 
     let resp = serve_view_raw(State(state), AxPath("custom".into())).await;
     unsafe {
-        std::env::remove_var("SHIP_DIR");
+        std::env::remove_var("SHIP_DEV_PROJECT_DIR");
     }
     assert_eq!(resp.status(), StatusCode::OK);
     let body = body_string(resp).await;

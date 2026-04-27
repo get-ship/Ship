@@ -220,9 +220,9 @@ fn sibling_partial_edit_busts_cache() {
 
     // Point discovery at our temp project dir.
     // SAFETY: tests in this binary serially, and we restore prior state.
-    let prior = runtime::env::read_raw(runtime::env::Var::Dir).ok();
+    let prior = runtime::env::read_raw(runtime::env::Var::DevProjectDir).ok();
     unsafe {
-        runtime::env::set(runtime::env::Var::Dir, runtime::ShipHome::project_ship_dir(dir.path()));
+        runtime::env::set(runtime::env::Var::DevProjectDir, runtime::ShipHome::project_ship_dir(dir.path()));
     }
 
     let first = render_view_source("cache-bust/index.html.j2", index_src, &Ctx {})
@@ -238,8 +238,8 @@ fn sibling_partial_edit_busts_cache() {
 
     unsafe {
         match prior {
-            Some(v) => runtime::env::set(runtime::env::Var::Dir, v),
-            None => runtime::env::remove(runtime::env::Var::Dir),
+            Some(v) => runtime::env::set(runtime::env::Var::DevProjectDir, v),
+            None => runtime::env::remove(runtime::env::Var::DevProjectDir),
         }
     }
 

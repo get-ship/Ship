@@ -2,7 +2,7 @@
 //! itself stays under the 300-line cap.
 //!
 //! These drive `scopes_from` + `*_with_scopes` variants directly so
-//! parallel execution doesn't race on the process-global `SHIP_DIR` env
+//! parallel execution doesn't race on the process-global `SHIP_DEV_PROJECT_DIR` env
 //! var. Only the `list_skills(ship_dir)` public surface exercises the
 //! env-var path, and we cover that with a best-effort subset check.
 
