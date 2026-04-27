@@ -154,6 +154,11 @@ fn main_worktree_root_for(dir: &Path) -> Option<PathBuf> {
     parse_main_worktree_root(text, dir)
 }
 
+/// Filename of the optional sentinel that pins a directory as a project-root
+/// boundary. When present at `<root>/.ship/.boundary`, the resolver stops the
+/// walk-up at `<root>` and skips the linked-worktree → main redirect.
+pub const BOUNDARY_FILE: &str = ".boundary";
+
 fn resolve_project_dir_from_start(
     start_dir: &Path,
     migrate_legacy: bool,
@@ -164,6 +169,13 @@ fn resolve_project_dir_from_start(
     loop {
         let ship_path = current_dir.join(SHIP_DIR_NAME);
         if ship_path.exists() && ship_path.is_dir() {
+            // Boundary sentinel pins the walk: <root>/.ship/.boundary means
+            // "this directory IS the project root, don't redirect to main."
+            // Useful for worktrees that want isolated views / pipelines.
+            if ship_path.join(BOUNDARY_FILE).exists() {
+                return Ok(Some(canonicalize_lossy(&ship_path)));
+            }
+
             // Worktree dev opt-out: when SHIP_RESPECT_WORKTREE=1 (set by
             // scripts/dev-daemon.sh and other dev tooling), the worktree's
             // local .ship/ wins. This lets developers iterate on per-worktree

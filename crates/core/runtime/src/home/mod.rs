@@ -7,12 +7,14 @@
 
 pub mod daemon;
 pub mod ensure;
+pub mod project;
 pub mod scope;
 pub mod ship_home;
 pub mod vector;
 
 pub use daemon::DaemonFile;
 pub use ensure::ensure_layout;
+pub use project::ProjectRoot;
 pub use scope::Scope;
 pub use ship_home::{Db, ShipHome};
 pub use vector::Vector;
