@@ -70,7 +70,7 @@ impl SqliteEventStore {
     pub fn new_at(ship_dir: &Path) -> Result<Self> {
         ensure_db_at(ship_dir)?;
         Ok(Self {
-            db_path: ship_dir.join("platform.db"),
+            db_path: crate::db::platform_db_path(ship_dir),
             pool: None,
         })
     }
@@ -81,7 +81,7 @@ impl SqliteEventStore {
     /// event operations. Falls back to per-call connections if pool acquire fails.
     pub fn new_pooled(ship_dir: &Path) -> Result<Self> {
         ensure_db_at(ship_dir)?;
-        let db_path = ship_dir.join("platform.db");
+        let db_path = crate::db::platform_db_path(ship_dir);
         let pool = crate::db::pool::create_pool(&db_path, 5)?;
         Ok(Self {
             db_path,

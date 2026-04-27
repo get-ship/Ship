@@ -102,7 +102,7 @@ async fn run_service_calls_on_drain_when_mailbox_closes() {
     crate::db::ensure_db_at(tmp.path()).unwrap();
     let store = ActorStore::new(
         "drain-svc",
-        tmp.path().join("platform.db"),
+        crate::db::platform_db_path(tmp.path()),
         vec!["test.".into()],
         vec![],
     );

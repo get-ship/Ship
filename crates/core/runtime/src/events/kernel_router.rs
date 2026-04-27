@@ -117,7 +117,7 @@ impl KernelRouter {
             std::fs::create_dir_all(&base_dir)?;
         }
         crate::db::ensure_db_at(&base_dir)?;
-        let kernel_store_path = base_dir.join("platform.db");
+        let kernel_store_path = crate::db::platform_db_path(&base_dir);
         #[cfg(feature = "unstable")]
         crate::persistence::cursor::init_cursor_table(&kernel_store_path)?;
 
@@ -157,7 +157,7 @@ impl KernelRouter {
     ) -> Result<(ActorStore, Mailbox), KernelError> {
         // Every actor queries the shared platform.db events table filtered
         // by its own actor_id. No per-actor file is created.
-        let db_path = self.base_dir.join("platform.db");
+        let db_path = crate::db::platform_db_path(&self.base_dir);
 
         #[cfg(feature = "unstable")]
         self.actor_cursors.remove(actor_id);
@@ -303,7 +303,7 @@ impl KernelRouter {
     /// always returns platform.db — actor isolation is by `actor_id` column,
     /// not by file.
     pub(crate) fn actor_db_path(&self, _actor_id: &str) -> PathBuf {
-        self.base_dir.join("platform.db")
+        crate::db::platform_db_path(&self.base_dir)
     }
 
     /// Enforce write namespace permissions.

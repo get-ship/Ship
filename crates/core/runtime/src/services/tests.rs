@@ -40,7 +40,7 @@ fn setup_router() -> (tempfile::TempDir, KernelRouter) {
 fn setup_store(actor_id: &str, write_ns: Vec<String>, read_ns: Vec<String>) -> (tempfile::TempDir, ActorStore) {
     let tmp = tempdir().unwrap();
     crate::db::ensure_db_at(tmp.path()).unwrap();
-    let db_path = tmp.path().join("platform.db");
+    let db_path = crate::db::platform_db_path(tmp.path());
     let store = ActorStore::new(actor_id, db_path, write_ns, read_ns);
     (tmp, store)
 }

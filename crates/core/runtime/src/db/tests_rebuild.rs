@@ -45,7 +45,7 @@ fn workspace_archived_event(branch: &str) -> EventEnvelope {
 }
 
 fn query_workspace_count(ship_dir: &std::path::Path) -> i64 {
-    let mut conn = open_db_at(&ship_dir.join("platform.db")).unwrap();
+    let mut conn = open_db_at(&crate::db::platform_db_path(ship_dir)).unwrap();
     let (count,): (i64,) = block_on(async {
         sqlx::query_as("SELECT COUNT(*) FROM workspace")
             .fetch_one(&mut conn)
@@ -59,7 +59,7 @@ fn query_workspace_exists(
     ship_dir: &std::path::Path,
     branch: &str,
 ) -> bool {
-    let mut conn = open_db_at(&ship_dir.join("platform.db")).unwrap();
+    let mut conn = open_db_at(&crate::db::platform_db_path(ship_dir)).unwrap();
     let (count,): (i64,) = block_on(async {
         sqlx::query_as("SELECT COUNT(*) FROM workspace WHERE branch = ?")
             .bind(branch)

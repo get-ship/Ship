@@ -59,7 +59,7 @@ pub fn list_recent_events_at(
     limit: usize,
 ) -> Result<Vec<EventEnvelope>> {
     crate::db::ensure_db_at(ship_dir)?;
-    let path = ship_dir.join("platform.db");
+    let path = crate::db::platform_db_path(ship_dir);
     let mut conn = open_db_at(&path)?;
     let rows = block_on(async {
         sqlx::query(&format!(

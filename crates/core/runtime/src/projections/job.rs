@@ -363,7 +363,7 @@ pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRec
     use crate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
-    let mut conn = open_db_at(&ship_dir.join("platform.db"))?;
+    let mut conn = open_db_at(&crate::db::platform_db_path(ship_dir))?;
 
     load_jobs_from_conn(&mut conn)
 }
