@@ -111,7 +111,7 @@ fn post_to_daemon(endpoint: &str, body: &serde_json::Value) -> Result<serde_json
     let (port, token) = daemon_info()
         .ok_or_else(|| anyhow!("daemon not running (no port/token file)"))?;
     let url = format!("http://127.0.0.1:{port}/api/v1/hooks/{endpoint}");
-    let client = reqwest::blocking::Client::new();
+    let client = crate::http::daemon_client();
     let resp = client
         .post(&url)
         .bearer_auth(&token)
@@ -119,6 +119,7 @@ fn post_to_daemon(endpoint: &str, body: &serde_json::Value) -> Result<serde_json
         .timeout(std::time::Duration::from_secs(5))
         .send()
         .map_err(|e| anyhow!("daemon request failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
     let status = resp.status();
     let body = resp.text().unwrap_or_default();
     if !status.is_success() {
@@ -224,13 +225,16 @@ fn signal_job_completed(slug: &str) {
         Ok(t) => t.trim().to_string(),
         Err(_) => return,
     };
-    let client = reqwest::blocking::Client::new();
-    let _ = client
+    let client = crate::http::daemon_client();
+    if let Ok(resp) = client
         .post(format!("http://127.0.0.1:{port}/api/v1/jobs/end"))
         .bearer_auth(&token)
         .json(&serde_json::json!({"slug": slug}))
         .timeout(std::time::Duration::from_secs(5))
-        .send();
+        .send()
+    {
+        crate::http::check_skew(resp.headers());
+    }
 }
 
 #[cfg(test)]

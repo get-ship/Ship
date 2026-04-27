@@ -925,11 +925,13 @@ fn daemon_info_if_healthy() -> Option<(u16, String)> {
 
     // Quick health probe — 1 second timeout.
     let url = format!("http://127.0.0.1:{port}/api/health");
-    let resp = reqwest::blocking::Client::new()
+    let resp = crate::http::daemon_client()
         .get(&url)
         .timeout(std::time::Duration::from_secs(1))
         .send()
         .ok()?;
+
+    crate::http::check_skew(resp.headers());
 
     if resp.status().is_success() {
         Some((port, token))

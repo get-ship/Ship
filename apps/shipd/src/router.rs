@@ -234,13 +234,41 @@ pub fn build_router(
 }
 
 /// Stamp `X-Shipd-Build` on every response so clients can detect daemon
-/// version skew. Value comes from the `build-info` crate at compile time.
+/// version skew. On the way in, also log a one-time WARN per distinct
+/// `X-Shipd-Client-Build` value when the client's SHA diverges from
+/// ours — daemon-side proof that a stale CLI is talking to us.
 async fn build_header_middleware(
     req: axum::extract::Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
-    let mut response = next.run(req).await;
     let bi = build_info::build_info!();
+
+    // Inbound: warn once per distinct client SHA on skew.
+    if let Some(client_value) = req
+        .headers()
+        .get("x-shipd-client-build")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+    {
+        let server_short = bi.short();
+        let client_sha = client_value.split('+').next().unwrap_or("").to_string();
+        if client_value != server_short && client_sha != bi.git_sha {
+            static WARNED: std::sync::OnceLock<
+                std::sync::Mutex<std::collections::HashSet<String>>,
+            > = std::sync::OnceLock::new();
+            let warned = WARNED.get_or_init(|| std::sync::Mutex::new(Default::default()));
+            let mut set = warned.lock().unwrap();
+            if set.insert(client_value.clone()) {
+                tracing::warn!(
+                    client = %client_value,
+                    server = %server_short,
+                    "client build differs from daemon — restart the client to avoid API skew"
+                );
+            }
+        }
+    }
+
+    let mut response = next.run(req).await;
     if let Ok(value) = axum::http::HeaderValue::from_str(&bi.short()) {
         response.headers_mut().insert("X-Shipd-Build", value);
     }

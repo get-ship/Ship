@@ -187,7 +187,7 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
     }
     let (port, token) = daemon_connect()?;
     let url = format!("http://127.0.0.1:{port}/api/auth/pair/confirm");
-    let resp = reqwest::blocking::Client::new()
+    let resp = crate::http::daemon_client()
         .post(&url)
         .bearer_auth(&token)
         .json(&serde_json::json!({ "code": code }))
@@ -195,6 +195,7 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
         .send()
         .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
 
+    crate::http::check_skew(resp.headers());
     let status = resp.status();
     let body_text = resp.text().unwrap_or_default();
 
@@ -230,12 +231,13 @@ fn daemon_connect() -> Result<(u16, String)> {
 pub fn run_auth_status() -> Result<()> {
     let (port, token) = daemon_connect()?;
     let url = format!("http://127.0.0.1:{port}/api/auth/sessions");
-    let resp = reqwest::blocking::Client::new()
+    let resp = crate::http::daemon_client()
         .get(&url)
         .bearer_auth(&token)
         .timeout(std::time::Duration::from_secs(5))
         .send()
         .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
     let status = resp.status();
     let body: serde_json::Value = resp.json()
         .map_err(|e| anyhow::anyhow!("invalid daemon response: {e}"))?;
@@ -286,13 +288,14 @@ pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
         "token_prefix": token,
         "all": all,
     });
-    let resp = reqwest::blocking::Client::new()
+    let resp = crate::http::daemon_client()
         .post(&url)
         .bearer_auth(&daemon_token)
         .json(&body)
         .timeout(std::time::Duration::from_secs(5))
         .send()
         .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
     let status = resp.status();
     let body_text = resp.text().unwrap_or_default();
     if !status.is_success() {
