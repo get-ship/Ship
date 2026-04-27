@@ -41,6 +41,12 @@ export function resolveSlots(host: Element, slots: SlotDecl[], originalChildren:
   }
 
   for (const slot of slots) {
+    // Slot anchors inside conditional branches (e.g. `{#if x}<slot
+    // name="y"/>{/if}`) aren't in the DOM at mount time. Tolerate
+    // undefined anchors here so the rest of the slot wiring still
+    // resolves; the missing slot becomes effectively hidden until
+    // its branch renders.
+    if (!slot || !slot.anchor) continue
     const filled = fills.get(slot.name) ?? []
     const parent = slot.anchor.parentNode
     if (!parent) continue
@@ -51,7 +57,9 @@ export function resolveSlots(host: Element, slots: SlotDecl[], originalChildren:
       for (const n of nodes) parent.insertBefore(n, slot.anchor)
     }
   }
-  for (const slot of slots) slot.anchor.remove()
+  for (const slot of slots) {
+    if (slot && slot.anchor) slot.anchor.remove()
+  }
 }
 
 /**

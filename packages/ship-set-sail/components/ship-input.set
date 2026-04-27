@@ -1,0 +1,243 @@
+<script>
+component formAssociated
+
+prop type: string = 'text'
+prop value: string = ''
+prop placeholder: string = ''
+prop name: string = ''
+prop autocomplete: string = ''
+prop required: boolean = false
+prop disabled: boolean = false
+prop readonly: boolean = false
+prop invalid: boolean = false
+prop loading: boolean = false
+prop tone: 'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' = 'default'
+prop variant: 'default' | 'ghost' = 'default'
+prop size: 'sm' | 'md' | 'lg' = 'md'
+prop label: string = ''
+prop describedBy: string = ''
+prop errorMessage: string = ''
+
+state defaultValue = ''
+state errId = ''
+
+derived ariaInvalid = invalid() ? 'true' : 'false'
+derived ariaRequired = required() ? 'true' : 'false'
+derived ariaBusy = loading() ? 'true' : 'false'
+derived ariaDescribedBy = invalid() && errorMessage()
+  ? (describedBy() ? `${errId()} ${describedBy()}` : errId())
+  : describedBy()
+derived effectiveAutocomplete = autocomplete() || 'off'
+derived showError = invalid() && errorMessage()
+
+function syncFormValue() {
+  if (internals && typeof internals.setFormValue === 'function') {
+    internals.setFormValue(value())
+  }
+}
+
+function onInput(e) {
+  const v = e.target.value
+  value.set(v)
+  syncFormValue()
+  el.dispatchEvent(new CustomEvent('ship-input', {
+    detail: { value: v },
+    bubbles: true,
+    composed: true,
+  }))
+}
+
+mount {
+  defaultValue.set(value())
+  // Per-instance unique ID. Module-level `let X = 0` counters aren't
+  // emitted by the compiler yet (filed as a gap), so derive from
+  // a random suffix instead. Stable across the component's lifetime
+  // because we only set it once at mount.
+  errId.set(`ship-input-err-${Math.random().toString(36).slice(2, 9)}`)
+  syncFormValue()
+
+  el.addEventListener('sail:form-reset', () => {
+    value.set(defaultValue())
+    syncFormValue()
+  })
+  el.addEventListener('sail:form-restore', (e) => {
+    value.set(e.detail?.state ?? '')
+    syncFormValue()
+  })
+}
+
+effect on value {
+  syncFormValue()
+}
+</script>
+
+<template>
+<div class="field" part="field">
+  <slot name="leading"></slot>
+  <input
+    part="input"
+    type={type}
+    placeholder={placeholder}
+    name={name}
+    autocomplete={effectiveAutocomplete}
+    required={required}
+    disabled={disabled}
+    readonly={readonly}
+    aria-invalid={ariaInvalid}
+    aria-required={ariaRequired}
+    aria-busy={ariaBusy}
+    aria-label={label}
+    aria-describedby={ariaDescribedBy}
+    bind:value={value}
+    on:input={onInput}
+  />
+  <!-- Trailing region renders both spinner and slot; visibility is
+       controlled by the host's [loading] attribute via CSS. Keeping
+       both in the DOM unconditionally keeps slot resolution simple
+       (slot anchors inside conditional branches don't exist at the
+       moment resolveSlots runs at mount). -->
+  <span class="spinner" aria-hidden="true"></span>
+  <span class="trailing-wrap"><slot name="trailing"></slot></span>
+</div>
+{#if showError}
+  <span id={errId} role="alert" style="display:none">{errorMessage}</span>
+{/if}
+</template>
+
+<style>
+:host {
+  display: inline-flex;
+  vertical-align: middle;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  --tone: var(--ring-color);
+  --tone-fg: var(--foreground);
+}
+:host([hidden]) { display: none; }
+
+:host(:not([tone])), :host([tone='default']) {
+  --tone: var(--ring-color);
+  --tone-fg: var(--foreground);
+}
+:host([tone='info']) { --tone: var(--info); --tone-fg: var(--info); }
+:host([tone='success']) { --tone: var(--success); --tone-fg: var(--success); }
+:host([tone='warning']) { --tone: var(--warning); --tone-fg: var(--warning); }
+:host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); }
+:host([tone='accent']) { --tone: var(--accent); --tone-fg: var(--accent); }
+:host([tone='muted']) { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+
+:host(:not([size])), :host([size='md']) {
+  --in-h: 36px; --in-px: var(--space-3); --in-fs: var(--text-base); --in-radius: var(--radius-md);
+}
+:host([size='sm']) {
+  --in-h: 30px; --in-px: var(--space-2); --in-fs: var(--text-sm); --in-radius: var(--radius-sm);
+}
+:host([size='lg']) {
+  --in-h: 42px; --in-px: var(--space-3); --in-fs: var(--text-md); --in-radius: var(--radius-md);
+}
+
+.field {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--in-h);
+  padding-inline: var(--in-px);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--in-radius);
+  box-shadow: var(--shadow-xs);
+  transition:
+    border-color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out),
+    background-color var(--duration-fast) var(--ease-out);
+}
+:host([variant='ghost']) .field {
+  border-color: transparent;
+  box-shadow: none;
+  background: transparent;
+}
+:host(:not([disabled]):not([invalid])) .field:hover {
+  border-color: color-mix(in oklch, var(--border) 160%, transparent);
+}
+:host([variant='ghost']:not([disabled]):not([invalid])) .field:hover {
+  background: color-mix(in oklch, var(--muted) 60%, transparent);
+}
+:host(:not([disabled])) .field:has(input:focus-visible) {
+  border-color: color-mix(in oklch, var(--tone) 80%, var(--border));
+  box-shadow:
+    0 0 0 var(--ring-offset) var(--background),
+    0 0 0 calc(var(--ring-offset) + var(--ring-width))
+      color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+}
+:host([variant='ghost']:not([disabled])) .field:has(input:focus-visible) {
+  background: var(--background);
+}
+
+:host([invalid]) .field {
+  border-color: color-mix(in oklch, var(--destructive) 70%, var(--border));
+}
+:host([invalid]:not([disabled])) .field:has(input:focus-visible) {
+  border-color: color-mix(in oklch, var(--destructive) 90%, var(--border));
+  box-shadow:
+    0 0 0 var(--ring-offset) var(--background),
+    0 0 0 calc(var(--ring-offset) + var(--ring-width))
+      color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+}
+
+:host([disabled]) .field {
+  background: var(--muted);
+  color: var(--muted-foreground);
+  cursor: not-allowed;
+}
+:host([readonly]) .field {
+  background: color-mix(in oklch, var(--muted) 50%, var(--background));
+}
+
+input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  padding: 0;
+  margin: 0;
+  font-family: inherit;
+  font-size: var(--in-fs);
+  color: var(--foreground);
+}
+input::placeholder { color: var(--muted-foreground); }
+input:disabled { cursor: inherit; color: var(--muted-foreground); }
+
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+  flex-shrink: 0;
+  color: var(--tone-fg);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation: none; }
+}
+
+/* Trailing visibility: when loading, swap spinner ↔ slot. The slot
+ * anchor stays in the DOM either way so resolveSlots can wire fills
+ * at mount regardless of initial loading state. */
+.spinner { display: none; }
+.trailing-wrap { display: contents; }
+:host([loading]) .spinner { display: inline-block; }
+:host([loading]) .trailing-wrap { display: none; }
+
+@media (forced-colors: active) {
+  .field { border-color: CanvasText; }
+  :host(:not([disabled])) .field:has(input:focus-visible) {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
+</style>
