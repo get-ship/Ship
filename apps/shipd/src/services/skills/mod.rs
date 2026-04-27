@@ -29,6 +29,7 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
 
+use crate::access::RuntimeAccess;
 use crate::rest_api::ApiState;
 use super::files::Scope;
 use service::CreateArgs;
@@ -92,7 +93,7 @@ fn map_err(e: state::Error) -> Resp {
 
 /// GET /api/v1/skills
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    Json(serde_json::json!({ "ok": true, "items": state.skills().list() }))
+    Json(serde_json::json!({ "ok": true, "items": state.services().skills().list() }))
 }
 
 /// GET /api/v1/skills/{id}
@@ -102,7 +103,7 @@ pub async fn get(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let detail = state.skills().get(&id, scope).map_err(map_err)?;
+    let detail = state.services().skills().get(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "skill": detail })))
 }
 
@@ -116,7 +117,7 @@ pub async fn put_frontmatter(
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let resolved = state.skills().write_frontmatter(&id, scope, &body).map_err(map_err)?;
+    let resolved = state.services().skills().write_frontmatter(&id, scope, &body).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -136,7 +137,7 @@ pub async fn put_body(
     Json(payload): Json<BodyPayload>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let resolved = state.skills().write_body(&id, scope, &payload.body).map_err(map_err)?;
+    let resolved = state.services().skills().write_body(&id, scope, &payload.body).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -158,7 +159,7 @@ pub async fn put_file(
     Json(payload): Json<FilePayload>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let resolved = state.skills()
+    let resolved = state.services().skills()
         .write_file(&id, scope, &path, payload.content.as_bytes())
         .map_err(map_err)?;
     Ok(Json(serde_json::json!({
@@ -174,7 +175,7 @@ pub async fn delete_file(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let resolved = state.skills().delete_file(&id, scope, &path).map_err(map_err)?;
+    let resolved = state.services().skills().delete_file(&id, scope, &path).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id, "path": path,
         "scope": state::ScopeTag::from(resolved),
@@ -229,7 +230,7 @@ pub async fn delete(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let resolved = state.skills().delete(&id, scope).map_err(map_err)?;
+    let resolved = state.services().skills().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -247,7 +248,7 @@ pub async fn rename(
     Json(body): Json<RenameBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let resolved = state.skills().rename(&id, &body.new_id, scope).map_err(map_err)?;
+    let resolved = state.services().skills().rename(&id, &body.new_id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": body.new_id,
         "scope": state::ScopeTag::from(resolved),
@@ -265,7 +266,7 @@ pub async fn duplicate(
     Json(body): Json<DuplicateBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let resolved = state.skills().duplicate(&id, &body.new_id, scope).map_err(map_err)?;
+    let resolved = state.services().skills().duplicate(&id, &body.new_id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": body.new_id,
         "scope": state::ScopeTag::from(resolved),
@@ -287,7 +288,7 @@ pub async fn move_scope(
         "source scope is required on move — pass ?scope=project or ?scope=user",
     ))?;
     let to = parse_scope_required(&body.to_scope)?;
-    state.skills().move_scope(&id, from_scope, to).map_err(map_err)?;
+    state.services().skills().move_scope(&id, from_scope, to).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(to),
@@ -301,8 +302,8 @@ pub async fn get_vars(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    state.skills().validate_id(&id).map_err(map_err)?;
-    let vars = state.skills().get_vars(&id).map_err(|e| {
+    state.services().skills().validate_id(&id).map_err(map_err)?;
+    let vars = state.services().skills().get_vars(&id).map_err(|e| {
         err(StatusCode::INTERNAL_SERVER_ERROR, "io", e.to_string())
     })?;
     match vars {
@@ -327,8 +328,8 @@ pub async fn put_var(
     Path((id, key)): Path<(String, String)>,
     Json(body): Json<SetVarBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    state.skills().validate_id(&id).map_err(map_err)?;
-    state.skills().set_var(&id, &key, body.value).map_err(|e| {
+    state.services().skills().validate_id(&id).map_err(map_err)?;
+    state.services().skills().set_var(&id, &key, body.value).map_err(|e| {
         let msg = e.to_string();
         if msg.contains("unknown variable") || msg.contains("no assets/vars.json") {
             err(StatusCode::NOT_FOUND, "not_found", msg)
@@ -344,8 +345,8 @@ pub async fn delete_var(
     State(state): State<ApiState>,
     Path((id, key)): Path<(String, String)>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    state.skills().validate_id(&id).map_err(map_err)?;
-    let had = state.skills().delete_var(&id, &key).map_err(|e| {
+    state.services().skills().validate_id(&id).map_err(map_err)?;
+    let had = state.services().skills().delete_var(&id, &key).map_err(|e| {
         let msg = e.to_string();
         if msg.contains("unknown variable") || msg.contains("no assets/vars.json") {
             err(StatusCode::NOT_FOUND, "not_found", msg)

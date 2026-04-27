@@ -18,6 +18,7 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
 
+use crate::access::RuntimeAccess;
 use crate::rest_api::ApiState;
 use super::files::Scope;
 use service::{CreateArgs, PutArgs};
@@ -75,7 +76,7 @@ fn map_err(e: state::Error) -> Resp {
 
 /// GET /api/v1/rules
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let items = state.rules().list();
+    let items = state.services().rules().list();
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
@@ -86,7 +87,7 @@ pub async fn get(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let content = state.rules().get(&id, scope).map_err(map_err)?;
+    let content = state.services().rules().get(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
         "id": content.id,
@@ -123,7 +124,7 @@ pub async fn delete(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let resolved = state.rules().delete(&id, scope).map_err(map_err)?;
+    let resolved = state.services().rules().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
         "id": id,

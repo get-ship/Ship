@@ -38,6 +38,7 @@ use serde::Deserialize;
 use std::path::Path;
 use std::time::Duration;
 
+use crate::access::RuntimeAccess;
 use crate::rest_api::ApiState;
 use crate::views::stream::{ViewSse, ViewStream};
 use state::GitError;
@@ -175,7 +176,7 @@ pub async fn status_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let r = state.git().status(q.workspace_id.as_deref()).map_err(map_err)?;
+    let r = state.services().git().status(q.workspace_id.as_deref()).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
         "branch": r.branch,
@@ -225,7 +226,7 @@ pub async fn branches_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let branches = state.git().branches(q.workspace_id.as_deref()).map_err(map_err)?;
+    let branches = state.services().git().branches(q.workspace_id.as_deref()).map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "branches": branches })))
 }
 
@@ -236,7 +237,7 @@ pub async fn stage_handler(
     State(state): State<ApiState>,
     Json(body): Json<PathsBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let n = state.git().stage(body.workspace_id.as_deref(), &body.paths).map_err(map_err)?;
+    let n = state.services().git().stage(body.workspace_id.as_deref(), &body.paths).map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "staged": n })))
 }
 
@@ -245,7 +246,7 @@ pub async fn unstage_handler(
     State(state): State<ApiState>,
     Json(body): Json<PathsBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let n = state.git().unstage(body.workspace_id.as_deref(), &body.paths).map_err(map_err)?;
+    let n = state.services().git().unstage(body.workspace_id.as_deref(), &body.paths).map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "unstaged": n })))
 }
 
@@ -335,7 +336,7 @@ pub async fn draft_get_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let draft = state.git().draft_get(q.workspace_id.as_deref()).map_err(map_err)?;
+    let draft = state.services().git().draft_get(q.workspace_id.as_deref()).map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "draft": draft })))
 }
 
@@ -369,7 +370,7 @@ pub async fn draft_delete_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    state.git().draft_delete(q.workspace_id.as_deref()).map_err(map_err)?;
+    state.services().git().draft_delete(q.workspace_id.as_deref()).map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true })))
 }
 

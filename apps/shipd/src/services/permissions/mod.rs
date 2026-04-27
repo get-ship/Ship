@@ -24,6 +24,7 @@ use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
 
+use crate::access::RuntimeAccess;
 use crate::rest_api::ApiState;
 use super::files::Scope;
 use service::{CreateArgs, PutArgs};
@@ -81,7 +82,7 @@ fn map_err(e: state::Error) -> Resp {
 
 /// GET /api/v1/permissions
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let items = state.permissions().list();
+    let items = state.services().permissions().list();
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
@@ -92,7 +93,7 @@ pub async fn get(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let entry = state.permissions().get(&id, scope).map_err(map_err)?;
+    let entry = state.services().permissions().get(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
         "id": entry.id,
@@ -129,7 +130,7 @@ pub async fn patch(
     let scope = parse_scope(&q)?;
     let patch: json_patch::Patch = serde_json::from_value(patch_body)
         .map_err(|e| err(StatusCode::BAD_REQUEST, "bad_patch", format!("bad patch shape: {e}")))?;
-    let resolved = state.permissions().patch(&id, scope, &patch).map_err(map_err)?;
+    let resolved = state.services().permissions().patch(&id, scope, &patch).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -143,7 +144,7 @@ pub async fn delete(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let resolved = state.permissions().delete(&id, scope).map_err(map_err)?;
+    let resolved = state.services().permissions().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -184,6 +185,6 @@ pub async fn create(
 /// MCP server known to the daemon. The cross-domain composition lives
 /// inside `PermissionsService::tool_patterns` — handler is just JSON.
 pub async fn tool_patterns(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let items = state.permissions().tool_patterns();
+    let items = state.services().permissions().tool_patterns();
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
