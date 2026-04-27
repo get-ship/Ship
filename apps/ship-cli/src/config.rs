@@ -1,182 +1,120 @@
-use serde::{Deserialize, Serialize};
+//! Thin CLI-side façade over the runtime JSONC settings stores.
+//!
+//! `ShipConfig` exposes the dot-keyed get/set/list/path surface that
+//! `ship config` is built on. Each key routes to one of:
+//!
+//! - `~/.ship/library/settings.jsonc` — portable user preferences
+//!   (`identity.*`, `defaults.*`, `cloud.*`).
+//! - `~/.ship/machine/local.jsonc` — machine-local overrides
+//!   (`worktrees.dir`, `terminal.program`, `dispatch.confirm`).
+//!
+//! Per the home-layout ADR there is no longer a `~/.ship/config.toml`.
+//! The store split is intentional: portable keys move with the user
+//! across machines; machine keys do not.
+//!
+//! `Credentials` is re-exported from the runtime for back-compat with
+//! `auth.rs` and `publish.rs`.
+
 use std::path::PathBuf;
 
-/// Cloud connectivity settings.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct CloudConfig {
-    /// Base URL for the Ship API. Defaults to "https://ship-studio.com".
-    pub base_url: Option<String>,
-}
+use anyhow::Result;
 
-/// Global ~/.ship/config.toml
+pub use runtime::config::Credentials;
+pub use runtime::config::credentials::{Account as CredentialsAccount, Mcp as CredentialsMcp};
+
+use runtime::config::library::{Cloud, Defaults, Identity, LibrarySettings};
+use runtime::config::local::{Dispatch, LocalSettings, Terminal, Worktrees};
+
+/// Façade over the JSONC settings stores.
 ///
-/// `worktrees.dir` lives in `~/.ship/machine/local.jsonc` per the
-/// home-layout ADR (machine-local, not portable). Get/set for that key
-/// delegate to `runtime::config::LocalSettings`. Other keys (identity,
-/// defaults, terminal, dispatch, cloud) still use config.toml; full
-/// JSONC + library/machine split is a separate cleanup.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+/// `load()` reads both files; `save()` writes both back. Callers that
+/// only mutate one tier can also use the typed runtime stores directly.
+#[derive(Debug, Default)]
 pub struct ShipConfig {
-    pub identity: Option<Identity>,
-    pub defaults: Option<Defaults>,
-    pub cloud: Option<CloudConfig>,
-    pub terminal: Option<TerminalConfig>,
-    pub dispatch: Option<DispatchConfig>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Identity {
-    pub name: String,
-    pub email: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct TerminalConfig {
-    /// Terminal to open for dispatched agents: wt, iterm, tmux, gnome, vscode, manual
-    pub program: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct DispatchConfig {
-    /// Show spec and ask y/n before launching agent
-    pub confirm: Option<bool>,
-}
-
-/// ~/.ship/credentials — auth token storage (separate from general config).
-///
-/// Format:
-/// ```toml
-/// [account]
-/// token = "..."
-/// ```
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Credentials {
-    pub account: Option<CredentialsAccount>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct CredentialsAccount {
-    pub token: Option<String>,
-}
-
-impl Credentials {
-    pub fn load() -> Self {
-        let path = Self::path();
-        if path.exists() {
-            std::fs::read_to_string(&path)
-                .ok()
-                .and_then(|s| toml::from_str(&s).ok())
-                .unwrap_or_default()
-        } else {
-            Self::default()
-        }
-    }
-
-    pub fn save(&self) -> anyhow::Result<()> {
-        let path = Self::path();
-        if let Some(p) = path.parent() {
-            std::fs::create_dir_all(p)?;
-        }
-        std::fs::write(&path, toml::to_string_pretty(self)?)?;
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600));
-        }
-        Ok(())
-    }
-
-    fn path() -> PathBuf {
-        runtime::ShipHome::from_env().root().join("credentials")
-    }
-
-    pub fn token(&self) -> Option<&str> {
-        self.account.as_ref()?.token.as_deref()
-    }
+    pub library: LibrarySettings,
+    pub local: LocalSettings,
 }
 
 impl ShipConfig {
     pub fn load() -> Self {
-        let path = Self::path();
-        if path.exists() {
-            std::fs::read_to_string(&path)
-                .ok()
-                .and_then(|s| toml::from_str(&s).ok())
-                .unwrap_or_default()
-        } else {
-            Self::default()
+        Self {
+            library: LibrarySettings::load(),
+            local: LocalSettings::load(),
         }
     }
 
-    pub fn save(&self) -> anyhow::Result<()> {
-        let path = Self::path();
-        if let Some(p) = path.parent() {
-            std::fs::create_dir_all(p)?;
-        }
-        std::fs::write(&path, toml::to_string_pretty(self)?)?;
+    pub fn save(&self) -> Result<()> {
+        self.library.save()?;
+        self.local.save()?;
         Ok(())
     }
 
+    /// Primary path shown by `ship config path`. The portable file is
+    /// the canonical entry point; `local.jsonc` is mentioned in help
+    /// text but not the primary path.
     pub fn path() -> PathBuf {
-        runtime::ShipHome::from_env().root().join("config.toml")
+        LibrarySettings::path()
     }
 
-    /// Get a config value by dot-path key. Returns None if unset.
+    /// Read a value by dot-path key.
     pub fn get(&self, key: &str) -> Option<String> {
         match key {
-            "identity.name" => self.identity.as_ref().map(|i| i.name.clone()),
-            "identity.email" => self.identity.as_ref()?.email.clone(),
-            "defaults.provider" => self.defaults.as_ref()?.provider.clone(),
-            "defaults.mode" => self.defaults.as_ref()?.mode.clone(),
-            "worktrees.dir" => runtime::config::LocalSettings::load()
-                .worktrees
-                .and_then(|w| w.dir),
-            "terminal.program" => self.terminal.as_ref()?.program.clone(),
-            "dispatch.confirm" => self.dispatch.as_ref()?.confirm.map(|b| b.to_string()),
-            "cloud.base_url" => self.cloud.as_ref()?.base_url.clone(),
+            "identity.name" => self.library.identity.as_ref()?.name.clone(),
+            "identity.email" => self.library.identity.as_ref()?.email.clone(),
+            "defaults.provider" => self.library.defaults.as_ref()?.provider.clone(),
+            "defaults.mode" => self.library.defaults.as_ref()?.mode.clone(),
+            "cloud.base_url" => self.library.cloud.as_ref()?.base_url.clone(),
+            "worktrees.dir" => self.local.worktrees.as_ref()?.dir.clone(),
+            "terminal.program" => self.local.terminal.as_ref()?.program.clone(),
+            "dispatch.confirm" => self
+                .local
+                .dispatch
+                .as_ref()?
+                .confirm
+                .map(|b| b.to_string()),
             _ => None,
         }
     }
 
-    /// Set a config value by dot-path key. Returns `true` when the value
-    /// was already persisted as part of the call (e.g. `worktrees.dir`
-    /// routes to local.jsonc and saves itself); the caller should NOT
-    /// then save the ShipConfig struct. Returns `false` for keys whose
-    /// value lives in this struct and needs `save()` afterwards.
-    pub fn set(&mut self, key: &str, value: &str) -> anyhow::Result<bool> {
+    /// Write a value by dot-path key. `save()` must be called afterward
+    /// to persist; both stores are written together.
+    pub fn set(&mut self, key: &str, value: &str) -> Result<()> {
         match key {
             "identity.name" => {
-                self.identity
-                    .get_or_insert_with(|| Identity {
-                        name: String::new(),
-                        email: None,
-                    })
-                    .name = value.to_string();
+                self.library
+                    .identity
+                    .get_or_insert_with(Identity::default)
+                    .name = Some(value.to_string());
             }
             "identity.email" => {
-                self.identity
-                    .get_or_insert_with(|| Identity {
-                        name: String::new(),
-                        email: None,
-                    })
+                self.library
+                    .identity
+                    .get_or_insert_with(Identity::default)
                     .email = Some(value.to_string());
             }
             "defaults.provider" => {
-                self.defaults.get_or_insert_with(Defaults::default).provider =
-                    Some(value.to_string());
+                self.library
+                    .defaults
+                    .get_or_insert_with(Defaults::default)
+                    .provider = Some(value.to_string());
             }
             "defaults.mode" => {
-                self.defaults.get_or_insert_with(Defaults::default).mode = Some(value.to_string());
+                self.library
+                    .defaults
+                    .get_or_insert_with(Defaults::default)
+                    .mode = Some(value.to_string());
+            }
+            "cloud.base_url" => {
+                self.library
+                    .cloud
+                    .get_or_insert_with(Cloud::default)
+                    .base_url = Some(value.to_string());
             }
             "worktrees.dir" => {
-                // Route to ~/.ship/machine/local.jsonc per the home-layout
-                // ADR — worktrees dir is machine-local, not portable.
-                let mut local = runtime::config::LocalSettings::load();
-                local.worktrees = Some(runtime::config::local::Worktrees {
-                    dir: Some(value.to_string()),
-                });
-                local.save()?;
-                return Ok(true);
+                self.local
+                    .worktrees
+                    .get_or_insert_with(Worktrees::default)
+                    .dir = Some(value.to_string());
             }
             "terminal.program" => {
                 let valid = ["wt", "iterm", "tmux", "gnome", "vscode", "manual", "auto"];
@@ -187,8 +125,9 @@ impl ShipConfig {
                         value
                     );
                 }
-                self.terminal
-                    .get_or_insert_with(TerminalConfig::default)
+                self.local
+                    .terminal
+                    .get_or_insert_with(Terminal::default)
                     .program = Some(value.to_string());
             }
             "dispatch.confirm" => {
@@ -197,35 +136,32 @@ impl ShipConfig {
                     "false" | "0" | "no" => false,
                     _ => anyhow::bail!("dispatch.confirm must be true or false"),
                 };
-                self.dispatch
-                    .get_or_insert_with(DispatchConfig::default)
+                self.local
+                    .dispatch
+                    .get_or_insert_with(Dispatch::default)
                     .confirm = Some(b);
-            }
-            "cloud.base_url" => {
-                self.cloud.get_or_insert_with(CloudConfig::default).base_url =
-                    Some(value.to_string());
             }
             _ => anyhow::bail!(
                 "Unknown key: \"{}\". Valid keys: identity.name, identity.email, \
-                 defaults.provider, defaults.mode, worktrees.dir, terminal.program, \
-                 dispatch.confirm, cloud.base_url",
+                 defaults.provider, defaults.mode, cloud.base_url, worktrees.dir, \
+                 terminal.program, dispatch.confirm",
                 key
             ),
         }
-        Ok(false)
+        Ok(())
     }
 
-    /// List all set config keys and their values.
+    /// Every set value, alphabetically ordered.
     pub fn list(&self) -> Vec<(String, String)> {
         let keys = [
             "identity.name",
             "identity.email",
             "defaults.provider",
             "defaults.mode",
+            "cloud.base_url",
             "worktrees.dir",
             "terminal.program",
             "dispatch.confirm",
-            "cloud.base_url",
         ];
         keys.iter()
             .filter_map(|k| self.get(k).map(|v| (k.to_string(), v)))
@@ -233,22 +169,13 @@ impl ShipConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Defaults {
-    pub provider: Option<String>,
-    pub mode: Option<String>,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::sync::Mutex;
 
-    /// Serializes tests that mutate `SHIP_HOME` — env vars are process-global
-    /// and `LocalSettings::load/save` reads/writes real disk via `ShipHome::from_env()`.
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-    /// Set `SHIP_HOME` to a fresh tempdir for the lifetime of the returned guard.
     fn isolated_home() -> (tempfile::TempDir, std::sync::MutexGuard<'static, ()>) {
         let guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let tmp = tempfile::tempdir().unwrap();
@@ -258,84 +185,58 @@ mod tests {
     }
 
     #[test]
-    fn ship_config_round_trips() {
-        let cfg = ShipConfig {
-            identity: Some(Identity {
-                name: "Alice".into(),
-                email: Some("a@b.com".into()),
-            }),
-            defaults: Some(Defaults {
-                provider: Some("claude".into()),
-                mode: None,
-            }),
-            cloud: None,
-            terminal: None,
-            dispatch: None,
-        };
-        let s = toml::to_string_pretty(&cfg).unwrap();
-        let back: ShipConfig = toml::from_str(&s).unwrap();
-        assert_eq!(back.identity.unwrap().name, "Alice");
-    }
-
-    #[test]
-    fn credentials_round_trips() {
-        let creds = Credentials {
-            account: Some(CredentialsAccount {
-                token: Some("tok-abc".into()),
-            }),
-        };
-        let s = toml::to_string_pretty(&creds).unwrap();
-        let back: Credentials = toml::from_str(&s).unwrap();
-        assert_eq!(back.token(), Some("tok-abc"));
-    }
-
-    #[test]
-    fn credentials_token_none_when_empty() {
-        let creds = Credentials::default();
-        assert_eq!(creds.token(), None);
-    }
-
-    #[test]
-    fn config_get_set_round_trips() {
+    fn round_trips_library_keys() {
         let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
-        assert_eq!(cfg.get("terminal.program"), None);
+        cfg.set("identity.name", "Alice").unwrap();
+        cfg.set("defaults.provider", "claude").unwrap();
+        cfg.set("cloud.base_url", "https://example.com").unwrap();
+        cfg.save().unwrap();
 
-        assert!(!cfg.set("terminal.program", "wt").unwrap());
-        assert_eq!(cfg.get("terminal.program"), Some("wt".to_string()));
-
-        assert!(!cfg.set("dispatch.confirm", "true").unwrap());
-        assert_eq!(cfg.get("dispatch.confirm"), Some("true".to_string()));
-
-        // worktrees.dir routes to local.jsonc and persists itself.
-        assert!(cfg.set("worktrees.dir", "/tmp/wt").unwrap());
-        assert_eq!(cfg.get("worktrees.dir"), Some("/tmp/wt".to_string()));
+        let back = ShipConfig::load();
+        assert_eq!(back.get("identity.name"), Some("Alice".into()));
+        assert_eq!(back.get("defaults.provider"), Some("claude".into()));
+        assert_eq!(back.get("cloud.base_url"), Some("https://example.com".into()));
     }
 
     #[test]
-    fn config_set_rejects_invalid_terminal() {
+    fn round_trips_local_keys() {
+        let (_tmp, _guard) = isolated_home();
+        let mut cfg = ShipConfig::default();
+        cfg.set("worktrees.dir", "/opt/wt").unwrap();
+        cfg.set("terminal.program", "tmux").unwrap();
+        cfg.set("dispatch.confirm", "true").unwrap();
+        cfg.save().unwrap();
+
+        let back = ShipConfig::load();
+        assert_eq!(back.get("worktrees.dir"), Some("/opt/wt".into()));
+        assert_eq!(back.get("terminal.program"), Some("tmux".into()));
+        assert_eq!(back.get("dispatch.confirm"), Some("true".into()));
+    }
+
+    #[test]
+    fn list_returns_only_set_values() {
+        let (_tmp, _guard) = isolated_home();
+        let mut cfg = ShipConfig::default();
+        assert!(cfg.list().is_empty());
+
+        cfg.set("terminal.program", "wt").unwrap();
+        let entries = cfg.list();
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries[0], ("terminal.program".into(), "wt".into()));
+    }
+
+    #[test]
+    fn rejects_invalid_terminal() {
+        let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
         assert!(cfg.set("terminal.program", "invalid").is_err());
     }
 
     #[test]
-    fn config_set_rejects_unknown_key() {
-        let mut cfg = ShipConfig::default();
-        assert!(cfg.set("nonexistent.key", "value").is_err());
-    }
-
-    #[test]
-    fn config_list_returns_only_set_values() {
+    fn rejects_unknown_key() {
         let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
-        assert!(cfg.list().is_empty());
-
-        cfg.set("terminal.program", "tmux").unwrap();
-        let entries = cfg.list();
-        assert_eq!(entries.len(), 1);
-        assert_eq!(
-            entries[0],
-            ("terminal.program".to_string(), "tmux".to_string())
-        );
+        assert!(cfg.set("nonexistent.key", "value").is_err());
     }
 }

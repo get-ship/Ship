@@ -34,11 +34,14 @@ pub struct Worktrees {
     pub dir: Option<String>,
 }
 
+/// Preferred terminal program for spawned agents.
+/// Valid: wt, iterm, tmux, gnome, vscode, manual, auto.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Terminal {
     pub program: Option<String>,
 }
 
+/// Pre-launch confirmation behavior for `ship dispatch`.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Dispatch {
     pub confirm: Option<bool>,
@@ -114,7 +117,7 @@ pub(crate) fn expand_tilde(path: &str) -> PathBuf {
 
 /// Strip JSONC comments (`//` line, `/* */` block) without parsing.
 /// Strings are respected so that `"http://"` doesn't get truncated.
-fn strip_jsonc_comments(input: &str) -> String {
+pub(crate) fn strip_jsonc_comments(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     let mut chars = input.chars().peekable();
     let mut in_string = false;

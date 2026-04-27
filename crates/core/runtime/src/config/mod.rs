@@ -1,5 +1,7 @@
 pub mod catalog;
+pub mod credentials;
 pub mod hooks;
+pub mod library;
 pub mod local;
 pub mod security;
 
@@ -53,4 +55,6 @@ pub use discover::discover_projects;
 
 pub use runtime_settings::{get_all_settings, get_setting, set_setting, setting_default};
 
+pub use credentials::Credentials;
+pub use library::LibrarySettings;
 pub use local::{worktrees_dir, LocalSettings};

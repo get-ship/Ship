@@ -15,23 +15,18 @@ use tokio_util::sync::CancellationToken;
 
 use crate::server::ShipServer;
 
-/// Read the bearer token from a given config.toml path.
-/// Returns None if the file is absent or has no [auth] token.
+/// Read the MCP bearer token from a given credentials.jsonc path.
+/// Returns None if the file is absent or no `mcp.token` is set.
 pub fn read_token_from_path(path: &Path) -> Option<String> {
-    let content = std::fs::read_to_string(path).ok()?;
-    let table: toml::Value = toml::from_str(&content).ok()?;
-    table
-        .get("auth")?
-        .get("token")?
-        .as_str()
-        .map(|s| s.to_string())
+    let creds = runtime::config::Credentials::load_at(path);
+    creds.mcp_token().map(|s| s.to_string())
 }
 
-/// Read the bearer token from ~/.ship/config.toml.
+/// Read the MCP bearer token from `~/.ship/machine/credentials.jsonc`.
 pub fn read_auth_token() -> Result<Option<String>> {
-    let global_dir = runtime::project::get_global_dir()?;
-    let config_path = global_dir.join("config.toml");
-    Ok(read_token_from_path(&config_path))
+    Ok(runtime::config::Credentials::load()
+        .mcp_token()
+        .map(|s| s.to_string()))
 }
 
 async fn bearer_auth(
@@ -145,7 +140,7 @@ pub async fn run_http_server(port: u16) -> Result<()> {
         tracing::info!("ship mcp: bearer token auth enabled");
     } else {
         tracing::warn!(
-            "ship mcp: no [auth] token in ~/.ship/config.toml, server is unauthenticated"
+            "ship mcp: no mcp.token in ~/.ship/machine/credentials.jsonc, server is unauthenticated"
         );
     }
 
@@ -166,34 +161,37 @@ pub async fn run_http_server(port: u16) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
     use tempfile::TempDir;
 
     #[test]
-    fn reads_token_from_config_toml() {
+    fn reads_mcp_token_from_credentials_jsonc() {
         let dir = TempDir::new().unwrap();
-        let config_path = dir.path().join("config.toml");
-        let mut f = std::fs::File::create(&config_path).unwrap();
-        writeln!(f, "[auth]\ntoken = \"secret123\"").unwrap();
-        let token = read_token_from_path(&config_path).unwrap();
+        let path = dir.path().join("credentials.jsonc");
+        std::fs::write(
+            &path,
+            r#"// creds
+{
+  "mcp": { "token": "secret123" }
+}
+"#,
+        )
+        .unwrap();
+        let token = read_token_from_path(&path).unwrap();
         assert_eq!(token, "secret123");
     }
 
     #[test]
-    fn missing_config_returns_none() {
+    fn missing_file_returns_none() {
         let dir = TempDir::new().unwrap();
-        let config_path = dir.path().join("config.toml");
-        let token = read_token_from_path(&config_path);
-        assert!(token.is_none());
+        let path = dir.path().join("credentials.jsonc");
+        assert!(read_token_from_path(&path).is_none());
     }
 
     #[test]
-    fn config_without_auth_section_returns_none() {
+    fn file_without_mcp_section_returns_none() {
         let dir = TempDir::new().unwrap();
-        let config_path = dir.path().join("config.toml");
-        let mut f = std::fs::File::create(&config_path).unwrap();
-        writeln!(f, "[other]\nkey = \"value\"").unwrap();
-        let token = read_token_from_path(&config_path);
-        assert!(token.is_none());
+        let path = dir.path().join("credentials.jsonc");
+        std::fs::write(&path, r#"{ "account": { "token": "acc" } }"#).unwrap();
+        assert!(read_token_from_path(&path).is_none());
     }
 }
