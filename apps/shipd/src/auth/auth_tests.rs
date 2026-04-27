@@ -157,7 +157,7 @@ async fn ship_hook_prefixed_token_returns_401() {
 
 // ── Cookie-based session auth (phase 1) ─────────────────────────────────
 
-use crate::session;
+use crate::auth::session;
 
 /// Valid 64-hex daemon token (distinct from TEST_TOKEN above which intentionally
 /// contains a non-hex `]`).

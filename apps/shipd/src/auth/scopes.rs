@@ -126,7 +126,7 @@ pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
 }
 
 /// Artifact scope check helpers.
-pub fn can_read_artifacts(auth: &super::auth::AuthContext, scope_kind: &str) -> bool {
+pub fn can_read_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool {
     if auth.has_scope(Scope::Full) { return true; }
     match scope_kind {
         "run" => auth.has_scope(Scope::ReadArtifactsRun),
@@ -136,7 +136,7 @@ pub fn can_read_artifacts(auth: &super::auth::AuthContext, scope_kind: &str) -> 
     }
 }
 
-pub fn can_write_artifacts(auth: &super::auth::AuthContext, scope_kind: &str) -> bool {
+pub fn can_write_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool {
     if auth.has_scope(Scope::Full) { return true; }
     match scope_kind {
         "run" => auth.has_scope(Scope::WriteArtifactsRun),
@@ -146,7 +146,7 @@ pub fn can_write_artifacts(auth: &super::auth::AuthContext, scope_kind: &str) ->
     }
 }
 
-pub fn can_delete_artifacts(auth: &super::auth::AuthContext, scope_kind: &str) -> bool {
+pub fn can_delete_artifacts(auth: &super::AuthContext, scope_kind: &str) -> bool {
     if auth.has_scope(Scope::Full) { return true; }
     match scope_kind {
         "run" => auth.has_scope(Scope::DeleteArtifactsRun),
@@ -293,7 +293,7 @@ pub type SessionRegistry = Arc<Mutex<HashMap<String, DaemonSession>>>;
 pub fn generate_session_token() -> Result<String, getrandom::Error> {
     let mut bytes = [0u8; 16];
     getrandom::getrandom(&mut bytes)?;
-    Ok(format!("ship_sess_{}", super::auth::hex_encode(&bytes)))
+    Ok(format!("ship_sess_{}", super::hex_encode(&bytes)))
 }
 
 /// Returns true if the token is a session token (ship_sess_ prefix).
@@ -303,7 +303,7 @@ pub fn is_session_token(token: &str) -> bool {
 
 /// Return a 403 Forbidden response if the caller lacks the required scope.
 pub fn require_scope(
-    auth: &super::auth::AuthContext,
+    auth: &super::AuthContext,
     scope: Scope,
 ) -> Result<(), (StatusCode, axum::Json<crate::rest_api::MeshResponse>)> {
     if auth.has_scope(scope) {
@@ -477,7 +477,7 @@ mod tests {
     fn session_token_format() {
         let token = generate_session_token().unwrap();
         assert!(is_session_token(&token));
-        assert!(!super::super::auth::is_daemon_token(&token));
+        assert!(!super::super::is_daemon_token(&token));
     }
 
     #[test]

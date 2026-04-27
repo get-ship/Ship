@@ -23,7 +23,7 @@ fn now_unix() -> i64 {
 }
 
 use crate::auth::{AuthContext, hex_encode};
-use crate::scopes::{DaemonSession, Scope, SessionRegistry};
+use crate::auth::scopes::{DaemonSession, Scope, SessionRegistry};
 
 /// Cookie name used for browser sessions. Scoped to `/api/v1/runtime`.
 pub const COOKIE_NAME: &str = "ship_session";

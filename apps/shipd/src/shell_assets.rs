@@ -14,7 +14,7 @@
 //! (see `session.rs`) — we are not inventing new auth, only reusing the
 //! existing mechanism on a new path.
 
-use crate::session::{
+use crate::auth::session::{
     self, BROWSER_SESSION_TTL_SECS, COOKIE_NAME, issue_browser_session, parse_session_cookie,
 };
 use crate::auth::SessionRegistry;

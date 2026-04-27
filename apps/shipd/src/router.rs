@@ -14,12 +14,13 @@ use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
 
 use crate::{
-    NetworkServer, actor_api, actors_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
-    human_webhook, lint_api, logs_api, mcp_registry, openapi, pairing, project_api, pty_handler,
-    rest_api, runtime_api, sdk_manifest, services, session, settings_api, shell_assets,
+    NetworkServer, actor_api, actors_api, annotations_api, artifacts_api, auth, cors, feedback_api, hooks_api,
+    human_webhook, lint_api, logs_api, mcp_registry, openapi, project_api, pty_handler,
+    rest_api, runtime_api, sdk_manifest, services, settings_api, shell_assets,
     ship_runtime, specs_api, supervisor, view_errors_api, view_morph_target, view_sessions_api,
     views, collection_api, create_api, themes_api, sessions, projects_api, views_raw, webhook_ext,
 };
+use crate::auth::{attest, pairing, scopes, session};
 use axum::routing;
 
 /// Build the full Axum router with all route groups, auth, and CORS.

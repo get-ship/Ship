@@ -10,8 +10,8 @@
 
 use crate::auth;
 use crate::auth::{AuthContext, Scope};
-use crate::pairing;
-use crate::scopes::{DaemonSession, SessionRegistry};
+use crate::auth::pairing;
+use crate::auth::scopes::{DaemonSession, SessionRegistry};
 use runtime::events::CallerKind;
 use std::collections::HashMap;
 use std::sync::Arc;

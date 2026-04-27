@@ -35,12 +35,12 @@ fn err(status: StatusCode, msg: String) -> Response {
 
 async fn mint_cookie(state: &ApiState) -> String {
     let session_id =
-        crate::session::issue_browser_session(state.session_registry()).await;
+        crate::auth::session::issue_browser_session(state.session_registry()).await;
     format!(
         "{name}={id}; HttpOnly; SameSite=Strict; Path=/api; Max-Age={ttl}",
-        name = crate::session::COOKIE_NAME,
+        name = crate::auth::session::COOKIE_NAME,
         id = session_id,
-        ttl = crate::session::BROWSER_SESSION_TTL_SECS,
+        ttl = crate::auth::session::BROWSER_SESSION_TTL_SECS,
     )
 }
 

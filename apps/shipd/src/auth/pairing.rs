@@ -26,7 +26,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
 
-use crate::scopes::Scope;
+use crate::auth::scopes::Scope;
 
 /// Global dev-mode flag. Set once at startup via `run_network(dev=true)`.
 /// When on, browser clients that call /auth/pair/init get an auto-approved

@@ -28,7 +28,7 @@ use std::collections::BTreeMap;
 use crate::access::RuntimeAccess;
 use crate::auth::{AuthContext, Scope};
 use crate::rest_api::ApiState;
-use crate::scopes::{can_delete_artifacts, can_read_artifacts, can_write_artifacts, require_scope};
+use crate::auth::scopes::{can_delete_artifacts, can_read_artifacts, can_write_artifacts, require_scope};
 use crate::services::artifacts::service::{
     ArtifactsService, Error as ArtifactsError, PatchArgs, StoreArgs,
 };

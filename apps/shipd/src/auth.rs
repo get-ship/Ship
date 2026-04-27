@@ -4,6 +4,22 @@
 //! `~/.ship/daemon.token`. All HTTP endpoints require the token in the
 //! `Authorization: Bearer <token>` header. Clients read the token file
 //! and include it in requests.
+//!
+//! Auth-domain submodules live in `apps/shipd/src/auth/` per
+//! modular-runtime-04: scopes, session, pairing, attest. Their tests
+//! sit alongside.
+
+pub mod attest;
+pub mod pairing;
+pub mod scopes;
+pub mod session;
+
+#[cfg(test)]
+mod auth_tests;
+#[cfg(test)]
+mod scope_tests;
+#[cfg(test)]
+mod pairing_integration_tests;
 
 use axum::{
     body::Body,
@@ -33,7 +49,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 // Re-export scope model from the split-out module.
-pub use crate::scopes::{
+pub use crate::auth::scopes::{
     DaemonSession, Scope, SessionRegistry, SessionRegisterRequest,
     SessionRegisterResponse, generate_session_token, hydrate_sessions,
     is_session_token, persist_session, remove_persisted_session,
@@ -134,9 +150,9 @@ pub async fn auth_middleware(
 ) -> Response {
     // 1. Cookie check — browser sessions.
     if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok()) {
-        if let Some(session_id) = crate::session::parse_session_cookie(cookie_header) {
-            if crate::session::is_browser_session_id(&session_id) {
-                match crate::session::lookup_browser_session(&session_registry, &session_id).await {
+        if let Some(session_id) = crate::auth::session::parse_session_cookie(cookie_header) {
+            if crate::auth::session::is_browser_session_id(&session_id) {
+                match crate::auth::session::lookup_browser_session(&session_registry, &session_id).await {
                     Some(session) => {
                         let auth = AuthContext {
                             caller_kind: CallerKind::Cli,
@@ -273,7 +289,7 @@ pub fn is_daemon_token(token: &str) -> bool {
 
 // ---- Pairing endpoints ----
 
-use crate::pairing::{ClaimResult, ConfirmError, SharedPairingRegistry};
+use crate::auth::pairing::{ClaimResult, ConfirmError, SharedPairingRegistry};
 use serde_json::json;
 
 #[derive(serde::Deserialize, Default, utoipa::ToSchema)]
@@ -349,7 +365,7 @@ pub async fn pair_init(
     body: Option<axum::Json<PairInitRequest>>,
 ) -> Result<axum::Json<PairInitResponse>, (axum::http::StatusCode, &'static str)> {
     let label = body.and_then(|b| b.0.client_label);
-    let dev_mode = crate::pairing::is_dev_mode();
+    let dev_mode = crate::auth::pairing::is_dev_mode();
 
     let mut reg = registry.lock().await;
     let pairing = reg.init(label).map_err(|e| {
@@ -368,11 +384,11 @@ pub async fn pair_init(
             .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "token gen failed"))?;
         let _ = reg.confirm(&pairing.code, session_token.clone());
         drop(reg);
-        use crate::scopes::DaemonSession;
+        use crate::auth::scopes::DaemonSession;
         let session = DaemonSession {
             token: session_token,
             agent_id: "studio-dev".to_string(),
-            scopes: crate::pairing::paired_session_scopes(),
+            scopes: crate::auth::pairing::paired_session_scopes(),
             workspace_id: None,
             created_at: std::time::Instant::now(),
             expires_at_unix: None,
@@ -388,7 +404,7 @@ pub async fn pair_init(
     Ok(axum::Json(PairInitResponse {
         code: pairing.code,
         claim_token: pairing.claim_token,
-        code_expires_in_secs: crate::pairing::CODE_TTL.as_secs(),
+        code_expires_in_secs: crate::auth::pairing::CODE_TTL.as_secs(),
         dev_mode,
     }))
 }
@@ -447,19 +463,19 @@ pub async fn pair_confirm(
         Ok(_claim) => {
             drop(reg);
             // Bind session in the auth registry — persisted so it survives daemon restart.
-            use crate::scopes::DaemonSession;
+            use crate::auth::scopes::DaemonSession;
             let expires_at_unix = chrono::Utc::now().timestamp()
-                + crate::pairing::SESSION_TTL.as_secs() as i64;
+                + crate::auth::pairing::SESSION_TTL.as_secs() as i64;
             let session = DaemonSession {
                 token: session_token.clone(),
                 agent_id: "studio".to_string(),
-                scopes: crate::pairing::paired_session_scopes(),
+                scopes: crate::auth::pairing::paired_session_scopes(),
                 workspace_id: None,
                 created_at: std::time::Instant::now(),
                 expires_at_unix: Some(expires_at_unix),
                 ephemeral: false,
             };
-            crate::scopes::persist_session(&session);
+            crate::auth::scopes::persist_session(&session);
             write_audit_log("pair_confirmed", &session_token, Some(&session.agent_id));
             session_registry.lock().await.insert(session.token.clone(), session);
             (
@@ -546,7 +562,7 @@ pub(crate) fn write_audit_log(event: &str, token: &str, agent_id: Option<&str>) 
 
 // ---- Server-side attestation ----
 
-use crate::attest::{
+use crate::auth::attest::{
     AttestationConfig, AttestationVerifier, DEFAULT_ATTESTATION_ISSUER, VerifyError,
     daemon_owner, set_daemon_owner,
 };
@@ -654,16 +670,16 @@ pub async fn server_attest(
         }
     };
 
-    let session = crate::scopes::DaemonSession {
+    let session = crate::auth::scopes::DaemonSession {
         token: session_token.clone(),
         agent_id: format!("user:{}", claims.sub),
-        scopes: crate::pairing::paired_session_scopes(),
+        scopes: crate::auth::pairing::paired_session_scopes(),
         workspace_id: None,
         created_at: std::time::Instant::now(),
         expires_at_unix: Some(claims.exp),
         ephemeral: false,
     };
-    crate::scopes::persist_session(&session);
+    crate::auth::scopes::persist_session(&session);
     write_audit_log("server_attest", &session_token, Some(&session.agent_id));
     session_registry.lock().await.insert(session_token.clone(), session);
 

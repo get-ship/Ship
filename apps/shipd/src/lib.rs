@@ -18,8 +18,6 @@ mod cors;
 mod view_morph_target;
 mod daemon;
 mod first_run;
-pub mod scopes;
-pub mod session;
 mod handler;
 pub mod hooks_api;
 pub mod logs_api;
@@ -50,8 +48,6 @@ pub mod views;
 pub mod views_raw;
 pub mod specs_api;
 pub mod settings_api;
-pub mod attest;
-pub mod pairing;
 pub mod shell_assets;
 pub mod ship_runtime;
 pub mod supervised;
@@ -63,17 +59,8 @@ pub mod test_harness;
 #[cfg(test)]
 mod integration_tests;
 #[cfg(test)]
-#[path = "auth_tests.rs"]
-mod auth_tests;
-#[cfg(test)]
-#[path = "scope_tests.rs"]
-mod scope_tests;
-#[cfg(test)]
 #[path = "ship_runtime_tests.rs"]
 mod ship_runtime_tests;
-#[cfg(test)]
-#[path = "pairing_integration_tests.rs"]
-mod pairing_integration_tests;
 
 pub use daemon::{network_status, network_stop};
 pub use server::NetworkServer;
@@ -129,7 +116,7 @@ pub async fn run_network(
     // Dev mode forces localhost bind. Agents can set SHIP_HOST env vars,
     // but they can't flip the --dev flag on the daemon process they didn't start.
     let host = if dev { "127.0.0.1".to_string() } else { host };
-    pairing::set_dev_mode(dev);
+    auth::pairing::set_dev_mode(dev);
     let global_dir = runtime::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
 
@@ -215,8 +202,8 @@ pub async fn run_network(
     if !dev {
         auth::hydrate_sessions(&session_registry).await;
     }
-    let pairing_registry = pairing::new_shared();
-    let attestation_verifier = attest::AttestationVerifier::new();
+    let pairing_registry = auth::pairing::new_shared();
+    let attestation_verifier = auth::attest::AttestationVerifier::new();
     // Log the `.ship` components discovered at startup. The compile cache
     // is lazy (first-request-per-tag); this scan is purely diagnostic so
     // operators can see at a glance whether the components dir is wired.
