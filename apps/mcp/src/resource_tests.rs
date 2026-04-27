@@ -174,7 +174,7 @@ fn write_skill(ship_dir: &std::path::Path, skill_id: &str, content: &str) {
     std::fs::write(
         skill_dir.join("SKILL.md"),
         format!(
-            "---\nname: {skill_id}\ndescription: Test skill\n---\n{content}"
+            "---\nname: {skill_id}\nstable-id: {skill_id}\ndescription: Test skill\ntags: [test]\nauthors: [test]\n---\n{content}"
         ),
     )
     .unwrap();
