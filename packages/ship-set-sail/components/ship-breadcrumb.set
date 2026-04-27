@@ -1,0 +1,56 @@
+<script>
+// <ship-breadcrumb> — path-navigation primitive. Hosts one or more
+// <ship-breadcrumb-item> children; chevron separators are inserted
+// between siblings and re-synced via MutationObserver when items
+// are added or removed.
+//
+// Slots:
+//   (default) — one or more <ship-breadcrumb-item>.
+
+function syncSeparators() {
+  const nav = el.querySelector(':scope > nav[part="nav"]')
+  if (!nav) return
+  // Collect items from the host's light children. They're parented
+  // under `nav` after the first sync; before that, they're direct
+  // children of the host.
+  const fromNav = Array.from(nav.querySelectorAll(':scope > ship-breadcrumb-item'))
+  const fromHost = Array.from(el.querySelectorAll(':scope > ship-breadcrumb-item'))
+  const items = fromNav.length > 0 ? fromNav : fromHost
+  // Move loose host-level items into nav so navigation order is stable.
+  for (const it of fromHost) {
+    if (it.parentNode !== nav) nav.appendChild(it)
+  }
+  // Drop existing separators; we re-emit fresh ones to avoid drift.
+  for (const s of Array.from(nav.querySelectorAll(':scope > .sep'))) s.remove()
+  for (let i = 0; i < items.length - 1; i++) {
+    const sep = document.createElement('span')
+    sep.className = 'sep'
+    sep.setAttribute('aria-hidden', 'true')
+    sep.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'
+    items[i].after(sep)
+  }
+}
+
+mount {
+  syncSeparators()
+  const obs = new MutationObserver(() => syncSeparators())
+  obs.observe(el, { childList: true, subtree: false })
+  el.addEventListener('sail:cleanup', () => obs.disconnect())
+}
+</script>
+
+<template>
+<nav aria-label="Breadcrumb" part="nav"><slot></slot></nav>
+</template>
+
+<style>
+:host { display: flex; align-items: center; }
+nav { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+.sep {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 12px; height: 12px;
+  color: var(--muted-foreground);
+  opacity: 0.7;
+}
+.sep svg { width: 12px; height: 12px; }
+</style>

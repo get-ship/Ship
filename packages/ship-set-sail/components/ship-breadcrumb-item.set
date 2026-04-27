@@ -1,0 +1,47 @@
+<script>
+// <ship-breadcrumb-item> — one rung of a breadcrumb path. Renders
+// either an <a href> (when href is set and not active) or a span
+// label with aria-current=page (when active).
+//
+// Attributes:
+//   href   — URL (renders as <a> when present and not active).
+//   active — boolean; marks the current path step.
+
+prop href: string = ''
+prop active: boolean = false
+
+derived showLink = !!href() && !active()
+derived ariaCurrent = active() ? 'page' : 'false'
+</script>
+
+<template>
+{#if showLink}
+  <a href={href} part="link"><slot></slot></a>
+{:else}
+  <span class="label" part="label" aria-current={ariaCurrent}><slot></slot></span>
+{/if}
+</template>
+
+<style>
+:host {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  color: var(--muted-foreground);
+}
+:host([active]) { color: var(--foreground); font-weight: var(--font-weight-medium); }
+a, .label {
+  display: inline-flex; align-items: center;
+  color: inherit;
+  text-decoration: none;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  transition: color var(--duration-fast);
+}
+a:hover { color: var(--foreground); }
+a:focus-visible {
+  outline: var(--ring-width) solid var(--ring-color);
+  outline-offset: var(--ring-offset);
+}
+</style>

@@ -1,0 +1,111 @@
+<script>
+// <ship-collapsible> — open/close container with smooth height
+// animation. Trigger slot toggles a content region.
+//
+// Attributes:
+//   open      — boolean; whether the content is visible.
+//   disabled  — boolean; prevents toggling.
+//
+// Slots:
+//   trigger   — the element that toggles open/close.
+//   (default) — collapsible content.
+//
+// Events:
+//   ship-toggle — CustomEvent { open: boolean }.
+
+prop open: boolean = false
+prop disabled: boolean = false
+
+state contentId = ''
+
+function toggle() {
+  if (disabled()) return
+  const next = !open()
+  open.set(next)
+  if (next) el.setAttribute('open', '')
+  else el.removeAttribute('open')
+  syncTrigger()
+  el.dispatchEvent(new CustomEvent('ship-toggle', {
+    detail: { open: next },
+    bubbles: true,
+    composed: true,
+  }))
+}
+
+function onTriggerKeydown(e) {
+  if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    toggle()
+  }
+}
+
+function syncTrigger() {
+  // The slot attribute is stripped during slot resolution, so we
+  // identify trigger nodes by their parent wrapper instead — every
+  // element under the .trigger-wrap div is a trigger.
+  const wrap = el.querySelector(':scope > .trigger-wrap')
+  if (!wrap) return
+  for (const t of Array.from(wrap.children)) {
+    t.setAttribute('aria-expanded', String(open()))
+    t.setAttribute('aria-controls', contentId())
+    if (!t.hasAttribute('tabindex') && !t.matches('button, a, input, select, textarea')) {
+      t.setAttribute('tabindex', '0')
+    }
+  }
+}
+
+mount {
+  // Per-instance unique id for aria-controls. Module-level counters
+  // aren't emitted (gaps.md row 1) so we lean on a random suffix
+  // stable for the component's lifetime.
+  contentId.set(`ship-collapsible-${Math.random().toString(36).slice(2, 9)}`)
+  syncTrigger()
+}
+</script>
+
+<template>
+<div class="trigger-wrap" onclick={toggle} onkeydown={onTriggerKeydown}>
+  <slot name="trigger"></slot>
+</div>
+<div class="content-wrap" part="content" id={contentId} role="region">
+  <div class="content-inner">
+    <slot></slot>
+  </div>
+</div>
+</template>
+
+<style>
+:host {
+  display: block;
+  font-family: var(--font-body);
+  color: var(--foreground);
+}
+:host([hidden]) { display: none; }
+
+.content-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-medium) var(--ease-out);
+}
+:host([open]) .content-wrap {
+  grid-template-rows: 1fr;
+}
+
+.content-inner {
+  overflow: hidden;
+}
+
+.trigger-wrap > * {
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+:host([disabled]) .trigger-wrap > * {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .content-wrap { transition: none; }
+}
+</style>

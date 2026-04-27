@@ -1,0 +1,52 @@
+<script>
+// <ship-label> — section/field label. Typography matches specs
+// .meta-title and the pipelines .stat-label uppercase micro-kicker.
+//
+// Attributes:
+//   for       — id of the associated control. Mirrored onto the inner
+//               native <label for=…>. Read via mount + MutationObserver
+//               because the framework's prop→attribute kebab rule
+//               (htmlFor → "html-for") doesn't let us name the
+//               attribute "for" directly. See gaps.md.
+//   size      — sm | md (default sm).
+//   required  — boolean; appends "*" after the label.
+//
+// Slots:
+//   (default) — label text.
+
+prop size: 'sm' | 'md' = 'sm'
+prop required: boolean = false
+
+state forValue = ''
+
+mount {
+  forValue.set(el.getAttribute('for') || '')
+  const obs = new MutationObserver(() => {
+    forValue.set(el.getAttribute('for') || '')
+  })
+  obs.observe(el, { attributes: true, attributeFilter: ['for'] })
+  el.addEventListener('sail:cleanup', () => obs.disconnect())
+}
+</script>
+
+<template>
+<label for={forValue}>
+  <slot></slot>
+  {#if required}<span class="req" aria-hidden="true">*</span>{/if}
+</label>
+</template>
+
+<style>
+:host { display: inline-block; }
+label {
+  font-family: var(--font-body);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+}
+:host([size='sm']) label,
+:host(:not([size])) label { font-size: 10px; }
+:host([size='md']) label { font-size: 11px; }
+.req { color: var(--destructive); margin-left: 2px; }
+</style>
