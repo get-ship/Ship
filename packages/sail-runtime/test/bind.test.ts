@@ -122,6 +122,23 @@ describe('bindAttr', () => {
     bindAttr(el, 'data-count', () => $count())
     expect(el.getAttribute('data-count')).toBe('42')
   })
+
+  it('empty string removes attribute (auto-omit)', () => {
+    const el = document.createElement('input')
+    const $label = signal('hello')
+    bindAttr(el, 'aria-label', () => $label())
+    expect(el.getAttribute('aria-label')).toBe('hello')
+    $label.set('')
+    expect(el.hasAttribute('aria-label')).toBe(false)
+  })
+
+  it('undefined removes attribute', () => {
+    const el = document.createElement('input')
+    el.setAttribute('aria-label', 'old')
+    const $label = signal<string | undefined>(undefined)
+    bindAttr(el, 'aria-label', () => $label())
+    expect(el.hasAttribute('aria-label')).toBe(false)
+  })
 })
 
 describe('bindClass', () => {

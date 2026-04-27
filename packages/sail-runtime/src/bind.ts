@@ -41,13 +41,24 @@ export function bindShow(el: HTMLElement, get: () => unknown): Disposer {
 }
 
 /**
- * Bind any attribute. `null` / `false` → remove attribute;
- * `true` → empty attribute (presence-only); other → String(value).
+ * Bind any attribute.
+ *
+ * Omission rules — designed so authors write the obvious thing and get
+ * correct DOM/ARIA semantics without thinking about absence:
+ *   - `null`, `undefined`, `false`, `''` → remove the attribute
+ *   - `true` → presence-only (e.g. `disabled`, `required`)
+ *   - anything else → `String(value)`
+ *
+ * The empty-string case matters for ARIA: `<input aria-label="">`
+ * overrides the accessible-name computation, so silently writing it is
+ * a real divergence. By omitting empty strings, an agent writing
+ * `aria-label={maybeLabel}` gets the right semantics whether
+ * `maybeLabel` is set or not.
  */
 export function bindAttr(el: Element, name: string, get: () => unknown): Disposer {
   return effect(() => {
     const v = get()
-    if (v == null || v === false) {
+    if (v == null || v === false || v === '') {
       el.removeAttribute(name)
     } else if (v === true) {
       el.setAttribute(name, '')
