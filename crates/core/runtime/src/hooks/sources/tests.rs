@@ -22,7 +22,7 @@ use crate::hooks::loader::{load_hooks_dir, parse_hook, validate_hook};
 fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
     let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
-    std::fs::create_dir_all(ship_dir.join("hooks")).unwrap();
+    std::fs::create_dir_all(ship_dir.join("triggers")).unwrap();
     std::fs::create_dir_all(ship_dir.join("schemas")).unwrap();
     crate::db::ensure_db_at(&ship_dir).unwrap();
     (tmp, ship_dir)
@@ -34,7 +34,7 @@ fn test_kernel(ship_dir: &Path) -> Arc<Mutex<KernelRouter>> {
 }
 
 fn write_hook(ship_dir: &Path, filename: &str, content: &str) {
-    let path = ship_dir.join("hooks").join(filename);
+    let path = ship_dir.join("triggers").join(filename);
     std::fs::write(path, content).unwrap();
 }
 

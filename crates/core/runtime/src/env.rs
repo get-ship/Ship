@@ -220,7 +220,6 @@ mod tests {
             Var::TelegramToken,
             Var::TelegramChatId,
             Var::Dir,
-            Var::GlobalDir,
         ];
         let mut seen = std::collections::HashSet::new();
         for v in names {
