@@ -131,15 +131,15 @@ fn full_index_renders_with_all_partials_spliced_in() {
     // The {% include %} chain in index.html.j2 needs sibling partial
     // resolution. render_view_source walks get_project_dir()/views/<name>,
     // which inside a git worktree may redirect to the main checkout.
-    // SHIP_DIR overrides that, per runtime::project::discovery.
+    // SHIP_DEV_PROJECT_DIR overrides that, per runtime::project::discovery.
     let ship_dir = view_dir()
         .parent()
         .and_then(Path::parent)
         .expect("views/setup has .ship/ grandparent")
         .to_path_buf();
-    let prior = runtime::env::read_raw(runtime::env::Var::Dir).ok();
+    let prior = runtime::env::read_raw(runtime::env::Var::DevProjectDir).ok();
     unsafe {
-        runtime::env::set(runtime::env::Var::Dir, &ship_dir);
+        runtime::env::set(runtime::env::Var::DevProjectDir, &ship_dir);
     }
 
     let index_path = view_dir().join("index.html.j2");
@@ -149,8 +149,8 @@ fn full_index_renders_with_all_partials_spliced_in() {
 
     unsafe {
         match prior {
-            Some(v) => runtime::env::set(runtime::env::Var::Dir, v),
-            None => runtime::env::remove(runtime::env::Var::Dir),
+            Some(v) => runtime::env::set(runtime::env::Var::DevProjectDir, v),
+            None => runtime::env::remove(runtime::env::Var::DevProjectDir),
         }
     }
 

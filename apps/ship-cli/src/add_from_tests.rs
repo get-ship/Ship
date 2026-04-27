@@ -123,13 +123,13 @@ fn parse_minimal_bundle_defaults() {
 }
 
 #[test]
-fn merge_dependencies_toml() {
+fn merge_dependencies_jsonc() {
     let tmp = TempDir::new().unwrap();
     let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     std::fs::write(
-        ship_dir.join("ship.toml"),
-        "[module]\nname = \"test\"\nversion = \"0.1.0\"\n",
+        ship_dir.join("ship.jsonc"),
+        "{\n  \"name\": \"test\"\n}\n",
     )
     .unwrap();
 
@@ -138,7 +138,7 @@ fn merge_dependencies_toml() {
         .collect();
     merge_dependencies(&ship_dir, &deps).unwrap();
 
-    let content = std::fs::read_to_string(ship_dir.join("ship.toml")).unwrap();
+    let content = std::fs::read_to_string(ship_dir.join("ship.jsonc")).unwrap();
     assert!(content.contains("github.com/org/skills"));
 }
 
@@ -171,7 +171,7 @@ fn merge_dependencies_fails_without_manifest() {
 
     let deps = [("pkg".into(), "1.0".into())].into_iter().collect();
     let err = merge_dependencies(&ship_dir, &deps).unwrap_err();
-    assert!(err.to_string().contains("no ship.jsonc or ship.toml"));
+    assert!(err.to_string().contains("no ship.jsonc"));
 }
 
 #[test]

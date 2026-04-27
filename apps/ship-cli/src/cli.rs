@@ -143,7 +143,7 @@ pub enum Commands {
     },
 
     // ── Publishing ───────────────────────────────────────────────────────────
-    /// Install all dependencies declared in .ship/ship.toml
+    /// Install all dependencies declared in .ship/ship.jsonc
     Install {
         /// Fail if the lockfile would change rather than updating it
         #[arg(long)]

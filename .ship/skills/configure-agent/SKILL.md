@@ -63,7 +63,7 @@ tools_deny = ["Bash(rm -rf*)"]
 
 ## Worktree Setup
 
-Canonical path: read `~/.ship/config.toml [worktrees] dir`.
+Canonical path: read `~/.ship/machine/local.jsonc:worktrees.dir`.
 Default if not set: `~/dev/<project-name>-worktrees/`
 
 ```bash

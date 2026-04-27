@@ -39,7 +39,7 @@ fn run_project(provider: Option<String>) -> Result<()> {
     let project_root = std::env::current_dir()?;
 
     // ── Auto-detect existing provider configs when no --provider flag ─────────
-    let is_fresh = !paths::project_ship_jsonc().exists() && !paths::project_ship_toml().exists();
+    let is_fresh = !paths::project_ship_jsonc().exists();
     let detected = if is_fresh && provider.is_none() {
         let d = compiler::detect_providers(&project_root);
         if d.any() { Some(d) } else { None }
@@ -126,7 +126,7 @@ fn run_project(provider: Option<String>) -> Result<()> {
             }
             println!("  imported {} rules", library.rules.len());
         }
-    } else if !ship_jsonc.exists() && !paths::project_ship_toml().exists() {
+    } else if !ship_jsonc.exists() {
         // No detection — scaffold default
         let prov = provider.as_deref().unwrap_or("claude");
         std::fs::write(

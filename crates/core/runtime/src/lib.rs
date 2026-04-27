@@ -454,12 +454,12 @@ mod tests {
         let override_dir = tmp.path().join("override");
         fs::create_dir_all(&override_dir)?;
         unsafe {
-            std::env::set_var("SHIP_DIR", override_dir.to_str().unwrap());
+            std::env::set_var("SHIP_DEV_PROJECT_DIR", override_dir.to_str().unwrap());
         }
         let project_dir = get_project_dir(None)?;
         assert_eq!(project_dir, override_dir);
         unsafe {
-            std::env::remove_var("SHIP_DIR");
+            std::env::remove_var("SHIP_DEV_PROJECT_DIR");
         }
         Ok(())
     }

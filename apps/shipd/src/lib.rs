@@ -211,7 +211,7 @@ pub async fn run_network(
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| format!("{} (global-only)", global_dir.display()));
     let identity = format!(
-        "shipd {}-{} listening on {} · SHIP_DIR={} · pid={}",
+        "shipd {}-{} listening on {} · ship_dir={} · pid={}",
         env!("CARGO_PKG_VERSION"),
         env!("SHIPD_GIT_COMMIT"),
         port,

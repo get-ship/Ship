@@ -52,9 +52,6 @@ pub fn skills_dir() -> PathBuf {
 pub fn mcp_path() -> PathBuf {
     project_dir().join("mcp.jsonc")
 }
-pub fn project_ship_toml() -> PathBuf {
-    project_dir().join("ship.toml")
-}
 pub fn project_ship_jsonc() -> PathBuf {
     project_dir().join("ship.jsonc")
 }

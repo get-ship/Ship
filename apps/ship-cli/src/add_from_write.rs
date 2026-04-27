@@ -86,35 +86,23 @@ pub fn write_skill(ship_dir: &Path, skill_id: &str, skill: &SkillBundle) -> Resu
     Ok(())
 }
 
-/// Merge dependencies into the existing manifest (ship.jsonc or ship.toml).
+/// Merge dependencies into the existing ship.jsonc manifest.
 pub fn merge_dependencies(
     ship_dir: &Path,
     deps: &std::collections::HashMap<String, String>,
 ) -> Result<()> {
-    let jsonc_path = ship_dir.join("ship.jsonc");
-    let toml_path = ship_dir.join("ship.toml");
-
-    let manifest_path = if jsonc_path.exists() {
-        jsonc_path
-    } else if toml_path.exists() {
-        toml_path
-    } else {
-        anyhow::bail!("no ship.jsonc or ship.toml found to add dependencies to");
-    };
+    let manifest_path = ship_dir.join("ship.jsonc");
+    if !manifest_path.exists() {
+        anyhow::bail!("no ship.jsonc found to add dependencies to");
+    }
 
     let raw = std::fs::read_to_string(&manifest_path)?;
-    let is_jsonc = crate::paths::is_jsonc_ext(&manifest_path);
-
     let mut updated = raw;
     for (path, version) in deps {
         if updated.contains(path) {
             continue; // Already present.
         }
-        updated = if is_jsonc {
-            crate::add::append_dependency_jsonc(&updated, path, version)
-        } else {
-            crate::add::append_dependency(&updated, path, version)
-        };
+        updated = crate::add::append_dependency_jsonc(&updated, path, version);
     }
 
     std::fs::write(&manifest_path, &updated)

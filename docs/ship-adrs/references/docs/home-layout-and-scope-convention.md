@@ -45,7 +45,7 @@ The result: a home directory that rewards the original customization vectors, di
     rules/
     permissions/
     themes/
-    mcp/                        ← promoted from mcp.jsonc (single-file mcp/config.jsonc for now)
+    mcp.jsonc                   ← user-scope MCP config (file, mirrors project shape)
     settings.jsonc              ← portable user preferences
 
   machine/                      ← never portable; runtime state tied to this host
@@ -68,14 +68,16 @@ No third bucket. `config` is not a peer category — portable config lives at `l
 ### 2. Canonical customization-vector list, applied uniformly at every authoring scope
 
 ```
-agents · skills · collections · views · pipelines · triggers · rules · permissions · themes · mcp
+agents · skills · collections · views · pipelines · triggers · rules · permissions · themes
 ```
 
-This list is a Rust enum (`Vector`) in `crates/core/runtime/src/home/vector.rs`. Project `.ship/` mirrors the same top-level vector list — identical shape at project and user scopes makes precedence obvious:
+This list is a Rust enum (`Vector`) in `crates/core/runtime/src/home/vector.rs` — nine **directory** vectors. Project `.ship/` mirrors the same top-level shape — identical at project and user scopes makes precedence obvious:
 
 **Precedence (lowest → highest):** built-in defaults → user (`library/`) → project (`.ship/`) → project local overrides (gitignored).
 
-Adding a new customization vector is a one-line enum change, which guarantees uniform treatment across scopes, loaders, lint rules, and docs.
+Adding a new directory-vector is a one-line enum change, which guarantees uniform treatment across scopes, loaders, lint rules, and docs.
+
+**`mcp` is intentionally not a directory vector.** At every scope MCP config is a single JSONC file (`<scope>/mcp.jsonc`). The original draft promoted it to a `mcp/` directory for symmetry; that was overengineering — a single file works at both scopes and matches existing project shape.
 
 ### 3. Daemon IPC handshake is a named concept: `machine/daemon/`
 
@@ -105,42 +107,39 @@ impl ShipHome {
 
 Enforcement:
 
-- A lint rule `runtime-raw-ship-path` in `crates/core/lint/src/rules/` flags any `.join(".ship")`, `home_dir().join(".ship/…")`, or string-literal `"~/.ship/…"` outside `crates/core/runtime/src/home/`.
-- Migration of the 40+ existing call sites is acceptance criteria for the restructure job.
+- Grep guard `scripts/lint/check-raw-ship-paths.sh` (run via `just check-raw`) flags any raw `.join(".ship")` or `home_dir().join(".ship/…")` outside `crates/core/runtime/src/home/`. Hard-fails CI on regression.
 
 ### 5. JSONC is the one config format
 
-Convert `config.toml` → `settings.jsonc` (portable keys) and `local.jsonc` (machine-specific keys). TOML support is removed from the runtime config loader. JSONC everywhere means: comments work uniformly, JSON Schema validates everything, no format-specific parser code paths.
+Two config files: `library/settings.jsonc` (portable keys, e.g. `[identity]`) and `machine/local.jsonc` (machine-specific keys, e.g. `worktrees.dir`). Project-scope manifest is `.ship/ship.jsonc`. The runtime does not parse TOML for any Ship config (legacy `config.toml`/`ship.toml` support is gone — pre-launch product, no migration). Provider-specific TOML (e.g. `.codex/config.toml`, `.gemini/policies/ship.toml`) is unaffected; that's their format, not Ship's.
 
 ### 6. Typed environment variable surface
 
-- Source of truth: `crates/core/runtime/src/env.rs` — typed constants for every `SHIP_*` variable plus a `read(Var)` accessor.
-- Reference page: `apps/docs/src/content/docs/reference/env-vars.md` — published catalog with category, type, default, and stability notes.
-- Enforcement: lint rule `runtime-raw-env-var` flags `env::var("SHIP_*")` outside `env.rs`.
-- Category taxonomy: configuration (`SHIP_HOME`, `SHIP_API_URL`); runtime identity (`SHIP_AGENT_ID`, `SHIP_WORKSPACE_ID`, `SHIP_SESSION_ID`, `SHIP_MESH_ID`, `SHIP_ACTOR_ID`); dev/debug (`SHIP_EXECUTOR`, `SHIP_TMUX_TESTS`, `SHIP_DEFAULT_TERMINAL`); provider detection (read-only: `CODEX_*`, `GEMINI_*`, `CURSOR_*`).
+- Source of truth: `crates/core/runtime/src/env.rs` — typed `Var` enum with one variant per env var the runtime reads, plus an `env::read(Var)` accessor.
+- Enforcement: grep guard `scripts/lint/check-raw-env-reads.sh` (run via `just check-raw`) flags `env::var("SHIP_*")` outside `env.rs`. Hard-fails CI on regression.
+- Category taxonomy: `Configuration` (`SHIP_HOME`, `SHIP_API_URL`, `SHIP_REGISTRY_URL`); `RuntimeIdentity` (`SHIP_AGENT_ID`, `SHIP_WORKSPACE_ID`, `SHIP_SESSION_ID`, `SHIP_MESH_ID`, `SHIP_ACTOR_ID`, `SHIP_WORKTREE_DIR`, `SHIP_REPO_DIR`); `DevDebug` (`SHIP_DEV`, `SHIP_EXECUTOR`, `SHIP_TMUX_TESTS`, `SHIP_DEFAULT_TERMINAL`, `SHIP_RESPECT_WORKTREE`, `SHIP_DEV_PROJECT_DIR`, telemetry/hook tokens).
 
-`SHIP_HOME` is the single root override. No per-bucket `SHIP_LIBRARY_DIR` / `SHIP_MACHINE_DIR` — splitting buckets defeats the shape discipline the layout exists to enforce. Opt-in overrides can land later if sandbox scenarios require them.
+`SHIP_HOME` is the single ship-home env override. No per-bucket `SHIP_LIBRARY_DIR` / `SHIP_MACHINE_DIR` — splitting buckets defeats the shape discipline the layout exists to enforce.
 
-### 7. Dead-architecture sweep, same change
+`SHIP_DEV_PROJECT_DIR` is the project-root override (replaces the earlier `SHIP_DIR`); used by tests and dev tooling to redirect `runtime::project::get_project_dir(None)` to a tempdir. Production callers never set it.
 
-The restructure is the natural time to remove confirmed cruft:
+### 7. Dead-architecture sweep
 
-- Delete `crates/core/runtime/src/templates/` (10 files, zero references).
-- Remove the `kernel/events.db` init path and delete `~/.ship/kernel/` on migration.
-- Delete legacy per-actor DB dirs under `~/.ship/actors/{id}/events.db`; the `actors/` concept survives in `machine/actors/` for *current* actor state only.
-- Delete stale `.ship/hooks/log-failed-jobs.jsonc` (duplicated in `triggers/`) and any other remnants of the hooks-dir rename.
+Stale code removed alongside this layout:
 
-The `platform.db` user-content table drop (`adr`, `note`, `target`, `capability`, `branch_context`) is a **separate job** with a binary completion bar — see the referenced job spec. Included here only as a cross-reference, not as this ADR's scope.
+- `crates/core/runtime/src/templates/` (zero references).
+- `kernel/events.db` init path; `~/.ship/kernel/` no longer created.
+- Legacy per-actor DB dirs under `~/.ship/actors/{id}/events.db`; the `actors/` concept survives in `machine/actors/` for *current* actor state only.
 
-### 8. Migration strategy
+The `platform.db` user-content table drop (`adr`, `note`, `target`, `capability`, `branch_context`) is a **separate job**.
 
-One-shot on `shipd` start:
+### 8. Initialization, not migration
 
-1. Detect layout version (flag file `machine/layout-version` or absence-of-library-dir).
-2. If pre-split layout: stop if another daemon instance is running; otherwise move directories into the new buckets inside a single transaction-equivalent (all-or-rollback via temp-dir staging).
-3. Convert `config.toml` → `settings.jsonc` + `local.jsonc` in the same pass.
-4. Write `machine/layout-version`.
-5. If partial legacy detected after migration completes (user moved something manually): hard error with a clear remediation message. No silent repair.
+Pre-launch product, no installed user base. The runtime does **not** carry a one-shot home-layout migrator — that was 674 lines of code solving a problem we don't have. On daemon start, `runtime::home::ensure_layout(&ShipHome)` is called from `apps/shipd/src/ship_runtime.rs` and runs `mkdir -p` for the canonical bucket tree (`library/`, `machine/`, `machine/{db,daemon,logs,cache,sessions,actors,projects,crashes}/`). Idempotent; no detection logic, no rollback, no version marker. Fresh installs and existing per-developer installs converge on the same shape.
+
+If we ship to real users with state we need to preserve later, a successor ADR captures that migration story. Until then: no migrator code in the runtime.
+
+The runtime "hooks" module (`crates/core/runtime/src/hooks/`) is **trigger infrastructure** with a stale name — it loads file/cron/webhook trigger definitions from `<scope>/triggers/` (matching the Vector enum). The legacy `<scope>/hooks/` directory is no longer read.
 
 ## Consequences
 
@@ -154,10 +153,9 @@ One-shot on `shipd` start:
 
 ### Negative
 
-- **One-time migration touches every installed `~/.ship/`.** Bug in the migration logic is user-visible. Mitigant: temp-dir staging + rollback on failure; hard-error on partial state.
-- **40+ call sites change.** Mechanical, but a single job.
-- **Breaking env-var or layout changes after this land become painful.** That's the point of the freeze — launch with the right shape, not the expedient one.
-- **Third-party tooling** that reads `~/.ship/platform.db` directly breaks. There is no such tooling today; this is a non-event pre-launch, impossible post-launch.
+- **40+ call sites changed** to route through typed accessors. Mechanical, done in batches.
+- **Breaking env-var or layout changes after launch become painful.** That's the point of locking in early — launch with the right shape, not the expedient one.
+- **No backward compatibility for any pre-ADR per-developer state.** Pre-launch we accept this; we wipe + re-init rather than carry migrator code forever. Post-launch a different ADR will own real-user migrations.
 
 ## Alternatives Considered
 
@@ -171,7 +169,7 @@ Initially proposed. Rejected because `config` is not orthogonal to scope — por
 
 ### Keep `config.toml` as TOML
 
-Rejected. JSONC is the house style (`ship.jsonc`, `mcp.jsonc`, `permissions.jsonc`, `hooks.jsonc`, collection schemas). TOML is the single outlier. Keeping it means maintaining two config parsers forever to support one legacy file.
+Rejected. JSONC is the house style (`ship.jsonc`, `mcp.jsonc`, `permissions.jsonc`, collection schemas). TOML is the single outlier. Both `~/.ship/config.toml` and project-scope `ship.toml` reads have been removed from the runtime — JSONC manifests only.
 
 ### Per-bucket env-var overrides (`SHIP_LIBRARY_DIR`, `SHIP_MACHINE_DIR`)
 
@@ -181,22 +179,13 @@ Rejected for v1. Lets users scatter buckets across the filesystem, which defeats
 
 Rejected. Daemon handshake is a distinct concept that deserves a named location. Scattered files at root treat IPC metadata as peer of user content.
 
-## Migration Plan
-
-Detailed in the restructure job spec. Summary:
-
-1. Land `Vector` enum, `ShipHome`, `Env` modules and their lint rules — all new code, no moves yet.
-2. Migrate 40+ call sites from raw paths to `ShipHome`; migrate env reads to `env.rs`. CI passes with new lint rules enabled.
-3. Ship the one-shot home migrator; land layout changes on `shipd` start.
-4. Delete dead dirs (`templates/`, `kernel/`, stale `actors/` subtrees).
-5. Publish env-var catalog and scope-convention reference pages.
-
 ## How to Measure Success
 
 - `~/.ship/` contains exactly two top-level dirs: `library/` and `machine/`.
-- Every customization vector — old and new — is a sibling directory at both user and project scopes.
+- Every directory-vector is a sibling directory at both user and project scopes.
 - `rg "home_dir\(\).join\(\"\.ship"` returns zero hits outside `crates/core/runtime/src/home/`.
 - `rg 'env::var\("SHIP_'` returns zero hits outside `crates/core/runtime/src/env.rs`.
-- No `.toml` files under `~/.ship/` or project `.ship/` after migration.
-- `ship daemon start` on a pre-split `~/.ship/` migrates cleanly; `ship daemon start` on an already-migrated home is a no-op.
-- Env-var reference page enumerates every `SHIP_*` variable the runtime reads.
+- No `.toml` files under `~/.ship/` or project `.ship/` (other than provider-specific TOML like `.codex/config.toml`).
+- A fresh `shipd` start (no prior `~/.ship/`) populates the canonical layout and writes daemon IPC files at `machine/daemon/{port,token,pid}`.
+- The `apps/shipd/tests/smoke.rs::fresh_daemon_writes_canonical_home_layout` regression test passes — it asserts the layout shape and zero legacy paths after a real daemon start.
+- Operational reference: `docs/ship-runtime/references/docs/home-layout.md`.
