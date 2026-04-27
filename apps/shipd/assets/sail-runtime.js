@@ -148,7 +148,7 @@ function bindShow(el, get) {
 function bindAttr(el, name, get) {
   return effect(() => {
     const v = get();
-    if (v == null || v === false) {
+    if (v == null || v === false || v === "") {
       el.removeAttribute(name);
     } else if (v === true) {
       el.setAttribute(name, "");
@@ -677,6 +677,17 @@ function resolveSlots(host, slots, originalChildren) {
     list.push(child);
     fills.set(name, list);
   }
+  const filledNames = /* @__PURE__ */ new Set();
+  for (const [name, nodes] of fills) {
+    const hasMeaning = nodes.some((n) => {
+      if (n.nodeType === 1) return true;
+      if (n.nodeType === 3) return (n.textContent || "").trim().length > 0;
+      return false;
+    });
+    if (hasMeaning) filledNames.add(name);
+  }
+  ;
+  host.__sailSlotFilled = filledNames;
   for (const slot of slots) {
     if (!slot || !slot.anchor) continue;
     const filled = fills.get(slot.name) ?? [];
@@ -692,6 +703,10 @@ function resolveSlots(host, slots, originalChildren) {
   for (const slot of slots) {
     if (slot && slot.anchor) slot.anchor.remove();
   }
+}
+function slotFilled(host, name) {
+  const set = host.__sailSlotFilled;
+  return set?.has(name) ?? false;
 }
 function snapshotChildren(host) {
   return Array.from(host.childNodes);
@@ -880,6 +895,7 @@ export {
   on,
   resolveSlots,
   signal,
+  slotFilled,
   snapshotChildren,
   tokenizePath,
   untrack

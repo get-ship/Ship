@@ -37,7 +37,7 @@ export { bindRawHtml } from './raw-html'
 export { morph } from './morph'
 export type { MorphOptions } from './morph'
 
-export { resolveSlots, snapshotChildren } from './slot'
+export { resolveSlots, snapshotChildren, slotFilled } from './slot'
 export type { SlotDecl } from './slot'
 
 export { defineComponent, camelOf } from './component'
