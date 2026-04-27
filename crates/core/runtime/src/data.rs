@@ -41,7 +41,10 @@ impl DataService {
     /// that manages registration and migration itself (e.g. the migration
     /// module's own tests).
     pub fn open_raw(ship_dir: &Path) -> Result<Self> {
-        let db_path = ship_dir.join("data.db");
+        let db_path = crate::db::data_db_path(ship_dir);
+        if let Some(parent) = db_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let conn = open_connection(&db_path)?;
         Ok(Self { conn, db_path })
     }
@@ -50,7 +53,7 @@ impl DataService {
     /// migration. Idempotent — safe to call repeatedly.
     pub fn run_startup(&mut self, ship_dir: &Path) -> Result<()> {
         crate::collections::builtin::register_builtin_schemas(self)?;
-        let platform_path = ship_dir.join("platform.db");
+        let platform_path = crate::db::platform_db_path(ship_dir);
         let report =
             crate::collections::migration::migrate_platform_to_collections(self, &platform_path)?;
         if !report.already_migrated && !report.source_missing {

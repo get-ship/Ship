@@ -87,7 +87,7 @@ pub fn quick_check(db_path: &std::path::Path) -> Result<bool> {
 /// Run integrity check on platform.db at the given ship_dir.
 /// Convenience wrapper around `check_integrity`.
 pub fn check_platform_integrity(ship_dir: &std::path::Path) -> Result<IntegrityStatus> {
-    let db_path = ship_dir.join("platform.db");
+    let db_path = crate::db::platform_db_path(ship_dir);
     if !db_path.exists() {
         return Err(anyhow!(
             "platform.db not found at {}",

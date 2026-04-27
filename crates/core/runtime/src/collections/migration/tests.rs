@@ -393,7 +393,10 @@ fn prune_is_idempotent_on_missing_platform_db() {
 #[test]
 fn drop_migration_removes_all_legacy_tables_after_copy() {
     let (mut svc, tmp) = setup_data_service();
-    let platform = tmp.path().join("platform.db");
+    // Seed at the same path ensure_db_at will open later, so migration 0006
+    // runs against the same file the test seeds.
+    let platform = crate::db::platform_db_path(tmp.path());
+    std::fs::create_dir_all(platform.parent().unwrap()).unwrap();
     seed_platform_db(&platform);
 
     // Additionally seed branch_context — its destination is /dev/null, we only

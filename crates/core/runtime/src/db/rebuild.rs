@@ -31,7 +31,7 @@ pub struct RebuildReport {
 pub fn rebuild_projections(ship_dir: &Path) -> Result<RebuildReport> {
     let start = Instant::now();
     ensure_db_at(ship_dir)?;
-    let db_path = ship_dir.join("platform.db");
+    let db_path = crate::db::platform_db_path(ship_dir);
     let mut conn = open_db_at(&db_path)?;
 
     const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \

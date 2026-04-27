@@ -732,7 +732,7 @@ fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
 
     let global_dir = runtime::project::get_global_dir()
         .context("resolve global ship dir")?;
-    let db_path = global_dir.join("platform.db");
+    let db_path = runtime::db::platform_db_path(&global_dir);
     if !db_path.exists() {
         println!("no platform.db at {} — nothing to repair", db_path.display());
         return Ok(());

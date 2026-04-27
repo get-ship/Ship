@@ -41,7 +41,7 @@ mod tests {
         let result = std::panic::catch_unwind(|| crate::db::db_path().unwrap());
         match result {
             Ok(path) => {
-                let home_db = home::home_dir().map(|h| crate::ShipHome::project_ship_dir(h).join("platform.db"));
+                let home_db = home::home_dir().map(|h| crate::db::platform_db_path(&crate::ShipHome::project_ship_dir(h)));
                 if let Some(home_path) = home_db {
                     assert_ne!(
                         path, home_path,

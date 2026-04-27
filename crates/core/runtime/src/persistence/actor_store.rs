@@ -59,7 +59,7 @@ impl ActorStore {
         write_namespaces: Vec<String>,
         read_namespaces: Vec<String>,
     ) -> Result<Self> {
-        let db_path = base_dir.join("platform.db");
+        let db_path = crate::db::platform_db_path(base_dir);
         Ok(Self::new(actor_id, db_path, write_namespaces, read_namespaces))
     }
 

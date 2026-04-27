@@ -530,7 +530,7 @@ pub async fn get_job_detail(
         }
     };
 
-    let platform_db = state.ship_dir().join("platform.db");
+    let platform_db = runtime::db::platform_db_path(state.ship_dir());
     let step_observations = runtime::db::events::query_events_by_entity_and_type_at(
         &platform_db, &job_id, "step.observed",
     )
@@ -1717,7 +1717,7 @@ mod tests {
 
         // Confirm the cancelled event actually landed.
         let events = runtime::db::events::query_recent_events_for_entity_at(
-            &state.ship_dir().join("platform.db"),
+            &runtime::db::platform_db_path(state.ship_dir()),
             &job_id, 20,
         )
         .unwrap();
@@ -1756,7 +1756,7 @@ mod tests {
 
         // Make sure no job.cancelled was emitted (idempotent no-op).
         let events = runtime::db::events::query_recent_events_for_entity_at(
-            &state.ship_dir().join("platform.db"),
+            &runtime::db::platform_db_path(state.ship_dir()),
             &job_id, 20,
         )
         .unwrap();

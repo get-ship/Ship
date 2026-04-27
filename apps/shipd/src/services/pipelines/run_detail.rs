@@ -90,7 +90,7 @@ pub fn build(slug: &str, ship_dir: &Path) -> Option<RunDetailCtx> {
     let job = jobs.values().find(|j| j.slug == slug)?;
     let run = to_run_view(job, true);
     let events = runtime::db::events::query_recent_events_for_entity_at(
-        &ship_dir.join("platform.db"),
+        &runtime::db::platform_db_path(ship_dir),
         &job.job_id,
         500,
     )

@@ -114,7 +114,7 @@ impl ShipRuntime {
         // the event log, replay events into fresh projection tables. If the
         // event log itself is corrupt, refuse to start — the user needs to
         // intervene rather than lose data silently.
-        if global_dir.join("platform.db").exists() {
+        if runtime::db::platform_db_path(global_dir).exists() {
             match runtime::db::integrity::check_platform_integrity(global_dir) {
                 Ok(runtime::db::integrity::IntegrityStatus::Ok) => {
                     tracing::info!("shipd: platform.db integrity check passed");
@@ -645,7 +645,7 @@ fn cleanup_active_sessions_on_startup() {
 /// count ever drops between restarts without a reset, that's the first
 /// thing to investigate.
 fn log_event_log_summary(global_dir: &Path) {
-    if !global_dir.join("platform.db").exists() {
+    if !runtime::db::platform_db_path(global_dir).exists() {
         tracing::info!("shipd: fresh install, no events yet");
         return;
     }
