@@ -22,7 +22,6 @@ pub mod rebuild;
 pub mod session;
 pub mod session_drain;
 pub mod session_events;
-pub mod git_drafts;
 #[cfg(test)]
 pub mod session_events_testutil;
 pub mod types;

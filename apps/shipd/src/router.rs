@@ -466,14 +466,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::GitPull, services::git::pull_handler)
         .ship_route(Route::GitCheckout, services::git::checkout_handler)
         .ship_route(Route::GitSse, services::git::sse_handler)
-        // commit-draft — GET/PUT/DELETE merged on one path (canonical path
-        // matches `Route::GitCommitDraft{Get,Put,Delete}` in the enum).
-        .route(
-            "/api/v1/git/commit-draft",
-            axum::routing::get(services::git::draft_get_handler)
-                .put(services::git::draft_put_handler)
-                .delete(services::git::draft_delete_handler),
-        )
         .ship_route(Route::EmitEvent, project_api::emit_event)
         // Artifacts platform (three-scope)
         .merge(

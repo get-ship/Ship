@@ -29,7 +29,7 @@ pub mod service;
 pub mod state;
 pub mod write;
 
-use service::{CheckoutArgs, CommitArgs, DraftArgs, PushArgs};
+use service::{CheckoutArgs, CommitArgs, PushArgs};
 
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -145,18 +145,6 @@ pub struct CheckoutBody {
     pub refname: String,
 }
 
-#[derive(Deserialize)]
-pub struct DraftBody {
-    #[serde(default)]
-    pub workspace_id: Option<String>,
-    pub subject: String,
-    #[serde(default)]
-    pub body: String,
-    #[serde(default)]
-    pub by_agent: Option<String>,
-    #[serde(default)]
-    pub by_pipeline: Option<String>,
-}
 
 // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -327,51 +315,6 @@ pub async fn checkout_handler(
     Ok(Json(serde_json::json!({
         "ok": true, "ref": refname, "resolved": resolved,
     })))
-}
-
-// ── commit draft CRUD ────────────────────────────────────────────────────
-
-/// GET /api/v1/git/commit-draft
-pub async fn draft_get_handler(
-    State(state): State<ApiState>,
-    Query(q): Query<WorkspaceQuery>,
-) -> Result<Json<serde_json::Value>, Resp> {
-    let draft = state.services().git().draft_get(q.workspace_id.as_deref()).map_err(map_err)?;
-    Ok(Json(serde_json::json!({ "ok": true, "draft": draft })))
-}
-
-/// PUT /api/v1/git/commit-draft
-pub async fn draft_put_handler(
-    State(state): State<ApiState>,
-    Json(body): Json<DraftBody>,
-) -> Result<Json<serde_json::Value>, Resp> {
-    let branch = state
-        .git()
-        .draft_put(DraftArgs {
-            workspace_id: body.workspace_id,
-            subject: body.subject,
-            body: body.body,
-            by_agent: body.by_agent,
-            by_pipeline: body.by_pipeline,
-        })
-        .map_err(|e| match e {
-            // The "detached HEAD" failure surfaces from `BadRef`; map it to
-            // a more specific 409 the way the original handler did.
-            state::GitError::BadRef(m) if m.contains("detached HEAD") => {
-                err(StatusCode::CONFLICT, "detached", m)
-            }
-            other => map_err(other),
-        })?;
-    Ok(Json(serde_json::json!({ "ok": true, "branch": branch })))
-}
-
-/// DELETE /api/v1/git/commit-draft
-pub async fn draft_delete_handler(
-    State(state): State<ApiState>,
-    Query(q): Query<WorkspaceQuery>,
-) -> Result<Json<serde_json::Value>, Resp> {
-    state.services().git().draft_delete(q.workspace_id.as_deref()).map_err(map_err)?;
-    Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 // ── change stream ────────────────────────────────────────────────────────

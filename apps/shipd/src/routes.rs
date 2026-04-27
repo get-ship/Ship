@@ -567,15 +567,6 @@ pub enum Route {
     /// @route POST "/api/v1/git/checkout"
     GitCheckout,
 
-    /// @route GET "/api/v1/git/commit-draft"
-    GitCommitDraftGet,
-
-    /// @route PUT "/api/v1/git/commit-draft"
-    GitCommitDraftPut,
-
-    /// @route DELETE "/api/v1/git/commit-draft"
-    GitCommitDraftDelete,
-
     /// @route GET "/api/v1/git/sse"
     GitSse,
 

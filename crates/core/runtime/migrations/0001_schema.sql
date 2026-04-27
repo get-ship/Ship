@@ -184,25 +184,6 @@ CREATE TABLE IF NOT EXISTS compiled_asset_cache (
 CREATE INDEX IF NOT EXISTS compiled_asset_cache_kind_idx
   ON compiled_asset_cache(kind);
 
-CREATE TABLE IF NOT EXISTS managed_mcp_state (
-  provider         TEXT PRIMARY KEY,
-  server_ids_json  TEXT NOT NULL DEFAULT '[]',
-  last_mode        TEXT,
-  updated_at       TEXT NOT NULL
-);
-
--- Git commit drafts — agent-written commit messages awaiting human
--- sign-off. Keyed by branch; one draft per branch at a time. Cleared on
--- successful commit.
-CREATE TABLE IF NOT EXISTS git_commit_drafts (
-  branch       TEXT PRIMARY KEY,
-  subject      TEXT NOT NULL,
-  body         TEXT NOT NULL DEFAULT '',
-  by_agent     TEXT,
-  by_pipeline  TEXT,
-  drafted_at   TEXT NOT NULL
-);
-
 -- ═══════════════════════════════════════════════════════════════════
 -- Workflow layer — opinionated planning
 -- ═══════════════════════════════════════════════════════════════════
