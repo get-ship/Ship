@@ -119,7 +119,7 @@ pub fn convert_from_github_with_base(url: &str, base_url: &str) -> Result<()> {
     std::fs::create_dir_all(&ship_dir)?;
 
     let creds = Credentials::load();
-    let token = creds.token();
+    let token = creds.account_token();
 
     let endpoint = format!("{}/api/v1/github/import", base_url);
     let body = serde_json::json!({ "url": url });

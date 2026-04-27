@@ -266,13 +266,8 @@ fn dispatch_config(action: ConfigCommands) -> Result<()> {
         }
         ConfigCommands::Set { key, value } => {
             let mut cfg = config::ShipConfig::load();
-            // `set` returns true when it has already persisted (e.g. for
-            // keys routed to ~/.ship/machine/local.jsonc). Falls back to
-            // saving the config.toml-backed struct otherwise.
-            let already_persisted = cfg.set(&key, &value)?;
-            if !already_persisted {
-                cfg.save()?;
-            }
+            cfg.set(&key, &value)?;
+            cfg.save()?;
             println!("{} = {}", key, value);
         }
         ConfigCommands::List => {

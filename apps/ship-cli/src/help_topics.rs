@@ -91,9 +91,13 @@ Run `ship validate` before compile to catch config errors early.
 const TOPIC_CONFIG: &str = "\
 Configuration
 
-User preferences live in ~/.ship/config.toml (machine-local keys like
-worktrees.dir route to ~/.ship/machine/local.jsonc). Read and write
-them with:
+User preferences live in two JSONC files per the home-layout ADR:
+
+  ~/.ship/library/settings.jsonc   Portable: identity, defaults, cloud.
+  ~/.ship/machine/local.jsonc      Machine-local: worktrees.dir,
+                                   terminal.program, dispatch.confirm.
+
+Read and write them with:
 
   ship config get <key>       Read a value
   ship config set <key> <val> Write a value

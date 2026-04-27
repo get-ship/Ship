@@ -133,6 +133,7 @@ pub fn run_login() -> Result<()> {
     let mut creds = Credentials::load();
     creds.account = Some(CredentialsAccount { token: Some(token.clone()) });
     creds.save()?;
+    let creds_path = Credentials::path();
 
     // Bind this machine's daemon to the logged-in user. Enables zero-click
     // browser auth via server attestation (Studio → daemon) while ensuring
@@ -148,7 +149,7 @@ pub fn run_login() -> Result<()> {
             println!("Logged in. (Daemon binding failed: {e})");
         }
     }
-    println!("Token stored in ~/.ship/credentials (0600).");
+    println!("Token stored in {} (0600).", creds_path.display());
     Ok(())
 }
 
@@ -310,7 +311,7 @@ pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
 /// `ship logout` — remove the stored auth token.
 pub fn run_logout() -> Result<()> {
     let mut creds = Credentials::load();
-    if creds.token().is_none() {
+    if creds.account_token().is_none() {
         println!("Not logged in.");
         return Ok(());
     }
@@ -326,7 +327,7 @@ pub fn run_logout() -> Result<()> {
 /// Tries to fetch user info from getship.dev; falls back to local config.
 pub fn run_whoami() -> Result<()> {
     let creds = Credentials::load();
-    match creds.token() {
+    match creds.account_token() {
         Some(token) => {
             // Try the remote API first.
             match fetch_me(token) {
@@ -348,11 +349,13 @@ pub fn run_whoami() -> Result<()> {
 
 fn print_local_identity() {
     let cfg = ShipConfig::load();
-    match cfg.identity {
-        Some(ref id) if !id.name.is_empty() => {
-            println!("{}", id.name);
-            if let Some(ref email) = id.email {
-                println!("{}", email);
+    match cfg.library.identity.as_ref() {
+        Some(id) if id.name.as_deref().map(|n| !n.is_empty()).unwrap_or(false) => {
+            if let Some(name) = id.name.as_deref() {
+                println!("{name}");
+            }
+            if let Some(email) = id.email.as_deref() {
+                println!("{email}");
             }
         }
         _ => println!("(no identity — run: ship init --global)"),
