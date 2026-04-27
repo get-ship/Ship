@@ -102,6 +102,11 @@ pub struct ShipRuntime {
     started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
     hook_engine: std::sync::OnceLock<std::sync::Arc<runtime::hooks::engine::HookEngine>>,
+    /// `RulesService` impl — pilot for the modular-runtime spec 02
+    /// service-layer pattern. HTTP handlers in `services::rules` go
+    /// through this trait so the cloud worker / browser embed / unit
+    /// tests can swap implementations without standing up an HTTP server.
+    rules: std::sync::Arc<dyn crate::services::rules::service::RulesService>,
 }
 
 impl ShipRuntime {
@@ -257,6 +262,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
+            rules: crate::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -292,6 +298,13 @@ impl ShipRuntime {
 
     pub fn ship_dir(&self) -> &Path {
         &self.ship_dir
+    }
+
+    /// `RulesService` accessor — pilot for the modular-runtime spec 02
+    /// service-layer pattern. HTTP handlers in `services::rules::*`
+    /// call through this rather than reaching into runtime state.
+    pub fn rules(&self) -> &dyn crate::services::rules::service::RulesService {
+        &*self.rules
     }
 
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
@@ -521,6 +534,7 @@ impl ShipRuntime {
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
+        let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -539,6 +553,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
+            rules,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -554,6 +569,7 @@ impl ShipRuntime {
     ) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
+        let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -572,6 +588,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
+            rules,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),

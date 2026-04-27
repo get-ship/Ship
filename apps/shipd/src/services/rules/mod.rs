@@ -1,8 +1,8 @@
-//! RuleService — HTTP surface at `/api/v1/rules/*`.
+//! Rules domain — HTTP transport bound to `trait RulesService`.
 //!
-//! Rules are plain markdown documents at `<scope>/rules/<id>.md`. PATCH
-//! is intentionally omitted — rules carry no structured payload, so the
-//! PUT/POST + full-body flow is the only sane write path.
+//! Pilot for modular-runtime spec 02. The service trait owns the business
+//! logic; this module is now strictly a thin marshaller from axum →
+//! `RulesService` → JSON.
 //!
 //! - GET    /api/v1/rules                list (project + user, scope-annotated)
 //! - GET    /api/v1/rules/{id}           markdown body
@@ -10,6 +10,7 @@
 //! - DELETE /api/v1/rules/{id}           trash
 //! - POST   /api/v1/rules                create { id, content, scope? }
 
+pub mod service;
 pub mod state;
 
 use axum::extract::{Path, Query, State};
@@ -18,7 +19,8 @@ use axum::response::Json;
 use serde::Deserialize;
 
 use crate::rest_api::ApiState;
-use super::files::{FilesService, Scope};
+use super::files::Scope;
+use service::{CreateArgs, PutArgs};
 
 #[derive(Debug, Deserialize)]
 pub struct ScopeQuery {
@@ -71,14 +73,9 @@ fn map_err(e: state::Error) -> Resp {
     }
 }
 
-fn files(state: &ApiState) -> FilesService {
-    FilesService::resolve_roots(state.ship_dir())
-}
-
 /// GET /api/v1/rules
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let svc = files(&state);
-    let items = state::list(&svc);
+    let items = state.rules().list();
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
@@ -89,13 +86,12 @@ pub async fn get(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let (resolved, body) = state::load_body(&svc, &id, scope).map_err(map_err)?;
+    let content = state.rules().get(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
-        "id": id,
-        "scope": state::ScopeTag::from(resolved),
-        "content": body,
+        "id": content.id,
+        "scope": content.scope,
+        "content": content.content,
     })))
 }
 
@@ -109,15 +105,14 @@ pub async fn put(
 ) -> Result<Json<serde_json::Value>, Resp> {
     let explicit_scope = parse_scope(&q)?;
     let content = extract_content(&body)?;
-    let svc = files(&state);
-    let target_scope = match explicit_scope {
-        Some(s) => s,
-        None => match state::find(&svc, &id) { Some((s, _)) => s, None => Scope::Project },
-    };
-    state::write_body(&svc, &id, target_scope, &content, true).map_err(map_err)?;
+    let target = state
+        .rules()
+        .put(PutArgs { id: id.clone(), content, scope: explicit_scope })
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({
-        "ok": true, "id": id,
-        "scope": state::ScopeTag::from(target_scope),
+        "ok": true,
+        "id": id,
+        "scope": state::ScopeTag::from(target),
     })))
 }
 
@@ -128,10 +123,10 @@ pub async fn delete(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let resolved = state::delete_body(&svc, &id, scope).map_err(map_err)?;
+    let resolved = state.rules().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
-        "ok": true, "id": id,
+        "ok": true,
+        "id": id,
         "scope": state::ScopeTag::from(resolved),
     })))
 }
@@ -150,15 +145,17 @@ pub async fn create(
     Json(body): Json<CreateBody>,
 ) -> Result<Resp, Resp> {
     let target = match body.scope.as_deref() {
-        None | Some("") => Scope::Project,
-        Some(s) => parse_scope_required(s)?,
+        None | Some("") => None,
+        Some(s) => Some(parse_scope_required(s)?),
     };
-    let svc = files(&state);
-    state::write_body(&svc, &body.id, target, &body.content, false).map_err(map_err)?;
+    let scope = state
+        .rules()
+        .create(CreateArgs { id: body.id.clone(), content: body.content, scope: target })
+        .map_err(map_err)?;
     Ok(created(serde_json::json!({
         "ok": true,
         "id": body.id,
-        "scope": state::ScopeTag::from(target),
+        "scope": state::ScopeTag::from(scope),
     })))
 }
 
