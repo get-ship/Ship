@@ -15,7 +15,7 @@ use rmcp::schemars::{self, JsonSchema};
 use serde::Deserialize;
 use runtime::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope};
 
-use crate::connections::{ConnectionGuard, EventRelay, Inbox, McpEventSink, PeerHandle};
+use crate::transport::connections::{ConnectionGuard, EventRelay, Inbox, McpEventSink, PeerHandle};
 
 // ---- Request types ----
 

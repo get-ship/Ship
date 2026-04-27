@@ -281,7 +281,7 @@ async fn actor_store_isolation_between_actors() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn mailbox_overflow_evicts_oldest() {
-    use crate::connections::Inbox;
+    use crate::transport::connections::Inbox;
 
     let inbox = Inbox::new();
 

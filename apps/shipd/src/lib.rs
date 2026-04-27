@@ -13,8 +13,7 @@ pub mod themes_api;
 pub mod sessions;
 pub mod projects_api;
 pub mod auth;
-mod connections;
-mod cors;
+pub mod transport;
 mod view_morph_target;
 mod daemon;
 mod first_run;
@@ -30,7 +29,6 @@ pub mod openapi;
 pub mod openapi_modifier;
 pub mod openapi_types;
 pub mod project_api;
-pub mod pty_handler;
 pub mod rest_api;
 pub mod routes;
 pub mod router;
@@ -42,7 +40,6 @@ pub mod lint_api;
 pub mod view_errors_api;
 pub mod mcp_apps_bridge;
 pub mod mcp_registry;
-mod server;
 pub mod themes;
 pub mod views;
 pub mod views_raw;
@@ -63,14 +60,14 @@ mod integration_tests;
 mod ship_runtime_tests;
 
 pub use daemon::{network_status, network_stop};
-pub use server::NetworkServer;
+pub use transport::NetworkServer;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
 #[cfg(test)]
 pub fn test_cors_router() -> axum::Router {
     axum::Router::new()
         .route("/test", axum::routing::get(|| async { "ok" }))
-        .layer(axum::middleware::from_fn(cors::cors_middleware))
+        .layer(axum::middleware::from_fn(transport::cors::cors_middleware))
 }
 
 use anyhow::{Result, anyhow};
@@ -159,7 +156,7 @@ pub async fn run_network(
     };
     let config = ship_runtime::RuntimeConfig { host: host.clone(), port: desired_port, ..Default::default() };
     let mut runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
-    let mesh_registry = connections::spawn_mesh_service(runtime.kernel(), runtime.health_registry()).await?;
+    let mesh_registry = transport::connections::spawn_mesh_service(runtime.kernel(), runtime.health_registry()).await?;
     runtime.set_mesh_registry(mesh_registry);
     let rt = Arc::new(runtime);
 

@@ -3,7 +3,7 @@
 use runtime::events::EventEnvelope;
 use std::sync::Arc;
 
-use crate::connections::Inbox;
+use crate::transport::connections::Inbox;
 
 fn test_event(event_type: &str) -> EventEnvelope {
     EventEnvelope::new(event_type, "entity-1", &serde_json::json!({})).unwrap()
@@ -78,7 +78,7 @@ async fn inbox_new_returns_arc() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn event_relay_forwards_to_inbox() {
-    use crate::connections::EventRelay;
+    use crate::transport::connections::EventRelay;
     use tokio::sync::mpsc;
 
     let (tx, rx) = mpsc::channel::<EventEnvelope>(16);
@@ -103,7 +103,7 @@ async fn event_relay_forwards_to_inbox() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn event_relay_exits_when_mailbox_closes() {
-    use crate::connections::EventRelay;
+    use crate::transport::connections::EventRelay;
     use tokio::sync::mpsc;
 
     let (tx, rx) = mpsc::channel::<EventEnvelope>(16);
@@ -124,7 +124,7 @@ async fn event_relay_exits_when_mailbox_closes() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn event_relay_forwards_multiple_events() {
-    use crate::connections::EventRelay;
+    use crate::transport::connections::EventRelay;
     use tokio::sync::mpsc;
 
     let (tx, rx) = mpsc::channel::<EventEnvelope>(16);
@@ -151,7 +151,7 @@ async fn event_relay_forwards_multiple_events() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn event_relay_adds_peer_and_forwards() {
-    use crate::connections::{EventRelay, EventSink, PeerHandle};
+    use crate::transport::connections::{EventRelay, EventSink, PeerHandle};
     use async_trait::async_trait;
     use tokio::sync::mpsc;
 

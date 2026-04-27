@@ -274,5 +274,5 @@ impl Drop for PtyConnectionGuard {
 }
 
 #[cfg(test)]
-#[path = "pty_handler_tests.rs"]
+#[path = "pty_tests.rs"]
 mod tests;
