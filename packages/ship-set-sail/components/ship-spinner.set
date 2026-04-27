@@ -1,0 +1,35 @@
+<script>
+prop tone: 'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' = 'info'
+prop size: 'sm' | 'md' | 'lg' = 'md'
+prop label: string = 'Loading'
+</script>
+
+<template>
+<span class="spin" part="spinner" role="status" aria-label={label}></span>
+</template>
+
+<style>
+:host { display: inline-flex; vertical-align: middle; --tone-fg: var(--info); }
+:host(:not([tone])), :host([tone='info']) { --tone-fg: var(--info); }
+:host([tone='default']) { --tone-fg: var(--foreground); }
+:host([tone='success']) { --tone-fg: var(--success); }
+:host([tone='warning']) { --tone-fg: var(--warning); }
+:host([tone='destructive']) { --tone-fg: var(--destructive); }
+:host([tone='accent']) { --tone-fg: var(--accent); }
+:host([tone='muted']) { --tone-fg: var(--muted-foreground); }
+
+.spin {
+  width: 14px; height: 14px;
+  border: 2px solid color-mix(in oklch, var(--tone-fg) 25%, transparent);
+  border-top-color: var(--tone-fg);
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+  display: inline-block;
+}
+:host([size='sm']) .spin { width: 10px; height: 10px; border-width: 1.5px; }
+:host([size='lg']) .spin { width: 22px; height: 22px; border-width: 2.5px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .spin { animation: none; }
+}
+</style>

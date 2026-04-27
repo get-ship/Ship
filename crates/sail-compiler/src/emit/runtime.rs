@@ -996,6 +996,70 @@ fn wrap_reactive_calls(expr: &str, reactive: &[String]) -> String {
     while i < bytes.len() {
         let b = bytes[i];
         if let Some(q) = in_str {
+            // Template literal `…${ expr }…` — when we see `${`, switch
+            // back to expression mode (tracking brace balance) so
+            // reactive idents inside the interpolation get wrapped.
+            // Plain `'`/`"` strings don't have interpolation so this
+            // only matters for backticks.
+            if q == b'`' && b == b'$' && bytes.get(i + 1) == Some(&b'{') {
+                out.push('$');
+                out.push('{');
+                i += 2;
+                // Recursively wrap the interpolation body. Find the
+                // matching `}` honoring nested braces, strings, and
+                // nested template literals.
+                let inner_start = i;
+                let mut depth = 1i32;
+                while i < bytes.len() && depth > 0 {
+                    let c = bytes[i];
+                    if c == b'\\' && i + 1 < bytes.len() {
+                        i += 2;
+                        continue;
+                    }
+                    if c == b'`' {
+                        // Nested template literal — skip to its close.
+                        i += 1;
+                        while i < bytes.len() {
+                            if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                                i += 2;
+                                continue;
+                            }
+                            if bytes[i] == b'`' {
+                                i += 1;
+                                break;
+                            }
+                            i += 1;
+                        }
+                        continue;
+                    }
+                    if c == b'"' || c == b'\'' {
+                        let q2 = c;
+                        i += 1;
+                        while i < bytes.len() && bytes[i] != q2 {
+                            if bytes[i] == b'\\' && i + 1 < bytes.len() {
+                                i += 2;
+                                continue;
+                            }
+                            i += 1;
+                        }
+                        i += 1;
+                        continue;
+                    }
+                    if c == b'{' { depth += 1; }
+                    if c == b'}' {
+                        depth -= 1;
+                        if depth == 0 { break; }
+                    }
+                    i += 1;
+                }
+                let inner = &expr[inner_start..i];
+                out.push_str(&wrap_reactive_calls(inner, reactive));
+                if i < bytes.len() {
+                    out.push('}');
+                    i += 1;
+                }
+                continue;
+            }
             out.push(b as char);
             if b == b'\\' && i + 1 < bytes.len() {
                 out.push(bytes[i + 1] as char);
@@ -1408,9 +1472,11 @@ function inc() { count.set(count() + 1) }
             wrap_reactive_calls("'count is ' + count", &r),
             "'count is ' + count()",
         );
+        // `${count}` is a JS expression inside a template literal;
+        // reactive idents inside should be auto-called too.
         assert_eq!(
             wrap_reactive_calls("`tpl ${count} text`", &r),
-            "`tpl ${count} text`",
+            "`tpl ${count()} text`",
         );
     }
 
