@@ -268,7 +268,20 @@ impl ShipRuntime {
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
             rules: crate::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
-            permissions: crate::services::permissions::service::PermissionsServiceImpl::arc(global_dir.clone()),
+            permissions: {
+                // PermissionsServiceImpl needs an Arc<dyn McpService> for
+                // tool_patterns; build the same impl the runtime exposes
+                // so HTTP and trait-to-trait paths see one catalog.
+                let mcp_for_perms =
+                    crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
+                std::sync::Arc::new(
+                    crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                        global_dir.clone(),
+                        None,
+                        mcp_for_perms,
+                    ),
+                )
+            },
             mcp: crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),
@@ -554,9 +567,18 @@ impl ShipRuntime {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let permissions =
-            crate::services::permissions::service::PermissionsServiceImpl::arc(ship_dir.clone());
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        // Permissions reaches into Mcp via the trait for tool_patterns.
+        // Wire the same arc both places so HTTP and trait-to-trait paths
+        // observe the same catalog.
+        let permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService> =
+            std::sync::Arc::new(
+                crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                    ship_dir.clone(),
+                    None,
+                    mcp.clone(),
+                ),
+            );
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -594,9 +616,18 @@ impl ShipRuntime {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let permissions =
-            crate::services::permissions::service::PermissionsServiceImpl::arc(ship_dir.clone());
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        // Permissions reaches into Mcp via the trait for tool_patterns.
+        // Wire the same arc both places so HTTP and trait-to-trait paths
+        // observe the same catalog.
+        let permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService> =
+            std::sync::Arc::new(
+                crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                    ship_dir.clone(),
+                    None,
+                    mcp.clone(),
+                ),
+            );
         Self {
             config: RuntimeConfig::default(),
             kernel,

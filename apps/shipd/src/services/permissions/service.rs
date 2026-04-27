@@ -14,6 +14,7 @@ use std::sync::Arc;
 use serde::Serialize;
 
 use super::super::files::{FilesService, Scope};
+use super::super::mcp::service::McpService;
 use super::state;
 
 /// Body shape returned by `PermissionsService::get`.
@@ -101,20 +102,36 @@ pub trait PermissionsService: Send + Sync + 'static {
 pub struct PermissionsServiceImpl {
     user_root: PathBuf,
     project_root_override: Option<PathBuf>,
+    /// Sibling MCP service — `tool_patterns` reads from it through the
+    /// trait so cross-domain composition stays in trait-land instead
+    /// of reaching into the mcp `state::*` free functions.
+    mcp: Arc<dyn McpService>,
 }
 
 impl PermissionsServiceImpl {
+    /// Production constructor. Wires `mcp` from the same ship_dir so
+    /// project / user composition works out of the box.
     pub fn new(ship_dir: PathBuf) -> Self {
+        let mcp = super::super::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         Self {
             user_root: ship_dir,
             project_root_override: None,
+            mcp,
         }
     }
 
-    pub fn with_roots(user_root: PathBuf, project_root: Option<PathBuf>) -> Self {
+    /// Test constructor — pins both roots and accepts an injected
+    /// `Arc<dyn McpService>` so `tool_patterns` can be exercised
+    /// against a hermetic catalog.
+    pub fn with_roots(
+        user_root: PathBuf,
+        project_root: Option<PathBuf>,
+        mcp: Arc<dyn McpService>,
+    ) -> Self {
         Self {
             user_root,
             project_root_override: project_root,
+            mcp,
         }
     }
 
@@ -183,7 +200,6 @@ impl PermissionsService for PermissionsServiceImpl {
     }
 
     fn tool_patterns(&self) -> Vec<ToolPattern> {
-        let svc = self.files();
         let mut out: Vec<ToolPattern> = Vec::with_capacity(
             PROVIDER_BUILTINS.len() + BASH_SHAPES.len(),
         );
@@ -201,7 +217,12 @@ impl PermissionsService for PermissionsServiceImpl {
                 source: "bash".into(),
             });
         }
-        for entry in super::super::mcp::state::list(&svc) {
+        // Cross-domain composition through the `McpService` trait —
+        // not the mcp `state::*` free functions. The cloud worker
+        // and browser embed will swap in different `McpService`
+        // impls and tool_patterns picks up their catalog without
+        // changing this code.
+        for entry in self.mcp.list() {
             let pattern = format!("mcp__{}__*", entry.id);
             out.push(ToolPattern {
                 pattern,
@@ -224,7 +245,15 @@ mod tests {
         let project = tmp.path().join("project");
         std::fs::create_dir_all(&user).unwrap();
         std::fs::create_dir_all(&project).unwrap();
-        let svc = PermissionsServiceImpl::with_roots(user, Some(project));
+        // Build an isolated McpService against the same hermetic
+        // roots so tool_patterns picks up no host MCP servers.
+        let mcp = std::sync::Arc::new(
+            super::super::super::mcp::service::McpServiceImpl::with_roots(
+                user.clone(),
+                Some(project.clone()),
+            ),
+        );
+        let svc = PermissionsServiceImpl::with_roots(user, Some(project), mcp);
         (tmp, svc)
     }
 
