@@ -49,41 +49,9 @@ impl DataService {
         Ok(Self { conn, db_path })
     }
 
-    /// Register built-in schemas and run the platform-to-collections
-    /// migration. Idempotent — safe to call repeatedly.
-    pub fn run_startup(&mut self, ship_dir: &Path) -> Result<()> {
+    /// Register built-in schemas. Idempotent — safe to call on every open.
+    pub fn run_startup(&mut self, _ship_dir: &Path) -> Result<()> {
         crate::collections::builtin::register_builtin_schemas(self)?;
-        let platform_path = crate::db::platform_db_path(ship_dir);
-        let report =
-            crate::collections::migration::migrate_platform_to_collections(self, &platform_path)?;
-        if !report.already_migrated && !report.source_missing {
-            tracing::info!(
-                notes = report.notes_migrated,
-                adrs = report.adrs_migrated,
-                specs = report.specs_migrated,
-                "collections: migrated legacy platform rows into data.db"
-            );
-        }
-        let prune = crate::collections::migration::prune_legacy_source_rows(self, &platform_path)?;
-        if !prune.already_pruned && !prune.skipped_not_migrated {
-            tracing::info!(
-                notes = prune.notes_deleted,
-                adrs = prune.adrs_deleted,
-                specs = prune.specs_deleted,
-                "collections: pruned legacy source rows from platform.db"
-            );
-        }
-        // Specs were stored in a dedicated `spec` table from migration 0002
-        // until 0007 dropped it. Copy those rows into the specs collection
-        // before sqlx applies 0007. Idempotent + flag-gated.
-        let spec_table_count =
-            crate::collections::migration::migrate_spec_table_to_collection(self, &platform_path)?;
-        if spec_table_count > 0 {
-            tracing::info!(
-                count = spec_table_count,
-                "collections: migrated rows from legacy spec table into specs collection"
-            );
-        }
         Ok(())
     }
 

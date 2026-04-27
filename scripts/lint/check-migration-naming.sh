@@ -4,12 +4,12 @@
 # Enforce the migration-authoring discipline for
 # crates/core/runtime/migrations/ (platform.db).
 #
-# Rule (effective 2026-04-24):
-#   - New files MUST match: ^[0-9]{12}_[a-z0-9_-]+\.sql$
-#     (UTC timestamp prefix YYYYMMDDHHMM, kebab/underscore description)
-#   - The six legacy numeric-prefixed files below are GRANDFATHERED and frozen.
-#     They are history. Do not edit them; do not add more like them.
-#   - Any other file matching ^[0-9]{4}_ is a regression and fails this check.
+# Rule (pre-launch):
+#   - The schema is a single 0001_schema.sql. Edit that file when the
+#     schema changes; wipe and rebuild platform.db on existing machines.
+#   - When pre-launch ends, this check switches to enforcing
+#     ^[0-9]{12}_[a-z0-9_-]+\.sql$ (UTC timestamp prefix). For now,
+#     anything other than 0001_schema.sql is a regression.
 #
 # See:
 #   crates/core/runtime/migrations/README.md
@@ -21,16 +21,9 @@ cd "$(dirname "$0")/../.."
 
 MIG_DIR="crates/core/runtime/migrations"
 
-# Grandfathered — frozen as of 2026-04-24. The platform-table-drop job
-# (0006) was the final allowed edit to this numeric series. All further
-# migrations use the timestamp convention.
+# Allowed pre-launch: just the canonical single-file schema.
 GRANDFATHERED=(
     "0001_schema.sql"
-    "0002_specs.sql"
-    "0003_drop_event_log.sql"
-    "0004_compiled_asset_cache.sql"
-    "0005_git_commit_drafts.sql"
-    "0006_drop_platform_user_tables.sql"
 )
 
 is_grandfathered() {
