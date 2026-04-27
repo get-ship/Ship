@@ -2,17 +2,14 @@
 //!
 //! `GET /_sail/data?expr=<expression>` opens an SSE stream that:
 //! - Sends an initial `set` patch containing the current value
-//! - Streams subsequent `set` patches whenever the resolver's subscribed
-//!   kernel namespaces emit events (full-value replacement; diffing is
-//!   a v2 concern)
+//! - Streams subsequent `set` patches whenever subscribed kernel
+//!   namespaces emit events (full-value replacement; diffing is a v2
+//!   concern)
 //!
-//! Resolvers live in [`super::sail_data_resolvers`]. To add a namespace,
-//! create a sibling module implementing `SailDataResolver` and register
-//! it in `sail_data_resolvers::find`.
-//!
-//! Expressions that don't match a registered resolver fall through to
-//! a SAFE STUB (single `null` patch + held-open stream) so unmigrated
-//! `data live` declarations behave exactly as they did pre-resolver.
+//! Resolution delegates to the existing service registry — every
+//! `ship.<domain>.<op>(...)` expression maps to a registry entry and
+//! flows through `services::registry::call`. See
+//! [`super::sail_data_resolvers`] for the dispatch layer.
 
 use axum::{
     body::Body,
@@ -26,17 +23,15 @@ use runtime::gen_ulid;
 use serde::Deserialize;
 use std::pin::Pin;
 
-use super::sail_data_resolvers::{ParsedExpr, SailDataResolver, find as find_resolver, parse_expr};
+use super::sail_data_resolvers::{
+    ParsedExpr, parse_expr, resolve as resolve_value, subscribe_namespaces,
+};
 use crate::rest_api::ApiState;
 
 #[derive(Debug, Deserialize)]
 pub struct DataQuery {
     pub expr: String,
 }
-
-/// Re-export so existing imports of `views::sail_data::SailDataResolver`
-/// keep compiling. The trait now lives in the sibling resolvers module.
-pub use super::sail_data_resolvers::SailDataResolver as _SailDataResolver;
 
 /// `GET /_sail/data?expr=...`
 pub async fn serve_data(State(state): State<ApiState>, Query(q): Query<DataQuery>) -> Response {
@@ -46,8 +41,8 @@ pub async fn serve_data(State(state): State<ApiState>, Query(q): Query<DataQuery
     }
 
     let body_stream: Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> =
-        match parse_expr(&expr).and_then(|p| find_resolver(&p.namespace).map(|r| (p, r))) {
-            Some((parsed, resolver)) => resolved_stream(state, expr.clone(), parsed, resolver),
+        match parse_expr(&expr) {
+            Some(parsed) => resolved_stream(state, expr.clone(), parsed),
             None => fallback_stream(expr.clone()),
         };
 
@@ -60,24 +55,28 @@ pub async fn serve_data(State(state): State<ApiState>, Query(q): Query<DataQuery
         .unwrap_or_else(|_| Response::new(Body::from("sse build failed")))
 }
 
-/// Build a stream that emits an initial `set` patch from `resolver.resolve`
-/// then re-emits a fresh `set` patch on every event from the resolver's
-/// subscribed kernel namespaces.
+/// Build a stream that emits an initial `set` patch from the registry
+/// and re-emits a fresh `set` patch on every kernel event in the
+/// subscribed namespaces.
 fn resolved_stream(
     state: ApiState,
     raw_expr: String,
     parsed: ParsedExpr,
-    resolver: &'static dyn SailDataResolver,
 ) -> Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> {
-    // Resolve the initial value synchronously. Resolver errors degrade to
-    // a `null` initial patch — the connection still opens so the runtime
-    // doesn't see a transport failure for an authoring bug.
-    let initial = resolver
-        .resolve(&parsed, &state)
-        .unwrap_or(serde_json::Value::Null);
+    // Resolve the initial value synchronously. Errors degrade to a
+    // `null` initial patch — the connection still opens so the runtime
+    // doesn't see a transport failure for an authoring bug. The
+    // upstream registry message is logged but not pushed to the client.
+    let initial = match resolve_value(&parsed, &state) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(error = %e, expr = %raw_expr, "sail-data resolve failed");
+            serde_json::Value::Null
+        }
+    };
     let initial_frame = patch_frame(&initial, &raw_expr);
 
-    let namespaces = resolver.subscribe_namespaces(&parsed);
+    let namespaces = subscribe_namespaces(&parsed);
     if namespaces.is_empty() {
         return Box::pin(stream::once(async move { Ok(initial_frame) }).chain(stream::pending()));
     }
@@ -109,9 +108,7 @@ fn resolved_stream(
             // re-resolving. A burst of file changes re-emits one patch.
             while mb.try_recv().is_ok() {}
 
-            let value = resolver
-                .resolve(&parsed, &state)
-                .unwrap_or(serde_json::Value::Null);
+            let value = resolve_value(&parsed, &state).unwrap_or(serde_json::Value::Null);
             yield Ok(patch_frame(&value, &raw_expr));
         }
     };
@@ -119,9 +116,8 @@ fn resolved_stream(
     Box::pin(stream::once(async move { Ok(initial_frame) }).chain(live))
 }
 
-/// Stream for unrecognized expressions. Emits one `null` patch then
-/// holds the connection open. Mirrors the pre-resolver stub so views
-/// authored against unimplemented namespaces don't see transport errors.
+/// Stream for unparseable expressions. Emits one `null` patch then
+/// holds the connection open. Authoring bugs don't break transport.
 fn fallback_stream(
     expr: String,
 ) -> Pin<Box<dyn Stream<Item = Result<String, std::io::Error>> + Send>> {

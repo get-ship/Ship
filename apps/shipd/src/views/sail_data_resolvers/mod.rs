@@ -1,72 +1,75 @@
-//! Schema source resolvers for the `data live` SSE endpoint.
+//! Schema source for the `data live` SSE endpoint.
 //!
-//! A resolver owns a namespace prefix (e.g. `ship.agents`) and translates
-//! parsed expressions into:
-//!   1. An initial JSON value for the signal at hydrate time
-//!   2. A list of kernel namespaces whose events should trigger a refetch
+//! Every `ship.<domain>.<op>(...)` expression resolves through the
+//! existing service registry (`apps/shipd/src/services/registry.rs`).
+//! That registry is the single source of truth for read-side domain
+//! services — minijinja templates already use it via the `ship.*`
+//! globals; this module wires the same calls into Sail's data layer
+//! so authors get the same vocabulary in `.set` files.
 //!
-//! `serve_data` parses the incoming `?expr=...`, dispatches to the matching
-//! resolver, sends the initial patch, and (if the resolver subscribes)
-//! spawns a kernel actor that re-resolves and re-emits on each event.
-
-pub mod agents;
+//! `serve_data` parses the incoming `?expr=...`, calls
+//! `services::registry::call` with `<domain>.<op>` and the parsed
+//! args, sends the result as the initial patch, then subscribes to a
+//! coarse kernel namespace (currently `config`) and re-resolves on
+//! each event. Domain-specific subscription scopes can replace the
+//! coarse subscription as we narrow the wake-up surface.
 
 use crate::rest_api::ApiState;
+use crate::services::registry;
 use serde_json::Value;
 
-/// A parsed `ship.<ns>.<method>(<args>)` expression. Owns its strings so
-/// it can travel through `'static` SSE streams.
+/// A parsed `ship.<domain>.<op>(<args>)` expression. Owns its strings
+/// so it can travel through `'static` SSE streams.
 #[derive(Debug, Clone)]
 pub struct ParsedExpr {
-    /// Full namespace including the resolver prefix, e.g. `ship.agents`.
-    pub namespace: String,
-    /// Method name, e.g. `summaries`.
-    pub method: String,
+    /// Registry name (without the `ship.` prefix) — e.g. `agents.summaries`,
+    /// `dashboard.state`, `actors.mesh.snapshot`.
+    pub registry_name: String,
     /// Verbatim argument string between the parens, possibly empty.
+    /// Currently passed as-is — non-empty args are rejected at the
+    /// dispatcher level until argument parsing lands.
     pub args: String,
 }
 
-/// Parse `ship.foo.bar(args)` into its three parts. Permissive — does not
-/// validate the arg syntax; the resolver decides what to do with it.
+/// Parse `ship.foo.bar(args)`. Permissive on the arg payload — does
+/// not validate the JS expression; the dispatcher decides what to do
+/// with it.
 pub fn parse_expr(expr: &str) -> Option<ParsedExpr> {
     let (head, args) = expr.split_once('(')?;
     let args = args.strip_suffix(')')?;
-    let parts: Vec<&str> = head.split('.').collect();
-    if parts.len() < 3 {
+    let registry_name = head.strip_prefix("ship.")?;
+    if registry_name.is_empty() || !registry_name.contains('.') {
         return None;
     }
-    let method = parts.last().unwrap();
-    let namespace = parts[..parts.len() - 1].join(".");
     Some(ParsedExpr {
-        namespace,
-        method: (*method).to_string(),
+        registry_name: registry_name.to_string(),
         args: args.to_string(),
     })
 }
 
-/// Schema source for one namespace prefix.
-pub trait SailDataResolver: Send + Sync {
-    /// Namespace prefix this resolver owns, e.g. `"ship.agents"`.
-    fn namespace(&self) -> &'static str;
-
-    /// Compute the current value for a parsed expression. Called once at
-    /// hydrate time and again on every subscribed event.
-    fn resolve(&self, parsed: &ParsedExpr, state: &ApiState) -> Result<Value, String>;
-
-    /// Kernel namespaces this resolver subscribes to. An empty list means
-    /// the data is static — initial value only, no live updates.
-    fn subscribe_namespaces(&self, _parsed: &ParsedExpr) -> Vec<String> {
-        Vec::new()
+/// Resolve a `ship.*` expression by delegating to the service
+/// registry. Empty args become an empty JSON object.
+pub fn resolve(parsed: &ParsedExpr, state: &ApiState) -> Result<Value, String> {
+    if !parsed.args.trim().is_empty() {
+        return Err(format!(
+            "argument-bearing data live expressions not yet supported (got `({})`)",
+            parsed.args,
+        ));
     }
+    registry::call(&parsed.registry_name, &Value::Object(Default::default()), state)
+        .map_err(|e| format!("{e}"))
 }
 
-/// Look up a resolver by namespace. Static registry for now — extending
-/// to more namespaces means adding a match arm + a sibling module.
-pub fn find(namespace: &str) -> Option<&'static dyn SailDataResolver> {
-    match namespace {
-        "ship.agents" => Some(&agents::AgentsResolver),
-        _ => None,
-    }
+/// Kernel namespaces to subscribe to for live updates. v1: every
+/// resolved expression listens on `config`. Filesystem changes under
+/// `.ship/` plus agent / pipeline / collection edits all fire
+/// `config.*` events; the resolver re-fetches and emits a patch.
+///
+/// Domain-specific scopes (e.g. just `run.*` for pipeline-state
+/// queries) can replace this when we want to narrow the wake-up
+/// surface — single function to update.
+pub fn subscribe_namespaces(_parsed: &ParsedExpr) -> Vec<String> {
+    vec!["config".to_string()]
 }
 
 #[cfg(test)]
@@ -76,24 +79,20 @@ mod tests {
     #[test]
     fn parses_zero_arg_call() {
         let p = parse_expr("ship.agents.summaries()").unwrap();
-        assert_eq!(p.namespace, "ship.agents");
-        assert_eq!(p.method, "summaries");
+        assert_eq!(p.registry_name, "agents.summaries");
         assert_eq!(p.args, "");
     }
 
     #[test]
-    fn parses_call_with_args() {
-        let p = parse_expr("ship.jobs.detail(id=props.id)").unwrap();
-        assert_eq!(p.namespace, "ship.jobs");
-        assert_eq!(p.method, "detail");
-        assert_eq!(p.args, "id=props.id");
+    fn parses_dashboard_state() {
+        let p = parse_expr("ship.dashboard.state()").unwrap();
+        assert_eq!(p.registry_name, "dashboard.state");
     }
 
     #[test]
     fn parses_nested_namespace() {
         let p = parse_expr("ship.actors.mesh.snapshot()").unwrap();
-        assert_eq!(p.namespace, "ship.actors.mesh");
-        assert_eq!(p.method, "snapshot");
+        assert_eq!(p.registry_name, "actors.mesh.snapshot");
     }
 
     #[test]
@@ -102,14 +101,20 @@ mod tests {
     }
 
     #[test]
-    fn rejects_missing_namespace() {
-        assert!(parse_expr("foo()").is_none());
+    fn rejects_missing_ship_prefix() {
         assert!(parse_expr("foo.bar()").is_none());
     }
 
     #[test]
-    fn finds_known_namespace() {
-        assert!(find("ship.agents").is_some());
-        assert!(find("ship.unknown").is_none());
+    fn rejects_top_level_ship() {
+        // `ship.summaries()` — registry names are always `<domain>.<op>`.
+        assert!(parse_expr("ship.summaries()").is_none());
+    }
+
+    #[test]
+    fn rejects_args_for_now() {
+        // Argument-bearing expressions are deferred until proper arg parsing.
+        let p = parse_expr("ship.jobs.detail(id)").unwrap();
+        assert_eq!(p.args, "id");
     }
 }
