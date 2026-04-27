@@ -222,6 +222,7 @@ pub fn build_shell(source: &str, raw: RawBlocks) -> super::ast::SailFile {
             // it raw inside a placeholder root.
             Template {
                 root: vec![super::ast::Node::Text(b.body)],
+                extends: None,
             }
         }),
         style: raw.style.map(|b| {

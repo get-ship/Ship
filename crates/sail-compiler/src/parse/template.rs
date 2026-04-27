@@ -28,8 +28,21 @@ use super::ast::{
 
 pub fn parse(body: &str) -> Result<Template> {
     let mut p = Parser::new(body);
-    let root = p.parse_nodes(None)?;
-    Ok(Template { root })
+    let mut nodes = p.parse_nodes(None)?;
+    // Lift `<extends src="…" />` if it appears at the top level. Only
+    // the first one is honored; subsequent ones are kept as plain
+    // elements (which the analyzer/emit will diagnose).
+    let mut extends: Option<String> = None;
+    let mut filtered: Vec<Node> = Vec::with_capacity(nodes.len());
+    for n in nodes.drain(..) {
+        match n {
+            Node::Element { ref tag, ref attrs, .. } if tag == "extends" && extends.is_none() => {
+                extends = static_attr(attrs, "src");
+            }
+            other => filtered.push(other),
+        }
+    }
+    Ok(Template { root: filtered, extends })
 }
 
 struct Parser<'a> {
@@ -278,6 +291,20 @@ impl<'a> Parser<'a> {
         }
         if tag == "sail:document" {
             return Node::Document { events: collect_events(&attrs) };
+        }
+        // Compile-time layout primitives (resolved before emit, never
+        // appear in the runtime DOM).
+        if tag == "block" {
+            let name = static_attr(&attrs, "name").unwrap_or_else(|| "default".into());
+            return Node::Block { name, default: children };
+        }
+        if tag == "fill" {
+            let name = static_attr(&attrs, "name").unwrap_or_else(|| "default".into());
+            return Node::Fill { name, body: children };
+        }
+        if tag == "include" {
+            let src = static_attr(&attrs, "src").unwrap_or_default();
+            return Node::Include { src };
         }
         if tag.contains('-') {
             return Node::Component {
@@ -598,6 +625,16 @@ impl AttrPayload {
             AttrPayload::Static(s) | AttrPayload::Expr(s) | AttrPayload::Interpolated(s) => s,
         }
     }
+}
+
+/// Extract the value of a static attribute (e.g. `name="content"`
+/// or `src="./layout.set"`). Returns `None` for missing or
+/// non-static (interpolated/bind/on) values.
+fn static_attr(attrs: &[Attr], name: &str) -> Option<String> {
+    attrs.iter().find(|a| a.name == name).and_then(|a| match &a.value {
+        AttrValue::Static(s) => Some(s.clone()),
+        _ => None,
+    })
 }
 
 fn collect_events(attrs: &[Attr]) -> Vec<EventBinding> {

@@ -162,6 +162,17 @@ fn check_node(
         Node::Window { events } | Node::Document { events } => {
             for e in events { check_expr(&e.handler, known, diagnostics); }
         }
+        // Compile-time layout primitives. These are resolved before
+        // reactivity analysis runs in the resolved-template path, so
+        // hitting them here means the file failed to extend (or chose
+        // not to). Walk their bodies for reactivity nonetheless.
+        Node::Block { default, .. } => {
+            for c in default { check_node(c, known, diagnostics); }
+        }
+        Node::Fill { body, .. } => {
+            for c in body { check_node(c, known, diagnostics); }
+        }
+        Node::Include { .. } => {}
     }
 }
 

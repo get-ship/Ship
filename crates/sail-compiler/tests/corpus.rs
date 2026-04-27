@@ -139,6 +139,35 @@ fn ssr_dts_schema_all_emit_for_typeahead() {
 }
 
 #[test]
+fn page_extends_layout_resolves_blocks_into_fills() {
+    let r = compile("page.set");
+    let js = r.js;
+
+    // Layout's static chrome is present (h1, footer placeholder).
+    assert!(js.contains("<article class=\"page\">"));
+    assert!(js.contains("<h1>"));
+    assert!(js.contains("© Ship"));
+
+    // Child's fill for content overrode layout's "placeholder content".
+    assert!(!js.contains("placeholder content"));
+    assert!(js.contains("Counter: <strong>"));
+
+    // Child's fill for actions overrode "no actions".
+    assert!(!js.contains("no actions"));
+    assert!(js.contains("quick add"));
+
+    // Layout's footer block had no fill — keeps default.
+    // (Already verified by "© Ship" check above.)
+
+    // Reactive bindings still work across the substituted template.
+    assert!(js.contains("bindText"));
+    assert!(js.contains("on(_n, \"click\", inc)"));
+    // Two click handlers (one from each fill). Both wired correctly.
+    let click_count = js.matches("on(_n, \"click\", inc)").count();
+    assert_eq!(click_count, 2);
+}
+
+#[test]
 fn emitted_js_is_valid_module_shape() {
     for name in ["counter.set", "typeahead.set"] {
         let js = js(name);

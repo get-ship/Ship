@@ -1,0 +1,29 @@
+<script>
+prop title: string = 'Untitled'
+</script>
+
+<template>
+<article class="page">
+  <header>
+    <h1>{title}</h1>
+    <block name="actions">
+      <span class="muted">no actions</span>
+    </block>
+  </header>
+  <section class="body">
+    <block name="content">
+      <p>placeholder content</p>
+    </block>
+  </section>
+  <footer>
+    <block name="footer">
+      <span class="muted">© Ship</span>
+    </block>
+  </footer>
+</article>
+</template>
+
+<style>
+.page { max-width: 800px; margin: 0 auto; padding: 1rem; }
+.muted { color: #888; }
+</style>

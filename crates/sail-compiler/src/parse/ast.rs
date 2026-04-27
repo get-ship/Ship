@@ -88,6 +88,11 @@ pub struct FunctionDecl {
 #[derive(Debug, Clone, Default)]
 pub struct Template {
     pub root: Vec<Node>,
+    /// `<extends src="…" />` declaration at the top of the template.
+    /// When present, the compiler reads the parent file, walks its
+    /// template, and replaces each `<block name="X">` with the matching
+    /// `<fill name="X">` from this file. Resolved before emit.
+    pub extends: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -144,6 +149,27 @@ pub enum Node {
         events: Vec<EventBinding>,
     },
     RawHtml(Expr),
+    /// Compile-time block placeholder in a layout/parent template.
+    /// `<block name="content">default</block>` — the body acts as a
+    /// fallback when no `<fill>` from the extending child overrides it.
+    Block {
+        name: String,
+        default: Vec<Node>,
+    },
+    /// Compile-time block override in a child template that
+    /// `<extends>` a parent. Replaces the matching `<block name="X">`
+    /// in the parent at resolve time. Always at the top level of the
+    /// child's template.
+    Fill {
+        name: String,
+        body: Vec<Node>,
+    },
+    /// `<include src="./_partial.set" />` — drop-in compile-time
+    /// fragment with no parameters. Replaced at resolve time with the
+    /// parsed contents of the included file.
+    Include {
+        src: String,
+    },
 }
 
 #[derive(Debug, Clone)]

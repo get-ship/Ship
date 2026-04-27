@@ -1,0 +1,17 @@
+<script>
+state count = 0
+function inc() { count.set(count() + 1) }
+</script>
+
+<template>
+<extends src="_layout.set" />
+
+<fill name="content">
+  <p>Counter: <strong>{count}</strong></p>
+  <button on:click={inc}>+1</button>
+</fill>
+
+<fill name="actions">
+  <button on:click={inc}>quick add</button>
+</fill>
+</template>

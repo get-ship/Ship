@@ -185,6 +185,27 @@ impl<'a> Emitter<'a> {
                     "  {{\n    const _n = {root}.querySelector('[data-sh=\"{id}\"]');\n    if (_n) {cl}.push(bindRawHtml(_n, () => ({wrapped}), {deps}));\n  }}",
                 ));
             }
+            // Compile-time layout primitives. The resolver in
+            // `lower::layout` should have replaced these by the time
+            // emit runs. If we see them here, the file failed to
+            // resolve (no <extends>) — emit the block's default body
+            // for blocks, the fill body for orphaned fills, and a
+            // comment placeholder for unresolved includes.
+            Node::Block { default, .. } => {
+                for c in default {
+                    self.emit_node(c);
+                }
+            }
+            Node::Fill { body, .. } => {
+                for c in body {
+                    self.emit_node(c);
+                }
+            }
+            Node::Include { src } => {
+                self.html.push_str(&format!(
+                    "<!-- sail: unresolved <include src=\"{src}\"> -->"
+                ));
+            }
         }
     }
 
