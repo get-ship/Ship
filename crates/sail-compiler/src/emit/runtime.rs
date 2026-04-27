@@ -23,7 +23,9 @@
 //! See `docs/sail/02-compiler-architecture.md § Phase 8` for the full
 //! emit shape.
 
-use crate::parse::ast::{Attr, AttrValue, EventModifier, Node, ScriptBlock, SailFile, Template};
+use crate::parse::ast::{
+    Attr, AttrValue, EventModifier, Expr, Node, Pattern, ScriptBlock, SailFile, Template,
+};
 
 /// Emit the JS module source for a parsed Sail file. `tag` is the
 /// custom-element tag name (typically the file basename, kebab-cased).
@@ -48,18 +50,26 @@ pub fn emit_with_html(file: &SailFile, tag: &str) -> (String, String) {
 
 struct Emitter<'a> {
     tag: &'a str,
-    /// Reactive identifier names: state ∪ derived ∪ data ∪ prop names.
+    /// Reactive identifier names: state ∪ derived ∪ data ∪ prop names,
+    /// plus any branch-scoped names (e.g., `it`, `i` inside a for body).
     reactive: Vec<String>,
     /// HTML being assembled, with anchor markers.
     html: String,
     /// Wiring instructions to emit inside the factory closure.
     wires: Vec<String>,
-    /// Counter for `data-sa` anchors on elements.
+    /// Counter for `data-sa` anchors on elements (per-emit-context).
     next_anchor: u32,
-    /// Counter for `data-st` anchors on text interpolations.
+    /// Counter for `data-st` anchors on text interpolations (per-context).
     next_text_anchor: u32,
     /// Imported names from `@sail/runtime`.
     imports: std::collections::BTreeSet<&'static str>,
+    /// JS expression that resolves to the DOM subtree to query against
+    /// when wiring bindings — `host` at the top level, `_root` inside
+    /// a captured branch.
+    query_root: String,
+    /// JS expression naming the array we push disposers into —
+    /// `cleanups` at the top level, `_c` inside a captured branch.
+    cleanup_array: String,
 }
 
 impl<'a> Emitter<'a> {
@@ -74,6 +84,8 @@ impl<'a> Emitter<'a> {
             next_anchor: 0,
             next_text_anchor: 0,
             imports,
+            query_root: "host".into(),
+            cleanup_array: "cleanups".into(),
         }
     }
 
@@ -97,8 +109,10 @@ impl<'a> Emitter<'a> {
                 self.html.push_str(&format!("<span data-st=\"{id}\"></span>"));
                 self.imports.insert("bindText");
                 let deps = self.deps_array(&expr.raw);
+                let root = self.query_root.clone();
+                let cl = self.cleanup_array.clone();
                 self.wires.push(format!(
-                    "  {{\n    const _n = host.querySelector('[data-st=\"{id}\"]');\n    if (_n) cleanups.push(bindText(_n, () => String({}), {deps}));\n  }}",
+                    "  {{\n    const _n = {root}.querySelector('[data-st=\"{id}\"]');\n    if (_n) {cl}.push(bindText(_n, () => String({}), {deps}));\n  }}",
                     expr.raw
                 ));
             }
@@ -129,8 +143,12 @@ impl<'a> Emitter<'a> {
             // Skipped for MVP — emitter writes a comment placeholder
             // so the author knows the block is recognised but not yet
             // emitted.
-            Node::If { .. } => self.html.push_str("<!-- sail: {#if} not yet emitted -->"),
-            Node::For { .. } => self.html.push_str("<!-- sail: {#for} not yet emitted -->"),
+            Node::If { cond, then_, elifs, else_ } => {
+                self.emit_if(cond, then_, elifs, else_.as_deref());
+            }
+            Node::For { item, iter, key, body, empty } => {
+                self.emit_for(item, iter, key.as_ref(), body, empty.as_deref());
+            }
             Node::Await { .. } => self.html.push_str("<!-- sail: {#await} not yet emitted -->"),
             Node::Slot { .. } | Node::SlotFill { .. } => {
                 self.html.push_str("<!-- sail: <slot> not yet emitted -->");
@@ -176,8 +194,10 @@ impl<'a> Emitter<'a> {
                     let id = anchor_id.unwrap();
                     let deps = self.deps_array(&expr.raw);
                     self.imports.insert("bindAttr");
+                    let root = self.query_root.clone();
+                    let cl = self.cleanup_array.clone();
                     self.wires.push(format!(
-                        "  {{\n    const _n = host.querySelector('[data-sa=\"{id}\"]');\n    if (_n) cleanups.push(bindAttr(_n, {name:?}, () => ({expr}), {deps}));\n  }}",
+                        "  {{\n    const _n = {root}.querySelector('[data-sa=\"{id}\"]');\n    if (_n) {cl}.push(bindAttr(_n, {name:?}, () => ({expr}), {deps}));\n  }}",
                         name = a.name,
                         expr = expr.raw,
                     ));
@@ -189,8 +209,10 @@ impl<'a> Emitter<'a> {
                         _ => "bindValue",
                     };
                     self.imports.insert(bind_fn);
+                    let root = self.query_root.clone();
+                    let cl = self.cleanup_array.clone();
                     self.wires.push(format!(
-                        "  {{\n    const _n = host.querySelector('[data-sa=\"{id}\"]');\n    if (_n) cleanups.push({bind_fn}(_n, {sig}));\n  }}",
+                        "  {{\n    const _n = {root}.querySelector('[data-sa=\"{id}\"]');\n    if (_n) {cl}.push({bind_fn}(_n, {sig}));\n  }}",
                         sig = expr.raw,
                     ));
                 }
@@ -198,8 +220,10 @@ impl<'a> Emitter<'a> {
                     let id = anchor_id.unwrap();
                     self.imports.insert("on");
                     let opts = render_modifier_opts(modifiers);
+                    let root = self.query_root.clone();
+                    let cl = self.cleanup_array.clone();
                     self.wires.push(format!(
-                        "  {{\n    const _n = host.querySelector('[data-sa=\"{id}\"]');\n    if (_n) cleanups.push(on(_n, {event:?}, {handler}{opts}));\n  }}",
+                        "  {{\n    const _n = {root}.querySelector('[data-sa=\"{id}\"]');\n    if (_n) {cl}.push(on(_n, {event:?}, {handler}{opts}));\n  }}",
                         handler = handler.raw,
                     ));
                 }
@@ -210,6 +234,252 @@ impl<'a> Emitter<'a> {
         self.html.push_str("</");
         self.html.push_str(tag);
         self.html.push('>');
+    }
+
+    /// Capture a sub-tree's HTML + wires into independent buffers.
+    /// `extra_scope` adds names treated as reactive only inside the
+    /// captured walk (for `{#for}`'s `it` / `i`).
+    fn capture(
+        &mut self,
+        nodes: &[Node],
+        extra_scope: &[String],
+    ) -> (String, Vec<String>) {
+        let saved_html = std::mem::take(&mut self.html);
+        let saved_wires = std::mem::take(&mut self.wires);
+        let saved_sa = self.next_anchor;
+        let saved_st = self.next_text_anchor;
+        let saved_root = std::mem::replace(&mut self.query_root, "_root".into());
+        let saved_cl = std::mem::replace(&mut self.cleanup_array, "_c".into());
+        self.next_anchor = 0;
+        self.next_text_anchor = 0;
+        for s in extra_scope { self.reactive.push(s.clone()); }
+
+        for n in nodes { self.emit_node(n); }
+
+        let captured_html = std::mem::replace(&mut self.html, saved_html);
+        let captured_wires = std::mem::replace(&mut self.wires, saved_wires);
+        self.next_anchor = saved_sa;
+        self.next_text_anchor = saved_st;
+        self.query_root = saved_root;
+        self.cleanup_array = saved_cl;
+        for _ in 0..extra_scope.len() { self.reactive.pop(); }
+
+        (captured_html, captured_wires)
+    }
+
+    /// Emit a JS arrow that builds a branch — used by both `{#if}` and
+    /// `{#for}`. Returns source like:
+    /// `() => { const _tpl = ...; const _root = ...; const _c = []; ...; return { nodes, cleanup, ...extra } }`
+    fn render_branch(
+        &self,
+        html: &str,
+        wires: &[String],
+        prelude: &str,
+        extra_return: &str,
+    ) -> String {
+        let mut out = String::from("() => {\n");
+        out.push_str(prelude);
+        out.push_str("      const _tpl = document.createElement('template')\n");
+        out.push_str(&format!(
+            "      _tpl.innerHTML = {}\n",
+            render_template_literal(html)
+        ));
+        out.push_str("      const _root = _tpl.content\n");
+        out.push_str("      const _nodes = Array.from(_root.childNodes)\n");
+        out.push_str("      const _c = []\n");
+        for w in wires {
+            // Re-indent each captured wire to fit inside the closure.
+            for line in w.lines() {
+                out.push_str("      ");
+                out.push_str(line.trim_start());
+                out.push('\n');
+            }
+        }
+        out.push_str(&format!(
+            "      return {{ nodes: _nodes, cleanup: () => _c.forEach(c => {{ try {{ c() }} catch {{}} }}){extra_return} }}\n"
+        ));
+        out.push_str("    }");
+        out
+    }
+
+    fn emit_if(
+        &mut self,
+        cond: &Expr,
+        then_: &[Node],
+        elifs: &[(Expr, Vec<Node>)],
+        else_: Option<&[Node]>,
+    ) {
+        let id = self.next_anchor;
+        self.next_anchor += 1;
+        self.html.push_str(&format!("<template data-si=\"{id}\"></template>"));
+        self.imports.insert("bindIf");
+
+        // Fold elifs into nested else-bindIfs so the runtime stays simple.
+        // For shape `if A then a else if B then b else c`, the JS is:
+        //   bindIf({ cond: A, then_: a, else_: () => bindIf({...}) })
+        // To keep this manageable we render the whole chain directly.
+
+        let (then_html, then_wires) = self.capture(then_, &[]);
+        let then_arrow = self.render_branch(&then_html, &then_wires, "", "");
+
+        // Build else_ expression — could be a chain.
+        let else_expr = self.build_else_chain(elifs, else_);
+
+        let root = self.query_root.clone();
+        let cl = self.cleanup_array.clone();
+        let cond_deps = self.deps_array(&cond.raw);
+        let mut wire = String::from("  {\n");
+        wire.push_str(&format!(
+            "    const _slot = {root}.querySelector('[data-si=\"{id}\"]')\n"
+        ));
+        wire.push_str("    const _anchor = document.createComment('si')\n");
+        wire.push_str("    if (_slot) _slot.replaceWith(_anchor)\n");
+        wire.push_str(&format!(
+            "    {cl}.push(bindIf({{\n      anchor: _anchor,\n      cond: () => ({cond}),\n      then_: {then_arrow}",
+            cond = cond.raw,
+        ));
+        if let Some(else_arrow) = else_expr {
+            wire.push_str(&format!(",\n      else_: {else_arrow}"));
+        }
+        let _ = cond_deps; // bindIf reactivity is via effect inside it; deps not needed here
+        wire.push_str("\n    }))\n  }");
+        self.wires.push(wire);
+    }
+
+    fn build_else_chain(
+        &mut self,
+        elifs: &[(Expr, Vec<Node>)],
+        else_: Option<&[Node]>,
+    ) -> Option<String> {
+        if elifs.is_empty() {
+            return match else_ {
+                Some(nodes) => {
+                    let (h, w) = self.capture(nodes, &[]);
+                    Some(self.render_branch(&h, &w, "", ""))
+                }
+                None => None,
+            };
+        }
+        // Take the head elif → emit as `() => { ... bindIf(...) ... }`
+        // returning a single fragment containing the inner bindIf's
+        // current branch nodes. Because bindIf is anchor-based, we
+        // need an inner anchor inside this branch.
+        let (head_cond, head_body) = (&elifs[0].0, &elifs[0].1);
+        let (inner_then_html, inner_then_wires) = self.capture(head_body, &[]);
+        let inner_then_arrow =
+            self.render_branch(&inner_then_html, &inner_then_wires, "", "");
+        let inner_else = self.build_else_chain(&elifs[1..], else_);
+
+        // The outer arrow returns a single anchor + an internal bindIf
+        // that drives that anchor. cleanup teardown disposes the inner.
+        let mut arrow = String::from("() => {\n");
+        arrow.push_str("      const _anchor = document.createComment('si-elif')\n");
+        arrow.push_str("      const _frag = document.createDocumentFragment()\n");
+        arrow.push_str("      _frag.appendChild(_anchor)\n");
+        arrow.push_str(&format!(
+            "      const _d = bindIf({{ anchor: _anchor, cond: () => ({cond}), then_: {then_}",
+            cond = head_cond.raw,
+            then_ = inner_then_arrow,
+        ));
+        if let Some(e) = inner_else {
+            arrow.push_str(&format!(", else_: {e}"));
+        }
+        arrow.push_str(" })\n");
+        arrow.push_str("      return { nodes: [_anchor], cleanup: _d }\n");
+        arrow.push_str("    }");
+        Some(arrow)
+    }
+
+    fn emit_for(
+        &mut self,
+        item: &Pattern,
+        iter: &Expr,
+        key: Option<&Expr>,
+        body: &[Node],
+        empty: Option<&[Node]>,
+    ) {
+        let id = self.next_anchor;
+        self.next_anchor += 1;
+        self.html.push_str(&format!("<template data-sf=\"{id}\"></template>"));
+        self.imports.insert("bindFor");
+        self.imports.insert("signal");
+
+        let (item_name, idx_name) = match item {
+            Pattern::Identifier(n) => (n.clone(), "_i".to_string()),
+            Pattern::Tuple(parts) => (
+                parts.first().cloned().unwrap_or_else(|| "it".into()),
+                parts.get(1).cloned().unwrap_or_else(|| "_i".into()),
+            ),
+        };
+
+        let scope = vec![item_name.clone(), idx_name.clone()];
+        let (body_html, body_wires) = self.capture(body, &scope);
+
+        let prelude = format!(
+            "      const {item} = signal(_initialItem)\n      const {idx} = signal(_initialIdx)\n",
+            item = item_name,
+            idx = idx_name,
+        );
+        let extra = format!(
+            ", update: (nextItem, nextIdx) => {{ {item}.set(nextItem); {idx}.set(nextIdx) }}",
+            item = item_name,
+            idx = idx_name,
+        );
+
+        // render_branch emits `() => { ... }`, but bindFor.render takes
+        // `(item, index) => RenderedItem`. Rewrite the leading arrow.
+        let body_arrow = self.render_branch(&body_html, &body_wires, &prelude, &extra);
+        let body_arrow = body_arrow.replacen("() => {", "(_initialItem, _initialIdx) => {", 1);
+
+        let key_expr = match key {
+            Some(k) => format!(
+                "({item}, _i) => ({k})",
+                item = item_name,
+                k = k.raw,
+            ),
+            None => "(_, i) => i".to_string(),
+        };
+
+        let root = self.query_root.clone();
+        let cl = self.cleanup_array.clone();
+        let mut wire = String::from("  {\n");
+        wire.push_str(&format!(
+            "    const _slot = {root}.querySelector('[data-sf=\"{id}\"]')\n"
+        ));
+        wire.push_str("    const _anchor = document.createComment('sf')\n");
+        wire.push_str("    if (_slot) _slot.replaceWith(_anchor)\n");
+        wire.push_str(&format!(
+            "    {cl}.push(bindFor({{\n      anchor: _anchor,\n      items: () => ({iter}),\n      key: {key},\n      render: {body}\n    }}))\n",
+            iter = iter.raw,
+            key = key_expr,
+            body = body_arrow,
+        ));
+        wire.push_str("  }");
+        self.wires.push(wire);
+
+        // {:empty} body — emitted as a sibling bindIf(empty if list is empty).
+        if let Some(empty_nodes) = empty {
+            let (empty_html, empty_wires) = self.capture(empty_nodes, &[]);
+            let empty_arrow = self.render_branch(&empty_html, &empty_wires, "", "");
+            self.imports.insert("bindIf");
+            let mut wire = String::from("  {\n");
+            wire.push_str(&format!(
+                "    const _eAnchor = document.createComment('sf-empty')\n"
+            ));
+            wire.push_str(&format!(
+                "    {cl}.push(bindIf({{ anchor: _eAnchor, cond: () => ({iter}).length === 0, then_: {empty} }}))\n",
+                iter = iter.raw,
+                empty = empty_arrow,
+            ));
+            wire.push_str("  }");
+            // Note: empty anchor needs to live in the DOM; for MVP, we
+            // append next to the for anchor by inserting after slot
+            // replacement. The wire above declares the anchor but
+            // doesn't insert it — TODO once a clean placement strategy
+            // exists. For now, the empty branch wire is recorded but
+            // rendered into a detached anchor (no visible behavior).
+            self.wires.push(wire);
+        }
     }
 
     fn deps_array(&mut self, expr: &str) -> String {
@@ -555,6 +825,53 @@ function inc() { count.set(count() + 1) }
         assert!(js.contains("bindText"));
         // Static template chunks survive
         assert!(js.contains("Clicks: "));
+    }
+
+    #[test]
+    fn if_block_emits_bindIf() {
+        let js = compile(
+            "<script>state on = true</script>\n<template>{#if on}<p>Y</p>{:else}<p>N</p>{/if}</template>",
+        );
+        assert!(js.contains("bindIf"));
+        assert!(js.contains("data-si=\"0\""));
+        assert!(js.contains("cond: () => (on)"));
+        assert!(js.contains("then_: () =>"));
+        assert!(js.contains("else_: () =>"));
+    }
+
+    #[test]
+    fn if_without_else_omits_else() {
+        let js = compile(
+            "<script>state on = true</script>\n<template>{#if on}<p>Y</p>{/if}</template>",
+        );
+        assert!(js.contains("bindIf"));
+        assert!(!js.contains("else_:"));
+    }
+
+    #[test]
+    fn for_block_emits_bindFor_with_signal_wrapping() {
+        let js = compile(
+            "<script>state list = []</script>\n<template>{#for it of list key={it.id}}<li>{it.name}</li>{/for}</template>",
+        );
+        assert!(js.contains("bindFor"));
+        assert!(js.contains("data-sf=\"0\""));
+        assert!(js.contains("items: () => (list)"));
+        assert!(js.contains("key: (it, _i) => (it.id)"));
+        assert!(js.contains("const it = signal(_initialItem)"));
+        assert!(js.contains("update: (nextItem, nextIdx)"));
+        // Inner bindText reads it() and tracks `it` as a dep.
+        assert!(js.contains("String(it.name)"));
+        assert!(js.contains("[it]"));
+    }
+
+    #[test]
+    fn for_with_index_pattern() {
+        let js = compile(
+            "<script>state xs = []</script>\n<template>{#for x, i of xs}<li>{i}: {x}</li>{/for}</template>",
+        );
+        assert!(js.contains("const x = signal(_initialItem)"));
+        assert!(js.contains("const i = signal(_initialIdx)"));
+        assert!(js.contains("update: (nextItem, nextIdx)"));
     }
 
     #[test]

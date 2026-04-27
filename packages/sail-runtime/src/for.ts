@@ -24,6 +24,14 @@ export interface BindForOptions<T> {
 export interface RenderedItem {
   nodes: Node[]
   cleanup?: () => void
+  /**
+   * Optional in-place updater. Called on reuse — when the same key
+   * appears in the next list with a different item value or position.
+   * Lets the row push the new item/index into its internal signals
+   * without tearing down DOM. Without this, reused rows keep their
+   * original closure and won't reflect updates.
+   */
+  update?: (item: unknown, index: number) => void
 }
 
 interface ItemRecord<T> {
@@ -31,6 +39,7 @@ interface ItemRecord<T> {
   item: T
   nodes: Node[]
   cleanup?: () => void
+  update?: (item: unknown, index: number) => void
 }
 
 /**
@@ -83,10 +92,17 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
       let record: ItemRecord<T>
       if (existing) {
         existing.item = item
+        existing.update?.(item, i)
         record = existing
       } else {
         const r = render(item, i)
-        record = { key: k, item, nodes: r.nodes, ...(r.cleanup && { cleanup: r.cleanup }) }
+        record = {
+          key: k,
+          item,
+          nodes: r.nodes,
+          ...(r.cleanup && { cleanup: r.cleanup }),
+          ...(r.update && { update: r.update }),
+        }
       }
       // Move/insert nodes into position right after `cursor`.
       const parent = anchor.parentNode

@@ -26,6 +26,9 @@ export type { Patch, PatchOp, PathToken } from './patch'
 export { bindFor, bindForSignal } from './for'
 export type { BindForOptions, RenderedItem } from './for'
 
+export { bindIf } from './if'
+export type { BindIfOptions, BranchRender } from './if'
+
 export { resolveSlots, snapshotChildren } from './slot'
 export type { SlotDecl } from './slot'
 

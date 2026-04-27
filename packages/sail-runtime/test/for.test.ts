@@ -282,3 +282,43 @@ describe('bindFor — large lists (perf sanity)', () => {
     expect(renderCalls.length).toBe(1000) // no new renders, just moves
   })
 })
+
+describe('bindFor — update callback', () => {
+  it('invokes update on reused rows when item content changes', () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const anchor = document.createComment('for')
+    host.appendChild(anchor)
+    const $list = signal([
+      { id: 'a', name: 'Alice' },
+      { id: 'b', name: 'Bob' },
+    ])
+    const updates: Array<{ id: string; name: string }> = []
+    bindFor({
+      anchor,
+      items: () => $list(),
+      key: (it) => it.id,
+      render: (it) => {
+        const span = document.createElement('span')
+        span.textContent = it.name
+        return {
+          nodes: [span],
+          update: (next: any) => {
+            updates.push(next)
+            span.textContent = next.name
+          },
+        }
+      },
+    })
+    expect(host.textContent).toBe('AliceBob')
+
+    $list.set([
+      { id: 'a', name: 'Alicia' }, // same key, new content
+      { id: 'b', name: 'Bob' },
+    ])
+    expect(updates.length).toBe(2)
+    expect(host.textContent).toBe('AliciaBob')
+  })
+})
+
+
