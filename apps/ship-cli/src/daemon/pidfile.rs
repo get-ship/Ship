@@ -1,7 +1,7 @@
 //! Daemon pidfile + advisory lock. The OS-enforced singleton.
 //!
 //! The supervisor (`ship daemon supervise`) acquires an exclusive `flock(2)`
-//! on `$SHIP_GLOBAL_DIR/shipd.pid` and writes a JSON record identifying
+//! on `$SHIP_HOME/machine/daemon/shipd.pid` and writes a JSON record identifying
 //! itself. Subsequent supervise invocations find the lock held and exit
 //! cleanly. If the supervisor dies (even via SIGKILL), the kernel releases
 //! the lock — the next startup takes over.

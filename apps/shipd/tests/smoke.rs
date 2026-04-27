@@ -19,7 +19,7 @@ impl TestDaemon {
         let bin = env!("CARGO_BIN_EXE_shipd");
         let child = Command::new(bin)
             .args(["--port", &port.to_string(), "--host", "127.0.0.1"])
-            .env("SHIP_GLOBAL_DIR", global_dir.path())
+            .env("SHIP_HOME", global_dir.path())
             .env("RUST_LOG", "warn")
             .stdout(Stdio::null())
             .stderr(Stdio::piped())

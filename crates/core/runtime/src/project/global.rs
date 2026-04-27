@@ -41,15 +41,15 @@ pub fn get_global_dir() -> Result<PathBuf> {
         return Ok(test_dir);
     }
 
-    if let Some(env_path) = crate::env::read(crate::env::Var::GlobalDir) {
+    if let Some(env_path) = crate::env::read(crate::env::Var::Home) {
         let path = PathBuf::from(env_path.trim());
         if !path.as_os_str().is_empty() {
-            // Guard: reject production paths from test code.  Developers must
-            // either unset SHIP_GLOBAL_DIR or point it at a temp directory.
+            // Guard: reject production paths from test code. Developers must
+            // either unset SHIP_HOME or point it at a temp directory.
             if is_test_ctx && !path.starts_with(std::env::temp_dir()) {
                 panic!(
-                    "Test attempted to use production database via SHIP_GLOBAL_DIR={}. \
-                     Set SHIP_GLOBAL_DIR to a temp directory in test setup.",
+                    "Test attempted to use production database via SHIP_HOME={}. \
+                     Set SHIP_HOME to a temp directory in test setup.",
                     path.display()
                 );
             }
@@ -63,7 +63,7 @@ pub fn get_global_dir() -> Result<PathBuf> {
     if is_test_ctx {
         panic!(
             "Test binary detected without explicit DB isolation. \
-             Use `ensure_db_at()` with an explicit path or set SHIP_GLOBAL_DIR \
+             Use `ensure_db_at()` with an explicit path or set SHIP_HOME \
              to a temp directory in test setup."
         );
     }
