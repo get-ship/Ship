@@ -213,14 +213,14 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
 
 /// Read daemon connection info (port + daemon.token) from ~/.ship/.
 fn daemon_connect() -> Result<(u16, String)> {
-    let home = runtime::ShipHome::from_env().root().to_path_buf();
-    let port: u16 = std::fs::read_to_string(home.join("daemon.port"))
+    let home = runtime::ShipHome::from_env();
+    let port: u16 = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Port))
         .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?
         .trim()
         .parse()
-        .map_err(|_| anyhow::anyhow!("invalid daemon.port file"))?;
-    let token = std::fs::read_to_string(home.join("daemon.token"))
-        .map_err(|_| anyhow::anyhow!("daemon.token not readable — is the daemon running?"))?
+        .map_err(|_| anyhow::anyhow!("invalid daemon port file"))?;
+    let token = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Token))
+        .map_err(|_| anyhow::anyhow!("daemon token not readable — is the daemon running?"))?
         .trim()
         .to_string();
     Ok((port, token))

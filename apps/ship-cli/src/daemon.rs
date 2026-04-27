@@ -42,16 +42,18 @@ pub enum DaemonCommand {
 const SHIPD_PORT: u16 = 9315;
 
 fn ship_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir().context("cannot determine home directory")?;
-    Ok(runtime::ShipHome::project_ship_dir(home))
+    Ok(runtime::ShipHome::from_env().root().to_path_buf())
 }
 
 fn pid_file() -> Result<PathBuf> {
-    Ok(ship_dir()?.join("daemon.pid"))
+    Ok(runtime::ShipHome::from_env().daemon_file(runtime::DaemonFile::Pid))
 }
 
 fn log_file() -> Result<PathBuf> {
-    Ok(ship_dir()?.join("shipd.log"))
+    Ok(runtime::ShipHome::from_env()
+        .machine_dir()
+        .join("logs")
+        .join("shipd.log"))
 }
 
 /// Read a PID from the pid file. Returns None if the file does not exist.
@@ -911,10 +913,10 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
 
 /// Try to read daemon info and verify it responds to /api/v1/health.
 fn daemon_info_if_healthy() -> Option<(u16, String)> {
-    let home = runtime::ShipHome::from_env().root().to_path_buf();
-    let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;
+    let home = runtime::ShipHome::from_env();
+    let port_str = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Port)).ok()?;
     let port = port_str.trim().parse::<u16>().ok()?;
-    let token = std::fs::read_to_string(home.join("daemon.token")).ok()?;
+    let token = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Token)).ok()?;
     let token = token.trim().to_string();
 
     // Quick health probe — 1 second timeout.

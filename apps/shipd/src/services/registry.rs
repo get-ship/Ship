@@ -598,22 +598,24 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             //    actors but they're the most important "Ship is doing
             //    this on your machine" rows.
             let global_dir = runtime::project::get_global_dir().unwrap_or_default();
-            let read_pidfile = |name: &str| -> Option<i64> {
-                std::fs::read_to_string(global_dir.join(name))
-                    .ok()
-                    .and_then(|s| s.trim().parse().ok())
-            };
+            let home = runtime::ShipHome::at(global_dir.clone());
+            let daemon_pid: Option<i64> = std::fs::read_to_string(
+                home.daemon_file(runtime::DaemonFile::Pid),
+            )
+                .ok()
+                .and_then(|s| s.trim().parse().ok());
+            let log_path = home.machine_dir().join("logs").join("shipd.log");
             let pid_alive = runtime::projections::actor::pid_alive;
             let mut processes: Vec<serde_json::Value> = Vec::new();
 
             // Daemon + supervisor — the "Ship is running" anchor.
-            if let Some(pid) = read_pidfile("daemon.pid") {
+            if let Some(pid) = daemon_pid {
                 processes.push(json!({
                     "name": "shipd",
                     "role": "daemon",
                     "pid": pid,
                     "alive": pid_alive(pid),
-                    "log": global_dir.join("shipd.log").display().to_string(),
+                    "log": log_path.display().to_string(),
                     "version": option_env!("SHIP_MCP_VERSION_STRING").unwrap_or("dev"),
                 }));
                 if let Ok(p) = std::fs::read_to_string(format!("/proc/{pid}/status")) {

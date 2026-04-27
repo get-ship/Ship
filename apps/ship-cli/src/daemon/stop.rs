@@ -36,7 +36,7 @@ const KILL_SETTLE: std::time::Duration = std::time::Duration::from_secs(1);
 /// `~/.ship/`. The production entry point (`daemon_stop_inner`) passes
 /// `ship_dir()`.
 pub fn daemon_stop_at(global_dir: &Path) -> Result<()> {
-    let legacy_pid_path = global_dir.join("daemon.pid");
+    let legacy_pid_path = runtime::ShipHome::at(global_dir.to_path_buf()).daemon_file(runtime::DaemonFile::Pid);
 
     let (pid, source) = match resolve_supervisor_pid(global_dir)? {
         Some(v) => v,
@@ -113,7 +113,7 @@ fn resolve_supervisor_pid(global_dir: &Path) -> Result<Option<(u32, &'static str
             return Ok(Some((record.pid, "supervisor")));
         }
     }
-    let legacy_pid_path = global_dir.join("daemon.pid");
+    let legacy_pid_path = runtime::ShipHome::at(global_dir.to_path_buf()).daemon_file(runtime::DaemonFile::Pid);
     if let Some(pid) = read_pid(&legacy_pid_path)? {
         return Ok(Some((pid, "daemon.pid")));
     }
@@ -129,7 +129,7 @@ fn pidfile_lock_held(global_dir: &Path) -> bool {
 /// Used only by the SIGKILL escalation path to ensure we do not leave
 /// orphaned shipd processes behind when the supervisor refuses to exit.
 fn pidfile_child_pid(global_dir: &Path) -> Option<u32> {
-    let pid = read_pid(&global_dir.join("daemon.pid")).ok().flatten()?;
+    let pid = read_pid(&runtime::ShipHome::at(global_dir.to_path_buf()).daemon_file(runtime::DaemonFile::Pid)).ok().flatten()?;
     if is_process_alive(pid) { Some(pid) } else { None }
 }
 

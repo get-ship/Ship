@@ -122,19 +122,24 @@ async fn job_manager_accessible() {
 async fn shutdown_cleans_files() {
     let (dir, rt) = make_runtime().await;
     let base = dir.path();
+    let home = runtime::ShipHome::at(base.to_path_buf());
+    let token_path = home.daemon_file(runtime::DaemonFile::Token);
+    let port_path = home.daemon_file(runtime::DaemonFile::Port);
+    let pid_path = home.daemon_file(runtime::DaemonFile::Pid);
 
     // Simulate the files that run_network writes on startup.
-    std::fs::write(base.join("daemon.token"), "test-token").unwrap();
-    std::fs::write(base.join("daemon.port"), "9999").unwrap();
-    std::fs::write(base.join("daemon.pid"), "12345").unwrap();
+    std::fs::create_dir_all(token_path.parent().unwrap()).unwrap();
+    std::fs::write(&token_path, "test-token").unwrap();
+    std::fs::write(&port_path, "9999").unwrap();
+    std::fs::write(&pid_path, "12345").unwrap();
 
     rt.shutdown().await;
 
     // Token is intentionally preserved across restarts so CLI clients
-    // don't need to re-handshake. Only PID and port (liveness indicators) are removed.
-    assert!(base.join("daemon.token").exists(), "daemon.token should be preserved after shutdown");
-    assert!(!base.join("daemon.port").exists(), "daemon.port should be removed after shutdown");
-    assert!(!base.join("daemon.pid").exists(), "daemon.pid should be removed after shutdown");
+    // don't need to re-handshake. Only pid and port (liveness indicators) are removed.
+    assert!(token_path.exists(), "token should be preserved after shutdown");
+    assert!(!port_path.exists(), "port should be removed after shutdown");
+    assert!(!pid_path.exists(), "pid should be removed after shutdown");
 }
 
 // ── Source-level gate ───────────────────────────────────────────────────
