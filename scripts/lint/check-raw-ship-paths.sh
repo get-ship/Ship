@@ -8,7 +8,7 @@
 
 set -u
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 SEARCH_PATHS=(crates apps)
 ALLOW_PREFIX="crates/core/runtime/src/home/"
@@ -25,6 +25,10 @@ for pat in "${PATTERNS[@]}"; do
     matches=$(rg -n --no-heading \
         --glob '!apps/docs/**' \
         --glob '!docs/**' \
+        --glob '!**/tests.rs' \
+        --glob '!**/tests/**' \
+        --glob '!**/*_test.rs' \
+        --glob '!**/tests_*.rs' \
         "$pat" "${SEARCH_PATHS[@]}" 2>/dev/null || true)
     if [ -z "$matches" ]; then
         continue

@@ -12,10 +12,10 @@ fn session_token_store() -> &'static Mutex<Option<String>> {
     SESSION_TOKEN.get_or_init(|| Mutex::new(None))
 }
 
-/// Get the shipd port from ~/.ship/daemon.port
+/// Get the shipd port from `~/.ship/machine/daemon/port`.
 fn get_network_port() -> Result<u16> {
-    let global_dir = runtime::project::get_global_dir()?;
-    let port_file = global_dir.join("daemon.port");
+    let home = runtime::ShipHome::from_env();
+    let port_file = home.daemon_file(runtime::DaemonFile::Port);
     let port_str = std::fs::read_to_string(&port_file)
         .map_err(|_| anyhow!("ship daemon is not running — start it with: ship daemon start"))?;
     port_str
@@ -24,10 +24,10 @@ fn get_network_port() -> Result<u16> {
         .map_err(|e| anyhow!("failed to parse network port: {e}"))
 }
 
-/// Read the daemon bearer token from ~/.ship/daemon.token.
+/// Read the daemon bearer token from `~/.ship/machine/daemon/token`.
 fn get_network_token() -> Result<String> {
-    let global_dir = runtime::project::get_global_dir()?;
-    let token = std::fs::read_to_string(global_dir.join("daemon.token"))
+    let home = runtime::ShipHome::from_env();
+    let token = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Token))
         .map_err(|_| anyhow!("ship daemon token not found — is the daemon running?"))?;
     Ok(token.trim().to_string())
 }

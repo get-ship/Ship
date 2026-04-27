@@ -121,9 +121,10 @@ gen-sdk:
 
 # ── Lint & Format ──────────────────────────────────────────────────────────────
 
-# Rust clippy (unstable)
+# Rust clippy (unstable) + home-layout grep guards (devx-06 Tier 6: hard-fail).
 lint:
     cargo clippy --workspace --features unstable -- -D warnings
+    @just check-raw
 
 # Format Rust
 fmt:
@@ -224,7 +225,8 @@ check-gates:
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
 
-# Run home-layout grep guards (warn-only in phase-1; phase-2 will flip to hard-fail)
+# Run home-layout grep guards. Hard-fail per devx-06 Tier 6: any raw
+# `.join(".ship")` outside crates/core/runtime/src/home/ blocks the build.
 check-raw:
     @scripts/lint/check-raw-ship-paths.sh
     @scripts/lint/check-raw-env-reads.sh

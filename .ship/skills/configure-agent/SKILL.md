@@ -68,7 +68,7 @@ Default if not set: `~/dev/<project-name>-worktrees/`
 
 ```bash
 # worktree path
-WORKTREE_BASE=$(ship config get worktrees.dir 2>/dev/null || echo ~/dev/ship-worktrees)
+WORKTREE_BASE=$(ship config get worktrees.dir 2>/dev/null || echo ~/dev/$(basename "$PWD")-worktrees)
 WORKTREE_PATH="$WORKTREE_BASE/<slug>"
 
 git worktree add "$WORKTREE_PATH" -b job/<job-id>

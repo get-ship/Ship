@@ -11,7 +11,8 @@
 
 set -euo pipefail
 
-TOKEN=$(cat ~/.ship/daemon.token)
+SHIP_HOME_DIR="${SHIP_HOME:-$HOME/.ship}"
+TOKEN=$(cat "$SHIP_HOME_DIR/machine/daemon/token")
 BASE=${SHIPD_URL:-http://localhost:9315}
 MARKER="PROOF-$(date +%s)-$RANDOM"
 
@@ -62,7 +63,7 @@ echo "    response: $RESP"
 echo ""
 echo "=== Step 3: did the kernel route + relay push? ==="
 sleep 2
-RECENT_LOG=$(grep -aE "$ACTOR|claude channel push: sent" ~/.ship/logs/ship.log 2>/dev/null | tail -10)
+RECENT_LOG=$(grep -aE "$ACTOR|claude channel push: sent" "$SHIP_HOME_DIR/machine/logs/ship.log" 2>/dev/null | tail -10)
 echo "$RECENT_LOG" | sed 's/^/    /'
 
 if echo "$RECENT_LOG" | grep -q "claude channel push: sent event_type=studio.chat_turn"; then
@@ -77,5 +78,5 @@ else
   echo ""
   echo "  ✗ No 'claude channel push: sent' for studio.chat_turn."
   echo "    Either the kernel didn't route or the relay rejected."
-  echo "    See the full log: tail -f ~/.ship/logs/ship.log"
+  echo "    See the full log: tail -f $SHIP_HOME_DIR/machine/logs/ship.log"
 fi
