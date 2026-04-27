@@ -639,8 +639,18 @@ fn read_expr_until_stmt_end(src: &str, bytes: &[u8], start: usize) -> (String, u
         let b = bytes[i];
         if b == b'/' && i + 1 < bytes.len() {
             if bytes[i + 1] == b'/' {
-                let end = skip_line_comment(bytes, i);
-                return (src[start..i].to_string(), end);
+                // Line comment. At depth 0 (no open parens/braces/
+                // brackets), the comment terminates the expression so
+                // `state tick = 0  // a comment` cleanly captures `0`
+                // as the initial. Inside any open bracket pair it's
+                // just a comment within the expression and we skip
+                // past it to keep reading.
+                if depth_paren == 0 && depth_brace == 0 && depth_bracket == 0 {
+                    let end = skip_line_comment(bytes, i);
+                    return (src[start..i].to_string(), end);
+                }
+                i = skip_line_comment(bytes, i);
+                continue;
             }
             if bytes[i + 1] == b'*' {
                 i = skip_block_comment(bytes, i);

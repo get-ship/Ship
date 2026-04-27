@@ -422,6 +422,12 @@ impl<'a> Emitter<'a> {
         let inner_else = self.build_else_chain(&elifs[1..], else_);
         let head_cond_wrapped = self.rx(&head_cond.raw);
 
+        // Inner bindIf renders into a fragment that contains both the
+        // anchor and any branch content. Returning ALL of the
+        // fragment's children (not just the anchor) lets the outer
+        // caller move them as a unit when placing — bindIf's effect
+        // continues to work after placement because the anchor
+        // travels with its inserted siblings.
         let mut arrow = String::from("() => {\n");
         arrow.push_str("      const _anchor = document.createComment('si-elif')\n");
         arrow.push_str("      const _frag = document.createDocumentFragment()\n");
@@ -434,7 +440,7 @@ impl<'a> Emitter<'a> {
             arrow.push_str(&format!(", else_: {e}"));
         }
         arrow.push_str(" })\n");
-        arrow.push_str("      return { nodes: [_anchor], cleanup: _d }\n");
+        arrow.push_str("      return { nodes: Array.from(_frag.childNodes), cleanup: _d }\n");
         arrow.push_str("    }");
         Some(arrow)
     }
@@ -1086,6 +1092,32 @@ fn wrap_reactive_calls(expr: &str, reactive: &[String]) -> String {
             out.push(b as char);
             i += 1;
             continue;
+        }
+        // Comments — pass through verbatim without wrapping anything
+        // inside. Line comments end at \n; block comments at */.
+        if b == b'/' && i + 1 < bytes.len() {
+            if bytes[i + 1] == b'/' {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    out.push(bytes[i] as char);
+                    i += 1;
+                }
+                continue;
+            }
+            if bytes[i + 1] == b'*' {
+                out.push('/');
+                out.push('*');
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    out.push(bytes[i] as char);
+                    i += 1;
+                }
+                if i + 1 < bytes.len() {
+                    out.push('*');
+                    out.push('/');
+                    i += 2;
+                }
+                continue;
+            }
         }
         if b == b'.' {
             after_dot = true;
