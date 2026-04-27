@@ -15,7 +15,9 @@ mod events_cmd;
 #[cfg(feature = "unstable")]
 mod top;
 mod help_topics;
+mod doctor;
 mod hook;
+mod http;
 mod init;
 mod install;
 mod job;
@@ -209,6 +211,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 };
                 run_daemon(cmd)
             }
+            Commands::Doctor => doctor::run(),
             Commands::Uninstall { yes } => uninstall::run(yes),
             Commands::Help => {
                 use clap::CommandFactory;

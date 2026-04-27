@@ -287,6 +287,9 @@ pub enum Commands {
         action: DaemonCommands,
     },
 
+    /// Diagnose ship setup — build identity, daemon status, home layout
+    Doctor,
+
     /// Uninstall Ship from this machine (stops daemon, removes ~/.ship, scrubs PATH)
     Uninstall {
         /// Skip the confirmation prompt
