@@ -1,14 +1,11 @@
-//! `runtime::supervisor` — single spawn primitive.
+//! `runtime::supervisor` — the single spawn primitive.
 //!
-//! The substrate today has two competing supervisors: `apps/shipd/src/
-//! sessions/lifecycle.rs::spawn_command` (chat agents + shells, PTY-attached)
-//! and `apps/shipd/src/supervisor/executors/*` (pipeline jobs, mixed
-//! transports). They duplicate spawn / hold / reap mechanics with subtly
-//! different event emission, identity, and cleanup semantics.
-//!
-//! This module establishes ONE spawn primitive — `spawn_actor(profile)` —
-//! and one transport trait. Callers migrate to it incrementally; old paths
-//! delete only when their last consumer flips. Currently exposed:
+//! All supervised processes flow through `spawn_actor(profile)` and one
+//! transport trait. The legacy `spawn_command` path in
+//! `apps/shipd/src/sessions/lifecycle.rs` was removed in mr-05; shell
+//! sessions go via `shell_actor::spawn_shell`, agent sessions via
+//! `agent_actor::*`, and pipeline jobs via `ProcessExecutor` — every
+//! one of them eventually calls `spawn_actor` here. Currently exposed:
 //!
 //!   - [`Transport`] — how a child process is held. PTY today; headless,
 //!     tmux, server-session arrive as the migration progresses.
