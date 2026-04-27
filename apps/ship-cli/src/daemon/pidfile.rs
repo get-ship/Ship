@@ -54,9 +54,18 @@ impl Drop for PidfileGuard {
     }
 }
 
-/// Full path to the pidfile inside `global_dir`.
+/// Full path to the supervisor pidfile under `<global_dir>/machine/daemon/`.
+///
+/// Co-located with the daemon's IPC files (port/token/pid via DaemonFile)
+/// per the home-layout ADR. The supervisor pidfile is its own concept —
+/// flock-based singleton enforcement, distinct from the daemon child's
+/// `pid` file — so it doesn't fit the DaemonFile enum, but it lives in
+/// the same directory.
 pub fn pidfile_path(global_dir: &Path) -> PathBuf {
-    global_dir.join(PIDFILE_NAME)
+    runtime::ShipHome::at(global_dir.to_path_buf())
+        .machine_dir()
+        .join("daemon")
+        .join(PIDFILE_NAME)
 }
 
 /// Outcome of [`acquire`]. `Fresh` and `StaleTaken` both yield a held lock;
@@ -80,9 +89,11 @@ pub enum AcquireResult {
 /// Returns [`AcquireResult`] so callers can distinguish a fresh lock from
 /// a stale-pidfile takeover and emit the right `daemon.pidfile_*` event.
 pub fn acquire(global_dir: &Path, mut record: PidfileRecord) -> Result<AcquireResult> {
-    std::fs::create_dir_all(global_dir)
-        .with_context(|| format!("cannot create directory {}", global_dir.display()))?;
     let path = pidfile_path(global_dir);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("cannot create directory {}", parent.display()))?;
+    }
     record.pidfile_path = path.display().to_string();
 
     let mut file = OpenOptions::new()

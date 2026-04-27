@@ -84,7 +84,7 @@ fn acquire_returns_stale_taken_variant_when_prior_pid_dead() {
 
     // Write a pidfile as if a prior process had crashed — no lock held,
     // but file remains.
-    std::fs::create_dir_all(tmp.path()).unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     let stale = sample_record(9999);
     std::fs::write(&path, serde_json::to_vec_pretty(&stale).unwrap()).unwrap();
 
@@ -118,7 +118,7 @@ fn read_returns_record_and_lock_status_when_lock_released() {
     let path = pidfile_path(tmp.path());
 
     // Write a record without holding the lock.
-    std::fs::create_dir_all(tmp.path()).unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     let rec = sample_record(7777);
     std::fs::write(&path, serde_json::to_vec_pretty(&rec).unwrap()).unwrap();
 

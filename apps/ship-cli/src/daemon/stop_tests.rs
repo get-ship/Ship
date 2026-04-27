@@ -296,11 +296,13 @@ fn stop_falls_back_from_released_pidfile_to_legacy_pid() {
 
     // Write a pidfile without acquiring the lock — this is the state left
     // behind by a crashed supervisor: file on disk, no kernel flock.
+    let pidfile_path = pidfile::pidfile_path(dir.path());
+    std::fs::create_dir_all(pidfile_path.parent().unwrap()).unwrap();
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
-        .open(pidfile::pidfile_path(dir.path()))
+        .open(&pidfile_path)
         .unwrap();
     let record = sample_supervisor_record(999_999);
     file.write_all(&serde_json::to_vec_pretty(&record).unwrap())

@@ -204,10 +204,12 @@ pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
 
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
 
-    // Ensure ~/.ship/ and crashes dir exist.
+    // Ensure ~/.ship/ and machine/crashes/ exist.
     std::fs::create_dir_all(&global_dir).context("cannot create ~/.ship/ directory")?;
-    let crashes_dir = global_dir.join("crashes");
-    std::fs::create_dir_all(&crashes_dir).context("cannot create ~/.ship/crashes/ directory")?;
+    let crashes_dir = runtime::ShipHome::at(global_dir.clone())
+        .machine_dir()
+        .join("crashes");
+    std::fs::create_dir_all(&crashes_dir).context("cannot create ~/.ship/machine/crashes/ directory")?;
 
     // Fork the supervisor into the background.
     // The supervisor process watches the daemon child and restarts on crash.
@@ -251,7 +253,9 @@ pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
 fn daemon_supervise(host: String, dev: bool) -> Result<()> {
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
     let global_dir = ship_dir()?;
-    let crashes_dir = global_dir.join("crashes");
+    let crashes_dir = runtime::ShipHome::at(global_dir.clone())
+        .machine_dir()
+        .join("crashes");
     // Dev mode forces localhost bind.
     let host = if dev { "127.0.0.1".to_string() } else { host };
 
