@@ -98,9 +98,16 @@ use tokio_util::sync::CancellationToken;
 ///
 /// `dev` enables relaxed auth for local development (auto-pair, localhost-only).
 /// Never set `dev = true` in production.
+///
+/// `port = None` means "auto-derive": pick the port via
+/// `runtime::home::worktree_port_for(project_root)`, which honors
+/// `~/.ship/machine/local.jsonc:worktrees.ports[<branch>]` pins and
+/// otherwise hashes the project root into `9315 + N % 100`. If the
+/// derived port is busy, increments up to 10 times before giving up.
+/// Outside any project, the default falls back to 9315.
 pub async fn run_network(
     host: String,
-    port: u16,
+    port: Option<u16>,
     dev: bool,
     workspace_dir: Option<std::path::PathBuf>,
 ) -> Result<()> {
@@ -148,11 +155,21 @@ pub async fn run_network(
     } else {
         tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
     }
+
+    // Resolve the desired port. Caller-supplied --port wins; otherwise we
+    // derive from the project root (path-hash + local.jsonc:worktrees.ports
+    // pin, see runtime::home::worktree_port_for). Outside any project, use
+    // the historical default.
+    let desired_port = port.unwrap_or_else(|| match project_root.as_ref() {
+        Some(root) => runtime::home::worktree_port_for(root.path()),
+        None => 9315,
+    });
+
     let meta = ship_runtime::AppMetadata {
         global_dir: global_dir.clone(),
         workspace_dir: workspace_dir.clone(),
     };
-    let config = ship_runtime::RuntimeConfig { host: host.clone(), port, ..Default::default() };
+    let config = ship_runtime::RuntimeConfig { host: host.clone(), port: desired_port, ..Default::default() };
     let mut runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
     let mesh_registry = connections::spawn_mesh_service(runtime.kernel(), runtime.health_registry()).await?;
     runtime.set_mesh_registry(mesh_registry);
@@ -181,7 +198,6 @@ pub async fn run_network(
             Arc::new(new_token)
         }
     };
-    daemon::write_port_file(&daemon_dir, port)?;
     daemon::write_pid_file(&daemon_dir)?;
     if let Some(root) = project_root.as_ref() {
         daemon::write_workspace_file(&daemon_dir, root.path())?;
@@ -216,6 +232,63 @@ pub async fn run_network(
         attestation_verifier,
         ct.child_token(),
     );
+    // Bind the listener with collision retry. On EADDRINUSE we increment
+    // the port up to 9 times before giving up. The actually-bound port is
+    // what we write to <daemon_dir>/port — the derived port is just a hint.
+    let user_pinned = port.is_some();
+    let max_retries = if user_pinned { 1 } else { 10 };
+    let mut bound_port = desired_port;
+    let mut last_err: Option<std::io::Error> = None;
+    let listener = loop {
+        let addr = format!("{host}:{bound_port}");
+        match tokio::net::TcpListener::bind(&addr).await {
+            Ok(l) => break l,
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !user_pinned => {
+                tracing::warn!(
+                    port = bound_port,
+                    "shipd: port busy, trying next"
+                );
+                last_err = Some(e);
+                bound_port += 1;
+                if bound_port - desired_port >= max_retries {
+                    let final_err = last_err.expect("at least one error recorded");
+                    let already_bound_by_pid = pidfile_pid_for_port(&global_dir, desired_port);
+                    emit_daemon_event(
+                        &global_dir,
+                        daemon_events::DAEMON_PORT_BIND_FAILED,
+                        "daemon",
+                        &PortBindFailedPayload {
+                            port: desired_port,
+                            already_bound_by_pid,
+                            error: final_err.to_string(),
+                        },
+                    );
+                    return Err(anyhow!(
+                        "bind {host}:{desired_port}..{}: {} (giving up after {max_retries} retries)",
+                        bound_port - 1,
+                        final_err,
+                    ));
+                }
+            }
+            Err(e) => {
+                let already_bound_by_pid = pidfile_pid_for_port(&global_dir, bound_port);
+                emit_daemon_event(
+                    &global_dir,
+                    daemon_events::DAEMON_PORT_BIND_FAILED,
+                    "daemon",
+                    &PortBindFailedPayload {
+                        port: bound_port,
+                        already_bound_by_pid,
+                        error: e.to_string(),
+                    },
+                );
+                return Err(anyhow!("bind {host}:{bound_port}: {e}"));
+            }
+        }
+    };
+    let port = bound_port;
+    daemon::write_port_file(&daemon_dir, port)?;
+
     let addr = format!("{host}:{port}");
     tracing::info!("shipd: listening on http://{addr}/mcp");
     tracing::info!("shipd: shell: http://{addr}/shell/");
@@ -240,23 +313,6 @@ pub async fn run_network(
     );
     tracing::info!("{identity}");
     eprintln!("{identity}");
-    let listener = match tokio::net::TcpListener::bind(&addr).await {
-        Ok(l) => l,
-        Err(e) => {
-            let already_bound_by_pid = pidfile_pid_for_port(&global_dir, port);
-            emit_daemon_event(
-                &global_dir,
-                daemon_events::DAEMON_PORT_BIND_FAILED,
-                "daemon",
-                &PortBindFailedPayload {
-                    port,
-                    already_bound_by_pid,
-                    error: e.to_string(),
-                },
-            );
-            return Err(anyhow!("bind {addr}: {e}"));
-        }
-    };
 
     let summary = runtime::db::event_log_summary(&global_dir);
     let startup = StartupCompletedPayload {

@@ -36,7 +36,9 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     let args: Vec<String> = std::env::args().collect();
-    let port = extract_u16_arg(&args, "--port").unwrap_or(9315);
+    // --port is optional — None means "auto-derive from path_hash, honoring
+    // local.jsonc:worktrees.ports pins". See `runtime::home::worktree_port_for`.
+    let port = extract_u16_arg(&args, "--port");
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dev = args.iter().any(|a| a == "--dev");
     // Workspace resolution: explicit flag wins; otherwise walk up from CWD

@@ -9,6 +9,7 @@
 //! programmatic mutations we parse → mutate → re-emit. Hand-written
 //! comments survive as long as the structural shape doesn't change.
 
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
@@ -32,6 +33,13 @@ pub struct LocalSettings {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Worktrees {
     pub dir: Option<String>,
+    /// Per-branch port pins for the auto-derived per-worktree shipd
+    /// daemon. Keys are branch names exactly as `git symbolic-ref --short
+    /// HEAD` returns them (e.g. `main`, `feature/agents-on-supervisor`).
+    /// Honored before the hash-derived default in
+    /// `runtime::home::derive_worktree_port`.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub ports: HashMap<String, u16>,
 }
 
 /// Preferred terminal program for spawned agents.
@@ -215,6 +223,7 @@ mod tests {
         let mut settings = LocalSettings::default();
         settings.worktrees = Some(Worktrees {
             dir: Some("/opt/wt".into()),
+            ports: HashMap::new(),
         });
         settings.save_at(&path).unwrap();
 
@@ -243,6 +252,7 @@ mod tests {
         let s = LocalSettings {
             worktrees: Some(Worktrees {
                 dir: Some("~/dev/wt".into()),
+                ports: HashMap::new(),
             }),
             ..Default::default()
         };
