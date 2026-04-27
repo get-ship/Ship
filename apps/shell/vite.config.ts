@@ -116,6 +116,33 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/daemon/, ""),
         },
+        // Sail components + demo — daemon serves compiled .set files at
+        // /_sail/components/<tag>.{js,html,d.ts,json}, the side-by-side
+        // demo at /_sail/demo, HMR stream at /_sail/hmr, and the
+        // schema-source endpoint at /_sail/data. Listed BEFORE /_ship
+        // so the more-specific /_sail prefix wins the match.
+        "/_sail": {
+          target: daemon,
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              const t = currentToken();
+              if (t) proxyReq.setHeader("Authorization", `Bearer ${t}`);
+            });
+          },
+        },
+        // Top-level user-facing page route for full-page Sail views
+        // (GET /sail/<tag>). Distinct from /_sail/* (framework internals).
+        "/sail": {
+          target: daemon,
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              const t = currentToken();
+              if (t) proxyReq.setHeader("Authorization", `Bearer ${t}`);
+            });
+          },
+        },
         // SFC components — daemon serves compiled .ship files at
         // /_ship/components/<tag>.js. Same auth + same origin as /api.
         "/_ship": {
