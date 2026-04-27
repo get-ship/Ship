@@ -5,7 +5,7 @@
 // create / edit / delete in either project or global scope), so the
 // page reflects the registry without a refresh.
 
-data live agents = ship.agents.summaries()
+data agents = ship.agents.summaries()
 
 derived items = (agents() && agents().items) ? agents().items : []
 derived total = items().length

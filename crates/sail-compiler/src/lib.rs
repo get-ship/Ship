@@ -59,10 +59,7 @@ pub fn compile_file(path: &Path, opts: &CompileOpts) -> Result<CompileResult> {
         .parent()
         .map(|p| p.to_path_buf())
         .unwrap_or_default();
-    let fs_loader: Box<dyn lower::layout::Loader> =
-        Box::new(lower::layout::FsLoader::new(base.clone()));
-    let loader = opts.loader.as_deref().unwrap_or(&*fs_loader);
-    compile_source_inner(&source, &tag_for(path), opts, Some(loader), Some(&base))
+    compile_source_inner(&source, &tag_for(path), opts, Some(&base))
 }
 
 /// Compile a `.set` source string with an explicit tag name.
@@ -77,16 +74,13 @@ pub fn compile_source_with(
     tag: &str,
     opts: &CompileOpts,
 ) -> Result<CompileResult> {
-    let loader_ref: Option<&dyn lower::layout::Loader> =
-        opts.loader.as_deref().map(|l| l as &dyn lower::layout::Loader);
-    compile_source_inner(source, tag, opts, loader_ref, None)
+    compile_source_inner(source, tag, opts, None)
 }
 
 fn compile_source_inner(
     source: &str,
     tag: &str,
     opts: &CompileOpts,
-    loader: Option<&dyn lower::layout::Loader>,
     base: Option<&Path>,
 ) -> Result<CompileResult> {
     let mut file = parse::parse(source).context("parse")?;
@@ -108,28 +102,6 @@ fn compile_source_inner(
             style.raw.push_str(&css);
             style.src = None;
         }
-    }
-    // Resolve compile-time layout primitives (<extends>, <block>,
-    // <fill>, <include>). With no loader, files that don't use
-    // extends/include resolve to themselves; files that DO use them
-    // hit "source not found" errors (which is the correct failure
-    // mode — silent fallback would mask layout breakage).
-    if let Some(template) = file.template.as_mut() {
-        let resolved = match loader {
-            Some(l) => lower::layout::resolve(template, l).context("layout resolve")?,
-            None => {
-                // Standalone path: only honor blocks-with-defaults and
-                // strip orphan fills. Treat absent loader as an empty
-                // map, which errors on extends/include but no-ops
-                // otherwise.
-                lower::layout::resolve(
-                    template,
-                    &lower::layout::MapLoader { files: std::collections::HashMap::new() },
-                )
-                .context("layout resolve (no loader)")?
-            }
-        };
-        *template = resolved;
     }
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
     analyze::reactivity::analyze(&file, &mut diagnostics);
@@ -185,11 +157,6 @@ pub struct CompileOpts {
     /// `None`, token references are accepted unchecked. When `Some`,
     /// unknown references emit SAIL/E0010.
     pub tokens: Option<analyze::tokens::TokenSet>,
-    /// Layout loader for `<extends>` / `<include>` resolution. When
-    /// `None`, files that use extends/include error with "not found";
-    /// `compile_file` injects a filesystem loader rooted at the file's
-    /// parent dir.
-    pub loader: Option<Box<dyn lower::layout::Loader + Send + Sync>>,
 }
 
 /// Output of compiling a single `.set` file.

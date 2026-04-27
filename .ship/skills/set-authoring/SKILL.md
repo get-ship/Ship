@@ -1,14 +1,14 @@
 ---
 name: set-authoring
 stable-id: set-authoring
-description: Author single-file `.set` components and route pages — Ship's reactive web-component framework. Use this when creating or editing files under `packages/ship-set-sail/components/` or `.ship/sail/`, or when authoring a `/sail/<tag>` route page. Covers the consolidated directive surface (`<:host>`, `data live`, `prop`/`state`/`derived`, slot helpers, form lifecycle), injected scope, recipes, and active gotchas. Distinct from `ship-views` — that skill is for Jinja+Datastar `.html.j2` views; this one is for the SFC component framework.
+description: Author single-file `.set` components and route pages — Ship's reactive web-component framework. Use this when creating or editing files under `packages/ship-set-sail/components/` or `.ship/sail/`, or when authoring a `/sail/<tag>` route page. Covers the consolidated directive surface (`<:host>`, `data` for live server signals, `prop`/`state`/`derived`, slot helpers, form lifecycle), injected scope, recipes, and active gotchas. Distinct from `ship-views` — that skill is for Jinja+Datastar `.html.j2` views; this one is for the SFC component framework.
 tags: [set, sail, components, sfc, reactive, ports, framework]
 authors: [ship]
 ---
 
 # set — Component + Page Authoring
 
-A `.set` file is a single-file component (script + template + style) that compiles to a custom element. Authoring is HTML-shaped with Solid-style fine-grained reactivity and a server-truth wire model (`data live` + SSE patches).
+A `.set` file is a single-file component (script + template + style) that compiles to a custom element. Authoring is HTML-shaped with Solid-style fine-grained reactivity and a server-truth wire model (`data X = ship.foo.bar()` + SSE patches).
 
 **Use this skill when:** opening or creating a file under `packages/ship-set-sail/components/`, `.ship/sail/`, or any `<tag>.set` file. For Jinja `.html.j2` views, use `ship-views` instead.
 
@@ -20,7 +20,7 @@ Every directive on this page earns its slot by passing the filter:
 2. **Use the platform.** Custom elements, native attribute names (`onclick={fn}`, not `on:click`), light DOM, `<slot>`.
 3. **One way to do each thing.** No duplicate idioms.
 4. **Auto-omit nothing meaningful.** Empty / null / undefined / `false` attribute values disappear from the DOM silently — write the obvious thing, get correct ARIA.
-5. **Vertical integration where it pays.** `data live X = ship.foo.bar()` is the headline differentiator; don't use `fetch()` for server data.
+5. **Vertical integration where it pays.** `data X = ship.foo.bar()` is the headline differentiator; don't use `fetch()` for server data.
 
 ## The `.set` file shape
 
@@ -30,8 +30,7 @@ component formAssociated         <!-- optional: declares ElementInternals -->
 prop X: T = default              <!-- typed prop -->
 state Y = default                 <!-- local signal -->
 derived Z = expr                 <!-- memoized computed -->
-data live items = ship.foo.bar() <!-- server-sourced + SSE-subscribed signal -->
-data static = computeOnce()     <!-- server-sourced, no live updates -->
+data items = ship.foo.bar() <!-- server-sourced + SSE-subscribed signal -->
 
 function helper() { … }
 
@@ -69,8 +68,7 @@ event NAME: T                     <!-- typed CustomEvent declaration -->
 | `prop X: T = default` | Typed component prop. Becomes attribute (kebab-cased). Read as `X()` in script, written as `X.set(v)`. |
 | `state X = default` | Local signal. Same access shape as prop. |
 | `derived X = expr` | Memoized — re-runs when read deps change. Auto-tracked. |
-| `data X = expr` | Server-sourced signal seeded once. Static initial; no live updates. |
-| `data live X = expr` | Server-sourced + SSE-subscribed via `/_sail/data?expr=...`. Headline differentiator. The expression is a server-side schema-source call (e.g. `ship.agents.summaries()`), NOT a JS expression. The runtime initial value is `null`; first SSE patch delivers real data. |
+| `data X = expr` | Server-sourced signal — implicitly **live**. SSE-subscribed via `/_sail/data?expr=...`. The expression is a server-side schema-source call (e.g. `ship.agents.summaries()`), NOT a JS expression. Initial value is `null`; first SSE patch delivers real data. **For a one-shot local seed, use `state X = expr`.** |
 | `function fn(…) { … }` | Plain JS in component scope. |
 | `mount { … }` | One-time setup. `el`, `internals`, `props` injected. |
 | `effect { … }` | Runs on every reactive read inside the body. Auto-tracked — do NOT use `effect on X { … }`. |
@@ -95,14 +93,10 @@ event NAME: T                     <!-- typed CustomEvent declaration -->
 | `<slot>`, `<slot name="X">fallback</slot>` | Light-DOM slot. |
 | `<:host attr={expr} role={…} />` | Reactive bindings on the component's host element. Replaces `mount + effect on X + el.setAttribute` rituals. Self-closing only. |
 
-### Layout / file-level
+### File-level
 
 | Form | Notes |
 |---|---|
-| `<extends src="./parent.set" />` | Inherit a parent template. |
-| `<block name="X">default</block>` | Override slot in the parent. |
-| `<fill name="X">…</fill>` | Override in the child. |
-| `<include src="./_partial.set" />` | Compile-time inline. |
 | `<style src="./X.css"></style>` | External stylesheet. Inlined at compile time. Use when CSS pushes the file over the 300-LOC cap. |
 
 ### Removed (don't use)
@@ -114,6 +108,9 @@ event NAME: T                     <!-- typed CustomEvent declaration -->
 | `<sail:window onkeydown={fn} />` | `mount { window.addEventListener('keydown', fn); cleanups.push(() => window.removeEventListener('keydown', fn)) }` |
 | `<sail:document>` | Same as `<sail:window>` |
 | `attr?={expr}` (proposed) | Just `attr={expr}` — auto-omit on empty handles it |
+| `data live X = expr` | `data X = expr` (live is implicit; the legacy `live` keyword is rejected by the parser) |
+| `data X = expr` (static) | `state X = expr` for a one-shot local seed |
+| `<extends>`, `<block>`, `<fill>`, `<include>` | Compose with components + named slots. For shared chrome, define an `app-shell.set` component with `<slot name="…">` regions and use it as the page root. |
 
 ## Injected scope
 
@@ -141,7 +138,7 @@ Exemplar: `packages/ship-set-sail/components/ship-agents.set` (~118 LOC + styles
 
 ```html
 <script>
-data live agents = ship.agents.summaries()
+data agents = ship.agents.summaries()
 derived items = (agents() && agents().items) ? agents().items : []
 derived total = items().length
 derived hasItems = total() > 0
@@ -328,7 +325,7 @@ Before declaring a port done:
 | `.ship/sail/<name>.set` | Symlinks the daemon serves at `/_sail/components/<name>.js` |
 | `crates/sail-compiler/src/` | The Rust compiler |
 | `packages/sail-runtime/src/` | The TS runtime (signals, bindings, slot resolution, patch protocol) |
-| `apps/shipd/src/views/sail*.rs` | Daemon-side compile+serve, `data live` resolver dispatch |
-| `apps/shipd/src/services/registry.rs` | Service registry — every `data live X = ship.<domain>.<op>()` resolves through here |
+| `apps/shipd/src/views/sail*.rs` | Daemon-side compile+serve, `data` resolver dispatch |
+| `apps/shipd/src/services/registry.rs` | Service registry — every `data X = ship.<domain>.<op>()` resolves through here |
 | `.artifacts/set/ergonomics.md` | Running list of authoring frictions (gitignored, append-only) |
 | `.artifacts/set/gaps.md` | Running list of framework gaps (gitignored, append-only) |

@@ -28,21 +28,25 @@ use super::ast::{
 
 pub fn parse(body: &str) -> Result<Template> {
     let mut p = Parser::new(body);
-    let mut nodes = p.parse_nodes(None)?;
-    // Lift `<extends src="…" />` if it appears at the top level. Only
-    // the first one is honored; subsequent ones are kept as plain
-    // elements (which the analyzer/emit will diagnose).
-    let mut extends: Option<String> = None;
-    let mut filtered: Vec<Node> = Vec::with_capacity(nodes.len());
-    for n in nodes.drain(..) {
-        match n {
-            Node::Element { ref tag, ref attrs, .. } if tag == "extends" && extends.is_none() => {
-                extends = static_attr(attrs, "src");
+    let nodes = p.parse_nodes(None)?;
+    // Reject the dropped layout primitives (`<extends>`, `<block>`,
+    // `<fill>`, `<include>`). Components-with-named-slots cover the
+    // same composition surface; the layout family was leftover from
+    // the early Svelte/Jinja-shaped sail design and shipped zero
+    // ports actually using it.
+    for n in &nodes {
+        if let Node::Element { tag, .. } = n {
+            if matches!(tag.as_str(), "extends" | "block" | "fill" | "include") {
+                bail!(
+                    "the `<{tag}>` layout primitive was removed; compose with components + named slots instead. \
+                     For multi-page chrome, define an `app-shell.set` component with `<slot name=\"…\">` regions and use it as the page root.",
+                );
             }
-            other => filtered.push(other),
         }
     }
-    Ok(Template { root: filtered, extends })
+    // `Template.extends` retained as a None-only field for compat;
+    // future removal once no consumers reference it.
+    Ok(Template { root: nodes, extends: None })
 }
 
 struct Parser<'a> {
@@ -301,20 +305,6 @@ impl<'a> Parser<'a> {
         if tag == ":host" {
             return Node::Host { attrs };
         }
-        // Compile-time layout primitives (resolved before emit, never
-        // appear in the runtime DOM).
-        if tag == "block" {
-            let name = static_attr(&attrs, "name").unwrap_or_else(|| "default".into());
-            return Node::Block { name, default: children };
-        }
-        if tag == "fill" {
-            let name = static_attr(&attrs, "name").unwrap_or_else(|| "default".into());
-            return Node::Fill { name, body: children };
-        }
-        if tag == "include" {
-            let src = static_attr(&attrs, "src").unwrap_or_default();
-            return Node::Include { src };
-        }
         if tag.contains('-') {
             return Node::Component {
                 tag,
@@ -407,6 +397,13 @@ impl<'a> Parser<'a> {
     }
 
     fn classify_value(&self, name: &str, payload: AttrPayload) -> AttrValue {
+        // `bind:value={sig}` / `bind:checked={sig}` — two-way binding
+        // for form inputs. Kept intentionally: `<input value={x}>` is
+        // an *attribute* (sets default only, not the live `.value`
+        // property), so a "platform-pattern" replacement would need
+        // an `effect { input.value = x() }` per form component. That's
+        // additive, not subtractive. `bind:value` owns the listener;
+        // do not also write `oninput={…}` on the same element.
         if let Some(rest) = name.strip_prefix("bind:") {
             let _ = rest;
             return AttrValue::BindTwoWay(Expr { raw: payload.into_expr() });

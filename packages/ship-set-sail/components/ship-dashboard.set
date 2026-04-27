@@ -20,7 +20,7 @@
 // the hardcoded "workspace dashboard" subtitle, matching the Jinja
 // `{% else %}workspace dashboard{% endif %}` branch.
 
-data live dash = ship.dashboard.state()
+data dash = ship.dashboard.state()
 
 derived stats = (dash() && dash().stats) ? dash().stats : { active: 0, history: 0 }
 derived activeJobs = stats().active || 0

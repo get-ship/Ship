@@ -282,14 +282,17 @@ fn parse_derived(src: &str, bytes: &[u8], start: usize) -> Option<(DerivedDecl, 
 }
 
 fn parse_data(src: &str, bytes: &[u8], start: usize) -> Option<(DataDecl, usize)> {
-    let mut i = skip_inline_ws(bytes, start);
-    let mut live = false;
+    // `data X = expr` always means SSE-subscribed live signal — there is
+    // no "static" form anymore. For a one-shot local seed, use `state`.
+    let i = skip_inline_ws(bytes, start);
+    let live = true;
 
-    // Optional `live` modifier.
-    if let Some((w, after)) = read_word(bytes, i) {
+    // Reject the legacy `data live X = expr` shape — `live` is implicit
+    // now and writing it triggers a parser error so the migration is
+    // immediate and visible.
+    if let Some((w, _)) = read_word(bytes, i) {
         if w == "live" {
-            live = true;
-            i = skip_inline_ws(bytes, after);
+            return None;
         }
     }
 
@@ -907,8 +910,11 @@ mod tests {
     }
 
     #[test]
-    fn data_live() {
-        let s = scan_str("data live mesh = ship.mesh.snapshot()");
+    fn data_implicit_live() {
+        // `live` is implicit in the new surface — `data X = expr` always
+        // means SSE-subscribed live signal. For a one-shot local seed,
+        // use `state X = expr`.
+        let s = scan_str("data mesh = ship.mesh.snapshot()");
         let d = &s.data[0];
         assert!(d.live);
         assert_eq!(d.name, "mesh");
@@ -916,12 +922,21 @@ mod tests {
     }
 
     #[test]
-    fn data_static_typed() {
+    fn data_typed() {
         let s = scan_str("data jobs: JobRecord[] = ship.jobs.list({ limit: 50 })");
         let d = &s.data[0];
-        assert!(!d.live);
+        assert!(d.live);
         assert_eq!(d.ty.as_deref(), Some("JobRecord[]"));
         assert_eq!(d.expr, "ship.jobs.list({ limit: 50 })");
+    }
+
+    #[test]
+    fn data_live_keyword_rejected() {
+        // The legacy `data live X = expr` form is explicitly rejected
+        // by the parser — `live` is implicit now and writing it is an
+        // immediate signal that the file needs migration.
+        let s = scan_str("data live old = ship.mesh.snapshot()");
+        assert!(s.data.is_empty(), "data live should not parse to a DataDecl");
     }
 
     #[test]
@@ -1023,7 +1038,7 @@ mod tests {
 prop label: string = 'a'
 state count = 0
 derived doubled = count * 2
-data live mesh = ship.mesh.snapshot()
+data mesh = ship.mesh.snapshot()
 event select: { id: string }
 function go() { count++ }
 mount { init() }

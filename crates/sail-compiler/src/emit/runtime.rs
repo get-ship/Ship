@@ -184,27 +184,6 @@ impl<'a> Emitter<'a> {
                     "  {{\n    const _n = {root}.querySelector('[data-sh=\"{id}\"]');\n    if (_n) {cl}.push(bindRawHtml(_n, () => ({wrapped}), {deps}));\n  }}",
                 ));
             }
-            // Compile-time layout primitives. The resolver in
-            // `lower::layout` should have replaced these by the time
-            // emit runs. If we see them here, the file failed to
-            // resolve (no <extends>) — emit the block's default body
-            // for blocks, the fill body for orphaned fills, and a
-            // comment placeholder for unresolved includes.
-            Node::Block { default, .. } => {
-                for c in default {
-                    self.emit_node(c);
-                }
-            }
-            Node::Fill { body, .. } => {
-                for c in body {
-                    self.emit_node(c);
-                }
-            }
-            Node::Include { src } => {
-                self.html.push_str(&format!(
-                    "<!-- sail: unresolved <include src=\"{src}\"> -->"
-                ));
-            }
         }
     }
 
@@ -836,16 +815,13 @@ impl<'a> Emitter<'a> {
                     name = d.name,
                 ));
             }
-            // `data X = expr`        → signal seeded by expr (static; analyzer
-            //                          phase can swap to a server-resolved value)
-            // `data live X = expr`   → data({ initial: null, subscribe }) —
-            //                          the expression is a server-side
-            //                          schema source (e.g. `ship.agents.summaries()`),
-            //                          NOT a JS expression. Inlining it
-            //                          as JS would throw `ReferenceError`
-            //                          at instantiation. The runtime opens
-            //                          the SSE stream and the first patch
-            //                          carries the real initial value.
+            // `data X = expr` — the single form. Implicitly live: opens
+            // an SSE stream against `/_sail/data?expr=…`, signal value
+            // initialised to `null` until the first patch arrives. The
+            // expression is a server-side schema-source call (resolved
+            // through services::registry), NOT a JS expression — inlining
+            // it as JS would throw `ReferenceError` at instantiation.
+            // For a one-shot local seed, use `state X = expr`.
             for d in &s.data {
                 if d.live {
                     // `data` import is emitted in the prelude — see render().
@@ -855,6 +831,9 @@ impl<'a> Emitter<'a> {
                         url = format!("/_sail/data?expr={}", d.expr),
                     ));
                 } else {
+                    // Unreachable since parse_data forces live=true. Kept
+                    // as a paranoid fallback rather than panic; emits a
+                    // local signal seeded with the literal expression.
                     let expr = self.rx(&d.expr);
                     out.push_str(&format!(
                         "  const {name} = signal(({expr}))\n",
@@ -1605,18 +1584,11 @@ function inc() { count.set(count() + 1) }
     }
 
     #[test]
-    fn data_static_emits_signal() {
+    fn data_emits_data_subscribe() {
+        // `data X = expr` is the single form — implicitly live.
+        // For a one-shot local seed, `state X = expr` is the answer.
         let js = compile(
-            "<script>data jobs: Job[] = []</script>\n<template><span>{jobs.length}</span></template>",
-        );
-        assert!(js.contains("const jobs = signal(([]))"));
-        assert!(!js.contains("_d_jobs"));
-    }
-
-    #[test]
-    fn data_live_emits_data_subscribe() {
-        let js = compile(
-            "<script>data live mesh = ship.mesh.snapshot()</script>\n<template><span>{mesh.id}</span></template>",
+            "<script>data mesh = ship.mesh.snapshot()</script>\n<template><span>{mesh.id}</span></template>",
         );
         assert!(js.contains("data({"));
         assert!(js.contains("subscribe:"));
