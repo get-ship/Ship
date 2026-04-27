@@ -206,11 +206,11 @@ fn refresh_agents(state: &mut TopState) {
 }
 
 fn refresh_network(state: &mut TopState) {
-    if let Ok(global_dir) = runtime::project::get_global_dir() {
-        state.network_port = std::fs::read_to_string(global_dir.join("daemon.port"))
-            .ok()
-            .map(|p| p.trim().to_string());
-    }
+    let port_path =
+        runtime::ShipHome::from_env().daemon_file(runtime::DaemonFile::Port);
+    state.network_port = std::fs::read_to_string(port_path)
+        .ok()
+        .map(|p| p.trim().to_string());
 }
 
 fn to_event_row(e: runtime::EventEnvelope) -> EventRow {

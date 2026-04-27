@@ -148,9 +148,11 @@ fn shutdown_emits_supervisor_shutting_down_event() {
 fn shutdown_cleans_files_after_drain() {
     let src = include_str!("../ship_runtime.rs");
     // Token is preserved across restarts; only port and pid are cleaned up.
+    // The actual removal is delegated to crate::daemon::remove_liveness_files
+    // so paths route through the typed ShipHome::daemon_file accessor.
     assert!(
-        src.contains("daemon.port") && src.contains("daemon.pid"),
-        "ShipRuntime::shutdown must remove daemon.port and daemon.pid"
+        src.contains("remove_liveness_files"),
+        "ShipRuntime::shutdown must call crate::daemon::remove_liveness_files"
     );
     // Drain must happen before file cleanup
     let has_drain = src.contains("drain") || src.contains("on_drain");

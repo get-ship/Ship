@@ -2,13 +2,13 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 
 /// Initialize file + stderr logging for the Ship CLI.
 ///
-/// Log file: `~/.ship/logs/ship.log`
+/// Log file: `~/.ship/machine/logs/ship.log`
 /// - INFO and above go to the file (always)
 /// - WARN and above go to stderr (default, override with SHIP_LOG env var)
 ///
 /// Returns the file appender guard — keep it alive for the duration of the process.
 pub fn init() -> Option<tracing_appender::non_blocking::WorkerGuard> {
-    let logs_dir = runtime::ShipHome::from_env().root().join("logs");
+    let logs_dir = runtime::ShipHome::from_env().machine_dir().join("logs");
     if std::fs::create_dir_all(&logs_dir).is_err() {
         return None;
     }

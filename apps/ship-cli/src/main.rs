@@ -66,7 +66,7 @@ fn main() {
     if let Err(e) = dispatch(cli.command) {
         eprintln!("Error: {:#}", e);
         eprintln!();
-        eprintln!("  Logs:   ~/.ship/logs/ship.log");
+        eprintln!("  Logs:   ~/.ship/machine/logs/ship.log");
         eprintln!("  Events: ship events list --since 5m");
         std::process::exit(1);
     }

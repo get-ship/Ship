@@ -107,7 +107,8 @@ mod tests {
     fn global_paths_under_home_ship() {
         let g = global_dir();
         assert!(g.to_string_lossy().ends_with(".ship"));
-        assert_eq!(global_skills_dir(), g.join("skills"));
+        // Per home-layout ADR, user-scope vectors live under `library/`.
+        assert_eq!(global_skills_dir(), g.join("library").join("skills"));
     }
 
     #[test]

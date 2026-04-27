@@ -592,11 +592,10 @@ impl ShipRuntime {
         // Drain — allow managers to finish in-flight work.
         tracing::info!("shipd: drain complete, cleaning up daemon files");
 
-        // Remove PID and port (liveness indicators) but keep the token.
+        // Remove pid and port (liveness indicators) but keep the token.
         // Preserving the token across restarts means CLI clients that cached
         // it don't need to re-handshake after a daemon restart.
-        let _ = std::fs::remove_file(self.ship_dir.join("daemon.port"));
-        let _ = std::fs::remove_file(self.ship_dir.join("daemon.pid"));
+        crate::daemon::remove_liveness_files(&self.ship_dir);
         tracing::info!("shipd: shutdown complete");
     }
 }

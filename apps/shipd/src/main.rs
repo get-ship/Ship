@@ -3,16 +3,24 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 fn main() -> anyhow::Result<()> {
     let global_dir = runtime::project::get_global_dir()?;
 
+    // Logs live in machine/logs/ per the home-layout ADR. Eagerly create the
+    // directory so the file appender can attach before the migrator runs in
+    // ship_runtime startup.
+    let logs_dir = runtime::ShipHome::at(global_dir.clone())
+        .machine_dir()
+        .join("logs");
+    let _ = std::fs::create_dir_all(&logs_dir);
+
     // Rotate log file if >10 MB.
-    let log_path = global_dir.join("shipd.log");
+    let log_path = logs_dir.join("shipd.log");
     if let Ok(meta) = std::fs::metadata(&log_path) {
         if meta.len() > 10 * 1024 * 1024 {
-            let _ = std::fs::rename(&log_path, global_dir.join("shipd.log.old"));
+            let _ = std::fs::rename(&log_path, logs_dir.join("shipd.log.old"));
         }
     }
 
     // File appender — JSON-structured logs for crash forensics.
-    let file_appender = tracing_appender::rolling::never(&global_dir, "shipd.log");
+    let file_appender = tracing_appender::rolling::never(&logs_dir, "shipd.log");
     let file_layer = tracing_subscriber::fmt::layer()
         .json()
         .with_writer(file_appender)
