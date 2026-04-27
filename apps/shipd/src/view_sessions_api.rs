@@ -128,7 +128,7 @@ pub async fn open_session(
     {
         Ok(view_id) => {
             let url = format!("/api/v1/view-sessions/{view_id}/raw");
-            let meta = crate::mcp_apps_bridge::view_session_meta(&view_id);
+            let meta = crate::mcp::apps_bridge::view_session_meta(&view_id);
             ok_json(serde_json::json!({
                 "view_id": view_id,
                 "url": url,
@@ -314,7 +314,7 @@ pub async fn raw_session(
                 .header(axum::http::header::CACHE_CONTROL, "no-cache")
                 // CSP shared with `_meta.ui.csp` in the MCP Apps bridge so
                 // local iframe and external host renderings align.
-                .header("content-security-policy", crate::mcp_apps_bridge::IFRAME_CSP)
+                .header("content-security-policy", crate::mcp::apps_bridge::IFRAME_CSP)
                 .body(axum::body::Body::from(html))
                 // Infallible: status + static header names/values above are
                 // all valid; `Response::builder` only errors on malformed
