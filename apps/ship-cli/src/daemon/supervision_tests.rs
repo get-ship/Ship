@@ -71,7 +71,7 @@ fn pidfile_adapter_status_when_lock_held() {
 fn pidfile_adapter_status_when_stale_file_no_lock() {
     let tmp = TempDir::new().unwrap();
     let path = pidfile::pidfile_path(tmp.path());
-    std::fs::create_dir_all(tmp.path()).unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, serde_json::to_vec_pretty(&sample_record(9001)).unwrap()).unwrap();
 
     let status = PidfileAdapter.status(tmp.path()).unwrap();
@@ -114,7 +114,7 @@ fn version_check_skipped_when_pidfile_stale() {
     // over the stale pidfile. This mirrors prior pidfile semantics.
     let tmp = TempDir::new().unwrap();
     let path = pidfile::pidfile_path(tmp.path());
-    std::fs::create_dir_all(tmp.path()).unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(
         &path,
         serde_json::to_vec_pretty(&record_with_version(9001, "0.99.0")).unwrap(),

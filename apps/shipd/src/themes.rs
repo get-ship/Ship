@@ -66,9 +66,11 @@ pub fn list_themes() -> Vec<ThemeMeta> {
         collect_dir_themes(&ship_dir.join("themes"), ThemeSource::Project, &mut themes);
     }
 
-    // Global themes.
+    // Global themes — user-scope live under library/.
     if let Ok(global_dir) = runtime::project::get_global_dir() {
-        collect_dir_themes(&global_dir.join("themes"), ThemeSource::Global, &mut themes);
+        let dir = runtime::ShipHome::at(global_dir)
+            .vector_dir(runtime::Scope::User, runtime::Vector::Themes, None);
+        collect_dir_themes(&dir, ThemeSource::Global, &mut themes);
     }
 
     themes
@@ -99,7 +101,9 @@ fn active_theme_name() -> String {
 fn resolve_css_by_name(name: &str) -> String {
     // Global > project > builtin (last-write-wins for overrides).
     if let Ok(global_dir) = runtime::project::get_global_dir() {
-        let path = global_dir.join("themes").join(format!("{name}.css"));
+        let dir = runtime::ShipHome::at(global_dir)
+            .vector_dir(runtime::Scope::User, runtime::Vector::Themes, None);
+        let path = dir.join(format!("{name}.css"));
         if let Ok(css) = std::fs::read_to_string(&path) {
             return css;
         }
