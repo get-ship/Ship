@@ -150,6 +150,10 @@ pub fn build_router(
         .route(
             "/sail/{tag}",
             axum::routing::get(views::sail::serve_sail_page),
+        )
+        .route(
+            "/_sail/data",
+            axum::routing::get(views::sail_data::serve_data),
         );
 
     let auth_token = token;
