@@ -714,9 +714,18 @@ impl<'a> Emitter<'a> {
             ));
         }
 
-        // Factory.
+        // Factory. Form-associated components get `internals` as a
+        // third parameter (an ElementInternals instance attached at
+        // construction by the runtime); other components don't pay
+        // for the unused signature.
+        let form_associated = script.map(|s| s.form_associated).unwrap_or(false);
+        let factory_params = if form_associated {
+            "(host, propSignals, internals)"
+        } else {
+            "(host, propSignals)"
+        };
         out.push_str(&format!(
-            "defineComponent({tag:?}, SCHEMA, (host, propSignals) => {{\n",
+            "defineComponent({tag:?}, SCHEMA, {factory_params} => {{\n",
             tag = self.tag
         ));
         // `el` is the spec-reserved alias for the host element. Bind it
@@ -876,8 +885,13 @@ fn render_template_literal(s: &str) -> String {
 
 fn render_schema(script: Option<&ScriptBlock>) -> String {
     let Some(s) = script else { return "{ observedAttrs: [], props: {} }".to_string() };
+    let form_assoc_suffix = if s.form_associated {
+        ", formAssociated: true"
+    } else {
+        ""
+    };
     if s.props.is_empty() {
-        return "{ observedAttrs: [], props: {} }".to_string();
+        return format!("{{ observedAttrs: [], props: {{}}{form_assoc_suffix} }}");
     }
     let mut out = String::from("{ observedAttrs: [");
     for (i, p) in s.props.iter().enumerate() {
@@ -894,7 +908,9 @@ fn render_schema(script: Option<&ScriptBlock>) -> String {
             camel = p.name,
         ));
     }
-    out.push_str(" } }");
+    out.push_str(" }");
+    out.push_str(form_assoc_suffix);
+    out.push_str(" }");
     out
 }
 
@@ -1402,6 +1418,27 @@ function inc() { count.set(count() + 1) }
     fn wrap_handles_multiple_idents() {
         let r = vec!["a".to_string(), "b".to_string()];
         assert_eq!(wrap_reactive_calls("a + b * 2", &r), "a() + b() * 2");
+    }
+
+    #[test]
+    fn form_associated_emits_factory_with_internals_and_schema_flag() {
+        let js = compile(
+            "<script>component formAssociated\nprop checked: boolean = false</script>\n<template><span>{checked}</span></template>",
+        );
+        // Schema declares formAssociated.
+        assert!(js.contains("formAssociated: true"));
+        // Factory takes internals as third param.
+        assert!(js.contains("(host, propSignals, internals) => {"));
+    }
+
+    #[test]
+    fn non_form_associated_omits_internals_and_flag() {
+        let js = compile(
+            "<script>state x = 0</script>\n<template><span>{x}</span></template>",
+        );
+        assert!(!js.contains("formAssociated: true"));
+        assert!(js.contains("(host, propSignals) => {"));
+        assert!(!js.contains(", internals)"));
     }
 
     #[test]

@@ -156,6 +156,21 @@ pub fn scan(script: &mut ScriptBlock) {
                         continue;
                     }
                 }
+                "component" => {
+                    // `component formAssociated` — element-level config.
+                    // For now `formAssociated` is the only flag; future
+                    // additions (e.g. `component shadow=open`) follow
+                    // the same shape.
+                    let after = skip_inline_ws(bytes, end);
+                    if let Some((flag, next)) = read_word(bytes, after) {
+                        if flag == "formAssociated" {
+                            script.form_associated = true;
+                            i = next;
+                            at_stmt_start = true;
+                            continue;
+                        }
+                    }
+                }
                 _ => {}
             }
         }
@@ -744,6 +759,7 @@ mod tests {
             mount: None,
             unmount: None,
             functions: vec![],
+            form_associated: false,
         };
         scan(&mut sb);
         sb
@@ -938,6 +954,20 @@ mount { init() }
         assert_eq!(s.events.len(), 1);
         assert_eq!(s.functions.len(), 1);
         assert!(s.mount.is_some());
+    }
+
+    #[test]
+    fn component_form_associated_keyword() {
+        let s = scan_str("component formAssociated\nstate x = 0");
+        assert!(s.form_associated);
+        assert_eq!(s.state.len(), 1);
+        assert_eq!(s.state[0].name, "x");
+    }
+
+    #[test]
+    fn component_keyword_default_is_false() {
+        let s = scan_str("state x = 0");
+        assert!(!s.form_associated);
     }
 
     #[test]

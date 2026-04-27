@@ -29,6 +29,12 @@ pub struct ScriptBlock {
     pub mount: Option<String>,
     pub unmount: Option<String>,
     pub functions: Vec<FunctionDecl>,
+    /// `component formAssociated` declaration. When true, the emitted
+    /// custom element class declares `static formAssociated = true`,
+    /// the runtime calls `attachInternals()` at construction, and the
+    /// resulting `ElementInternals` is exposed as `internals` in the
+    /// script's scope (mount block, effects, functions).
+    pub form_associated: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

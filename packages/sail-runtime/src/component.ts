@@ -10,12 +10,14 @@ import type { Signal } from './signal'
 
 /**
  * The factory the compiler emits per component. Receives the host
- * element + a place to attach prop signals; returns a cleanup function
- * that runs on disconnect.
+ * element, a place to attach prop signals, and (for form-associated
+ * components) the ElementInternals instance attached at construction
+ * time. Returns a cleanup function that runs on disconnect.
  */
 export type ComponentFactory = (
   host: HTMLElement,
   propSignals: Record<string, Signal<unknown>>,
+  internals?: ElementInternals,
 ) => Disposer
 
 /**
@@ -33,6 +35,14 @@ export interface ComponentSchema {
       decode: (raw: string | null) => unknown
     }
   >
+  /**
+   * When true, the emitted custom element declares
+   * `static formAssociated = true` and calls `attachInternals()` at
+   * construction. The factory receives the ElementInternals as its
+   * third argument so script-block code can call setFormValue,
+   * setValidity, checkValidity, and friends.
+   */
+  formAssociated?: boolean
 }
 
 /**
@@ -46,6 +56,69 @@ export function defineComponent(
 ): void {
   if (customElements.get(tag)) return
 
+  // Two class shapes — form-associated requires `static formAssociated`
+  // to be present at class-definition time so the browser registers
+  // ElementInternals support. The non-associated path skips the
+  // constructor + internals.
+  if (schema.formAssociated) {
+    class SailFormElement extends HTMLElement {
+      static formAssociated = true
+      static get observedAttributes(): string[] {
+        return schema.observedAttrs
+      }
+
+      private cleanup?: Disposer
+      private propSignals: Record<string, Signal<unknown>> = {}
+      private internals: ElementInternals
+
+      constructor() {
+        super()
+        this.internals = this.attachInternals()
+      }
+
+      connectedCallback() {
+        this.dataset.component = tag
+        this.cleanup = factory(this, this.propSignals, this.internals)
+      }
+
+      disconnectedCallback() {
+        try {
+          this.cleanup?.()
+        } catch (e) {
+          console.error(`[sail:${tag}] cleanup threw:`, e)
+        }
+        this.cleanup = undefined
+      }
+
+      attributeChangedCallback(attrName: string, _old: string, value: string) {
+        const meta = schema.props[attrName]
+        if (!meta) return
+        const sig = this.propSignals[meta.camel]
+        if (sig) sig.set(meta.decode(value))
+      }
+
+      // Form-association lifecycle hooks. The runtime exposes them via
+      // user-supplied `internals.*` calls in mount/effect blocks; the
+      // browser also dispatches these on the host so authors who want
+      // to override (e.g. for restore) can attach listeners directly.
+      formResetCallback() {
+        this.dispatchEvent(new CustomEvent('sail:form-reset'))
+      }
+      formStateRestoreCallback(state: string | null, mode: string) {
+        this.dispatchEvent(
+          new CustomEvent('sail:form-restore', { detail: { state, mode } }),
+        )
+      }
+      formDisabledCallback(disabled: boolean) {
+        this.dispatchEvent(
+          new CustomEvent('sail:form-disabled', { detail: { disabled } }),
+        )
+      }
+    }
+    customElements.define(tag, SailFormElement)
+    return
+  }
+
   class SailElement extends HTMLElement {
     static get observedAttributes(): string[] {
       return schema.observedAttrs
@@ -55,9 +128,7 @@ export function defineComponent(
     private propSignals: Record<string, Signal<unknown>> = {}
 
     connectedCallback() {
-      // Mark for CSS scoping ([data-component="<tag>"]).
       this.dataset.component = tag
-      // Run user factory; capture cleanup.
       this.cleanup = factory(this, this.propSignals)
     }
 

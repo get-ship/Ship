@@ -216,6 +216,7 @@ pub fn build_shell(source: &str, raw: RawBlocks) -> super::ast::SailFile {
             mount: None,
             unmount: None,
             functions: Vec::new(),
+            form_associated: false,
         }),
         template: raw.template.map(|b| {
             // Template body is parsed in a later phase; for now, hold
