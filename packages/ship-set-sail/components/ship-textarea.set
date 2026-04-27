@@ -53,7 +53,7 @@ mount {
   })
 }
 
-effect on value {
+effect {
   syncFormValue()
 }
 </script>
@@ -73,7 +73,7 @@ effect on value {
   aria-describedby={describedBy}
   style={resizeStyle}
   bind:value={value}
-  on:input={onInput}
+  oninput={onInput}
 ></textarea>
 </template>
 

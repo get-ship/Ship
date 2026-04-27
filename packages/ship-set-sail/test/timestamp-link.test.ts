@@ -103,7 +103,10 @@ describe('ship-link (sail)', () => {
     el.setAttribute('href', '/local')
     document.body.appendChild(el)
     const a = el.querySelector('a') as HTMLAnchorElement
-    expect(a.getAttribute('target')).toBe('')
+    // bindAttr auto-omits empty strings — the attribute should not be
+    // present at all, not present-with-empty. (Pre-omit behavior had
+    // the test asserting `target=""`; the runtime now correctly drops it.)
+    expect(a.hasAttribute('target')).toBe(false)
     expect(el.querySelector('.ext')).toBeNull()
     el.remove()
   })

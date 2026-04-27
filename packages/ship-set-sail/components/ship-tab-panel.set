@@ -2,15 +2,16 @@
 prop name: string = ''
 prop active: boolean = false
 
+derived panelId = name() ? `ship-tabpanel-${name()}` : ''
+derived labelledBy = name() ? `ship-tab-${name()}` : ''
+
 mount {
-  if (!el.hasAttribute('role')) el.setAttribute('role', 'tabpanel')
-  if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0')
-  if (name() && !el.id) el.id = `ship-tabpanel-${name()}`
-  if (name()) el.setAttribute('aria-labelledby', `ship-tab-${name()}`)
+  if (panelId() && !el.id) el.id = panelId()
 }
 </script>
 
 <template>
+<:host role="tabpanel" tabindex="0" aria-labelledby={labelledBy} />
 <slot></slot>
 </template>
 

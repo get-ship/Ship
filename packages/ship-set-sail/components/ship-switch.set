@@ -52,7 +52,7 @@ mount {
   })
 }
 
-effect on checked {
+effect {
   syncFormValue()
 }
 </script>
@@ -68,7 +68,7 @@ effect on checked {
       aria-checked={ariaChecked}
       aria-label={ariaLabel}
       bind:checked={checked}
-      on:change={onChange}
+      onchange={onChange}
     />
     <span class="thumb" part="thumb"></span>
   </span>

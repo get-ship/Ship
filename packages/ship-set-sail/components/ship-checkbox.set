@@ -71,10 +71,10 @@ mount {
   })
 }
 
-effect on indeterminate {
+effect {
   if (input()) input().indeterminate = indeterminate()
 }
-effect on checked {
+effect {
   syncFormValue()
 }
 </script>
@@ -91,7 +91,7 @@ effect on checked {
       aria-invalid={ariaInvalid}
       aria-label={ariaLabel}
       bind:checked={checked}
-      on:change={onChange}
+      onchange={onChange}
     />
     <span class="glyph check" aria-hidden="true">
       <svg viewBox="0 0 16 16" fill="none">

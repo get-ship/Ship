@@ -7,6 +7,9 @@ prop accentBar: boolean = false
 prop statusRail: boolean = false
 prop fill: boolean = false
 
+derived hostRole = interactive() ? 'button' : ''
+derived hostTabIndex = interactive() ? '0' : ''
+
 function onKey(e) {
   if (!interactive()) return
   if (e.key === 'Enter' || e.key === ' ') {
@@ -16,24 +19,12 @@ function onKey(e) {
 }
 
 mount {
-  // Sync interactive role + tabindex + key handler whenever the prop
-  // changes. Mount runs once; the effect below picks up later toggles.
-}
-
-effect on interactive {
-  if (interactive()) {
-    if (!el.hasAttribute('role')) el.setAttribute('role', 'button')
-    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0')
-    el.addEventListener('keydown', onKey)
-  } else {
-    if (el.getAttribute('role') === 'button') el.removeAttribute('role')
-    if (el.getAttribute('tabindex') === '0') el.removeAttribute('tabindex')
-    el.removeEventListener('keydown', onKey)
-  }
+  el.addEventListener('keydown', onKey)
 }
 </script>
 
 <template>
+<:host role={hostRole} tabindex={hostTabIndex} />
 <div class="header" part="header">
   <slot name="header"></slot>
 </div>

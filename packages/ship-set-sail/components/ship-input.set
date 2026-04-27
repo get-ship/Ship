@@ -66,7 +66,7 @@ mount {
   })
 }
 
-effect on value {
+effect {
   syncFormValue()
 }
 </script>
@@ -89,7 +89,7 @@ effect on value {
     aria-label={label}
     aria-describedby={ariaDescribedBy}
     bind:value={value}
-    on:input={onInput}
+    oninput={onInput}
   />
   <!-- Trailing region renders both spinner and slot; visibility is
        controlled by the host's [loading] attribute via CSS. Keeping

@@ -46,7 +46,7 @@ mount {
   syncHue()
 }
 
-effect on provider {
+effect {
   syncHue()
 }
 </script>

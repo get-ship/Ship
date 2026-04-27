@@ -31,12 +31,11 @@ derived absText = value()
   : ''
 
 mount {
-  el.title = absText()
   const id = setInterval(() => tick.set(tick() + 1), 60_000)
   el.addEventListener('sail:cleanup', () => clearInterval(id))
 }
 
-effect on absText {
+effect {
   el.title = absText()
 }
 

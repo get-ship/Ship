@@ -33,34 +33,22 @@ function dispatchRemove() {
   }))
 }
 
+derived chipTabIndex = disabled() ? '-1' : '0'
+derived ariaDisabled = disabled() ? 'true' : ''
+derived ariaPressed = selected() ? 'true' : 'false'
+
 mount {
-  if (!el.hasAttribute('tabindex') && !disabled()) {
-    el.setAttribute('tabindex', '0')
-  }
-  if (!el.hasAttribute('role')) {
-    el.setAttribute('role', 'button')
-  }
   el.addEventListener('keydown', onKeydown)
-}
-
-effect on disabled {
-  if (disabled()) {
-    el.setAttribute('aria-disabled', 'true')
-    el.setAttribute('tabindex', '-1')
-  } else {
-    el.removeAttribute('aria-disabled')
-    if (el.getAttribute('tabindex') === '-1') {
-      el.setAttribute('tabindex', '0')
-    }
-  }
-}
-
-effect on selected {
-  el.setAttribute('aria-pressed', selected() ? 'true' : 'false')
 }
 </script>
 
 <template>
+<:host
+  role="button"
+  tabindex={chipTabIndex}
+  aria-disabled={ariaDisabled}
+  aria-pressed={ariaPressed}
+/>
 <span class="chip" part="chip">
   <span class="leading" part="leading"><slot name="leading"></slot></span>
   <slot></slot>
@@ -72,7 +60,7 @@ effect on selected {
       aria-label="Remove"
       tabindex="-1"
       disabled={disabled}
-      on:click={onRemoveClick}
+      onclick={onRemoveClick}
     >
       <svg viewBox="0 0 10 10" aria-hidden="true">
         <path d="M2 2 L8 8 M8 2 L2 8" />

@@ -47,10 +47,7 @@ function onError() {
   errored.set(true)
 }
 
-function syncDataInitials() {
-  if (showImage()) el.removeAttribute('data-initials')
-  else el.setAttribute('data-initials', '')
-}
+derived dataInitials = !showImage()
 
 function syncIdentityHue() {
   const canSeedHue = !showImage()
@@ -66,28 +63,25 @@ function syncIdentityHue() {
 }
 
 mount {
-  syncDataInitials()
   syncIdentityHue()
 }
 
-effect on showImage {
-  syncDataInitials()
+effect {
   syncIdentityHue()
   // Reset error state on src/iconSlug change so the image gets a fresh
   // chance to load.
 }
-effect on src, iconSlug {
+effect {
   errored.set(false)
-}
-effect on identityHue, tone {
-  syncIdentityHue()
+  src(); iconSlug()  // explicit reads to track these deps
 }
 </script>
 
 <template>
+<:host data-initials={dataInitials} />
 <span class="wrap" role="img" aria-label={ariaLabel} part="wrap">
   {#if showImage}
-    <img src={resolvedSrc()} alt={name} on:error={onError} />
+    <img src={resolvedSrc()} alt={name} onerror={onError} />
   {:else}
     <span class="initials" part="initials">{initialsValue}</span>
   {/if}

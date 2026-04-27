@@ -1,18 +1,10 @@
 <script>
 prop orientation: 'horizontal' | 'vertical' = 'horizontal'
 prop variant: 'solid' | 'dashed' = 'solid'
-
-mount {
-  el.setAttribute('role', 'separator')
-  el.setAttribute('aria-orientation', orientation())
-}
-
-effect on orientation {
-  el.setAttribute('aria-orientation', orientation())
-}
 </script>
 
 <template>
+<:host role="separator" aria-orientation={orientation} />
 <span></span>
 </template>
 

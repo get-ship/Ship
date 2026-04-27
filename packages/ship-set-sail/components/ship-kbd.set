@@ -3,18 +3,10 @@ prop keys: string = ''
 
 derived tokens = keys().split('+').map(s => s.trim()).filter(Boolean)
 derived ariaLabel = keys() ? `Keyboard shortcut: ${keys()}` : ''
-
-mount {
-  if (!el.hasAttribute('role')) el.setAttribute('role', 'group')
-}
-
-effect on ariaLabel {
-  if (ariaLabel()) el.setAttribute('aria-label', ariaLabel())
-  else el.removeAttribute('aria-label')
-}
 </script>
 
 <template>
+<:host role="group" aria-label={ariaLabel} />
 {#for token, i of tokens() key={i}}
   {#if i > 0}
     <span class="plus" aria-hidden="true">+</span>

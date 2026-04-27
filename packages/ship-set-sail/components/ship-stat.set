@@ -2,6 +2,9 @@
 prop accent: 'default' | 'primary' | 'info' | 'success' | 'destructive' | 'warning' | 'accent' = 'default'
 prop interactive: boolean = false
 
+derived hostRole = interactive() ? 'button' : ''
+derived hostTabIndex = interactive() ? '0' : ''
+
 function onKey(e) {
   if (!interactive()) return
   if (e.key === 'Enter' || e.key === ' ') {
@@ -10,20 +13,13 @@ function onKey(e) {
   }
 }
 
-effect on interactive {
-  if (interactive()) {
-    if (!el.hasAttribute('role')) el.setAttribute('role', 'button')
-    if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '0')
-    el.addEventListener('keydown', onKey)
-  } else {
-    if (el.getAttribute('role') === 'button') el.removeAttribute('role')
-    if (el.getAttribute('tabindex') === '0') el.removeAttribute('tabindex')
-    el.removeEventListener('keydown', onKey)
-  }
+mount {
+  el.addEventListener('keydown', onKey)
 }
 </script>
 
 <template>
+<:host role={hostRole} tabindex={hostTabIndex} />
 <span class="label"><slot name="label"></slot></span>
 <span class="value-row">
   <span class="value"><slot></slot></span>

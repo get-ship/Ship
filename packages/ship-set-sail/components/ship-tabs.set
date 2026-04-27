@@ -100,7 +100,7 @@ mount {
   queueMicrotask(syncIndicator)
 }
 
-effect on active {
+effect {
   syncPanels()
   queueMicrotask(syncIndicator)
 }
@@ -112,7 +112,7 @@ effect on active {
   part="tablist"
   role="tablist"
   aria-orientation={orientation}
-  on:keydown={onKeydown}
+  onkeydown={onKeydown}
 >
   {#for t of tabs() key={t.name}}
     <button
@@ -126,7 +126,7 @@ effect on active {
       aria-disabled={t.disabled ? 'true' : 'false'}
       tabindex={t.name === active() ? '0' : '-1'}
       disabled={t.disabled}
-      on:click={() => !t.disabled && activate(t.name)}
+      onclick={() => !t.disabled && activate(t.name)}
     >
       <span class="label">{t.label}</span>
       {#if t.count != null}
