@@ -15,11 +15,7 @@ pub mod services;
 pub mod human_webhook;
 mod human_gateway;
 pub mod managers;
-pub mod openapi;
-pub mod openapi_modifier;
-pub mod openapi_types;
 pub mod project_api;
-pub mod rest_api;
 pub mod routes;
 pub mod router;
 pub mod mcp;
@@ -32,13 +28,14 @@ pub mod supervisor;
 pub mod webhook_ext;
 
 // Re-export per-domain handler modules at the crate root so existing
-// `crate::artifacts_api::*` etc. imports continue to resolve. mr-04 PR 4
+// `crate::artifacts_api::*` etc. imports continue to resolve. mr-04
 // moves the source files under `routes/`; the import surface is
 // unchanged.
 pub use routes::{
     actor_api, actors_api, annotations_api, artifacts_api, collection_api, create_api,
-    feedback_api, hooks_api, lint_api, logs_api, projects_api, runtime_api, settings_api,
-    specs_api, themes_api, view_errors_api, view_sessions_api,
+    feedback_api, hooks_api, lint_api, logs_api, openapi, openapi_modifier, openapi_types,
+    projects_api, rest_api, runtime_api, settings_api, specs_api, themes_api, view_errors_api,
+    view_sessions_api,
 };
 
 #[cfg(test)]
