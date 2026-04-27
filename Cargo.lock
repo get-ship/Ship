@@ -3701,6 +3701,7 @@ dependencies = [
  "globset",
  "serde",
  "serde_json",
+ "serde_yaml",
  "specta",
 ]
 

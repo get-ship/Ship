@@ -6,5 +6,10 @@
 //! check --target aarch64-linux-android -p ship-pipelines` succeeds.
 
 pub mod gate;
+pub mod types;
 
 pub use gate::{GateOutcome, GateRule, GateSpec};
+pub use types::{
+    FanoutJudge, FanoutLane, FanoutSpec, OutputScope, Pipeline, PipelinePhase, PipelineStep,
+    StepOutput, StepPromote, StepType,
+};

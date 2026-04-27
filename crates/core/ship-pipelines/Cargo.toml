@@ -13,3 +13,6 @@ specta = { workspace = true, optional = true }
 [features]
 default = []
 specta = ["dep:specta"]
+
+[dev-dependencies]
+serde_yaml = "0.9"
