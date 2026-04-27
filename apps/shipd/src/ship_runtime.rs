@@ -116,6 +116,9 @@ pub struct ShipRuntime {
     skills: std::sync::Arc<dyn crate::services::skills::service::SkillsService>,
     /// `AgentsService` impl — fifth mr-02 migration.
     agents: std::sync::Arc<dyn crate::services::agents::service::AgentsService>,
+    /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
+    /// dispatch / cancel / runs still flow through `runtime_api`).
+    pipelines: std::sync::Arc<dyn crate::services::pipelines::service::PipelinesService>,
 }
 
 impl ShipRuntime {
@@ -289,6 +292,7 @@ impl ShipRuntime {
             mcp: crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
             skills: crate::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             agents: crate::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
+            pipelines: crate::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -353,6 +357,12 @@ impl ShipRuntime {
     /// `AgentsService` accessor.
     pub fn agents(&self) -> &dyn crate::services::agents::service::AgentsService {
         &*self.agents
+    }
+
+    /// `PipelinesService` accessor — definition CRUD; dispatch / cancel /
+    /// runs still go through `runtime_api`.
+    pub fn pipelines(&self) -> &dyn crate::services::pipelines::service::PipelinesService {
+        &*self.pipelines
     }
 
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
@@ -586,6 +596,8 @@ impl ShipRuntime {
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let pipelines =
+            crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
@@ -620,6 +632,7 @@ impl ShipRuntime {
             mcp,
             skills,
             agents,
+            pipelines,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -639,6 +652,8 @@ impl ShipRuntime {
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let pipelines =
+            crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
@@ -673,6 +688,7 @@ impl ShipRuntime {
             mcp,
             skills,
             agents,
+            pipelines,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
