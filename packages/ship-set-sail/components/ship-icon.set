@@ -157,10 +157,9 @@ effect on label {
 </script>
 
 <template>
-{#if hasIcon}
-  {@html svgString}
-{/if}
-<slot></slot>
+<slot>
+  {#if hasIcon}{@html svgString}{/if}
+</slot>
 </template>
 
 <style>

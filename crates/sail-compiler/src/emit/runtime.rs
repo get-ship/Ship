@@ -475,13 +475,20 @@ impl<'a> Emitter<'a> {
                 render_template_literal(&h)
             ));
             out.push_str("      const _root = _tpl.content\n");
-            out.push_str("      const _nodes = Array.from(_root.childNodes)\n");
             out.push_str("      const _c = []\n");
             for line in w.iter().flat_map(|s| s.lines()) {
                 out.push_str("      ");
                 out.push_str(line.trim_start());
                 out.push('\n');
             }
+            // Snapshot AFTER wires — bindIf / bindFor wires inside the
+            // fallback replace their template placeholder with a Comment
+            // anchor at wire-time. The returned node list MUST contain
+            // that live anchor or `resolveSlots` splices in stale element
+            // refs that no longer have a parent — the bindIf's `then_`
+            // branch then renders into an orphaned fragment and never
+            // shows up in the live tree. Mirrors `render_branch`'s order.
+            out.push_str("      const _nodes = Array.from(_root.childNodes)\n");
             out.push_str("      return _nodes\n");
             out.push_str("    }");
             out
@@ -1411,6 +1418,41 @@ function inc() { count.set(count() + 1) }
         assert!(js.contains("name: \"default\""));
         assert!(js.contains("data-ss=\"0\""));
         assert!(js.contains("data-ss=\"1\""));
+    }
+
+    /// Regression test for gap #21: `{#if}` inside slot fallback content.
+    /// The fallback must snapshot `_nodes` AFTER its inner wires run, so
+    /// the bindIf anchor (a Comment that replaces the `{#if}` placeholder
+    /// at wire-time) ends up in the returned node list. Otherwise
+    /// `resolveSlots` splices in stale element refs and the bindIf's
+    /// then-branch renders into an orphaned fragment.
+    #[test]
+    fn slot_fallback_with_if_snapshots_nodes_after_wires() {
+        let js = compile(
+            "<script>prop show: boolean = false</script>\n\
+             <template>\
+               <slot name=\"icon\">\
+                 {#if show}<b>fallback</b>{/if}\
+               </slot>\
+             </template>",
+        );
+        // The fallback's render arrow must declare `_c` BEFORE `_nodes`
+        // (so wires populate `_c` and mutate `_root` first), then
+        // snapshot. Asserts the ordering by string-distance: the `_c`
+        // line must come before `_nodes` in the fallback closure.
+        let fallback_open = js.find("fallback:").expect("fallback declared");
+        let after = &js[fallback_open..];
+        let c_idx = after.find("const _c = []").expect("_c declared in fallback");
+        let nodes_idx = after
+            .find("const _nodes = Array.from(_root.childNodes)")
+            .expect("_nodes declared in fallback");
+        assert!(
+            c_idx < nodes_idx,
+            "fallback must declare _c (and run wires) before snapshotting _nodes; \
+             see compiler/runtime.rs::emit_slot_decl"
+        );
+        // Sanity: the bindIf is actually emitted somewhere in the file.
+        assert!(js.contains("bindIf("));
     }
 
     #[test]
