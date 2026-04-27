@@ -9,11 +9,16 @@ pub struct CloudConfig {
 }
 
 /// Global ~/.ship/config.toml
+///
+/// `worktrees.dir` lives in `~/.ship/machine/local.jsonc` per the
+/// home-layout ADR (machine-local, not portable). Get/set for that key
+/// delegate to `runtime::config::LocalSettings`. Other keys (identity,
+/// defaults, terminal, dispatch, cloud) still use config.toml; full
+/// JSONC + library/machine split is a separate cleanup.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ShipConfig {
     pub identity: Option<Identity>,
     pub defaults: Option<Defaults>,
-    pub worktrees: Option<WorktreesConfig>,
     pub cloud: Option<CloudConfig>,
     pub terminal: Option<TerminalConfig>,
     pub dispatch: Option<DispatchConfig>,
@@ -23,11 +28,6 @@ pub struct ShipConfig {
 pub struct Identity {
     pub name: String,
     pub email: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct WorktreesConfig {
-    pub dir: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -128,7 +128,9 @@ impl ShipConfig {
             "identity.email" => self.identity.as_ref()?.email.clone(),
             "defaults.provider" => self.defaults.as_ref()?.provider.clone(),
             "defaults.mode" => self.defaults.as_ref()?.mode.clone(),
-            "worktrees.dir" => self.worktrees.as_ref()?.dir.clone(),
+            "worktrees.dir" => runtime::config::LocalSettings::load()
+                .worktrees
+                .and_then(|w| w.dir),
             "terminal.program" => self.terminal.as_ref()?.program.clone(),
             "dispatch.confirm" => self.dispatch.as_ref()?.confirm.map(|b| b.to_string()),
             "cloud.base_url" => self.cloud.as_ref()?.base_url.clone(),
@@ -136,8 +138,12 @@ impl ShipConfig {
         }
     }
 
-    /// Set a config value by dot-path key.
-    pub fn set(&mut self, key: &str, value: &str) -> anyhow::Result<()> {
+    /// Set a config value by dot-path key. Returns `true` when the value
+    /// was already persisted as part of the call (e.g. `worktrees.dir`
+    /// routes to local.jsonc and saves itself); the caller should NOT
+    /// then save the ShipConfig struct. Returns `false` for keys whose
+    /// value lives in this struct and needs `save()` afterwards.
+    pub fn set(&mut self, key: &str, value: &str) -> anyhow::Result<bool> {
         match key {
             "identity.name" => {
                 self.identity
@@ -163,9 +169,14 @@ impl ShipConfig {
                 self.defaults.get_or_insert_with(Defaults::default).mode = Some(value.to_string());
             }
             "worktrees.dir" => {
-                self.worktrees
-                    .get_or_insert_with(WorktreesConfig::default)
-                    .dir = Some(value.to_string());
+                // Route to ~/.ship/machine/local.jsonc per the home-layout
+                // ADR — worktrees dir is machine-local, not portable.
+                let mut local = runtime::config::LocalSettings::load();
+                local.worktrees = Some(runtime::config::local::Worktrees {
+                    dir: Some(value.to_string()),
+                });
+                local.save()?;
+                return Ok(true);
             }
             "terminal.program" => {
                 let valid = ["wt", "iterm", "tmux", "gnome", "vscode", "manual", "auto"];
@@ -201,7 +212,7 @@ impl ShipConfig {
                 key
             ),
         }
-        Ok(())
+        Ok(false)
     }
 
     /// List all set config keys and their values.
@@ -231,6 +242,20 @@ pub struct Defaults {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    /// Serializes tests that mutate `SHIP_HOME` — env vars are process-global
+    /// and `LocalSettings::load/save` reads/writes real disk via `ShipHome::from_env()`.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    /// Set `SHIP_HOME` to a fresh tempdir for the lifetime of the returned guard.
+    fn isolated_home() -> (tempfile::TempDir, std::sync::MutexGuard<'static, ()>) {
+        let guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().unwrap();
+        // SAFETY: serialized via ENV_LOCK; no other thread reads SHIP_HOME concurrently.
+        unsafe { std::env::set_var("SHIP_HOME", tmp.path()) };
+        (tmp, guard)
+    }
 
     #[test]
     fn ship_config_round_trips() {
@@ -243,7 +268,6 @@ mod tests {
                 provider: Some("claude".into()),
                 mode: None,
             }),
-            worktrees: None,
             cloud: None,
             terminal: None,
             dispatch: None,
@@ -273,16 +297,18 @@ mod tests {
 
     #[test]
     fn config_get_set_round_trips() {
+        let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
         assert_eq!(cfg.get("terminal.program"), None);
 
-        cfg.set("terminal.program", "wt").unwrap();
+        assert!(!cfg.set("terminal.program", "wt").unwrap());
         assert_eq!(cfg.get("terminal.program"), Some("wt".to_string()));
 
-        cfg.set("dispatch.confirm", "true").unwrap();
+        assert!(!cfg.set("dispatch.confirm", "true").unwrap());
         assert_eq!(cfg.get("dispatch.confirm"), Some("true".to_string()));
 
-        cfg.set("worktrees.dir", "/tmp/wt").unwrap();
+        // worktrees.dir routes to local.jsonc and persists itself.
+        assert!(cfg.set("worktrees.dir", "/tmp/wt").unwrap());
         assert_eq!(cfg.get("worktrees.dir"), Some("/tmp/wt".to_string()));
     }
 
@@ -300,6 +326,7 @@ mod tests {
 
     #[test]
     fn config_list_returns_only_set_values() {
+        let (_tmp, _guard) = isolated_home();
         let mut cfg = ShipConfig::default();
         assert!(cfg.list().is_empty());
 
