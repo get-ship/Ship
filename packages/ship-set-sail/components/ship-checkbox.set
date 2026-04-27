@@ -85,6 +85,8 @@ effect on checked {
     <input
       part="input"
       type="checkbox"
+      disabled={disabled}
+      required={required}
       aria-checked={ariaChecked}
       aria-invalid={ariaInvalid}
       aria-label={ariaLabel}
