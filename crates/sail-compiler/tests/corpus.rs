@@ -80,8 +80,9 @@ fn typeahead_compiles() {
     assert!(js.contains("Number(r)"));
 
     // Prop signals.
-    assert!(js.contains("propSignals.placeholder = signal('Search…')"));
-    assert!(js.contains("propSignals.minChars = signal(2)"));
+    assert!(js.contains("propSignals.placeholder = signal("));
+    assert!(js.contains("'Search…'"));
+    assert!(js.contains("propSignals.minChars = signal("));
 
     // Two-way binding on the input.
     assert!(js.contains("bindValue(_n, query)"));

@@ -83,6 +83,106 @@ describe('integration: real compile → run', () => {
     el.remove()
   }, 60_000)
 
+  it('search filters with derived + if/else', async () => {
+    const tag = await loadCompiled('search.sail')
+    const el = document.createElement(tag)
+    document.body.appendChild(el)
+
+    const query = el.querySelector('[data-testid="query"]') as HTMLInputElement
+    const caseBox = el.querySelector('[data-testid="case"]') as HTMLInputElement
+
+    // Initial: no query → all 6 items.
+    expect(el.querySelectorAll('[data-testid="result"]').length).toBe(6)
+    expect(el.querySelector('[data-testid="empty"]')).toBeNull()
+
+    // Filter: "b" → banana, blueberry.
+    query.value = 'b'
+    query.dispatchEvent(new Event('input', { bubbles: true }))
+    const results = Array.from(el.querySelectorAll('[data-testid="result"]'))
+    expect(results.map((r) => r.textContent)).toEqual(['banana', 'blueberry'])
+
+    // Empty branch: query that matches nothing.
+    query.value = 'zzz'
+    query.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(el.querySelectorAll('[data-testid="result"]').length).toBe(0)
+    const empty = el.querySelector('[data-testid="empty"]')!
+    expect(empty.textContent).toContain('zzz')
+
+    // Case-sensitivity flips a derived dep.
+    query.value = 'AP'
+    query.dispatchEvent(new Event('input', { bubbles: true }))
+    expect(el.querySelectorAll('[data-testid="result"]').length).toBe(1) // 'apple' (case-insensitive)
+    caseBox.click()
+    expect(el.querySelectorAll('[data-testid="result"]').length).toBe(0) // case-sensitive: no 'AP'
+
+    el.remove()
+  }, 60_000)
+
+  it('note-display props + raw html + nested if', async () => {
+    const tag = await loadCompiled('note-display.sail')
+    const el = document.createElement(tag)
+    el.setAttribute('title', 'My Note')
+    el.setAttribute('body', 'Hello <strong>world</strong>')
+    el.setAttribute('tags', '["a","b"]')
+    document.body.appendChild(el)
+
+    expect(el.querySelector('[data-testid="title"]')!.textContent).toBe('My Note')
+    // Initially collapsed.
+    expect(el.querySelector('[data-testid="body"]')).toBeNull()
+    expect(el.querySelector('[data-testid="tags"]')).toBeNull()
+
+    // Expand.
+    ;(el.querySelector('[data-testid="toggle"]') as HTMLButtonElement).click()
+    const body = el.querySelector('[data-testid="body"]')!
+    expect(body.textContent).toBe('Hello world')
+    // The raw HTML is parsed into real elements (<strong>, not text).
+    expect(body.querySelector('strong')).not.toBeNull()
+    const tags = el.querySelector('[data-testid="tags"]')!
+    expect(tags.querySelectorAll('li').length).toBe(2)
+
+    // Title prop change (kebab attribute) flows through.
+    el.setAttribute('title', 'Renamed')
+    expect(el.querySelector('[data-testid="title"]')!.textContent).toBe('Renamed')
+
+    el.remove()
+  }, 60_000)
+
+  it('modal: visibility, slots, backdrop close', async () => {
+    const tag = await loadCompiled('modal.sail')
+    const el = document.createElement(tag) as HTMLElement & { open?: any }
+    // Slot fills BEFORE attaching so resolveSlots picks them up at mount.
+    const headerFill = document.createElement('div')
+    headerFill.setAttribute('slot', 'header')
+    headerFill.textContent = 'Custom Header'
+    const bodyFill = document.createElement('p')
+    bodyFill.textContent = 'Body content'
+    el.appendChild(headerFill)
+    el.appendChild(bodyFill)
+
+    document.body.appendChild(el)
+    // open=false → root has data-open="false" (CSS hides it but DOM exists).
+    const root = el.querySelector('.modal-root')!
+    expect(root.getAttribute('data-open')).toBe('false')
+    // Slots resolved at mount regardless of visibility.
+    expect(el.querySelector('[data-testid="header"]')!.textContent).toContain(
+      'Custom Header',
+    )
+    expect(el.querySelector('[data-testid="body"]')!.textContent).toContain(
+      'Body content',
+    )
+
+    // Open: attribute flows through prop signal → bindAttr re-evaluates.
+    el.setAttribute('open', '')
+    expect(root.getAttribute('data-open')).toBe('true')
+
+    // Click backdrop closes.
+    const backdrop = el.querySelector('[data-testid="backdrop"]') as HTMLElement
+    backdrop.click()
+    expect(root.getAttribute('data-open')).toBe('false')
+
+    el.remove()
+  }, 60_000)
+
   it('todo list adds, toggles, removes, reorders', async () => {
     const tag = await loadCompiled('todo.sail')
     const el = document.createElement(tag)

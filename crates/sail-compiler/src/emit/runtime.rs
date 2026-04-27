@@ -312,7 +312,6 @@ impl<'a> Emitter<'a> {
             render_template_literal(html)
         ));
         out.push_str("      const _root = _tpl.content\n");
-        out.push_str("      const _nodes = Array.from(_root.childNodes)\n");
         out.push_str("      const _c = []\n");
         for w in wires {
             // Re-indent each captured wire to fit inside the closure.
@@ -322,6 +321,10 @@ impl<'a> Emitter<'a> {
                 out.push('\n');
             }
         }
+        // Snapshot _nodes AFTER wires run — wires may have mutated
+        // _root by replacing slot/if/for placeholders with comment
+        // anchors, and the returned node list must reflect those.
+        out.push_str("      const _nodes = Array.from(_root.childNodes)\n");
         out.push_str(&format!(
             "      return {{ nodes: _nodes, cleanup: () => _c.forEach(c => {{ try {{ c() }} catch {{}} }}){extra_return} }}\n"
         ));
@@ -429,6 +432,7 @@ impl<'a> Emitter<'a> {
         self.next_anchor += 1;
         self.html.push_str(&format!("<template data-ss=\"{id}\"></template>"));
         self.imports.insert("resolveSlots");
+        self.imports.insert("snapshotChildren");
 
         // Capture fallback as a render arrow returning Node[].
         let fallback_arrow = if fallback.is_empty() {
@@ -696,12 +700,18 @@ impl<'a> Emitter<'a> {
         out.push_str("  const cleanups = []\n");
 
         if let Some(s) = script {
-            // Props: pull from propSignals + expose as const for script body.
+            // Props: seed each signal from the current attribute (if
+            // present) so values set BEFORE connection survive. The
+            // browser fires attributeChangedCallback during upgrade
+            // (before connectedCallback runs the factory), so without
+            // this seed pre-set attrs are lost on the way to the
+            // signals — they don't exist yet to receive .set().
             for p in &s.props {
+                let kebab = kebab_of(&p.name);
                 let initial = p.default.as_deref().unwrap_or("undefined");
                 out.push_str(&format!(
-                    "  const {name} = propSignals.{name} = signal({initial})\n",
-                    name = p.name
+                    "  const {name} = propSignals.{name} = signal(\n    host.hasAttribute({kebab:?}) ? SCHEMA.props[{kebab:?}].decode(host.getAttribute({kebab:?})) : ({initial})\n  )\n",
+                    name = p.name,
                 ));
             }
             // State & derived.
@@ -751,7 +761,6 @@ impl<'a> Emitter<'a> {
 
         // Slots: snapshot children BEFORE innerHTML so light-DOM fills survive.
         if !self.slots.is_empty() {
-            self.imports.insert("snapshotChildren" as &'static str);
             out.push_str("  const _origChildren = snapshotChildren(host)\n");
         }
         out.push_str("  host.innerHTML = HTML\n");
@@ -845,10 +854,30 @@ fn render_schema(script: Option<&ScriptBlock>) -> String {
 }
 
 fn decoder_for(ty: Option<&str>) -> &'static str {
-    match ty.map(str::trim) {
-        Some("number") => "(r) => r === null || r === '' ? NaN : Number(r)",
-        Some("boolean") => "(r) => r !== null && r.toLowerCase() !== 'false'",
-        _ => "(r) => r ?? ''",
+    let Some(ty) = ty.map(str::trim) else { return "(r) => r ?? ''" };
+    match ty {
+        "number" => "(r) => r === null || r === '' ? NaN : Number(r)",
+        "boolean" => "(r) => r !== null && r.toLowerCase() !== 'false'",
+        "string" => "(r) => r ?? ''",
+        _ => {
+            // Arrays (`T[]`, `Array<T>`), object literals (`{ ... }`),
+            // and unrecognized types decode as JSON. Falls back to the
+            // raw string if parse fails so a typo doesn't crash the
+            // component.
+            if ty.ends_with("[]")
+                || ty.starts_with("Array<")
+                || ty.starts_with('{')
+                || ty.starts_with("Record<")
+                || ty.starts_with("Map<")
+                || ty.starts_with("Set<")
+            {
+                "(r) => { if (r === null || r === '') return null; try { return JSON.parse(r) } catch { return r } }"
+            } else {
+                // String literal unions (`'a' | 'b'`), function types,
+                // and other type expressions: pass through as string.
+                "(r) => r ?? ''"
+            }
+        }
     }
 }
 
@@ -1064,7 +1093,8 @@ mod tests {
         let js = compile(
             "<script>prop label: string = 'hi'</script>\n<template><span>{label}</span></template>",
         );
-        assert!(js.contains("propSignals.label = signal('hi')"));
+        assert!(js.contains("propSignals.label = signal("));
+        assert!(js.contains("'hi'")); // default fallback present
         assert!(js.contains("observedAttrs: [\"label\"]"));
     }
 
