@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
 const REPO_ROOT = resolve(__dirname, '../../../')
-const SAIL_BIN = resolve(REPO_ROOT, '../ship-cache/cargo-target/debug/sail')
+const SAIL_BIN = resolve(REPO_ROOT, 'target/debug/sail')
 const COMPONENTS = resolve(__dirname, '../components')
 const COMPILE_OUT = resolve(__dirname, '.compiled')
 

@@ -10,10 +10,7 @@ import { join, resolve } from 'node:path'
 import { describe, expect, it, beforeAll } from 'vitest'
 
 const REPO_ROOT = resolve(__dirname, '../../..')
-const SAIL_BIN = resolve(
-  REPO_ROOT,
-  '../ship-cache/cargo-target/debug/sail',
-)
+const SAIL_BIN = resolve(REPO_ROOT, 'target/debug/sail')
 const FIXTURES = resolve(__dirname, 'fixtures')
 // Compile output sits inside the project tree so vitest's resolver
 // can find the dynamic-imported file. Cleared per test run.
