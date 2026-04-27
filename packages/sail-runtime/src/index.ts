@@ -32,6 +32,8 @@ export type { BindIfOptions, BranchRender } from './if'
 export { bindAwait } from './await'
 export type { BindAwaitOptions } from './await'
 
+export { bindRawHtml } from './raw-html'
+
 export { resolveSlots, snapshotChildren } from './slot'
 export type { SlotDecl } from './slot'
 

@@ -268,16 +268,15 @@ impl<'a> Parser<'a> {
 
     /// Decide which Node variant the tag corresponds to. The parser's
     /// rule (overridden later by analyzer where it has a registry):
-    ///   - `svelte:window` / `window` → Window
-    ///   - `svelte:document` / `document` → Document  (kept here only
-    ///     for completeness; daemons rarely emit these)
+    ///   - `sail:window` → Window
+    ///   - `sail:document` → Document
     ///   - tag contains `-` → Component
     ///   - otherwise → Element
     fn classify_element(&self, tag: String, attrs: Vec<Attr>, children: Vec<Node>) -> Node {
-        if tag == "svelte:window" || tag == "window" {
+        if tag == "sail:window" {
             return Node::Window { events: collect_events(&attrs) };
         }
-        if tag == "svelte:document" || tag == "document" {
+        if tag == "sail:document" {
             return Node::Document { events: collect_events(&attrs) };
         }
         if tag.contains('-') {
@@ -1084,7 +1083,7 @@ mod tests {
 
     #[test]
     fn window_special() {
-        let n = parse_str("<svelte:window on:resize={onR} />");
+        let n = parse_str("<sail:window on:resize={onR} />");
         match &n[0] {
             Node::Window { events } => {
                 assert_eq!(events[0].event, "resize");

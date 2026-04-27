@@ -254,8 +254,8 @@ The compiler validates:
 <!-- in onAgentPicked, e.detail is typed against the component's declared event payload -->
 
 <!-- window/document events -->
-<svelte:window on:keydown={onKey} on:resize={onResize} />
-<svelte:document on:visibilitychange={onVisChange} />
+<sail:window on:keydown={onKey} on:resize={onResize} />
+<sail:document on:visibilitychange={onVisChange} />
 ```
 
 Modifiers compile to addEventListener wiring with appropriate flags or call wrappers.
@@ -471,8 +471,8 @@ These are emitted on the daemon on first request (cached by file mtime + content
 The following are reserved for future use; v1 implementations should error on encounter:
 
 - `{#each}` — alias to `{#for}` not supported (pick one syntax)
-- `<svelte:component>` — dynamic component swap (later)
-- `<svelte:fragment>` — fragment wrapper (later if needed)
+- `<sail:component>` — dynamic component swap (later)
+- `<sail:fragment>` — fragment wrapper (later if needed)
 - `{@const}` — local computed in template (later if patterns demand it)
 - Top-level `import` in script (v1: only relative imports for type-only or pure-utility modules; bundling logic deferred)
 
@@ -543,7 +543,7 @@ The following are reserved for future use; v1 implementations should error on en
   function close() { open = false }
 </script>
 
-<svelte:window on:keydown|key:meta+j={() => open = !open} on:keydown|key:Escape={close} />
+<sail:window on:keydown|key:meta+j={() => open = !open} on:keydown|key:Escape={close} />
 
 <div class="modal" hidden={!open}>
   <ship-card>

@@ -91,7 +91,7 @@ Hand-rolled parser for the three-block format. Already proven by the existing SF
   - Bindings `bind:value={x}`, `bind:checked={x}`
   - Event handlers `on:click={fn}` with modifier syntax `on:event|modifier:arg={fn}`
   - Slots `<slot name="x" />` and slot fill `<el slot="x" let:item>`
-  - Special elements `<svelte:window>`, `<svelte:document>`
+  - Special elements `<sail:window>`, `<sail:document>`
 - Script parser: tokenize JS/TS to find top-level keyword declarations (`prop`, `state`, `derived`, `data`, `effect`, `mount`, `unmount`, `event`, `function`).
 - Style parser: minimal CSS tokenizer (existing one in `apps/shipd/src/views/sfc/style.rs` is fine).
 
@@ -507,7 +507,7 @@ After week 4, the compiler is MVP. Beyond MVP: caching polish, error message qua
 
 - **Multi-file inheritance / mixins.** v1 is one-component-one-file.
 - **Cross-cutting hooks (Vue composables, React hooks).** State and derivations are file-local. Shared logic via plain TS modules imported into the script block.
-- **Dynamic component loading** (lazy `<svelte:component this={...}>`). Reserved for future.
+- **Dynamic component loading** (lazy `<sail:component this={...}>`). Reserved for future.
 - **HMR for the script block.** Hot-reload templates and styles only in v1; script changes require refresh. Same as Svelte / Solid.
 
 ## What this gives us

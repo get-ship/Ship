@@ -75,6 +75,9 @@ struct Emitter<'a> {
     cleanup_array: String,
     /// Pre-scoped CSS to inject at module load (empty if no style).
     scoped_css: String,
+    /// Slot declarations encountered while walking the template.
+    /// Each entry is the JS source for a `SlotDecl` literal.
+    slots: Vec<String>,
 }
 
 impl<'a> Emitter<'a> {
@@ -92,6 +95,7 @@ impl<'a> Emitter<'a> {
             query_root: "host".into(),
             cleanup_array: "cleanups".into(),
             scoped_css: String::new(),
+            slots: Vec::new(),
         }
     }
 
@@ -123,7 +127,11 @@ impl<'a> Emitter<'a> {
                 ));
             }
             Node::Element { tag, attrs, children } => {
-                self.emit_element(tag, attrs, children);
+                if tag == "slot" {
+                    self.emit_slot_decl(attrs, children);
+                } else {
+                    self.emit_element(tag, attrs, children);
+                }
             }
             Node::Component { tag, props, events, children, .. } => {
                 // Prop values are JS expressions — emit as interpolated
@@ -162,10 +170,21 @@ impl<'a> Emitter<'a> {
             Node::Slot { .. } | Node::SlotFill { .. } => {
                 self.html.push_str("<!-- sail: <slot> not yet emitted -->");
             }
-            Node::Window { .. } | Node::Document { .. } => {
-                self.html.push_str("<!-- sail: <window>/<document> not yet emitted -->");
+            Node::Window { events } => self.emit_global_events("window", events),
+            Node::Document { events } => self.emit_global_events("document", events),
+            Node::RawHtml(expr) => {
+                let id = self.next_anchor;
+                self.next_anchor += 1;
+                self.html.push_str(&format!("<span data-sh=\"{id}\"></span>"));
+                self.imports.insert("bindRawHtml");
+                let deps = self.deps_array(&expr.raw);
+                let root = self.query_root.clone();
+                let cl = self.cleanup_array.clone();
+                self.wires.push(format!(
+                    "  {{\n    const _n = {root}.querySelector('[data-sh=\"{id}\"]');\n    if (_n) {cl}.push(bindRawHtml(_n, () => ({expr}), {deps}));\n  }}",
+                    expr = expr.raw,
+                ));
             }
-            Node::RawHtml(_) => self.html.push_str("<!-- sail: {@html} not yet emitted -->"),
         }
     }
 
@@ -399,6 +418,70 @@ impl<'a> Emitter<'a> {
         Some(arrow)
     }
 
+    fn emit_slot_decl(&mut self, attrs: &[Attr], fallback: &[Node]) {
+        let name = attrs
+            .iter()
+            .find(|a| a.name == "name")
+            .and_then(|a| match &a.value {
+                AttrValue::Static(s) => Some(s.clone()),
+                _ => None,
+            })
+            .unwrap_or_else(|| "default".to_string());
+
+        let id = self.next_anchor;
+        self.next_anchor += 1;
+        self.html.push_str(&format!("<template data-ss=\"{id}\"></template>"));
+        self.imports.insert("resolveSlots");
+
+        // Capture fallback as a render arrow returning Node[].
+        let fallback_arrow = if fallback.is_empty() {
+            "undefined".to_string()
+        } else {
+            let (h, w) = self.capture(fallback, &[]);
+            // Build a `() => Node[]` (no cleanup tracking — fallback
+            // is a one-shot static render).
+            let mut out = String::from("() => {\n");
+            out.push_str("      const _tpl = document.createElement('template')\n");
+            out.push_str(&format!(
+                "      _tpl.innerHTML = {}\n",
+                render_template_literal(&h)
+            ));
+            out.push_str("      const _root = _tpl.content\n");
+            out.push_str("      const _nodes = Array.from(_root.childNodes)\n");
+            out.push_str("      const _c = []\n");
+            for line in w.iter().flat_map(|s| s.lines()) {
+                out.push_str("      ");
+                out.push_str(line.trim_start());
+                out.push('\n');
+            }
+            out.push_str("      return _nodes\n");
+            out.push_str("    }");
+            out
+        };
+
+        self.slots.push(format!(
+            "{{ name: {name:?}, anchor: _slotAnchors[{id}], fallback: {fb} }}",
+            fb = fallback_arrow,
+        ));
+    }
+
+    fn emit_global_events(&mut self, target: &str, events: &[crate::parse::ast::EventBinding]) {
+        if events.is_empty() { return; }
+        self.imports.insert("on");
+        let cl = self.cleanup_array.clone();
+        let mut wire = String::from("  {\n");
+        for e in events {
+            let opts = render_modifier_opts(&e.modifiers);
+            wire.push_str(&format!(
+                "    {cl}.push(on({target}, {ev:?}, {h}{opts}));\n",
+                ev = e.event,
+                h = e.handler.raw,
+            ));
+        }
+        wire.push_str("  }");
+        self.wires.push(wire);
+    }
+
     fn emit_await(
         &mut self,
         promise: &Expr,
@@ -560,13 +643,16 @@ impl<'a> Emitter<'a> {
         format!("[{}]", used.iter().map(|s| s.as_str()).collect::<Vec<_>>().join(", "))
     }
 
-    fn render(&self, script: Option<&ScriptBlock>) -> String {
+    fn render(&mut self, script: Option<&ScriptBlock>) -> String {
         let mut imports: Vec<&'static str> = self.imports.iter().copied().collect();
         // For decoded prop signal seeding.
         if let Some(s) = script {
             if !s.props.is_empty() { imports.push("signal"); }
             if !s.state.is_empty() { imports.push("signal"); }
             if !s.derived.is_empty() { imports.push("derived"); }
+            if s.data.iter().any(|d| !d.live) { imports.push("signal"); }
+            // `data live` adds its own `data` import via self.imports
+            // during script emit; nothing extra needed here.
         }
         imports.sort();
         imports.dedup();
@@ -631,6 +717,29 @@ impl<'a> Emitter<'a> {
                     expr = d.expr
                 ));
             }
+            // `data X = expr`        → signal seeded by expr (static; analyzer
+            //                          phase can swap to a server-resolved value)
+            // `data live X = expr`   → data({ initial, subscribe }) where
+            //                          subscribe URL falls back to the expr
+            //                          source string (analyzer rewrites once
+            //                          schema sources resolve it)
+            for d in &s.data {
+                if d.live {
+                    self.imports.insert("data");
+                    out.push_str(&format!(
+                        "  const _d_{name} = data({{ initial: ({expr}), subscribe: {url:?} }})\n  const {name} = _d_{name}.signal\n  cleanups.push(_d_{name}.dispose)\n",
+                        name = d.name,
+                        expr = d.expr,
+                        url = format!("/_sail/data?expr={}", d.expr),
+                    ));
+                } else {
+                    out.push_str(&format!(
+                        "  const {name} = signal(({expr}))\n",
+                        name = d.name,
+                        expr = d.expr,
+                    ));
+                }
+            }
             // User functions verbatim.
             for f in &s.functions {
                 out.push_str("  ");
@@ -639,7 +748,27 @@ impl<'a> Emitter<'a> {
             }
         }
 
+        // Slots: snapshot children BEFORE innerHTML so light-DOM fills survive.
+        if !self.slots.is_empty() {
+            self.imports.insert("snapshotChildren" as &'static str);
+            out.push_str("  const _origChildren = snapshotChildren(host)\n");
+        }
         out.push_str("  host.innerHTML = HTML\n");
+        if !self.slots.is_empty() {
+            out.push_str("  const _slotAnchors = []\n");
+            // Replace each <template data-ss="N"> with a Comment anchor.
+            // The slot id is the value of data-ss, indexed into _slotAnchors.
+            out.push_str("  for (const _t of host.querySelectorAll('[data-ss]')) {\n");
+            out.push_str("    const _idx = Number(_t.getAttribute('data-ss'))\n");
+            out.push_str("    const _a = document.createComment('ss')\n");
+            out.push_str("    _t.replaceWith(_a)\n");
+            out.push_str("    _slotAnchors[_idx] = _a\n");
+            out.push_str("  }\n");
+            out.push_str(&format!(
+                "  resolveSlots(host, [{}], _origChildren)\n",
+                self.slots.join(", ")
+            ));
+        }
 
         for w in &self.wires {
             out.push_str(w);
@@ -962,6 +1091,66 @@ function inc() { count.set(count() + 1) }
         // Both anchors inserted before _slot is removed.
         assert!(js.contains("insertBefore(_anchor"));
         assert!(js.contains("insertBefore(_eAnchor"));
+    }
+
+    #[test]
+    fn raw_html_emits_bindRawHtml() {
+        let js = compile(
+            "<script>state md = '<b>x</b>'</script>\n<template><div>{@html md}</div></template>",
+        );
+        assert!(js.contains("bindRawHtml"));
+        assert!(js.contains("data-sh=\"0\""));
+        assert!(js.contains("[md]"));
+    }
+
+    #[test]
+    fn sail_window_emits_on_against_window() {
+        let js = compile(
+            "<script>function r(){}</script>\n<template><sail:window on:resize={r} /></template>",
+        );
+        assert!(js.contains("on(window, \"resize\", r)"));
+    }
+
+    #[test]
+    fn sail_document_emits_on_against_document() {
+        let js = compile(
+            "<script>function v(){}</script>\n<template><sail:document on:visibilitychange={v} /></template>",
+        );
+        assert!(js.contains("on(document, \"visibilitychange\", v)"));
+    }
+
+    #[test]
+    fn slot_emits_resolveSlots_call() {
+        let js = compile(
+            "<template><div><slot name=\"header\"><b>fallback</b></slot><slot></slot></div></template>",
+        );
+        assert!(js.contains("resolveSlots"));
+        assert!(js.contains("snapshotChildren(host)"));
+        assert!(js.contains("name: \"header\""));
+        assert!(js.contains("name: \"default\""));
+        assert!(js.contains("data-ss=\"0\""));
+        assert!(js.contains("data-ss=\"1\""));
+    }
+
+    #[test]
+    fn data_static_emits_signal() {
+        let js = compile(
+            "<script>data jobs: Job[] = []</script>\n<template><span>{jobs.length}</span></template>",
+        );
+        assert!(js.contains("const jobs = signal(([]))"));
+        assert!(!js.contains("_d_jobs"));
+    }
+
+    #[test]
+    fn data_live_emits_data_subscribe() {
+        let js = compile(
+            "<script>data live mesh = ship.mesh.snapshot()</script>\n<template><span>{mesh.id}</span></template>",
+        );
+        assert!(js.contains("data({"));
+        assert!(js.contains("subscribe:"));
+        assert!(js.contains("/_sail/data?expr=ship.mesh.snapshot()"));
+        assert!(js.contains("const mesh = _d_mesh.signal"));
+        assert!(js.contains("cleanups.push(_d_mesh.dispose)"));
     }
 
     #[test]
