@@ -4,22 +4,13 @@
 //! `network_status` / `network_stop` for CLI subcommands.
 
 pub mod access;
-pub mod actor_api;
-pub mod actors_api;
-pub mod artifacts_api;
-pub mod collection_api;
-pub mod create_api;
-pub mod themes_api;
 pub mod sessions;
-pub mod projects_api;
 pub mod auth;
 pub mod transport;
 mod view_morph_target;
 mod daemon;
 mod first_run;
 mod handler;
-pub mod hooks_api;
-pub mod logs_api;
 pub mod sdk_manifest;
 pub mod services;
 pub mod human_webhook;
@@ -32,23 +23,25 @@ pub mod project_api;
 pub mod rest_api;
 pub mod routes;
 pub mod router;
-pub mod runtime_api;
-pub mod view_sessions_api;
-pub mod annotations_api;
-pub mod feedback_api;
-pub mod lint_api;
-pub mod view_errors_api;
 pub mod mcp;
 pub mod themes;
 pub mod views;
 pub mod views_raw;
-pub mod specs_api;
-pub mod settings_api;
 pub mod shell_assets;
 pub mod ship_runtime;
 pub mod supervised;
 pub mod supervisor;
 pub mod webhook_ext;
+
+// Re-export per-domain handler modules at the crate root so existing
+// `crate::artifacts_api::*` etc. imports continue to resolve. mr-04 PR 4
+// moves the source files under `routes/`; the import surface is
+// unchanged.
+pub use routes::{
+    actor_api, actors_api, annotations_api, artifacts_api, collection_api, create_api,
+    feedback_api, hooks_api, lint_api, logs_api, projects_api, runtime_api, settings_api,
+    specs_api, themes_api, view_errors_api, view_sessions_api,
+};
 
 #[cfg(test)]
 pub mod test_harness;
@@ -351,9 +344,10 @@ pub async fn run_network(
 }
 
 #[cfg(test)]
+#[path = "routes/collection_tests.rs"]
 mod collection_tests;
 #[cfg(test)]
-#[path = "artifacts_api_tests.rs"]
+#[path = "routes/artifacts_api_tests.rs"]
 mod artifacts_api_tests;
 
 /// Append a daemon.* event directly to platform.db.
