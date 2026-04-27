@@ -1,12 +1,12 @@
 # Sail — the framework spec
 
-A reactive web framework designed for agent-authored apps with a local-daemon runtime. Sails are single-file components (`.sail`) that compile to web components, server-render by default, and patch over SSE in real time.
+A reactive web framework designed for agent-authored apps with a local-daemon runtime. Sails are single-file components (`.set`) that compile to web components, server-render by default, and patch over SSE in real time.
 
 ## Documents in this spec
 
 - **[00-README.md](00-README.md)** — vision, motivations, "aha" moments. Read this first.
-- **[01-language-spec.md](01-language-spec.md)** — `.sail` file format, every syntax detail.
-- **[02-compiler-architecture.md](02-compiler-architecture.md)** — how the daemon turns `.sail` into shipped JS.
+- **[01-language-spec.md](01-language-spec.md)** — `.set` file format, every syntax detail.
+- **[02-compiler-architecture.md](02-compiler-architecture.md)** — how the daemon turns `.set` into shipped JS.
 - **[03-runtime-architecture.md](03-runtime-architecture.md)** — the in-browser signal engine, morph, custom-element wrapper.
 - **[04-patch-protocol.md](04-patch-protocol.md)** — the SSE wire format. The killer feature.
 - **[05-server-data-bridge.md](05-server-data-bridge.md)** — schema sources, Ship adapter, OpenAPI/GraphQL plug-in shapes.
@@ -51,7 +51,7 @@ Concrete implications:
 - **One template language, not two.** Today's `{{ x }}` for static + `data-text="$x"` for reactive is the cognitive tax that kills agent throughput. One syntax, compiler classifies.
 - **One reactivity model.** Not signals + effects + computed + Datastar attributes. The smallest set that covers cases.
 - **Component library knows the schema.** `<ship-button>` props are typed in the LSP, validated by the compiler. The agent writes the tag and gets the rest.
-- **Errors speak the framework's vocabulary.** `ship-button: prop 'variant' expects 'primary' | 'ghost', got 'secondary' (modal.sail:14)` — not a Datastar URL fragment.
+- **Errors speak the framework's vocabulary.** `ship-button: prop 'variant' expects 'primary' | 'ghost', got 'secondary' (modal.set:14)` — not a Datastar URL fragment.
 - **No build step to fight.** Every build error not generated is tokens not spent recovering from it.
 - **Patches as the wire model.** Agents emit small patches over SSE; the framework applies them with no full re-render. Token cost is proportional to changes, not state.
 
@@ -115,7 +115,7 @@ Co-design unlocks features no bolt-on framework can match: typed server queries 
 
 - **Sail** — the framework. Open source, layered (runtime + compiler + adapters).
 - **Ship** — the platform. Sail's killer reference implementation; daemon, LSP, component library, agent surfaces.
-- **`.sail`** — single-file component format. Three blocks: `<script lang="ts">`, template HTML, `<style>`.
+- **`.set`** — single-file component format. Three blocks: `<script lang="ts">`, template HTML, `<style>`.
 - **ship-set** — Ship's Lit-based component library (`<ship-*>` tags). Composes inside Sail components.
 - **Patch protocol** — the SSE wire format that lets the daemon apply targeted updates to client signals without re-render.
 - **Schema source** — a plugin to the Sail compiler that resolves `data x = api.x.y(args)` declarations against a typed backend (Ship daemon, OpenAPI, GraphQL, etc.).

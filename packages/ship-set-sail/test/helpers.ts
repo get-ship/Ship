@@ -23,7 +23,7 @@ export async function loadSailComponent(file: string): Promise<string> {
   execFileSync(SAIL_BIN, ['build', join(COMPONENTS, file), '--out', COMPILE_OUT], {
     stdio: 'pipe',
   })
-  const stem = file.replace(/\.sail$/, '')
+  const stem = file.replace(/\.set$/, '')
   // Tag derives via tag_for: stems with `-` keep their name verbatim.
   const tag = stem
   const jsPath = join(COMPILE_OUT, `${tag}.js`)

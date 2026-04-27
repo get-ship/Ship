@@ -1,13 +1,13 @@
 # Sail language spec
 
-The complete syntax reference for `.sail` files. This is the authoritative source — compiler, LSP, docs, and migration tooling implement against this document.
+The complete syntax reference for `.set` files. This is the authoritative source — compiler, LSP, docs, and migration tooling implement against this document.
 
 ## File format
 
 Three optional blocks. Block order is convention (script → template → style); the compiler does not enforce.
 
 ```
-my-component.sail
+my-component.set
 ├── <script lang="ts">         optional — declarations + functions
 │   ...
 │ </script>
@@ -26,16 +26,16 @@ A file with no `<script>` block is pure-template (renders static HTML, possibly 
 
 - Lowercase kebab-case.
 - Must contain a hyphen (custom-element spec requirement).
-- `.sail` extension.
-- Filename → custom-element tag (e.g., `agent-modal.sail` → `<agent-modal>`).
+- `.set` extension.
+- Filename → custom-element tag (e.g., `agent-modal.set` → `<agent-modal>`).
 
 ```
-✅ agent-modal.sail        → <agent-modal>
-✅ pipeline-step.sail      → <pipeline-step>
-✅ x-y.sail                → <x-y>
-❌ modal.sail              ← no hyphen, won't register
-❌ AgentModal.sail         ← uppercase rejected
-❌ agent_modal.sail        ← underscores rejected (must be kebab)
+✅ agent-modal.set        → <agent-modal>
+✅ pipeline-step.set      → <pipeline-step>
+✅ x-y.set                → <x-y>
+❌ modal.set              ← no hyphen, won't register
+❌ AgentModal.set         ← uppercase rejected
+❌ agent_modal.set        ← underscores rejected (must be kebab)
 ```
 
 ## The `<script>` block
@@ -373,7 +373,7 @@ becomes
 </style>
 ```
 
-Path is resolved relative to the `.sail` file. External + inline can coexist (external loads first, inline appends). Both go through scoping unless `global`.
+Path is resolved relative to the `.set` file. External + inline can coexist (external loads first, inline appends). Both go through scoping unless `global`.
 
 ### Typed token interpolation
 
@@ -455,7 +455,7 @@ Compiler emits the event-payload type to the `.d.ts`. Consumers using `on:select
 
 ## Compile output
 
-For `my-component.sail`, the compiler emits:
+For `my-component.set`, the compiler emits:
 
 | File | Purpose |
 |---|---|
@@ -481,7 +481,7 @@ The following are reserved for future use; v1 implementations should error on en
 ### Minimal component
 
 ```html
-<!-- counter.sail -->
+<!-- counter.set -->
 <script lang="ts">
   state count = 0
   function inc() { count += 1 }
@@ -498,7 +498,7 @@ The following are reserved for future use; v1 implementations should error on en
 ### Server-data example
 
 ```html
-<!-- agent-list.sail -->
+<!-- agent-list.set -->
 <script lang="ts">
   prop workspaceId: string!
   data agents = ship.agents.list({ workspace: workspaceId })
@@ -531,7 +531,7 @@ The following are reserved for future use; v1 implementations should error on en
 ### Composition example
 
 ```html
-<!-- agent-modal.sail (route file) -->
+<!-- agent-modal.set (route file) -->
 <script lang="ts">
   state open = false
   state sessionId: string | null = null

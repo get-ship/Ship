@@ -1,4 +1,4 @@
-//! Sail compiler — turns `.sail` single-file components into shippable JS,
+//! Sail compiler — turns `.set` single-file components into shippable JS,
 //! SSR templates, TypeScript declarations, and JSON schemas.
 //!
 //! Layer 2 of the Sail framework. Open source. No Ship dependencies.
@@ -8,7 +8,7 @@
 //! # Pipeline
 //!
 //! ```text
-//! .sail file
+//! .set file
 //!   ↓ parse        (phase 1)
 //!   ↓ schema       (phase 2)  — resolves `data x = ship.x.y(args)` against pluggable sources
 //!   ↓ types        (phase 3)  — TypeScript via type-stripping or full check
@@ -39,7 +39,7 @@ pub mod schema_source;
 use anyhow::{Context, Result};
 use std::path::Path;
 
-/// Compile a single `.sail` file. Returns the four emission outputs:
+/// Compile a single `.set` file. Returns the four emission outputs:
 /// the runtime ES module, the SSR template, the TypeScript declaration,
 /// and the JSON schema.
 ///
@@ -53,7 +53,7 @@ pub fn compile_file(path: &Path, _opts: &CompileOpts) -> Result<CompileResult> {
     compile_source(&source, &tag_for(path))
 }
 
-/// Compile a `.sail` source string with an explicit tag name.
+/// Compile a `.set` source string with an explicit tag name.
 pub fn compile_source(source: &str, tag: &str) -> Result<CompileResult> {
     compile_source_with(source, tag, &CompileOpts::default())
 }
@@ -83,7 +83,7 @@ pub fn compile_source_with(
 }
 
 /// Derive the custom-element tag from a file path: stem in kebab-case.
-/// `MyCounter.sail` → `my-counter`; `app-counter.sail` → `app-counter`.
+/// `MyCounter.set` → `my-counter`; `app-counter.set` → `app-counter`.
 /// Single-word stems get a `sail-` prefix so they remain valid custom
 /// element names (which require a hyphen).
 pub fn tag_for(path: &Path) -> String {
@@ -122,7 +122,7 @@ pub struct CompileOpts {
     pub tokens: Option<analyze::tokens::TokenSet>,
 }
 
-/// Output of compiling a single `.sail` file.
+/// Output of compiling a single `.set` file.
 #[derive(Debug, Default)]
 pub struct CompileResult {
     /// The ES module emitted at `<tag>.js`.

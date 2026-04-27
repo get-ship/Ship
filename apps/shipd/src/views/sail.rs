@@ -1,7 +1,7 @@
-//! Compile + serve handlers for `.sail` single-file components.
+//! Compile + serve handlers for `.set` single-file components.
 //!
 //! Mirrors `views::components` (which serves `.ship` files), but
-//! plugs in the `sail-compiler` crate. Each `.sail` file in the
+//! plugs in the `sail-compiler` crate. Each `.set` file in the
 //! project's `.ship/sail/` directory (or the global fallback)
 //! compiles on demand and is served as four artifacts:
 //!
@@ -43,9 +43,9 @@ fn cache() -> &'static RwLock<HashMap<String, CacheEntry>> {
 }
 
 /// `GET /_sail/demo` — visual showcase of the parallel ship-set-sail
-/// ports. Static HTML; references compiled .sail modules at
+/// ports. Static HTML; references compiled .set modules at
 /// `/_sail/components/<tag>.js` (so author edits hot-reload via the
-/// existing pipeline). Requires the .sail sources to be discoverable
+/// existing pipeline). Requires the .set sources to be discoverable
 /// at `.ship/sail/` — run `just sail-demo` to link them.
 pub async fn serve_sail_demo() -> Response {
     const DEMO_HTML: &str =
@@ -137,10 +137,10 @@ fn load_or_compile(tag: &str, path: &PathBuf) -> Result<CacheEntry, String> {
     Ok(entry)
 }
 
-/// Locate `<tag>.sail` in the project's `.ship/sail/` (preferred) or
+/// Locate `<tag>.set` in the project's `.ship/sail/` (preferred) or
 /// the global `~/.ship/sail/`.
 pub fn resolve_sail_path(tag: &str) -> Option<PathBuf> {
-    let filename = format!("{tag}.sail");
+    let filename = format!("{tag}.set");
     for dir in [
         runtime::project::get_project_dir(None).ok(),
         runtime::project::get_global_dir().ok(),

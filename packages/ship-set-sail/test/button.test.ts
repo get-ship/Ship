@@ -5,7 +5,7 @@ describe('ship-button (sail)', () => {
   let tag: string
 
   beforeAll(async () => {
-    tag = await loadSailComponent('ship-button.sail')
+    tag = await loadSailComponent('ship-button.set')
   }, 120_000)
 
   it('renders a native button with default chrome', () => {

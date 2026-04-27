@@ -252,7 +252,7 @@ sail-demo:
     mkdir -p .ship/sail
     src_dir="$(realpath packages/ship-set-sail/components)"
     n=0
-    for f in packages/ship-set-sail/components/*.sail; do
+    for f in packages/ship-set-sail/components/*.set; do
       name="$(basename "$f")"
       rm -f ".ship/sail/$name"
       ln -s "$src_dir/$name" ".ship/sail/$name"

@@ -1,5 +1,5 @@
 // Custom-element wrapper. The Sail compiler emits one
-// `defineComponent('my-tag', factory)` call per .sail file. The factory
+// `defineComponent('my-tag', factory)` call per .set file. The factory
 // is the user's script + binding wiring; defineComponent registers
 // the wrapper class with `customElements.define`.
 //

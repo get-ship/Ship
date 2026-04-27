@@ -7,7 +7,7 @@ For Ship, this is where the daemon's schemas become typed compile-time reference
 ## The `data` declaration revisited
 
 ```ts
-// In a .sail script block:
+// In a .set script block:
 data agent = ship.agents.detail(id=props.agentId)
 data live mesh = ship.mesh.snapshot()
 data jobs: JobRecord[] = ship.jobs.list({ limit: 50 })
@@ -71,7 +71,7 @@ impl SchemaSource for ShipSchemaSource {
         // 1. Look up <ship-*> Lit components from packages/ship-set
         //    (the build emits a manifest of prop/event/slot schemas)
         // 2. Look up <app-*> or <ship-*> Sail components from
-        //    .ship/components/*.sail (the compiler emits .schema.json
+        //    .ship/components/*.set (the compiler emits .schema.json
         //    files; the registry indexes them)
         self.component_registry.lookup(tag)
     }
@@ -170,7 +170,7 @@ export default {
 }
 ```
 
-A `.sail` component then writes:
+A `.set` component then writes:
 ```ts
 data users: User[] = api.users.list({ limit: 20 })
 ```
@@ -268,7 +268,7 @@ For Ship: the daemon's kernel router already broadcasts events; we add a kernel-
 `data` declarations contribute to the component's `.d.ts`:
 
 ```ts
-// my-component.sail.d.ts (generated)
+// my-component.set.d.ts (generated)
 export interface MyComponentData {
   readonly agent: Agent
   readonly mesh: MeshSnapshot              // updates live
@@ -308,7 +308,7 @@ The Ship adapter is the killer reference. Other adapters demonstrate the framewo
 
 - **Mutation queries.** `data` declarations are read-only. Mutations go via plain HTTP (`fetch(...)`) or via the patch-emit endpoint (`POST /api/v1/signals/<channel>/patch`). A typed mutation API is a future enhancement.
 - **Pagination as a first-class concept.** `data jobs = ship.jobs.list({ cursor })` works; the runtime doesn't auto-paginate. Authors compose pagination in user code or via dedicated components.
-- **Caching policies declared in `.sail`.** Cache lifetime is the source's concern. v1 keeps it implicit.
+- **Caching policies declared in `.set`.** Cache lifetime is the source's concern. v1 keeps it implicit.
 
 ## Why the boundary matters
 

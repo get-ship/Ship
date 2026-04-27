@@ -3,7 +3,7 @@
 Authoritative entry point. Read in order.
 
 1. **[00-README.md](00-README.md)** — vision, motivations, "aha" moments, defensible answers.
-2. **[01-language-spec.md](01-language-spec.md)** — `.sail` file format, full syntax.
+2. **[01-language-spec.md](01-language-spec.md)** — `.set` file format, full syntax.
 3. **[02-compiler-architecture.md](02-compiler-architecture.md)** — Rust compiler design.
 4. **[03-runtime-architecture.md](03-runtime-architecture.md)** — JS runtime design.
 5. **[04-patch-protocol.md](04-patch-protocol.md)** — SSE wire format. The killer feature.
@@ -52,13 +52,13 @@ Multiple key points sharpened the design:
 - **"Sunset .html.j2."** Yes — components are composition roots, routes are sail files, one mental model. Jinja stays for non-component templating only.
 - **"Comparison to Dash by Plotly."** Dash demonstrates the model (server-truth + components + hypermedia) at scale, but Python-bound and analyst-audienced. Ship's structural choices (HTML+JS authoring, web components, daemon-as-runtime, agent-tuned) are better positioned for the agent-authored future.
 - **"Why your own reactivity?"** Strongest defensible answer: **co-design with the runtime**. The framework knows the daemon, the daemon knows the framework. Other frameworks live outside their runtimes; Sail lives inside it. That co-design unlocks features (typed server queries, schema-driven components, permission-aware rendering, atomic optimistic updates, agent-tuned token economy) impossible to bolt on. "No build step" and "vertical control" are tactics; **co-design is the strategy**.
-- **"`.sail` is a better file extension than `.ship`."** Right — `.ship` overloads the platform name. `.sail` pairs naturally (vessel + rigging metaphor), is OSS-brandable as a framework name, no SEO/trademark collision.
+- **"`.set` is a better file extension than `.ship`."** Right — `.ship` overloads the platform name. `.set` pairs naturally (vessel + rigging metaphor), is OSS-brandable as a framework name, no SEO/trademark collision.
 
 ### Where the design landed
 
 A reactive web framework for agent-authored apps with a local-daemon runtime, designed from first principles given those constraints:
 
-- **Single file format** (`.sail`): script + template + style, three blocks
+- **Single file format** (`.set`): script + template + style, three blocks
 - **Single template language**: `{x}` interpolation, compiler classifies static vs reactive
 - **Seven keyword forms**: `prop`, `state`, `derived`, `data`, `effect`, `event`, `function`
 - **TypeScript via type stripping**: no author-visible build step, full type-check in LSP
@@ -97,7 +97,7 @@ Per [07-migration-plan.md](07-migration-plan.md):
 
 - **Week 1-2:** Sail compiler + runtime MVP. First end-to-end Sail component browser-verified.
 - **Week 3:** Migrate the 8 existing `app-*` components to real Sail (auto + hand finishing).
-- **Week 4-5:** Migrate `.html.j2` views to `.sail` route files.
+- **Week 4-5:** Migrate `.html.j2` views to `.set` route files.
 - **Week 6:** Retire the legacy SFC compiler. Datastar dropped from production.
 - **Week 7+:** Run the benchmark. Iterate. Announce.
 
@@ -108,7 +108,7 @@ Per [07-migration-plan.md](07-migration-plan.md):
 | Decision | Spec doc |
 |---|---|
 | Why we're building (vision, motivations) | [00-README.md](00-README.md) |
-| `.sail` vs `.ship` extension | [00-README.md § Naming](00-README.md) + [01-language-spec.md § Filename rules](01-language-spec.md) |
+| `.set` vs `.ship` extension | [00-README.md § Naming](00-README.md) + [01-language-spec.md § Filename rules](01-language-spec.md) |
 | Single template language | [01-language-spec.md § The template block](01-language-spec.md) |
 | Seven keyword forms | [01-language-spec.md § Top-level declarations](01-language-spec.md) |
 | TypeScript via type stripping | [01-language-spec.md](01-language-spec.md) + [02-compiler-architecture.md § Phase 3](02-compiler-architecture.md) |
@@ -138,7 +138,7 @@ If picking up this spec to implement:
 3. Read [07-migration-plan.md](07-migration-plan.md) for the order of operations
 4. Start with the runtime — `packages/@sail/runtime/` per [03's implementation phasing](03-runtime-architecture.md#implementation-phasing). The signal engine is the heart; everything else is bookkeeping around it.
 5. In parallel, start the compiler skeleton — `crates/sail-compiler/` per [02's implementation phasing](02-compiler-architecture.md#implementation-phasing). Phase 1 (parser) + Phase 6 (style scoping) are the easiest entry points; the parser can be evolved from the existing `apps/shipd/src/views/sfc/parser.rs`.
-6. Wire compiler + runtime end-to-end with a single `app-counter.sail` test case. Browser-verify.
+6. Wire compiler + runtime end-to-end with a single `app-counter.set` test case. Browser-verify.
 7. Build the migration tool against the existing `app-*` components. Run + verify.
 8. Migrate one view as a smoke test. Iterate.
 9. Run the token benchmark ([08-testing-benchmarks.md](08-testing-benchmarks.md)) before announcing.

@@ -1,7 +1,7 @@
-//! Hot-module reload channel for `.sail` files.
+//! Hot-module reload channel for `.set` files.
 //!
 //! - A background filesystem watcher monitors `.ship/sail/` (project +
-//!   global) for `.sail` writes.
+//!   global) for `.set` writes.
 //! - Each save broadcasts a `SailUpdate { tag }` event over a Tokio
 //!   broadcast channel.
 //! - `GET /_sail/hmr` upgrades to an SSE stream and forwards each
@@ -75,7 +75,7 @@ fn spawn_watcher(tx: broadcast::Sender<SailUpdate>) -> Option<RecommendedWatcher
             return;
         }
         for path in &event.paths {
-            if path.extension().and_then(|s| s.to_str()) != Some("sail") {
+            if path.extension().and_then(|s| s.to_str()) != Some("set") {
                 continue;
             }
             let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else { continue };

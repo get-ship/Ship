@@ -1,11 +1,11 @@
 # Sail compiler architecture
 
-How `.sail` files become shippable JS. Design and implementation plan for `sail-compiler` — Layer 2 of the Sail stack (see [09-oss-portability.md](09-oss-portability.md)).
+How `.set` files become shippable JS. Design and implementation plan for `sail-compiler` — Layer 2 of the Sail stack (see [09-oss-portability.md](09-oss-portability.md)).
 
 ## High-level pipeline
 
 ```
-.sail file
+.set file
   │
   ▼
 [1] Lexer / parser           ─→ AST (script, template, style)
@@ -66,7 +66,7 @@ crates/
     │       ├── types.rs              # .d.ts
     │       └── schema.rs             # .schema.json
     └── tests/
-        ├── corpus/                   # snapshot tests against fixed .sail files
+        ├── corpus/                   # snapshot tests against fixed .set files
         └── ui/                       # browser-tested Playwright integration
 
 apps/shipd/src/views/
@@ -82,7 +82,7 @@ Hand-rolled parser for the three-block format. Already proven by the existing SF
 
 ### Parser features
 
-- Three-block extraction: `<script>`, `<template>`, `<style>` (or no `<template>` — bare `.sail` is technically valid).
+- Three-block extraction: `<script>`, `<template>`, `<style>` (or no `<template>` — bare `.set` is technically valid).
 - Block attribute parsing: `<script lang="ts">`, `<style src="./x.css">`, `<style global>`.
 - Template parser handles:
   - HTML elements with attributes
@@ -179,7 +179,7 @@ impl SchemaSource for ShipSchemaSource {
         // subscription channel for `live` queries.
     }
     fn resolve_component(&self, tag: &str) -> Option<ComponentSchema> {
-        // Look up the tag in the project's `.sail` files and ship-set's
+        // Look up the tag in the project's `.set` files and ship-set's
         // published schemas. Returns merged prop/event/slot info.
     }
 }
@@ -477,20 +477,20 @@ Errors are emitted as JSON for the LSP and as formatted text for the CLI:
 
 ```
 sail-compiler: error[SAIL/E0042]: prop 'count' expects number, got string
-   ╭─ agent-modal.sail:14:35
+   ╭─ agent-modal.set:14:35
    │
 14 │   <my-counter count="not a number">
    │                     ^^^^^^^^^^^^^^ — type mismatch
    │
    = help: pass a number expression: `count={5}`
-   = note: defined at counter.sail:3:1
+   = note: defined at counter.set:3:1
 ```
 
 ## Testing
 
 The compiler has three test layers:
 
-1. **Snapshot tests** — `tests/corpus/` holds fixed `.sail` files; tests assert the emitted JS / SSR / .d.ts / schema match committed snapshots. Drift is caught instantly.
+1. **Snapshot tests** — `tests/corpus/` holds fixed `.set` files; tests assert the emitted JS / SSR / .d.ts / schema match committed snapshots. Drift is caught instantly.
 2. **Integration tests** — Playwright specs that mount compiled components in a real browser and verify behavior. See [08-testing-benchmarks.md](08-testing-benchmarks.md).
 3. **Token-efficiency benchmark** — fixed corpus of UI problems, agent-authoring runs against multiple frameworks. Sail's emission must hit the targets.
 
@@ -499,7 +499,7 @@ The compiler has three test layers:
 - **Week 1:** Phase 1 parser + Phase 6 style scoping (extend existing). Snapshot tests.
 - **Week 2:** Phases 2-5 (analysis + lowering). The reactivity classifier is the heart.
 - **Week 3:** Phase 7 SSR + Phase 8 runtime emission. First Sail file end-to-end browser-rendered.
-- **Week 4:** Phases 9-10 (.d.ts + schema). LSP integration. Migration tool from `.ship` to `.sail`.
+- **Week 4:** Phases 9-10 (.d.ts + schema). LSP integration. Migration tool from `.ship` to `.set`.
 
 After week 4, the compiler is MVP. Beyond MVP: caching polish, error message quality, more schema sources, type-check-on-save in LSP.
 

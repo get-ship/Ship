@@ -4,7 +4,7 @@ What an author sees, hears, and runs when building Sail apps. The dev tooling is
 
 ## North star
 
-**The author saves a `.sail` file. The browser shows the change. No build to wait for, no error to decode, no terminal to babysit.**
+**The author saves a `.set` file. The browser shows the change. No build to wait for, no error to decode, no terminal to babysit.**
 
 Everything below collapses to that loop.
 
@@ -15,7 +15,7 @@ Everything below collapses to that loop.
 A Language Server Protocol implementation that backs every editor. Full-fidelity IDE support is the single biggest agent-authoring win because it eliminates round-trips for "is this prop name right?" / "does this signal exist?" / "what events does this component emit?".
 
 Capabilities:
-- **Syntax highlighting** for `.sail` files (script as TS, template as HTML+`{expr}`, style as CSS+`${tokens}`)
+- **Syntax highlighting** for `.set` files (script as TS, template as HTML+`{expr}`, style as CSS+`${tokens}`)
 - **Completion** for:
   - Prop names + values when typing `<my-component …>`
   - Signal names inside `{expr}` interpolations and bindings
@@ -59,7 +59,7 @@ Implementation: TypeScript binary, Cargo binary, or both — the compiler is Rus
 
 Today's daemon already does this for `.ship` SFCs via Datastar morph. Sail extends:
 
-- File watcher in the daemon (or `sail dev`) detects `.sail` mtime change
+- File watcher in the daemon (or `sail dev`) detects `.set` mtime change
 - Compiler re-emits the affected component
 - Daemon pushes a `component:update` SSE event with the new component module URL
 - Browser swaps the `customElements` definition (or, if HMR isn't yet implemented for scripts, falls back to `location.reload()` for script changes only — templates and styles morph in place)
@@ -88,18 +88,18 @@ Errors speak Sail's vocabulary, point at file:line:col, link to docs. Three sour
 1. **Compile errors** — emitted by `sail-compiler` as JSON for the LSP, formatted text for the CLI:
     ```
     sail-compiler: error[SAIL/E0042]: prop 'count' expects number, got string
-       ╭─ agent-modal.sail:14:35
+       ╭─ agent-modal.set:14:35
        │
     14 │   <my-counter count="not a number">
        │                     ^^^^^^^^^^^^^^ — type mismatch
        │
        = help: pass a number expression: `count={5}`
-       = note: defined at counter.sail:3:1
+       = note: defined at counter.set:3:1
     ```
-2. **Runtime errors** — `[sail:my-component] script error at line 23: ReferenceError: undefinedVar is not defined`. Source-mapped back to the `.sail` source.
+2. **Runtime errors** — `[sail:my-component] script error at line 23: ReferenceError: undefinedVar is not defined`. Source-mapped back to the `.set` source.
 3. **Schema source errors** — when `data ship.agents.list()` is called but the daemon doesn't recognize it: `[sail:data] unknown schema reference 'ship.agents.list' — did you mean 'ship.agents.detail'?`.
 
-Each error code (`SAIL/E0042`, `SAIL/W0011`, etc.) is documented at `docs.sail-framework.dev/errors/E0042` with a longer explanation, examples, and a fix.
+Each error code (`SAIL/E0042`, `SAIL/W0011`, etc.) is documented at `docs.set-framework.dev/errors/E0042` with a longer explanation, examples, and a fix.
 
 ## Tier 2 — what makes authoring fun (v1.5 - v2)
 
@@ -118,13 +118,13 @@ Implementation: ring buffer of patch logs in the runtime + UI in the devtools pa
 
 ### Visual component inspector
 
-Right-click any DOM node in dev mode → "Inspect Sail component" opens the relevant `.sail` source in your editor at the right line. Bridge: devtools sends a `sail:open-source` message to the dev daemon, which uses the editor's URL handler (`vscode://file/...`).
+Right-click any DOM node in dev mode → "Inspect Sail component" opens the relevant `.set` source in your editor at the right line. Bridge: devtools sends a `sail:open-source` message to the dev daemon, which uses the editor's URL handler (`vscode://file/...`).
 
 ### Test harness — `@sail/test`
 
 ```ts
 import { mount, fire, on } from '@sail/test'
-import MyButton from './my-button.sail'
+import MyButton from './my-button.set'
 
 it('emits select on click', async () => {
   const { host, on: listen } = mount(MyButton, { variant: 'primary' })
@@ -146,7 +146,7 @@ Without this, every component is a liability. With it, refactoring framework int
 
 ### Storybook-shaped showcase
 
-`sail showcase` scaffolds a per-component playground page. Each `.sail` file gets a `.showcase.sail` sibling (optional) with prop variations. The showcase auto-mounts each variant; designers can browse the catalog visually. Lives at `localhost:9315/_sail/showcase/` in dev mode.
+`sail showcase` scaffolds a per-component playground page. Each `.set` file gets a `.showcase.set` sibling (optional) with prop variations. The showcase auto-mounts each variant; designers can browse the catalog visually. Lives at `localhost:9315/_sail/showcase/` in dev mode.
 
 ## Tier 3 — production-grade DX (v2+)
 
@@ -156,11 +156,11 @@ Per-component render time, signal-update fan-out cost, patch-apply latency. Surf
 
 ### A11y auditor
 
-Built-in axe-core integration. Errors surfaced in the devtools panel + CI gate. "Your `<button>` has no accessible name" type warnings, sourced back to the `.sail` line that emits the offending element.
+Built-in axe-core integration. Errors surfaced in the devtools panel + CI gate. "Your `<button>` has no accessible name" type warnings, sourced back to the `.set` line that emits the offending element.
 
 ### Visual regression harness
 
-Per `.sail` component: snapshot a default + variant set; CI diffs against committed images, blocks merges on visual changes without explicit accept.
+Per `.set` component: snapshot a default + variant set; CI diffs against committed images, blocks merges on visual changes without explicit accept.
 
 ### Bundle analyzer
 

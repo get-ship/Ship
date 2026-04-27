@@ -18,18 +18,18 @@ How we get from the current state (Jinja views + first-cut SFC components) to Sa
 └── ... (~20 view directories)
 
 .ship/components/                     ← First-cut SFC components
-├── app-agent-modal.sail                ← (will move to .sail in migration)
-├── app-agent-thread.sail
-├── app-agent-composer.sail
-├── app-agent-picker.sail
-├── app-pty-attach.sail
-├── app-pipeline-board.sail
-├── app-pipeline-step.sail
-├── app-typeahead.sail                  ← demo
-├── ship-tabs.sail                      ← stress test
+├── app-agent-modal.set                ← (will move to .set in migration)
+├── app-agent-thread.set
+├── app-agent-composer.set
+├── app-agent-picker.set
+├── app-pty-attach.set
+├── app-pipeline-board.set
+├── app-pipeline-step.set
+├── app-typeahead.set                  ← demo
+├── ship-tabs.set                      ← stress test
 ├── ship-tabs.css
-├── ship-tab.sail
-└── ship-tab-panel.sail
+├── ship-tab.set
+└── ship-tab-panel.set
 
 apps/shipd/src/views/sfc/             ← Current SFC compiler (Datastar bridge)
 └── (~2000 lines, recently fixed but architecturally deprecated)
@@ -38,7 +38,7 @@ packages/ship-set/                    ← Lit components (stay)
 └── (~200 components, no migration)
 ```
 
-The `app-*` components have file extension `.sail` already (per the previous redesign discussion). For this plan, treat them as legacy-shaped Sail-prep — they need real Sail-compiler treatment, but they're closer to the destination than `.html.j2` views are.
+The `app-*` components have file extension `.set` already (per the previous redesign discussion). For this plan, treat them as legacy-shaped Sail-prep — they need real Sail-compiler treatment, but they're closer to the destination than `.html.j2` views are.
 
 ## Migration phases
 
@@ -55,7 +55,7 @@ The `app-*` components have file extension `.sail` already (per the previous red
 
 **Done when:** `<app-counter>` is browser-verified, signal updates work, prop binding works, basic event handler works.
 
-**Parallel impl:** Old SFC compiler still serves `.ship`-extension files. Sail compiler serves `.sail` extension files (formally — even though the existing `.sail` files were authored against the old shape).
+**Parallel impl:** Old SFC compiler still serves `.ship`-extension files. Sail compiler serves `.set` extension files (formally — even though the existing `.set` files were authored against the old shape).
 
 ### Phase 1 — Migrate existing components (week 3)
 
@@ -81,18 +81,18 @@ The migration tool — `cargo run -p shipd migrate-sfc <file>` — does the mech
 The migration tool runs the AST through these rules + emits the new file. ~80% mechanical; ~20% requires hand-finishing.
 
 **Per-component checklist:**
-1. Run migration tool: `migrate-sfc app-agent-modal.sail` (overwrites or emits .new file)
-2. Compile against Sail compiler: `cargo run -p sail-compiler check app-agent-modal.sail`
+1. Run migration tool: `migrate-sfc app-agent-modal.set` (overwrites or emits .new file)
+2. Compile against Sail compiler: `cargo run -p sail-compiler check app-agent-modal.set`
 3. Browser-test via Playwright: `tests/loops/sail-agent-modal.ui.spec.mjs`
 4. Smoke-test in dev shell: open the modal, send a message, verify
 
-The 8 existing components (~1500 LOC total) take 1-2 days hand-finishing after the auto-migration. We delete the old SFC compiler's per-file path support for these (they're `.sail` now, not `.ship`).
+The 8 existing components (~1500 LOC total) take 1-2 days hand-finishing after the auto-migration. We delete the old SFC compiler's per-file path support for these (they're `.set` now, not `.ship`).
 
 **Done when:** all `app-*` components compile + browser-test green via Sail compiler.
 
 ### Phase 2 — Migrate views (week 4-5)
 
-**Goal:** every route is a `.sail` file. Jinja `.html.j2` files retire from the views directory.
+**Goal:** every route is a `.set` file. Jinja `.html.j2` files retire from the views directory.
 
 Two flavors of view file:
 
@@ -113,7 +113,7 @@ Two flavors of view file:
 →
 
 ```html
-<!-- chat/index.sail (new) -->
+<!-- chat/index.set (new) -->
 <script lang="ts">
   data state = ship.chat.state({})
 </script>
@@ -138,17 +138,17 @@ A migration tool (`migrate-jinja-view`) handles 80%. The remaining 20% (deeply n
 
 **Complex views** (few): macros with logic, partial includes, agent-rendered Jinja.
 
-`_ship.html.j2`'s ~600 lines of macros become a few utility components or `.sail` snippet imports. Many macros (`signal`, `bind`, `on`, etc.) become unnecessary because Sail's syntax is the equivalent. Some (like the `head` macro that emits the head tag bundle) become a `<sail:head>` component or a per-route auto-emission.
+`_ship.html.j2`'s ~600 lines of macros become a few utility components or `.set` snippet imports. Many macros (`signal`, `bind`, `on`, etc.) become unnecessary because Sail's syntax is the equivalent. Some (like the `head` macro that emits the head tag bundle) become a `<sail:head>` component or a per-route auto-emission.
 
 **Per-view checklist:**
-1. Auto-migrate: `migrate-jinja-view chat/index.html.j2` → emits `chat/index.sail`
-2. Compile + lint: `sail-compiler check chat/index.sail`
+1. Auto-migrate: `migrate-jinja-view chat/index.html.j2` → emits `chat/index.set`
+2. Compile + lint: `sail-compiler check chat/index.set`
 3. Hand-finish any leftover Jinja constructs
 4. Browser-test: route renders, mounts components, behaves correctly
 
-The 20 view directories take 1-2 weeks hand-finishing. Daemon prefers `.sail` if both extensions exist for a route.
+The 20 view directories take 1-2 weeks hand-finishing. Daemon prefers `.set` if both extensions exist for a route.
 
-**Done when:** every route serves from `.sail`. No `.html.j2` files in `.ship/views/`. The Jinja renderer continues to compile but no view directory uses it.
+**Done when:** every route serves from `.set`. No `.html.j2` files in `.ship/views/`. The Jinja renderer continues to compile but no view directory uses it.
 
 ### Phase 3 — Retire legacy SFC compiler (week 6)
 
@@ -171,7 +171,7 @@ The 20 view directories take 1-2 weeks hand-finishing. Daemon prefers `.sail` if
 
 If after Phase 2 there are still Jinja-rendered surfaces (admin pages, email templates, generated reports, OpenAPI docs), keep the Jinja renderer for those. The component story is fully on Sail; Jinja persists for non-component templating only.
 
-If everything that used Jinja can be expressed as `.sail` files (most cases), delete the Jinja renderer and the `_ship.html.j2` macros.
+If everything that used Jinja can be expressed as `.set` files (most cases), delete the Jinja renderer and the `_ship.html.j2` macros.
 
 **Done when:** Jinja is either retired entirely or scoped to non-component contexts only.
 
@@ -183,7 +183,7 @@ The auto-migration regexes can miss edge cases — nested control flow, complex 
 
 **Mitigation:**
 - Every migrated file goes through Playwright before old version is deleted
-- Migration tool emits `.sail.new` initially (doesn't overwrite); diff is reviewable
+- Migration tool emits `.set.new` initially (doesn't overwrite); diff is reviewable
 - Bug list as encountered: each broken case becomes a regression test in the migration tool
 - We hand-finish where the tool fails; gradually improve the tool
 
@@ -207,7 +207,7 @@ The legacy SFC components reference tokens via direct `var(--ship-color-X)`. Sai
 
 ### Risk: agents author against the wrong framework
 
-During the parallel-impl window (weeks 3-5), agents could author `.ship` files instead of `.sail`. This wastes work and creates more migration surface.
+During the parallel-impl window (weeks 3-5), agents could author `.ship` files instead of `.set`. This wastes work and creates more migration surface.
 
 **Mitigation:**
 - CI gate: any new file with `.ship` extension fails the build (post Phase 1)
@@ -237,13 +237,13 @@ Some legacy views use `ship.x.y()` Jinja calls that may not have manifest entrie
 
 ## Tools we need to build
 
-1. **`migrate-sfc`** — turns a legacy SFC `.ship` file (or `.sail` authored against the old shape) into a real Sail component. Lives in `crates/sail-migrate/` or as a subcommand of `shipd`.
+1. **`migrate-sfc`** — turns a legacy SFC `.ship` file (or `.set` authored against the old shape) into a real Sail component. Lives in `crates/sail-migrate/` or as a subcommand of `shipd`.
 
-2. **`migrate-jinja-view`** — turns a `.html.j2` Jinja view into a `.sail` route file. Same crate.
+2. **`migrate-jinja-view`** — turns a `.html.j2` Jinja view into a `.set` route file. Same crate.
 
 3. **`sail-compiler check`** — CLI for the compiler. Used by CI gates and authors verifying changes.
 
-4. **Sail Playwright spec generator** — given a `.sail` file, scaffold a Playwright spec that exercises the component's documented surface. Saves time writing per-component browser tests.
+4. **Sail Playwright spec generator** — given a `.set` file, scaffold a Playwright spec that exercises the component's documented surface. Saves time writing per-component browser tests.
 
 ## Checklist gates
 
@@ -261,7 +261,7 @@ Each phase has a gate before moving to the next:
 - [ ] Migration tool's auto-migration succeeded for each (manual fixes documented)
 
 **Phase 2 → 3:**
-- [ ] All routes serve `.sail` (no `.html.j2` in `.ship/views/`)
+- [ ] All routes serve `.set` (no `.html.j2` in `.ship/views/`)
 - [ ] Loop tests still green (substrate paths)
 - [ ] Visual smoke-test of every route
 
@@ -275,15 +275,15 @@ Each phase has a gate before moving to the next:
 What the codebase looks like:
 
 ```
-.ship/views/                          ← all .sail files
-├── chat/index.sail
-├── pipelines/index.sail
-├── mesh/index.sail
+.ship/views/                          ← all .set files
+├── chat/index.set
+├── pipelines/index.set
+├── mesh/index.set
 └── ...
 
-.ship/components/                     ← all .sail files
-├── app-agent-modal.sail
-├── app-agent-thread.sail
+.ship/components/                     ← all .set files
+├── app-agent-modal.set
+├── app-agent-thread.set
 └── ...
 
 crates/sail-compiler/                 ← OSS, the framework
@@ -293,7 +293,7 @@ packages/ship-set/                    ← Lit components (unchanged)
 
 apps/shipd/src/views/                 ← Ship's view-serving glue
 ├── sail.rs                             - serves /_sail/components/<tag>.js
-└── routes.rs                           - filesystem routing for .sail routes
+└── routes.rs                           - filesystem routing for .set routes
 ```
 
 One framework. One file format. One mental model. The legacy SFC compiler retired; Datastar dropped from production; Jinja kept only where it serves non-component templates.

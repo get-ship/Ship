@@ -3,7 +3,7 @@
 //! See `docs/sail/10-dev-tooling.md § CLI`.
 //!
 //! Verbs (v1):
-//! - `sail build [path]` — compile every `.sail` under `path` to `dist/`
+//! - `sail build [path]` — compile every `.set` under `path` to `dist/`
 //! - `sail check [path]` — parse + report diagnostics; no emit
 //! - `sail new <name>`   — scaffold a starter project
 //!
@@ -24,7 +24,7 @@ struct Cli {
 
 #[derive(Subcommand, Debug)]
 enum Cmd {
-    /// Compile every `.sail` under <path> into <out>/.
+    /// Compile every `.set` under <path> into <out>/.
     Build {
         #[arg(default_value = ".")]
         path: PathBuf,
@@ -32,7 +32,7 @@ enum Cmd {
         #[arg(short, long, default_value = "dist")]
         out: PathBuf,
     },
-    /// Parse every `.sail` under <path> and report any errors.
+    /// Parse every `.set` under <path> and report any errors.
     Check {
         #[arg(default_value = ".")]
         path: PathBuf,
@@ -42,11 +42,11 @@ enum Cmd {
         /// Project directory to create.
         name: PathBuf,
     },
-    /// Migrate a `.ship` SFC to `.sail` (best-effort structural port).
+    /// Migrate a `.ship` SFC to `.set` (best-effort structural port).
     Migrate {
         /// Path to a `.ship` file.
         path: PathBuf,
-        /// Output `.sail` path. Defaults to <path>.sail.
+        /// Output `.set` path. Defaults to <path>.set.
         #[arg(short, long)]
         out: Option<PathBuf>,
     },
@@ -69,7 +69,7 @@ fn main() {
 fn run_build(root: &Path, out: &Path) -> Result<()> {
     let files = collect_sail_files(root)?;
     if files.is_empty() {
-        eprintln!("sail: no .sail files found under {}", root.display());
+        eprintln!("sail: no .set files found under {}", root.display());
         return Ok(());
     }
     std::fs::create_dir_all(out).with_context(|| format!("create {}", out.display()))?;
@@ -93,7 +93,7 @@ fn run_build(root: &Path, out: &Path) -> Result<()> {
 fn run_check(root: &Path) -> Result<()> {
     let files = collect_sail_files(root)?;
     if files.is_empty() {
-        eprintln!("sail: no .sail files found under {}", root.display());
+        eprintln!("sail: no .set files found under {}", root.display());
         return Ok(());
     }
     let mut errors = 0usize;
@@ -129,7 +129,7 @@ fn run_check(root: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Best-effort structural port of a `.ship` SFC to `.sail`.
+/// Best-effort structural port of a `.ship` SFC to `.set`.
 ///
 /// What it does:
 /// - Reads the `.ship` source verbatim
@@ -148,7 +148,7 @@ fn run_migrate(path: &Path, out: Option<&Path>) -> Result<()> {
     let (sail, todos) = migrate_source(&source);
     let out_path = out
         .map(|p| p.to_path_buf())
-        .unwrap_or_else(|| path.with_extension("sail"));
+        .unwrap_or_else(|| path.with_extension("set"));
     std::fs::write(&out_path, &sail)
         .with_context(|| format!("write {}", out_path.display()))?;
     eprintln!("sail: migrated {} → {}", path.display(), out_path.display());
@@ -333,7 +333,7 @@ fn run_new(dir: &Path) -> Result<()> {
         bail!("{} already exists", dir.display());
     }
     std::fs::create_dir_all(dir.join("sail"))?;
-    std::fs::write(dir.join("sail/app-counter.sail"), STARTER_COUNTER)?;
+    std::fs::write(dir.join("sail/app-counter.set"), STARTER_COUNTER)?;
     std::fs::write(dir.join("README.md"), STARTER_README)?;
     eprintln!("sail: created {}", dir.display());
     eprintln!("    → cd {} && sail build", dir.display());
@@ -361,7 +361,7 @@ fn collect_sail_files(root: &Path) -> Result<Vec<PathBuf>> {
                 if !skip {
                     stack.push(p);
                 }
-            } else if p.extension().and_then(|s| s.to_str()) == Some("sail") {
+            } else if p.extension().and_then(|s| s.to_str()) == Some("set") {
                 out.push(p);
             }
         }
@@ -397,9 +397,9 @@ button { padding: 0.5rem 1rem; }
 
 const STARTER_README: &str = r#"# New Sail project
 
-Run `sail build` to compile every `.sail` under this directory into `dist/`.
+Run `sail build` to compile every `.set` under this directory into `dist/`.
 
-The starter component lives at `sail/app-counter.sail`. Each `.sail` file
+The starter component lives at `sail/app-counter.set`. Each `.set` file
 becomes four artifacts in `dist/`: `<tag>.js`, `<tag>.html` (SSR),
 `<tag>.d.ts`, and `<tag>.schema.json`.
 "#;
@@ -416,19 +416,19 @@ mod tests {
     #[test]
     fn collect_finds_only_sail_files() {
         let dir = tmp_dir();
-        std::fs::write(dir.path().join("a.sail"), "<template><div/></template>").unwrap();
+        std::fs::write(dir.path().join("a.set"), "<template><div/></template>").unwrap();
         std::fs::write(dir.path().join("b.txt"), "ignore").unwrap();
         std::fs::create_dir_all(dir.path().join("nested")).unwrap();
         std::fs::write(
-            dir.path().join("nested/c.sail"),
+            dir.path().join("nested/c.set"),
             "<template><div/></template>",
         )
         .unwrap();
         let mut found = collect_sail_files(dir.path()).unwrap();
         found.sort();
         assert_eq!(found.len(), 2);
-        assert!(found[0].ends_with("a.sail"));
-        assert!(found[1].ends_with("c.sail"));
+        assert!(found[0].ends_with("a.set"));
+        assert!(found[1].ends_with("c.set"));
     }
 
     #[test]
@@ -437,21 +437,21 @@ mod tests {
         for skip in ["dist", "node_modules", ".git", "target"] {
             std::fs::create_dir_all(dir.path().join(skip)).unwrap();
             std::fs::write(
-                dir.path().join(skip).join("x.sail"),
+                dir.path().join(skip).join("x.set"),
                 "<template><div/></template>",
             )
             .unwrap();
         }
-        std::fs::write(dir.path().join("ok.sail"), "<template><div/></template>").unwrap();
+        std::fs::write(dir.path().join("ok.set"), "<template><div/></template>").unwrap();
         let found = collect_sail_files(dir.path()).unwrap();
         assert_eq!(found.len(), 1);
-        assert!(found[0].ends_with("ok.sail"));
+        assert!(found[0].ends_with("ok.set"));
     }
 
     #[test]
     fn build_emits_four_artifacts_per_file() {
         let dir = tmp_dir();
-        let src = dir.path().join("counter.sail");
+        let src = dir.path().join("counter.set");
         let mut f = std::fs::File::create(&src).unwrap();
         f.write_all(b"<script>state c = 0</script><template><span>{c}</span></template>")
             .unwrap();
@@ -466,11 +466,11 @@ mod tests {
     #[test]
     fn check_passes_clean_files_and_fails_broken() {
         let dir = tmp_dir();
-        std::fs::write(dir.path().join("ok.sail"), "<template><span>ok</span></template>").unwrap();
+        std::fs::write(dir.path().join("ok.set"), "<template><span>ok</span></template>").unwrap();
         run_check(dir.path()).unwrap();
 
         std::fs::write(
-            dir.path().join("bad.sail"),
+            dir.path().join("bad.set"),
             "<template><div></span></template>",
         )
         .unwrap();
@@ -514,7 +514,7 @@ mod tests {
         let src = dir.path().join("c.ship");
         std::fs::write(&src, "<template><span>hi</span></template>").unwrap();
         run_migrate(&src, None).unwrap();
-        let out = src.with_extension("sail");
+        let out = src.with_extension("set");
         assert!(out.exists());
         let body = std::fs::read_to_string(&out).unwrap();
         assert!(body.contains("<template>"));
@@ -525,7 +525,7 @@ mod tests {
         let dir = tmp_dir();
         let proj = dir.path().join("myapp");
         run_new(&proj).unwrap();
-        assert!(proj.join("sail/app-counter.sail").exists());
+        assert!(proj.join("sail/app-counter.set").exists());
         assert!(proj.join("README.md").exists());
         // Re-running fails because it already exists.
         assert!(run_new(&proj).is_err());

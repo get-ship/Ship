@@ -1,6 +1,6 @@
 # Sail runtime architecture
 
-The browser-side library that compiled `.sail` modules import from. Layer 1 of the stack — runs anywhere, no Ship dependency.
+The browser-side library that compiled `.set` modules import from. Layer 1 of the stack — runs anywhere, no Ship dependency.
 
 Target: ~12KB minified + gzipped. Solid-grade fine-grained reactivity. Patch-protocol native.
 
@@ -235,7 +235,7 @@ export function defineComponent(tag: string, factory: ComponentFactory): void {
 }
 ```
 
-The factory function is what the compiler emits per `.sail` file. It gets the host element + a place to attach prop signals, returns a cleanup function.
+The factory function is what the compiler emits per `.set` file. It gets the host element + a place to attach prop signals, returns a cleanup function.
 
 Key design: **factory closures hold all user-script state.** No module-level state per component. Multiple instances of the same component each get their own closure.
 

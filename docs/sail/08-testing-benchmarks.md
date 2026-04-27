@@ -9,7 +9,7 @@ Snapshot-style tests in `crates/sail-compiler/tests/corpus/`:
 ```
 tests/corpus/
 ├── 01-minimal/
-│   ├── input.sail
+│   ├── input.set
 │   └── expected/
 │       ├── output.js              ← snapshot of compiled JS
 │       ├── output.html.tmpl       ← snapshot of SSR template
@@ -27,7 +27,7 @@ tests/corpus/
 └── 10-edge-cases/
 ```
 
-Each test compiles `input.sail` and diffs against `expected/`. Drift is caught instantly. Snapshots are updated via `cargo test -- --update-snapshots` after intentional changes.
+Each test compiles `input.set` and diffs against `expected/`. Drift is caught instantly. Snapshots are updated via `cargo test -- --update-snapshots` after intentional changes.
 
 **Coverage target:** every spec feature has at least one corpus entry. ~50 corpus entries for the v1 spec.
 

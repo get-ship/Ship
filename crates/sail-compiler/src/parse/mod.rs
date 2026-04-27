@@ -1,4 +1,4 @@
-//! Phase 1 — parser. Turns `.sail` source into an AST.
+//! Phase 1 — parser. Turns `.set` source into an AST.
 //!
 //! Responsibilities:
 //! - Three-block extraction: `<script>`, `<template>`, `<style>`
@@ -23,7 +23,7 @@ pub use ast::*;
 
 use anyhow::Result;
 
-/// Parse a `.sail` source string into a `SailFile` AST.
+/// Parse a `.set` source string into a `SailFile` AST.
 ///
 /// Phase 1 in stages:
 /// - Three-block extraction (implemented; `parser::extract_blocks`)

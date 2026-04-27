@@ -5,7 +5,7 @@ describe('ship-progress (sail)', () => {
   let tag: string
 
   beforeAll(async () => {
-    tag = await loadSailComponent('ship-progress.sail')
+    tag = await loadSailComponent('ship-progress.set')
   }, 120_000)
 
   it('determinate: bar width follows value/max', () => {

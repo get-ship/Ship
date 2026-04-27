@@ -1,1 +1,0 @@
-/home/madvib/dev/ship/packages/ship-set-sail/components/ship-progress.sail

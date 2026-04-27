@@ -5,7 +5,7 @@ describe('ship-badge (sail)', () => {
   let tag: string
 
   beforeAll(async () => {
-    tag = await loadSailComponent('ship-badge.sail')
+    tag = await loadSailComponent('ship-badge.set')
   }, 120_000)
 
   it('renders default chrome with no attributes', () => {

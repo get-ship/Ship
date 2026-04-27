@@ -1,6 +1,6 @@
 // End-to-end: hand-crafted module mirroring the shape the Sail
 // compiler emits for a counter component (see
-// crates/sail-compiler/tests/fixtures/counter.sail). Proves the
+// crates/sail-compiler/tests/fixtures/counter.set). Proves the
 // runtime contract — defineComponent + signal + derived + bindText +
 // on — composes into a working custom element.
 

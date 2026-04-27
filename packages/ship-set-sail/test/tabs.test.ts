@@ -5,9 +5,9 @@ describe('ship-tabs (sail)', () => {
   beforeAll(async () => {
     // Three components must register together — children before parent so
     // ship-tabs sees them at mount.
-    await loadSailComponent('ship-tab.sail')
-    await loadSailComponent('ship-tab-panel.sail')
-    await loadSailComponent('ship-tabs.sail')
+    await loadSailComponent('ship-tab.set')
+    await loadSailComponent('ship-tab-panel.set')
+    await loadSailComponent('ship-tabs.set')
   }, 120_000)
 
   function makeTabs(activeName = 'one'): HTMLElement {

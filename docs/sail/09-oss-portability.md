@@ -58,7 +58,7 @@ Each layer has a stable, documented contract with the layer above. Layer boundar
 | `@sail/static-source` | MIT | `github.com/sail-framework/static-source` | npm |
 | `@sail/migrate` | MIT | `github.com/sail-framework/migrate` | npm |
 | `agent-bench` corpus + harness | MIT | `github.com/sail-framework/agent-bench` | repo |
-| `docs.sail-framework.dev` | MIT (content) | site repo | published site |
+| `docs.set-framework.dev` | MIT (content) | site repo | published site |
 
 ## What's Ship-proprietary
 
@@ -111,7 +111,7 @@ use runtime::services::sdk_manifest::SdkManifest;
 
 pub struct ShipSchemaSource {
     manifest: SdkManifest,                 // existing typed SDK
-    component_registry: ComponentRegistry, // ship-set + project .sail
+    component_registry: ComponentRegistry, // ship-set + project .set
     tokens: TokenSet,
 }
 
@@ -180,7 +180,7 @@ Now `data users = api.users.list()` resolves against the OpenAPI spec.
 npx @sail/cli build --target=static
 ```
 
-Compiles all `.sail` files to static HTML + JS. SSR'd at build time. No live updates (no SSE backend). Suitable for content sites, docs, marketing pages. Output is regular HTML files deployable on any static host (Vercel, Cloudflare, Netlify, S3+CloudFront).
+Compiles all `.set` files to static HTML + JS. SSR'd at build time. No live updates (no SSE backend). Suitable for content sites, docs, marketing pages. Output is regular HTML files deployable on any static host (Vercel, Cloudflare, Netlify, S3+CloudFront).
 
 ### Node server
 
@@ -189,7 +189,7 @@ npx @sail/cli build --target=node
 node dist/server.js
 ```
 
-Compiles to a Node-side SSR server. Routes match `.sail` files. SSE patches require an event source the developer supplies. Used for non-Ship deployments.
+Compiles to a Node-side SSR server. Routes match `.set` files. SSE patches require an event source the developer supplies. Used for non-Ship deployments.
 
 ### Cloudflare Workers / Edge
 
@@ -264,7 +264,7 @@ These get deprecation cycles, not flag days, after v1.
 
 ## Documentation
 
-`docs.sail-framework.dev` (or `sail.dev`):
+`docs.set-framework.dev` (or `sail.dev`):
 - Tutorial: build a counter, then a typeahead, then a chat app
 - Guide: each spec section explained with examples
 - API reference: every public function + trait

@@ -1,4 +1,4 @@
-// Integration test: compile a real .sail file via the Rust `sail`
+// Integration test: compile a real .set file via the Rust `sail`
 // binary, load the produced JS in jsdom, and exercise the resulting
 // custom element. This is the test that proves the compiler+runtime
 // contract end-to-end. Substring assertions in the compiler's emit
@@ -34,7 +34,7 @@ function compileFixture(file: string): string {
   execFileSync(SAIL_BIN, ['build', join(FIXTURES, file), '--out', COMPILE_OUT], {
     stdio: 'pipe',
   })
-  const stem = file.replace(/\.sail$/, '')
+  const stem = file.replace(/\.set$/, '')
   const tag = stem.includes('-') ? stem : `sail-${stem}`
   const jsPath = join(COMPILE_OUT, `${tag}.js`)
   // Copy as .mjs so vitest treats it as a module unambiguously.
@@ -48,7 +48,7 @@ async function loadCompiled(file: string): Promise<string> {
   const path = compileFixture(file)
   // Cache-bust per test run with a query param; vitest dedupes by URL.
   await import(`${path}?t=${Date.now()}`)
-  const stem = file.replace(/\.sail$/, '')
+  const stem = file.replace(/\.set$/, '')
   return stem.includes('-') ? stem : `sail-${stem}`
 }
 
@@ -58,7 +58,7 @@ describe('integration: real compile → run', () => {
   }, 120_000)
 
   it('counter compiles and ticks', async () => {
-    const tag = await loadCompiled('counter.sail')
+    const tag = await loadCompiled('counter.set')
     const el = document.createElement(tag)
     document.body.appendChild(el)
 
@@ -84,7 +84,7 @@ describe('integration: real compile → run', () => {
   }, 60_000)
 
   it('search filters with derived + if/else', async () => {
-    const tag = await loadCompiled('search.sail')
+    const tag = await loadCompiled('search.set')
     const el = document.createElement(tag)
     document.body.appendChild(el)
 
@@ -119,7 +119,7 @@ describe('integration: real compile → run', () => {
   }, 60_000)
 
   it('note-display props + raw html + nested if', async () => {
-    const tag = await loadCompiled('note-display.sail')
+    const tag = await loadCompiled('note-display.set')
     const el = document.createElement(tag)
     el.setAttribute('title', 'My Note')
     el.setAttribute('body', 'Hello <strong>world</strong>')
@@ -148,7 +148,7 @@ describe('integration: real compile → run', () => {
   }, 60_000)
 
   it('modal: visibility, slots, backdrop close', async () => {
-    const tag = await loadCompiled('modal.sail')
+    const tag = await loadCompiled('modal.set')
     const el = document.createElement(tag) as HTMLElement & { open?: any }
     // Slot fills BEFORE attaching so resolveSlots picks them up at mount.
     const headerFill = document.createElement('div')
@@ -184,7 +184,7 @@ describe('integration: real compile → run', () => {
   }, 60_000)
 
   it('todo list adds, toggles, removes, reorders', async () => {
-    const tag = await loadCompiled('todo.sail')
+    const tag = await loadCompiled('todo.set')
     const el = document.createElement(tag)
     document.body.appendChild(el)
 

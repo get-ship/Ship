@@ -2,7 +2,7 @@
 
 The browser-side runtime for the Sail framework. Layer 1 of the stack.
 
-Fine-grained reactive signals, custom-element wrapper, patch-protocol applicator. Compiled `.sail` modules import from this package.
+Fine-grained reactive signals, custom-element wrapper, patch-protocol applicator. Compiled `.set` modules import from this package.
 
 **Status:** under construction. v0.1 has the signal engine; v1.0 ships when [03-runtime-architecture.md](../../.artifacts/specs/sail/03-runtime-architecture.md) is implementation-complete.
 

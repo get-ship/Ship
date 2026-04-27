@@ -7,12 +7,12 @@ How `<ship-*>` Lit components from `packages/ship-set/` and `<app-*>` Sail compo
 Ship apps will draw from two component pools indefinitely:
 
 1. **ship-set** — ~200 Lit-based components in `packages/ship-set/`. Buttons, cards, popovers, terminal, code-editor, graph-viz, etc. Mature, themed, tested, published as `@ship/set`.
-2. **app-** Sail components — application-specific composition under `.ship/components/`. Author-written, project-scoped. New ones are `.sail`.
+2. **app-** Sail components — application-specific composition under `.ship/components/`. Author-written, project-scoped. New ones are `.set`.
 
 Both are custom elements. Both register via `customElements.define`. Both compose into Sail templates the same way.
 
 ```html
-<!-- a route file: pipelines.sail -->
+<!-- a route file: pipelines.set -->
 <script lang="ts">
   data live jobs = ship.jobs.list()
 </script>
@@ -71,13 +71,13 @@ The schemas are derived from the Lit component's static properties + JSDoc + an 
 
 ### Sail components' schema emission
 
-The Sail compiler emits `<tag>.schema.json` automatically for every `.sail` file (Phase 10).
+The Sail compiler emits `<tag>.schema.json` automatically for every `.set` file (Phase 10).
 
 ```
 .ship/components/
-├── app-agent-modal.sail
+├── app-agent-modal.set
 ├── app-agent-modal.schema.json    ← emitted by compiler
-├── app-pipeline-board.sail
+├── app-pipeline-board.set
 ├── app-pipeline-board.schema.json
 └── ...
 ```
@@ -90,7 +90,7 @@ The Sail compiler maintains a unified registry across both pools:
 
 ```rust
 pub struct ComponentRegistry {
-    /// Indexed by tag, populated from ship-set's published schemas + project's .sail files.
+    /// Indexed by tag, populated from ship-set's published schemas + project's .set files.
     tags: HashMap<String, ComponentSchema>,
 }
 
@@ -242,7 +242,7 @@ Migrate piece by piece. Both worlds coexist forever via the customElements regis
 ### Migration mechanics
 
 Per component:
-1. Author the Sail equivalent at `packages/ship-set/src/sail/<tag>.sail`
+1. Author the Sail equivalent at `packages/ship-set/src/sail/<tag>.set`
 2. Export both: the Lit class continues to be the default; the Sail version is registered under the same tag with `customElements.define`. **Last registration wins** — but `customElements.define` errors if the tag is already registered, so we do feature-detect:
    ```ts
    if (!customElements.get('ship-button')) {
@@ -273,7 +273,7 @@ ship-set publishes design tokens via `tokens.css` (Layer 3, Ship-specific). The 
 For OSS users, the convention is:
 - Project root has a `tokens.css` (or similar) with CSS custom properties
 - The Sail compiler reads it as a token source via the SchemaSource trait
-- Token references in `.sail` files are validated and resolved at compile time
+- Token references in `.set` files are validated and resolved at compile time
 
 ship-set provides a reference token set; OSS users replace with their own.
 
@@ -286,12 +286,12 @@ my-app/
 ├── sail.config.ts                    # configures sources
 ├── tokens.css                        # design tokens
 ├── components/
-│   ├── my-button.sail
-│   ├── my-card.sail
-│   └── my-list.sail
+│   ├── my-button.set
+│   ├── my-card.set
+│   └── my-list.set
 └── pages/
-    ├── index.sail
-    └── about.sail
+    ├── index.set
+    └── about.set
 ```
 
 The author writes their own primitives. The framework + compiler + runtime handle everything else.

@@ -11,7 +11,7 @@ use anyhow::{Context, Result, anyhow};
 
 use super::ast::{ScriptBlock, ScriptLang, SourceMap, StyleBlock, Template};
 
-/// A single `.sail` file's three blocks, lifted from the source by
+/// A single `.set` file's three blocks, lifted from the source by
 /// position (no semantic parsing of contents yet).
 #[derive(Debug, Default)]
 pub struct RawBlocks {
@@ -35,9 +35,9 @@ pub struct RawBlock {
     pub body_byte_offset: usize,
 }
 
-/// Pull the three blocks out of a `.sail` source string.
+/// Pull the three blocks out of a `.set` source string.
 ///
-/// **A `.sail` file with no `<template>` is invalid** per the spec
+/// **A `.set` file with no `<template>` is invalid** per the spec
 /// — every component must have at least a template. `<script>` and
 /// `<style>` are optional. Order is convention (script → template →
 /// style) but not enforced.

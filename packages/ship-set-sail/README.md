@@ -1,6 +1,6 @@
 # @sail/ship-set — parallel ports
 
-Selected ship-set components reimplemented as `.sail` files for direct
+Selected ship-set components reimplemented as `.set` files for direct
 contrast with the Lit originals. Same visual + behavioral contract,
 different framework.
 
@@ -8,7 +8,7 @@ different framework.
 
 The pitch for Sail rests on agent-token efficiency. Words don't prove
 that — fixed corpora compiled head-to-head do. This package is the
-side-by-side version: each `.sail` here mirrors a real ship-set
+side-by-side version: each `.set` here mirrors a real ship-set
 component in `packages/ship-set/src/web-components/core/`, and the
 tests exercise both ports against the same expectations.
 
@@ -19,7 +19,7 @@ initial draft of `ship-button` and `ship-tabs` had silently dropped CSS
 detail and the animated underline indicator. Both have been ported back
 faithfully; numbers below reflect that.
 
-| Component | Lit (TS+styles) | Sail (.sail) | Δ |
+| Component | Lit (TS+styles) | Sail (.set) | Δ |
 |-----------|-----------------|--------------|---|
 | `ship-badge` | 75 + 237 = **312 LOC** | **141 LOC** | -55% |
 | `ship-progress` | **96 LOC** | **55 LOC** | -43% |
@@ -95,7 +95,7 @@ the original; tests assert behavior, not internal structure.
    through verbatim (it's a top-level at-rule, not a regular rule).
 2. **`::slotted(...)` selectors** have no light-DOM equivalent in Sail.
 3. **Form-associated custom elements** (form participation, validation)
-   aren't reachable from `.sail` script blocks.
+   aren't reachable from `.set` script blocks.
 4. **Nullable prop types** decode awkwardly (`number | null` → `NaN`
    sentinel by default). Worth a dedicated `Nullable<T>` decoder.
 5. **No prop-attribute reflection.** Lit's `reflect: true` mirrors a

@@ -1,4 +1,4 @@
-//! Corpus-level integration tests: compile each fixture .sail file
+//! Corpus-level integration tests: compile each fixture .set file
 //! end-to-end and assert structural invariants on the emitted JS.
 //!
 //! These act as drift detectors — when emit shape changes, these
@@ -22,7 +22,7 @@ fn js(name: &str) -> String {
 
 #[test]
 fn counter_compiles() {
-    let js = js("counter.sail");
+    let js = js("counter.set");
 
     // Custom-element registration with the kebab-cased tag.
     assert!(js.contains("defineComponent(\"sail-counter\""));
@@ -51,7 +51,7 @@ fn counter_compiles() {
 
 #[test]
 fn counter_imports_only_what_is_used() {
-    let js = js("counter.sail");
+    let js = js("counter.set");
     // The counter doesn't use bindAttr, bindValue, bindChecked.
     assert!(!js.contains("bindAttr"));
     assert!(!js.contains("bindValue"));
@@ -66,7 +66,7 @@ fn counter_imports_only_what_is_used() {
 
 #[test]
 fn typeahead_compiles() {
-    let js = js("typeahead.sail");
+    let js = js("typeahead.set");
 
     // Tag.
     assert!(js.contains("defineComponent(\"sail-typeahead\""));
@@ -96,7 +96,7 @@ fn typeahead_compiles() {
 
 #[test]
 fn styled_compiles_with_scoped_css_and_tokens() {
-    let r = compile("styled.sail");
+    let r = compile("styled.set");
     let js = r.js;
 
     // STYLE constant present, scoped, with token rewrite.
@@ -119,7 +119,7 @@ fn styled_compiles_with_scoped_css_and_tokens() {
 
 #[test]
 fn ssr_dts_schema_all_emit_for_typeahead() {
-    let r = compile("typeahead.sail");
+    let r = compile("typeahead.set");
     // SSR wraps in host element with anchors preserved.
     assert!(r.ssr.starts_with("<sail-typeahead data-component=\"sail-typeahead\">"));
     assert!(r.ssr.contains("data-sa=\"0\""));
@@ -140,7 +140,7 @@ fn ssr_dts_schema_all_emit_for_typeahead() {
 
 #[test]
 fn emitted_js_is_valid_module_shape() {
-    for name in ["counter.sail", "typeahead.sail"] {
+    for name in ["counter.set", "typeahead.set"] {
         let js = js(name);
         assert!(js.starts_with("// Auto-generated"), "{name} missing header");
         assert!(js.contains("from '@sail/runtime'"), "{name} missing import");
