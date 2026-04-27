@@ -134,9 +134,7 @@ impl ShipServer {
         // Hint id from env (daemon-spawned agents pre-mint and propagate
         // via SHIP_ACTOR_ID). Externally-launched MCPs have no env id;
         // the daemon mints in `actor_spawn` and we adopt the response.
-        let hint_id: Option<String> = std::env::var("SHIP_ACTOR_ID")
-            .ok()
-            .filter(|v| !v.is_empty());
+        let hint_id: Option<String> = runtime::env::read(runtime::env::Var::ActorId);
 
         // Compute skill-derived subscriptions
         let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);

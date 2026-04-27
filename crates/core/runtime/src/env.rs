@@ -49,6 +49,10 @@ pub enum Var {
     HooksBin,
     TelegramToken,
     TelegramChatId,
+    /// `SHIP_RESPECT_WORKTREE=1` — when set, project-root resolution honors
+    /// the worktree's local `.ship/` instead of redirecting to the main
+    /// checkout. Used by dev tooling iterating per-worktree views/themes.
+    RespectWorktree,
     // ── Legacy ───────────────────────────────────────────────────────────
     /// Legacy `SHIP_DIR` — superseded by `SHIP_HOME` / `ShipHome`.
     Dir,
@@ -78,6 +82,7 @@ impl Var {
             Var::HooksBin => "SHIP_HOOKS_BIN",
             Var::TelegramToken => "SHIP_TELEGRAM_TOKEN",
             Var::TelegramChatId => "SHIP_TELEGRAM_CHAT_ID",
+            Var::RespectWorktree => "SHIP_RESPECT_WORKTREE",
             Var::Dir => "SHIP_DIR",
         }
     }
@@ -102,7 +107,8 @@ impl Var {
             | Var::ManagedHooks
             | Var::HooksBin
             | Var::TelegramToken
-            | Var::TelegramChatId => Category::DevDebug,
+            | Var::TelegramChatId
+            | Var::RespectWorktree => Category::DevDebug,
             Var::Dir => Category::Legacy,
         }
     }

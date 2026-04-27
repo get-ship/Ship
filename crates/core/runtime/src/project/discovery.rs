@@ -170,8 +170,7 @@ fn resolve_project_dir_from_start(
             // views/themes/agents without having every edit redirect to the
             // main checkout. Production / single-worktree dev: leave unset
             // and the redirect-to-main behavior below stays canonical.
-            let respect_worktree = std::env::var("SHIP_RESPECT_WORKTREE")
-                .ok()
+            let respect_worktree = crate::env::read(crate::env::Var::RespectWorktree)
                 .filter(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .is_some();
             if respect_worktree {
