@@ -1,0 +1,43 @@
+<script>
+prop keys: string = ''
+
+derived tokens = keys().split('+').map(s => s.trim()).filter(Boolean)
+derived ariaLabel = keys() ? `Keyboard shortcut: ${keys()}` : ''
+
+mount {
+  if (!el.hasAttribute('role')) el.setAttribute('role', 'group')
+}
+
+effect on ariaLabel {
+  if (ariaLabel()) el.setAttribute('aria-label', ariaLabel())
+  else el.removeAttribute('aria-label')
+}
+</script>
+
+<template>
+{#for token, i of tokens() key={i}}
+  {#if i > 0}
+    <span class="plus" aria-hidden="true">+</span>
+  {/if}
+  <kbd part="key">{token}</kbd>
+{/for}
+</template>
+
+<style>
+:host { display: inline-flex; align-items: center; gap: 3px; vertical-align: middle; }
+kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px;
+  padding: 1px 5px;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.4;
+  color: var(--foreground);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-xs);
+}
+.plus { color: var(--muted-foreground); font-size: var(--text-xs); }
+</style>

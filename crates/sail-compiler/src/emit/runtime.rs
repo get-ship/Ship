@@ -606,13 +606,22 @@ impl<'a> Emitter<'a> {
         let body_arrow = self.render_branch(&body_html, &body_wires, &prelude, &extra);
         let body_arrow = body_arrow.replacen("() => {", "(_initialItem, _initialIdx) => {", 1);
 
+        // Key function parameters mirror the user's loop pattern names
+        // so a `key={i}` clause referencing the index works. The body
+        // is unwrapped (item is the raw value here, not a signal) so
+        // member access reads naturally — `key={item.id}`.
         let key_expr = match key {
             Some(k) => format!(
-                "({item}, _i) => ({k})",
+                "({item}, {idx}) => ({k})",
                 item = item_name,
+                idx = idx_name,
                 k = k.raw,
             ),
-            None => "(_, i) => i".to_string(),
+            None => format!(
+                "({item}, {idx}) => {idx}",
+                item = item_name,
+                idx = idx_name,
+            ),
         };
 
         // Optionally capture the empty branch BEFORE we emit the wire
