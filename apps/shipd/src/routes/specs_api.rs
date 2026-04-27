@@ -9,7 +9,7 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use runtime::db::specs::Spec;
+use crate::services::specs::service::Spec;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;

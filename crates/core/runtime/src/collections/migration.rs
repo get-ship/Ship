@@ -24,6 +24,7 @@ use super::store;
 use crate::data::{DataService, SqlParam};
 
 pub(super) const MIGRATION_KEY: &str = "platform_to_collections_v1";
+const SPEC_TABLE_KEY: &str = "spec_table_to_collection_v1";
 
 /// Summary of a migration run.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -94,6 +95,41 @@ pub fn migrate_platform_to_collections(
         adrs_migrated,
         specs_migrated,
     })
+}
+
+/// One-shot copy of rows from the dedicated `spec` table into the `specs`
+/// collection. The dedicated table was added in migration 0002 and dropped
+/// in 0007; this runs before the drop so users who authored specs through
+/// the old API don't lose data.
+///
+/// Idempotent: gated by `spec_table_to_collection_v1` and additionally
+/// checked per-row by id (existing items are skipped).
+pub fn migrate_spec_table_to_collection(
+    svc: &mut DataService,
+    platform_db_path: &Path,
+) -> Result<usize> {
+    ensure_migration_state_table(svc)?;
+
+    if is_migration_complete(svc, SPEC_TABLE_KEY)? {
+        return Ok(0);
+    }
+
+    if !platform_db_path.exists() {
+        mark_migration_complete(svc, SPEC_TABLE_KEY)?;
+        return Ok(0);
+    }
+
+    let Some(mut platform) = open_platform(platform_db_path, true)? else {
+        mark_migration_complete(svc, SPEC_TABLE_KEY)?;
+        return Ok(0);
+    };
+
+    let schema = builtin::specs_schema();
+    store::ensure_collection_table(svc, &schema)?;
+    let migrated = tables::migrate_spec_table(svc, &schema, &mut platform)?;
+
+    mark_migration_complete(svc, SPEC_TABLE_KEY)?;
+    Ok(migrated)
 }
 
 /// Prune legacy source rows from `platform.db` after the v1 migration has settled.

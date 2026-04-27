@@ -73,6 +73,17 @@ impl DataService {
                 "collections: pruned legacy source rows from platform.db"
             );
         }
+        // Specs were stored in a dedicated `spec` table from migration 0002
+        // until 0007 dropped it. Copy those rows into the specs collection
+        // before sqlx applies 0007. Idempotent + flag-gated.
+        let spec_table_count =
+            crate::collections::migration::migrate_spec_table_to_collection(self, &platform_path)?;
+        if spec_table_count > 0 {
+            tracing::info!(
+                count = spec_table_count,
+                "collections: migrated rows from legacy spec table into specs collection"
+            );
+        }
         Ok(())
     }
 

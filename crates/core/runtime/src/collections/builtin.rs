@@ -57,6 +57,13 @@ fn enum_field(values: &[&str], filterable_flag: bool) -> FieldDef {
     }
 }
 
+/// Specs ship as a first-party (non-system) collection. Body content lives
+/// on disk at `.artifacts/specs/<id>.md`; the on-disk path is stored as
+/// `body_path` so callers can stream bodies without bloating the row.
+///
+/// The dedicated `spec` table (migration 0002) was retired in 0007 — every
+/// spec now flows through the same collection plumbing that user-defined
+/// collections do.
 pub fn specs_schema() -> CollectionSchema {
     let mut fields: IndexMap<String, FieldDef> = IndexMap::new();
     fields.insert("title".into(), FieldDef {
@@ -64,14 +71,16 @@ pub fn specs_schema() -> CollectionSchema {
         filterable: true,
         ..bare(FieldType::String)
     });
+    fields.insert("body_path".into(), required(FieldType::String));
     fields.insert(
         "status".into(),
-        enum_field(&["draft", "in-progress", "complete", "abandoned"], true),
+        enum_field(&["draft", "ready", "launched", "archived"], true),
     );
-    fields.insert("description".into(), field(FieldType::Markdown));
-    fields.insert("acceptance".into(), field(FieldType::Markdown));
-    fields.insert("scope".into(), field(FieldType::Array));
-    fields.insert("tags".into(), filterable(FieldType::Array));
+    fields.insert("pipeline".into(), filterable(FieldType::String));
+    fields.insert("vars".into(), field(FieldType::Object));
+    fields.insert("criteria".into(), field(FieldType::Array));
+    fields.insert("scope".into(), filterable(FieldType::Array));
+    fields.insert("priority".into(), filterable(FieldType::Number));
 
     CollectionSchema {
         id: SPECS_ID.to_string(),
@@ -185,6 +194,7 @@ pub fn annotations_schema() -> CollectionSchema {
 /// listing should use `user_schemas()` instead.
 pub fn all_schemas() -> Vec<CollectionSchema> {
     vec![
+        specs_schema(),
         notes_schema(),
         feedback_schema(),
         annotations_schema(),
@@ -213,10 +223,11 @@ mod tests {
     #[test]
     fn all_schemas_defined() {
         let ids: Vec<String> = all_schemas().into_iter().map(|s| s.id).collect();
-        // specs and adrs removed from built-ins; notes + system schemas remain.
+        // specs is back as a first-party non-system collection.
+        // adrs ships as `.ship/collections/adrs.jsonc` (user-editable).
         assert_eq!(
             ids,
-            vec![NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID],
+            vec![SPECS_ID, NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID],
         );
     }
 
@@ -224,6 +235,7 @@ mod tests {
     fn user_schemas_excludes_system() {
         let user = user_schemas();
         let ids: Vec<&str> = user.iter().map(|s| s.id.as_str()).collect();
+        assert!(ids.contains(&SPECS_ID));
         assert!(ids.contains(&NOTES_ID));
         assert!(!ids.contains(&FEEDBACK_ID));
         assert!(!ids.contains(&ANNOTATIONS_ID));
@@ -267,7 +279,7 @@ mod tests {
 
         register_builtin_schemas(&mut svc).unwrap();
 
-        for id in [NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID] {
+        for id in [SPECS_ID, NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID] {
             let table = format!("collection_{id}");
             let rows = svc
                 .query(

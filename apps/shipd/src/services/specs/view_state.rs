@@ -3,7 +3,7 @@
 //! payloads that templates consume directly (minijinja 2.x can't mutate
 //! maps, so all shaping must land here).
 
-use runtime::db::specs::{self, Spec};
+use crate::services::specs::service::{Spec, SpecsService};
 use serde::Serialize;
 
 use super::parse::{
@@ -167,8 +167,8 @@ fn list_pipelines() -> Vec<String> {
 }
 
 /// Build the rail context for `ship.specs.summaries(q?, selected?)`.
-pub fn build_summaries(q: &str, selected: Option<&str>) -> SummariesCtx {
-    let all = specs::list_specs().unwrap_or_default();
+pub fn build_summaries(svc: &dyn SpecsService, q: &str, selected: Option<&str>) -> SummariesCtx {
+    let all = svc.list().unwrap_or_default();
     SummariesCtx {
         selected_id: selected.map(|s| s.to_string()),
         q: q.to_string(),
@@ -181,13 +181,13 @@ pub fn build_summaries(q: &str, selected: Option<&str>) -> SummariesCtx {
 
 /// Build the editor-pane context for `ship.specs.detail(id)`. Returns
 /// `None` when `id` is missing from the spec store.
-pub fn build_detail(id: &str) -> Option<SpecDetail> {
-    let spec = specs::get_spec(id).ok().flatten()?;
-    Some(to_detail(&spec))
+pub fn build_detail(svc: &dyn SpecsService, id: &str) -> Option<SpecDetail> {
+    let (spec, body) = svc.get_with_body(id).ok()?;
+    Some(to_detail(svc, &spec, &body))
 }
 
-fn to_detail(s: &Spec) -> SpecDetail {
-    let body = specs::load_body(&s.body_path).unwrap_or_default();
+fn to_detail(_svc: &dyn SpecsService, s: &Spec, body: &str) -> SpecDetail {
+    let body = body.to_string();
     let (sections, prelude) = split_sections(&body);
 
     let goal_md = sections.get("goal").cloned().unwrap_or(prelude);
@@ -242,7 +242,6 @@ fn to_detail(s: &Spec) -> SpecDetail {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use runtime::db::specs::Spec;
 
     fn sample(id: &str, status: &str, title: &str) -> Spec {
         Spec {

@@ -271,7 +271,11 @@ impl ShipRuntime {
             kernel.clone(),
             data_service.clone(),
         );
-        let specs = crate::services::specs::service::SpecsServiceImpl::arc(kernel.clone());
+        let specs = crate::services::specs::service::SpecsServiceImpl::arc(
+            global_dir.clone(),
+            kernel.clone(),
+            data_service.clone(),
+        );
 
         Ok(Self {
             config,
@@ -675,7 +679,11 @@ impl ShipRuntime {
             kernel.clone(),
             data_service.clone(),
         );
-        let specs = crate::services::specs::service::SpecsServiceImpl::arc(kernel.clone());
+        let specs = crate::services::specs::service::SpecsServiceImpl::arc(
+            ship_dir.clone(),
+            kernel.clone(),
+            data_service.clone(),
+        );
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
@@ -750,7 +758,11 @@ impl ShipRuntime {
             kernel.clone(),
             data_service.clone(),
         );
-        let specs = crate::services::specs::service::SpecsServiceImpl::arc(kernel.clone());
+        let specs = crate::services::specs::service::SpecsServiceImpl::arc(
+            ship_dir.clone(),
+            kernel.clone(),
+            data_service.clone(),
+        );
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.

@@ -219,10 +219,15 @@ fn migration_copies_rows_and_is_idempotent() {
 
     let specs = store::query_items(&mut svc, &builtin::specs_schema(), &empty_query(SPECS_ID)).unwrap();
     assert_eq!(specs.len(), 1);
-    assert_eq!(specs[0].data["status"], "in-progress");
-    let acceptance = specs[0].data["acceptance"].as_str().unwrap();
-    assert!(acceptance.contains("Acceptance one"));
-    assert!(acceptance.contains("Acceptance two"));
+    assert_eq!(specs[0].data["status"], "launched");
+    // Body content (description + acceptance bullets) is written to the
+    // file at body_path on migration. We can't read it from this test
+    // because crate::project::get_project_dir(None) won't find a project
+    // — the file write is skipped in that case. body_path is still set.
+    assert!(
+        specs[0].data["body_path"].as_str().unwrap().ends_with(".md"),
+        "body_path should be set after migration"
+    );
 
     // Running again should not duplicate anything.
     let report2 = migrate_platform_to_collections(&mut svc, &platform).unwrap();
@@ -263,9 +268,11 @@ fn status_mapping() {
     assert_eq!(map_adr_status("replaced"), "superseded");
     assert_eq!(map_adr_status("whatever"), "proposed");
 
-    assert_eq!(map_spec_status("active"), "in-progress");
-    assert_eq!(map_spec_status("completed"), "complete");
-    assert_eq!(map_spec_status("cancelled"), "abandoned");
+    // Specs schema enum is now [draft, ready, launched, archived].
+    // active/completed fold into "launched"; cancelled into "archived".
+    assert_eq!(map_spec_status("active"), "launched");
+    assert_eq!(map_spec_status("completed"), "launched");
+    assert_eq!(map_spec_status("cancelled"), "archived");
     assert_eq!(map_spec_status("unknown"), "draft");
 }
 

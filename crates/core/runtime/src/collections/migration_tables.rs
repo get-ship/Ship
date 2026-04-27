@@ -143,22 +143,49 @@ pub(super) fn migrate_specs(
             .as_deref()
             .and_then(|s| serde_json::from_str(s).ok())
             .unwrap_or_else(|| serde_json::json!([]));
-        let mut data = serde_json::Map::new();
-        data.insert("title".into(), serde_json::Value::String(title));
-        data.insert("status".into(), serde_json::Value::String(map_spec_status(&status)));
-        let description_text = match (description, body_markdown) {
+
+        // Glue legacy description + body_markdown + acceptance bullets into
+        // a single markdown body that lands at .artifacts/specs/<id>.md —
+        // the storage shape the new specs schema expects.
+        let body_inline = match (&description, &body_markdown) {
             (Some(d), Some(b)) if !d.is_empty() && !b.is_empty() => format!("{d}\n\n{b}"),
-            (Some(d), _) if !d.is_empty() => d,
-            (_, Some(b)) if !b.is_empty() => b,
+            (Some(d), _) if !d.is_empty() => d.clone(),
+            (_, Some(b)) if !b.is_empty() => b.clone(),
             _ => String::new(),
         };
-        if !description_text.is_empty() {
-            data.insert("description".into(), serde_json::Value::String(description_text));
+        let body_text = if acceptance.is_empty() {
+            body_inline
+        } else {
+            let bullets = acceptance
+                .iter()
+                .map(|t| format!("- {t}"))
+                .collect::<Vec<_>>()
+                .join("\n");
+            if body_inline.is_empty() {
+                format!("## Acceptance\n\n{bullets}\n")
+            } else {
+                format!("{body_inline}\n\n## Acceptance\n\n{bullets}\n")
+            }
+        };
+        let body_path = format!(".artifacts/specs/{id}.md");
+        // Best-effort write; if the project root isn't resolvable the
+        // body file is missing but the row still lands. Authors can
+        // re-author the body via the UI.
+        if !body_text.is_empty()
+            && let Ok(project_ship) = crate::project::get_project_dir(None)
+            && let Some(root) = project_ship.parent()
+        {
+            let abs = root.join(&body_path);
+            if let Some(dir) = abs.parent() {
+                let _ = std::fs::create_dir_all(dir);
+            }
+            let _ = std::fs::write(&abs, &body_text);
         }
-        if !acceptance.is_empty() {
-            let bullets = acceptance.iter().map(|t| format!("- {t}")).collect::<Vec<_>>().join("\n");
-            data.insert("acceptance".into(), serde_json::Value::String(bullets));
-        }
+
+        let mut data = serde_json::Map::new();
+        data.insert("title".into(), serde_json::Value::String(title));
+        data.insert("body_path".into(), serde_json::Value::String(body_path));
+        data.insert("status".into(), serde_json::Value::String(map_spec_status(&status)));
         data.insert("scope".into(), scope);
         if item_exists(svc, &schema.id, &id)? {
             continue;
@@ -170,14 +197,83 @@ pub(super) fn migrate_specs(
 }
 
 pub(super) fn map_spec_status(raw: &str) -> String {
+    // Map legacy `target.status` values onto the current specs enum
+    // (draft / ready / launched / archived). The legacy active/complete
+    // states fold into "launched" since they imply the work was kicked
+    // off; abandoned folds into "archived".
     match raw.to_ascii_lowercase().as_str() {
         "draft" | "proposed" | "planned" => "draft",
-        "active" | "in-progress" | "in_progress" | "doing" => "in-progress",
-        "complete" | "completed" | "done" | "shipped" => "complete",
-        "abandoned" | "cancelled" | "canceled" | "dropped" => "abandoned",
+        "ready" | "queued" => "ready",
+        "active" | "in-progress" | "in_progress" | "doing" | "complete" | "completed"
+        | "done" | "shipped" | "launched" => "launched",
+        "abandoned" | "cancelled" | "canceled" | "dropped" | "archived" => "archived",
         _ => "draft",
     }
     .to_string()
+}
+
+// ── Spec table → specs collection ────────────────────────────────────────────
+//
+// Migration 0007 drops the dedicated `spec` table that 0002 added. Before
+// the drop fires, copy every row into the `specs` collection so users who
+// authored specs through the old API don't lose data. Idempotent: skipped
+// when the source table is missing or when the destination already has a
+// row with the matching id.
+
+pub(super) fn migrate_spec_table(
+    svc: &mut DataService,
+    schema: &CollectionSchema,
+    platform: &mut SqliteConnection,
+) -> Result<usize> {
+    if !table_exists(platform, "spec")? {
+        return Ok(0);
+    }
+    let rows = crate::db::block_on(async {
+        sqlx::query(
+            "SELECT id, title, body_path, status, pipeline, vars_json, criteria_json, scope_json, priority FROM spec",
+        )
+        .fetch_all(&mut *platform)
+        .await
+    })?;
+    let mut migrated = 0;
+    for row in rows {
+        let id: String = row.try_get("id")?;
+        if item_exists(svc, &schema.id, &id)? {
+            continue;
+        }
+        let title: String = row.try_get("title")?;
+        let body_path: String = row.try_get("body_path")?;
+        let status: String = row.try_get("status").unwrap_or_else(|_| "draft".into());
+        let pipeline: Option<String> = row.try_get("pipeline").ok();
+        let vars_json: String = row.try_get("vars_json").unwrap_or_else(|_| "{}".into());
+        let criteria_json: String = row.try_get("criteria_json").unwrap_or_else(|_| "[]".into());
+        let scope_json: String = row.try_get("scope_json").unwrap_or_else(|_| "[]".into());
+        let priority: Option<i64> = row.try_get("priority").ok();
+
+        let vars: serde_json::Value =
+            serde_json::from_str(&vars_json).unwrap_or_else(|_| serde_json::json!({}));
+        let criteria: serde_json::Value =
+            serde_json::from_str(&criteria_json).unwrap_or_else(|_| serde_json::json!([]));
+        let scope: serde_json::Value =
+            serde_json::from_str(&scope_json).unwrap_or_else(|_| serde_json::json!([]));
+
+        let mut data = serde_json::Map::new();
+        data.insert("title".into(), serde_json::Value::String(title));
+        data.insert("body_path".into(), serde_json::Value::String(body_path));
+        data.insert("status".into(), serde_json::Value::String(status));
+        if let Some(p) = pipeline.filter(|s| !s.is_empty()) {
+            data.insert("pipeline".into(), serde_json::Value::String(p));
+        }
+        data.insert("vars".into(), vars);
+        data.insert("criteria".into(), criteria);
+        data.insert("scope".into(), scope);
+        if let Some(p) = priority {
+            data.insert("priority".into(), serde_json::json!(p as u32));
+        }
+        store::create_item(svc, schema, &id, &serde_json::Value::Object(data), None)?;
+        migrated += 1;
+    }
+    Ok(migrated)
 }
 
 // ── Shared ───────────────────────────────────────────────────────────────────
