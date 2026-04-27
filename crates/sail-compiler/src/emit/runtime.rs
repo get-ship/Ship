@@ -172,6 +172,7 @@ impl<'a> Emitter<'a> {
             }
             Node::Window { events } => self.emit_global_events("window", events),
             Node::Document { events } => self.emit_global_events("document", events),
+            Node::Host { attrs } => self.emit_host(attrs),
             Node::RawHtml(expr) => {
                 let id = self.next_anchor;
                 self.next_anchor += 1;
@@ -498,6 +499,52 @@ impl<'a> Emitter<'a> {
             "{{ name: {name:?}, anchor: _slotAnchors[{id}], fallback: {fb} }}",
             fb = fallback_arrow,
         ));
+    }
+
+    /// `<:host attr={expr} aria-foo={cond} role="img" />`
+    ///
+    /// Each attribute becomes a binding against the component's host
+    /// element. Static values use `host.setAttribute` (one-shot at
+    /// mount); interpolated values use `bindAttr(host, ...)` so they
+    /// react to dependency changes. Empty/null/false values are auto-
+    /// omitted by `bindAttr` (see runtime/bind.ts).
+    ///
+    /// No HTML emission — the directive doesn't render content; it only
+    /// configures the host element. Children, events, two-way bindings
+    /// are not supported (errors silently skipped — the parser's
+    /// classify only fires for self-closing `<:host …/>`).
+    fn emit_host(&mut self, attrs: &[Attr]) {
+        if attrs.is_empty() { return; }
+        let cl = self.cleanup_array.clone();
+        let mut wire = String::from("  {\n");
+        for a in attrs {
+            match &a.value {
+                AttrValue::Static(s) => {
+                    wire.push_str(&format!(
+                        "    host.setAttribute({name:?}, {val:?});\n",
+                        name = a.name,
+                        val = s,
+                    ));
+                }
+                AttrValue::Interpolated(expr) => {
+                    self.imports.insert("bindAttr");
+                    let deps = self.deps_array(&expr.raw);
+                    let wrapped = self.rx(&expr.raw);
+                    wire.push_str(&format!(
+                        "    {cl}.push(bindAttr(host, {name:?}, () => ({wrapped}), {deps}));\n",
+                        name = a.name,
+                    ));
+                }
+                AttrValue::BindTwoWay(_) | AttrValue::OnEvent { .. } => {
+                    // Out of scope for <:host>. The host element gets
+                    // events via top-level event blocks (planned) or
+                    // via `mount { el.addEventListener(...) }`. Two-way
+                    // bind on the host doesn't have a coherent meaning.
+                }
+            }
+        }
+        wire.push_str("  }");
+        self.wires.push(wire);
     }
 
     fn emit_global_events(&mut self, target: &str, events: &[crate::parse::ast::EventBinding]) {
@@ -1418,6 +1465,61 @@ function inc() { count.set(count() + 1) }
         assert!(js.contains("name: \"default\""));
         assert!(js.contains("data-ss=\"0\""));
         assert!(js.contains("data-ss=\"1\""));
+    }
+
+    /// Platform event attributes (`onclick={fn}`, `oninput={fn}`, etc.)
+    /// emit the same `on(_n, "click", fn)` wire as the legacy `on:`
+    /// prefix. Static `onclick="..."` (HTML inline-handler shape) keeps
+    /// the static-attribute fallthrough.
+    #[test]
+    fn platform_event_attrs_compile_to_on_wire() {
+        let interp = compile(
+            "<script>function fn(e) {}</script>\n\
+             <template><button onclick={fn}>x</button></template>",
+        );
+        assert!(interp.contains("on(_n, \"click\", fn"));
+        assert!(interp.contains("data-sa="));
+
+        // Static `onclick="..."` is the HTML inline-handler shape;
+        // keep it as a static attribute, no event wire.
+        let stat = compile("<template><button onclick=\"alert(1)\">x</button></template>");
+        assert!(!stat.contains("on(_n, \"click\""));
+        // The static attr is rendered into the SSR HTML constant; we
+        // only assert it didn't get treated as an event wire.
+        assert!(stat.contains("onclick"));
+    }
+
+    /// Both `onclick={fn}` and `on:click={fn}` should emit identical
+    /// event wires. The legacy `on:` prefix stays parseable while
+    /// existing ports migrate to platform syntax.
+    #[test]
+    fn legacy_on_prefix_still_works() {
+        let legacy = compile(
+            "<script>function fn(e) {}</script>\n\
+             <template><button on:click={fn}>x</button></template>",
+        );
+        assert!(legacy.contains("on(_n, \"click\", fn"));
+    }
+
+    /// `<:host>` directive emits bindAttr against the component's host
+    /// element for each interpolated attribute, and host.setAttribute
+    /// for static ones. Replaces the per-port `mount + effect on X +
+    /// el.setAttribute` ritual.
+    #[test]
+    fn host_directive_binds_attrs_to_host() {
+        let js = compile(
+            "<script>prop selected: boolean = false</script>\n\
+             <template>\
+               <:host role=\"button\" aria-selected={selected} />\
+               <div class=\"tile\">x</div>\
+             </template>",
+        );
+        // Static role uses one-shot setAttribute on the host.
+        assert!(js.contains("host.setAttribute(\"role\", \"button\")"));
+        // Dynamic aria-selected reactively binds against host.
+        assert!(js.contains("bindAttr(host, \"aria-selected\""));
+        // The directive emits no HTML (no <:host> in the template).
+        assert!(!js.contains("<:host"));
     }
 
     /// Regression test for gap #21: `{#if}` inside slot fallback content.

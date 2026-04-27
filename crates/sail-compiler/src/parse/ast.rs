@@ -154,6 +154,14 @@ pub enum Node {
     Document {
         events: Vec<EventBinding>,
     },
+    /// `<:host attr={expr} aria-foo={cond} />` — declarative reactive
+    /// bindings on the component's host element. Replaces the
+    /// `mount { el.setAttribute(...) } effect on X { ... }` ritual
+    /// every form-associated and ARIA-aware port had to write.
+    /// Self-closing only; carries no children, no events.
+    Host {
+        attrs: Vec<Attr>,
+    },
     RawHtml(Expr),
     /// Compile-time block placeholder in a layout/parent template.
     /// `<block name="content">default</block>` — the body acts as a

@@ -206,7 +206,14 @@ impl<'a> Parser<'a> {
     }
 
     fn is_tag_start(&self, at: usize) -> bool {
-        self.bytes.get(at).map(|b| b.is_ascii_alphabetic()).unwrap_or(false)
+        self.bytes.get(at).map(|b| {
+            // Standard HTML tags start with a letter. `<:host>` is the
+            // sail directive for host-element bindings — allow `:`
+            // when followed by an ASCII letter so `<:host …/>` parses.
+            b.is_ascii_alphabetic()
+                || (*b == b':'
+                    && self.bytes.get(at + 1).map(|c| c.is_ascii_alphabetic()).unwrap_or(false))
+        }).unwrap_or(false)
     }
 
     // ── Elements ──────────────────────────────────────────────────────
@@ -291,6 +298,9 @@ impl<'a> Parser<'a> {
         }
         if tag == "sail:document" {
             return Node::Document { events: collect_events(&attrs) };
+        }
+        if tag == ":host" {
+            return Node::Host { attrs };
         }
         // Compile-time layout primitives (resolved before emit, never
         // appear in the runtime DOM).
@@ -402,6 +412,23 @@ impl<'a> Parser<'a> {
             let _ = rest;
             return AttrValue::BindTwoWay(Expr { raw: payload.into_expr() });
         }
+        // Platform-shaped event handlers: `onclick={fn}`, `oninput={fn}`,
+        // `onsubmit={fn}` etc. Only fires for INTERPOLATED attrs (the
+        // value is `{expr}`) — static `onclick="alert(1)"` keeps the
+        // legacy HTML inline-handler shape, since that's what the
+        // platform does and a static event handler isn't meaningful in
+        // a reactive component anyway.
+        if let Some(event_name) = is_platform_event_attr(name, &payload) {
+            return AttrValue::OnEvent {
+                event: event_name,
+                modifiers: Vec::new(),
+                handler: Expr { raw: payload.into_expr() },
+            };
+        }
+        // Legacy `on:click={fn}` — kept while existing ports migrate.
+        // Once every .set file uses the platform shape, this branch
+        // can become a hard error and the prefix can disappear from
+        // the parser.
         if let Some(spec) = name.strip_prefix("on:") {
             let (event, modifiers) = split_event_spec(spec);
             return AttrValue::OnEvent {
@@ -684,6 +711,36 @@ fn collect_slot_fills(_attrs: &[Attr], children: &[Node]) -> Vec<SlotFill> {
 
 fn filter_non_slot_children(children: Vec<Node>, _attrs: &[Attr]) -> Vec<Node> {
     children
+}
+
+/// Match HTML's platform event-attribute names: any attr whose name
+/// starts with `on` followed by a lowercase letter. Returns the event
+/// name (without the `on` prefix). Only fires for interpolated
+/// values — `{fn}` payloads. Static `onclick="alert(1)"` stays a
+/// regular static attribute (HTML inline-handler legacy shape).
+fn is_platform_event_attr(name: &str, payload: &AttrPayload) -> Option<String> {
+    if !matches!(payload, AttrPayload::Expr(_)) {
+        return None;
+    }
+    let rest = name.strip_prefix("on")?;
+    if rest.is_empty() {
+        return None;
+    }
+    if !rest
+        .chars()
+        .next()
+        .map(|c| c.is_ascii_lowercase())
+        .unwrap_or(false)
+    {
+        return None;
+    }
+    if !rest
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-')
+    {
+        return None;
+    }
+    Some(rest.to_string())
 }
 
 fn split_event_spec(spec: &str) -> (String, Vec<EventModifier>) {
