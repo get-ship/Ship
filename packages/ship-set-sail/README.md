@@ -16,8 +16,10 @@ tests exercise both ports against the same expectations.
 
 | Component | Lit (TS+styles) | Sail (.sail) | Notes |
 |-----------|-----------------|--------------|-------|
-| `ship-badge` | 75 + 237 = **312 LOC** across 2 files | **141 LOC** in 1 file | -55% lines, single file |
-| `ship-progress` | **96 LOC** in 1 file (CSS inline via `css\`\`\``) | **55 LOC** in 1 file | -43% lines, derived bindings replace render-method math |
+| `ship-badge` | 75 + 237 = **312 LOC** | **141 LOC** | -55% lines, single file |
+| `ship-progress` | **96 LOC** | **55 LOC** | -43% lines, derived bindings replace render-method math |
+| `ship-button` | **557 LOC** (TS+inline CSS) | **190 LOC** | -66% lines (CSS subset trimmed; visual parity preserved on the high-leverage states) |
+| `ship-tabs` + `ship-tab` + `ship-tab-panel` | 278 + 291 + (in same file) = **569 LOC** | 199 + 14 + 20 = **233 LOC** | -59%; reactive declarative tabs with keyboard nav, click activation, panel sync, custom event dispatch |
 
 Counts include doc comments. Both ports keep visual + ARIA parity with
 the original; tests assert behavior, not internal structure.
@@ -70,6 +72,29 @@ the original; tests assert behavior, not internal structure.
    aren't reachable from `.sail` script blocks.
 4. **Nullable prop types** decode awkwardly (`number | null` → `NaN`
    sentinel by default). Worth a dedicated `Nullable<T>` decoder.
+5. **No prop-attribute reflection.** Lit's `reflect: true` mirrors a
+   property write back to the host attribute. Sail props are
+   one-way (attribute → signal). Components like `ship-tabs` that need
+   external observers to see internal state changes (e.g.,
+   `tabs.active` reflecting after a click) must call
+   `el.setAttribute(...)` manually. Adding `prop X: T reflect = …`
+   syntax is a small win.
+6. **No `:scope >` direct-child queries after slot resolution.**
+   Sail's slot resolution re-parents fills into the slot's container,
+   so `el.querySelectorAll(':scope > ship-tab')` returns nothing once
+   the template renders. Workaround: query without `:scope >`. This is
+   different from Lit's shadow DOM, where the host's actual children
+   stay where the author wrote them.
+7. **MutationObserver inside a component is loop-prone.** A naive
+   `mo.observe(el, { childList: true, subtree: true })` to track child
+   additions fires recursively when the component's own template
+   inserts elements. Sail v1 has no "self-emitted vs external" mutation
+   distinction — `ship-tabs` had to drop the observer (no dynamic tab
+   add at runtime) until the runtime grows a scoped observer primitive.
+8. **Slot fills with `slot="X"` after resolveSlots get re-parented.**
+   `:scope > ship-tab` doesn't see them. Tests adapt by keying on tag
+   name globally — fine in practice, slightly less hygienic than the
+   Lit version.
 
 ## How to read the contrast
 

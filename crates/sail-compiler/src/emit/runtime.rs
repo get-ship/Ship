@@ -657,6 +657,7 @@ impl<'a> Emitter<'a> {
             if !s.state.is_empty() { imports.push("signal"); }
             if !s.derived.is_empty() { imports.push("derived"); }
             if s.data.iter().any(|d| !d.live) { imports.push("signal"); }
+            if s.effects.iter().any(|e| !e.once) { imports.push("effect"); }
             // `data live` adds its own `data` import via self.imports
             // during script emit; nothing extra needed here.
         }
@@ -697,6 +698,10 @@ impl<'a> Emitter<'a> {
             "defineComponent({tag:?}, SCHEMA, (host, propSignals) => {{\n",
             tag = self.tag
         ));
+        // `el` is the spec-reserved alias for the host element. Bind it
+        // up front so script-block code (mount/unmount blocks, user
+        // functions, effect bodies) can reference it.
+        out.push_str("  const el = host\n");
         out.push_str("  const cleanups = []\n");
 
         if let Some(s) = script {
@@ -756,6 +761,25 @@ impl<'a> Emitter<'a> {
                 out.push_str("  ");
                 out.push_str(&f.raw.replace('\n', "\n  "));
                 out.push('\n');
+            }
+            // `effect [once] [on a, b] { body }` declarations.
+            for ef in &s.effects {
+                let body = ef.body.replace('\n', "\n    ");
+                if ef.once {
+                    out.push_str(&format!(
+                        "  // effect once {{}}\n  {{\n    {body}\n  }}\n"
+                    ));
+                } else {
+                    let deps = if ef.deps.is_empty() {
+                        "[]".to_string()
+                    } else {
+                        format!("[{}]", ef.deps.join(", "))
+                    };
+                    self.imports.insert("effect");
+                    out.push_str(&format!(
+                        "  cleanups.push(effect(() => {{\n    {body}\n  }}, {deps}))\n"
+                    ));
+                }
             }
         }
 
