@@ -510,6 +510,15 @@ impl<'a> Emitter<'a> {
             None => "(_, i) => i".to_string(),
         };
 
+        // Optionally capture the empty branch BEFORE we emit the wire
+        // so both the for and the empty placement share the same
+        // _slot reference.
+        let empty_arrow = empty.map(|empty_nodes| {
+            let (h, w) = self.capture(empty_nodes, &[]);
+            self.imports.insert("bindIf");
+            self.render_branch(&h, &w, "", "")
+        });
+
         let root = self.query_root.clone();
         let cl = self.cleanup_array.clone();
         let mut wire = String::from("  {\n");
@@ -517,7 +526,21 @@ impl<'a> Emitter<'a> {
             "    const _slot = {root}.querySelector('[data-sf=\"{id}\"]')\n"
         ));
         wire.push_str("    const _anchor = document.createComment('sf')\n");
-        wire.push_str("    if (_slot) _slot.replaceWith(_anchor)\n");
+        if let Some(empty) = &empty_arrow {
+            wire.push_str("    const _eAnchor = document.createComment('sf-empty')\n");
+            wire.push_str("    if (_slot) {\n");
+            wire.push_str("      _slot.parentNode.insertBefore(_anchor, _slot)\n");
+            wire.push_str("      _slot.parentNode.insertBefore(_eAnchor, _slot)\n");
+            wire.push_str("      _slot.remove()\n");
+            wire.push_str("    }\n");
+            wire.push_str(&format!(
+                "    {cl}.push(bindIf({{ anchor: _eAnchor, cond: () => ({iter}).length === 0, then_: {empty} }}))\n",
+                iter = iter.raw,
+                empty = empty,
+            ));
+        } else {
+            wire.push_str("    if (_slot) _slot.replaceWith(_anchor)\n");
+        }
         wire.push_str(&format!(
             "    {cl}.push(bindFor({{\n      anchor: _anchor,\n      items: () => ({iter}),\n      key: {key},\n      render: {body}\n    }}))\n",
             iter = iter.raw,
@@ -526,30 +549,6 @@ impl<'a> Emitter<'a> {
         ));
         wire.push_str("  }");
         self.wires.push(wire);
-
-        // {:empty} body — emitted as a sibling bindIf(empty if list is empty).
-        if let Some(empty_nodes) = empty {
-            let (empty_html, empty_wires) = self.capture(empty_nodes, &[]);
-            let empty_arrow = self.render_branch(&empty_html, &empty_wires, "", "");
-            self.imports.insert("bindIf");
-            let mut wire = String::from("  {\n");
-            wire.push_str(&format!(
-                "    const _eAnchor = document.createComment('sf-empty')\n"
-            ));
-            wire.push_str(&format!(
-                "    {cl}.push(bindIf({{ anchor: _eAnchor, cond: () => ({iter}).length === 0, then_: {empty} }}))\n",
-                iter = iter.raw,
-                empty = empty_arrow,
-            ));
-            wire.push_str("  }");
-            // Note: empty anchor needs to live in the DOM; for MVP, we
-            // append next to the for anchor by inserting after slot
-            // replacement. The wire above declares the anchor but
-            // doesn't insert it — TODO once a clean placement strategy
-            // exists. For now, the empty branch wire is recorded but
-            // rendered into a detached anchor (no visible behavior).
-            self.wires.push(wire);
-        }
     }
 
     fn deps_array(&mut self, expr: &str) -> String {
@@ -949,6 +948,20 @@ function inc() { count.set(count() + 1) }
         // Inner bindText reads it() and tracks `it` as a dep.
         assert!(js.contains("String(it.name)"));
         assert!(js.contains("[it]"));
+    }
+
+    #[test]
+    fn for_with_empty_emits_bindIf_for_empty_branch() {
+        let js = compile(
+            "<script>state xs = []</script>\n<template>{#for x of xs}<li>{x}</li>{:empty}<p>none</p>{/for}</template>",
+        );
+        assert!(js.contains("bindFor"));
+        assert!(js.contains("bindIf"));
+        assert!(js.contains("cond: () => (xs).length === 0"));
+        assert!(js.contains("_eAnchor"));
+        // Both anchors inserted before _slot is removed.
+        assert!(js.contains("insertBefore(_anchor"));
+        assert!(js.contains("insertBefore(_eAnchor"));
     }
 
     #[test]
