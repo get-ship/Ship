@@ -121,9 +121,9 @@ impl<'a> Emitter<'a> {
                 let deps = self.deps_array(&expr.raw);
                 let root = self.query_root.clone();
                 let cl = self.cleanup_array.clone();
+                let wrapped = self.rx(&expr.raw);
                 self.wires.push(format!(
-                    "  {{\n    const _n = {root}.querySelector('[data-st=\"{id}\"]');\n    if (_n) {cl}.push(bindText(_n, () => String({}), {deps}));\n  }}",
-                    expr.raw
+                    "  {{\n    const _n = {root}.querySelector('[data-st=\"{id}\"]');\n    if (_n) {cl}.push(bindText(_n, () => String({wrapped}), {deps}));\n  }}",
                 ));
             }
             Node::Element { tag, attrs, children } => {
@@ -180,9 +180,9 @@ impl<'a> Emitter<'a> {
                 let deps = self.deps_array(&expr.raw);
                 let root = self.query_root.clone();
                 let cl = self.cleanup_array.clone();
+                let wrapped = self.rx(&expr.raw);
                 self.wires.push(format!(
-                    "  {{\n    const _n = {root}.querySelector('[data-sh=\"{id}\"]');\n    if (_n) {cl}.push(bindRawHtml(_n, () => ({expr}), {deps}));\n  }}",
-                    expr = expr.raw,
+                    "  {{\n    const _n = {root}.querySelector('[data-sh=\"{id}\"]');\n    if (_n) {cl}.push(bindRawHtml(_n, () => ({wrapped}), {deps}));\n  }}",
                 ));
             }
         }
@@ -224,10 +224,10 @@ impl<'a> Emitter<'a> {
                     self.imports.insert("bindAttr");
                     let root = self.query_root.clone();
                     let cl = self.cleanup_array.clone();
+                    let wrapped = self.rx(&expr.raw);
                     self.wires.push(format!(
-                        "  {{\n    const _n = {root}.querySelector('[data-sa=\"{id}\"]');\n    if (_n) {cl}.push(bindAttr(_n, {name:?}, () => ({expr}), {deps}));\n  }}",
+                        "  {{\n    const _n = {root}.querySelector('[data-sa=\"{id}\"]');\n    if (_n) {cl}.push(bindAttr(_n, {name:?}, () => ({wrapped}), {deps}));\n  }}",
                         name = a.name,
-                        expr = expr.raw,
                     ));
                 }
                 AttrValue::BindTwoWay(expr) => {
@@ -250,9 +250,9 @@ impl<'a> Emitter<'a> {
                     let opts = render_modifier_opts(modifiers);
                     let root = self.query_root.clone();
                     let cl = self.cleanup_array.clone();
+                    let handler_wrapped = self.rx(&handler.raw);
                     self.wires.push(format!(
-                        "  {{\n    const _n = {root}.querySelector('[data-sa=\"{id}\"]');\n    if (_n) {cl}.push(on(_n, {event:?}, {handler}{opts}));\n  }}",
-                        handler = handler.raw,
+                        "  {{\n    const _n = {root}.querySelector('[data-sa=\"{id}\"]');\n    if (_n) {cl}.push(on(_n, {event:?}, {handler_wrapped}{opts}));\n  }}",
                     ));
                 }
             }
@@ -274,20 +274,19 @@ impl<'a> Emitter<'a> {
     ) -> (String, Vec<String>) {
         let saved_html = std::mem::take(&mut self.html);
         let saved_wires = std::mem::take(&mut self.wires);
-        let saved_sa = self.next_anchor;
-        let saved_st = self.next_text_anchor;
         let saved_root = std::mem::replace(&mut self.query_root, "_root".into());
         let saved_cl = std::mem::replace(&mut self.cleanup_array, "_c".into());
-        self.next_anchor = 0;
-        self.next_text_anchor = 0;
+        // Anchor counters are shared across contexts so IDs are
+        // globally unique within the file. Without this, an outer
+        // host.querySelector('[data-st="0"]') can match a branch's
+        // anchor that appears earlier in document order once the
+        // branch renders.
         for s in extra_scope { self.reactive.push(s.clone()); }
 
         for n in nodes { self.emit_node(n); }
 
         let captured_html = std::mem::replace(&mut self.html, saved_html);
         let captured_wires = std::mem::replace(&mut self.wires, saved_wires);
-        self.next_anchor = saved_sa;
-        self.next_text_anchor = saved_st;
         self.query_root = saved_root;
         self.cleanup_array = saved_cl;
         for _ in 0..extra_scope.len() { self.reactive.pop(); }
@@ -362,9 +361,9 @@ impl<'a> Emitter<'a> {
         ));
         wire.push_str("    const _anchor = document.createComment('si')\n");
         wire.push_str("    if (_slot) _slot.replaceWith(_anchor)\n");
+        let cond_wrapped = self.rx(&cond.raw);
         wire.push_str(&format!(
-            "    {cl}.push(bindIf({{\n      anchor: _anchor,\n      cond: () => ({cond}),\n      then_: {then_arrow}",
-            cond = cond.raw,
+            "    {cl}.push(bindIf({{\n      anchor: _anchor,\n      cond: () => ({cond_wrapped}),\n      then_: {then_arrow}",
         ));
         if let Some(else_arrow) = else_expr {
             wire.push_str(&format!(",\n      else_: {else_arrow}"));
@@ -397,16 +396,14 @@ impl<'a> Emitter<'a> {
         let inner_then_arrow =
             self.render_branch(&inner_then_html, &inner_then_wires, "", "");
         let inner_else = self.build_else_chain(&elifs[1..], else_);
+        let head_cond_wrapped = self.rx(&head_cond.raw);
 
-        // The outer arrow returns a single anchor + an internal bindIf
-        // that drives that anchor. cleanup teardown disposes the inner.
         let mut arrow = String::from("() => {\n");
         arrow.push_str("      const _anchor = document.createComment('si-elif')\n");
         arrow.push_str("      const _frag = document.createDocumentFragment()\n");
         arrow.push_str("      _frag.appendChild(_anchor)\n");
         arrow.push_str(&format!(
-            "      const _d = bindIf({{ anchor: _anchor, cond: () => ({cond}), then_: {then_}",
-            cond = head_cond.raw,
+            "      const _d = bindIf({{ anchor: _anchor, cond: () => ({head_cond_wrapped}), then_: {then_} ",
             then_ = inner_then_arrow,
         ));
         if let Some(e) = inner_else {
@@ -472,10 +469,10 @@ impl<'a> Emitter<'a> {
         let mut wire = String::from("  {\n");
         for e in events {
             let opts = render_modifier_opts(&e.modifiers);
+            let h = self.rx(&e.handler.raw);
             wire.push_str(&format!(
                 "    {cl}.push(on({target}, {ev:?}, {h}{opts}));\n",
                 ev = e.event,
-                h = e.handler.raw,
             ));
         }
         wire.push_str("  }");
@@ -532,9 +529,9 @@ impl<'a> Emitter<'a> {
         ));
         wire.push_str("    const _anchor = document.createComment('sw')\n");
         wire.push_str("    if (_slot) _slot.replaceWith(_anchor)\n");
+        let p_wrapped = self.rx(&promise.raw);
         wire.push_str(&format!(
-            "    {cl}.push(bindAwait({{\n      anchor: _anchor,\n      promise: () => ({p}),\n      loading: {loading}",
-            p = promise.raw,
+            "    {cl}.push(bindAwait({{\n      anchor: _anchor,\n      promise: () => ({p_wrapped}),\n      loading: {loading}",
             loading = loading_arrow,
         ));
         if let Some(t) = then_arrow { wire.push_str(&format!(",\n      then_: {t}")); }
@@ -604,6 +601,7 @@ impl<'a> Emitter<'a> {
 
         let root = self.query_root.clone();
         let cl = self.cleanup_array.clone();
+        let iter_wrapped = self.rx(&iter.raw);
         let mut wire = String::from("  {\n");
         wire.push_str(&format!(
             "    const _slot = {root}.querySelector('[data-sf=\"{id}\"]')\n"
@@ -617,21 +615,25 @@ impl<'a> Emitter<'a> {
             wire.push_str("      _slot.remove()\n");
             wire.push_str("    }\n");
             wire.push_str(&format!(
-                "    {cl}.push(bindIf({{ anchor: _eAnchor, cond: () => ({iter}).length === 0, then_: {empty} }}))\n",
-                iter = iter.raw,
+                "    {cl}.push(bindIf({{ anchor: _eAnchor, cond: () => ({iter_wrapped}).length === 0, then_: {empty} }}))\n",
                 empty = empty,
             ));
         } else {
             wire.push_str("    if (_slot) _slot.replaceWith(_anchor)\n");
         }
         wire.push_str(&format!(
-            "    {cl}.push(bindFor({{\n      anchor: _anchor,\n      items: () => ({iter}),\n      key: {key},\n      render: {body}\n    }}))\n",
-            iter = iter.raw,
+            "    {cl}.push(bindFor({{\n      anchor: _anchor,\n      items: () => ({iter_wrapped}),\n      key: {key},\n      render: {body}\n    }}))\n",
             key = key_expr,
             body = body_arrow,
         ));
         wire.push_str("  }");
         self.wires.push(wire);
+    }
+
+    /// Auto-wrap reactive identifiers in an expression as calls.
+    /// Convenience that picks up the current scope's reactive set.
+    fn rx(&self, expr: &str) -> String {
+        wrap_reactive_calls(expr, &self.reactive)
     }
 
     fn deps_array(&mut self, expr: &str) -> String {
@@ -704,17 +706,17 @@ impl<'a> Emitter<'a> {
             }
             // State & derived.
             for st in &s.state {
+                let initial = self.rx(&st.initial);
                 out.push_str(&format!(
                     "  const {name} = signal({initial})\n",
                     name = st.name,
-                    initial = st.initial
                 ));
             }
             for d in &s.derived {
+                let expr = self.rx(&d.expr);
                 out.push_str(&format!(
                     "  const {name} = derived(() => ({expr}))\n",
                     name = d.name,
-                    expr = d.expr
                 ));
             }
             // `data X = expr`        → signal seeded by expr (static; analyzer
@@ -724,19 +726,18 @@ impl<'a> Emitter<'a> {
             //                          source string (analyzer rewrites once
             //                          schema sources resolve it)
             for d in &s.data {
+                let expr = self.rx(&d.expr);
                 if d.live {
                     self.imports.insert("data");
                     out.push_str(&format!(
                         "  const _d_{name} = data({{ initial: ({expr}), subscribe: {url:?} }})\n  const {name} = _d_{name}.signal\n  cleanups.push(_d_{name}.dispose)\n",
                         name = d.name,
-                        expr = d.expr,
                         url = format!("/_sail/data?expr={}", d.expr),
                     ));
                 } else {
                     out.push_str(&format!(
                         "  const {name} = signal(({expr}))\n",
                         name = d.name,
-                        expr = d.expr,
                     ));
                 }
             }
@@ -881,6 +882,87 @@ fn render_modifier_opts(mods: &[EventModifier]) -> String {
     format!(", {{ modifiers: [{}] }}", parts.join(", "))
 }
 
+/// Auto-call reactive signal identifiers in an expression.
+///
+/// In Sail's template syntax, `{count}` means "read the value of the
+/// `count` signal". The runtime exposes signals as getter functions
+/// (`count()`), so every bare reactive identifier in an expression
+/// must be rewritten into a call. This walks the expression
+/// string-aware and member-access-aware, wrapping each occurrence of
+/// a name in `reactive` as `<name>()` unless:
+///
+/// - it's already followed by `(` (already a call)
+/// - it's followed by `.set` or `.subscribe` (signal API methods)
+/// - it appears after `.` (member-access RHS — not the same identifier)
+///
+/// All other shapes — `count + 1`, `items.length`, `user.name`,
+/// `String(count)` — get the wrap.
+fn wrap_reactive_calls(expr: &str, reactive: &[String]) -> String {
+    let bytes = expr.as_bytes();
+    let mut out = String::with_capacity(expr.len() + 16);
+    let mut i = 0usize;
+    let mut in_str: Option<u8> = None;
+    let mut after_dot = false;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if let Some(q) = in_str {
+            out.push(b as char);
+            if b == b'\\' && i + 1 < bytes.len() {
+                out.push(bytes[i + 1] as char);
+                i += 2;
+                continue;
+            }
+            if b == q {
+                in_str = None;
+            }
+            i += 1;
+            continue;
+        }
+        if b == b'"' || b == b'\'' || b == b'`' {
+            in_str = Some(b);
+            out.push(b as char);
+            i += 1;
+            continue;
+        }
+        if b == b'.' {
+            after_dot = true;
+            out.push('.');
+            i += 1;
+            continue;
+        }
+        if b.is_ascii_alphabetic() || b == b'_' || b == b'$' {
+            let start = i;
+            while i < bytes.len()
+                && (bytes[i].is_ascii_alphanumeric() || bytes[i] == b'_' || bytes[i] == b'$')
+            {
+                i += 1;
+            }
+            let ident = &expr[start..i];
+            out.push_str(ident);
+            if !after_dot && reactive.iter().any(|r| r == ident) {
+                let mut j = i;
+                while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+                    j += 1;
+                }
+                let already_called = bytes.get(j) == Some(&b'(');
+                let is_signal_method = bytes.get(j) == Some(&b'.')
+                    && (expr[j..].starts_with(".set") || expr[j..].starts_with(".subscribe"));
+                if !already_called && !is_signal_method {
+                    out.push_str("()");
+                }
+            }
+            after_dot = false;
+            continue;
+        }
+        if !b.is_ascii_whitespace() {
+            after_dot = false;
+        }
+        out.push(b as char);
+        i += 1;
+    }
+    out
+}
+
 /// Best-effort word-boundary search for `name` in `expr` to decide
 /// whether the expression depends on a reactive declaration. Skips
 /// occurrences inside string and template literals.
@@ -973,7 +1055,7 @@ mod tests {
         let js = compile(
             "<script>state c = 0\nderived d = c * 2</script>\n<template><span>{d}</span></template>",
         );
-        assert!(js.contains("const d = derived(() => (c * 2))"));
+        assert!(js.contains("const d = derived(() => (c() * 2))"));
         assert!(js.contains("[d]") || js.contains("[c, d]"));
     }
 
@@ -1049,7 +1131,7 @@ function inc() { count.set(count() + 1) }
         );
         assert!(js.contains("bindIf"));
         assert!(js.contains("data-si=\"0\""));
-        assert!(js.contains("cond: () => (on)"));
+        assert!(js.contains("cond: () => (on())"));
         assert!(js.contains("then_: () =>"));
         assert!(js.contains("else_: () =>"));
     }
@@ -1070,12 +1152,12 @@ function inc() { count.set(count() + 1) }
         );
         assert!(js.contains("bindFor"));
         assert!(js.contains("data-sf=\"0\""));
-        assert!(js.contains("items: () => (list)"));
+        assert!(js.contains("items: () => (list())"));
         assert!(js.contains("key: (it, _i) => (it.id)"));
         assert!(js.contains("const it = signal(_initialItem)"));
         assert!(js.contains("update: (nextItem, nextIdx)"));
         // Inner bindText reads it() and tracks `it` as a dep.
-        assert!(js.contains("String(it.name)"));
+        assert!(js.contains("String(it().name)"));
         assert!(js.contains("[it]"));
     }
 
@@ -1086,7 +1168,7 @@ function inc() { count.set(count() + 1) }
         );
         assert!(js.contains("bindFor"));
         assert!(js.contains("bindIf"));
-        assert!(js.contains("cond: () => (xs).length === 0"));
+        assert!(js.contains("cond: () => (xs()).length === 0"));
         assert!(js.contains("_eAnchor"));
         // Both anchors inserted before _slot is removed.
         assert!(js.contains("insertBefore(_anchor"));
@@ -1160,7 +1242,7 @@ function inc() { count.set(count() + 1) }
         );
         assert!(js.contains("bindAwait"));
         assert!(js.contains("data-sw=\"0\""));
-        assert!(js.contains("promise: () => (p)"));
+        assert!(js.contains("promise: () => (p())"));
         assert!(js.contains("loading: () =>"));
         assert!(js.contains("then_: (_v) =>"));
         assert!(js.contains("catch_: (_e) =>"));
@@ -1198,6 +1280,53 @@ function inc() { count.set(count() + 1) }
         assert!(js.contains("const x = signal(_initialItem)"));
         assert!(js.contains("const i = signal(_initialIdx)"));
         assert!(js.contains("update: (nextItem, nextIdx)"));
+    }
+
+    #[test]
+    fn wrap_reactive_calls_basic() {
+        let r = vec!["count".to_string()];
+        assert_eq!(wrap_reactive_calls("count", &r), "count()");
+        assert_eq!(wrap_reactive_calls("count + 1", &r), "count() + 1");
+        assert_eq!(wrap_reactive_calls("String(count)", &r), "String(count())");
+        assert_eq!(wrap_reactive_calls("count.length", &r), "count().length");
+    }
+
+    #[test]
+    fn wrap_skips_already_called_and_set() {
+        let r = vec!["count".to_string()];
+        assert_eq!(wrap_reactive_calls("count()", &r), "count()");
+        assert_eq!(wrap_reactive_calls("count.set(5)", &r), "count.set(5)");
+        assert_eq!(
+            wrap_reactive_calls("count.set(count() + 1)", &r),
+            "count.set(count() + 1)",
+        );
+    }
+
+    #[test]
+    fn wrap_skips_member_rhs() {
+        // user.count: only `user` is wrapped if reactive; `count` is a
+        // member, never auto-called.
+        let r = vec!["user".to_string(), "count".to_string()];
+        assert_eq!(wrap_reactive_calls("user.count", &r), "user().count");
+    }
+
+    #[test]
+    fn wrap_skips_strings() {
+        let r = vec!["count".to_string()];
+        assert_eq!(
+            wrap_reactive_calls("'count is ' + count", &r),
+            "'count is ' + count()",
+        );
+        assert_eq!(
+            wrap_reactive_calls("`tpl ${count} text`", &r),
+            "`tpl ${count} text`",
+        );
+    }
+
+    #[test]
+    fn wrap_handles_multiple_idents() {
+        let r = vec!["a".to_string(), "b".to_string()];
+        assert_eq!(wrap_reactive_calls("a + b * 2", &r), "a() + b() * 2");
     }
 
     #[test]
