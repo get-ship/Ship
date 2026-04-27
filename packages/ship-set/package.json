@@ -24,6 +24,8 @@
     "catalog": "node scripts/generate-catalog.mjs",
     "bundle:elements": "esbuild src/web-components/index.ts --bundle --format=esm --target=es2020 --loader:.svg=text --outfile=../../apps/shipd/assets/ship-elements.js --log-level=warning",
     "bundle:code-editor": "esbuild src/web-components/islands/ship-code-editor.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-code-editor.js --log-level=warning",
+    "bundle:markdown-editor": "esbuild src/web-components/islands/ship-markdown-editor.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-markdown-editor.js --log-level=warning",
+    "bundle:terminal": "esbuild src/web-components/islands/ship-terminal.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-terminal.js --log-level=warning",
     "bundle:git": "esbuild src/packs/git/index.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-git.js --log-level=warning",
     "lint:tokens": "node scripts/lint-tokens.mjs",
     "check:sdk": "node scripts/check-sdk.mjs",
