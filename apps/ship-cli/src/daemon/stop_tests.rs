@@ -55,14 +55,13 @@ fn sample_supervisor_record(pid: u32) -> PidfileRecord {
 /// home-layout ADR) as the shipd child does after startup: a bare integer
 /// with its own pid. This is the state `pid` lands in once the child has
 /// run — the supervisor's initial write is clobbered.
-fn write_daemon_pid(dir: &Path, pid: u32) {
-    let path = runtime::ShipHome::at(dir.to_path_buf()).daemon_file(runtime::DaemonFile::Pid);
-    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-    std::fs::write(path, format!("{pid}\n")).unwrap();
+fn write_daemon_pid(daemon_dir: &Path, pid: u32) {
+    std::fs::create_dir_all(daemon_dir).unwrap();
+    std::fs::write(daemon_dir.join("pid"), format!("{pid}\n")).unwrap();
 }
 
-fn legacy_pid_path(dir: &Path) -> std::path::PathBuf {
-    runtime::ShipHome::at(dir.to_path_buf()).daemon_file(runtime::DaemonFile::Pid)
+fn legacy_pid_path(daemon_dir: &Path) -> std::path::PathBuf {
+    daemon_dir.join("pid")
 }
 
 /// Spawn a bash subprocess that grabs the exclusive flock on `shipd.pid`,

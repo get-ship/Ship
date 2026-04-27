@@ -149,17 +149,15 @@ async fn http_delete_errors() -> Result<u64> {
 }
 
 fn read_port(_global_dir: &std::path::Path) -> Result<u16> {
-    let home = runtime::ShipHome::from_env();
-    let raw = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Port))
-        .map_err(|_| anyhow!("ship daemon not running"))?;
-    raw.trim()
-        .parse::<u16>()
-        .map_err(|e| anyhow!("invalid daemon port file: {e}"))
+    let cwd = std::env::current_dir().map_err(|e| anyhow!("cwd unavailable: {e}"))?;
+    runtime::home::discover_running_daemon(&cwd)
+        .map(|h| h.port)
+        .ok_or_else(|| anyhow!("ship daemon not running"))
 }
 
 fn read_token(_global_dir: &std::path::Path) -> Result<String> {
-    let home = runtime::ShipHome::from_env();
-    let raw = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Token))
-        .map_err(|_| anyhow!("daemon token missing"))?;
-    Ok(raw.trim().to_string())
+    let cwd = std::env::current_dir().map_err(|e| anyhow!("cwd unavailable: {e}"))?;
+    runtime::home::discover_running_daemon(&cwd)
+        .map(|h| h.token)
+        .ok_or_else(|| anyhow!("daemon token missing"))
 }

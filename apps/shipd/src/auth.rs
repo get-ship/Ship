@@ -101,14 +101,11 @@ pub(crate) fn hex_encode(bytes: &[u8]) -> String {
     s
 }
 
-/// Write the daemon token to `~/.ship/machine/daemon/token` with restricted
+/// Write the daemon token to `<daemon_dir>/token` with restricted
 /// permissions. Parent directories are created if missing.
-pub fn write_token_file(global_dir: &Path, token: &str) -> std::io::Result<()> {
-    let path = runtime::ShipHome::at(global_dir.to_path_buf())
-        .daemon_file(runtime::DaemonFile::Token);
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
+pub fn write_token_file(daemon_dir: &Path, token: &str) -> std::io::Result<()> {
+    std::fs::create_dir_all(daemon_dir)?;
+    let path = daemon_dir.join("token");
     std::fs::write(&path, token)?;
     #[cfg(unix)]
     {
@@ -118,10 +115,8 @@ pub fn write_token_file(global_dir: &Path, token: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-pub fn read_token(global_dir: &Path) -> std::io::Result<String> {
-    let path = runtime::ShipHome::at(global_dir.to_path_buf())
-        .daemon_file(runtime::DaemonFile::Token);
-    Ok(std::fs::read_to_string(path)?.trim().to_string())
+pub fn read_token(daemon_dir: &Path) -> std::io::Result<String> {
+    Ok(std::fs::read_to_string(daemon_dir.join("token"))?.trim().to_string())
 }
 
 /// Axum middleware that validates `Authorization: Bearer <token>` on every

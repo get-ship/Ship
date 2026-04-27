@@ -17,8 +17,13 @@ impl TestDaemon {
         let port = port();
 
         let bin = env!("CARGO_BIN_EXE_shipd");
+        // Set cwd to the tempdir so ProjectRoot::discover() returns None and
+        // shipd writes to the singleton machine/daemon/. Otherwise shipd
+        // would inherit the test process's cwd (the Ship repo) and write to
+        // a per-worktree daemons/<hash>/ dir.
         let child = Command::new(bin)
             .args(["--port", &port.to_string(), "--host", "127.0.0.1"])
+            .current_dir(global_dir.path())
             .env("SHIP_HOME", global_dir.path())
             .env("RUST_LOG", "warn")
             .stdout(Stdio::null())

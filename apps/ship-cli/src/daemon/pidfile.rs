@@ -54,18 +54,14 @@ impl Drop for PidfileGuard {
     }
 }
 
-/// Full path to the supervisor pidfile under `<global_dir>/machine/daemon/`.
+/// Full path to the supervisor pidfile inside `daemon_dir`.
 ///
-/// Co-located with the daemon's IPC files (port/token/pid via DaemonFile)
-/// per the home-layout ADR. The supervisor pidfile is its own concept —
-/// flock-based singleton enforcement, distinct from the daemon child's
-/// `pid` file — so it doesn't fit the DaemonFile enum, but it lives in
-/// the same directory.
-pub fn pidfile_path(global_dir: &Path) -> PathBuf {
-    runtime::ShipHome::at(global_dir.to_path_buf())
-        .machine_dir()
-        .join("daemon")
-        .join(PIDFILE_NAME)
+/// Co-located with the daemon's IPC files (port/token/pid). Per devx-04,
+/// `daemon_dir` may be the singleton `<root>/machine/daemon/` or a
+/// per-worktree `<root>/machine/daemons/<hash>/`. The supervisor pidfile
+/// enforces "one supervisor per daemon dir" via flock(2).
+pub fn pidfile_path(daemon_dir: &Path) -> PathBuf {
+    daemon_dir.join(PIDFILE_NAME)
 }
 
 /// Outcome of [`acquire`]. `Fresh` and `StaleTaken` both yield a held lock;
@@ -88,8 +84,8 @@ pub enum AcquireResult {
 ///
 /// Returns [`AcquireResult`] so callers can distinguish a fresh lock from
 /// a stale-pidfile takeover and emit the right `daemon.pidfile_*` event.
-pub fn acquire(global_dir: &Path, mut record: PidfileRecord) -> Result<AcquireResult> {
-    let path = pidfile_path(global_dir);
+pub fn acquire(daemon_dir: &Path, mut record: PidfileRecord) -> Result<AcquireResult> {
+    let path = pidfile_path(daemon_dir);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("cannot create directory {}", parent.display()))?;
@@ -149,8 +145,8 @@ pub fn acquire(global_dir: &Path, mut record: PidfileRecord) -> Result<AcquireRe
 /// Returns the parsed record plus a flag indicating whether the exclusive
 /// lock is currently held by some process. `Ok(None)` when the pidfile does
 /// not exist.
-pub fn read(global_dir: &Path) -> Result<Option<(PidfileRecord, bool)>> {
-    let path = pidfile_path(global_dir);
+pub fn read(daemon_dir: &Path) -> Result<Option<(PidfileRecord, bool)>> {
+    let path = pidfile_path(daemon_dir);
     if !path.exists() {
         return Ok(None);
     }

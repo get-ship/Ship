@@ -46,7 +46,7 @@ fn ship_dir() -> Result<PathBuf> {
 }
 
 fn pid_file() -> Result<PathBuf> {
-    Ok(runtime::ShipHome::from_env().daemon_file(runtime::DaemonFile::Pid))
+    Ok(runtime::home::current_daemon_dir().join("pid"))
 }
 
 fn log_file() -> Result<PathBuf> {
@@ -253,6 +253,11 @@ pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
 fn daemon_supervise(host: String, dev: bool) -> Result<()> {
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
     let global_dir = ship_dir()?;
+    // Per devx-04, the supervisor co-locates with its daemon — picks the
+    // per-worktree daemons/<hash>/ when launched from a project root, else
+    // falls back to the singleton. Crashes still live under machine/crashes
+    // because they're not per-worktree.
+    let daemon_dir = runtime::home::current_daemon_dir();
     let crashes_dir = runtime::ShipHome::at(global_dir.clone())
         .machine_dir()
         .join("crashes");
@@ -272,8 +277,8 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
         role: PidfileRole::Supervisor,
     };
     let supervisor_pid = record.pid;
-    let pidfile_path = pidfile::pidfile_path(&global_dir).display().to_string();
-    let _pidfile_guard = match pidfile::acquire(&global_dir, record)? {
+    let pidfile_path = pidfile::pidfile_path(&daemon_dir).display().to_string();
+    let _pidfile_guard = match pidfile::acquire(&daemon_dir, record)? {
         AcquireResult::Fresh(guard) => {
             emit_supervisor_event(
                 &global_dir,
@@ -574,13 +579,20 @@ fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
 /// Only the pidfile adapter invokes this — systemd-managed installations
 /// go through `systemctl --user stop`.
 pub(super) fn daemon_stop_inner() -> Result<()> {
-    stop::daemon_stop_at(&ship_dir()?)
+    // Stop targets the daemon serving cwd. discover_running_daemon walks
+    // ProjectRoot::discover → per-worktree → singleton. If nothing is live,
+    // fall back to current_daemon_dir so we still tidy stale pidfiles.
+    let cwd = std::env::current_dir().context("cannot determine cwd")?;
+    let daemon_dir = runtime::home::discover_running_daemon(&cwd)
+        .map(|h| h.dir)
+        .unwrap_or_else(runtime::home::current_daemon_dir);
+    stop::daemon_stop_at(&daemon_dir)
 }
 
 fn daemon_status() -> Result<()> {
-    let global_dir = ship_dir()?;
+    let daemon_dir = runtime::home::current_daemon_dir();
     let adapter = supervision::select();
-    let supervision_status = adapter.status(&global_dir)?;
+    let supervision_status = adapter.status(&daemon_dir)?;
 
     // Try the live REST endpoint first — that's the daemon's own status,
     // richer than what a supervisor adapter can see from outside.
@@ -913,11 +925,10 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
 
 /// Try to read daemon info and verify it responds to /api/v1/health.
 fn daemon_info_if_healthy() -> Option<(u16, String)> {
-    let home = runtime::ShipHome::from_env();
-    let port_str = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Port)).ok()?;
-    let port = port_str.trim().parse::<u16>().ok()?;
-    let token = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Token)).ok()?;
-    let token = token.trim().to_string();
+    let cwd = std::env::current_dir().ok()?;
+    let handle = runtime::home::discover_running_daemon(&cwd)?;
+    let port = handle.port;
+    let token = handle.token.clone();
 
     // Quick health probe — 1 second timeout.
     let url = format!("http://127.0.0.1:{port}/api/health");

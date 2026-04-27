@@ -12,24 +12,21 @@ fn session_token_store() -> &'static Mutex<Option<String>> {
     SESSION_TOKEN.get_or_init(|| Mutex::new(None))
 }
 
-/// Get the shipd port from `~/.ship/machine/daemon/port`.
+/// Get the shipd port for the current cwd. Per devx-04, walks
+/// ProjectRoot::discover → per-worktree daemon → singleton fallback.
 fn get_network_port() -> Result<u16> {
-    let home = runtime::ShipHome::from_env();
-    let port_file = home.daemon_file(runtime::DaemonFile::Port);
-    let port_str = std::fs::read_to_string(&port_file)
-        .map_err(|_| anyhow!("ship daemon is not running — start it with: ship daemon start"))?;
-    port_str
-        .trim()
-        .parse::<u16>()
-        .map_err(|e| anyhow!("failed to parse network port: {e}"))
+    let cwd = std::env::current_dir().map_err(|e| anyhow!("cwd unavailable: {e}"))?;
+    runtime::home::discover_running_daemon(&cwd)
+        .map(|h| h.port)
+        .ok_or_else(|| anyhow!("ship daemon is not running — start it with: ship daemon start"))
 }
 
-/// Read the daemon bearer token from `~/.ship/machine/daemon/token`.
+/// Read the daemon bearer token for the current cwd.
 fn get_network_token() -> Result<String> {
-    let home = runtime::ShipHome::from_env();
-    let token = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Token))
-        .map_err(|_| anyhow!("ship daemon token not found — is the daemon running?"))?;
-    Ok(token.trim().to_string())
+    let cwd = std::env::current_dir().map_err(|e| anyhow!("cwd unavailable: {e}"))?;
+    runtime::home::discover_running_daemon(&cwd)
+        .map(|h| h.token)
+        .ok_or_else(|| anyhow!("ship daemon token not found — is the daemon running?"))
 }
 
 /// Return the session token if registered, otherwise fall back to daemon token.

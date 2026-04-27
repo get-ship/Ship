@@ -119,9 +119,25 @@ impl ShipHome {
         self.machine_dir().join(MACHINE_DB_DIR).join(db.as_str())
     }
 
-    /// Path to a daemon IPC handshake file.
+    /// Path to the singleton daemon's directory.
+    pub fn daemon_dir(&self) -> PathBuf {
+        self.machine_dir().join(MACHINE_DAEMON_DIR)
+    }
+
+    /// Path to a daemon IPC handshake file (singleton daemon).
     pub fn daemon_file(&self, file: DaemonFile) -> PathBuf {
-        self.machine_dir().join(MACHINE_DAEMON_DIR).join(file.as_str())
+        self.daemon_dir().join(file.as_str())
+    }
+
+    /// Per-worktree daemon directory: `machine/daemons/<hash>/`.
+    /// `hash` is the 8-char output of `runtime::home::path_hash(project_root)`.
+    pub fn worktree_daemon_dir(&self, hash: &str) -> PathBuf {
+        self.machine_dir().join("daemons").join(hash)
+    }
+
+    /// Per-worktree daemon IPC file: `machine/daemons/<hash>/<file>`.
+    pub fn worktree_daemon_file(&self, hash: &str, file: DaemonFile) -> PathBuf {
+        self.worktree_daemon_dir(hash).join(file.as_str())
     }
 
     /// Project-scope `.ship/` directory at the given project root.
