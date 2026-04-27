@@ -65,23 +65,12 @@ fn extract_str_arg(args: &[String], flag: &str) -> Option<String> {
 }
 
 /// Walk up from CWD looking for a `.ship/` directory. Returns the project
-/// root (the dir containing `.ship/`), not `.ship/` itself. Stops at the
-/// filesystem root or the home directory — the latter prevents `~/.ship/`
-/// from being auto-selected as a "project" for global contexts.
+/// root (the dir containing `.ship/`), not `.ship/` itself. Delegates to
+/// the runtime's canonical resolver so worktree handling, env overrides,
+/// and `~/.ship/` exclusion all behave consistently.
 fn discover_workspace() -> Option<std::path::PathBuf> {
-    let home = dirs::home_dir();
     let cwd = std::env::current_dir().ok()?;
-    let mut cur = cwd.as_path();
-    loop {
-        if Some(cur) == home.as_deref() {
-            return None;
-        }
-        if runtime::ShipHome::project_ship_dir(&cur).is_dir() {
-            return Some(cur.to_path_buf());
-        }
-        match cur.parent() {
-            Some(p) => cur = p,
-            None => return None,
-        }
-    }
+    let ship_dir = runtime::project::resolve_project_ship_dir(&cwd)?;
+    // resolver returns the .ship dir; we want its parent (the project root).
+    ship_dir.parent().map(std::path::Path::to_path_buf)
 }

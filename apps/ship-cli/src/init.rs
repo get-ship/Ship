@@ -16,22 +16,22 @@ pub fn run(global: bool, provider: Option<String>) -> Result<()> {
 
 fn run_global() -> Result<()> {
     paths::ensure_global_dirs()?;
-    let gdir = paths::global_dir();
-    let cfg_path = gdir.join("config.toml");
-    if !cfg_path.exists() {
+    let home = runtime::ShipHome::from_env();
+    let settings_path = home.settings_path();
+    if !settings_path.exists() {
+        // settings.jsonc lives in library/ — the canonical user-prefs file
+        // per the home-layout ADR (no more config.toml).
+        if let Some(parent) = settings_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         std::fs::write(
-            &cfg_path,
-            "# Ship global configuration\n\n[identity]\nname = \"\"\n",
+            &settings_path,
+            "// Ship user settings (portable across machines).\n\
+             {\n  \"identity\": { \"name\": \"\" }\n}\n",
         )?;
     }
-    if !gdir.join("README.md").exists() {
-        std::fs::write(
-            gdir.join("README.md"),
-            "# Ship\n\nSee https://getship.dev\n",
-        )?;
-    }
-    println!("initialized global config at ~/.ship/");
-    println!("  Edit ~/.ship/config.toml to set your identity");
+    println!("initialized global config at {}", home.root().display());
+    println!("  Edit {} to set your identity", settings_path.display());
     Ok(())
 }
 

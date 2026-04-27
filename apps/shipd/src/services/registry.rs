@@ -729,8 +729,8 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             //    to. Today: Telegram if env vars are set. Will
             //    expand as user-inbox / Discord / Slack land.
             let mut integrations: Vec<serde_json::Value> = Vec::new();
-            let tg_token = std::env::var("SHIP_TELEGRAM_TOKEN").ok();
-            let tg_chat = std::env::var("SHIP_TELEGRAM_CHAT_ID").ok();
+            let tg_token = runtime::env::read(runtime::env::Var::TelegramToken);
+            let tg_chat = runtime::env::read(runtime::env::Var::TelegramChatId);
             integrations.push(json!({
                 "name": "Telegram (user inbox)",
                 "kind": "inbox",
