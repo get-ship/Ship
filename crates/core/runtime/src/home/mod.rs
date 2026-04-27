@@ -6,13 +6,13 @@
 //! `scripts/lint/check-raw-ship-paths.sh`.
 
 pub mod daemon;
-pub mod migrate;
-pub mod migrate_toml;
+pub mod ensure;
 pub mod scope;
 pub mod ship_home;
 pub mod vector;
 
 pub use daemon::DaemonFile;
+pub use ensure::ensure_layout;
 pub use scope::Scope;
 pub use ship_home::{Db, ShipHome};
 pub use vector::Vector;
