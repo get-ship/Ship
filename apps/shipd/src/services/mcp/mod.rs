@@ -11,6 +11,7 @@
 //! - DELETE /api/v1/mcp/{id}           remove entry
 //! - POST   /api/v1/mcp                create { id, server, scope? }
 
+pub mod service;
 pub mod state;
 
 use axum::extract::{Path, Query, State};
@@ -19,7 +20,8 @@ use axum::response::Json;
 use serde::Deserialize;
 
 use crate::rest_api::ApiState;
-use super::files::{FilesService, Scope};
+use super::files::Scope;
+use service::{CreateArgs, PutArgs};
 
 #[derive(Debug, Deserialize)]
 pub struct ScopeQuery {
@@ -72,14 +74,9 @@ fn map_err(e: state::Error) -> Resp {
     }
 }
 
-fn files(state: &ApiState) -> FilesService {
-    FilesService::resolve_roots(state.ship_dir())
-}
-
 /// GET /api/v1/mcp
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let svc = files(&state);
-    let items = state::list(&svc);
+    let items = state.mcp().list();
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
@@ -90,13 +87,12 @@ pub async fn get(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let (resolved, entry) = state::load_entry(&svc, &id, scope).map_err(map_err)?;
+    let entry = state.mcp().get(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
-        "id": id,
-        "scope": state::ScopeTag::from(resolved),
-        "server": entry,
+        "id": entry.id,
+        "scope": entry.scope,
+        "server": entry.server,
     })))
 }
 
@@ -108,15 +104,13 @@ pub async fn put(
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let explicit_scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let target_scope = match explicit_scope {
-        Some(s) => s,
-        None => state::find(&svc, &id).unwrap_or(Scope::Project),
-    };
-    state::write_entry(&svc, &id, target_scope, &body, true).map_err(map_err)?;
+    let target = state
+        .mcp()
+        .put(PutArgs { id: id.clone(), server: body, scope: explicit_scope })
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(target_scope),
+        "scope": state::ScopeTag::from(target),
     })))
 }
 
@@ -130,8 +124,7 @@ pub async fn patch(
     let scope = parse_scope(&q)?;
     let patch: json_patch::Patch = serde_json::from_value(patch_body)
         .map_err(|e| err(StatusCode::BAD_REQUEST, "bad_patch", format!("bad patch shape: {e}")))?;
-    let svc = files(&state);
-    let resolved = state::patch_entry(&svc, &id, scope, &patch).map_err(map_err)?;
+    let resolved = state.mcp().patch(&id, scope, &patch).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -145,8 +138,7 @@ pub async fn delete(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let resolved = state::delete_entry(&svc, &id, scope).map_err(map_err)?;
+    let resolved = state.mcp().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -167,14 +159,16 @@ pub async fn create(
     Json(body): Json<CreateBody>,
 ) -> Result<Resp, Resp> {
     let target = match body.scope.as_deref() {
-        None | Some("") => Scope::Project,
-        Some(s) => parse_scope_required(s)?,
+        None | Some("") => None,
+        Some(s) => Some(parse_scope_required(s)?),
     };
-    let svc = files(&state);
-    state::write_entry(&svc, &body.id, target, &body.server, false).map_err(map_err)?;
+    let scope = state
+        .mcp()
+        .create(CreateArgs { id: body.id.clone(), server: body.server, scope: target })
+        .map_err(map_err)?;
     Ok(created(serde_json::json!({
         "ok": true,
         "id": body.id,
-        "scope": state::ScopeTag::from(target),
+        "scope": state::ScopeTag::from(scope),
     })))
 }

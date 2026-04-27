@@ -110,6 +110,8 @@ pub struct ShipRuntime {
     /// `PermissionsService` impl — second mr-02 pilot, includes the
     /// cross-domain `tool_patterns` composition.
     permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService>,
+    /// `McpService` impl — third mr-02 pilot.
+    mcp: std::sync::Arc<dyn crate::services::mcp::service::McpService>,
 }
 
 impl ShipRuntime {
@@ -267,6 +269,7 @@ impl ShipRuntime {
             actor_sessions: crate::sessions::ActorRegistry::new(),
             rules: crate::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
             permissions: crate::services::permissions::service::PermissionsServiceImpl::arc(global_dir.clone()),
+            mcp: crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -316,6 +319,11 @@ impl ShipRuntime {
         &self,
     ) -> &dyn crate::services::permissions::service::PermissionsService {
         &*self.permissions
+    }
+
+    /// `McpService` accessor — third mr-02 pilot.
+    pub fn mcp(&self) -> &dyn crate::services::mcp::service::McpService {
+        &*self.mcp
     }
 
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
@@ -548,6 +556,7 @@ impl ShipRuntime {
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let permissions =
             crate::services::permissions::service::PermissionsServiceImpl::arc(ship_dir.clone());
+        let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -568,6 +577,7 @@ impl ShipRuntime {
             actor_sessions: crate::sessions::ActorRegistry::new(),
             rules,
             permissions,
+            mcp,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -586,6 +596,7 @@ impl ShipRuntime {
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let permissions =
             crate::services::permissions::service::PermissionsServiceImpl::arc(ship_dir.clone());
+        let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -606,6 +617,7 @@ impl ShipRuntime {
             actor_sessions: crate::sessions::ActorRegistry::new(),
             rules,
             permissions,
+            mcp,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
