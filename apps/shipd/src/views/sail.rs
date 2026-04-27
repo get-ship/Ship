@@ -76,6 +76,22 @@ fn html_response(body: &'static str) -> Response {
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
+/// Bundled @sail/runtime — the ESM module compiled `.set` components
+/// import from. Built by `pnpm -F @sail/runtime bundle` (esbuild).
+const SAIL_RUNTIME_JS: &str = include_str!("../../assets/sail-runtime.js");
+
+/// `GET /_sail/runtime.js` — serves the bundled `@sail/runtime` module.
+/// Compiled `.set` JS imports `from '@sail/runtime'`; the page wrapper
+/// inlines an importmap that resolves that bare specifier to this URL.
+pub async fn serve_sail_runtime() -> Response {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
+        .body(Body::from(SAIL_RUNTIME_JS))
+        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+}
+
 /// `GET /sail/{tag}` — full HTML page that mounts `<tag>` with the
 /// SSR'd initial paint, the runtime ES module, and the HMR client.
 pub async fn serve_sail_page(Path(tag): Path<String>) -> Response {
@@ -97,8 +113,32 @@ pub async fn serve_sail_page(Path(tag): Path<String>) -> Response {
     // component that resolves under `.ship/sail/`. The page just writes
     // `<ship-foo>` anywhere; the daemon wires the module loads.
     let dep_scripts = component_dep_scripts(&tag, &entry.ssr, &entry.js);
+    // Importmap: compiled `.set` JS imports `from '@sail/runtime'`. The
+    // browser can't resolve bare specifiers without a map. This points
+    // every component module at the daemon-served bundle so a single
+    // runtime instance is shared across all the page's components.
+    let importmap = "  <script type=\"importmap\">\n  { \"imports\": { \"@sail/runtime\": \"/_sail/runtime.js\" } }\n  </script>\n";
+    // Shared design tokens + theme bootstrap. Mirrors the inline
+    // bootstrap in `apps/shell/index.html` so a `/sail/<tag>` page
+    // looks the same as the equivalent view rendered inside the shell.
+    // The theme `<script>` runs sync before first paint to avoid the
+    // flash-of-wrong-theme.
+    let chrome = r#"  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
+  <script>
+    (() => {
+      const VALID = new Set(["ship-light","ship-dark","paper","halo","console","contrast","glass"]);
+      const DARK = new Set(["ship-dark","contrast","console"]);
+      const PREFERS_DARK = matchMedia("(prefers-color-scheme: dark)").matches;
+      const raw = localStorage.getItem("ship-site-theme");
+      const id = VALID.has(raw) ? raw : (PREFERS_DARK ? "ship-dark" : "ship-light");
+      document.documentElement.dataset.theme = id;
+      document.documentElement.classList.toggle("dark", DARK.has(id));
+    })();
+  </script>
+  <style>html,body{margin:0;background:var(--background);color:var(--foreground);font-family:var(--font-body);}</style>
+"#;
     let html = format!(
-        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>{tag}</title>\n</head>\n<body>\n{ssr}\n{dep_scripts}  <script type=\"module\" src=\"/_sail/components/{tag}.js\"></script>\n  <script src=\"/_sail/hmr-client.js\" defer></script>\n</body>\n</html>\n",
+        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"utf-8\" />\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n  <title>{tag}</title>\n{chrome}{importmap}</head>\n<body>\n{ssr}\n{dep_scripts}  <script type=\"module\" src=\"/_sail/components/{tag}.js\"></script>\n  <script src=\"/_sail/hmr-client.js\" defer></script>\n</body>\n</html>\n",
         ssr = entry.ssr,
     );
     Response::builder()

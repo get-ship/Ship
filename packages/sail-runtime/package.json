@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "bundle": "esbuild src/index.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/sail-runtime.js --log-level=warning",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -149,6 +149,10 @@ pub fn build_router(
             axum::routing::get(views::sail_hmr::serve_hmr_client_js),
         )
         .route(
+            "/_sail/runtime.js",
+            axum::routing::get(views::sail::serve_sail_runtime),
+        )
+        .route(
             "/sail/{tag}",
             axum::routing::get(views::sail::serve_sail_page),
         )

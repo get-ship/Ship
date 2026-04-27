@@ -693,9 +693,8 @@ impl<'a> Emitter<'a> {
             if !s.state.is_empty() { imports.push("signal"); }
             if !s.derived.is_empty() { imports.push("derived"); }
             if s.data.iter().any(|d| !d.live) { imports.push("signal"); }
+            if s.data.iter().any(|d| d.live) { imports.push("data"); }
             if s.effects.iter().any(|e| !e.once) { imports.push("effect"); }
-            // `data live` adds its own `data` import via self.imports
-            // during script emit; nothing extra needed here.
         }
         imports.sort();
         imports.dedup();
@@ -791,7 +790,7 @@ impl<'a> Emitter<'a> {
             //                          carries the real initial value.
             for d in &s.data {
                 if d.live {
-                    self.imports.insert("data");
+                    // `data` import is emitted in the prelude — see render().
                     out.push_str(&format!(
                         "  const _d_{name} = data({{ initial: null, subscribe: {url:?} }})\n  const {name} = _d_{name}.signal\n  cleanups.push(_d_{name}.dispose)\n",
                         name = d.name,
