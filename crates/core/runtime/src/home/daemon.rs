@@ -111,12 +111,33 @@ pub fn discover_running_daemon(from: &Path) -> Option<DaemonHandle> {
     let home = crate::ShipHome::from_env();
     if let Some(root) = crate::home::ProjectRoot::discover(from) {
         let hash = path_hash(root.path());
-        let dir = home.machine_dir().join("daemons").join(&hash);
+        let dir = home.worktree_daemon_dir(&hash);
         if let Some(handle) = DaemonHandle::load(&dir) {
             return Some(handle);
         }
     }
-    DaemonHandle::load(&home.machine_dir().join("daemon"))
+    DaemonHandle::load(&home.daemon_dir())
+}
+
+/// The directory the daemon serving `from` should write its IPC files to.
+///
+/// Resolution mirrors `discover_running_daemon`: if `from` lives under a
+/// project root, returns `machine/daemons/<hash(project_root)>/` (creating
+/// the dir is the caller's responsibility). Otherwise returns the singleton
+/// `machine/daemon/`.
+pub fn daemon_dir_for(from: &Path) -> PathBuf {
+    let home = crate::ShipHome::from_env();
+    match crate::home::ProjectRoot::discover(from) {
+        Some(root) => home.worktree_daemon_dir(&path_hash(root.path())),
+        None => home.daemon_dir(),
+    }
+}
+
+/// Same as `daemon_dir_for(cwd)` — convenience wrapper for callers that
+/// don't already have a path in hand.
+pub fn current_daemon_dir() -> PathBuf {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    daemon_dir_for(&cwd)
 }
 
 fn read_trim<P: AsRef<Path>>(path: P) -> Option<String> {

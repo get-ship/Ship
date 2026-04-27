@@ -73,6 +73,9 @@ pub struct ShipRuntime {
     agent_mailboxes: AgentMailboxes,
     pty_connections: PtyConnections,
     ship_dir: PathBuf,
+    /// Daemon IPC directory — `<root>/machine/daemon/` or
+    /// `<root>/machine/daemons/<hash>/` per devx-04.
+    daemon_dir: PathBuf,
     mesh: tokio::sync::OnceCell<MeshManager>,
     jobs: tokio::sync::OnceCell<JobManager>,
     dispatch_handle: std::sync::OnceLock<DispatchHandle>,
@@ -231,6 +234,19 @@ impl ShipRuntime {
             // attachment does NOT fork a second db into <workspace>/.ship/.
             // See crates/core/runtime/src/db/mod.rs:77 ("Never inside a project directory").
             ship_dir: global_dir.clone(),
+            daemon_dir: {
+                // Pick the worktree daemon dir if launched from inside a
+                // project root, else the singleton. Mirrors lib.rs::run_network.
+                let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+                let root = probe
+                    .as_ref()
+                    .and_then(|p| runtime::home::ProjectRoot::discover(p));
+                let home = runtime::ShipHome::at(global_dir.clone());
+                match root.as_ref() {
+                    Some(r) => home.worktree_daemon_dir(&runtime::home::path_hash(r.path())),
+                    None => home.daemon_dir(),
+                }
+            },
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
@@ -504,6 +520,7 @@ impl ShipRuntime {
     #[cfg(test)]
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
+        let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -511,6 +528,7 @@ impl ShipRuntime {
             agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
             ship_dir,
+            daemon_dir,
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
@@ -535,6 +553,7 @@ impl ShipRuntime {
         mesh_registry: SharedMeshRegistry,
     ) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
+        let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -542,6 +561,7 @@ impl ShipRuntime {
             agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
             ship_dir,
+            daemon_dir,
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
@@ -599,7 +619,7 @@ impl ShipRuntime {
         // Remove pid and port (liveness indicators) but keep the token.
         // Preserving the token across restarts means CLI clients that cached
         // it don't need to re-handshake after a daemon restart.
-        crate::daemon::remove_liveness_files(&self.ship_dir);
+        crate::daemon::remove_liveness_files(&self.daemon_dir);
         tracing::info!("shipd: shutdown complete");
     }
 }

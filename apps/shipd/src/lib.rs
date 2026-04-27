@@ -124,14 +124,29 @@ pub async fn run_network(
     pairing::set_dev_mode(dev);
     let global_dir = runtime::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
-    daemon::cleanup_stale_daemon_files(&global_dir).map_err(|e| {
+
+    // Per devx-04, pick the daemon IPC dir based on workspace cwd. A daemon
+    // launched from inside a project root writes to
+    // `<root>/machine/daemons/<hash>/`; bare/global startup writes to the
+    // singleton `<root>/machine/daemon/`.
+    let project_probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+    let project_root = project_probe
+        .as_ref()
+        .and_then(|p| runtime::home::ProjectRoot::discover(p));
+    let home = runtime::ShipHome::at(global_dir.clone());
+    let daemon_dir = match project_root.as_ref() {
+        Some(root) => home.worktree_daemon_dir(&runtime::home::path_hash(root.path())),
+        None => home.daemon_dir(),
+    };
+
+    daemon::cleanup_stale_daemon_files(&daemon_dir).map_err(|e| {
         eprintln!("\nshipd startup aborted: {e}\n");
         e
     })?;
     if let Some(ref w) = workspace_dir {
-        tracing::info!(workspace = %w.display(), "shipd: project-scoped mode");
+        tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
     } else {
-        tracing::info!("shipd: global-only mode (no --workspace given)");
+        tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
     }
     let meta = ship_runtime::AppMetadata {
         global_dir: global_dir.clone(),
@@ -157,17 +172,21 @@ pub async fn run_network(
     human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
 
-    let token = match auth::read_token(&global_dir) {
+    let token = match auth::read_token(&daemon_dir) {
         Ok(existing) if !existing.is_empty() => Arc::new(existing),
         _ => {
             let new_token = auth::generate_token()
                 .map_err(|e| anyhow!("failed to generate daemon token: {e}"))?;
-            auth::write_token_file(&global_dir, &new_token).map_err(|e| anyhow!("write daemon.token: {e}"))?;
+            auth::write_token_file(&daemon_dir, &new_token).map_err(|e| anyhow!("write daemon.token: {e}"))?;
             Arc::new(new_token)
         }
     };
-    daemon::write_port_file(&global_dir, port)?;
-    daemon::write_pid_file(&global_dir)?;
+    daemon::write_port_file(&daemon_dir, port)?;
+    daemon::write_pid_file(&daemon_dir)?;
+    if let Some(root) = project_root.as_ref() {
+        daemon::write_workspace_file(&daemon_dir, root.path())?;
+    }
+    daemon::write_sha_file(&daemon_dir, build_info::build_info!().git_sha)?;
 
     let ct = CancellationToken::new();
     let ct2 = ct.clone();

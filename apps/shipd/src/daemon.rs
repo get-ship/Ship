@@ -1,56 +1,53 @@
 //! Daemon lifecycle helpers: status/stop, PID/port files, stale cleanup, shutdown signals.
 //!
-//! All daemon IPC files (`port`, `pid`, `token`, `socket`) live in
-//! `~/.ship/machine/daemon/` per the home-layout ADR. This module reaches
-//! them via the typed `ShipHome::daemon_file(DaemonFile::*)` accessor —
-//! never via raw `<global_dir>/daemon.X` joins.
+//! Helpers operate on a `daemon_dir` argument — typically
+//! `<root>/machine/daemon/` (singleton) or `<root>/machine/daemons/<hash>/`
+//! (per-worktree, devx-04). The caller picks; helpers just write/read.
 
 use anyhow::{Result, anyhow};
-use runtime::{DaemonFile, ShipHome};
 use std::path::{Path, PathBuf};
 
-fn pid_path(global_dir: &Path) -> PathBuf {
-    ShipHome::at(global_dir.to_path_buf()).daemon_file(DaemonFile::Pid)
+fn pid_path(daemon_dir: &Path) -> PathBuf {
+    daemon_dir.join("pid")
 }
 
-fn port_path(global_dir: &Path) -> PathBuf {
-    ShipHome::at(global_dir.to_path_buf()).daemon_file(DaemonFile::Port)
+fn port_path(daemon_dir: &Path) -> PathBuf {
+    daemon_dir.join("port")
 }
 
-fn token_path(global_dir: &Path) -> PathBuf {
-    ShipHome::at(global_dir.to_path_buf()).daemon_file(DaemonFile::Token)
+fn token_path(daemon_dir: &Path) -> PathBuf {
+    daemon_dir.join("token")
 }
 
-fn ensure_daemon_dir(global_dir: &Path) -> Result<()> {
-    let dir = ShipHome::at(global_dir.to_path_buf())
-        .daemon_file(DaemonFile::Pid) // any DaemonFile, we just want the parent
-        .parent()
-        .map(Path::to_path_buf)
-        .ok_or_else(|| anyhow!("daemon path has no parent"))?;
-    std::fs::create_dir_all(&dir)
-        .map_err(|e| anyhow!("create {}: {e}", dir.display()))
+fn ensure_daemon_dir(daemon_dir: &Path) -> Result<()> {
+    std::fs::create_dir_all(daemon_dir)
+        .map_err(|e| anyhow!("create {}: {e}", daemon_dir.display()))
 }
 
-/// Check whether the network daemon is running by inspecting the port file.
+/// Check whether the network daemon is running by discovering its handshake.
+/// Honors per-worktree daemons (devx-04) via `discover_running_daemon`.
 pub fn network_status() -> Result<()> {
-    let global_dir = runtime::project::get_global_dir()?;
-    match std::fs::read_to_string(port_path(&global_dir)) {
-        Ok(port) => println!("shipd: running on port {}", port.trim()),
-        Err(_) => println!("shipd: not running"),
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    match runtime::home::discover_running_daemon(&cwd) {
+        Some(handle) => println!("shipd: running on port {}", handle.port),
+        None => println!("shipd: not running"),
     }
     Ok(())
 }
 
-/// Send SIGTERM to the network daemon via the stored PID file.
+/// Send SIGTERM to the network daemon serving the current cwd.
 pub fn network_stop() -> Result<()> {
-    let global_dir = runtime::project::get_global_dir()?;
-    let pid_str = std::fs::read_to_string(pid_path(&global_dir))
-        .map_err(|_| anyhow!("shipd is not running (no pid file)"))?;
-    let pid = pid_str.trim().to_string();
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let handle = runtime::home::discover_running_daemon(&cwd)
+        .ok_or_else(|| anyhow!("shipd is not running (no daemon for {})", cwd.display()))?;
+    let pid = match handle.pid {
+        Some(p) => p,
+        None => anyhow::bail!("daemon handshake at {} has no pid file", handle.dir.display()),
+    };
     #[cfg(unix)]
     {
         std::process::Command::new("kill")
-            .args(["-TERM", &pid])
+            .args(["-TERM", &pid.to_string()])
             .status()
             .map_err(|e| anyhow!("failed to send SIGTERM to pid {pid}: {e}"))?;
         println!("shipd: sent SIGTERM to pid {pid}");
@@ -78,8 +75,8 @@ fn parent_pid() -> Option<u32> {
 /// belongs to us or our parent supervisor, or the recorded process is no
 /// longer alive. Excluding the parent supervisor prevents the child daemon
 /// process from mistaking its own spawning supervisor for a racing daemon.
-pub fn another_daemon_alive(global_dir: &Path) -> Option<u32> {
-    let pid_str = std::fs::read_to_string(pid_path(global_dir)).ok()?;
+pub fn another_daemon_alive(daemon_dir: &Path) -> Option<u32> {
+    let pid_str = std::fs::read_to_string(pid_path(daemon_dir)).ok()?;
     let pid: u32 = pid_str.trim().parse().ok()?;
 
     #[cfg(unix)]
@@ -102,8 +99,8 @@ pub fn another_daemon_alive(global_dir: &Path) -> Option<u32> {
 /// If the pid file exists but the process is dead, remove pid, port, and token
 /// files so the new instance starts cleanly. If another daemon is alive,
 /// refuse to continue and return an actionable error.
-pub fn cleanup_stale_daemon_files(global_dir: &Path) -> Result<()> {
-    if let Some(pid) = another_daemon_alive(global_dir) {
+pub fn cleanup_stale_daemon_files(daemon_dir: &Path) -> Result<()> {
+    if let Some(pid) = another_daemon_alive(daemon_dir) {
         tracing::warn!(
             old_pid = pid,
             "shipd: another daemon is already running — refusing to start"
@@ -114,7 +111,7 @@ pub fn cleanup_stale_daemon_files(global_dir: &Path) -> Result<()> {
         ));
     }
 
-    let pid_file = pid_path(global_dir);
+    let pid_file = pid_path(daemon_dir);
     let pid_str = match std::fs::read_to_string(&pid_file) {
         Ok(s) => s,
         Err(_) => return Ok(()), // No pid file — nothing to clean.
@@ -131,30 +128,45 @@ pub fn cleanup_stale_daemon_files(global_dir: &Path) -> Result<()> {
 
     // Process is either dead or us — safe to clean up.
     tracing::info!(old_pid = pid, "shipd: cleaning up stale daemon files from crashed instance");
-    let _ = std::fs::remove_file(pid_path(global_dir));
-    let _ = std::fs::remove_file(port_path(global_dir));
+    let _ = std::fs::remove_file(pid_path(daemon_dir));
+    let _ = std::fs::remove_file(port_path(daemon_dir));
     // Keep the token — reuse across restarts for stability.
     Ok(())
 }
 
-pub fn write_port_file(global_dir: &Path, port: u16) -> Result<()> {
-    ensure_daemon_dir(global_dir)?;
-    std::fs::write(port_path(global_dir), port.to_string())
+pub fn write_port_file(daemon_dir: &Path, port: u16) -> Result<()> {
+    ensure_daemon_dir(daemon_dir)?;
+    std::fs::write(port_path(daemon_dir), port.to_string())
         .map_err(|e| anyhow!("failed to write daemon port: {e}"))
 }
 
-pub fn write_pid_file(global_dir: &Path) -> Result<()> {
-    ensure_daemon_dir(global_dir)?;
+pub fn write_pid_file(daemon_dir: &Path) -> Result<()> {
+    ensure_daemon_dir(daemon_dir)?;
     let pid = std::process::id();
-    std::fs::write(pid_path(global_dir), pid.to_string())
+    std::fs::write(pid_path(daemon_dir), pid.to_string())
         .map_err(|e| anyhow!("failed to write daemon pid: {e}"))
+}
+
+/// Write the worktree path so `just status` / `ship doctor` can report it.
+pub fn write_workspace_file(daemon_dir: &Path, workspace: &Path) -> Result<()> {
+    ensure_daemon_dir(daemon_dir)?;
+    std::fs::write(daemon_dir.join("workspace"), workspace.display().to_string())
+        .map_err(|e| anyhow!("failed to write workspace file: {e}"))
+}
+
+/// Write the build SHA so `ship doctor` can detect skew between the live
+/// daemon and a fresher checkout build.
+pub fn write_sha_file(daemon_dir: &Path, sha: &str) -> Result<()> {
+    ensure_daemon_dir(daemon_dir)?;
+    std::fs::write(daemon_dir.join("sha"), sha)
+        .map_err(|e| anyhow!("failed to write sha file: {e}"))
 }
 
 /// Remove the port and pid liveness files. Token is preserved so reconnecting
 /// CLI clients don't need to re-handshake after a daemon restart.
-pub fn remove_liveness_files(global_dir: &Path) {
-    let _ = std::fs::remove_file(port_path(global_dir));
-    let _ = std::fs::remove_file(pid_path(global_dir));
+pub fn remove_liveness_files(daemon_dir: &Path) {
+    let _ = std::fs::remove_file(port_path(daemon_dir));
+    let _ = std::fs::remove_file(pid_path(daemon_dir));
 }
 
 /// Wait for SIGINT or SIGTERM (UNIX) or just SIGINT (other platforms).
@@ -338,62 +350,77 @@ mod stale_cleanup_tests {
 
 #[cfg(test)]
 mod path_layout_tests {
-    //! Validate that daemon writes go through the home-layout typed accessors,
-    //! not raw root-level joins. This guards against the split-brain class of
-    //! bug where the home-layout migrator moves files into `machine/daemon/`
-    //! but the daemon code re-creates them at the root.
+    //! Validate that daemon writes land in the directory the caller passes —
+    //! either the singleton `<root>/machine/daemon/` or a per-worktree
+    //! `<root>/machine/daemons/<hash>/` (devx-04). The helpers treat
+    //! `daemon_dir` as opaque; policy lives in the caller.
     use super::*;
+    use runtime::{DaemonFile, ShipHome};
     use tempfile::TempDir;
 
     #[test]
-    fn write_pid_lives_in_machine_daemon() {
-        let dir = TempDir::new().unwrap();
-        write_pid_file(dir.path()).expect("write pid");
-
-        let new_path = dir.path().join("machine").join("daemon").join("pid");
-        let legacy_path = dir.path().join("daemon.pid");
-
-        assert!(new_path.exists(), "pid must be at machine/daemon/pid");
-        assert!(!legacy_path.exists(), "no legacy daemon.pid at root");
+    fn write_pid_lands_in_caller_provided_dir() {
+        let tmp = TempDir::new().unwrap();
+        let daemon_dir = ShipHome::for_test(tmp.path()).daemon_dir();
+        write_pid_file(&daemon_dir).expect("write pid");
+        assert!(daemon_dir.join("pid").exists());
     }
 
     #[test]
-    fn write_port_lives_in_machine_daemon() {
-        let dir = TempDir::new().unwrap();
-        write_port_file(dir.path(), 9315).expect("write port");
-
-        let new_path = dir.path().join("machine").join("daemon").join("port");
-        let legacy_path = dir.path().join("daemon.port");
-
-        assert!(new_path.exists(), "port must be at machine/daemon/port");
-        assert!(!legacy_path.exists(), "no legacy daemon.port at root");
-        let body = std::fs::read_to_string(new_path).unwrap();
+    fn write_port_lands_in_caller_provided_dir() {
+        let tmp = TempDir::new().unwrap();
+        let daemon_dir = ShipHome::for_test(tmp.path()).daemon_dir();
+        write_port_file(&daemon_dir, 9315).expect("write port");
+        let body = std::fs::read_to_string(daemon_dir.join("port")).unwrap();
         assert_eq!(body.trim(), "9315");
     }
 
     #[test]
-    fn remove_liveness_files_removes_new_paths() {
-        let dir = TempDir::new().unwrap();
-        write_port_file(dir.path(), 9315).unwrap();
-        write_pid_file(dir.path()).unwrap();
+    fn remove_liveness_files_removes_pid_and_port() {
+        let tmp = TempDir::new().unwrap();
+        let daemon_dir = ShipHome::for_test(tmp.path()).daemon_dir();
+        write_port_file(&daemon_dir, 9315).unwrap();
+        write_pid_file(&daemon_dir).unwrap();
 
-        remove_liveness_files(dir.path());
+        remove_liveness_files(&daemon_dir);
 
-        assert!(!port_path(dir.path()).exists());
-        assert!(!pid_path(dir.path()).exists());
+        assert!(!daemon_dir.join("port").exists());
+        assert!(!daemon_dir.join("pid").exists());
     }
 
     #[test]
-    fn typed_accessor_path_matches_ship_home() {
-        let dir = TempDir::new().unwrap();
-        let home = ShipHome::at(dir.path().to_path_buf());
+    fn singleton_dir_matches_typed_accessor() {
+        let tmp = TempDir::new().unwrap();
+        let home = ShipHome::for_test(tmp.path());
+        let daemon_dir = home.daemon_dir();
+        assert_eq!(daemon_dir.join("pid"), home.daemon_file(DaemonFile::Pid));
+        assert_eq!(daemon_dir.join("port"), home.daemon_file(DaemonFile::Port));
+        assert_eq!(daemon_dir.join("token"), home.daemon_file(DaemonFile::Token));
+    }
 
-        assert_eq!(
-            pid_path(dir.path()),
-            home.daemon_file(DaemonFile::Pid),
-            "module-local helper must agree with ShipHome::daemon_file"
+    #[test]
+    fn worktree_dir_writes_under_per_worktree_path() {
+        let tmp = TempDir::new().unwrap();
+        let home = ShipHome::for_test(tmp.path());
+        let hash = "abcd1234";
+        let daemon_dir = home.worktree_daemon_dir(hash);
+        write_pid_file(&daemon_dir).expect("write pid");
+        write_workspace_file(&daemon_dir, std::path::Path::new("/proj/wt"))
+            .expect("write workspace");
+
+        assert!(
+            tmp.path()
+                .join(".ship/machine/daemons")
+                .join(hash)
+                .join("pid")
+                .exists()
         );
-        assert_eq!(port_path(dir.path()), home.daemon_file(DaemonFile::Port));
-        assert_eq!(token_path(dir.path()), home.daemon_file(DaemonFile::Token));
+        assert!(
+            tmp.path()
+                .join(".ship/machine/daemons")
+                .join(hash)
+                .join("workspace")
+                .exists()
+        );
     }
 }
