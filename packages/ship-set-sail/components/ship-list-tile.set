@@ -17,8 +17,6 @@ prop density: 'compact' | 'normal' | 'relaxed' = 'normal'
 prop tone: 'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' | 'primary' = 'default'
 
 derived tabIndexAttr = (interactive() && !disabled()) ? '0' : ''
-derived ariaSelected = selected() ? 'true' : 'false'
-derived ariaDisabled = disabled() ? 'true' : 'false'
 
 function dispatchSelect() {
   if (disabled() || !interactive()) return false
@@ -45,10 +43,6 @@ function onKeyDown(e) {
   }
 }
 
-function syncRole() {
-  el.setAttribute('role', interactive() ? 'button' : 'listitem')
-}
-
 function installDividers() {
   // Document-level sibling rule for adjacent row-variant tiles. Light
   // DOM custom elements can't style sibling hosts from their own scoped
@@ -67,27 +61,21 @@ function installDividers() {
 
 mount {
   installDividers()
-  syncRole()
-}
-
-effect on interactive {
-  syncRole()
-}
-effect on selected {
-  el.setAttribute('aria-selected', ariaSelected())
-}
-effect on disabled {
-  el.setAttribute('aria-disabled', ariaDisabled())
 }
 </script>
 
 <template>
+<:host
+  role={interactive ? 'button' : 'listitem'}
+  aria-selected={selected ? 'true' : 'false'}
+  aria-disabled={disabled ? 'true' : 'false'}
+/>
 <div
   class="tile"
   part="button"
   tabindex={tabIndexAttr}
-  on:click={onClick}
-  on:keydown={onKeyDown}
+  onclick={onClick}
+  onkeydown={onKeyDown}
 >
   <div class="row" part="row">
     <slot name="leading"></slot>

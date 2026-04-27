@@ -131,32 +131,17 @@ function lookupIcon(n) {
 derived inner = lookupIcon(name())
 derived hasIcon = inner().length > 0
 
-function syncAria() {
-  if (label()) {
-    el.setAttribute('role', 'img')
-    el.setAttribute('aria-label', label())
-    el.removeAttribute('aria-hidden')
-  } else {
-    el.setAttribute('aria-hidden', 'true')
-    el.removeAttribute('role')
-    el.removeAttribute('aria-label')
-  }
-}
-
 derived svgString = hasIcon()
   ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" part="svg"${label() ? '' : ' aria-hidden="true"'}>${inner()}</svg>`
   : ''
-
-mount {
-  syncAria()
-}
-
-effect on label {
-  syncAria()
-}
 </script>
 
 <template>
+<:host
+  role={label ? 'img' : ''}
+  aria-label={label}
+  aria-hidden={label ? '' : 'true'}
+/>
 <slot>
   {#if hasIcon}{@html svgString}{/if}
 </slot>
