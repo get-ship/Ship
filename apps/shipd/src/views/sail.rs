@@ -42,19 +42,37 @@ fn cache() -> &'static RwLock<HashMap<String, CacheEntry>> {
     CACHE.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
-/// `GET /_sail/demo` — visual showcase of the parallel ship-set-sail
-/// ports. Static HTML; references compiled .set modules at
-/// `/_sail/components/<tag>.js` (so author edits hot-reload via the
-/// existing pipeline). Requires the .set sources to be discoverable
-/// at `.ship/sail/` — run `just sail-demo` to link them.
+/// `GET /_sail/demo` — side-by-side visual diff: Lit ship-set on the
+/// left, Sail port on the right. Each side is its own iframe so the
+/// custom-element registries don't collide.
 pub async fn serve_sail_demo() -> Response {
     const DEMO_HTML: &str =
         include_str!("../../../../packages/ship-set-sail/demo/index.html");
+    html_response(DEMO_HTML)
+}
+
+/// `GET /_sail/demo/sail` — Sail-only showcase. Iframe target on the
+/// right side of the side-by-side view; also useful standalone.
+pub async fn serve_sail_demo_sail() -> Response {
+    const SAIL_HTML: &str =
+        include_str!("../../../../packages/ship-set-sail/demo/sail.html");
+    html_response(SAIL_HTML)
+}
+
+/// `GET /_sail/demo/lit` — Lit-only showcase. Iframe target on the
+/// left side of the side-by-side view.
+pub async fn serve_sail_demo_lit() -> Response {
+    const LIT_HTML: &str =
+        include_str!("../../../../packages/ship-set-sail/demo/lit.html");
+    html_response(LIT_HTML)
+}
+
+fn html_response(body: &'static str) -> Response {
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
         .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(DEMO_HTML))
+        .body(Body::from(body))
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
