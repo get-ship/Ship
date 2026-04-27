@@ -12,7 +12,7 @@ pub mod scope;
 pub mod ship_home;
 pub mod vector;
 
-pub use daemon::DaemonFile;
+pub use daemon::{DaemonFile, DaemonHandle, discover_running_daemon, path_hash};
 pub use ensure::ensure_layout;
 pub use project::ProjectRoot;
 pub use scope::Scope;
