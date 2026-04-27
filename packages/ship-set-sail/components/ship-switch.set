@@ -36,20 +36,20 @@ function onChange(e) {
 mount {
   defaultChecked.set(el.hasAttribute('checked'))
   syncFormValue()
+}
 
-  el.addEventListener('sail:form-reset', () => {
-    checked.set(defaultChecked())
-    if (defaultChecked()) el.setAttribute('checked', '')
-    else el.removeAttribute('checked')
-    syncFormValue()
-  })
-  el.addEventListener('sail:form-restore', (e) => {
-    const c = e.detail?.state === value()
-    checked.set(c)
-    if (c) el.setAttribute('checked', '')
-    else el.removeAttribute('checked')
-    syncFormValue()
-  })
+on form_reset {
+  checked.set(defaultChecked())
+  if (defaultChecked()) el.setAttribute('checked', '')
+  else el.removeAttribute('checked')
+  syncFormValue()
+}
+on form_restore(state) {
+  const c = state === value()
+  checked.set(c)
+  if (c) el.setAttribute('checked', '')
+  else el.removeAttribute('checked')
+  syncFormValue()
 }
 
 effect {

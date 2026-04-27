@@ -55,15 +55,15 @@ mount {
   // because we only set it once at mount.
   errId.set(`ship-input-err-${Math.random().toString(36).slice(2, 9)}`)
   syncFormValue()
+}
 
-  el.addEventListener('sail:form-reset', () => {
-    value.set(defaultValue())
-    syncFormValue()
-  })
-  el.addEventListener('sail:form-restore', (e) => {
-    value.set(e.detail?.state ?? '')
-    syncFormValue()
-  })
+on form_reset {
+  value.set(defaultValue())
+  syncFormValue()
+}
+on form_restore(state) {
+  value.set(state ?? '')
+  syncFormValue()
 }
 
 effect {

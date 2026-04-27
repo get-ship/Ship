@@ -53,22 +53,22 @@ mount {
     }
     syncFormValue()
   })
-  // Form lifecycle: reset to default-checked when the parent <form>
-  // resets; restore from saved state if the browser rehydrates a form.
-  el.addEventListener('sail:form-reset', () => {
-    checked.set(defaultChecked())
-    indeterminate.set(false)
-    if (defaultChecked()) el.setAttribute('checked', '')
-    else el.removeAttribute('checked')
-    syncFormValue()
-  })
-  el.addEventListener('sail:form-restore', (e) => {
-    const state = e.detail?.state
-    checked.set(state === value())
-    if (state === value()) el.setAttribute('checked', '')
-    else el.removeAttribute('checked')
-    syncFormValue()
-  })
+}
+
+// Form lifecycle: reset to default-checked when the parent <form>
+// resets; restore from saved state if the browser rehydrates a form.
+on form_reset {
+  checked.set(defaultChecked())
+  indeterminate.set(false)
+  if (defaultChecked()) el.setAttribute('checked', '')
+  else el.removeAttribute('checked')
+  syncFormValue()
+}
+on form_restore(state) {
+  checked.set(state === value())
+  if (state === value()) el.setAttribute('checked', '')
+  else el.removeAttribute('checked')
+  syncFormValue()
 }
 
 effect {

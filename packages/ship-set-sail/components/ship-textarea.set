@@ -42,15 +42,15 @@ function onInput(e) {
 mount {
   defaultValue.set(value())
   syncFormValue()
+}
 
-  el.addEventListener('sail:form-reset', () => {
-    value.set(defaultValue())
-    syncFormValue()
-  })
-  el.addEventListener('sail:form-restore', (e) => {
-    value.set(e.detail?.state ?? '')
-    syncFormValue()
-  })
+on form_reset {
+  value.set(defaultValue())
+  syncFormValue()
+}
+on form_restore(state) {
+  value.set(state ?? '')
+  syncFormValue()
 }
 
 effect {

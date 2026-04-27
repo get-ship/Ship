@@ -4,32 +4,11 @@ prop size: 'sm' | 'md' | 'lg' = 'md'
 prop tone: 'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' = 'default'
 prop icon: string = ''
 
-state iconSlotFilled = false
-
 derived role = variant() === 'connecting' ? 'status' : 'note'
 derived live = variant() === 'connecting' ? 'polite' : 'off'
 // Fallback <ship-icon> renders iff: caller provided no slot fill AND
-// supplied a non-empty `icon` attr. Slot always wins — matches the Lit
-// parity rule "slots over attrs for content".
-derived showFallback = !iconSlotFilled() && !!icon()
-
-mount {
-  // After resolveSlots has placed slot fills, the .icon tile contains
-  // either the user's <X slot="icon"> nodes (slot filled) or — if no
-  // fill — the fallback <ship-icon class="glyph"> wired by `{#if}`.
-  // Inspect once at mount, ignoring the fallback glyph itself, so the
-  // showFallback derived can flip to false when a slot fill is present
-  // (slot wins over icon attr — Lit parity).
-  const tile = el.querySelector(':scope > .box > [part="icon"]')
-  if (tile) {
-    const filled = Array.from(tile.childNodes).some((n) => {
-      if (n.nodeType === 3) return (n.textContent || '').trim().length > 0
-      if (n.nodeType !== 1) return false
-      return !(n instanceof Element && n.classList.contains('glyph'))
-    })
-    iconSlotFilled.set(filled)
-  }
-}
+// supplied a non-empty `icon` attr. Slot always wins.
+derived showFallback = !slotFilled(el, 'icon') && !!icon()
 </script>
 
 <template>
