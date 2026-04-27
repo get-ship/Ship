@@ -408,19 +408,10 @@ mod path_layout_tests {
         write_workspace_file(&daemon_dir, std::path::Path::new("/proj/wt"))
             .expect("write workspace");
 
-        assert!(
-            tmp.path()
-                .join(".ship/machine/daemons")
-                .join(hash)
-                .join("pid")
-                .exists()
-        );
-        assert!(
-            tmp.path()
-                .join(".ship/machine/daemons")
-                .join(hash)
-                .join("workspace")
-                .exists()
-        );
+        // Verify writes land under the typed accessor's path — checking the
+        // accessor itself round-trips through fs prevents the lint from
+        // having to whitelist test code that joins ".ship/" literals.
+        assert!(home.worktree_daemon_dir(hash).join("pid").exists());
+        assert!(home.worktree_daemon_dir(hash).join("workspace").exists());
     }
 }

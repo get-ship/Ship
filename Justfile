@@ -237,10 +237,14 @@ check-gates:
 
 # Home-layout grep guards. Hard-fail per devx-06 Tier 6: any raw
 # `.join(".ship")` outside crates/core/runtime/src/home/ blocks the build.
+# Leaf-crate portability check runs as part of the same target — if a
+# leaf crate accumulates a non-portable dep, modular-runtime-01's
+# acceptance criterion fails here.
 [group('occasional')]
 check-raw:
     @scripts/lint/check-raw-ship-paths.sh
     @scripts/lint/check-raw-env-reads.sh
+    @scripts/lint/check-leaf-portability.sh
     @just check-migrations
 
 # Enforce platform.db migration naming discipline.
