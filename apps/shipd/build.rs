@@ -26,28 +26,10 @@ fn main() {
     println!("cargo:rerun-if-changed=src/routes.rs");
     println!("cargo:rerun-if-changed=build.rs");
 
-    // Capture short git commit hash so the running daemon can identify
-    // which checkout produced its binary. Best-effort — when git is
-    // unavailable (e.g. tarball builds) we emit "unknown" and move on.
-    // Exposed as both VERGEN_GIT_SHA (legacy startup telemetry consumer)
-    // and SHIPD_GIT_COMMIT (new identity log + /api/health). No external
-    // crate dependency — std::process::Command only.
-    let commit = std::process::Command::new("git")
-        .args(["rev-parse", "--short=8", "HEAD"])
-        .output()
-        .ok()
-        .and_then(|o| if o.status.success() {
-            String::from_utf8(o.stdout).ok().map(|s| s.trim().to_string())
-        } else {
-            None
-        })
-        .filter(|s| !s.is_empty())
-        .unwrap_or_else(|| "unknown".to_string());
-    println!("cargo:rustc-env=SHIPD_GIT_COMMIT={commit}");
-    println!("cargo:rustc-env=VERGEN_GIT_SHA={commit}");
-    // Re-run identity capture when HEAD moves.
-    println!("cargo:rerun-if-changed=../../.git/HEAD");
-    println!("cargo:rerun-if-changed=../../.git/refs/heads");
+    // Build identity (BUILD_GIT_SHA, BUILD_GIT_DIRTY, BUILD_TIMESTAMP,
+    // BUILD_RUSTC_VERSION, BUILD_PROFILE) — shared across shipd, ship-cli,
+    // and mcp via the build-info crate.
+    build_info::emit_build_env();
 
     let routes_rs = Path::new("src/routes.rs");
     let source = fs::read_to_string(routes_rs)

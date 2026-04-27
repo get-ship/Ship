@@ -216,6 +216,9 @@ pub fn build_router(
     // everything else uses. The shell IS the app; it always mounts.
     root = root.merge(shell_assets::router(shell_registry));
     root
+        // X-Shipd-Build header on every response: build SHA + dirty flag.
+        // CLI/shell/browser read this to detect daemon-vs-client skew.
+        .layer(axum::middleware::from_fn(build_header_middleware))
         .layer(axum::middleware::from_fn(cors::cors_middleware))
         // Tag view responses with Datastar morph-target headers so cross-view
         // navigation inside the shell doesn't wipe shell chrome.
@@ -228,6 +231,20 @@ pub fn build_router(
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
+}
+
+/// Stamp `X-Shipd-Build` on every response so clients can detect daemon
+/// version skew. Value comes from the `build-info` crate at compile time.
+async fn build_header_middleware(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let mut response = next.run(req).await;
+    let bi = build_info::build_info!();
+    if let Ok(value) = axum::http::HeaderValue::from_str(&bi.short()) {
+        response.headers_mut().insert("X-Shipd-Build", value);
+    }
+    response
 }
 
 /// All enumerated routes, registered via `ShipRouterExt::ship_route` against
@@ -535,11 +552,13 @@ pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<ser
         .workspace_dir()
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| rt.ship_dir().display().to_string());
+    let bi = build_info::build_info!();
     Json(serde_json::json!({
         "ok": all_healthy,
         "healthy": all_healthy,
         "version": env!("CARGO_PKG_VERSION"),
-        "commit": env!("SHIPD_GIT_COMMIT"),
+        "commit": bi.short(),
+        "build": bi.full(),
         "ship_dir": ship_dir,
         "pid": std::process::id(),
         "dev_mode": pairing::is_dev_mode(),

@@ -109,6 +109,20 @@ fn port() -> u16 {
 // Tests
 // ---------------------------------------------------------------------------
 
+/// Every response from shipd must carry `X-Shipd-Build` (from build-info).
+/// Clients use this for version-skew detection.
+#[tokio::test]
+async fn responses_carry_x_shipd_build_header() {
+    let d = TestDaemon::start().await;
+    let res = d.bare().get(d.url("/api/health")).send().await.unwrap();
+    let header = res
+        .headers()
+        .get("x-shipd-build")
+        .expect("X-Shipd-Build header must be present");
+    let value = header.to_str().expect("header must be ASCII");
+    assert!(!value.is_empty(), "X-Shipd-Build value must not be empty");
+}
+
 #[tokio::test]
 async fn capabilities_requires_auth() {
     let d = TestDaemon::start().await;

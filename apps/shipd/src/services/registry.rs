@@ -616,7 +616,7 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
                     "pid": pid,
                     "alive": pid_alive(pid),
                     "log": log_path.display().to_string(),
-                    "version": option_env!("SHIP_MCP_VERSION_STRING").unwrap_or("dev"),
+                    "version": build_info::build_info!().short(),
                 }));
                 if let Ok(p) = std::fs::read_to_string(format!("/proc/{pid}/status")) {
                     let ppid: Option<i64> = p.lines()

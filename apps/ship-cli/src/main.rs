@@ -51,12 +51,19 @@ fn try_init_kernel_router() {
     }
 }
 
+/// Static version string for clap. Uses the canonical `BUILD_GIT_SHA` env
+/// var emitted by `build.rs`; clap requires `&'static str`.
 pub fn build_version() -> &'static str {
     if cfg!(feature = "unstable") {
-        concat!(env!("CARGO_PKG_VERSION"), "+unstable.", env!("GIT_COMMIT_SHORT"))
+        concat!(env!("CARGO_PKG_VERSION"), "+unstable.", env!("BUILD_GIT_SHA"))
     } else {
         env!("CARGO_PKG_VERSION")
     }
+}
+
+/// Compile-time build identity for this CLI binary.
+pub fn ship_build_info() -> build_info::BuildInfo {
+    build_info::build_info!()
 }
 
 fn main() {

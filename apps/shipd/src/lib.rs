@@ -210,10 +210,11 @@ pub async fn run_network(
         .workspace_dir()
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| format!("{} (global-only)", global_dir.display()));
+    let bi = build_info::build_info!();
     let identity = format!(
         "shipd {}-{} listening on {} · ship_dir={} · pid={}",
         env!("CARGO_PKG_VERSION"),
-        env!("SHIPD_GIT_COMMIT"),
+        bi.short(),
         port,
         identity_ship_dir,
         std::process::id(),
@@ -243,7 +244,7 @@ pub async fn run_network(
         pid: std::process::id(),
         port,
         version: env!("CARGO_PKG_VERSION").to_string(),
-        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("unknown").to_string(),
+        commit_sha: build_info::build_info!().git_sha.to_string(),
         event_count_at_startup: summary.event_count,
         latest_event_id: summary.latest_event_id,
         init_duration_ms: init_started_at.elapsed().as_millis() as u64,
