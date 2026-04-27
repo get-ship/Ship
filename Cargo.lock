@@ -3277,6 +3277,7 @@ dependencies = [
  "sha2",
  "ship-jobs",
  "ship-kernel",
+ "ship-pipelines",
  "ship-types",
  "specta",
  "sqlx",
@@ -3691,6 +3692,16 @@ dependencies = [
  "ship-types",
  "thiserror 2.0.18",
  "tokio",
+]
+
+[[package]]
+name = "ship-pipelines"
+version = "0.1.0"
+dependencies = [
+ "globset",
+ "serde",
+ "serde_json",
+ "specta",
 ]
 
 [[package]]

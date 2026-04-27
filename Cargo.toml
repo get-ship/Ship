@@ -9,6 +9,7 @@ members = [
     "crates/core/runtime",
     "crates/core/ship-jobs",
     "crates/core/ship-kernel",
+    "crates/core/ship-pipelines",
     "crates/core/ship-types",
     "crates/xtask",
     "apps/mcp",
