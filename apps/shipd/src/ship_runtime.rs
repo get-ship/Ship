@@ -112,6 +112,8 @@ pub struct ShipRuntime {
     permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService>,
     /// `McpService` impl — third mr-02 pilot.
     mcp: std::sync::Arc<dyn crate::services::mcp::service::McpService>,
+    /// `SkillsService` impl — fourth mr-02 migration.
+    skills: std::sync::Arc<dyn crate::services::skills::service::SkillsService>,
 }
 
 impl ShipRuntime {
@@ -283,6 +285,7 @@ impl ShipRuntime {
                 )
             },
             mcp: crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
+            skills: crate::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -337,6 +340,11 @@ impl ShipRuntime {
     /// `McpService` accessor — third mr-02 pilot.
     pub fn mcp(&self) -> &dyn crate::services::mcp::service::McpService {
         &*self.mcp
+    }
+
+    /// `SkillsService` accessor.
+    pub fn skills(&self) -> &dyn crate::services::skills::service::SkillsService {
+        &*self.skills
     }
 
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
@@ -568,6 +576,7 @@ impl ShipRuntime {
         let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
@@ -600,6 +609,7 @@ impl ShipRuntime {
             rules,
             permissions,
             mcp,
+            skills,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -617,6 +627,7 @@ impl ShipRuntime {
         let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
@@ -649,6 +660,7 @@ impl ShipRuntime {
             rules,
             permissions,
             mcp,
+            skills,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
