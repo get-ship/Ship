@@ -35,6 +35,7 @@ pub mod sdk_macros;
 pub mod sfc;
 pub mod components;
 pub mod sail;
+pub mod sail_hmr;
 pub mod setup;
 pub mod templates;
 pub mod session;

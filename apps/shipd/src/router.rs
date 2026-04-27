@@ -138,6 +138,14 @@ pub fn build_router(
         .route(
             "/_sail/components/{file}",
             axum::routing::get(views::sail::serve_sail),
+        )
+        .route(
+            "/_sail/hmr",
+            axum::routing::get(views::sail_hmr::serve_hmr),
+        )
+        .route(
+            "/_sail/hmr-client.js",
+            axum::routing::get(views::sail_hmr::serve_hmr_client_js),
         );
 
     let auth_token = token;
