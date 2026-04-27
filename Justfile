@@ -1,42 +1,168 @@
-# ── Ship Development ───────────────────────────────────────────────────────────
+# ── Ship Development ─────────────────────────────────────────────────────────
+#
+# Daily contributor flow runs through the recipes below. Raw cargo / pnpm /
+# bash invocations stay possible as escape hatches but are not recommended:
+# if you reach for one, ask whether a recipe should exist instead.
+#
+# Per devx-04, `just dev` and friends operate on a per-worktree daemon at
+# ~/.ship/machine/daemons/<hash>/, with stashed binaries that survive
+# subsequent rebuilds until you run `just dev-restart`.
+
+set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 
 default:
     @just --list
 
-# ── Dev ────────────────────────────────────────────────────────────────────────
+# ── Daily ────────────────────────────────────────────────────────────────────
 
-# Start the shell app dev server (Vite). Daemon must be running separately.
+# Build + stash + start the dev daemon for this worktree.
+[group('daily')]
 dev:
+    @scripts/dev/start.sh
+
+# Stop, rebuild, re-stash, start. Use after Rust changes.
+[group('daily')]
+dev-restart:
+    @scripts/dev/restart.sh
+
+# Stop the daemon serving this worktree.
+[group('daily')]
+dev-stop:
+    @scripts/dev/stop.sh
+
+# List every daemon: workspace, port, pid, sha, alignment to current build.
+[group('daily')]
+status:
+    @scripts/dev/status.sh
+
+# `ship doctor`: build matrix, layout version, common-issue checklist.
+[group('daily')]
+doctor:
+    ship doctor
+
+# Run all tests (Rust + loops). For a faster inner loop use test-fast.
+[group('daily')]
+test:
+    cargo test --workspace --features unstable
+
+# Library tests only — skips integration suites for fast inner-loop feedback.
+[group('daily')]
+test-fast:
+    cargo test --workspace --lib --features unstable
+
+# Run tests for a single crate. Usage: just test-pkg runtime
+[group('daily')]
+test-pkg pkg:
+    cargo test -p {{ pkg }} --features unstable
+
+# cargo check across the workspace — fastest sanity gate.
+[group('daily')]
+check:
+    cargo check --workspace --all-targets --features unstable
+
+# Rust clippy + home-layout grep guards. Hard-fail on raw .ship/ joins
+# (devx-06 Tier 6).
+[group('daily')]
+lint:
+    cargo clippy --workspace --features unstable -- -D warnings
+    @just check-raw
+
+# Visual QA against the daemon serving cwd. Discovers port automatically.
+[group('daily')]
+qa:
+    node tests/loops/run.mjs
+
+# ── Occasional ───────────────────────────────────────────────────────────────
+
+# Set up a worktree for a branch. Drops .ship/.boundary so views/pipelines
+# stay isolated from the main checkout. First-run prompts for worktrees.dir.
+[group('occasional')]
+init-worktree branch:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    base=$(ship config get worktrees.dir 2>/dev/null \
+           || echo "$HOME/dev/$(basename "$PWD")-worktrees")
+    target="$base/$(echo "{{ branch }}" | tr / -)"
+    git worktree add "$target" -b "{{ branch }}" 2>/dev/null \
+        || git worktree add "$target" "{{ branch }}"
+    mkdir -p "$target/.ship"
+    [ -f "$target/.ship/.boundary" ] || echo '{}' > "$target/.ship/.boundary"
+    echo "worktree: $target"
+
+# Remove stash binaries for daemons that aren't currently running.
+# Leaves library/ alone — that's portable user state.
+[group('occasional')]
+clean:
+    @scripts/dev/clean.sh
+
+# Cargo target dir + node_modules. Asks for confirmation.
+[group('occasional')]
+clean-deep:
+    cargo clean
+    rm -rf node_modules apps/*/node_modules packages/*/node_modules
+
+# Format Rust.
+[group('occasional')]
+fmt:
+    cargo fmt
+
+# Check Rust formatting.
+[group('occasional')]
+fmt-check:
+    cargo fmt --check
+
+# Lint Ship views (no inline <script>, style budget, undefined signals).
+[group('occasional')]
+lint-views:
+    cargo run --features unstable -p ship-cli --quiet -- lint views --format json
+
+# Build docs site (Astro static).
+[group('occasional')]
+docs:
+    cd apps/docs && npx tsx scripts/collect-skill-docs.ts && pnpm build
+
+# Dev docs site.
+[group('occasional')]
+docs-dev:
+    cd apps/docs && pnpm dev --port 4321 --host
+
+# Regenerate the committed OpenAPI snapshot.
+[group('occasional')]
+openapi-regen:
+    cd apps/docs && pnpm run openapi:generate
+
+# Fail if the committed openapi.json disagrees with the live spec.
+[group('occasional')]
+openapi-check:
+    cd apps/docs && pnpm run openapi:check-drift
+
+# Regenerate the Astro reference tree from docs/<skill>/references/docs/.
+[group('occasional')]
+docs-regen:
+    cd apps/docs && AUDIENCE=internal pnpm run collect
+
+# Fail if the on-disk Astro reference tree disagrees with the collector.
+[group('occasional')]
+docs-check-drift:
+    cd apps/docs && pnpm run docs:check-drift
+
+# Frontend dev server (Vite). Daemon must be running separately.
+[group('occasional')]
+shell-dev:
     pnpm --filter shell dev
 
-# Watch and rebuild Rust on changes (unstable — includes all dev tools)
-watch:
-    cargo watch -x "build --features unstable -p ship-cli -p mcp"
-
-# Point the running daemon at THIS worktree's binary + .ship dir.
-# Common when developing views/themes from a worktree — the installed
-# ~/.local/bin/shipd serves bundled bytes, not your edits.
-dev-daemon:
-    @scripts/dev-daemon.sh
-
-# Tail the daemon log (Ctrl+C to stop).
-daemon-logs:
-    tail -f ~/.ship/shipd.log
-
-# ── Build ──────────────────────────────────────────────────────────────────────
-
-# Build CLI + MCP + shipd (unstable dev build — default for development)
+# Build CLI + MCP + shipd (unstable dev build).
+[group('occasional')]
 build:
     cargo build --features unstable -p ship-cli -p mcp -p shipd
 
-# Build release binary (stable — no unstable features, what users get)
+# Build release binary (stable, no unstable features — what users get).
+[group('occasional')]
 build-release:
     cargo build --release -p ship-cli -p mcp -p shipd
 
 # Install dev binaries to ~/.local/bin (ship + shipd).
-# Resolves the cargo target dir via `cargo metadata` so the copy works when
-# .cargo/config.toml redirects target-dir (e.g. for a shared build cache
-# across worktrees).
+[group('occasional')]
 install-dev: build
     #!/usr/bin/env bash
     set -euo pipefail
@@ -45,7 +171,8 @@ install-dev: build
     cp -f "$target/debug/shipd" ~/.local/bin/shipd
     echo "Installed: ship + shipd → ~/.local/bin"
 
-# Install stable binary to ~/.cargo/bin
+# Install stable binary to ~/.cargo/bin.
+[group('occasional')]
 install: build-release
     #!/usr/bin/env bash
     set -euo pipefail
@@ -53,125 +180,86 @@ install: build-release
     cargo install --path apps/ship-cli
     cp -f "$target/release/shipd" ~/.local/bin/shipd
 
-# Restart shipd with the latest dev build (build → install → graceful restart).
-# `ship daemon stop` terminates the supervisor cleanly and shipd's own
-# shutdown path removes stale daemon.pid/daemon.port before the next start.
-daemon-restart: install-dev
-    -ship daemon stop 2>/dev/null || true
-    @sleep 1
-    ship daemon start
-
-# Watch Rust sources and auto-restart the daemon on changes.
-# Templates in .ship/views/ are hot-reloaded without restart.
-# Install watchexec once: cargo install watchexec-cli
-daemon-watch:
-    watchexec --watch apps/shipd/src --watch crates --watch apps/shipd/assets \
-        --exts rs,js --on-busy-update restart -- just daemon-restart
-
-# Rebuild WASM compiler (requires build-essential)
+# Rebuild WASM compiler (requires build-essential).
+[group('occasional')]
 wasm:
     wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm
 
-# ── Test ───────────────────────────────────────────────────────────────────────
-
-# Run all tests (Rust + loops)
-test: test-rust test-loops
-
-# End-to-end loop tests against a running daemon (headless only).
-# Each loop is a single-purpose sanity gate exercising one substrate
-# concern (channel delivery, hook correlation, write-path idempotency,
-# id minting, etc.). Run UI-mode loops with `just test-loops-ui`.
-test-loops:
-    node tests/loops/run.mjs
-
-# All loops including Playwright-driven UI checks. Slower, separate
-# CI gate — needs a daemon AND a browser.
-test-loops-ui:
-    node tests/loops/run.mjs --ui
-
-# Rust workspace tests (unstable)
-test-rust:
-    cargo test --workspace --features unstable
-
-# Rust tests — stable surface only (CI release gate)
-test-rust-stable:
-    cargo test --workspace
-
-# Runtime crate only (fastest Rust)
-test-runtime:
-    cargo test -p runtime
-
-# Compiler crate only
-test-compiler:
-    cargo test -p compiler
-
-# TypeScript type check (shell app)
-typecheck:
-    pnpm --filter shell exec tsc --noEmit
-
-# ── Code generation ────────────────────────────────────────────────────────────
-
-# Regenerate Specta types (Rust → packages/ship-set/src/generated.ts)
+# Regenerate Specta types (Rust → packages/ship-set/src/generated.ts).
+[group('occasional')]
 gen-types:
     cargo run -p xtask -- gen-types
 
-# Regenerate the Ship SDK manifest (→ packages/ship-set/sdk/*.json)
+# Regenerate the Ship SDK manifest (→ packages/ship-set/sdk/*.json).
+[group('occasional')]
 gen-sdk:
     cargo run -p xtask -- gen-sdk
 
-# ── Lint & Format ──────────────────────────────────────────────────────────────
+# Compile the active agent for the current project.
+[group('occasional')]
+compile:
+    ship compile
 
-# Rust clippy (unstable) + home-layout grep guards (devx-06 Tier 6: hard-fail).
-lint:
-    cargo clippy --workspace --features unstable -- -D warnings
-    @just check-raw
+# Activate an agent (default looks up `.ship/agents/default.jsonc`).
+[group('occasional')]
+use agent="default":
+    ship use {{ agent }}
 
-# Format Rust
-fmt:
-    cargo fmt
+# Reconcile recorded migration checksums against current files.
+[group('occasional')]
+repair-migrations:
+    ship daemon repair-migrations
 
-# Check Rust formatting
-fmt-check:
-    cargo fmt --check
+# Mark a migration version as applied without executing it.
+[group('occasional')]
+repair-migrations-mark version:
+    ship daemon repair-migrations --mark-applied {{ version }}
 
-# Lint Ship views — no inline <script>, style budget, undefined signals.
-# Exits non-zero on any error-severity finding so CI can gate on it.
-lint-views:
-    cargo run --features unstable -p ship-cli --quiet -- lint views --format json
+# Tail the daemon log. Discovers the right log file via daemon dir.
+[group('occasional')]
+logs:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    log="${SHIP_HOME:-$HOME/.ship}/machine/logs/shipd.log"
+    if [ ! -f "$log" ]; then
+        echo "no log at $log — has the daemon ever started?" >&2
+        exit 1
+    fi
+    tail -f "$log"
 
-# ── Docs ──────────────────────────────────────────────────────────────────────
+# Verify both stable and unstable compile (CI gate).
+[group('occasional')]
+check-gates:
+    cargo build -p ship-cli -p mcp
+    cargo build --features unstable -p ship-cli -p mcp
+    just check-no-set-var-global-dir
+    @echo "Both gates compile ✓"
 
-# Build docs site
-docs:
-    cd apps/docs && npx tsx scripts/collect-skill-docs.ts && pnpm build
+# Home-layout grep guards. Hard-fail per devx-06 Tier 6: any raw
+# `.join(".ship")` outside crates/core/runtime/src/home/ blocks the build.
+[group('occasional')]
+check-raw:
+    @scripts/lint/check-raw-ship-paths.sh
+    @scripts/lint/check-raw-env-reads.sh
+    @just check-migrations
 
-# Dev docs site
-docs-dev:
-    cd apps/docs && pnpm dev --port 4321 --host
+# Enforce platform.db migration naming discipline.
+[group('occasional')]
+check-migrations:
+    @scripts/lint/check-migration-naming.sh
 
-# Regenerate the committed OpenAPI snapshot from the live daemon spec.
-openapi-regen:
-    cd apps/docs && pnpm run openapi:generate
+# Fail if any test uses set_var("SHIP_GLOBAL_DIR") — causes env var races.
+[group('occasional')]
+check-no-set-var-global-dir:
+    @if grep -rn 'set_var.*SHIP_GLOBAL_DIR' apps/ crates/ --include='*.rs'; then \
+        echo "ERROR: set_var(\"SHIP_GLOBAL_DIR\") found in test code."; \
+        echo "Use explicit ship_dir parameters instead."; \
+        exit 1; \
+    fi
+    @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"
 
-# Fail if the committed apps/docs/openapi.json disagrees with the live spec.
-# CI gate for "someone edited a utoipa annotation but forgot to regenerate".
-check-openapi-drift:
-    cd apps/docs && pnpm run openapi:check-drift
-
-# Regenerate the Astro reference tree from docs/<skill>/references/docs/.
-# The output (apps/docs/src/content/docs/reference/) is gitignored build
-# output; predev/prebuild run this automatically.
-docs-regen:
-    cd apps/docs && AUDIENCE=internal pnpm run collect
-
-# Fail if the on-disk Astro reference tree disagrees with what the collector
-# would produce from source. CI gate against hand-edited generated docs.
-check-docs-drift:
-    cd apps/docs && pnpm run docs:check-drift
-
-# ── Registry ───────────────────────────────────────────────────────────────────
-
-# Seed the local registry with @unofficial packages
+# Seed the local registry with @unofficial packages.
+[group('occasional')]
 seed:
     @echo "Seeding local registry — requires dev server running on :3000"
     curl -s -X POST http://localhost:3000/api/registry/seed \
@@ -179,12 +267,13 @@ seed:
       -H "X-Seed-Secret: ${SEED_SECRET}" \
       -H "Cookie: ${AUTH_COOKIE}" | jq .
 
-# Publish a package to the local registry
+# Publish a package to the local registry.
+[group('occasional')]
 publish repo:
     curl -s -X POST http://localhost:3000/api/registry/publish \
       -H "Content-Type: application/json" \
       -H "Cookie: ${AUTH_COOKIE}" \
-      -d '{"repo_url": "{{repo}}"}' | jq .
+      -d '{"repo_url": "{{ repo }}"}' | jq .
 
 # ── Ship CLI ──────────────────────────────────────────────────────────────────
 
@@ -244,6 +333,11 @@ check-no-set-var-global-dir:
         exit 1; \
     fi
     @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"
+
+# TypeScript type check (shell app).
+[group('occasional')]
+typecheck:
+    pnpm --filter shell exec tsc --noEmit
 
 # Link the Sail ship-set ports into .ship/sail/ so the daemon serves them
 # at /_sail/components/<tag>.js. After running, navigate to

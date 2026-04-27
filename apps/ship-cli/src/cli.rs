@@ -371,6 +371,11 @@ pub enum DaemonCommands {
     },
     /// Show daemon status
     Status,
+    /// Print the daemon IPC directory for the current cwd. Per devx-04,
+    /// resolves to `<SHIP_HOME>/machine/daemons/<hash>/` when inside a
+    /// project root and `<SHIP_HOME>/machine/daemon/` otherwise. Used by
+    /// just recipes and scripts/dev/* to avoid hashing paths in shell.
+    Dir,
     /// Remove orphaned worktrees for merged and failed jobs
     Cleanup,
     /// Reconcile recorded migration checksums to the current files.

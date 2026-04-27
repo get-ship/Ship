@@ -27,6 +27,9 @@ pub enum DaemonCommand {
     Stop,
     Restart { host: String, dev: bool },
     Status,
+    /// Print the daemon IPC directory for cwd. Powers `just status` /
+    /// `scripts/dev/*` without those reaching into ShipHome internals.
+    Dir,
     Cleanup,
     RepairMigrations { mark_applied: Option<i64> },
     Run { host: String, port: u16, dev: bool },
@@ -102,6 +105,10 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
             supervision::select().restart(&ctx)
         }
         DaemonCommand::Status => daemon_status(),
+        DaemonCommand::Dir => {
+            println!("{}", runtime::home::current_daemon_dir().display());
+            Ok(())
+        }
         DaemonCommand::Cleanup => daemon_cleanup(),
         DaemonCommand::RepairMigrations { mark_applied } => daemon_repair_migrations(mark_applied),
         DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),

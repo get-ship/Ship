@@ -189,6 +189,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Stop => DaemonCommand::Stop,
                     DaemonCommands::Restart { host, dev } => DaemonCommand::Restart { host, dev },
                     DaemonCommands::Status => DaemonCommand::Status,
+                    DaemonCommands::Dir => DaemonCommand::Dir,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
                     DaemonCommands::RepairMigrations { mark_applied } => {
                         DaemonCommand::RepairMigrations { mark_applied }
