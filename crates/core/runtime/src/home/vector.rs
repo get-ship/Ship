@@ -1,13 +1,17 @@
 //! Canonical customization-vector list.
 //!
-//! Per ADR `home-layout-and-scope-convention`, these ten vectors are applied
-//! uniformly at every authoring scope (user `library/` and project `.ship/`).
-//! Adding a new vector is a one-line enum change that guarantees uniform
-//! treatment across scopes, loaders, lint rules, and docs.
+//! Per ADR `home-layout-and-scope-convention`, these directory-vectors are
+//! applied uniformly at every authoring scope (user `library/` and project
+//! `.ship/`). Adding a new directory-vector is a one-line enum change that
+//! guarantees uniform treatment across scopes, loaders, lint rules, and docs.
+//!
+//! `mcp` is intentionally NOT in this enum — at every scope it's a single
+//! file (`<scope>/mcp.jsonc`), not a directory. The directory-symmetry the
+//! migrator originally wanted (`mcp/config.jsonc`) was overengineering.
 
 use serde::{Deserialize, Serialize};
 
-/// One of the ten canonical customization vectors.
+/// One of the canonical directory-vectors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
 #[serde(rename_all = "kebab-case")]
 pub enum Vector {
@@ -20,7 +24,6 @@ pub enum Vector {
     Rules,
     Permissions,
     Themes,
-    Mcp,
 }
 
 impl Vector {
@@ -36,11 +39,10 @@ impl Vector {
             Vector::Rules => "rules",
             Vector::Permissions => "permissions",
             Vector::Themes => "themes",
-            Vector::Mcp => "mcp",
         }
     }
 
-    /// Complete, ordered list of all ten canonical vectors.
+    /// Complete, ordered list of all canonical directory-vectors.
     pub fn all() -> &'static [Vector] {
         &[
             Vector::Agents,
@@ -52,7 +54,6 @@ impl Vector {
             Vector::Rules,
             Vector::Permissions,
             Vector::Themes,
-            Vector::Mcp,
         ]
     }
 }
@@ -62,15 +63,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn all_lists_ten_canonical_vectors() {
-        assert_eq!(Vector::all().len(), 10);
+    fn all_lists_canonical_directory_vectors() {
+        assert_eq!(Vector::all().len(), 9);
     }
 
     #[test]
     fn as_str_matches_kebab_name() {
         assert_eq!(Vector::Agents.as_str(), "agents");
         assert_eq!(Vector::Collections.as_str(), "collections");
-        assert_eq!(Vector::Mcp.as_str(), "mcp");
+        assert_eq!(Vector::Triggers.as_str(), "triggers");
     }
 
     #[test]

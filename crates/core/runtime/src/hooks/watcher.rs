@@ -1,4 +1,5 @@
-//! File-system watcher that triggers hook reloads on `.ship/hooks/` changes.
+//! File-system watcher that reloads trigger definitions on
+//! `.ship/triggers/` changes.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -10,13 +11,13 @@ use tokio::sync::mpsc;
 
 use super::engine::HookEngine;
 
-/// Start a filesystem watcher on `<ship_dir>/hooks/` that calls
+/// Start a filesystem watcher on `<ship_dir>/triggers/` that calls
 /// `engine.reload()` whenever a file is added, modified, or removed.
 ///
 /// The watcher task runs until the process exits; dropping the returned
 /// [`HookWatcher`] stops both the watcher and the debounce loop.
 pub fn spawn_watcher(engine: Arc<HookEngine>) -> Result<HookWatcher> {
-    let hooks_dir = engine.ship_dir().join("hooks");
+    let hooks_dir = engine.ship_dir().join("triggers");
     if !hooks_dir.exists() {
         std::fs::create_dir_all(&hooks_dir)?;
     }

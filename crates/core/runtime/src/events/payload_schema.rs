@@ -195,8 +195,15 @@ mod tests {
         // job.update has no dedicated payload struct — it's a generic update.
         // process.killed is declared but not yet emitted; deferred to a
         // follow-on slice where we wire the plumbing through the executor
-        // signal-send sites.
-        let exceptions = &["job.update", "session.attached", "process.killed"];
+        // signal-send sites. studio.chat_turn carries an ad-hoc {actor_id,
+        // text} payload; not yet a typed struct.
+        let exceptions = &[
+            "job.update",
+            "session.attached",
+            "process.killed",
+            "studio.chat_turn",
+            "studio.reply",
+        ];
         for &et in ALL {
             if exceptions.contains(&et) {
                 continue;

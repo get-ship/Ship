@@ -443,9 +443,13 @@ impl ShipRuntime {
         if self.hook_engine.get().is_some() {
             return;
         }
+        // Pass the user-scope library/ dir; engine joins `triggers/` for the
+        // user-scope vector. Project-scope triggers are loaded by the hook
+        // engine when a project workspace activates.
+        let library_dir = runtime::ShipHome::at(self.ship_dir.clone()).library_dir();
         match runtime::hooks::engine::spawn_hook_service(
             self.kernel.clone(),
-            self.ship_dir.clone(),
+            library_dir,
         )
         .await
         {
