@@ -3,12 +3,17 @@ name = "ship-cli"
 version = "0.2.0"
 edition = "2024"
 publish = false
+build = "build.rs"
+
+[build-dependencies]
+build-info = { path = "../../crates/core/build-info" }
 
 [[bin]]
 name = "ship"
 path = "src/main.rs"
 
 [dependencies]
+build-info = { path = "../../crates/core/build-info" }
 clap = { workspace = true }
 mcp = { path = "../mcp" }
 shipd = { path = "../shipd" }

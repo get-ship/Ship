@@ -277,7 +277,7 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
         pid: std::process::id(),
         port: SHIPD_PORT,
         version: env!("CARGO_PKG_VERSION").to_string(),
-        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("unknown").to_string(),
+        commit_sha: build_info::build_info!().git_sha.to_string(),
         started_at: chrono::Utc::now().to_rfc3339(),
         pidfile_path: String::new(),
         socket_path: String::new(),
