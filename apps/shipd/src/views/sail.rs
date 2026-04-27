@@ -42,6 +42,22 @@ fn cache() -> &'static RwLock<HashMap<String, CacheEntry>> {
     CACHE.get_or_init(|| RwLock::new(HashMap::new()))
 }
 
+/// `GET /_sail/demo` — visual showcase of the parallel ship-set-sail
+/// ports. Static HTML; references compiled .sail modules at
+/// `/_sail/components/<tag>.js` (so author edits hot-reload via the
+/// existing pipeline). Requires the .sail sources to be discoverable
+/// at `.ship/sail/` — run `just sail-demo` to link them.
+pub async fn serve_sail_demo() -> Response {
+    const DEMO_HTML: &str =
+        include_str!("../../../../packages/ship-set-sail/demo/index.html");
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(Body::from(DEMO_HTML))
+        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+}
+
 /// `GET /sail/{tag}` — full HTML page that mounts `<tag>` with the
 /// SSR'd initial paint, the runtime ES module, and the HMR client.
 pub async fn serve_sail_page(Path(tag): Path<String>) -> Response {

@@ -154,6 +154,10 @@ pub fn build_router(
         .route(
             "/_sail/data",
             axum::routing::get(views::sail_data::serve_data),
+        )
+        .route(
+            "/_sail/demo",
+            axum::routing::get(views::sail::serve_sail_demo),
         );
 
     let auth_token = token;

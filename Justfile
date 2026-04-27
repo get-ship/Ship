@@ -242,3 +242,21 @@ check-no-set-var-global-dir:
         exit 1; \
     fi
     @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"
+
+# Link the Sail ship-set ports into .ship/sail/ so the daemon serves them
+# at /_sail/components/<tag>.js. After running, navigate to
+# http://localhost:9315/_sail/demo (port may differ).
+sail-demo:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p .ship/sail
+    src_dir="$(realpath packages/ship-set-sail/components)"
+    n=0
+    for f in packages/ship-set-sail/components/*.sail; do
+      name="$(basename "$f")"
+      rm -f ".ship/sail/$name"
+      ln -s "$src_dir/$name" ".ship/sail/$name"
+      n=$((n + 1))
+    done
+    echo "Linked $n component(s) → .ship/sail/"
+    echo "→ open the daemon's /_sail/demo route in a browser (default: http://localhost:9315/_sail/demo)"

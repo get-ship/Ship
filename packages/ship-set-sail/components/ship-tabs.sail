@@ -59,6 +59,31 @@ function onKeydown(e) {
   activate(names[next])
 }
 
+// Underline indicator: measure the active tab's offset within the
+// tablist, write geometry into CSS custom props, and let the
+// pseudo-element transition animate the move.
+function syncIndicator() {
+  if (variant() === 'segmented') {
+    el.removeAttribute('data-underline-ready')
+    return
+  }
+  const tablist = el.querySelector('.tablist')
+  if (!tablist) return
+  const activeBtn = tablist.querySelector('button[aria-selected="true"]')
+  if (!activeBtn) {
+    el.removeAttribute('data-underline-ready')
+    return
+  }
+  if (orientation() === 'vertical') {
+    tablist.style.setProperty('--underline-y', `${activeBtn.offsetTop}px`)
+    tablist.style.setProperty('--underline-h', `${activeBtn.offsetHeight}px`)
+  } else {
+    tablist.style.setProperty('--underline-x', `${activeBtn.offsetLeft}px`)
+    tablist.style.setProperty('--underline-w', `${activeBtn.offsetWidth}px`)
+  }
+  el.setAttribute('data-underline-ready', '')
+}
+
 mount {
   // Snapshot tab metadata at mount. Dynamic add/remove of <ship-tab>
   // children is not yet supported — observing the host with a
@@ -68,10 +93,16 @@ mount {
   // pattern (or the runtime will distinguish self-emitted mutations).
   tabs.set(readTabs())
   syncPanels()
+  // Defer the first indicator placement so the {#for}-rendered
+  // buttons are in the DOM before we measure. queueMicrotask is
+  // sufficient — bindFor's effect runs synchronously, but the
+  // browser hasn't yet laid out the inserted nodes.
+  queueMicrotask(syncIndicator)
 }
 
 effect on active {
   syncPanels()
+  queueMicrotask(syncIndicator)
 }
 </script>
 
@@ -132,11 +163,48 @@ effect on active {
   display: inline-flex;
   gap: var(--space-1);
   border-bottom: 1px solid var(--border);
+  position: relative;
+  --underline-x: 0;
+  --underline-w: 0;
+  --underline-y: 0;
+  --underline-h: 0;
 }
 :host([orientation='vertical']) .tablist {
   flex-direction: column;
   border-bottom: none;
   border-right: 1px solid var(--border);
+}
+
+/* Animated underline indicator. Hidden until [data-underline-ready]
+ * is set so the first paint doesn't snap from 0,0. */
+:host([data-underline-ready]) .tablist::after {
+  content: '';
+  position: absolute;
+  background: var(--tone);
+  border-radius: 2px;
+  pointer-events: none;
+  transition:
+    transform 220ms var(--ease-spring, cubic-bezier(0.5, 0, 0.2, 1.4)),
+    width 220ms var(--ease-spring, cubic-bezier(0.5, 0, 0.2, 1.4)),
+    height 220ms var(--ease-spring, cubic-bezier(0.5, 0, 0.2, 1.4));
+}
+:host([data-underline-ready]:not([orientation='vertical'])) .tablist::after {
+  height: 2px;
+  bottom: -1px;
+  left: 0;
+  width: var(--underline-w);
+  transform: translateX(var(--underline-x));
+}
+:host([data-underline-ready][orientation='vertical']) .tablist::after {
+  width: 2px;
+  right: -1px;
+  top: 0;
+  height: var(--underline-h);
+  transform: translateY(var(--underline-y));
+}
+:host([variant='segmented']) .tablist::after { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .tablist::after { transition: none; }
 }
 
 .tab {
@@ -158,11 +226,12 @@ effect on active {
 }
 .tab[aria-selected='true'] {
   color: var(--tone-fg);
-  border-bottom-color: var(--tone);
 }
-:host([orientation='vertical']) .tab[aria-selected='true'] {
-  border-right-color: var(--tone);
-  border-bottom-color: transparent;
+/* Pre-underline-ready and segmented variants: fall back to a static
+ * border so the active tab is visible without the animated indicator. */
+:host(:not([data-underline-ready])) .tab[aria-selected='true'],
+:host([variant='segmented']) .tab[aria-selected='true'] {
+  /* segmented uses a different active treatment below */
 }
 .tab:disabled {
   cursor: not-allowed;

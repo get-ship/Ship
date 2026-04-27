@@ -113,6 +113,7 @@ button {
   --btn-fw: var(--font-weight-semibold); --btn-gap: var(--space-2); --btn-icon: 16px;
 }
 
+/* solid — tone fill, contrast text, subtle top-highlight */
 :host([variant='solid']) button {
   background: var(--tone);
   border-color: color-mix(in oklch, var(--tone) 100%, black 6%);
@@ -121,26 +122,136 @@ button {
 }
 :host([variant='solid']) button:hover:not(:disabled) {
   background: color-mix(in oklch, var(--tone) 92%, white 8%);
+  box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent), var(--shadow-sm);
   transform: translateY(-1px);
 }
+:host([variant='solid']) button:active:not(:disabled) {
+  background: color-mix(in oklch, var(--tone) 92%, black 8%);
+  box-shadow: inset 0 1px 2px 0 color-mix(in oklch, black 18%, transparent), var(--shadow-xs);
+  transform: translateY(1px) scale(0.98);
+}
 
+/* solid+default: neutral fill matches shadcn's default */
+:host(:not([tone])[variant='solid']) button,
+:host([tone='default'][variant='solid']) button {
+  background: var(--foreground);
+  border-color: var(--foreground);
+  color: var(--background);
+}
+:host(:not([tone])[variant='solid']) button:hover:not(:disabled),
+:host([tone='default'][variant='solid']) button:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--foreground) 88%, var(--background));
+}
+
+/* default (no variant): bordered neutral surface */
+:host(:not([variant])) button {
+  background: var(--background);
+  border-color: var(--border);
+  color: var(--foreground);
+  box-shadow: var(--shadow-xs);
+}
+:host(:not([variant])) button:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--muted) 70%, var(--background));
+  border-color: color-mix(in oklch, var(--border) 160%, transparent);
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+:host(:not([variant])) button:active:not(:disabled) {
+  background: var(--muted);
+  box-shadow: var(--shadow-xs);
+  transform: translateY(0);
+}
+:host(:not([variant])[tone]:not([tone='default']):not([tone='muted'])) button {
+  color: var(--tone-fg);
+  border-color: color-mix(in oklch, var(--tone) 38%, var(--border));
+}
+:host(:not([variant])[tone]:not([tone='default']):not([tone='muted'])) button:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--tone) 8%, var(--background));
+  border-color: color-mix(in oklch, var(--tone) 55%, var(--border));
+}
+
+/* soft — tone-tinted surface */
 :host([variant='soft']) button {
   background: color-mix(in oklch, var(--tone) 14%, transparent);
   border-color: color-mix(in oklch, var(--tone) 22%, transparent);
   color: var(--tone-fg);
 }
+:host([variant='soft']) button:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--tone) 22%, transparent);
+  border-color: color-mix(in oklch, var(--tone) 32%, transparent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-xs);
+}
+:host([variant='soft']) button:active:not(:disabled) {
+  background: color-mix(in oklch, var(--tone) 28%, transparent);
+  transform: translateY(0);
+}
+
+/* outline — transparent with tone border */
 :host([variant='outline']) button {
   background: transparent;
   border-color: color-mix(in oklch, var(--tone) 55%, transparent);
   color: var(--tone-fg);
 }
+:host([variant='outline']:not([tone])) button,
+:host([variant='outline'][tone='default']) button {
+  border-color: var(--border);
+  color: var(--foreground);
+}
+:host([variant='outline']) button:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--tone) 10%, transparent);
+  border-color: color-mix(in oklch, var(--tone) 75%, transparent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-xs);
+}
+:host([variant='outline']) button:active:not(:disabled) {
+  background: color-mix(in oklch, var(--tone) 16%, transparent);
+  transform: translateY(0);
+}
+
+/* ghost — chromeless, tone tint on hover */
 :host([variant='ghost']) button {
   background: transparent;
   border-color: transparent;
   color: var(--tone-fg);
 }
+:host([variant='ghost']:not([tone])) button,
+:host([variant='ghost'][tone='default']) button {
+  color: var(--muted-foreground);
+}
 :host([variant='ghost']) button:hover:not(:disabled) {
   background: color-mix(in oklch, var(--tone) 12%, transparent);
+}
+:host([variant='ghost']:not([tone])) button:hover:not(:disabled),
+:host([variant='ghost'][tone='default']) button:hover:not(:disabled) {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+/* premium primary CTA: top-light gradient + glow */
+:host([variant='solid'][tone='primary']) button {
+  background: linear-gradient(180deg,
+    color-mix(in oklch, var(--primary) 95%, white) 0%,
+    var(--primary) 100%);
+  box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 25%, transparent), var(--shadow-xs);
+}
+:host([variant='solid'][tone='primary']) button:hover:not(:disabled) {
+  background: linear-gradient(180deg,
+    color-mix(in oklch, var(--primary) 92%, white) 0%,
+    color-mix(in oklch, var(--primary) 96%, white 4%) 100%);
+  box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 30%, transparent),
+              var(--shadow-sm), var(--shadow-accent);
+}
+
+/* destructive solid: bumped weight + glow */
+:host([variant='solid'][tone='destructive']) button:hover:not(:disabled) {
+  box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 24%, transparent),
+              var(--shadow-sm),
+              0 4px 14px -4px color-mix(in oklch, var(--destructive) 55%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :host button:active:not(:disabled) { transform: none; }
 }
 
 button:disabled {

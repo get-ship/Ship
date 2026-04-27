@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sail components — visual demo</title>
+  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
+  <style>
+    body {
+      font-family: var(--font-body, system-ui);
+      background: var(--background, #fafafa);
+      color: var(--foreground, #111);
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      line-height: 1.5;
+    }
+    h1 { font-size: 1.5rem; margin-block-end: 0.25rem; }
+    h2 {
+      margin-block: 2rem 0.75rem;
+      font-size: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted-foreground, #555);
+    }
+    p.lede { color: var(--muted-foreground, #555); margin-block-start: 0; }
+    section { margin-block: 1.5rem; }
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0.75rem;
+      background: var(--card, white);
+      border: 1px solid var(--border, #e5e5e5);
+      border-radius: 8px;
+    }
+    .row + .row { margin-block-start: 0.5rem; }
+    .label {
+      font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+      font-size: 0.8rem;
+      color: var(--muted-foreground, #888);
+      min-width: 8ch;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 0.5rem;
+    }
+    code {
+      background: var(--muted, #eee);
+      padding: 0.1em 0.4em;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+    .source {
+      display: inline-block;
+      margin-block-start: 1rem;
+      font-size: 0.85rem;
+      color: var(--muted-foreground, #666);
+    }
+  </style>
+
+  <!-- Sail components, served compiled by the daemon. -->
+  <script type="module" src="/_sail/components/ship-badge.js"></script>
+  <script type="module" src="/_sail/components/ship-progress.js"></script>
+  <script type="module" src="/_sail/components/ship-button.js"></script>
+  <script type="module" src="/_sail/components/ship-tab.js"></script>
+  <script type="module" src="/_sail/components/ship-tab-panel.js"></script>
+  <script type="module" src="/_sail/components/ship-tabs.js"></script>
+  <script defer src="/_sail/hmr-client.js"></script>
+</head>
+<body>
+  <h1>Sail components — visual demo</h1>
+  <p class="lede">
+    Compiled from <code>.sail</code> sources at
+    <code>packages/ship-set-sail/components/</code>. Tokens come from the
+    canonical <code>ship-set</code> tokens.css. Compare against the Lit
+    originals in <code>packages/ship-set/</code>.
+  </p>
+
+  <h2>ship-badge</h2>
+
+  <section>
+    <div class="row">
+      <span class="label">tones</span>
+      <ship-badge tone="default">default</ship-badge>
+      <ship-badge tone="info">info</ship-badge>
+      <ship-badge tone="success">success</ship-badge>
+      <ship-badge tone="warning">warning</ship-badge>
+      <ship-badge tone="destructive">destructive</ship-badge>
+      <ship-badge tone="accent">accent</ship-badge>
+      <ship-badge tone="muted">muted</ship-badge>
+    </div>
+    <div class="row">
+      <span class="label">variants</span>
+      <ship-badge variant="soft" tone="info">soft</ship-badge>
+      <ship-badge variant="solid" tone="info">solid</ship-badge>
+      <ship-badge variant="outline" tone="info">outline</ship-badge>
+    </div>
+    <div class="row">
+      <span class="label">sizes</span>
+      <ship-badge size="sm" tone="success">small</ship-badge>
+      <ship-badge size="md" tone="success">medium</ship-badge>
+      <ship-badge size="lg" tone="success">large</ship-badge>
+    </div>
+    <div class="row">
+      <span class="label">pill</span>
+      <ship-badge pill tone="accent">3</ship-badge>
+      <ship-badge pill tone="destructive">12</ship-badge>
+      <ship-badge pill variant="solid" tone="info">live</ship-badge>
+    </div>
+  </section>
+
+  <h2>ship-progress</h2>
+
+  <section>
+    <div class="row">
+      <span class="label">determinate</span>
+      <div style="flex: 1">
+        <ship-progress value="25" tone="info" label="Loading 25%"></ship-progress>
+      </div>
+      <span>25%</span>
+    </div>
+    <div class="row">
+      <div style="flex: 1">
+        <ship-progress value="60" tone="success" label="60% complete"></ship-progress>
+      </div>
+      <span>60%</span>
+    </div>
+    <div class="row">
+      <div style="flex: 1">
+        <ship-progress value="90" tone="warning" label="90%"></ship-progress>
+      </div>
+      <span>90%</span>
+    </div>
+    <div class="row">
+      <span class="label">indeterminate</span>
+      <div style="flex: 1">
+        <ship-progress tone="accent" label="Indeterminate"></ship-progress>
+      </div>
+    </div>
+    <div class="row">
+      <span class="label">size sm</span>
+      <div style="flex: 1">
+        <ship-progress size="sm" value="40" tone="info"></ship-progress>
+      </div>
+    </div>
+  </section>
+
+  <h2>ship-button</h2>
+
+  <section>
+    <div class="row">
+      <span class="label">variants</span>
+      <ship-button>default</ship-button>
+      <ship-button variant="solid" tone="primary">solid</ship-button>
+      <ship-button variant="soft" tone="primary">soft</ship-button>
+      <ship-button variant="outline" tone="primary">outline</ship-button>
+      <ship-button variant="ghost" tone="primary">ghost</ship-button>
+    </div>
+    <div class="row">
+      <span class="label">tones</span>
+      <ship-button variant="solid" tone="info">info</ship-button>
+      <ship-button variant="solid" tone="success">success</ship-button>
+      <ship-button variant="solid" tone="warning">warning</ship-button>
+      <ship-button variant="solid" tone="destructive">destructive</ship-button>
+      <ship-button variant="solid" tone="accent">accent</ship-button>
+    </div>
+    <div class="row">
+      <span class="label">sizes</span>
+      <ship-button size="sm" variant="solid" tone="primary">small</ship-button>
+      <ship-button size="md" variant="solid" tone="primary">medium</ship-button>
+      <ship-button size="lg" variant="solid" tone="primary">large</ship-button>
+    </div>
+    <div class="row">
+      <span class="label">states</span>
+      <ship-button variant="solid" tone="primary" disabled>disabled</ship-button>
+      <ship-button variant="solid" tone="primary" loading>loading</ship-button>
+      <ship-button variant="outline" disabled>outline disabled</ship-button>
+    </div>
+    <div class="row">
+      <span class="label">slots</span>
+      <ship-button variant="solid" tone="info">
+        <span slot="leading">⬇</span>
+        Download
+      </ship-button>
+      <ship-button variant="outline">
+        Continue
+        <span slot="trailing">→</span>
+      </ship-button>
+    </div>
+  </section>
+
+  <h2>ship-tabs</h2>
+
+  <section>
+    <ship-tabs active="overview" variant="underline" tone="info">
+      <ship-tab name="overview" label="Overview"></ship-tab>
+      <ship-tab name="activity" label="Activity" count="12"></ship-tab>
+      <ship-tab name="settings" label="Settings"></ship-tab>
+      <ship-tab name="archived" label="Archived" disabled></ship-tab>
+
+      <ship-tab-panel name="overview">
+        <p>Overview panel. Click tabs above or use arrow keys to navigate.</p>
+      </ship-tab-panel>
+      <ship-tab-panel name="activity">
+        <p>Activity panel — 12 items.</p>
+      </ship-tab-panel>
+      <ship-tab-panel name="settings">
+        <p>Settings panel.</p>
+      </ship-tab-panel>
+      <ship-tab-panel name="archived">
+        <p>Should not be reachable (disabled).</p>
+      </ship-tab-panel>
+    </ship-tabs>
+  </section>
+
+  <h2>side-by-side: form playground</h2>
+
+  <section>
+    <div class="row" style="flex-direction: column; align-items: stretch; gap: 1rem;">
+      <ship-progress id="upload-progress" value="0" tone="info" label="Upload progress"></ship-progress>
+      <div style="display: flex; gap: 0.5rem;">
+        <ship-button id="start-btn" variant="solid" tone="primary">Start</ship-button>
+        <ship-button id="reset-btn" variant="outline">Reset</ship-button>
+        <ship-badge id="status" tone="muted" variant="soft">idle</ship-badge>
+      </div>
+    </div>
+  </section>
+
+  <p class="source">
+    Source: <code>packages/ship-set-sail/demo/index.html</code> · components in
+    <code>packages/ship-set-sail/components/*.sail</code>
+  </p>
+
+  <script type="module">
+    // Tiny demo wiring: progress bar driven by Start button. Demonstrates
+    // that compiled .sail components compose with vanilla JS.
+    const progress = document.getElementById('upload-progress')
+    const start = document.getElementById('start-btn')
+    const reset = document.getElementById('reset-btn')
+    const status = document.getElementById('status')
+    let timer = null
+    start?.addEventListener('click', () => {
+      if (timer) return
+      let v = 0
+      status.setAttribute('tone', 'info')
+      status.textContent = 'running'
+      timer = setInterval(() => {
+        v = Math.min(100, v + 7)
+        progress.setAttribute('value', String(v))
+        if (v >= 100) {
+          clearInterval(timer)
+          timer = null
+          status.setAttribute('tone', 'success')
+          status.textContent = 'done'
+        }
+      }, 200)
+    })
+    reset?.addEventListener('click', () => {
+      if (timer) { clearInterval(timer); timer = null }
+      progress.setAttribute('value', '0')
+      status.setAttribute('tone', 'muted')
+      status.textContent = 'idle'
+    })
+
+    // Echo tab changes to the page so visual reviewers can see the
+    // event firing without the devtools console open.
+    document.querySelector('ship-tabs')?.addEventListener('ship-tab-change', (e) => {
+      console.info('tab change:', e.detail)
+    })
+  </script>
+</body>
+</html>

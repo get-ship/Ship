@@ -14,12 +14,38 @@ tests exercise both ports against the same expectations.
 
 ## Components ported (so far)
 
-| Component | Lit (TS+styles) | Sail (.sail) | Notes |
-|-----------|-----------------|--------------|-------|
-| `ship-badge` | 75 + 237 = **312 LOC** | **141 LOC** | -55% lines, single file |
-| `ship-progress` | **96 LOC** | **55 LOC** | -43% lines, derived bindings replace render-method math |
-| `ship-button` | **557 LOC** (TS+inline CSS) | **190 LOC** | -66% lines (CSS subset trimmed; visual parity preserved on the high-leverage states) |
-| `ship-tabs` + `ship-tab` + `ship-tab-panel` | 278 + 291 + (in same file) = **569 LOC** | 199 + 14 + 20 = **233 LOC** | -59%; reactive declarative tabs with keyboard nav, click activation, panel sync, custom event dispatch |
+Re-measured after the first review pass surfaced inflated numbers. The
+initial draft of `ship-button` and `ship-tabs` had silently dropped CSS
+detail and the animated underline indicator. Both have been ported back
+faithfully; numbers below reflect that.
+
+| Component | Lit (TS+styles) | Sail (.sail) | Δ |
+|-----------|-----------------|--------------|---|
+| `ship-badge` | 75 + 237 = **312 LOC** | **141 LOC** | -55% |
+| `ship-progress` | **96 LOC** | **55 LOC** | -43% |
+| `ship-button` | **557 LOC** | **301 LOC** | -46% |
+| `ship-tabs` + `ship-tab` + `ship-tab-panel` | 278 + 291 = **569 LOC** | 268 + 14 + 20 = **302 LOC** | -47% |
+| **Total** | **1534 LOC** | **799 LOC** | **-48%** |
+
+The 48% reduction is real but not as dramatic as the first pass made it
+look. The line savings come from:
+
+- One file per component (no `*.styles.ts` split)
+- No `static properties = { … }` matrix duplicated against typed
+  field declarations
+- No `customElements.define(...)` boilerplate
+- No `declare global { interface HTMLElementTagNameMap }` boilerplate
+- Conditional rendering via `{#if}` instead of
+  `${this.X ? html\`…\` : nothing}`
+- `derived` declarations memoize what was inline math in `render()`
+
+What does NOT contribute to the savings (faithful behavior preserved):
+- All 8 tones × 4 variants × 3 sizes for `ship-button`
+- Hover/active/disabled/focus-visible states for every variant
+- Premium gradients on `solid+primary` and destructive solid glow
+- The `ship-tabs` animated underline indicator (with rAF coalescing
+  via `queueMicrotask` instead of explicit `requestAnimationFrame`)
+- Keyboard nav, click activation, panel sync, custom event dispatch
 
 Counts include doc comments. Both ports keep visual + ARIA parity with
 the original; tests assert behavior, not internal structure.
