@@ -137,6 +137,20 @@ export class ShipNavTop extends LitElement {
       >
         <ship-icon slot="leading" name="menu"></ship-icon>
       </ship-button>
+      ${import.meta.env.DEV
+        ? html`<ship-button
+              variant="ghost"
+              size="sm"
+              id="dev-sail-agents"
+              title="Open /sail/ship-agents (set page, dev only)"
+              aria-label="Open set agents page"
+              @click=${() => {
+                window.location.href = "/sail/ship-agents";
+              }}
+            >
+              <ship-icon slot="leading" name="rocket"></ship-icon>
+            </ship-button>`
+        : ""}
       <ship-popover placement="bottom-end" id="theme-picker">
         <ship-button
           slot="trigger"
