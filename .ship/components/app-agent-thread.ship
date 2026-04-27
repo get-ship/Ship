@@ -1,0 +1,105 @@
+<script>
+  // Renders parsed ProviderEvents from a session's /events SSE as turn
+  // bubbles. Read-only — composing happens in <app-agent-composer>.
+  //
+  // Props:
+  //   session-id  — the actor id whose stream we tail
+  const { sessionId = '' } = props
+
+  const $turns = signal([])           // [{ role: 'user'|'assistant'|'tool', text, ts }]
+  const $connecting = signal(false)
+  const $error = signal('')
+
+  let source = null
+
+  function appendTurn(turn) {
+    $turns.set([...$turns.get(), turn])
+  }
+
+  function attach(id) {
+    detach()
+    if (!id) return
+    $connecting.set(true)
+    $error.set('')
+    source = new EventSource(`/api/v1/sessions/${encodeURIComponent(id)}/events`)
+    source.addEventListener('open', () => $connecting.set(false))
+    source.addEventListener('error', () => $error.set('connection lost'))
+    source.addEventListener('provider', (ev) => {
+      try {
+        const data = JSON.parse(ev.data)
+        // ProviderEvent shape: { kind: 'Message', text } | { kind: 'SessionStarted', ... } | etc.
+        const kind = data?.kind ?? Object.keys(data)[0]
+        if (kind === 'Message') {
+          appendTurn({ role: 'assistant', text: data.text ?? data.Message?.text ?? '', ts: Date.now() })
+        }
+        // Other ProviderEvent variants are silently ignored at this layer.
+      } catch { /* skip */ }
+    })
+  }
+
+  function detach() {
+    if (source) { source.close(); source = null }
+  }
+
+  // Listen for ship:chat:send so the composer can append the user
+  // turn locally before the assistant reply arrives — feels live.
+  function onSend(e) {
+    const text = e.detail?.text
+    if (text) appendTurn({ role: 'user', text, ts: Date.now() })
+  }
+
+  onConnect(el => {
+    attach(props.sessionId)
+    window.addEventListener('ship:chat:send', onSend)
+  })
+
+  onDisconnect(() => {
+    detach()
+    window.removeEventListener('ship:chat:send', onSend)
+  })
+</script>
+
+<div class="thread" role="log" aria-live="polite">
+  <div class="state" data-show="$connecting">connecting…</div>
+  <div class="state error" data-show="$error" data-text="$error"></div>
+  <template data-for="turn in $turns" data-key="turn.ts">
+    <div class="turn" data-class:user="turn.role === 'user'" data-class:assistant="turn.role === 'assistant'">
+      <span class="role" data-text="turn.role"></span>
+      <pre class="body" data-text="turn.text"></pre>
+    </div>
+  </template>
+</div>
+
+<style>
+  :host { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .thread {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ship-space-3);
+    padding: var(--ship-space-4);
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+  }
+  .state { color: var(--ship-color-muted); font-size: 0.875rem; padding: var(--ship-space-2) 0; }
+  .state.error { color: var(--ship-color-danger, var(--ship-color-muted)); }
+  .turn { display: flex; flex-direction: column; gap: var(--ship-space-1); }
+  .turn .role {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--ship-color-muted);
+  }
+  .turn .body {
+    margin: 0;
+    padding: var(--ship-space-2) var(--ship-space-3);
+    border-radius: var(--ship-radius-md, 6px);
+    background: var(--ship-color-surface);
+    color: var(--ship-color-foreground);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-family: inherit;
+  }
+  .turn.user .body { background: var(--ship-color-accent-soft, var(--ship-color-surface)); }
+  .turn.assistant .body { background: var(--ship-color-surface); }
+</style>

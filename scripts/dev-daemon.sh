@@ -43,7 +43,11 @@ SLUG="$(basename "$ROOT")"
 PORT="${SHIP_DAEMON_PORT:-9315}"
 LOG="/tmp/shipd-${SLUG}.log"
 SHIP_DIR="$ROOT/.ship"
-BIN="$ROOT/target/debug/shipd"
+# Resolve cargo target dir via metadata so a shared / redirected target
+# (e.g. .cargo/config.toml setting target-dir for cross-worktree cache)
+# still points at the right binary.
+TARGET_DIR="$(cd "$ROOT" && cargo metadata --format-version 1 --no-deps --offline 2>/dev/null | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)"
+BIN="${TARGET_DIR:-$ROOT/target}/debug/shipd"
 
 color() { printf '\033[%sm%s\033[0m' "$1" "$2"; }
 green() { color '32' "$1"; }

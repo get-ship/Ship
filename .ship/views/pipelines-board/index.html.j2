@@ -1,0 +1,49 @@
+{#-
+  Pipelines board (SFC-driven). Live job list + per-step detail panel
+  via <app-pipeline-board>. Sibling to the legacy `pipelines` view —
+  evaluate side-by-side, then promote when feature parity is verified
+  (see deletion criteria in the agents-on-supervisor handoff).
+
+  The board polls /api/v1/jobs at 2s; per-step output mounting happens
+  via the `step-selected` event the board emits — wire to
+  <app-pty-attach> in a future iteration once the per-step actor_id
+  contract from ProcessExecutor is wired through here.
+-#}
+{% from '_ship.html.j2' import head %}
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en">
+<head>{{ head('Pipelines (board)') }}</head>
+<body>
+{% endif %}
+
+<script type="module" src="/_ship/components/app-pipeline-step.js"></script>
+<script type="module" src="/_ship/components/app-pipeline-board.js"></script>
+
+<div class="pipelines-board-view">
+  <header class="view-head">
+    <h1>Pipeline runs</h1>
+    <p class="lead">Live board of dispatched jobs. Select a run to see its DAG.</p>
+  </header>
+  <app-pipeline-board refresh-ms="2000" limit="50"></app-pipeline-board>
+</div>
+
+<style>
+  .pipelines-board-view {
+    display: flex;
+    flex-direction: column;
+    gap: var(--ship-space-3);
+    padding: var(--ship-space-4);
+    height: 100%;
+    min-height: 0;
+  }
+  .view-head { flex: 0 0 auto; }
+  .view-head h1 { margin: 0 0 var(--ship-space-1); font-size: 1.5rem; font-weight: 600; }
+  .view-head .lead { margin: 0; color: var(--ship-color-muted); }
+  app-pipeline-board { flex: 1; min-height: 0; }
+</style>
+
+{% if not fragment %}
+</body>
+</html>
+{% endif %}
