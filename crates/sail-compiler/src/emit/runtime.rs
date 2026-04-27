@@ -170,8 +170,6 @@ impl<'a> Emitter<'a> {
             Node::Slot { .. } | Node::SlotFill { .. } => {
                 self.html.push_str("<!-- sail: <slot> not yet emitted -->");
             }
-            Node::Window { events } => self.emit_global_events("window", events),
-            Node::Document { events } => self.emit_global_events("document", events),
             Node::Host { attrs } => self.emit_host(attrs),
             Node::RawHtml(expr) => {
                 let id = self.next_anchor;
@@ -750,6 +748,12 @@ impl<'a> Emitter<'a> {
             if s.data.iter().any(|d| d.live) { imports.push("data"); }
             if s.effects.iter().any(|e| !e.once) { imports.push("effect"); }
         }
+        // `slotFilled` is exported from the runtime; the slot-resolution
+        // emit phase populates `host.__sailSlotFilled` so authors can
+        // call `slotFilled(el, 'icon')` from script-block code.
+        if !self.slots.is_empty() {
+            imports.push("slotFilled");
+        }
         imports.sort();
         imports.dedup();
 
@@ -904,6 +908,13 @@ impl<'a> Emitter<'a> {
                 "  resolveSlots(host, [{}], _origChildren)\n",
                 self.slots.join(", ")
             ));
+            // `slotFilled(host, 'name')` is exported from the runtime —
+            // see packages/sail-runtime/src/slot.ts. The compiler doesn't
+            // inject a per-component local; authors call the runtime
+            // helper directly with `el` (which the framework already
+            // injects into script scope). Pulling the import in here
+            // keeps the call resolvable when authors use it.
+            self.imports.insert("slotFilled");
         }
 
         for w in &self.wires {
@@ -912,6 +923,30 @@ impl<'a> Emitter<'a> {
         }
 
         if let Some(s) = script {
+            // `on form_reset {…}` / `on form_restore(state) {…}` /
+            // `on form_disabled(disabled) {…}` — typed lifecycle hooks
+            // for `component formAssociated`. Each becomes a
+            // `el.addEventListener('sail:form-<event>', …)` plus a
+            // matching cleanup. Authors stop writing the addEventListener
+            // ritual; the framework wires the contract.
+            for hook in &s.form_lifecycle {
+                let event = format!("sail:form-{}", hook.event);
+                let body = hook.body.replace('\n', "\n      ");
+                // Param name matches the detail key the runtime
+                // dispatches:
+                //   sail:form-restore  → detail: { state }
+                //   sail:form-disabled → detail: { disabled }
+                // So `on form_restore(state) {…}` pulls `e.detail.state`.
+                let arg = if let Some(name) = &hook.payload {
+                    format!("(_e) => {{\n      const {name} = _e.detail?.{name};\n      {body}\n    }}")
+                } else {
+                    format!("() => {{\n      {body}\n    }}")
+                };
+                out.push_str(&format!(
+                    "  // on form_{} {{}} block\n  {{\n    const _h = {arg};\n    el.addEventListener({event:?}, _h);\n    cleanups.push(() => el.removeEventListener({event:?}, _h));\n  }}\n",
+                    hook.event,
+                ));
+            }
             if let Some(mount) = &s.mount {
                 out.push_str("  // mount {} block\n  {");
                 out.push_str(&mount.replace('\n', "\n  "));
@@ -1439,22 +1474,6 @@ function inc() { count.set(count() + 1) }
     }
 
     #[test]
-    fn sail_window_emits_on_against_window() {
-        let js = compile(
-            "<script>function r(){}</script>\n<template><sail:window on:resize={r} /></template>",
-        );
-        assert!(js.contains("on(window, \"resize\", r)"));
-    }
-
-    #[test]
-    fn sail_document_emits_on_against_document() {
-        let js = compile(
-            "<script>function v(){}</script>\n<template><sail:document on:visibilitychange={v} /></template>",
-        );
-        assert!(js.contains("on(document, \"visibilitychange\", v)"));
-    }
-
-    #[test]
     fn slot_emits_resolveSlots_call() {
         let js = compile(
             "<template><div><slot name=\"header\"><b>fallback</b></slot><slot></slot></div></template>",
@@ -1465,6 +1484,34 @@ function inc() { count.set(count() + 1) }
         assert!(js.contains("name: \"default\""));
         assert!(js.contains("data-ss=\"0\""));
         assert!(js.contains("data-ss=\"1\""));
+    }
+
+    /// `on form_reset {…}` and `on form_restore(state) {…}` typed
+    /// blocks compile to `el.addEventListener('sail:form-*', …)` plus
+    /// a cleanup. The optional payload arg pulls from `e.detail.<event>`.
+    #[test]
+    fn form_lifecycle_blocks_emit_addEventListener() {
+        let js = compile(
+            "<script>\n\
+             component formAssociated\n\
+             prop value: string = ''\n\
+             state defaultValue = ''\n\
+             on form_reset { value.set(defaultValue()) }\n\
+             on form_restore(state) { value.set(state ?? '') }\n\
+             </script>\n\
+             <template><input /></template>",
+        );
+        // form_reset: no payload, plain arrow
+        assert!(js.contains("el.addEventListener(\"sail:form-reset\""));
+        assert!(js.contains("value.set(defaultValue())"));
+        // form_restore: payload pulled from e.detail.<param-name>;
+        // user wrote `(state)` so the detail key is `state`.
+        assert!(js.contains("el.addEventListener(\"sail:form-restore\""));
+        assert!(js.contains("const state = _e.detail?.state"));
+        assert!(js.contains("value.set(state ?? '')"));
+        // Cleanup wired
+        assert!(js.contains("removeEventListener(\"sail:form-reset\""));
+        assert!(js.contains("removeEventListener(\"sail:form-restore\""));
     }
 
     /// Platform event attributes (`onclick={fn}`, `oninput={fn}`, etc.)

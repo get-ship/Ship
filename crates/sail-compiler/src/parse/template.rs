@@ -288,17 +288,16 @@ impl<'a> Parser<'a> {
 
     /// Decide which Node variant the tag corresponds to. The parser's
     /// rule (overridden later by analyzer where it has a registry):
-    ///   - `sail:window` → Window
-    ///   - `sail:document` → Document
+    ///   - `:host` → Host (reactive bindings on the component element)
     ///   - tag contains `-` → Component
     ///   - otherwise → Element
+    ///
+    /// Window and document event subscriptions used to live behind
+    /// `<sail:window>` / `<sail:document>` directives. Removed —
+    /// authors use `mount { window.addEventListener(...) }` plus a
+    /// matching `cleanups.push(...)`. Platform-native, agent-known,
+    /// no invented namespace.
     fn classify_element(&self, tag: String, attrs: Vec<Attr>, children: Vec<Node>) -> Node {
-        if tag == "sail:window" {
-            return Node::Window { events: collect_events(&attrs) };
-        }
-        if tag == "sail:document" {
-            return Node::Document { events: collect_events(&attrs) };
-        }
         if tag == ":host" {
             return Node::Host { attrs };
         }
@@ -1173,17 +1172,6 @@ mod tests {
     fn unterminated_for_errors() {
         let err = parse("{#for x of xs}<li>{x}</li>").unwrap_err();
         assert!(err.to_string().contains("expecting") || err.to_string().contains("expected"));
-    }
-
-    #[test]
-    fn window_special() {
-        let n = parse_str("<sail:window on:resize={onR} />");
-        match &n[0] {
-            Node::Window { events } => {
-                assert_eq!(events[0].event, "resize");
-            }
-            _ => panic!("expected window"),
-        }
     }
 
     #[test]

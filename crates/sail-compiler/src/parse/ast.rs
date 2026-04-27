@@ -35,6 +35,24 @@ pub struct ScriptBlock {
     /// resulting `ElementInternals` is exposed as `internals` in the
     /// script's scope (mount block, effects, functions).
     pub form_associated: bool,
+    /// `on form_reset {…}`, `on form_restore(state) {…}`,
+    /// `on form_disabled(disabled) {…}` — typed top-level event blocks
+    /// for form-associated lifecycle. The compiler turns each into an
+    /// `el.addEventListener('sail:form-<event>', …)` plus a cleanup,
+    /// so authors write the lifecycle handler the same way every time
+    /// without juggling event-string lookups.
+    pub form_lifecycle: Vec<FormLifecycleHandler>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FormLifecycleHandler {
+    /// Lifecycle hook: "reset", "restore", or "disabled".
+    pub event: String,
+    /// Optional payload binding name pulled from `e.detail.<event>`.
+    /// `on form_restore(state) {…}` → `Some("state")`.
+    pub payload: Option<String>,
+    /// Verbatim block body.
+    pub body: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -147,12 +165,6 @@ pub enum Node {
         target: String,
         lets: Vec<(String, String)>,
         body: Vec<Node>,
-    },
-    Window {
-        events: Vec<EventBinding>,
-    },
-    Document {
-        events: Vec<EventBinding>,
     },
     /// `<:host attr={expr} aria-foo={cond} />` — declarative reactive
     /// bindings on the component's host element. Replaces the

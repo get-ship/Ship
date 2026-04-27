@@ -159,9 +159,6 @@ fn check_node(
             for c in fallback { check_node(c, known, diagnostics); }
         }
         Node::SlotFill { body, .. } => for c in body { check_node(c, known, diagnostics); },
-        Node::Window { events } | Node::Document { events } => {
-            for e in events { check_expr(&e.handler, known, diagnostics); }
-        }
         Node::Host { attrs } => check_attrs(attrs, known, diagnostics),
         // Compile-time layout primitives. These are resolved before
         // reactivity analysis runs in the resolved-template path, so

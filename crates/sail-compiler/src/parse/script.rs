@@ -156,6 +156,17 @@ pub fn scan(script: &mut ScriptBlock) {
                         continue;
                     }
                 }
+                "on" => {
+                    // `on form_reset {…}` / `on form_restore(state) {…}` /
+                    // `on form_disabled(disabled) {…}` — typed lifecycle
+                    // handlers for form-associated components.
+                    if let Some((decl, next)) = parse_on_lifecycle(&src, bytes, end) {
+                        script.form_lifecycle.push(decl);
+                        i = next;
+                        at_stmt_start = true;
+                        continue;
+                    }
+                }
                 "component" => {
                     // `component formAssociated` — element-level config.
                     // For now `formAssociated` is the only flag; future
@@ -371,6 +382,66 @@ fn parse_event(src: &str, bytes: &[u8], start: usize) -> Option<(EventDecl, usiz
         },
         i,
     ))
+}
+
+/// Parse `on form_reset {…}` / `on form_restore(state) {…}` /
+/// `on form_disabled(disabled) {…}`. The keyword `on` has already
+/// been consumed; we read `form_<event>`, an optional `(payload)`
+/// arg, and a `{…}` body.
+fn parse_on_lifecycle(
+    src: &str,
+    bytes: &[u8],
+    start: usize,
+) -> Option<(super::ast::FormLifecycleHandler, usize)> {
+    let i = skip_inline_ws(bytes, start);
+    let (word, after_word) = read_word(bytes, i)?;
+    let event = word.strip_prefix("form_")?.to_string();
+    if !matches!(event.as_str(), "reset" | "restore" | "disabled") {
+        return None;
+    }
+    let mut k = skip_inline_ws(bytes, after_word);
+
+    // Optional `(payload)` parameter.
+    let payload = if peek_byte(bytes, k) == Some(b'(') {
+        let close = find_paren_close(bytes, k)?;
+        let inner = src[k + 1..close].trim();
+        let p = if inner.is_empty() { None } else { Some(inner.to_string()) };
+        k = skip_inline_ws(bytes, close + 1);
+        p
+    } else {
+        None
+    };
+
+    if peek_byte(bytes, k) != Some(b'{') {
+        return None;
+    }
+    let body_start = k + 1;
+    let body_end = find_brace_close(bytes, k)?;
+    let body = src[body_start..body_end].to_string();
+    Some((
+        super::ast::FormLifecycleHandler { event, payload, body },
+        body_end + 1,
+    ))
+}
+
+fn find_paren_close(bytes: &[u8], open_at: usize) -> Option<usize> {
+    debug_assert_eq!(bytes.get(open_at).copied(), Some(b'('));
+    let mut depth = 0i32;
+    let mut i = open_at;
+    while i < bytes.len() {
+        match bytes[i] {
+            b'(' => depth += 1,
+            b')' => {
+                depth -= 1;
+                if depth == 0 {
+                    return Some(i);
+                }
+            }
+            _ => {}
+        }
+        i += 1;
+    }
+    None
 }
 
 fn parse_lifecycle(src: &str, bytes: &[u8], start: usize) -> Option<(String, usize)> {
@@ -770,6 +841,7 @@ mod tests {
             unmount: None,
             functions: vec![],
             form_associated: false,
+            form_lifecycle: vec![],
         };
         scan(&mut sb);
         sb
