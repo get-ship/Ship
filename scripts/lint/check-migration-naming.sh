@@ -4,12 +4,14 @@
 # Enforce the migration-authoring discipline for
 # crates/core/runtime/migrations/ (platform.db).
 #
-# Rule (pre-launch):
-#   - The schema is a single 0001_schema.sql. Edit that file when the
-#     schema changes; wipe and rebuild platform.db on existing machines.
-#   - When pre-launch ends, this check switches to enforcing
-#     ^[0-9]{12}_[a-z0-9_-]+\.sql$ (UTC timestamp prefix). For now,
-#     anything other than 0001_schema.sql is a regression.
+# Rule:
+#   - Baseline schema lives in 0001_schema.sql (squashed once, kept
+#     editable while pre-launch — wipes are cheaper than chains).
+#   - All NEW schema changes after that land as
+#     ^[0-9]{12}_[a-z0-9_-]+\.sql$ (UTC timestamp prefix YYYYMMDDHHMM).
+#   - sqlx applies them incrementally and tracks them in _sqlx_migrations.
+#     We don't write Rust "migrator" helpers that live on forever —
+#     SQL DDL only.
 #
 # See:
 #   crates/core/runtime/migrations/README.md

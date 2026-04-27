@@ -88,15 +88,6 @@ CREATE TABLE IF NOT EXISTS workspace_session_record (
 CREATE INDEX IF NOT EXISTS workspace_session_record_workspace_idx
   ON workspace_session_record(workspace_id, created_at DESC);
 
-CREATE TABLE IF NOT EXISTS branch_config (
-  branch       TEXT PRIMARY KEY,
-  preset_id    TEXT NOT NULL,
-  workspace_id TEXT,
-  plugins_json TEXT NOT NULL DEFAULT '[]',
-  compiled_at  TEXT NOT NULL,
-  updated_at   TEXT NOT NULL
-);
-
 CREATE TABLE IF NOT EXISTS events (
   id               TEXT PRIMARY KEY NOT NULL,
   event_type       TEXT NOT NULL,
@@ -236,11 +227,3 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE INDEX IF NOT EXISTS jobs_status_idx ON jobs(status, created_at DESC);
 CREATE INDEX IF NOT EXISTS jobs_branch_idx ON jobs(branch, status);
 CREATE INDEX IF NOT EXISTS idx_jobs_assigned ON jobs(assigned_to, status);
-
-CREATE TABLE IF NOT EXISTS file_claim (
-  path         TEXT PRIMARY KEY,
-  job_id       TEXT NOT NULL,
-  workspace_id TEXT,
-  claimed_at   TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_file_claim_job ON file_claim(job_id);

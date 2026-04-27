@@ -19,7 +19,6 @@ pub mod kv;
 pub mod managed_state;
 pub mod pool;
 pub mod rebuild;
-pub mod schema;
 pub mod session;
 pub mod session_drain;
 pub mod session_events;

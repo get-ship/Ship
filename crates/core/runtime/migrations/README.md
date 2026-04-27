@@ -1,49 +1,42 @@
 # platform.db migrations
 
-This directory holds the sqlx migrations for `platform.db`, Ship's
-single platform-level database. sqlx runs every file here in
-lexicographic order on `DataService::open` / `ensure_db_at`.
+This directory holds the sqlx migrations for `platform.db`. sqlx runs
+every file here in lexicographic order on `DataService::open` /
+`ensure_db_at` and tracks applied versions in `_sqlx_migrations`.
 
-## Pre-launch convention
+## Files
 
-Single file: `0001_schema.sql`. When the schema changes, edit `0001`
-in place and wipe + rebuild `platform.db` on existing machines. We're
-pre-launch with a small, known set of installations — incremental
-migration chains are debt we don't need yet.
+- `0001_schema.sql` — squashed baseline. Defines the current schema in
+  one file. Pre-launch you can keep editing this in place + wipe DBs;
+  once external installations exist it freezes.
+- `YYYYMMDDHHMM_kebab_description.sql` — every schema change after the
+  baseline. UTC timestamp prefix, monotonic relative to the newest
+  existing file. Lowercase ASCII + digits + `-`/`_` in the slug.
 
-When pre-launch ends, this convention switches to:
+## Conventions
 
-```
-YYYYMMDDHHMM_kebab_description.sql
-```
+1. **SQL DDL only.** Idempotent (`IF NOT EXISTS` / `IF EXISTS`).
+   sqlx wraps each file in a transaction.
+2. **No Rust "migrator" code.** Don't write helpers that read from
+   the old shape and write to the new shape, then live in the codebase
+   forever guarding against re-running. If a schema change needs data
+   reshape, do it in SQL inside the migration. If that's not feasible,
+   reset the affected tables — pre-launch makes that cheap.
+3. **No data.db here.** Per-collection `data.db` schemas live in
+   `runtime::collections::builtin::register_builtin_schemas`; do not
+   mix them in.
 
 The CI guard (`scripts/lint/check-migration-naming.sh`, wired into
-`just check-migrations`) enforces the active convention.
-
-## Authoring rules
-
-1. **Idempotent.** Use `CREATE TABLE IF NOT EXISTS`, `DROP TABLE IF
-   EXISTS`, `CREATE INDEX IF NOT EXISTS`. A re-run on a partially-built
-   database must not fail.
-2. **No data.db here.** Per-collection `data.db` schemas live in a
-   separate path (`runtime::collections::builtin::register_builtin_schemas`);
-   do not mix them in.
-3. **No data migration.** SQL DDL only. Pre-launch wipes are cheaper
-   than data-migration code.
+`just check-migrations`) enforces the active naming pattern.
 
 ## Testing locally
 
 ```
-cargo test -p runtime --test migrations
+cargo test -p runtime
 just check-migrations
 ```
 
-`cargo test -p runtime` boots a fresh in-memory `platform.db`, runs
-every migration in this directory, and asserts the resulting schema.
-Expected output ends with `test result: ok`. `just check-migrations` is
-the fast (<1s) naming-convention guard.
-
-To smoke-test against a real sqlite file:
+Smoke against a real sqlite file:
 
 ```
 rm -f /tmp/ship-mig.db
@@ -51,4 +44,15 @@ sqlx migrate run \
     --source crates/core/runtime/migrations \
     --database-url sqlite:///tmp/ship-mig.db
 sqlite3 /tmp/ship-mig.db ".schema"
+```
+
+## Worked example
+
+```sql
+-- 202604271630_add_agent_fingerprint.sql
+ALTER TABLE actors
+    ADD COLUMN fingerprint TEXT;
+
+CREATE INDEX IF NOT EXISTS idx_actors_fingerprint
+    ON actors(fingerprint);
 ```
