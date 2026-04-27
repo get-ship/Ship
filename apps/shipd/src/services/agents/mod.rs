@@ -27,7 +27,7 @@ pub mod wire;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::rest_api::ApiState;
 use super::files::Scope;
@@ -282,5 +282,3 @@ impl axum::response::IntoResponse for state::Error {
     }
 }
 
-#[derive(Serialize)]
-struct _TypeMarker;
