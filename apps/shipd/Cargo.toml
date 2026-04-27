@@ -20,6 +20,7 @@ path = "src/main.rs"
 runtime = { path = "../../crates/core/runtime" }
 lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
+sail-compiler = { path = "../../crates/sail-compiler" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1.0", features = ["full"] }

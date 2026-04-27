@@ -131,6 +131,13 @@ pub fn build_router(
         .route(
             "/_ship/components/{file}",
             axum::routing::get(views::components::serve_component_js),
+        )
+        // `.ship/sail/*.sail` compiled via the sail-compiler crate.
+        // Public for the same reason: outputs are generated artifacts,
+        // not user secrets, and pages need to load them without auth.
+        .route(
+            "/_sail/components/{file}",
+            axum::routing::get(views::sail::serve_sail),
         );
 
     let auth_token = token;

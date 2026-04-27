@@ -34,6 +34,7 @@ pub mod events_state;
 pub mod sdk_macros;
 pub mod sfc;
 pub mod components;
+pub mod sail;
 pub mod setup;
 pub mod templates;
 pub mod session;
