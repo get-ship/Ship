@@ -126,14 +126,15 @@ impl<'a> Emitter<'a> {
                 self.emit_element(tag, attrs, children);
             }
             Node::Component { tag, props, events, children, .. } => {
-                // MVP: emit the component tag with prop attrs. Reactive
-                // prop bindings degrade to initial-value attributes —
-                // a follow-up will wire reactive prop updates.
+                // Prop values are JS expressions — emit as interpolated
+                // attributes so the runtime keeps the attribute (and
+                // therefore the child component's prop signal) in sync
+                // with the dependency.
                 let attr_list: Vec<Attr> = props
                     .iter()
                     .map(|p| Attr {
-                        name: p.name.clone(),
-                        value: AttrValue::Static(p.value.raw.clone()),
+                        name: kebab_attr(&p.name),
+                        value: AttrValue::Interpolated(p.value.clone()),
                     })
                     .chain(events.iter().map(|e| Attr {
                         name: format!("on:{}", e.event),
@@ -659,6 +660,11 @@ fn decoder_for(ty: Option<&str>) -> &'static str {
     }
 }
 
+/// Convert a camelCase prop name to its kebab-case attribute form.
+fn kebab_attr(name: &str) -> String {
+    kebab_of(name)
+}
+
 fn kebab_of(name: &str) -> String {
     let mut out = String::new();
     for (i, c) in name.chars().enumerate() {
@@ -880,6 +886,28 @@ function inc() { count.set(count() + 1) }
         // Inner bindText reads it() and tracks `it` as a dep.
         assert!(js.contains("String(it.name)"));
         assert!(js.contains("[it]"));
+    }
+
+    #[test]
+    fn component_prop_emits_reactive_bindAttr() {
+        // <my-btn label={title} count={n}> — both should reactively
+        // sync to the child component's attributes.
+        let js = compile(
+            "<script>state title = 'Hi'\nstate n = 3</script>\n<template><my-btn label={title} count={n}>x</my-btn></template>",
+        );
+        assert!(js.contains("<my-btn"));
+        assert!(js.contains("bindAttr(_n, \"label\""));
+        assert!(js.contains("bindAttr(_n, \"count\""));
+        assert!(js.contains("[title]"));
+        assert!(js.contains("[n]"));
+    }
+
+    #[test]
+    fn component_camelcase_prop_kebabs() {
+        let js = compile(
+            "<script>state url = 'x'</script>\n<template><my-typeahead fetchUrl={url} /></template>",
+        );
+        assert!(js.contains("bindAttr(_n, \"fetch-url\""));
     }
 
     #[test]
