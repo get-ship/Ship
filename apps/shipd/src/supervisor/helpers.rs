@@ -4,13 +4,12 @@ use anyhow::Result;
 use std::path::PathBuf;
 
 pub(crate) fn worktrees_dir() -> PathBuf {
-    if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::WorktreeDir) {
-        return PathBuf::from(dir);
-    }
-    let home = std::env::var("HOME")
-        .or_else(|_| std::env::var("USERPROFILE"))
-        .unwrap_or_else(|_| "/tmp".to_string());
-    PathBuf::from(home).join("dev").join("ship-worktrees")
+    let project = repo_dir()
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "ship".to_string());
+    runtime::config::worktrees_dir(&project)
 }
 
 pub(crate) fn repo_dir() -> PathBuf {
