@@ -8,7 +8,7 @@
 
 set -u
 
-cd "$(dirname "$0")/.."
+cd "$(dirname "$0")/../.."
 
 SEARCH_PATHS=(crates apps)
 ALLOW_FILE="crates/core/runtime/src/env.rs"

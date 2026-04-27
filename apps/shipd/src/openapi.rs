@@ -17,7 +17,7 @@ impl Modify for SecurityAndServer {
                         .scheme(HttpAuthScheme::Bearer)
                         .bearer_format("opaque")
                         .description(Some(
-                            "Daemon bearer token — found in ~/.ship/daemon.token after `ship daemon start`.",
+                            "Daemon bearer token — found in ~/.ship/machine/daemon/token after `ship daemon start`.",
                         ))
                         .build(),
                 ),
