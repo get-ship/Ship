@@ -55,7 +55,20 @@ pub fn compile_file(path: &Path, _opts: &CompileOpts) -> Result<CompileResult> {
 
 /// Compile a `.sail` source string with an explicit tag name.
 pub fn compile_source(source: &str, tag: &str) -> Result<CompileResult> {
+    compile_source_with(source, tag, &CompileOpts::default())
+}
+
+/// `compile_source` with explicit options. Tokens, schema sources, and
+/// other analyzer inputs come from `opts`.
+pub fn compile_source_with(
+    source: &str,
+    tag: &str,
+    opts: &CompileOpts,
+) -> Result<CompileResult> {
     let file = parse::parse(source).context("parse")?;
+    let mut diagnostics: Vec<Diagnostic> = Vec::new();
+    analyze::reactivity::analyze(&file, &mut diagnostics);
+    analyze::tokens::analyze(&file, opts.tokens.as_ref(), &mut diagnostics);
     let (js, _html) = emit::runtime::emit_with_html(&file, tag);
     let ssr = emit::ssr::emit(&file, tag);
     let dts = emit::types::emit(&file, tag);
@@ -65,7 +78,7 @@ pub fn compile_source(source: &str, tag: &str) -> Result<CompileResult> {
         ssr,
         dts,
         schema,
-        diagnostics: Vec::new(),
+        diagnostics,
     })
 }
 
@@ -103,6 +116,10 @@ pub struct CompileOpts {
     /// Whether to run full TypeScript type-checking (slow) or just
     /// type-stripping (fast). Default: stripping.
     pub typecheck_full: bool,
+    /// Configured design tokens (`color.fg`, `space.3`, …). When
+    /// `None`, token references are accepted unchecked. When `Some`,
+    /// unknown references emit SAIL/E0010.
+    pub tokens: Option<analyze::tokens::TokenSet>,
 }
 
 /// Output of compiling a single `.sail` file.

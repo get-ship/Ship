@@ -11,6 +11,7 @@ pub mod schema;
 pub mod types;
 pub mod reactivity;
 pub mod deps;
+pub mod tokens;
 
 use crate::parse::ast::SailFile;
 use crate::Diagnostic;

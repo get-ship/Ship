@@ -12,7 +12,7 @@
 
 use anyhow::{Context, Result, bail};
 use clap::{Parser, Subcommand};
-use sail_compiler::{CompileOpts, compile_source, tag_for};
+use sail_compiler::{CompileOpts, Severity, compile_source, compile_source_with, tag_for};
 use std::path::{Path, PathBuf};
 
 #[derive(Parser, Debug)]
@@ -89,13 +89,24 @@ fn run_check(root: &Path) -> Result<()> {
     }
     let mut errors = 0usize;
     let opts = CompileOpts::default();
-    let _ = &opts;
     for path in &files {
         let source = std::fs::read_to_string(path)
             .with_context(|| format!("read {}", path.display()))?;
         let tag = tag_for(path);
-        match compile_source(&source, &tag) {
-            Ok(_) => {}
+        match compile_source_with(&source, &tag, &opts) {
+            Ok(result) => {
+                for d in &result.diagnostics {
+                    let label = match d.severity {
+                        Severity::Error => { errors += 1; "error" }
+                        Severity::Warning => "warning",
+                        Severity::Info => "info",
+                    };
+                    eprintln!("{label} [{}]: {}: {}", d.code, path.display(), d.message);
+                    if let Some(h) = &d.help {
+                        eprintln!("    help: {h}");
+                    }
+                }
+            }
             Err(e) => {
                 eprintln!("error: {}: {e:#}", path.display());
                 errors += 1;
