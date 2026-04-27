@@ -10,7 +10,7 @@
     "tags": ["ui", "ship-set", "views", "design"]
   },
   "skills": {
-    "refs": ["ship-views", "ship-components", "ship-design-system"]
+    "refs": ["ship-views", "set-authoring", "ship-components", "ship-design-system"]
   },
   "mcp": {
     "servers": ["ship"]

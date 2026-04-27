@@ -12,6 +12,7 @@
   "skills": {
     "refs": [
       "ship-views",
+      "set-authoring",
       "ship-components",
       "ship-coordination",
       "ship-schema-reference",
