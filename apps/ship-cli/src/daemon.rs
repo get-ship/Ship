@@ -789,22 +789,18 @@ fn daemon_cleanup() -> Result<()> {
 
     let jobs = load_jobs().context("failed to load job projection")?;
 
-    let worktrees_base = {
-        if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::WorktreeDir) {
-            PathBuf::from(dir)
-        } else {
-            let home = std::env::var("HOME")
-                .or_else(|_| std::env::var("USERPROFILE"))
-                .unwrap_or_else(|_| "/tmp".to_string());
-            PathBuf::from(home).join("dev").join("ship-worktrees")
-        }
-    };
-
     let repo_dir = if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::RepoDir) {
         PathBuf::from(dir)
     } else {
         std::env::current_dir().context("cannot determine working directory")?
     };
+
+    let project_name = repo_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "ship".to_string());
+    let worktrees_base = runtime::config::worktrees_dir(&project_name);
 
     let orphans: Vec<_> = jobs
         .values()

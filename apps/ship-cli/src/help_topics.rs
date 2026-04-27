@@ -102,7 +102,7 @@ Available keys:
 
   terminal.program    Terminal for dispatch: wt, iterm, tmux, gnome, vscode, manual
   dispatch.confirm    Show spec and ask y/n before launching agent (true/false)
-  worktrees.dir       Base directory for worktrees (default: ~/dev/ship-worktrees)
+  worktrees.dir       Base directory for worktrees (default: ~/dev/<project>-worktrees)
   defaults.provider   Default compilation provider (claude, gemini, codex, cursor)
   defaults.mode       Default agent permission mode
   identity.name       Your display name
