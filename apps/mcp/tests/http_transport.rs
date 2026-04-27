@@ -9,7 +9,7 @@ async fn start_test_server_with_token(
     let port = listener.local_addr().unwrap().port();
 
     // auto_test_global_dir() provides process-scoped DB isolation for test binaries.
-    // No need to set SHIP_GLOBAL_DIR — it races in parallel tests.
+    // No need to set SHIP_HOME — it races in parallel tests.
     let tmp_dir: Option<tempfile::TempDir> = None;
 
     let ct = CancellationToken::new();

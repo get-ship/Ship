@@ -8,7 +8,7 @@ fn ship() -> Command { Command::cargo_bin("ship").unwrap() }
 
 fn ship_in(tmp: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("ship").unwrap();
-    cmd.env("SHIP_GLOBAL_DIR", tmp.path());
+    cmd.env("SHIP_HOME", tmp.path());
     cmd
 }
 

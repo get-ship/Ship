@@ -78,7 +78,7 @@ pub(super) fn ship_server_entry(emit_type: bool, ship_home_dir: Option<&str>) ->
         Some(dir) => serde_json::json!({
             "command": "ship",
             "args": ["mcp", "serve"],
-            "env": { "SHIP_GLOBAL_DIR": dir }
+            "env": { "SHIP_HOME": dir }
         }),
         None => serde_json::json!({
             "command": "ship",
@@ -117,7 +117,7 @@ mod tests {
     #[test]
     fn ship_server_entry_uses_injected_home_dir() {
         let entry = ship_server_entry(false, Some("/var/lib/ship"));
-        assert_eq!(entry["env"]["SHIP_GLOBAL_DIR"], "/var/lib/ship");
+        assert_eq!(entry["env"]["SHIP_HOME"], "/var/lib/ship");
     }
 
     #[test]

@@ -52,8 +52,6 @@ pub enum Var {
     // ── Legacy ───────────────────────────────────────────────────────────
     /// Legacy `SHIP_DIR` — superseded by `SHIP_HOME` / `ShipHome`.
     Dir,
-    /// Legacy `SHIP_GLOBAL_DIR` — test-only isolation override.
-    GlobalDir,
 }
 
 impl Var {
@@ -81,7 +79,6 @@ impl Var {
             Var::TelegramToken => "SHIP_TELEGRAM_TOKEN",
             Var::TelegramChatId => "SHIP_TELEGRAM_CHAT_ID",
             Var::Dir => "SHIP_DIR",
-            Var::GlobalDir => "SHIP_GLOBAL_DIR",
         }
     }
 
@@ -106,7 +103,7 @@ impl Var {
             | Var::HooksBin
             | Var::TelegramToken
             | Var::TelegramChatId => Category::DevDebug,
-            Var::Dir | Var::GlobalDir => Category::Legacy,
+            Var::Dir => Category::Legacy,
         }
     }
 }
@@ -152,7 +149,7 @@ mod tests {
         assert_eq!(Var::Home.as_str(), "SHIP_HOME");
         assert_eq!(Var::AgentId.as_str(), "SHIP_AGENT_ID");
         assert_eq!(Var::DaemonPath.as_str(), "SHIPD_PATH");
-        assert_eq!(Var::GlobalDir.as_str(), "SHIP_GLOBAL_DIR");
+        assert_eq!(Var::Dir.as_str(), "SHIP_DIR");
     }
 
     #[test]

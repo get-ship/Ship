@@ -5,7 +5,7 @@
 //! event store, then call the orchestrator-side step I/O helpers to
 //! verify end-to-end behavior.
 //!
-//! The runtime's test binary gives us a per-thread temp `SHIP_GLOBAL_DIR`
+//! The runtime's test binary gives us a per-thread temp `SHIP_HOME`
 //! automatically (`project::global::get_global_dir`'s test-isolation
 //! path), so every helper that calls `get_global_dir()` lands in the
 //! same directory without us having to touch env vars.

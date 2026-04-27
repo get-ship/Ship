@@ -92,7 +92,7 @@ pub struct ResolvedConfig {
     /// by callers (CLI/daemon) that resolve via `runtime::ShipHome`. The
     /// compiler is WASM-safe and does not read environment variables —
     /// when this is `None` (e.g. WASM frontends), the compiler emits an
-    /// MCP entry without the `SHIP_GLOBAL_DIR` env injection.
+    /// MCP entry without the `SHIP_HOME` env injection.
     pub ship_home_dir: Option<String>,
 }
 

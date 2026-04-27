@@ -9,8 +9,8 @@ mod tests {
     /// Verifies that get_global_dir() never silently returns a production path
     /// in test context.  Two valid outcomes:
     ///
-    /// - Clean env (SHIP_GLOBAL_DIR unset / temp): returns a temp-based path.
-    /// - Polluted env (SHIP_GLOBAL_DIR=~/.ship): guard panics — test isolation
+    /// - Clean env (SHIP_HOME unset / temp): returns a temp-based path.
+    /// - Polluted env (SHIP_HOME=~/.ship): guard panics — test isolation
     ///   is enforced.
     #[test]
     fn get_global_dir_never_silently_returns_production_path_in_tests() {
@@ -25,7 +25,7 @@ mod tests {
                 );
             }
             Err(_) => {
-                // Guard fired: correct behavior when SHIP_GLOBAL_DIR points to a
+                // Guard fired: correct behavior when SHIP_HOME points to a
                 // production path.  Contamination was prevented.
             }
             Ok(Err(e)) => panic!("unexpected error from get_global_dir: {e}"),
@@ -93,7 +93,7 @@ branch refs/heads/feature/fix-x
 
     // ---- 4. activate_workspace uses real git worktree path ------------------
 
-    /// Requires a clean environment (SHIP_GLOBAL_DIR unset or pointing to temp).
+    /// Requires a clean environment (SHIP_HOME unset or pointing to temp).
     /// In a polluted env the test is skipped via the guard that panics on init.
     #[test]
     fn activate_workspace_picks_up_real_git_worktree_path() -> Result<()> {
