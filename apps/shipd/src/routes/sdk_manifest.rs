@@ -15,13 +15,13 @@ use crate::auth::{AuthContext, Scope, require_scope};
 
 // ── Embedded manifest ───────────────────────────────────────────────────────
 
-const SDK_MACROS: &str = include_str!("../../../packages/ship-set/sdk/sdk-macros.json");
-const SDK_URLS: &str = include_str!("../../../packages/ship-set/sdk/sdk-urls.json");
+const SDK_MACROS: &str = include_str!("../../../../packages/ship-set/sdk/sdk-macros.json");
+const SDK_URLS: &str = include_str!("../../../../packages/ship-set/sdk/sdk-urls.json");
 const SDK_VIEW_CONTEXTS: &str =
-    include_str!("../../../packages/ship-set/sdk/sdk-view-contexts.json");
-const SDK_VIEWS: &str = include_str!("../../../packages/ship-set/sdk/sdk-views.json");
-const SDK_COLLECTIONS: &str = include_str!("../../../packages/ship-set/sdk/sdk-collections.json");
-const SDK_TRIGGERS: &str = include_str!("../../../packages/ship-set/sdk/sdk-triggers.json");
+    include_str!("../../../../packages/ship-set/sdk/sdk-view-contexts.json");
+const SDK_VIEWS: &str = include_str!("../../../../packages/ship-set/sdk/sdk-views.json");
+const SDK_COLLECTIONS: &str = include_str!("../../../../packages/ship-set/sdk/sdk-collections.json");
+const SDK_TRIGGERS: &str = include_str!("../../../../packages/ship-set/sdk/sdk-triggers.json");
 
 /// Parsed cache. Parse-on-first-access, reused for the life of the process.
 struct Parsed {

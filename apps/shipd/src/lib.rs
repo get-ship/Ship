@@ -10,7 +10,6 @@ pub mod transport;
 mod daemon;
 mod first_run;
 mod handler;
-pub mod sdk_manifest;
 pub mod services;
 pub mod human_webhook;
 mod human_gateway;
@@ -19,9 +18,7 @@ pub mod project_api;
 pub mod routes;
 pub mod router;
 pub mod mcp;
-pub mod themes;
 pub mod views;
-pub mod shell_assets;
 pub mod ship_runtime;
 pub mod supervised;
 pub mod supervisor;
@@ -34,8 +31,8 @@ pub mod webhook_ext;
 pub use routes::{
     actor_api, actors_api, annotations_api, artifacts_api, collection_api, create_api,
     feedback_api, hooks_api, lint_api, logs_api, openapi, openapi_modifier, openapi_types,
-    projects_api, rest_api, runtime_api, settings_api, specs_api, themes_api, view_errors_api,
-    view_sessions_api,
+    projects_api, rest_api, runtime_api, sdk_manifest, settings_api, shell_assets, specs_api,
+    themes, themes_api, view_errors_api, view_sessions_api,
 };
 
 #[cfg(test)]
