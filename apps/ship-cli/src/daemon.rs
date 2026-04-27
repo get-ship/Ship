@@ -570,7 +570,7 @@ fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
         .enable_all()
         .build()
         .context("cannot build tokio runtime")?;
-    rt.block_on(shipd::run_network(host, port, dev, None))
+    rt.block_on(shipd::run_network(host, Some(port), dev, None))
 }
 
 /// Legacy stop path wired to the pidfile adapter. Reads the supervisor

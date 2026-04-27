@@ -140,6 +140,57 @@ pub fn current_daemon_dir() -> PathBuf {
     daemon_dir_for(&cwd)
 }
 
+/// Default-derived port for a per-worktree daemon: `9315 + N % 100`
+/// where `N` is the first 16 bits of the path hash (interpreted as
+/// big-endian). Gives a stable port per project root across restarts;
+/// collisions in the mod-100 window get resolved by bind-retry.
+pub fn derive_worktree_port(hash: &str) -> u16 {
+    const BASE: u16 = 9315;
+    let prefix = hash.get(..4).unwrap_or("0000");
+    let n = u32::from_str_radix(prefix, 16).unwrap_or(0);
+    BASE + ((n % 100) as u16)
+}
+
+/// Resolve the port shipd should bind for a given project root.
+///
+/// Lookup order:
+/// 1. `~/.ship/machine/local.jsonc:worktrees.ports[<current_branch>]` —
+///    user-pinned override; useful for stable browser-extension ports.
+/// 2. `derive_worktree_port(path_hash(project_root))` — hash-derived default.
+///
+/// `current_branch` is the branch checked out at `project_root`; resolved
+/// via `git symbolic-ref --short HEAD`. A detached HEAD or non-git tree
+/// skips the pin and falls through to derivation.
+pub fn worktree_port_for(project_root: &Path) -> u16 {
+    if let Some(branch) = current_branch(project_root) {
+        let local = crate::config::LocalSettings::load();
+        if let Some(wt) = local.worktrees.as_ref()
+            && let Some(port) = wt.ports.get(&branch)
+        {
+            return *port;
+        }
+    }
+    derive_worktree_port(&path_hash(project_root))
+}
+
+fn current_branch(project_root: &Path) -> Option<String> {
+    let out = std::process::Command::new("git")
+        .args(["symbolic-ref", "--short", "HEAD"])
+        .current_dir(project_root)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8(out.stdout).ok()?;
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
 fn read_trim<P: AsRef<Path>>(path: P) -> Option<String> {
     std::fs::read_to_string(path.as_ref()).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
@@ -219,6 +270,20 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         std::fs::write(tmp.path().join("token"), "x").unwrap();
         assert!(DaemonHandle::load(tmp.path()).is_none());
+    }
+
+    #[test]
+    fn derive_worktree_port_is_in_window() {
+        for hash in &["00000000", "abcd1234", "ffffffff", "deadbeef"] {
+            let p = derive_worktree_port(hash);
+            assert!((9315..=9414).contains(&p), "{hash} → {p} outside window");
+        }
+    }
+
+    #[test]
+    fn derive_worktree_port_is_stable() {
+        let h = "ab12cd34";
+        assert_eq!(derive_worktree_port(h), derive_worktree_port(h));
     }
 
     #[test]
