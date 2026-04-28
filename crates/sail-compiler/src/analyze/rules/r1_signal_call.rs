@@ -38,7 +38,7 @@ fn check_expr(expr: &Expr, symbols: &SymbolTable, diagnostics: &mut Vec<Diagnost
             severity: Severity::Error,
             code: "SAIL/E0101".to_string(),
             message: format!("signal `{name}` referenced without call in `{}`", expr.raw),
-            span: None,
+            span: expr.span.clone(),
             help: Some(format!(
                 "signal '{name}' must be called as '{name}()' to read the value reactively"
             )),
@@ -156,5 +156,25 @@ mod tests {
         // Accept the false-negative on `user.name` to keep noise low.
         let d = run("<script>state user = null</script><template>{user.name}</template>");
         assert!(warns(&d).is_empty(), "got {d:?}");
+    }
+
+    #[test]
+    fn diagnostic_carries_span_at_interpolation() {
+        // The bare `{count}` interpolation appears on line 3, col 14
+        // (the inner `count` after the `{`). Verify the diagnostic
+        // anchors there so the LSP highlights the offending expression
+        // instead of file 0:0.
+        let src = "<script>\nstate count = 0\n</script>\n<template><span>{count}</span></template>";
+        let d = run(src);
+        let w = warns(&d);
+        assert_eq!(w.len(), 1, "got {d:?}");
+        let span = w[0].span.as_ref().expect("expected span on R1 diagnostic");
+        // `{count}` opens at col 17 of line 4 ('<' of <template> is col
+        // 1, span="<template><span>{" → `{` at col 17, inner at 18).
+        // The interpolation Expr span covers the inner expression text
+        // (between the braces), so col is 18.
+        assert_eq!(span.line, 4, "{:?}", span);
+        assert_eq!(span.col, 18, "{:?}", span);
+        assert!(span.end_col > span.col, "{:?}", span);
     }
 }

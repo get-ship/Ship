@@ -126,7 +126,7 @@ impl<'a> Emitter<'a> {
                     "  {{\n    const _n = {root}.querySelector('[data-st=\"{id}\"]');\n    if (_n) {cl}.push(bindText(_n, () => String({wrapped}), {deps}));\n  }}",
                 ));
             }
-            Node::Element { tag, attrs, children } => {
+            Node::Element { tag, attrs, children, .. } => {
                 if tag == "slot" {
                     self.emit_slot_decl(attrs, children);
                 } else {
@@ -143,6 +143,7 @@ impl<'a> Emitter<'a> {
                     .map(|p| Attr {
                         name: kebab_attr(&p.name),
                         value: AttrValue::Interpolated(p.value.clone()),
+                        span: None,
                     })
                     .chain(events.iter().map(|e| Attr {
                         name: format!("on:{}", e.event),
@@ -151,6 +152,7 @@ impl<'a> Emitter<'a> {
                             modifiers: e.modifiers.clone(),
                             handler: e.handler.clone(),
                         },
+                        span: None,
                     }))
                     .collect();
                 self.emit_element(tag, &attr_list, children);

@@ -8,109 +8,167 @@
 //! never dispatches it. Heuristic — string contents and comments are
 //! ignored, but `setTimeout(fn, ms)` fire-and-forget is flagged by
 //! design (treat it as a leak class in mount{}).
+//!
+//! Span anchoring: comment stripping replaces comment bytes with spaces
+//! so byte offsets in the stripped body line up with the original. Each
+//! diagnostic's span points at the FIRST relevant call site for the
+//! family — narrowed to just the call name. v1 fallback: when only the
+//! first call is anchored, multi-call leak counts still aggregate
+//! correctly; the LSP highlights the most likely culprit.
 
 use std::collections::HashMap;
 
 use crate::parse::ast::SailFile;
-use crate::{Diagnostic, Severity};
+use crate::{Diagnostic, Severity, Span};
 
 const PHANTOM_EVENT: &str = "sail:cleanup";
 
 pub fn analyze(file: &SailFile, diagnostics: &mut Vec<Diagnostic>) {
     let Some(script) = file.script.as_ref() else { return };
-    let stripped = strip_comments(&script.raw);
+    let stripped = strip_comments_preserve_offsets(&script.raw);
+    let body_offset = script.body_byte_offset;
 
-    let mut adds: HashMap<String, usize> = HashMap::new();
+    let mut adds: HashMap<String, Vec<Call>> = HashMap::new();
     let mut removes: HashMap<String, usize> = HashMap::new();
-    let mut set_intervals = 0usize;
+    let mut set_intervals: Vec<Call> = Vec::new();
     let mut clear_intervals = 0usize;
-    let mut set_timeouts = 0usize;
+    let mut set_timeouts: Vec<Call> = Vec::new();
     let mut clear_timeouts = 0usize;
-    let mut phantom_cleanup = false;
+    let mut phantom_cleanup: Option<Call> = None;
 
-    for (call, arg) in find_calls(&stripped) {
-        match call {
-            "addEventListener" => match arg.as_deref() {
-                Some(PHANTOM_EVENT) => phantom_cleanup = true,
-                Some(ev) => *adds.entry(ev.to_string()).or_default() += 1,
+    for call in find_calls(&stripped) {
+        match call.name {
+            "addEventListener" => match call.first_arg.as_deref() {
+                Some(PHANTOM_EVENT) => {
+                    if phantom_cleanup.is_none() {
+                        phantom_cleanup = Some(call);
+                    }
+                }
+                Some(ev) => {
+                    let key = ev.to_string();
+                    adds.entry(key).or_default().push(call);
+                }
                 None => {}
             },
             "removeEventListener" => {
-                if let Some(ev) = arg {
+                if let Some(ev) = call.first_arg {
                     *removes.entry(ev).or_default() += 1;
                 }
             }
-            "setInterval" => set_intervals += 1,
+            "setInterval" => set_intervals.push(call),
             "clearInterval" => clear_intervals += 1,
-            "setTimeout" => set_timeouts += 1,
+            "setTimeout" => set_timeouts.push(call),
             "clearTimeout" => clear_timeouts += 1,
             _ => {}
         }
     }
 
-    if phantom_cleanup {
+    if let Some(call) = phantom_cleanup {
         emit(diagnostics,
             "addEventListener('sail:cleanup', ...) — runtime never dispatches this event".into(),
-            "the runtime tears down via the `cleanups` array. Push a closure: `cleanups.push(() => …)` instead of listening for a phantom event".into());
+            "the runtime tears down via the `cleanups` array. Push a closure: `cleanups.push(() => …)` instead of listening for a phantom event".into(),
+            file, body_offset, &call);
     }
     let mut names: Vec<&String> = adds.keys().collect();
     names.sort();
     for ev in names {
-        let added = adds[ev];
+        let calls = &adds[ev];
+        let added = calls.len();
         let removed = removes.get(ev).copied().unwrap_or(0);
         if added > removed {
             emit(diagnostics,
                 format!("listener for `{ev}` added {added} time(s) but only removed {removed} time(s)"),
-                format!("pair every `addEventListener('{ev}', h)` with `removeEventListener('{ev}', h)` — typically via `cleanups.push(() => el.removeEventListener('{ev}', h))`"));
+                format!("pair every `addEventListener('{ev}', h)` with `removeEventListener('{ev}', h)` — typically via `cleanups.push(() => el.removeEventListener('{ev}', h))`"),
+                file, body_offset, &calls[0]);
         }
     }
-    if set_intervals > clear_intervals {
+    if set_intervals.len() > clear_intervals {
         emit(diagnostics,
-            format!("setInterval called {set_intervals} time(s) but clearInterval only {clear_intervals} time(s)"),
-            "save the timer id and call `clearInterval(id)` from `unmount {}` or via `cleanups.push(() => clearInterval(id))`".into());
+            format!("setInterval called {} time(s) but clearInterval only {} time(s)", set_intervals.len(), clear_intervals),
+            "save the timer id and call `clearInterval(id)` from `unmount {}` or via `cleanups.push(() => clearInterval(id))`".into(),
+            file, body_offset, &set_intervals[0]);
     }
-    if set_timeouts > clear_timeouts {
+    if set_timeouts.len() > clear_timeouts {
         emit(diagnostics,
-            format!("setTimeout called {set_timeouts} time(s) but clearTimeout only {clear_timeouts} time(s)"),
-            "save the timer id and call `clearTimeout(id)` from `unmount {}` or via `cleanups.push(() => clearTimeout(id))`".into());
+            format!("setTimeout called {} time(s) but clearTimeout only {} time(s)", set_timeouts.len(), clear_timeouts),
+            "save the timer id and call `clearTimeout(id)` from `unmount {}` or via `cleanups.push(() => clearTimeout(id))`".into(),
+            file, body_offset, &set_timeouts[0]);
     }
 }
 
-fn emit(diagnostics: &mut Vec<Diagnostic>, message: String, help: String) {
+#[derive(Debug, Clone)]
+struct Call {
+    name: &'static str,
+    /// Body-relative byte offset of the identifier start.
+    name_start: usize,
+    /// Body-relative byte offset just past the identifier.
+    name_end: usize,
+    first_arg: Option<String>,
+}
+
+fn emit(
+    diagnostics: &mut Vec<Diagnostic>,
+    message: String,
+    help: String,
+    file: &SailFile,
+    body_offset: usize,
+    call: &Call,
+) {
+    let span: Option<Span> = Some(
+        file.source_map
+            .span(body_offset + call.name_start, body_offset + call.name_end),
+    );
     diagnostics.push(Diagnostic {
         severity: Severity::Error,
         code: "SAIL/E0501".to_string(),
         message,
-        span: None,
+        span,
         help: Some(help),
     });
 }
 
-/// Strip `//` and `/* … */` comments; preserve string literals.
-fn strip_comments(src: &str) -> String {
+/// Strip `//` and `/* … */` comments, replacing each comment byte with
+/// a space so the resulting string is the same length as the input and
+/// indices in the stripped string map 1:1 onto the original body.
+fn strip_comments_preserve_offsets(src: &str) -> String {
     let b = src.as_bytes();
-    let mut out = String::with_capacity(src.len());
+    let mut out: Vec<u8> = Vec::with_capacity(src.len());
     let mut i = 0;
     while i < b.len() {
-        if is_quote(b[i]) { let end = skip_string(b, i); out.push_str(&src[i..end]); i = end; continue; }
+        if is_quote(b[i]) {
+            let end = skip_string(b, i);
+            out.extend_from_slice(&b[i..end]);
+            i = end;
+            continue;
+        }
         if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'/' {
-            while i < b.len() && b[i] != b'\n' { i += 1; }
+            while i < b.len() && b[i] != b'\n' {
+                out.push(b' ');
+                i += 1;
+            }
             continue;
         }
         if b[i] == b'/' && i + 1 < b.len() && b[i + 1] == b'*' {
-            i += 2;
-            while i + 1 < b.len() && !(b[i] == b'*' && b[i + 1] == b'/') { i += 1; }
-            i = (i + 2).min(b.len());
+            let end = i + 2 + b[i + 2..]
+                .windows(2)
+                .position(|w| w == b"*/")
+                .map(|p| p + 2)
+                .unwrap_or(b.len() - i - 2);
+            for k in i..end.min(b.len()) {
+                if b[k] == b'\n' { out.push(b'\n'); } else { out.push(b' '); }
+            }
+            i = end.min(b.len());
             continue;
         }
-        out.push(b[i] as char);
+        out.push(b[i]);
         i += 1;
     }
-    out
+    String::from_utf8(out).expect("ascii preserved")
 }
 
-/// Yield `(name, first_string_arg)` for each call to a target identifier.
-fn find_calls(src: &str) -> Vec<(&'static str, Option<String>)> {
+/// Yield [`Call`] entries for each call to a target identifier, with
+/// the byte range of the identifier and its first string argument.
+fn find_calls(src: &str) -> Vec<Call> {
     const TARGETS: &[&str] = &[
         "addEventListener", "removeEventListener",
         "setInterval", "clearInterval", "setTimeout", "clearTimeout",
@@ -123,12 +181,18 @@ fn find_calls(src: &str) -> Vec<(&'static str, Option<String>)> {
         if !(b[i].is_ascii_alphabetic() || b[i] == b'_' || b[i] == b'$') { i += 1; continue; }
         let start = i;
         while i < b.len() && (b[i].is_ascii_alphanumeric() || b[i] == b'_' || b[i] == b'$') { i += 1; }
-        let name = &src[start..i];
+        let name_end = i;
+        let name = &src[start..name_end];
         let mut j = i;
         while j < b.len() && b[j].is_ascii_whitespace() { j += 1; }
         if j >= b.len() || b[j] != b'(' { continue; }
         let Some(&t) = TARGETS.iter().find(|&&t| t == name) else { continue };
-        out.push((t, parse_first_string_arg(src, j + 1)));
+        out.push(Call {
+            name: t,
+            name_start: start,
+            name_end,
+            first_arg: parse_first_string_arg(src, j + 1),
+        });
         i = j + 1;
     }
     out
@@ -194,6 +258,7 @@ mod tests {
         assert_eq!(e.len(), 1, "got {d:?}");
         assert!(e[0].message.contains("click"));
         assert!(e[0].message.contains("added 1") && e[0].message.contains("removed 0"));
+        assert!(e[0].span.is_some(), "expected span on listener-leak diagnostic");
     }
 
     #[test]

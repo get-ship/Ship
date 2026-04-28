@@ -352,6 +352,7 @@ mod tests {
         use crate::parse::ast::StyleBlock;
         let s = StyleBlock {
             raw: "button { color: red }".into(),
+            body_byte_offset: 0,
             global: true,
             src: None,
         };
@@ -364,6 +365,7 @@ mod tests {
         use crate::parse::ast::StyleBlock;
         let s = StyleBlock {
             raw: ".x { color: ${color.fg}; }".into(),
+            body_byte_offset: 0,
             global: false,
             src: None,
         };

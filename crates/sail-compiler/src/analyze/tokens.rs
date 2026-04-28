@@ -17,14 +17,16 @@ pub type TokenSet = std::collections::HashSet<String>;
 
 pub fn analyze(file: &SailFile, tokens: Option<&TokenSet>, diagnostics: &mut Vec<Diagnostic>) {
     let Some(style) = &file.style else { return };
-    for r in extract_token_refs(&style.raw) {
+    let body_offset = style.body_byte_offset;
+    for (r, start, end) in extract_token_refs_with_offsets(&style.raw) {
         if let Some(set) = tokens {
             if !set.contains(&r) {
+                let span = file.source_map.span(body_offset + start, body_offset + end);
                 diagnostics.push(Diagnostic {
                     severity: Severity::Error,
                     code: "SAIL/E0010".into(),
                     message: format!("unknown design token `{r}`"),
-                    span: None,
+                    span: Some(span),
                     help: Some(
                         "check the configured token source; tokens are referenced as `${name.path}`".into(),
                     ),
@@ -36,13 +38,24 @@ pub fn analyze(file: &SailFile, tokens: Option<&TokenSet>, diagnostics: &mut Vec
 
 /// Scan CSS for `${...}` references and return the inner text, trimmed.
 pub fn extract_token_refs(css: &str) -> Vec<String> {
+    extract_token_refs_with_offsets(css)
+        .into_iter()
+        .map(|(r, _, _)| r)
+        .collect()
+}
+
+/// Like [`extract_token_refs`] but also returns the body-relative byte
+/// range of the entire `${…}` reference (including delimiters), so
+/// callers can build diagnostic spans.
+pub fn extract_token_refs_with_offsets(css: &str) -> Vec<(String, usize, usize)> {
     let bytes = css.as_bytes();
     let mut out = Vec::new();
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == b'$' && bytes.get(i + 1) == Some(&b'{') {
-            let start = i + 2;
-            let mut j = start;
+            let ref_start = i;
+            let inner_start = i + 2;
+            let mut j = inner_start;
             let mut depth = 1i32;
             while j < bytes.len() && depth > 0 {
                 match bytes[j] {
@@ -54,7 +67,11 @@ pub fn extract_token_refs(css: &str) -> Vec<String> {
                 j += 1;
             }
             if depth == 0 {
-                out.push(css[start..j].trim().to_string());
+                out.push((
+                    css[inner_start..j].trim().to_string(),
+                    ref_start,
+                    j + 1,
+                ));
                 i = j + 1;
                 continue;
             }

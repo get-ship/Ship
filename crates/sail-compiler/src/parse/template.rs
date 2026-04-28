@@ -23,11 +23,33 @@ use anyhow::{Result, anyhow, bail};
 
 use super::ast::{
     Attr, AttrValue, EventBinding, EventModifier, Expr, Node, Pattern, PropBinding, SlotFill,
-    Template,
+    SourceMap, Template,
 };
+use crate::Span;
 
+/// Parse a template body without populating spans. Convenience for
+/// callers (notably tests) that don't have a [`SourceMap`].
 pub fn parse(body: &str) -> Result<Template> {
-    let mut p = Parser::new(body);
+    parse_inner(body, 0, None)
+}
+
+/// Parse a template body with span info threaded through every AST
+/// node. `body_offset` is the byte offset of `body` within the original
+/// source so positions resolve in `source_map`.
+pub fn parse_with_spans(
+    body: &str,
+    body_offset: usize,
+    source_map: &SourceMap,
+) -> Result<Template> {
+    parse_inner(body, body_offset, Some(source_map))
+}
+
+fn parse_inner(
+    body: &str,
+    body_offset: usize,
+    source_map: Option<&SourceMap>,
+) -> Result<Template> {
+    let mut p = Parser::new(body, body_offset, source_map);
     let nodes = p.parse_nodes(None)?;
     // Reject the dropped layout primitives (`<extends>`, `<block>`,
     // `<fill>`, `<include>`). Components-with-named-slots cover the
@@ -53,6 +75,8 @@ struct Parser<'a> {
     src: &'a str,
     bytes: &'a [u8],
     i: usize,
+    body_offset: usize,
+    source_map: Option<&'a SourceMap>,
 }
 
 /// Sentinel that ends a node-list parse — see `parse_nodes`.
@@ -69,12 +93,26 @@ enum Stop {
 }
 
 impl<'a> Parser<'a> {
-    fn new(src: &'a str) -> Self {
-        Self { src, bytes: src.as_bytes(), i: 0 }
+    fn new(src: &'a str, body_offset: usize, source_map: Option<&'a SourceMap>) -> Self {
+        Self {
+            src,
+            bytes: src.as_bytes(),
+            i: 0,
+            body_offset,
+            source_map,
+        }
     }
 
     fn peek(&self) -> Option<u8> { self.bytes.get(self.i).copied() }
     fn at_end(&self) -> bool { self.i >= self.bytes.len() }
+
+    /// Build a span for the half-open body-relative byte range
+    /// `[start, end)`. Returns `None` if no `SourceMap` is configured
+    /// (the unspanned `parse(body)` entry point used by tests).
+    fn span(&self, start: usize, end: usize) -> Option<Span> {
+        self.source_map
+            .map(|m| m.span(self.body_offset + start, self.body_offset + end))
+    }
 
     fn starts_with(&self, s: &str) -> bool {
         self.src[self.i..].starts_with(s)
@@ -149,8 +187,9 @@ impl<'a> Parser<'a> {
                     bail!("unmatched control-flow tag at byte {}", self.i);
                 }
                 // plain `{expr}` interpolation
-                let expr = self.read_braced_expr()?;
-                out.push(Node::Interpolation(Expr { raw: expr }));
+                let (raw, s, e) = self.read_braced_expr()?;
+                let span = self.span(s, e);
+                out.push(Node::Interpolation(Expr { raw, span }));
                 continue;
             }
 
@@ -224,6 +263,7 @@ impl<'a> Parser<'a> {
 
     fn parse_element(&mut self) -> Result<Node> {
         debug_assert_eq!(self.bytes[self.i], b'<');
+        let elem_start = self.i;
         self.i += 1;
         let tag_start = self.i;
         while let Some(c) = self.peek() {
@@ -259,7 +299,9 @@ impl<'a> Parser<'a> {
             kids
         };
 
-        Ok(self.classify_element(tag, attrs, children))
+        let elem_end = self.i;
+        let span = self.span(elem_start, elem_end);
+        Ok(self.classify_element(tag, attrs, children, span))
     }
 
     fn expect_close_tag(&mut self, tag: &str) -> Result<()> {
@@ -301,7 +343,13 @@ impl<'a> Parser<'a> {
     /// authors use `mount { window.addEventListener(...) }` plus a
     /// matching `cleanups.push(...)`. Platform-native, agent-known,
     /// no invented namespace.
-    fn classify_element(&self, tag: String, attrs: Vec<Attr>, children: Vec<Node>) -> Node {
+    fn classify_element(
+        &self,
+        tag: String,
+        attrs: Vec<Attr>,
+        children: Vec<Node>,
+        span: Option<Span>,
+    ) -> Node {
         if tag == ":host" {
             return Node::Host { attrs };
         }
@@ -312,9 +360,10 @@ impl<'a> Parser<'a> {
                 events: collect_events(&attrs),
                 slots: collect_slot_fills(&attrs, &children),
                 children: filter_non_slot_children(children, &attrs),
+                span,
             };
         }
-        Node::Element { tag, attrs, children }
+        Node::Element { tag, attrs, children, span }
     }
 
     // ── Attributes ────────────────────────────────────────────────────
@@ -349,7 +398,9 @@ impl<'a> Parser<'a> {
             } else {
                 AttrValue::Static(String::new())
             };
-            out.push(Attr { name, value });
+            let attr_end = self.i;
+            let span = self.span(name_start, attr_end);
+            out.push(Attr { name, value, span });
         }
         Ok(out)
     }
@@ -360,8 +411,9 @@ impl<'a> Parser<'a> {
 
         if b == b'{' {
             // raw `={expr}` form — most common for bindings
-            let raw = self.read_braced_expr()?;
-            return Ok(self.classify_value(attr_name, AttrPayload::Expr(raw)));
+            let (raw, s, e) = self.read_braced_expr()?;
+            let span = self.span(s, e);
+            return Ok(self.classify_value(attr_name, AttrPayload::Expr(raw), span));
         }
 
         let quote = match b {
@@ -385,18 +437,25 @@ impl<'a> Parser<'a> {
         if self.peek() != Some(quote) {
             bail!("unterminated attribute value at byte {}", start);
         }
-        let raw = self.src[start..self.i].to_string();
+        let value_end = self.i;
+        let raw = self.src[start..value_end].to_string();
         self.i += 1; // closing quote
+        let span = self.span(start, value_end);
 
         if interp_count == 0 {
-            Ok(self.classify_value(attr_name, AttrPayload::Static(raw)))
+            Ok(self.classify_value(attr_name, AttrPayload::Static(raw), span))
         } else {
             // Interpolated string literal → wrap as an Expr.
-            Ok(self.classify_value(attr_name, AttrPayload::Interpolated(raw)))
+            Ok(self.classify_value(attr_name, AttrPayload::Interpolated(raw), span))
         }
     }
 
-    fn classify_value(&self, name: &str, payload: AttrPayload) -> AttrValue {
+    fn classify_value(
+        &self,
+        name: &str,
+        payload: AttrPayload,
+        span: Option<Span>,
+    ) -> AttrValue {
         // `bind:value={sig}` / `bind:checked={sig}` — two-way binding
         // for form inputs. Kept intentionally: `<input value={x}>` is
         // an *attribute* (sets default only, not the live `.value`
@@ -406,7 +465,7 @@ impl<'a> Parser<'a> {
         // do not also write `oninput={…}` on the same element.
         if let Some(rest) = name.strip_prefix("bind:") {
             let _ = rest;
-            return AttrValue::BindTwoWay(Expr { raw: payload.into_expr() });
+            return AttrValue::BindTwoWay(Expr { raw: payload.into_expr(), span });
         }
         // Platform-shaped event handlers: `onclick={fn}`, `oninput={fn}`,
         // `onsubmit={fn}` etc. Only fires for INTERPOLATED attrs (the
@@ -418,7 +477,7 @@ impl<'a> Parser<'a> {
             return AttrValue::OnEvent {
                 event: event_name,
                 modifiers: Vec::new(),
-                handler: Expr { raw: payload.into_expr() },
+                handler: Expr { raw: payload.into_expr(), span },
             };
         }
         // Legacy `on:click={fn}` — kept while existing ports migrate.
@@ -430,13 +489,13 @@ impl<'a> Parser<'a> {
             return AttrValue::OnEvent {
                 event,
                 modifiers,
-                handler: Expr { raw: payload.into_expr() },
+                handler: Expr { raw: payload.into_expr(), span },
             };
         }
         match payload {
             AttrPayload::Static(s) => AttrValue::Static(s),
-            AttrPayload::Expr(e) => AttrValue::Interpolated(Expr { raw: e }),
-            AttrPayload::Interpolated(s) => AttrValue::Interpolated(Expr { raw: s }),
+            AttrPayload::Expr(e) => AttrValue::Interpolated(Expr { raw: e, span }),
+            AttrPayload::Interpolated(s) => AttrValue::Interpolated(Expr { raw: s, span }),
         }
     }
 
@@ -446,7 +505,8 @@ impl<'a> Parser<'a> {
         // `{#if EXPR}` body `{:else if EXPR2}` body … `{:else}` body `{/if}`
         debug_assert!(self.starts_with("{#if"));
         self.i += 4;
-        let cond = self.read_until_close_brace()?;
+        let (cond_raw, cs, ce) = self.read_until_close_brace()?;
+        let cond_span = self.span(cs, ce);
         let then_ = self.parse_nodes(Some(Stop::IfArm))?;
 
         let mut elifs: Vec<(Expr, Vec<Node>)> = Vec::new();
@@ -455,9 +515,12 @@ impl<'a> Parser<'a> {
         loop {
             if self.starts_with("{:else if") {
                 self.i += "{:else if".len();
-                let c = self.read_until_close_brace()?;
+                let (c_raw, ecs, ece) = self.read_until_close_brace()?;
                 let body = self.parse_nodes(Some(Stop::IfArm))?;
-                elifs.push((Expr { raw: c.trim().to_string() }, body));
+                elifs.push((
+                    Expr { raw: c_raw.trim().to_string(), span: self.span(ecs, ece) },
+                    body,
+                ));
                 continue;
             }
             if self.starts_with("{:else}") {
@@ -472,15 +535,21 @@ impl<'a> Parser<'a> {
             }
             bail!("unexpected token in `if` block at byte {}", self.i);
         }
-        Ok(Node::If { cond: Expr { raw: cond.trim().to_string() }, then_, elifs, else_ })
+        Ok(Node::If {
+            cond: Expr { raw: cond_raw.trim().to_string(), span: cond_span },
+            then_,
+            elifs,
+            else_,
+        })
     }
 
     fn parse_for(&mut self) -> Result<Node> {
         // `{#for ITEM[, IDX] of LIST [key={EXPR}]}` body `{:empty}` body `{/for}`
         debug_assert!(self.starts_with("{#for"));
         self.i += 5;
-        let header = self.read_until_close_brace()?;
-        let (item, iter, key) = parse_for_header(&header)?;
+        let (header, hs, he) = self.read_until_close_brace()?;
+        let header_span = self.span(hs, he);
+        let (item, iter, key) = parse_for_header(&header, header_span)?;
 
         let body = self.parse_nodes(Some(Stop::ForArm))?;
         let empty = if self.starts_with("{:empty}") {
@@ -500,7 +569,8 @@ impl<'a> Parser<'a> {
     fn parse_await(&mut self) -> Result<Node> {
         debug_assert!(self.starts_with("{#await"));
         self.i += 7;
-        let promise = self.read_until_close_brace()?;
+        let (promise, ps, pe) = self.read_until_close_brace()?;
+        let promise_span = self.span(ps, pe);
         let loading = self.parse_nodes(Some(Stop::AwaitArm))?;
 
         let mut then_: Option<(Pattern, Vec<Node>)> = None;
@@ -509,14 +579,14 @@ impl<'a> Parser<'a> {
         loop {
             if self.starts_with("{:then") {
                 self.i += "{:then".len();
-                let pat = self.read_until_close_brace()?;
+                let (pat, _, _) = self.read_until_close_brace()?;
                 let body = self.parse_nodes(Some(Stop::AwaitArm))?;
                 then_ = Some((Pattern::Identifier(pat.trim().to_string()), body));
                 continue;
             }
             if self.starts_with("{:catch") {
                 self.i += "{:catch".len();
-                let pat = self.read_until_close_brace()?;
+                let (pat, _, _) = self.read_until_close_brace()?;
                 let body = self.parse_nodes(Some(Stop::AwaitArm))?;
                 catch = Some((Pattern::Identifier(pat.trim().to_string()), body));
                 continue;
@@ -528,7 +598,7 @@ impl<'a> Parser<'a> {
             bail!("unexpected token in `await` block at byte {}", self.i);
         }
         Ok(Node::Await {
-            promise: Expr { raw: promise.trim().to_string() },
+            promise: Expr { raw: promise.trim().to_string(), span: promise_span },
             loading,
             then_,
             catch,
@@ -538,14 +608,16 @@ impl<'a> Parser<'a> {
     fn parse_raw_html(&mut self) -> Result<Node> {
         debug_assert!(self.starts_with("{@html"));
         self.i += "{@html".len();
-        let expr = self.read_until_close_brace()?;
-        Ok(Node::RawHtml(Expr { raw: expr.trim().to_string() }))
+        let (expr, s, e) = self.read_until_close_brace()?;
+        let span = self.span(s, e);
+        Ok(Node::RawHtml(Expr { raw: expr.trim().to_string(), span }))
     }
 
     // ── Low-level scanners ────────────────────────────────────────────
 
-    /// Read a `{expr}` interpolation including the braces; return inner.
-    fn read_braced_expr(&mut self) -> Result<String> {
+    /// Read a `{expr}` interpolation including the braces; return inner
+    /// text plus body-relative byte range of that inner text.
+    fn read_braced_expr(&mut self) -> Result<(String, usize, usize)> {
         debug_assert_eq!(self.bytes[self.i], b'{');
         let start = self.i + 1;
         let mut depth = 1i32;
@@ -576,7 +648,7 @@ impl<'a> Parser<'a> {
                 if depth == 0 {
                     let raw = self.src[start..j].to_string();
                     self.i = j + 1;
-                    return Ok(raw);
+                    return Ok((raw, start, j));
                 }
             }
             j += 1;
@@ -585,8 +657,9 @@ impl<'a> Parser<'a> {
     }
 
     /// Like read_braced_expr but the leading `{` was already consumed
-    /// by a control-flow keyword like `{#if`. Reads inner up to `}`.
-    fn read_until_close_brace(&mut self) -> Result<String> {
+    /// by a control-flow keyword like `{#if`. Reads inner up to `}`,
+    /// returning the inner text and the body-relative byte range.
+    fn read_until_close_brace(&mut self) -> Result<(String, usize, usize)> {
         let start = self.i;
         let mut depth = 1i32;
         let mut j = start;
@@ -616,7 +689,7 @@ impl<'a> Parser<'a> {
                 if depth == 0 {
                     let raw = self.src[start..j].to_string();
                     self.i = j + 1;
-                    return Ok(raw);
+                    return Ok((raw, start, j));
                 }
             }
             j += 1;
@@ -681,15 +754,16 @@ fn collect_props(attrs: &[Attr]) -> Vec<PropBinding> {
             if a.name.starts_with("on:") || a.name.starts_with("bind:") || a.name == "slot" {
                 return None;
             }
-            let raw = match &a.value {
-                AttrValue::Static(s) => format!("{:?}", s), // string literal
-                AttrValue::Interpolated(e) => e.raw.clone(),
-                AttrValue::BindTwoWay(e) => e.raw.clone(),
+            let (raw, expr_span) = match &a.value {
+                AttrValue::Static(s) => (format!("{:?}", s), a.span.clone()), // string literal
+                AttrValue::Interpolated(e) => (e.raw.clone(), e.span.clone()),
+                AttrValue::BindTwoWay(e) => (e.raw.clone(), e.span.clone()),
                 AttrValue::OnEvent { .. } => return None,
             };
             Some(PropBinding {
                 name: a.name.clone(),
-                value: Expr { raw },
+                value: Expr { raw, span: expr_span },
+                span: a.span.clone(),
             })
         })
         .collect()
@@ -753,7 +827,10 @@ fn split_event_spec(spec: &str) -> (String, Vec<EventModifier>) {
     (event, mods)
 }
 
-fn parse_for_header(header: &str) -> Result<(Pattern, Expr, Option<Expr>)> {
+fn parse_for_header(
+    header: &str,
+    header_span: Option<Span>,
+) -> Result<(Pattern, Expr, Option<Expr>)> {
     // Header forms (after `{#for `):
     //   ITEM of LIST
     //   ITEM, IDX of LIST
@@ -762,8 +839,12 @@ fn parse_for_header(header: &str) -> Result<(Pattern, Expr, Option<Expr>)> {
     let h = header.trim();
 
     // Split off ` key={...}` if present (using brace-balance).
+    // V1 narrowing fallback: every Expr inside the header carries the
+    // whole header span. Sub-spans for `iter` vs `key` would require
+    // tracking offsets through `find_of` / `find_top_level_key`, which
+    // is more churn than the rules need today.
     let (left, key) = match find_top_level_key(h) {
-        Some((lhs, rhs)) => (lhs, Some(Expr { raw: rhs })),
+        Some((lhs, rhs)) => (lhs, Some(Expr { raw: rhs, span: header_span.clone() })),
         None => (h.to_string(), None),
     };
 
@@ -777,7 +858,7 @@ fn parse_for_header(header: &str) -> Result<(Pattern, Expr, Option<Expr>)> {
     } else {
         Pattern::Identifier(item_part)
     };
-    Ok((item, Expr { raw: iter }, key))
+    Ok((item, Expr { raw: iter, span: header_span }, key))
 }
 
 fn find_top_level_key(h: &str) -> Option<(String, String)> {

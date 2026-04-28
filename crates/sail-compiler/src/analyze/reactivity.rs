@@ -190,7 +190,7 @@ fn check_expr(
                 severity: Severity::Warning,
                 code: "SAIL/W0001".into(),
                 message: format!("unknown identifier `{ident}` in expression `{}`", e.raw),
-                span: None,
+                span: e.span.clone(),
                 help: Some(
                     "did you forget a `state`/`derived`/`prop` declaration, or import?".into(),
                 ),

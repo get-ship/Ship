@@ -129,4 +129,23 @@ mod tests {
         assert_eq!(r.end.line, 3);
         assert_eq!(r.end.character, 17);
     }
+
+    #[test]
+    fn real_diagnostic_anchors_at_offending_line() {
+        // End-to-end: a real fixture compiles, the R1 signal-call rule
+        // fires, and the converted LSP range points at the
+        // interpolation on the right line — not file 0:0.
+        let source =
+            "<script>\nstate count = 0\n</script>\n<template><span>{count}</span></template>\n";
+        let diags = compile_diagnostics(source, "sail-counter");
+        let r1 = diags
+            .iter()
+            .find(|d| matches!(&d.code, Some(NumberOrString::String(c)) if c == "SAIL/E0101"))
+            .expect("expected R1 diagnostic");
+        // 1-based line 4 → 0-based 3; both ends sit on the same line.
+        assert_eq!(r1.range.start.line, 3, "{:?}", r1.range);
+        assert!(r1.range.start.character > 0, "{:?}", r1.range);
+        assert_eq!(r1.range.end.line, 3, "{:?}", r1.range);
+        assert!(r1.range.end.character > r1.range.start.character, "{:?}", r1.range);
+    }
 }

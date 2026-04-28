@@ -51,7 +51,7 @@ fn check_component(tag: &str, props: &[PropBinding], diagnostics: &mut Vec<Diagn
             severity: Severity::Error,
             code: "SAIL/E0201".to_string(),
             message: format!("unknown prop `{}` on <{tag}>", p.name),
-            span: None,
+            span: p.span.clone(),
             help: Some(help),
         });
     }
