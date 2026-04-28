@@ -1,0 +1,72 @@
+{
+  "name": "sail-set",
+  "displayName": "Sail (.set)",
+  "description": "Syntax highlighting and language server support for Sail (.set) component files.",
+  "version": "0.1.0",
+  "publisher": "ship",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onLanguage:set"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "set",
+        "aliases": [
+          "Sail Set",
+          "set"
+        ],
+        "extensions": [
+          ".set"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "set",
+        "scopeName": "source.set",
+        "path": "./syntaxes/set.tmLanguage.json"
+      }
+    ],
+    "configuration": {
+      "title": "Sail",
+      "properties": {
+        "sail.serverPath": {
+          "type": "string",
+          "default": "sail-lsp",
+          "description": "Path to the sail-lsp executable. Either an absolute path or a name resolved against PATH."
+        },
+        "sail.trace.server": {
+          "type": "string",
+          "enum": [
+            "off",
+            "messages",
+            "verbose"
+          ],
+          "default": "off",
+          "description": "Trace LSP communication between VS Code and sail-lsp."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "~5.4.5"
+  }
+}
