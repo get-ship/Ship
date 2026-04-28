@@ -14,6 +14,7 @@ pub mod deps;
 pub mod tokens;
 pub mod symbols;
 pub mod data_paths;
+pub mod rules;
 
 use crate::parse::ast::SailFile;
 use crate::Diagnostic;
