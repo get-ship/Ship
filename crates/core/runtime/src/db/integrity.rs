@@ -52,7 +52,6 @@ pub fn check_integrity(db_path: &std::path::Path) -> Result<IntegrityStatus> {
     let projection_tables = [
         "workspace",
         "workspace_session",
-        "workspace_session_record",
         "actors",
     ];
     let all_projection_only = details.iter().all(|d| {

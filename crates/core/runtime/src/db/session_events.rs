@@ -15,7 +15,7 @@ use crate::db::{block_on, block_on_anyhow, open_db};
 use crate::persistence::event_store::append_event_with_conn;
 use crate::events::types::event_types;
 use crate::events::types::{
-    SessionAttached, SessionEnded, SessionProgress, SessionRecorded, SessionStarted,
+    SessionAttached, SessionEnded, SessionProgress, SessionStarted,
 };
 use crate::events::validator::{CallerKind, EmitContext};
 use crate::events::EventEnvelope;
@@ -148,19 +148,6 @@ pub fn update_session_with_ended_event(
     emit_session(envelope, workspace_id)
 }
 
-pub fn insert_session_recorded_event(
-    session_id: &str,
-    workspace_id: &str,
-    payload: &SessionRecorded,
-) -> Result<EventEnvelope> {
-    let envelope = session_envelope(
-        event_types::SESSION_RECORDED,
-        session_id,
-        workspace_id,
-        payload,
-    )?;
-    emit_session(envelope, workspace_id)
-}
 
 /// Emit a session drain/tool-count event transactionally.
 pub fn emit_session_drain_event<P: serde::Serialize>(

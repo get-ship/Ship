@@ -46,7 +46,6 @@ mod tests {
         assert!(ended.ended_at.is_some());
         assert_eq!(ended.summary.as_deref(), Some("Implemented parser + tests"));
         assert_eq!(ended.updated_workspace_ids, vec!["feat-parser".to_string()]);
-        assert!(ended.session_record_id.is_some());
         assert!(get_active_workspace_session(&ship_dir, "feature/session-flow")?.is_none());
 
         Ok(())
@@ -86,17 +85,16 @@ mod tests {
             },
         )?;
 
-        let record = get_workspace_session_record(&ship_dir, &ended.id)?
-            .expect("session record should exist after end");
-
-        assert_eq!(record.session_id, started.id);
-        assert!(record.duration_secs.is_some());
-        assert!(record.duration_secs.unwrap() >= 0);
-        assert_eq!(record.provider.as_deref(), Some("claude"));
-        assert_eq!(record.model.as_deref(), Some("claude-opus-4-20250514"));
-        assert_eq!(record.agent_id, started.agent_id);
-        assert_eq!(record.files_changed, Some(5));
-        assert_eq!(record.gate_result.as_deref(), Some("pass"));
+        // Telemetry now lives on the session itself (slice 04 collapse).
+        assert_eq!(ended.id, ended.id); // session id round-trip — implicit
+        assert_eq!(started.id, ended.id);
+        assert!(ended.duration_secs.is_some());
+        assert!(ended.duration_secs.unwrap() >= 0);
+        assert_eq!(ended.primary_provider.as_deref(), Some("claude"));
+        assert_eq!(ended.model.as_deref(), Some("claude-opus-4-20250514"));
+        assert_eq!(ended.agent_id, started.agent_id);
+        assert_eq!(ended.files_changed, Some(5));
+        assert_eq!(ended.gate_result.as_deref(), Some("pass"));
         Ok(())
     }
 
@@ -121,15 +119,12 @@ mod tests {
             EndWorkspaceSessionRequest::default(),
         )?;
 
-        let record = get_workspace_session_record(&ship_dir, &ended.id)?
-            .expect("session record should exist");
-
-        assert!(record.duration_secs.is_some());
-        assert!(record.duration_secs.unwrap() >= 0);
-        assert!(record.provider.is_some());
-        assert!(record.model.is_none());
-        assert!(record.files_changed.is_none());
-        assert!(record.gate_result.is_none());
+        assert!(ended.duration_secs.is_some());
+        assert!(ended.duration_secs.unwrap() >= 0);
+        assert!(ended.primary_provider.is_some());
+        assert!(ended.model.is_none());
+        assert!(ended.files_changed.is_none());
+        assert!(ended.gate_result.is_none());
         Ok(())
     }
 

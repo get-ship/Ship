@@ -171,30 +171,6 @@ pub struct SessionAttached {
     pub workspace_branch: String,
 }
 
-#[derive(Debug, Default, Serialize, Deserialize)]
-pub struct SessionRecorded {
-    pub record_id: String,
-    pub summary: Option<String>,
-    #[serde(default)]
-    pub updated_workspace_ids: Vec<String>,
-    pub duration_secs: Option<i64>,
-    pub provider: Option<String>,
-    pub model: Option<String>,
-    pub agent_id: Option<String>,
-    pub files_changed: Option<i64>,
-    pub gate_result: Option<String>,
-    pub workspace_branch: String,
-    // Telemetry fields
-    #[serde(default)]
-    pub lines_added: Option<i64>,
-    #[serde(default)]
-    pub lines_removed: Option<i64>,
-    #[serde(default)]
-    pub tool_calls: Option<i64>,
-    #[serde(default)]
-    pub exit_reason: Option<String>,
-}
-
 // -- Skill aggregate -----------------------------------------------------------
 
 #[derive(Debug, Serialize, Deserialize)]

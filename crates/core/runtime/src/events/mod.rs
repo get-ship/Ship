@@ -22,7 +22,7 @@ pub mod types {
 
         #[test]
         fn all_constants_have_expected_count() {
-            assert_eq!(ALL.len(), 71, "exactly 71 event type constants required");
+            assert_eq!(ALL.len(), 70, "exactly 70 event type constants required");
         }
     }
 }

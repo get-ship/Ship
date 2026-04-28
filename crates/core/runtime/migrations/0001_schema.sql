@@ -54,6 +54,15 @@ CREATE TABLE IF NOT EXISTS workspace_session (
   tool_call_count             INTEGER NOT NULL DEFAULT 0,
   drained_at                  TEXT,
   last_activity_at            TEXT,
+  -- End-of-session telemetry (set on session.ended; null while active).
+  duration_secs               INTEGER,
+  model                       TEXT,
+  files_changed               INTEGER,
+  lines_added                 INTEGER,
+  lines_removed               INTEGER,
+  tool_calls                  INTEGER,
+  gate_result                 TEXT,
+  exit_reason                 TEXT,
   created_at                  TEXT NOT NULL,
   updated_at                  TEXT NOT NULL
 );
@@ -66,27 +75,9 @@ CREATE INDEX IF NOT EXISTS workspace_session_status_idx
 CREATE INDEX IF NOT EXISTS idx_ws_session_drain
   ON workspace_session(status, workspace_id, agent_id);
 
-CREATE TABLE IF NOT EXISTS workspace_session_record (
-  id                         TEXT PRIMARY KEY,
-  session_id                 TEXT NOT NULL UNIQUE,
-  workspace_id               TEXT NOT NULL,
-  workspace_branch           TEXT NOT NULL,
-  summary                    TEXT,
-  updated_workspace_ids_json TEXT NOT NULL DEFAULT '[]',
-  duration_secs              INTEGER,
-  provider                   TEXT,
-  model                      TEXT,
-  agent_id                   TEXT,
-  files_changed              INTEGER,
-  gate_result                TEXT,
-  lines_added                INTEGER,
-  lines_removed              INTEGER,
-  tool_calls                 INTEGER,
-  exit_reason                TEXT,
-  created_at                 TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS workspace_session_record_workspace_idx
-  ON workspace_session_record(workspace_id, created_at DESC);
+-- Session telemetry lives on workspace_session itself (set at
+-- session.ended). The earlier workspace_session_record table was a
+-- duplicate write site; collapsed in slice 04 of workspace-retirement.
 
 CREATE TABLE IF NOT EXISTS events (
   id               TEXT PRIMARY KEY NOT NULL,

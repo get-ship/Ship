@@ -152,7 +152,6 @@ fn collect_types() -> TypeCollection {
     // workspace/types_session.rs
     c.register::<runtime::WorkspaceSession>();
     c.register::<runtime::WorkspaceSessionStatus>();
-    c.register::<runtime::WorkspaceSessionRecord>();
     c.register::<runtime::WorkspaceProviderMatrix>();
     c.register::<runtime::WorkspaceRepairReport>();
 

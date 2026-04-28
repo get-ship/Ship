@@ -43,7 +43,7 @@ pub use types::{
 };
 pub use types_session::{
     CreateWorkspaceRequest, EndWorkspaceSessionRequest, WorkspaceProviderMatrix,
-    WorkspaceRepairReport, WorkspaceSession, WorkspaceSessionRecord, WorkspaceSessionStatus,
+    WorkspaceRepairReport, WorkspaceSession, WorkspaceSessionStatus,
 };
 
 // Re-export all public functions.
@@ -58,8 +58,7 @@ pub use lifecycle::{
     create_workspace, seed_service_workspace, set_workspace_started, set_workspace_tmux_session,
 };
 pub use session::{
-    get_active_workspace_session, get_workspace_session_record, list_workspace_sessions,
-    record_workspace_session_progress,
+    get_active_workspace_session, list_workspace_sessions, record_workspace_session_progress,
 };
 pub use reconcile::{reconcile_all_workspaces, reconcile_workspace, resolve_project_root};
 pub use session_lifecycle::{end_workspace_session, start_workspace_session};

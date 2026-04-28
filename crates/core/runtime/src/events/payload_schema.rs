@@ -62,7 +62,6 @@ fn schema_for_event_type(
         "session.started" => Some(check::<SessionStarted>),
         "session.progress" => Some(check::<SessionProgress>),
         "session.ended" => Some(check::<SessionEnded>),
-        "session.recorded" => Some(check::<SessionRecorded>),
         "session.drain_started" => Some(check::<SessionDrainStarted>),
         "session.drain_completed" => Some(check::<SessionDrainCompleted>),
         "session.drain_aborted" => Some(check::<SessionDrainAborted>),

@@ -1,6 +1,4 @@
-use crate::db::session::{
-    get_active_workspace_session_db, get_workspace_session_record_db, list_workspace_sessions_db,
-};
+use crate::db::session::{get_active_workspace_session_db, list_workspace_sessions_db};
 use crate::db::session_events::insert_session_progress_event;
 use crate::db::types::WorkspaceSessionDb;
 use crate::errors::WorkspaceError;
@@ -37,45 +35,19 @@ pub(super) fn hydrate_workspace_session(row: WorkspaceSessionDb) -> WorkspaceSes
         goal: row.goal,
         summary: row.summary,
         updated_workspace_ids: row.updated_workspace_ids,
-        session_record_id: None,
         last_activity_at,
         liveness,
-        created_at: parse_datetime(&row.created_at),
-        updated_at: parse_datetime(&row.updated_at),
-    }
-}
-
-pub(super) fn hydrate_workspace_session_record(
-    row: crate::db::types::WorkspaceSessionRecordDb,
-) -> WorkspaceSessionRecord {
-    WorkspaceSessionRecord {
-        id: row.id,
-        session_id: row.session_id,
-        workspace_id: row.workspace_id,
-        workspace_branch: row.workspace_branch,
-        summary: row.summary,
-        updated_workspace_ids: row.updated_workspace_ids,
         duration_secs: row.duration_secs,
-        provider: row.provider,
         model: row.model,
-        agent_id: row.agent_id,
         files_changed: row.files_changed,
-        gate_result: row.gate_result,
         lines_added: row.lines_added,
         lines_removed: row.lines_removed,
         tool_calls: row.tool_calls,
+        gate_result: row.gate_result,
         exit_reason: row.exit_reason,
         created_at: parse_datetime(&row.created_at),
+        updated_at: parse_datetime(&row.updated_at),
     }
-}
-
-pub(super) fn annotate_session_record(
-    _ship_dir: &Path,
-    session: &mut WorkspaceSession,
-) -> Result<()> {
-    session.session_record_id =
-        get_workspace_session_record_db(&session.id)?.map(|record| record.id);
-    Ok(())
 }
 
 // ---- Session artifacts -----------------------------------------------------
@@ -112,7 +84,6 @@ pub(super) fn persist_session_artifact(
         "goal": session.goal,
         "summary": session.summary,
         "updated_workspace_ids": session.updated_workspace_ids,
-        "session_record_id": session.session_record_id,
     });
     let mut file = std::fs::OpenOptions::new()
         .create(true)
@@ -154,21 +125,17 @@ pub fn get_active_workspace_session(
         Some(workspace) => workspace,
         None => return Ok(None),
     };
-    Ok(get_active_workspace_session_db(&workspace.id)?.map(|row| {
-        let mut session = hydrate_workspace_session(row);
-        let _ = annotate_session_record(ship_dir, &mut session);
-        session
-    }))
+    Ok(get_active_workspace_session_db(&workspace.id)?.map(hydrate_workspace_session))
 }
 
 pub fn list_workspace_sessions(
-    ship_dir: &Path,
+    _ship_dir: &Path,
     branch: Option<&str>,
     limit: usize,
 ) -> Result<Vec<WorkspaceSession>> {
     let workspace_id = if let Some(branch) = branch {
         let branch = ensure_branch_key(branch)?;
-        match get_workspace(ship_dir, branch)? {
+        match get_workspace(_ship_dir, branch)? {
             Some(workspace) => Some(workspace.id),
             None => return Ok(Vec::new()),
         }
@@ -177,23 +144,7 @@ pub fn list_workspace_sessions(
     };
 
     let rows = list_workspace_sessions_db(workspace_id.as_deref(), limit)?;
-    let mut sessions: Vec<WorkspaceSession> =
-        rows.into_iter().map(hydrate_workspace_session).collect();
-    for session in &mut sessions {
-        annotate_session_record(ship_dir, session)?;
-    }
-    Ok(sessions)
-}
-
-pub fn get_workspace_session_record(
-    _ship_dir: &Path,
-    session_id: &str,
-) -> Result<Option<WorkspaceSessionRecord>> {
-    let session_id = session_id.trim();
-    if session_id.is_empty() {
-        return Err(anyhow!("Session ID cannot be empty"));
-    }
-    Ok(get_workspace_session_record_db(session_id)?.map(hydrate_workspace_session_record))
+    Ok(rows.into_iter().map(hydrate_workspace_session).collect())
 }
 
 pub fn record_workspace_session_progress(

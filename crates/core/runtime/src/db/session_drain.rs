@@ -19,7 +19,8 @@ const S_COLS: &str =
     "id, workspace_id, workspace_branch, project_id, kind, pipeline_run_id, \
      chat_thread_id, status, started_at, ended_at, agent_id, primary_provider, \
      goal, summary, updated_workspace_ids_json, tool_call_count, drained_at, \
-     last_activity_at, created_at, updated_at";
+     last_activity_at, duration_secs, model, files_changed, lines_added, \
+     lines_removed, tool_calls, gate_result, exit_reason, created_at, updated_at";
 
 fn parse_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
     let uwids_json: String = row.get(14);
@@ -42,8 +43,16 @@ fn parse_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
         tool_call_count: row.get(15),
         drained_at: row.get(16),
         last_activity_at: row.get(17),
-        created_at: row.get(18),
-        updated_at: row.get(19),
+        duration_secs: row.get(18),
+        model: row.get(19),
+        files_changed: row.get(20),
+        lines_added: row.get(21),
+        lines_removed: row.get(22),
+        tool_calls: row.get(23),
+        gate_result: row.get(24),
+        exit_reason: row.get(25),
+        created_at: row.get(26),
+        updated_at: row.get(27),
     }
 }
 

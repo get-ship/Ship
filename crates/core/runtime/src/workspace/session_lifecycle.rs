@@ -1,9 +1,9 @@
 use crate::db::session::{get_active_workspace_session_db, get_workspace_session_db};
 use crate::db::session_events::{
-    insert_session_attached_event, insert_session_recorded_event,
-    insert_session_with_started_event, update_session_with_ended_event,
+    insert_session_attached_event, insert_session_with_started_event,
+    update_session_with_ended_event,
 };
-use crate::events::types::{SessionAttached, SessionEnded, SessionRecorded, SessionStarted};
+use crate::events::types::{SessionAttached, SessionEnded, SessionStarted};
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 use std::path::Path;
@@ -280,30 +280,8 @@ pub fn end_workspace_session(
         .ok_or_else(|| anyhow!("Failed to load ended workspace session"))?;
     let ended = hydrate_workspace_session(ended);
 
-    let duration_secs = ended.ended_at.map(|end| (end - ended.started_at).num_seconds());
-
-    let record_id = crate::gen_nanoid();
-    let recorded_payload = SessionRecorded {
-        record_id: record_id.clone(),
-        summary: ended.summary.clone(),
-        updated_workspace_ids: ended.updated_workspace_ids.clone(),
-        duration_secs,
-        provider: ended.primary_provider.clone(),
-        model: request.model,
-        agent_id: ended.agent_id.clone(),
-        files_changed,
-        gate_result: request.gate_result,
-        workspace_branch: ended.workspace_branch.clone(),
-        lines_added,
-        lines_removed,
-        tool_calls,
-        exit_reason: request.exit_reason,
-    };
-    let _envelope =
-        insert_session_recorded_event(&ended.id, &ended.workspace_id, &recorded_payload)?;
-
-    let mut ended = ended;
-    ended.session_record_id = Some(record_id);
+    // Telemetry already landed on workspace_session via apply_ended; no
+    // separate session.recorded event needed (slice 04 of workspace-retirement).
 
     if let Err(e) = persist_session_artifact(ship_dir, &ended, "end") {
         tracing::warn!("failed to persist session artifact on end: {e}");

@@ -86,39 +86,16 @@ pub struct WorkspaceSession {
     #[serde(default)]
     pub updated_workspace_ids: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub session_record_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_activity_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub liveness: Option<SessionLiveness>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-// ---- Request / report types ------------------------------------------------
-
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
-pub struct WorkspaceSessionRecord {
-    pub id: String,
-    pub session_id: String,
-    pub workspace_id: String,
-    pub workspace_branch: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub summary: Option<String>,
-    #[serde(default)]
-    pub updated_workspace_ids: Vec<String>,
+    // ── End-of-session telemetry (set on session.ended; None while active) ──
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_secs: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub provider: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub agent_id: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub files_changed: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gate_result: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lines_added: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -126,9 +103,14 @@ pub struct WorkspaceSessionRecord {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_calls: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub gate_result: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exit_reason: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
+
+// ---- Request / report types ------------------------------------------------
 
 #[derive(Debug, Clone, Default)]
 pub struct EndWorkspaceSessionRequest {

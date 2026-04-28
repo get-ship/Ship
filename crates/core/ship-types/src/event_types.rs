@@ -13,7 +13,6 @@ pub const WORKSPACE_CONFIG_CHANGED: &str = "workspace.config_changed";
 pub const SESSION_STARTED: &str = "session.started";
 pub const SESSION_PROGRESS: &str = "session.progress";
 pub const SESSION_ENDED: &str = "session.ended";
-pub const SESSION_RECORDED: &str = "session.recorded";
 pub const SESSION_DRAIN_STARTED: &str = "session.drain_started";
 pub const SESSION_DRAIN_COMPLETED: &str = "session.drain_completed";
 pub const SESSION_DRAIN_ABORTED: &str = "session.drain_aborted";
@@ -97,7 +96,6 @@ pub const ALL: &[&str] = &[
     SESSION_STARTED,
     SESSION_PROGRESS,
     SESSION_ENDED,
-    SESSION_RECORDED,
     SESSION_DRAIN_STARTED,
     SESSION_DRAIN_COMPLETED,
     SESSION_DRAIN_ABORTED,

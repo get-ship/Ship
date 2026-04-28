@@ -247,7 +247,9 @@ fn end_session_creates_session_record() -> Result<()> {
             ..Default::default()
         },
     )?;
-    assert!(ended.session_record_id.is_some());
+    // Telemetry now lives on the session itself (no separate record table).
+    assert_eq!(ended.model.as_deref(), Some("claude-sonnet"));
+    assert_eq!(ended.files_changed, Some(5));
     Ok(())
 }
 

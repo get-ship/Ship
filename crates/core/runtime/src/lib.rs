@@ -86,16 +86,15 @@ pub use skill_vars::{
 
 // ─── Re-exports from db (formerly state_db) ────────────────────────────────
 pub use db::managed_state::{get_managed_state_db, set_managed_state_db};
-pub use db::session::get_workspace_session_record_db;
-pub use db::types::{WorkspaceSessionDb, WorkspaceSessionRecordDb};
+pub use db::types::WorkspaceSessionDb;
 pub use errors::{KernelError, WorkspaceError};
 
 pub use workspace::{
     CreateWorkspaceRequest, EndWorkspaceSessionRequest, Environment, Process, ProcessStatus,
     TrashEntry, Workspace, WorkspaceProviderMatrix, WorkspaceRepairReport, WorkspaceSession,
-    WorkspaceSessionRecord, WorkspaceSessionStatus, WorkspaceStatus,
+    WorkspaceSessionStatus, WorkspaceStatus,
     create_workspace, delete_workspace, end_workspace_session, get_active_workspace_session,
-    get_workspace, get_workspace_provider_matrix, get_workspace_session_record,
+    get_workspace, get_workspace_provider_matrix,
     list_trash, list_workspace_sessions, list_workspaces, purge_old_trash,
     reconcile_workspace, record_workspace_session_progress, repair_workspace,
     restore_file, set_workspace_started, start_workspace_session,
