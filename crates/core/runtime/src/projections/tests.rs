@@ -46,17 +46,13 @@ mod workspace_tests {
         .elevate()
     }
 
-    fn query_workspace_exists(conn: &mut sqlx::SqliteConnection, branch: &str) -> bool {
-        let count: i64 = block_on(async {
-            sqlx::query_scalar(
-                "SELECT COUNT(*) FROM workspace WHERE branch = ?",
-            )
-            .bind(branch)
-            .fetch_one(&mut *conn)
-            .await
-        })
-        .unwrap();
-        count > 0
+    fn query_workspace_exists(_conn: &mut sqlx::SqliteConnection, branch: &str) -> bool {
+        // Worktree state lives in kv_state under namespace `worktree`
+        // (slice 05 of workspace-retirement). The handler runs against
+        // its own connection via `crate::worktrees::*`; the projection
+        // bus passes a connection but the kv writer uses `open_db()`
+        // internally — both point at the same DB file in tests.
+        crate::worktrees::get(branch).unwrap().is_some()
     }
 
     // ── Tests ──────────────────────────────────────────────────────────
@@ -139,15 +135,8 @@ mod workspace_tests {
         .elevate();
         bus.dispatch(&event, &mut conn);
 
-        let name: Option<String> = block_on(async {
-            sqlx::query_scalar("SELECT tmux_session_name FROM workspace WHERE branch = ?")
-                .bind(branch)
-                .fetch_optional(&mut conn)
-                .await
-        })
-        .unwrap()
-        .flatten();
-        assert_eq!(name.as_deref(), Some("ship-tmux"));
+        let rec = crate::worktrees::get(branch).unwrap().expect("present");
+        assert_eq!(rec.tmux_session_name.as_deref(), Some("ship-tmux"));
     }
 
     #[test]
@@ -171,19 +160,9 @@ mod workspace_tests {
         .elevate();
         bus.dispatch(&event, &mut conn);
 
-        let row: Option<(Option<String>, Option<String>)> = block_on(async {
-            sqlx::query_as(
-                "SELECT path, tmux_session_name \
-                 FROM workspace WHERE branch = ?",
-            )
-            .bind(branch)
-            .fetch_optional(&mut conn)
-            .await
-        })
-        .unwrap();
-        let (path, tmux) = row.unwrap();
-        assert_eq!(path.as_deref(), Some("/tmp/worktrees/started-test"));
-        assert_eq!(tmux.as_deref(), Some("ship-started"));
+        let rec = crate::worktrees::get(branch).unwrap().expect("present");
+        assert_eq!(rec.path.as_deref(), Some("/tmp/worktrees/started-test"));
+        assert_eq!(rec.tmux_session_name.as_deref(), Some("ship-started"));
     }
 
     #[test]
@@ -211,29 +190,15 @@ mod workspace_tests {
             bus.dispatch(e, &mut conn);
         }
 
-        let before: Option<(Option<String>, Option<String>)> = block_on(async {
-            sqlx::query_as(
-                "SELECT tmux_session_name, path \
-                 FROM workspace WHERE branch = ?",
-            )
-            .bind(branch)
-            .fetch_optional(&mut conn)
-            .await
-        })
-        .unwrap();
+        let before = crate::worktrees::get(branch)
+            .unwrap()
+            .map(|r| (r.tmux_session_name, r.path));
 
         bus.rebuild(&events, &mut conn).unwrap();
 
-        let after: Option<(Option<String>, Option<String>)> = block_on(async {
-            sqlx::query_as(
-                "SELECT tmux_session_name, path \
-                 FROM workspace WHERE branch = ?",
-            )
-            .bind(branch)
-            .fetch_optional(&mut conn)
-            .await
-        })
-        .unwrap();
+        let after = crate::worktrees::get(branch)
+            .unwrap()
+            .map(|r| (r.tmux_session_name, r.path));
 
         assert_eq!(before, after, "rebuild must reproduce identical state");
     }

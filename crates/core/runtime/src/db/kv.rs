@@ -47,6 +47,18 @@ pub fn scoped_list_keys(workspace_id: &str, namespace: &str) -> Result<Vec<Strin
 
 pub fn set(namespace: &str, key: &str, value: &serde_json::Value) -> Result<()> {
     let mut conn = open_db()?;
+    set_with_conn(&mut conn, namespace, key, value)
+}
+
+/// Same as [`set`] but reuses an existing connection. Use this when called
+/// inside a projection transaction to avoid SQLite's "database is locked"
+/// from a parallel writer.
+pub fn set_with_conn(
+    conn: &mut sqlx::SqliteConnection,
+    namespace: &str,
+    key: &str,
+    value: &serde_json::Value,
+) -> Result<()> {
     let now = Utc::now().to_rfc3339();
     let value_json = serde_json::to_string(value)?;
     block_on(async {
@@ -61,7 +73,7 @@ pub fn set(namespace: &str, key: &str, value: &serde_json::Value) -> Result<()> 
         .bind(key)
         .bind(&value_json)
         .bind(&now)
-        .execute(&mut conn)
+        .execute(conn)
         .await
     })?;
     Ok(())
@@ -87,11 +99,20 @@ pub fn get(namespace: &str, key: &str) -> Result<Option<serde_json::Value>> {
 
 pub fn delete(namespace: &str, key: &str) -> Result<()> {
     let mut conn = open_db()?;
+    delete_with_conn(&mut conn, namespace, key)
+}
+
+/// Same as [`delete`] but reuses an existing connection.
+pub fn delete_with_conn(
+    conn: &mut sqlx::SqliteConnection,
+    namespace: &str,
+    key: &str,
+) -> Result<()> {
     block_on(async {
         sqlx::query("DELETE FROM kv_state WHERE namespace = ? AND key = ?")
             .bind(namespace)
             .bind(key)
-            .execute(&mut conn)
+            .execute(conn)
             .await
     })?;
     Ok(())

@@ -50,7 +50,6 @@ pub fn check_integrity(db_path: &std::path::Path) -> Result<IntegrityStatus> {
 
     // Check if corruption is limited to projection tables (recoverable).
     let projection_tables = [
-        "workspace",
         "workspace_session",
         "actors",
     ];

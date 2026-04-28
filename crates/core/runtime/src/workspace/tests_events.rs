@@ -126,16 +126,11 @@ mod tests {
             "transaction must fail when event INSERT is blocked by trigger"
         );
 
-        let mut conn2 = open_db_at(&db)?;
-        let count: i64 = block_on(async {
-            sqlx::query_scalar("SELECT COUNT(*) FROM workspace WHERE branch = ?")
-                .bind(sentinel_branch)
-                .fetch_one(&mut conn2)
-                .await
-        })?;
-        assert_eq!(
-            count, 0,
-            "workspace row must not exist when event INSERT fails; got {count} rows"
+        // Worktree projection now lives in kv_state; assert the row stayed
+        // absent after the rollback.
+        assert!(
+            crate::worktrees::get(sentinel_branch)?.is_none(),
+            "worktree row must not exist when event INSERT fails"
         );
 
         Ok(())

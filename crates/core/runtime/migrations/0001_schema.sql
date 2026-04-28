@@ -17,23 +17,12 @@ CREATE TABLE IF NOT EXISTS kv_state (
   PRIMARY KEY(namespace, key)
 );
 
--- Workspace projection (from `workspace.*` events). Strictly process-
--- attachment + identity today: the columns the projection writes are
--- the same five rows that get queried (branch, id, path,
--- tmux_session_name, created_at). Earlier iterations of this table
--- carried selections (active_agent / active_preset), authored
--- providers/mcp/skills caches, and a compile-state cache; all were
--- write-only — projection updated them, nothing read them — and were
--- removed. Settings live in `kv_state`; compile state recomputes on
--- demand.
-CREATE TABLE IF NOT EXISTS workspace (
-  branch             TEXT PRIMARY KEY,
-  id                 TEXT,
-  path               TEXT,
-  tmux_session_name  TEXT,
-  created_at         TEXT,
-  updated_at         TEXT
-);
+-- The runtime DB no longer projects workspaces. Worktree state
+-- (path, tmux_session_name) lives in `kv_state` under namespace
+-- `worktree`, keyed by branch — see `runtime::worktrees`. Worktrees
+-- are a dev-flow attachment maintained by the workspace-events
+-- handlers; consumers (compile, spawn, dashboard) read via the
+-- worktrees registry.
 
 CREATE TABLE IF NOT EXISTS workspace_session (
   id                          TEXT PRIMARY KEY,

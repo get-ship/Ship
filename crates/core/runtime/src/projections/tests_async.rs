@@ -60,20 +60,12 @@ mod tests {
             "rebuild report must list workspace_state"
         );
 
-        let exists_a: bool = block_on(async {
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM workspace WHERE branch = ?")
-                .bind("feature/rebuild-src-a")
-                .fetch_one(&mut conn)
-                .await
-        })
-        .unwrap() > 0;
-        let exists_b: bool = block_on(async {
-            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM workspace WHERE branch = ?")
-                .bind("feature/rebuild-src-b")
-                .fetch_one(&mut conn)
-                .await
-        })
-        .unwrap() > 0;
+        let exists_a = crate::worktrees::get("feature/rebuild-src-a")
+            .unwrap()
+            .is_some();
+        let exists_b = crate::worktrees::get("feature/rebuild-src-b")
+            .unwrap()
+            .is_some();
 
         assert!(exists_a, "workspace-a must exist after rebuild");
         assert!(exists_b, "workspace-b must exist after rebuild");

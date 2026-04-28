@@ -60,8 +60,11 @@ impl Projection for WorkspaceProjection {
     }
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
+        // The workspace projection now lives in kv_state under namespace
+        // `worktree`. Clear via raw sqlx since the kv module's helpers
+        // open their own connection.
         block_on(async {
-            sqlx::query("DELETE FROM workspace")
+            sqlx::query("DELETE FROM kv_state WHERE namespace = 'worktree'")
                 .execute(conn)
                 .await?;
             Ok(())
