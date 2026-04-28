@@ -198,13 +198,13 @@ mod corpus_probe {
             for d in diags.iter().filter(|d| {
                 matches!(
                     d.code.as_str(),
-                    "SAIL/W0101" | "SAIL/W0105" | "SAIL/W0201" | "SAIL/E0501"
+                    "SAIL/E0101" | "SAIL/E0105" | "SAIL/E0201" | "SAIL/E0501"
                 )
             }) {
                 let code: &'static str = match d.code.as_str() {
-                    "SAIL/W0101" => "SAIL/W0101",
-                    "SAIL/W0105" => "SAIL/W0105",
-                    "SAIL/W0201" => "SAIL/W0201",
+                    "SAIL/E0101" => "SAIL/E0101",
+                    "SAIL/E0105" => "SAIL/E0105",
+                    "SAIL/E0201" => "SAIL/E0201",
                     "SAIL/E0501" => "SAIL/E0501",
                     _ => continue,
                 };

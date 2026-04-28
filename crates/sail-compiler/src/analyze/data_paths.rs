@@ -61,7 +61,7 @@ pub fn analyze(file: &SailFile, diagnostics: &mut Vec<Diagnostic>) {
         };
         diagnostics.push(Diagnostic {
             severity: Severity::Error,
-            code: "SAIL/W0301".to_string(),
+            code: "SAIL/E0301".to_string(),
             message: format!(
                 "unknown data path `ship.{path}` — not registered in services::schema::OPS",
             ),
@@ -177,14 +177,14 @@ mod tests {
     fn known_op_passes() {
         let src = "<script>data agents = ship.agents.summaries()</script>\n<template>x</template>";
         let d = diag(src);
-        assert!(d.iter().all(|x| !x.code.starts_with("SAIL/W0301")), "got: {d:?}");
+        assert!(d.iter().all(|x| !x.code.starts_with("SAIL/E0301")), "got: {d:?}");
     }
 
     #[test]
     fn unknown_op_warns_with_suggestion() {
         let src = "<script>data agents = ship.agents.summries()</script>\n<template>x</template>";
         let d = diag(src);
-        let w = d.iter().find(|x| x.code == "SAIL/W0301").expect("expected diagnostic");
+        let w = d.iter().find(|x| x.code == "SAIL/E0301").expect("expected diagnostic");
         assert_eq!(w.severity, Severity::Error);
         assert!(w.message.contains("ship.agents.summries"), "msg: {}", w.message);
         let help = w.help.as_deref().unwrap_or("");
@@ -196,7 +196,7 @@ mod tests {
         // `data x = computed()` doesn't start with `ship.` → no warning.
         let src = "<script>data x = computed()</script>\n<template>x</template>";
         let d = diag(src);
-        assert!(d.iter().all(|x| !x.code.starts_with("SAIL/W0301")), "got: {d:?}");
+        assert!(d.iter().all(|x| !x.code.starts_with("SAIL/E0301")), "got: {d:?}");
     }
 
     #[test]

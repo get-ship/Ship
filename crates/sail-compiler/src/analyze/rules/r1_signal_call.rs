@@ -36,7 +36,7 @@ fn check_expr(expr: &Expr, symbols: &SymbolTable, diagnostics: &mut Vec<Diagnost
         if !already.insert(name.clone()) { continue; }
         diagnostics.push(Diagnostic {
             severity: Severity::Error,
-            code: "SAIL/W0101".to_string(),
+            code: "SAIL/E0101".to_string(),
             message: format!("signal `{name}` referenced without call in `{}`", expr.raw),
             span: None,
             help: Some(format!(
@@ -105,7 +105,7 @@ mod tests {
     }
 
     fn warns(d: &[Diagnostic]) -> Vec<&Diagnostic> {
-        d.iter().filter(|x| x.code == "SAIL/W0101").collect()
+        d.iter().filter(|x| x.code == "SAIL/E0101").collect()
     }
 
     #[test]

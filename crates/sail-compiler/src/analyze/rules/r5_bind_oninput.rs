@@ -93,7 +93,7 @@ fn check_element(tag: &str, attrs: &[Attr], diagnostics: &mut Vec<Diagnostic>) {
     }
     diagnostics.push(Diagnostic {
         severity: Severity::Error,
-        code: "SAIL/W0105".to_string(),
+        code: "SAIL/E0105".to_string(),
         message: format!(
             "<{tag}> has both `bind:value` and an input listener — they fire on the same event"
         ),
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn bind_with_oninput_warns() {
         let d = run("<template><input bind:value={draft} oninput={touch} /></template>");
-        let w: Vec<_> = d.iter().filter(|x| x.code == "SAIL/W0105").collect();
+        let w: Vec<_> = d.iter().filter(|x| x.code == "SAIL/E0105").collect();
         assert_eq!(w.len(), 1, "got {d:?}");
         assert!(w[0].help.as_deref().unwrap().contains("bind:value"));
         assert_eq!(w[0].severity, Severity::Error);
@@ -129,14 +129,14 @@ mod tests {
     #[test]
     fn bind_with_legacy_on_input_warns() {
         let d = run("<template><input bind:value={draft} on:input={touch} /></template>");
-        let w: Vec<_> = d.iter().filter(|x| x.code == "SAIL/W0105").collect();
+        let w: Vec<_> = d.iter().filter(|x| x.code == "SAIL/E0105").collect();
         assert_eq!(w.len(), 1, "got {d:?}");
     }
 
     #[test]
     fn bind_only_passes() {
         let d = run("<template><input bind:value={draft} /></template>");
-        assert!(d.iter().all(|x| x.code != "SAIL/W0105"));
+        assert!(d.iter().all(|x| x.code != "SAIL/E0105"));
     }
 
     #[test]
@@ -144,13 +144,13 @@ mod tests {
         let d = run(
             "<template><input bind:value={draft} /><input oninput={touch} /></template>",
         );
-        assert!(d.iter().all(|x| x.code != "SAIL/W0105"), "got {d:?}");
+        assert!(d.iter().all(|x| x.code != "SAIL/E0105"), "got {d:?}");
     }
 
     #[test]
     fn oninput_only_passes() {
         let d = run("<template><input oninput={touch} /></template>");
-        assert!(d.iter().all(|x| x.code != "SAIL/W0105"));
+        assert!(d.iter().all(|x| x.code != "SAIL/E0105"));
     }
 
     #[test]
@@ -159,7 +159,7 @@ mod tests {
         let d = run(
             "<template><input bind:value={draft} onclick={focusNext} /></template>",
         );
-        assert!(d.iter().all(|x| x.code != "SAIL/W0105"), "got {d:?}");
+        assert!(d.iter().all(|x| x.code != "SAIL/E0105"), "got {d:?}");
     }
 
     #[test]
@@ -169,6 +169,6 @@ mod tests {
         let d = run(
             "<template><input bind:value={draft} on:bind={notify} /></template>",
         );
-        assert!(d.iter().all(|x| x.code != "SAIL/W0105"), "got {d:?}");
+        assert!(d.iter().all(|x| x.code != "SAIL/E0105"), "got {d:?}");
     }
 }

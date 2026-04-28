@@ -3,7 +3,7 @@
 //! Walks the template; for each `<ship-foo bad-prop=…>` component
 //! reference, looks up the tag's prop set in
 //! [`super::component_catalog`] (built once from embedded `.set`
-//! sources). Unknown prop names emit `SAIL/W0201` with a closest-
+//! sources). Unknown prop names emit `SAIL/E0201` with a closest-
 //! match suggestion via `edit_distance` (duplicated here from
 //! `analyze::data_paths` — same algorithm, but the rules module is
 //! scoped to itself by the job spec and the data_paths file is off
@@ -49,7 +49,7 @@ fn check_component(tag: &str, props: &[PropBinding], diagnostics: &mut Vec<Diagn
         };
         diagnostics.push(Diagnostic {
             severity: Severity::Error,
-            code: "SAIL/W0201".to_string(),
+            code: "SAIL/E0201".to_string(),
             message: format!("unknown prop `{}` on <{tag}>", p.name),
             span: None,
             help: Some(help),
@@ -100,7 +100,7 @@ mod tests {
     }
 
     fn warns(d: &[Diagnostic]) -> Vec<&Diagnostic> {
-        d.iter().filter(|x| x.code == "SAIL/W0201").collect()
+        d.iter().filter(|x| x.code == "SAIL/E0201").collect()
     }
 
     #[test]

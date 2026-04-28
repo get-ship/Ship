@@ -322,10 +322,10 @@ Before declaring a port done:
 | Code | What it catches |
 |---|---|
 | `SAIL/E0501` | listener / timer leak — `addEventListener` / `setInterval` / `setTimeout` without a paired remove/clear. Includes the phantom `addEventListener('sail:cleanup', …)` (the runtime never dispatches it). |
-| `SAIL/W0101` | bare signal read in text interpolation — `{count}` instead of `{count()}`. |
-| `SAIL/W0105` | `bind:value` + `oninput` on the same element — double-wires the input event. |
-| `SAIL/W0201` | unknown prop on a `<ship-*>` component — typo or removed prop. |
-| `SAIL/W0301` | unknown `ship.<domain>.<op>(…)` data path — typo or stale catalog. |
+| `SAIL/E0101` | bare signal read in text interpolation — `{count}` instead of `{count()}`. |
+| `SAIL/E0105` | `bind:value` + `oninput` on the same element — double-wires the input event. |
+| `SAIL/E0201` | unknown prop on a `<ship-*>` component — typo or removed prop. |
+| `SAIL/E0301` | unknown `ship.<domain>.<op>(…)` data path — typo or stale catalog. |
 
 ## Where things live
 
