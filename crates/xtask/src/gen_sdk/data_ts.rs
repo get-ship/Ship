@@ -44,7 +44,7 @@ pub fn emit() -> Result<String> {
             let safe = ts_safe_name(local);
             let key = if safe == local { local.to_string() } else { format!("'{local}'") };
             let args_sig = render_args_sig(op.args);
-            out.push_str(&format!("    /** {} */\n", op.description));
+            out.push_str(&render_op_jsdoc(op));
             out.push_str(&format!("    {key}({args_sig}): DataHandle<unknown>;\n"));
             if safe != local {
                 // Bracket-access friendly alias for callers who can't use the quoted form.
@@ -117,6 +117,126 @@ fn ts_type_for(kind: &str) -> &'static str {
     }
 }
 
+/// Render a JSDoc block for one op: one-line description plus a
+/// matching `.set` declaration + minimal template usage as an
+/// `@example`. The example is what an author would write to consume
+/// the op from a `.set` file.
+fn render_op_jsdoc(op: &OpDescriptor) -> String {
+    let domain = op.name.split('.').next().unwrap_or(op.name);
+    let local = op.name.split('.').nth(1).unwrap_or(op.name);
+    let var = example_var_name(domain, local);
+    let args_src = render_set_call_args(op.args);
+    let usage = render_template_usage(&var, op.returns);
+
+    let mut s = String::new();
+    s.push_str("    /**\n");
+    s.push_str(&format!("     * {}\n", op.description));
+    s.push_str("     *\n");
+    s.push_str("     * @example\n");
+    s.push_str("     * ```html\n");
+    s.push_str("     * <script>\n");
+    s.push_str(&format!(
+        "     *   data {var} = ship.{domain}.{local}({args_src})\n"
+    ));
+    s.push_str("     * </script>\n");
+    s.push_str("     * <template>\n");
+    s.push_str(&usage);
+    s.push_str("     * </template>\n");
+    s.push_str("     * ```\n");
+    s.push_str("     */\n");
+    s
+}
+
+/// Pick a readable identifier to bind the `data` declaration to.
+/// Defaults to the domain name (so the example reads like idiomatic
+/// `.set` code: `data agents = ship.agents.summaries()`). The `_` here
+/// stays unused but documents the intent — this function is the seam
+/// where future per-op renaming would live.
+fn example_var_name(domain: &str, _local: &str) -> String {
+    domain.to_string()
+}
+
+/// Render the args object literal an author would write in a `.set`
+/// data declaration. Required-only — optional args are elided so the
+/// example shows the minimum viable call.
+fn render_set_call_args(args: &'static [ArgDescriptor]) -> String {
+    let required: Vec<&ArgDescriptor> = args.iter().filter(|a| a.required).collect();
+    if required.is_empty() {
+        return String::new();
+    }
+    let parts: Vec<String> = required
+        .iter()
+        .map(|a| {
+            let val = sample_arg_literal(a.kind, a.name);
+            format!("{}: {val}", a.name)
+        })
+        .collect();
+    format!("{{ {} }}", parts.join(", "))
+}
+
+fn sample_arg_literal(kind: &str, name: &str) -> String {
+    match kind.trim_end_matches('?') {
+        "string" => format!("'{}'", string_placeholder(name)),
+        "number" | "usize" | "u64" | "i64" | "u32" | "i32" => "1".to_string(),
+        "bool" | "boolean" => "true".to_string(),
+        _ => "null".to_string(),
+    }
+}
+
+fn string_placeholder(name: &str) -> &'static str {
+    match name {
+        "id" => "id",
+        "name" => "name",
+        "slug" => "slug",
+        "path" => "src/foo.rs",
+        "file" => "src/foo.rs",
+        "commit" => "HEAD",
+        "workspace_id" => "ws",
+        _ => "value",
+    }
+}
+
+/// Render a minimal template-side usage block. Branches on the shape
+/// hinted by `returns`:
+///   - `{items: [...]}` and other `{<key>: [...]}` shapes → for-loop
+///   - `{<key>, ...}` flat record → read the first field
+///   - named type → guarded read of the bound signal
+fn render_template_usage(var: &str, returns: &str) -> String {
+    let r = returns.trim();
+    if let Some((key, is_list)) = first_record_field(r) {
+        if is_list {
+            return format!(
+                "     *   {{#for item of ({var}()?.{key} || [])}}\n     *     <div>{{item.id || item.name || item}}</div>\n     *   {{/for}}\n",
+            );
+        }
+        return format!("     *   <div>{{ {var}()?.{key} }}</div>\n");
+    }
+    // Named type — we don't know the shape. Show the read pattern.
+    format!("     *   <pre>{{ JSON.stringify({var}(), null, 2) }}</pre>\n")
+}
+
+/// Parse the first field of an inline record like `{key: [...]}` or
+/// `{a, b, c}`. Returns `(field_name, is_list)`.
+fn first_record_field(s: &str) -> Option<(&str, bool)> {
+    let s = s.trim();
+    let inner = s.strip_prefix('{')?;
+    // Find the end of the first key — `:`, `,` or `}`.
+    let end = inner
+        .find(|c: char| c == ':' || c == ',' || c == '}')
+        .unwrap_or(inner.len());
+    let key = inner[..end].trim();
+    if key.is_empty() {
+        return None;
+    }
+    // List? Only if the key is followed by `: [`.
+    let rest = inner.get(end..).unwrap_or("").trim_start();
+    let is_list = rest
+        .strip_prefix(':')
+        .map(|r| r.trim_start().starts_with('['))
+        .unwrap_or(false);
+    Some((key, is_list))
+}
+
 fn ts_safe_name(name: &str) -> &str {
     // The arg-name → JS-identifier policy. Op-local names today are all
     // bare ASCII; this keeps the door open for future names with hyphens.
@@ -154,6 +274,43 @@ mod tests {
         let out = emit().expect("emit succeeds");
         // `chat.state` takes only optional args; the `args` parameter itself should be optional.
         assert!(out.contains("state(args?: { workspace_id?: string; })"), "expected all-optional shape");
+    }
+
+    #[test]
+    fn emits_example_block_per_op() {
+        let out = emit().expect("emit succeeds");
+        // Every op should have an @example block.
+        let example_count = out.matches("@example").count();
+        let signature_count = out.matches("DataHandle<unknown>;").count();
+        assert_eq!(
+            example_count, signature_count,
+            "every op signature should carry an @example block; got {example_count} examples for {signature_count} ops",
+        );
+    }
+
+    #[test]
+    fn example_uses_set_declaration_and_template() {
+        let out = emit().expect("emit succeeds");
+        // The agents.summaries example should mirror the spec verbatim
+        // — `data agents = ship.agents.summaries()` plus a for-loop on items.
+        assert!(
+            out.contains("data agents = ship.agents.summaries()"),
+            "missing .set declaration in @example",
+        );
+        assert!(
+            out.contains("{#for item of (agents()?.items || [])}"),
+            "missing for-loop usage in @example",
+        );
+    }
+
+    #[test]
+    fn example_required_args_get_placeholder_literals() {
+        let out = emit().expect("emit succeeds");
+        // `agents.detail` requires `id: string`; example should pass a literal.
+        assert!(
+            out.contains("data agents = ship.agents.detail({ id: 'id' })"),
+            "expected placeholder for required string arg",
+        );
     }
 }
 

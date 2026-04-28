@@ -12,11 +12,19 @@
 import { effect } from './signal'
 import type { Disposer } from './bind'
 
+/**
+ * One branch's rendered nodes plus an optional teardown. Returned by
+ * the `then_` / `else_` / `loading` / etc. callbacks of every
+ * branching binding (`bindIf`, `bindAwait`).
+ */
 export interface BranchRender {
+  /** Top-level nodes the branch contributes to the tree. */
   nodes: Node[]
+  /** Optional teardown — called when the branch is swapped out. */
   cleanup?: () => void
 }
 
+/** Inputs to `bindIf`. */
 export interface BindIfOptions {
   /** Anchor placeholder — the active branch's nodes go BEFORE it. */
   anchor: Comment
@@ -28,6 +36,31 @@ export interface BindIfOptions {
   else_?: () => BranchRender
 }
 
+/**
+ * Conditionally render a then-branch (and optional else-branch) at
+ * `opts.anchor`. Branches are rendered lazily — `then_()` / `else_()`
+ * are called only when their branch becomes active. The previous
+ * branch's `cleanup` runs on swap, freeing its bindings.
+ *
+ * Compiler target: `{#if cond}then{:else}else{/if}`.
+ *
+ * @param opts Anchor, predicate, and branch renderers.
+ * @returns Disposer that tears down the active branch and stops the effect.
+ *
+ * @example
+ * ```ts
+ * const open = signal(false)
+ * bindIf({
+ *   anchor,
+ *   cond: () => open(),
+ *   then_: () => ({ nodes: [renderDialog()] }),
+ *   else_: () => ({ nodes: [] }),
+ * })
+ * ```
+ *
+ * @see bindShow when the element should remain mounted (just hidden);
+ *   bindAwait for promise-driven branching.
+ */
 export function bindIf(opts: BindIfOptions): Disposer {
   const { anchor, cond, then_, else_ } = opts
   let active: BranchRender | null = null

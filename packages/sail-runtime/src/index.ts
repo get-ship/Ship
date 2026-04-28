@@ -1,7 +1,38 @@
-// Public API surface for @sail/runtime.
-//
-// See .artifacts/specs/sail/03-runtime-architecture.md § Public API.
-// Everything not exported here is internal and may change.
+/**
+ * @sail/runtime — public API surface.
+ *
+ * Everything re-exported from this module is part of Sail's stable
+ * runtime contract. Anything not re-exported here is internal and may
+ * change without notice.
+ *
+ * Re-exports keep their original JSDoc — hover any symbol in your
+ * editor to see the full docs.
+ *
+ * Surface map:
+ *   - Reactivity:    `signal`, `derived`, `effect`, `batch`, `untrack`
+ *                    (+ types `Signal`, `Derived`)
+ *   - DOM bindings:  `bindText`, `bindShow`, `bindAttr`, `bindClass`,
+ *                    `bindProp`, `bindValue`, `bindChecked`, `bindRawHtml`
+ *                    (+ type `Disposer`)
+ *   - Events:        `on`, `matchesKey` (+ types `OnOptions`, `Modifier`)
+ *   - Patches:       `applyPatch`, `applyPatches`, `tokenizePath`
+ *                    (+ types `Patch`, `PatchOp`, `PathToken`)
+ *   - Control flow:  `bindFor`, `bindForSignal`, `bindIf`, `bindAwait`
+ *                    (+ types `BindForOptions`, `RenderedItem`,
+ *                    `BindIfOptions`, `BranchRender`, `BindAwaitOptions`)
+ *   - HMR / SSR:     `morph` (+ type `MorphOptions`)
+ *   - Slots:         `resolveSlots`, `snapshotChildren`, `slotFilled`
+ *                    (+ type `SlotDecl`)
+ *   - Components:    `defineComponent`, `camelOf`
+ *                    (+ types `ComponentFactory`, `ComponentSchema`)
+ *   - Prop decoders: `decodeString`, `decodeNumber`, `decodeBoolean`,
+ *                    `decodeJson`, `decodeEnum` (+ type `Decoder`)
+ *   - Data:          `data` (+ types `DataOpts`, `DataHandle`)
+ *
+ * See .artifacts/specs/sail/03-runtime-architecture.md § Public API.
+ *
+ * @packageDocumentation
+ */
 
 export { signal, derived, effect, batch, untrack } from './signal'
 export type { Signal, Derived } from './signal'

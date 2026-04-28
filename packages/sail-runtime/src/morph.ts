@@ -12,11 +12,35 @@
 // Key-aware list reconciliation lives in `bindFor`; this morph is for
 // non-keyed structural alignment of templates.
 
+/** Options that control which subtrees `morph` will descend into. */
 export interface MorphOptions {
-  /** Skip morphing inside elements where this returns true. */
+  /** Return `true` to leave a subtree untouched (e.g. third-party widgets). */
   skip?: (el: Element) => boolean
 }
 
+/**
+ * Reconcile the contents of `target` to match `source` in-place,
+ * preserving DOM identity where possible (focus, scroll, selection,
+ * custom-element state, animations).
+ *
+ * Same-tag elements have their attributes morphed and children walked
+ * by index. Different-tag elements are replaced. Text and Comment
+ * nodes have their `nodeValue` patched. Children align by index — Sail
+ * relies on `bindFor` for keyed list reconciliation; `morph` is the
+ * non-keyed fallback used for HMR + SSR-hydration.
+ *
+ * @param target DOM element to mutate in place.
+ * @param source Element whose shape `target` should converge to.
+ * @param opts Optional skip predicate.
+ *
+ * @example
+ * ```ts
+ * const next = parseHtml(serverHtml).body.firstElementChild!
+ * morph(rootEl, next, { skip: (el) => el.hasAttribute('data-no-morph') })
+ * ```
+ *
+ * @see bindFor for keyed list reconciliation.
+ */
 export function morph(target: Element, source: Element, opts: MorphOptions = {}): void {
   morphElement(target, source, opts)
 }

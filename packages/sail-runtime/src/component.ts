@@ -46,8 +46,36 @@ export interface ComponentSchema {
 }
 
 /**
- * Register a Sail component as a custom element. Idempotent — calling
- * twice with the same tag is a no-op (browser would otherwise throw).
+ * Register a Sail component as a custom element. The wrapper class
+ * observes the schema's attributes, decodes incoming changes into prop
+ * signals, runs `factory` on connect, and runs the returned cleanup on
+ * disconnect.
+ *
+ * Idempotent — calling twice with the same tag is a no-op (the browser
+ * would otherwise throw on the second `customElements.define`).
+ *
+ * The Sail compiler emits exactly one call per `.set` file. Authors
+ * shouldn't need to reach for this directly.
+ *
+ * @param tag Custom element tag name (must contain a hyphen).
+ * @param schema Observed-attribute list + per-attribute decoder map +
+ *   optional `formAssociated` flag.
+ * @param factory Per-instance setup; receives the host, prop-signal map,
+ *   and (when form-associated) ElementInternals. Returns a disposer
+ *   that runs on disconnect.
+ *
+ * @example
+ * ```ts
+ * defineComponent('my-counter', {
+ *   observedAttrs: ['initial'],
+ *   props: { initial: { camel: 'initial', decode: decodeNumber } },
+ * }, (host, props) => {
+ *   const count = props.initial as Signal<number>
+ *   return () => {} // cleanup
+ * })
+ * ```
+ *
+ * @see camelOf for attribute → prop name translation.
  */
 export function defineComponent(
   tag: string,
@@ -153,11 +181,20 @@ export function defineComponent(
 }
 
 /**
- * Convert a kebab-case attribute name to camelCase prop name.
+ * Convert a kebab-case HTML attribute name to its camelCase prop name.
+ * Single-word attributes pass through unchanged.
  *
- * `fetch-url` → `fetchUrl`
- * `min-chars` → `minChars`
- * `count`     → `count`
+ * @param attr Attribute name, lowercased and possibly hyphenated.
+ * @returns Camel-cased identifier suitable for a JS property name.
+ *
+ * @example
+ * ```ts
+ * camelOf('fetch-url') // 'fetchUrl'
+ * camelOf('min-chars') // 'minChars'
+ * camelOf('count')     // 'count'
+ * ```
+ *
+ * @see defineComponent — schema entries map kebab → camel via this rule.
  */
 export function camelOf(attr: string): string {
   return attr.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())

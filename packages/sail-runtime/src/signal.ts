@@ -13,11 +13,23 @@ let BATCH_DEPTH = 0
 const PENDING: Set<Subscriber> = new Set()
 
 /**
- * Reactive signal. Read with `sig()`; write with `sig.set(v)` or
- * `sig.set(prev => next)`.
+ * A reactive signal — a callable getter paired with a setter and a
+ * subscribe handle.
+ *
+ * Reading inside an `effect` or `derived` automatically registers a
+ * dependency. Writing notifies subscribers synchronously (or coalesces
+ * the notification when the write happens inside `batch`).
+ *
+ * @see signal to construct one; derived for memoized reads; effect for
+ *   side effects.
  */
 export interface Signal<T> {
+  /** Read the current value (and track in any active reactive scope). */
   (): T
+  /**
+   * Write a new value. Accepts either the next value directly or an
+   * updater function that receives the previous value.
+   */
   set(value: T | ((prev: T) => T)): void
   /** package-private — used by bind* helpers and patch applier. */
   __subs: Set<Subscriber>
@@ -25,7 +37,29 @@ export interface Signal<T> {
   __peek(): T
 }
 
-/** Create a fine-grained reactive signal. */
+/**
+ * Create a fine-grained reactive signal.
+ *
+ * The returned function is the reader: call it inside a `derived` or
+ * `effect` to subscribe. `.set(next)` writes a new value (skipped via
+ * `Object.is` if unchanged) and synchronously runs every dependent
+ * scope. Writes inside `batch` are deferred to a single end-of-batch
+ * flush.
+ *
+ * @param initial Starting value the reader returns until the first set.
+ * @returns A signal: callable getter + `.set` writer.
+ *
+ * @example
+ * ```ts
+ * const count = signal(0)
+ * effect(() => console.log('count:', count()))
+ * count.set(1)              // → 'count: 1'
+ * count.set((n) => n + 1)   // → 'count: 2'
+ * ```
+ *
+ * @see derived for computed values; effect for side effects; batch to
+ *   coalesce multi-signal writes.
+ */
 export function signal<T>(initial: T): Signal<T> {
   let value = initial
   const subs = new Set<Subscriber>()
@@ -55,11 +89,35 @@ export function signal<T>(initial: T): Signal<T> {
 }
 
 /**
- * Memoized computed. Reads its dependencies; recomputes when any change.
- * The returned reader auto-tracks and is itself a signal-like value.
+ * A memoized computed — reads its dependencies on first access and
+ * recomputes lazily when any of them change. Behaves as a read-only
+ * signal: callable getter, callable from inside other reactive scopes.
+ * Calling `.set` on a derived throws.
  */
 export interface Derived<T> extends Signal<T> {}
 
+/**
+ * Create a memoized computed value. `fn` runs once eagerly to seed the
+ * cache, then re-runs on demand whenever a tracked dependency invalidates.
+ *
+ * Subscribers are notified on invalidation, not on recompute — readers
+ * pay the recomputation cost only when they actually pull. Dependencies
+ * are re-collected each run, so conditional reads work.
+ *
+ * @param fn Pure read function; tracked reads inside register as deps.
+ * @returns A signal-like reader. Calling `.set` throws.
+ *
+ * @example
+ * ```ts
+ * const first = signal('Ada')
+ * const last = signal('Lovelace')
+ * const full = derived(() => `${first()} ${last()}`)
+ * effect(() => console.log(full())) // → 'Ada Lovelace'
+ * first.set('Grace')                 // → 'Grace Lovelace'
+ * ```
+ *
+ * @see signal for sources; effect for side effects.
+ */
 export function derived<T>(fn: () => T): Derived<T> {
   let value: T
   let dirty = true
@@ -110,9 +168,32 @@ export function derived<T>(fn: () => T): Derived<T> {
 }
 
 /**
- * Run `fn` once eagerly + on any dep change. Returns a disposer that
- * unsubscribes. `fn` may return a cleanup callback that runs before
- * each re-run and on disposal.
+ * Run `fn` once eagerly, then re-run on every tracked dependency
+ * change. Returns a disposer that unsubscribes and stops further runs.
+ *
+ * `fn` may return a cleanup callback. The cleanup runs once before each
+ * re-run (so users can detach listeners, abort fetches, etc.) and once
+ * on disposal. Errors thrown inside `fn` or its cleanup are logged and
+ * swallowed — one bad effect never breaks the reactive graph.
+ *
+ * @param fn Side-effecting function; tracked reads register as deps.
+ *   May return an optional cleanup callback.
+ * @returns A disposer that detaches the effect.
+ *
+ * @example
+ * ```ts
+ * const url = signal('/api/feed')
+ * const dispose = effect(() => {
+ *   const ctrl = new AbortController()
+ *   fetch(url(), { signal: ctrl.signal }).catch(() => {})
+ *   return () => ctrl.abort()  // cleanup runs before next re-run
+ * })
+ * // later...
+ * dispose()
+ * ```
+ *
+ * @see signal, derived; batch to coalesce writes that would otherwise
+ *   re-fire the effect multiple times.
  */
 export function effect(fn: () => void | (() => void)): () => void {
   let cleanup: (() => void) | void = undefined
@@ -154,8 +235,26 @@ export function effect(fn: () => void | (() => void)): () => void {
 }
 
 /**
- * Group multiple signal writes; subscribers fire once at the end.
- * Used by the patch applier to apply multi-op patches atomically.
+ * Group multiple signal writes into one notification cycle. Subscribers
+ * are queued during `fn` and flushed exactly once when the outermost
+ * `batch` returns.
+ *
+ * Nests safely — only the outermost batch flushes. Used by the patch
+ * applier to keep multi-op SSE patches atomic against derived/effects.
+ *
+ * @param fn Code that writes one or more signals.
+ *
+ * @example
+ * ```ts
+ * const x = signal(0), y = signal(0)
+ * effect(() => console.log(x() + y()))   // logs 0
+ * batch(() => {
+ *   x.set(1)
+ *   y.set(2)
+ * })                                     // logs 3 once (not 1, then 3)
+ * ```
+ *
+ * @see applyPatches which uses batch to apply many patches atomically.
  */
 export function batch(fn: () => void): void {
   BATCH_DEPTH++
@@ -173,8 +272,22 @@ export function batch(fn: () => void): void {
 
 /**
  * Read signals without subscribing the current observer to them.
- * Useful inside effects when a value is consulted but shouldn't
- * trigger re-runs (e.g., timestamps, RNG seeds).
+ * Useful inside effects/derived when a value is consulted but
+ * shouldn't trigger re-runs (timestamps, RNG seeds, peeking at peers).
+ *
+ * @param fn Code that reads signals; reads inside are not tracked.
+ * @returns Whatever `fn` returns.
+ *
+ * @example
+ * ```ts
+ * const count = signal(0), label = signal('hits')
+ * effect(() => {
+ *   const stamp = untrack(() => Date.now())     // no dep on Date
+ *   console.log(`${label()}: ${count()} @${stamp}`)
+ * })
+ * ```
+ *
+ * @see effect, derived.
  */
 export function untrack<T>(fn: () => T): T {
   const prev = CURRENT_OBSERVER

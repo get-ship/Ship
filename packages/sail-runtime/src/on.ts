@@ -8,15 +8,23 @@
 
 import type { Disposer } from './bind'
 
+/** Options for `on` — modifiers + standard `addEventListener` flags. */
 export interface OnOptions {
-  /** Modifier list, in order applied. */
+  /** Modifier list, applied in declaration order. */
   modifiers?: Modifier[]
-  /** addEventListener options. */
+  /** Use the capture phase (`addEventListener` capture flag). */
   capture?: boolean
+  /** Mark the listener as passive (cannot call `preventDefault`). */
   passive?: boolean
+  /** Auto-remove the listener after the first dispatch. */
   once?: boolean
 }
 
+/**
+ * One pre-handler effect: filter, transform, or rate-limit. Modifiers
+ * compose in order; the parsed list is what `on` receives via
+ * `OnOptions.modifiers`.
+ */
 export interface Modifier {
   kind:
     | 'preventDefault'
@@ -31,19 +39,40 @@ export interface Modifier {
 }
 
 /**
- * Attach an event listener to `el`. Returns a disposer that removes
- * the listener and clears any pending debounce/throttle timers.
+ * Attach an event listener with Sail's modifier semantics.
  *
- * Modifier semantics:
- * - `preventDefault` — calls `event.preventDefault()` before handler
- * - `stopPropagation` — calls `event.stopPropagation()` before handler
+ * Modifier semantics — applied in the order listed in `opts.modifiers`:
+ * - `preventDefault` — calls `event.preventDefault()` before the handler
+ * - `stopPropagation` — calls `event.stopPropagation()` before the handler
  * - `stopImmediatePropagation` — same
  * - `self` — only fires when `event.target === el`
- * - `trusted` — only fires for `event.isTrusted` events (user-initiated)
- * - `key:NAME` — only fires when `event.key === NAME` (e.g., `key:Enter`,
- *   `key:Escape`); supports compound modifiers via `key:meta+j`
- * - `debounce:MS` — coalesces rapid fires; fires once `MS` ms after last call
- * - `throttle:MS` — rate-limits to one fire per `MS` ms
+ * - `trusted` — only fires for user-initiated (`event.isTrusted`) events
+ * - `key:NAME` — only fires when `matchesKey(event, NAME)` returns true
+ *   (e.g. `key:Enter`, `key:Escape`, compounds like `key:meta+j`)
+ * - `debounce:MS` — coalesces rapid fires; runs once `MS` ms after the
+ *   last call
+ * - `throttle:MS` — rate-limits to at most one fire per `MS` ms
+ *
+ * Compiler target: `on:click|preventDefault={fn}` template syntax.
+ *
+ * @param el Element (or any `EventTarget`) to attach to.
+ * @param event Event name (`'click'`, `'keydown'`, ...).
+ * @param handler Listener invoked once all modifier filters pass.
+ * @param opts Modifiers and `addEventListener` flags.
+ * @returns Disposer that removes the listener and cancels any pending
+ *   debounce/throttle timers.
+ *
+ * @example
+ * ```ts
+ * const dispose = on(input, 'keydown', submit, {
+ *   modifiers: [
+ *     { kind: 'key', arg: 'Enter' },
+ *     { kind: 'preventDefault' },
+ *   ],
+ * })
+ * ```
+ *
+ * @see matchesKey for `key:` modifier semantics.
  */
 export function on(
   el: EventTarget,
@@ -122,11 +151,27 @@ export function on(
 }
 
 /**
- * Match a keyboard event against a `key:` modifier argument.
+ * Match a keyboard event against a `key:` modifier spec. Used inside
+ * `on` to gate `keydown`/`keyup` handlers; exposed for components that
+ * need the same matching semantics outside of declarative bindings.
  *
  * - Single key: `Enter`, `Escape`, `a`
  * - Compound (modifier+key): `meta+j`, `ctrl+shift+a`, `alt+x`
- * - Aliases: `cmd` ≡ `meta`, `mod` ≡ `meta` on mac else `ctrl`
+ * - Aliases: `cmd` ≡ `meta`; `mod` ≡ `meta` on mac else `ctrl`
+ *
+ * Comparison is case-insensitive on the key name, but Shift state is
+ * still required if `shift` is in the spec.
+ *
+ * @param e KeyboardEvent to test.
+ * @param spec Lowercase or mixed-case key spec, modifiers separated by `+`.
+ * @returns True when every required modifier and the final key match.
+ *
+ * @example
+ * ```ts
+ * if (matchesKey(e, 'mod+k')) openCommandPalette()
+ * ```
+ *
+ * @see on for the declarative `key:` modifier.
  */
 export function matchesKey(e: KeyboardEvent, spec: string): boolean {
   const parts = spec.split('+').map((p) => p.toLowerCase())
