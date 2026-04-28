@@ -1,0 +1,230 @@
+<script>
+// <ship-markdown-editor-toolbar> — main editor toolbar. Pure
+// view+events: receives mark booleans + disabled + label as
+// attributes from the parent <ship-markdown-editor>; dispatches
+// `ship-mark-toggle` and `ship-link-click` back up. The parent owns
+// the editor instance and drives all TipTap commands.
+
+prop label: string = ''
+prop disabled: boolean = false
+prop markBold: boolean = false
+prop markItalic: boolean = false
+prop markCode: boolean = false
+prop markH1: boolean = false
+prop markH2: boolean = false
+prop markH3: boolean = false
+prop markBullet: boolean = false
+prop markOrdered: boolean = false
+prop markTask: boolean = false
+prop markLink: boolean = false
+
+derived ariaLabel = label() || 'Editor toolbar'
+derived boldPressed = markBold() ? 'true' : 'false'
+derived italicPressed = markItalic() ? 'true' : 'false'
+derived codePressed = markCode() ? 'true' : 'false'
+derived h1Pressed = markH1() ? 'true' : 'false'
+derived h2Pressed = markH2() ? 'true' : 'false'
+derived h3Pressed = markH3() ? 'true' : 'false'
+derived bulletPressed = markBullet() ? 'true' : 'false'
+derived orderedPressed = markOrdered() ? 'true' : 'false'
+derived taskPressed = markTask() ? 'true' : 'false'
+derived linkPressed = markLink() ? 'true' : 'false'
+derived boldClass = markBold() ? 'is-active' : ''
+derived italicClass = markItalic() ? 'is-active' : ''
+derived codeClass = markCode() ? 'is-active' : ''
+derived h1Class = markH1() ? 'is-active' : ''
+derived h2Class = markH2() ? 'is-active' : ''
+derived h3Class = markH3() ? 'is-active' : ''
+derived bulletClass = markBullet() ? 'is-active' : ''
+derived orderedClass = markOrdered() ? 'is-active' : ''
+derived taskClass = markTask() ? 'is-active' : ''
+derived linkClass = markLink() ? 'is-active' : ''
+
+function onMarkClick(e) {
+  e.preventDefault()
+  if (disabled()) return
+  const kind = e.currentTarget && e.currentTarget.dataset
+    ? e.currentTarget.dataset.markKind
+    : null
+  if (!kind) return
+  el.dispatchEvent(new CustomEvent('ship-mark-toggle', {
+    detail: { kind }, bubbles: true, composed: true,
+  }))
+}
+
+function onLinkClick(e) {
+  e.preventDefault()
+  if (disabled()) return
+  el.dispatchEvent(new CustomEvent('ship-link-click', {
+    bubbles: true, composed: true,
+  }))
+}
+
+function preventMouseDown(e) { e.preventDefault() }
+</script>
+
+<template>
+<div class="toolbar" role="toolbar" aria-label={ariaLabel} part="toolbar">
+  <button type="button" part="tb-bold" class={boldClass}
+    aria-label="Bold" aria-pressed={boldPressed}
+    title="Bold (Ctrl+B)" disabled={disabled}
+    data-mark-kind="bold"
+    onmousedown={preventMouseDown} onclick={onMarkClick}>
+    <span aria-hidden="true" style="font-weight:800;font-size:13px">B</span>
+  </button>
+  <button type="button" part="tb-italic" class={italicClass}
+    aria-label="Italic" aria-pressed={italicPressed}
+    title="Italic (Ctrl+I)" disabled={disabled}
+    data-mark-kind="italic"
+    onmousedown={preventMouseDown} onclick={onMarkClick}>
+    <span aria-hidden="true" style="font-style:italic;font-weight:600;font-size:13px">I</span>
+  </button>
+  <button type="button" part="tb-code" class={codeClass}
+    aria-label="Inline code" aria-pressed={codePressed}
+    title="Inline code" disabled={disabled}
+    data-mark-kind="code"
+    onmousedown={preventMouseDown} onclick={onMarkClick}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M16 18l6-6-6-6"></path><path d="M8 6l-6 6 6 6"></path>
+    </svg>
+  </button>
+  <span class="divider" aria-hidden="true"></span>
+  <button type="button" part="tb-h1" class={h1Class}
+    aria-label="Heading 1" aria-pressed={h1Pressed}
+    title="Heading 1" disabled={disabled}
+    data-mark-kind="h1"
+    onmousedown={preventMouseDown} onclick={onMarkClick}>
+    <span aria-hidden="true" style="font-weight:600;font-size:12px">H1</span>
+  </button>
+  <button type="button" part="tb-h2" class={h2Class}
+    aria-label="Heading 2" aria-pressed={h2Pressed}
+    title="Heading 2" disabled={disabled}
+    data-mark-kind="h2"
+    onmousedown={preventMouseDown} onclick={onMarkClick}>
+    <span aria-hidden="true" style="font-weight:600;font-size:12px">H2</span>
+  </button>
+  <button type="button" part="tb-h3" class={h3Class}
+    aria-label="Heading 3" aria-pressed={h3Pressed}
+    title="Heading 3" disabled={disabled}
+    data-mark-kind="h3"
+    onmousedown={preventMouseDown} onclick={onMarkClick}>
+    <span aria-hidden="true" style="font-weight:600;font-size:12px">H3</span>
+  </button>
+  <span class="divider" aria-hidden="true"></span>
+  <button type="button" part="tb-bullet" class={bulletClass}
+    aria-label="Bullet list" aria-pressed={bulletPressed}
+    title="Bullet list" disabled={disabled}
+    data-mark-kind="bullet"
+    onmousedown={preventMouseDown} onclick={onMarkClick}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M8 6h13"></path><path d="M8 12h13"></path><path d="M8 18h13"></path>
+      <path d="M3 6h.01"></path><path d="M3 12h.01"></path><path d="M3 18h.01"></path>
+    </svg>
+  </button>
+  <button type="button" part="tb-ordered" class={orderedClass}
+    aria-label="Ordered list" aria-pressed={orderedPressed}
+    title="Ordered list" disabled={disabled}
+    data-mark-kind="ordered"
+    onmousedown={preventMouseDown} onclick={onMarkClick}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M10 6h11"></path><path d="M10 12h11"></path><path d="M10 18h11"></path>
+      <path d="M4 6h1v4"></path><path d="M4 10h2"></path>
+      <path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"></path>
+    </svg>
+  </button>
+  <button type="button" part="tb-task" class={taskClass}
+    aria-label="Task list" aria-pressed={taskPressed}
+    title="Task list" disabled={disabled}
+    data-mark-kind="task"
+    onmousedown={preventMouseDown} onclick={onMarkClick}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M9 11l3 3L22 4"></path>
+      <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+    </svg>
+  </button>
+  <span class="divider" aria-hidden="true"></span>
+  <button type="button" part="tb-link" class={linkClass}
+    aria-label="Link" aria-pressed={linkPressed}
+    title="Link (Ctrl+K)" disabled={disabled}
+    onmousedown={preventMouseDown} onclick={onLinkClick}>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"></path>
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"></path>
+    </svg>
+  </button>
+</div>
+</template>
+
+<style>
+:host {
+  display: block;
+  font-family: var(--font-body);
+}
+:host([hidden]) { display: none; }
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  padding: 4px 6px;
+  min-height: var(--ed-tb-h, 36px);
+  background: color-mix(in oklch, var(--muted) 40%, var(--card));
+  border-bottom: 1px solid var(--border);
+}
+.toolbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ed-tb-btn, 28px);
+  height: var(--ed-tb-btn, 28px);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--muted-foreground);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  transition:
+    background-color var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out);
+}
+.toolbar button:hover:not(:disabled) {
+  background: color-mix(in oklch, var(--muted) 80%, transparent);
+  color: var(--foreground);
+}
+.toolbar button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 var(--ring-width)
+      color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+  color: var(--foreground);
+}
+.toolbar button[aria-pressed='true'],
+.toolbar button.is-active {
+  background: color-mix(in oklch, var(--primary) 18%, var(--muted));
+  color: var(--foreground);
+}
+.toolbar button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.toolbar svg { width: 14px; height: 14px; }
+.toolbar .divider {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+@media (forced-colors: active) {
+  .toolbar button:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+}
+</style>

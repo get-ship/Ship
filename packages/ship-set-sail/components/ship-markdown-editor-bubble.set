@@ -1,0 +1,187 @@
+<script>
+// <ship-markdown-editor-bubble> — selection bubble + comment composer
+// for the markdown editor. Pure view+events: receives position +
+// visibility + mark booleans from the parent; dispatches mark-toggle
+// + action events back. Composer text is held in local state and
+// returned to the parent only on submit/cancel — parent flips
+// `pending-active` to true to open with `pending-text` as the
+// quoted selection.
+
+prop bubbleTop: number = -9999
+prop bubbleLeft: number = -9999
+prop visible: boolean = false
+prop pendingActive: boolean = false
+prop pendingText: string = ''
+prop markBold: boolean = false
+prop markItalic: boolean = false
+prop markStrike: boolean = false
+prop markCode: boolean = false
+prop allowComment: boolean = true
+prop allowGenerate: boolean = false
+
+state composerValue = ''
+state lastPendingActive = false
+
+derived bubbleOpen = visible() && !pendingActive()
+derived bubbleOpenAttr = bubbleOpen() ? 'true' : 'false'
+derived bubbleHidden = bubbleOpen() ? 'false' : 'true'
+derived bubbleStyle = bubbleOpen()
+  ? `top:${bubbleTop()}px;left:${bubbleLeft()}px`
+  : 'top:-9999px;left:-9999px'
+derived composerStyle = (bubbleTop() > -9000)
+  ? `top:${Math.max(bubbleTop() + 10, 0)}px;left:${bubbleLeft()}px`
+  : 'top:24px;left:50%'
+derived hasActions = allowComment() || allowGenerate()
+derived quote = pendingText().length > 140
+  ? pendingText().slice(0, 140) + '…'
+  : pendingText()
+derived submitDisabled = !composerValue().trim()
+derived boldPressed = markBold() ? 'true' : 'false'
+derived italicPressed = markItalic() ? 'true' : 'false'
+derived strikePressed = markStrike() ? 'true' : 'false'
+derived codePressed = markCode() ? 'true' : 'false'
+derived boldClass = markBold() ? 'is-active' : ''
+derived italicClass = markItalic() ? 'is-active' : ''
+derived strikeClass = markStrike() ? 'is-active' : ''
+derived codeClass = markCode() ? 'is-active' : ''
+
+function onMarkClick(e) {
+  e.preventDefault()
+  const kind = e.currentTarget && e.currentTarget.dataset
+    ? e.currentTarget.dataset.markKind
+    : null
+  if (!kind) return
+  el.dispatchEvent(new CustomEvent('ship-mark-toggle', {
+    detail: { kind }, bubbles: true, composed: true,
+  }))
+}
+
+function onActionClick(e) {
+  e.preventDefault()
+  const action = e.currentTarget && e.currentTarget.dataset
+    ? e.currentTarget.dataset.actionKind
+    : null
+  if (!action) return
+  el.dispatchEvent(new CustomEvent('ship-bubble-action', {
+    detail: { action }, bubbles: true, composed: true,
+  }))
+}
+
+function preventMouseDown(e) { e.preventDefault() }
+function stopMouseDown(e) { e.stopPropagation() }
+
+function onComposerInput(e) {
+  composerValue.set(e.target.value)
+}
+
+function cancelComposer() {
+  el.dispatchEvent(new CustomEvent('ship-composer-cancel', {
+    bubbles: true, composed: true,
+  }))
+}
+
+function submitComposer() {
+  const v = composerValue().trim()
+  if (!v) return
+  el.dispatchEvent(new CustomEvent('ship-composer-submit', {
+    detail: { comment: v, selection: pendingText() },
+    bubbles: true, composed: true,
+  }))
+}
+
+function onComposerKey(e) {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+    e.preventDefault(); submitComposer()
+  } else if (e.key === 'Escape') {
+    e.preventDefault(); cancelComposer()
+  }
+}
+
+// Reset the composer textarea each time the parent opens the composer
+// fresh. Tracking `lastPendingActive` avoids clobbering on every
+// reactive re-run; we only reset on the false→true edge.
+effect {
+  const active = pendingActive()
+  if (active && !lastPendingActive()) {
+    composerValue.set('')
+    queueMicrotask(() => {
+      const ta = el.querySelector('[data-composer-input]')
+      if (ta && typeof ta.focus === 'function') ta.focus()
+    })
+  }
+  lastPendingActive.set(active)
+}
+</script>
+
+<template>
+{#if pendingActive}
+  <div class="composer" part="composer" role="dialog" aria-label="Add comment"
+    style={composerStyle} onmousedown={stopMouseDown}>
+    <div class="composer-quote">“{quote}”</div>
+    <textarea data-composer-input rows="2" placeholder="Add your comment…"
+      bind:value={composerValue}
+      onkeydown={onComposerKey}></textarea>
+    <div class="composer-actions">
+      <button type="button" class="cancel" onclick={cancelComposer}>Cancel</button>
+      <button type="button" class="submit" disabled={submitDisabled}
+        onclick={submitComposer}>Add comment <kbd>⌘↵</kbd></button>
+    </div>
+  </div>
+{:else}
+  <div class="bubble" part="bubble" data-open={bubbleOpenAttr}
+    role="toolbar" aria-label="Selection actions"
+    aria-hidden={bubbleHidden}
+    style={bubbleStyle} onmousedown={preventMouseDown}>
+    <button type="button" part="bubble-bold" class={boldClass}
+      aria-label="Bold" aria-pressed={boldPressed} title="Bold"
+      data-mark-kind="bold"
+      onmousedown={preventMouseDown} onclick={onMarkClick}>
+      <span class="glyph-bold" aria-hidden="true">B</span>
+    </button>
+    <button type="button" part="bubble-italic" class={italicClass}
+      aria-label="Italic" aria-pressed={italicPressed} title="Italic"
+      data-mark-kind="italic"
+      onmousedown={preventMouseDown} onclick={onMarkClick}>
+      <span class="glyph-italic" aria-hidden="true">I</span>
+    </button>
+    <button type="button" part="bubble-strike" class={strikeClass}
+      aria-label="Strike" aria-pressed={strikePressed} title="Strike"
+      data-mark-kind="strike"
+      onmousedown={preventMouseDown} onclick={onMarkClick}>
+      <span class="glyph-strike" aria-hidden="true">S</span>
+    </button>
+    <button type="button" part="bubble-code" class={codeClass}
+      aria-label="Code" aria-pressed={codePressed} title="Code"
+      data-mark-kind="code"
+      onmousedown={preventMouseDown} onclick={onMarkClick}>
+      <span class="glyph-code" aria-hidden="true">&lt;/&gt;</span>
+    </button>
+    {#if hasActions}
+      <span class="sep" aria-hidden="true"></span>
+    {/if}
+    {#if allowComment}
+      <button type="button" part="bubble-comment" aria-label="Comment" title="Comment"
+        data-action-kind="comment"
+        onmousedown={preventMouseDown} onclick={onActionClick}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"></path>
+        </svg>
+      </button>
+    {/if}
+    {#if allowGenerate}
+      <button type="button" part="bubble-generate" aria-label="Generate" title="Generate"
+        data-action-kind="generate"
+        onmousedown={preventMouseDown} onclick={onActionClick}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3l1.9 4.6L18.5 9.5 14 12l-.5 5L12 13l-4 2 1.5-4.5L5.5 8l5-.4z"></path>
+          <path d="M20 3v4"></path><path d="M22 5h-4"></path>
+        </svg>
+      </button>
+    {/if}
+  </div>
+{/if}
+</template>
+
+<style src="./ship-markdown-editor-bubble.css"></style>

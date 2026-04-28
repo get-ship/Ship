@@ -1,0 +1,283 @@
+<script>
+// <ship-markdown-editor> — TipTap-backed markdown editor island.
+// Owns the editor instance, value sync, mark map, bubble position,
+// and pending-comment state. Toolbar + bubble live in sibling .set
+// sub-components. TipTap graph lazy-loads from
+// `./ship-markdown-editor.init.ts` so element registration stays
+// light. Public methods (focus) and dispose use existing primitives.
+
+component formAssociated
+
+prop value: string = ''
+prop placeholder: string = ''
+prop size: 'sm' | 'md' | 'lg' = 'md'
+prop tone: 'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' = 'default'
+prop disabled: boolean = false
+prop invalid: boolean = false
+prop rows: number = 12
+prop fullHeight: boolean = false
+prop name: string = ''
+prop label: string = ''
+prop showSelectionToolbar: boolean = true
+prop allowComment: boolean = true
+prop allowGenerate: boolean = false
+
+state defaultValue = ''
+state editor: any = null
+state markBold = false
+state markItalic = false
+state markStrike = false
+state markCode = false
+state markH1 = false
+state markH2 = false
+state markH3 = false
+state markBullet = false
+state markOrdered = false
+state markTask = false
+state markLink = false
+state bubbleTop = -9999
+state bubbleLeft = -9999
+state bubbleVisible = false
+state pendingActive = false
+state pendingText = ''
+state changeTimer: any = null
+state syncTimer: any = null
+state suppressNextUpdate = false
+
+derived ariaInvalid = invalid() ? 'true' : 'false'
+derived ariaDisabled = disabled() ? 'true' : 'false'
+derived minHeight = `${Math.max(rows() * 28, 160)}px`
+
+function syncFormValue() {
+  if (internals && typeof internals.setFormValue === 'function') {
+    internals.setFormValue(value())
+  }
+}
+
+function readMarkdown(ed) {
+  const s = ed && ed.storage ? ed.storage.markdown : null
+  return s && typeof s.getMarkdown === 'function' ? s.getMarkdown() : ''
+}
+
+function refreshMarks() {
+  const ed = editor(); if (!ed) return
+  markBold.set(ed.isActive('bold'))
+  markItalic.set(ed.isActive('italic'))
+  markStrike.set(ed.isActive('strike'))
+  markCode.set(ed.isActive('code'))
+  markH1.set(ed.isActive('heading', { level: 1 }))
+  markH2.set(ed.isActive('heading', { level: 2 }))
+  markH3.set(ed.isActive('heading', { level: 3 }))
+  markBullet.set(ed.isActive('bulletList'))
+  markOrdered.set(ed.isActive('orderedList'))
+  markTask.set(ed.isActive('taskList'))
+  markLink.set(ed.isActive('link'))
+}
+
+function hideBubble() { bubbleVisible.set(false) }
+
+function refreshBubble() {
+  if (!showSelectionToolbar() || disabled()) { hideBubble(); return }
+  const ed = editor()
+  const shell = el.querySelector('[data-shell]')
+  if (!ed || !shell) { hideBubble(); return }
+  const sel = ed.state.selection
+  if (sel.empty || pendingActive()) { hideBubble(); return }
+  try {
+    const a = ed.view.coordsAtPos(sel.from)
+    const b = ed.view.coordsAtPos(sel.to)
+    const r = shell.getBoundingClientRect()
+    bubbleTop.set(Math.max(-4, Math.min(a.top, b.top) - r.top - 42))
+    bubbleLeft.set(Math.max(20, (a.left + b.left) / 2 - r.left))
+    bubbleVisible.set(true)
+  } catch (_e) { bubbleVisible.set(false) }
+}
+
+function onEditorUpdate(ed) {
+  if (suppressNextUpdate()) { suppressNextUpdate.set(false); return }
+  const md = readMarkdown(ed)
+  if (md === value()) return
+  value.set(md)
+  syncFormValue()
+  el.dispatchEvent(new Event('input', { bubbles: true, composed: true }))
+  const t = changeTimer(); if (t) clearTimeout(t)
+  changeTimer.set(setTimeout(() => {
+    el.dispatchEvent(new CustomEvent('ship-change', {
+      detail: { value: md }, bubbles: true, composed: true,
+    }))
+  }, 150))
+}
+
+function getSelectedText() {
+  const ed = editor(); if (!ed) return ''
+  const { from, to } = ed.state.selection
+  return ed.state.doc.textBetween(from, to, ' ').trim()
+}
+
+function applyMark(kind) {
+  const ed = editor()
+  if (!ed || disabled() || !kind) return
+  const c = ed.chain().focus()
+  const fns = {
+    bold:    () => c.toggleBold().run(),
+    italic:  () => c.toggleItalic().run(),
+    strike:  () => c.toggleStrike().run(),
+    code:    () => c.toggleCode().run(),
+    h1:      () => c.toggleHeading({ level: 1 }).run(),
+    h2:      () => c.toggleHeading({ level: 2 }).run(),
+    h3:      () => c.toggleHeading({ level: 3 }).run(),
+    bullet:  () => c.toggleBulletList().run(),
+    ordered: () => c.toggleOrderedList().run(),
+    task:    () => c.toggleTaskList().run(),
+  }
+  const fn = fns[kind]; if (fn) fn()
+  refreshBubble()
+}
+
+function onLinkButton() {
+  const ed = editor(); if (!ed || disabled()) return
+  const prev = (ed.getAttributes('link').href) || ''
+  const url = window.prompt('Link URL', prev); if (url === null) return
+  const c = ed.chain().focus().extendMarkRange('link')
+  if (url === '') c.unsetLink().run(); else c.setLink({ href: url }).run()
+}
+
+function openComposer() {
+  const text = getSelectedText(); if (!text) return
+  pendingText.set(text); pendingActive.set(true); hideBubble()
+}
+
+function closeComposer() {
+  pendingActive.set(false); pendingText.set('')
+  const ed = editor(); if (ed) ed.commands.focus()
+}
+
+function onGenerate() {
+  const text = getSelectedText(); if (!text) return
+  el.dispatchEvent(new CustomEvent('ship-feedback', {
+    detail: { action: 'generate', selection: text },
+    bubbles: true, composed: true,
+  }))
+  hideBubble()
+}
+
+function onMarkEvent(e) { applyMark(e.detail && e.detail.kind) }
+function onBubbleAction(e) {
+  const a = e.detail && e.detail.action
+  if (a === 'comment') openComposer()
+  else if (a === 'generate') onGenerate()
+}
+function onComposerSubmit(e) {
+  const d = e.detail || {}; if (!d.comment) return
+  el.dispatchEvent(new CustomEvent('ship-feedback', {
+    detail: { action: 'comment', selection: d.selection || '', comment: d.comment },
+    bubbles: true, composed: true,
+  }))
+  closeComposer()
+}
+
+mount {
+  defaultValue.set(value())
+  el.style.setProperty('--ed-min-h', minHeight())
+  syncFormValue()
+  el.focus = () => { const ed = editor(); if (ed) ed.commands.focus() }
+
+  const host = el.querySelector('[data-editor-host]')
+  if (host) {
+    // Path held in a variable so Vite's static import-analysis treats
+    // the call as opaque (the daemon resolves the sibling .ts at
+    // runtime; in tests the import rejects and the .catch() below
+    // keeps the shell rendering).
+    const initPath = './ship-markdown-editor.init'
+    import(initPath).then((mod) => mod.createMarkdownEditor({
+      element: host, content: value(), placeholder: placeholder(), editable: !disabled(),
+      onUpdate: onEditorUpdate,
+      onSelectionUpdate: () => { refreshMarks(); refreshBubble() },
+      onTransaction: () => refreshMarks(),
+      onBlur: () => hideBubble(),
+    })).then((ed) => {
+      if (!ed) return
+      editor.set(ed)
+      refreshMarks()
+      el.dispatchEvent(new Event('input', { bubbles: true, composed: true }))
+      syncFormValue()
+    }).catch(() => { /* lazy import unavailable in this env */ })
+  }
+
+  cleanups.push(() => {
+    const c = changeTimer(); if (c) clearTimeout(c)
+    const s = syncTimer(); if (s) clearTimeout(s)
+    const ed = editor(); if (ed) { try { ed.destroy() } catch (_e) {} }
+  })
+}
+
+on form_reset {
+  value.set(defaultValue())
+  const ed = editor(); if (ed) ed.commands.setContent(defaultValue())
+  syncFormValue()
+}
+on form_restore(state) {
+  value.set(state == null ? '' : state)
+  const ed = editor(); if (ed) ed.commands.setContent(value())
+}
+
+effect {
+  const ed = editor(); const v = value(); if (!ed) return
+  const s = syncTimer(); if (s) clearTimeout(s)
+  syncTimer.set(setTimeout(() => {
+    if (readMarkdown(ed) === v) return
+    suppressNextUpdate.set(true)
+    ed.commands.setContent(v)
+  }, 50))
+}
+
+effect { const ed = editor(); if (ed) ed.setEditable(!disabled()) }
+effect { el.style.setProperty('--ed-min-h', minHeight()) }
+effect { syncFormValue() }
+</script>
+
+<template>
+<:host aria-invalid={ariaInvalid} aria-disabled={ariaDisabled} />
+<div class="shell" part="shell" data-shell>
+  <ship-markdown-editor-toolbar
+    label={label}
+    disabled={disabled}
+    mark-bold={markBold}
+    mark-italic={markItalic}
+    mark-code={markCode}
+    mark-h1={markH1}
+    mark-h2={markH2}
+    mark-h3={markH3}
+    mark-bullet={markBullet}
+    mark-ordered={markOrdered}
+    mark-task={markTask}
+    mark-link={markLink}
+    onship-mark-toggle={onMarkEvent}
+    onship-link-click={onLinkButton}
+  ></ship-markdown-editor-toolbar>
+  <div class="surface" part="surface">
+    <div data-editor-host part="editor"></div>
+  </div>
+  {#if showSelectionToolbar}
+    <ship-markdown-editor-bubble
+      bubble-top={bubbleTop}
+      bubble-left={bubbleLeft}
+      visible={bubbleVisible}
+      pending-active={pendingActive}
+      pending-text={pendingText}
+      mark-bold={markBold}
+      mark-italic={markItalic}
+      mark-strike={markStrike}
+      mark-code={markCode}
+      allow-comment={allowComment}
+      allow-generate={allowGenerate}
+      onship-mark-toggle={onMarkEvent}
+      onship-bubble-action={onBubbleAction}
+      onship-composer-cancel={closeComposer}
+      onship-composer-submit={onComposerSubmit}
+    ></ship-markdown-editor-bubble>
+  {/if}
+</div>
+</template>
+
+<style src="./ship-markdown-editor.css"></style>
