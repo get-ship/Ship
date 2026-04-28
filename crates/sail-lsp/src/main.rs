@@ -5,6 +5,7 @@
 //! parse foundation is `tree-sitter-set` (stubbed in v0 — see
 //! [`document`] for the integration shape).
 
+mod code_actions;
 mod completion;
 mod diagnostics;
 mod document;

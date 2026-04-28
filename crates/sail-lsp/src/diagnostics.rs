@@ -55,6 +55,12 @@ fn sail_to_lsp(d: &SailDiagnostic) -> Diagnostic {
         message.push_str("\nhelp: ");
         message.push_str(help);
     }
+    // Attach the structured fix as `data` so the codeAction handler
+    // can read it back without re-running analysis.
+    let data = d
+        .fix
+        .as_ref()
+        .map(|f| serde_json::to_value(f).unwrap_or(serde_json::Value::Null));
     Diagnostic {
         range,
         severity: Some(map_severity(d.severity)),
@@ -64,7 +70,7 @@ fn sail_to_lsp(d: &SailDiagnostic) -> Diagnostic {
         message,
         related_information: None,
         tags: None,
-        data: None,
+        data,
     }
 }
 

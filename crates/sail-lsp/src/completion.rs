@@ -211,12 +211,21 @@ pub(crate) fn signal_kind_label(kind: &SignalKind) -> &'static str {
         SignalKind::State { .. } => "state",
         SignalKind::Derived => "derived",
         SignalKind::Data { .. } => "data",
+        SignalKind::Module { kind, .. } => match kind.as_str() {
+            "const" => "const",
+            "let" => "let",
+            "var" => "var",
+            _ => "module",
+        },
     }
 }
 
 fn signal_detail(kind: &SignalKind) -> String {
     let ty = match kind {
-        SignalKind::Prop { ty, .. } | SignalKind::State { ty } | SignalKind::Data { ty } => ty.as_deref(),
+        SignalKind::Prop { ty, .. }
+        | SignalKind::State { ty }
+        | SignalKind::Data { ty }
+        | SignalKind::Module { ty, .. } => ty.as_deref(),
         SignalKind::Derived => None,
     }.unwrap_or("?");
     let bang = matches!(kind, SignalKind::Prop { required: true, .. }).then_some("!").unwrap_or("");

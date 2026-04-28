@@ -16,12 +16,13 @@ use lsp_types::request::{
     CodeActionRequest, Completion, GotoDefinition, HoverRequest, Request as _,
 };
 use lsp_types::{
-    CodeActionProviderCapability, CompletionOptions, CompletionParams, CompletionResponse,
-    Diagnostic, HoverParams, HoverProviderCapability, InitializeParams, OneOf,
-    PublishDiagnosticsParams, ServerCapabilities, TextDocumentSyncCapability,
+    CodeActionParams, CodeActionProviderCapability, CompletionOptions, CompletionParams,
+    CompletionResponse, Diagnostic, HoverParams, HoverProviderCapability, InitializeParams,
+    OneOf, PublishDiagnosticsParams, ServerCapabilities, TextDocumentSyncCapability,
     TextDocumentSyncKind, Url,
 };
 
+use crate::code_actions::code_actions;
 use crate::completion::completions;
 use crate::diagnostics::compile_diagnostics;
 use crate::document::Documents;
@@ -110,8 +111,13 @@ fn handle_request(conn: &Connection, docs: &Documents, req: Request) -> Result<(
                 .and_then(|d| hover(&d.text, params.text_document_position_params.position));
             send_result(conn, req.id, result)
         }
-        // codeAction + definition stay stubbed in v1.
-        CodeActionRequest::METHOD | GotoDefinition::METHOD => empty_response(conn, req.id),
+        CodeActionRequest::METHOD => {
+            let params: CodeActionParams = req.extract_params(CodeActionRequest::METHOD)?;
+            let actions = code_actions(&params);
+            send_result(conn, req.id, actions)
+        }
+        // definition stays stubbed in v1.
+        GotoDefinition::METHOD => empty_response(conn, req.id),
         other => {
             tracing::debug!(method = %other, "unhandled LSP request");
             empty_response(conn, req.id)

@@ -132,10 +132,18 @@ fn scope_binding_hover(word: &str, range: Range) -> Option<Hover> {
 fn signal_markdown(name: &str, kind: &SignalKind) -> String {
     let label = signal_kind_label(kind);
     let ty = match kind {
-        SignalKind::Prop { ty, .. } | SignalKind::State { ty } | SignalKind::Data { ty } => ty.clone(),
+        SignalKind::Prop { ty, .. }
+        | SignalKind::State { ty }
+        | SignalKind::Data { ty }
+        | SignalKind::Module { ty, .. } => ty.clone(),
         SignalKind::Derived => None,
     }.unwrap_or_else(|| "<inferred>".into());
-    format!("**{label}** `{name}: {ty}`\n\nReactive signal — read as `{name}()`, write as `{name}.set(v)`.")
+    let access = if matches!(kind, SignalKind::Module { .. }) {
+        format!("Plain JS binding — read/write as `{name}` directly.")
+    } else {
+        format!("Reactive signal — read as `{name}()`, write as `{name}.set(v)`.")
+    };
+    format!("**{label}** `{name}: {ty}`\n\n{access}")
 }
 
 fn function_markdown(name: &str, info: &FunctionInfo) -> String {
