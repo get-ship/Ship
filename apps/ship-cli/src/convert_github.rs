@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::collections::HashMap;
 
-use crate::config::Credentials;
+use crate::config::{Credentials, DiskBackedConfig};
 use crate::mcp::{McpEntry, McpFile};
 
 // ── Types ─────────────────────────────────────────────────────────────────────

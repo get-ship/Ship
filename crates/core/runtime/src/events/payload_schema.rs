@@ -47,17 +47,8 @@ fn schema_for_event_type(
     match event_type {
         // workspace
         "workspace.created" => Some(check::<WorkspaceCreated>),
-        "workspace.deleted" => Some(check::<WorkspaceDeleted>),
-        "workspace.status_changed" => Some(check::<WorkspaceStatusChanged>),
         "workspace.activated" => Some(check::<WorkspaceActivated>),
         "workspace.archived" => Some(check::<WorkspaceArchived>),
-        "workspace.reconciled" => Some(check::<WorkspaceReconciled>),
-        "workspace.tmux_assigned" => Some(check::<WorkspaceTmuxAssigned>),
-        "workspace.started" => Some(check::<WorkspaceStarted>),
-        "workspace.worktree_added" => Some(check::<WorkspaceWorktreeAdded>),
-        "workspace.worktree_removed" => Some(check::<WorkspaceWorktreeRemoved>),
-        "workspace.branch_switched" => Some(check::<WorkspaceBranchSwitched>),
-        "workspace.config_changed" => Some(check::<WorkspaceConfigChanged>),
         // session
         "session.started" => Some(check::<SessionStarted>),
         "session.progress" => Some(check::<SessionProgress>),
@@ -78,7 +69,6 @@ fn schema_for_event_type(
         "gate.failed" => Some(check::<GateFailed>),
         // job
         "job.created" => Some(check::<JobCreated>),
-        "job.claimed" => Some(check::<JobClaimed>),
         "job.completed" => Some(check::<JobCompleted>),
         "job.failed" => Some(check::<JobFailed>),
         "job.dispatched" => Some(check::<JobDispatched>),
@@ -101,9 +91,7 @@ fn schema_for_event_type(
         "process.signal_sent" => Some(check::<crate::events::process::ProcessSignalSentPayload>),
         "process.orphaned" => Some(check::<crate::events::process::ProcessOrphanedPayload>),
         // executor
-        "executor.session_created" => Some(check::<crate::events::executor::ExecutorSessionCreatedPayload>),
         "executor.session_destroyed" => Some(check::<crate::events::executor::ExecutorSessionDestroyedPayload>),
-        "executor.window_created" => Some(check::<crate::events::executor::ExecutorWindowCreatedPayload>),
         "executor.window_destroyed" => Some(check::<crate::events::executor::ExecutorWindowDestroyedPayload>),
         // supervisor
         "supervisor.shutting_down" => Some(check::<SupervisorShuttingDown>),

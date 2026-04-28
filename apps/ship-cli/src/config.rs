@@ -20,6 +20,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 pub use runtime::config::Credentials;
+pub use runtime::config::DiskBackedConfig;
 pub use runtime::config::credentials::{Account as CredentialsAccount, Mcp as CredentialsMcp};
 
 use runtime::config::library::{Cloud, Defaults, Identity, LibrarySettings};

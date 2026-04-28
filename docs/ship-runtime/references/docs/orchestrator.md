@@ -64,7 +64,6 @@ Defined in `runtime::services::dispatch_ports`:
 | `JobExecutor` | `RoutingExecutor`, `TmuxExecutor`, `TmuxWindowExecutor`, `ProcessExecutor` | `spawn(JobContext) -> ExecutorHandle`. Launches the agent process. |
 | `AgentPlatform` | `ShipdPlatform` | Host-side capabilities: worktrees dir, liveness sweep, orphan cleanup, kernel access. |
 | `ProcessRegistryPort` | `RegistryAdapter` | Register/unregister running processes for query and cleanup. |
-| `ProviderLauncher` | per-provider | Build the CLI invocation for a specific provider (claude, gemini, codex, cursor, opencode). |
 | `ProcessTreeProbe` | `SysinfoProcessTreeProbe` | Sample a process's entire tree for liveness + orphan detection. |
 
 ## start_orchestrator

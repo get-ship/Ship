@@ -4,7 +4,7 @@ use std::path::Path;
 use compiler::manifest::ShipManifest;
 use runtime::registry::hash::{ExportHashes, compute_export_hashes};
 
-use crate::config::Credentials;
+use crate::config::{Credentials, DiskBackedConfig};
 
 /// Filter manifest exports to a single export path.
 ///

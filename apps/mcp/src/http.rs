@@ -13,6 +13,8 @@ use rmcp::transport::streamable_http_server::{
 use std::path::Path;
 use tokio_util::sync::CancellationToken;
 
+use runtime::config::DiskBackedConfig;
+
 use crate::server::ShipServer;
 
 /// Read the MCP bearer token from a given credentials.jsonc path.

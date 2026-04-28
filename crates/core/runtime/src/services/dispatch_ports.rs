@@ -243,18 +243,6 @@ mod shell_quote_tests {
     }
 }
 
-/// Builds provider-specific CLI launch commands.
-///
-/// Each provider (Claude, Codex, etc.) implements this to translate
-/// a `LaunchProfile` into the right binary + flags for that provider's CLI.
-pub trait ProviderLauncher: Send + Sync {
-    /// Build the launch command for an interactive session (tmux).
-    fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand;
-
-    /// Build the launch command for a non-interactive (headless) run.
-    fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand;
-}
-
 /// Port: prepares and cleans up the isolated working directory for a job.
 #[async_trait]
 pub trait IsolationStrategy: Send + Sync {

@@ -31,50 +31,23 @@ pub struct Mcp {
     pub token: Option<String>,
 }
 
-impl Credentials {
-    pub fn path() -> PathBuf {
-        ShipHome::from_env().credentials_path()
-    }
-
-    pub fn path_at(home: &ShipHome) -> PathBuf {
+impl crate::config::DiskBackedConfig for Credentials {
+    fn path_at(home: &ShipHome) -> PathBuf {
         home.credentials_path()
     }
 
-    pub fn load() -> Self {
-        Self::load_at(&Self::path())
-    }
-
-    pub fn load_at(path: &Path) -> Self {
-        match std::fs::read_to_string(path) {
-            Ok(raw) => Self::parse(&raw).unwrap_or_default(),
-            Err(_) => Self::default(),
-        }
-    }
-
-    pub fn save(&self) -> Result<()> {
-        self.save_at(&Self::path())
-    }
-
-    pub fn save_at(&self, path: &Path) -> Result<()> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let body = serde_json::to_string_pretty(self)?;
-        std::fs::write(path, format!("{body}\n"))?;
+    /// Credentials file is sensitive — `chmod 600` after writing.
+    fn after_save(_path: &Path) -> Result<()> {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            let _ = std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600));
+            let _ = std::fs::set_permissions(_path, std::fs::Permissions::from_mode(0o600));
         }
         Ok(())
     }
+}
 
-    pub fn parse(raw: &str) -> Result<Self> {
-        let stripped = crate::config::local::strip_jsonc_comments(raw);
-        let val: Self = serde_json::from_str(&stripped)?;
-        Ok(val)
-    }
-
+impl Credentials {
     pub fn account_token(&self) -> Option<&str> {
         self.account.as_ref()?.token.as_deref()
     }
@@ -87,6 +60,7 @@ impl Credentials {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::DiskBackedConfig;
     use tempfile::TempDir;
 
     #[test]

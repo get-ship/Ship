@@ -10,12 +10,13 @@
 //! comments survive as long as the structural shape doesn't change.
 
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use crate::ShipHome;
+use crate::config::DiskBackedConfig;
 
 /// Machine-local user settings.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -55,57 +56,13 @@ pub struct Dispatch {
     pub confirm: Option<bool>,
 }
 
-impl LocalSettings {
-    /// Path to the canonical local.jsonc file under the active SHIP_HOME.
-    pub fn path() -> PathBuf {
-        ShipHome::from_env().local_path()
-    }
-
-    /// Path under an explicit ship home. Used by tests and code that
-    /// already has a ShipHome.
-    pub fn path_at(home: &ShipHome) -> PathBuf {
+impl crate::config::DiskBackedConfig for LocalSettings {
+    fn path_at(home: &ShipHome) -> PathBuf {
         home.local_path()
     }
+}
 
-    /// Load from the active SHIP_HOME. Returns defaults if the file is
-    /// missing or unparseable.
-    pub fn load() -> Self {
-        Self::load_at(&Self::path())
-    }
-
-    /// Load from an explicit path. Returns defaults if missing or
-    /// unparseable.
-    pub fn load_at(path: &Path) -> Self {
-        match std::fs::read_to_string(path) {
-            Ok(raw) => Self::parse(&raw).unwrap_or_default(),
-            Err(_) => Self::default(),
-        }
-    }
-
-    /// Save to the active SHIP_HOME, creating parent dirs as needed.
-    pub fn save(&self) -> Result<()> {
-        self.save_at(&Self::path())
-    }
-
-    /// Save to an explicit path.
-    pub fn save_at(&self, path: &Path) -> Result<()> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let body = serde_json::to_string_pretty(self)?;
-        // Trailing newline; matches house style.
-        std::fs::write(path, format!("{body}\n"))?;
-        Ok(())
-    }
-
-    /// Parse a JSONC body. Strips line + block comments before handing
-    /// to serde_json.
-    pub fn parse(raw: &str) -> Result<Self> {
-        let stripped = strip_jsonc_comments(raw);
-        let val: Self = serde_json::from_str(&stripped)?;
-        Ok(val)
-    }
-
+impl LocalSettings {
     /// Convenience: configured worktrees.dir, with tilde-expansion.
     pub fn worktrees_dir(&self) -> Option<PathBuf> {
         let raw = self.worktrees.as_ref()?.dir.as_ref()?;

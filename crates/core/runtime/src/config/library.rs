@@ -4,7 +4,7 @@
 //! user across machines (identity, defaults, cloud), while `machine/`
 //! holds machine-specific values (worktrees.dir, terminal.program).
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -37,49 +37,16 @@ pub struct Cloud {
     pub base_url: Option<String>,
 }
 
-impl LibrarySettings {
-    pub fn path() -> PathBuf {
-        ShipHome::from_env().settings_path()
-    }
-
-    pub fn path_at(home: &ShipHome) -> PathBuf {
+impl crate::config::DiskBackedConfig for LibrarySettings {
+    fn path_at(home: &ShipHome) -> PathBuf {
         home.settings_path()
-    }
-
-    pub fn load() -> Self {
-        Self::load_at(&Self::path())
-    }
-
-    pub fn load_at(path: &Path) -> Self {
-        match std::fs::read_to_string(path) {
-            Ok(raw) => Self::parse(&raw).unwrap_or_default(),
-            Err(_) => Self::default(),
-        }
-    }
-
-    pub fn save(&self) -> Result<()> {
-        self.save_at(&Self::path())
-    }
-
-    pub fn save_at(&self, path: &Path) -> Result<()> {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        let body = serde_json::to_string_pretty(self)?;
-        std::fs::write(path, format!("{body}\n"))?;
-        Ok(())
-    }
-
-    pub fn parse(raw: &str) -> Result<Self> {
-        let stripped = crate::config::local::strip_jsonc_comments(raw);
-        let val: Self = serde_json::from_str(&stripped)?;
-        Ok(val)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::DiskBackedConfig;
     use tempfile::TempDir;
 
     #[test]

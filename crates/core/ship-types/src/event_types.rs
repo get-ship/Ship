@@ -1,15 +1,6 @@
 pub const WORKSPACE_CREATED: &str = "workspace.created";
-pub const WORKSPACE_DELETED: &str = "workspace.deleted";
-pub const WORKSPACE_STATUS_CHANGED: &str = "workspace.status_changed";
 pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
 pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";
-pub const WORKSPACE_RECONCILED: &str = "workspace.reconciled";
-pub const WORKSPACE_TMUX_ASSIGNED: &str = "workspace.tmux_assigned";
-pub const WORKSPACE_STARTED: &str = "workspace.started";
-pub const WORKSPACE_WORKTREE_ADDED: &str = "workspace.worktree_added";
-pub const WORKSPACE_WORKTREE_REMOVED: &str = "workspace.worktree_removed";
-pub const WORKSPACE_BRANCH_SWITCHED: &str = "workspace.branch_switched";
-pub const WORKSPACE_CONFIG_CHANGED: &str = "workspace.config_changed";
 pub const SESSION_STARTED: &str = "session.started";
 pub const SESSION_PROGRESS: &str = "session.progress";
 pub const SESSION_ENDED: &str = "session.ended";
@@ -27,7 +18,6 @@ pub const ACTOR_CRASHED: &str = "actor.crashed";
 pub const GATE_PASSED: &str = "gate.passed";
 pub const GATE_FAILED: &str = "gate.failed";
 pub const JOB_CREATED: &str = "job.created";
-pub const JOB_CLAIMED: &str = "job.claimed";
 pub const JOB_COMPLETED: &str = "job.completed";
 pub const JOB_FAILED: &str = "job.failed";
 pub const JOB_DISPATCHED: &str = "job.dispatched";
@@ -47,9 +37,7 @@ pub const PROCESS_EXITED: &str = "process.exited";
 pub const PROCESS_SIGNAL_SENT: &str = "process.signal_sent";
 pub const PROCESS_ORPHANED: &str = "process.orphaned";
 pub const PROCESS_KILLED: &str = "process.killed";
-pub const EXECUTOR_SESSION_CREATED: &str = "executor.session_created";
 pub const EXECUTOR_SESSION_DESTROYED: &str = "executor.session_destroyed";
-pub const EXECUTOR_WINDOW_CREATED: &str = "executor.window_created";
 pub const EXECUTOR_WINDOW_DESTROYED: &str = "executor.window_destroyed";
 pub const DAEMON_STARTUP_COMPLETED: &str = "daemon.startup_completed";
 pub const DAEMON_SHUTDOWN_COMPLETED: &str = "daemon.shutdown_completed";
@@ -82,17 +70,8 @@ pub const STUDIO_REPLY: &str = "studio.reply";
 
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
-    WORKSPACE_DELETED,
-    WORKSPACE_STATUS_CHANGED,
     WORKSPACE_ACTIVATED,
     WORKSPACE_ARCHIVED,
-    WORKSPACE_RECONCILED,
-    WORKSPACE_TMUX_ASSIGNED,
-    WORKSPACE_STARTED,
-    WORKSPACE_WORKTREE_ADDED,
-    WORKSPACE_WORKTREE_REMOVED,
-    WORKSPACE_BRANCH_SWITCHED,
-    WORKSPACE_CONFIG_CHANGED,
     SESSION_STARTED,
     SESSION_PROGRESS,
     SESSION_ENDED,
@@ -110,7 +89,6 @@ pub const ALL: &[&str] = &[
     GATE_PASSED,
     GATE_FAILED,
     JOB_CREATED,
-    JOB_CLAIMED,
     JOB_COMPLETED,
     JOB_FAILED,
     JOB_DISPATCHED,
@@ -130,9 +108,7 @@ pub const ALL: &[&str] = &[
     PROCESS_SIGNAL_SENT,
     PROCESS_ORPHANED,
     PROCESS_KILLED,
-    EXECUTOR_SESSION_CREATED,
     EXECUTOR_SESSION_DESTROYED,
-    EXECUTOR_WINDOW_CREATED,
     EXECUTOR_WINDOW_DESTROYED,
     DAEMON_STARTUP_COMPLETED,
     DAEMON_SHUTDOWN_COMPLETED,

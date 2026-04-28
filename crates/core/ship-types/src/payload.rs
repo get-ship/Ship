@@ -10,17 +10,6 @@ pub struct WorkspaceCreated {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceDeleted {
-    pub branch: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceStatusChanged {
-    pub old_status: String,
-    pub new_status: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceActivated {
     pub agent_id: Option<String>,
     pub providers: Vec<String>,
@@ -28,54 +17,6 @@ pub struct WorkspaceActivated {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceArchived {}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceReconciled {
-    pub reason: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceTmuxAssigned {
-    pub tmux_session_name: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceStarted {
-    pub worktree_path: String,
-    pub tmux_session_name: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceWorktreeAdded {
-    pub worktree_path: String,
-    #[serde(default)]
-    pub detected_by: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceWorktreeRemoved {
-    #[serde(default)]
-    pub previous_path: Option<String>,
-    #[serde(default)]
-    pub detected_by: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceBranchSwitched {
-    #[serde(default)]
-    pub previous_branch: Option<String>,
-    pub new_branch: String,
-    #[serde(default)]
-    pub detected_by: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceConfigChanged {
-    #[serde(default)]
-    pub changed_path: Option<String>,
-    #[serde(default)]
-    pub detected_by: String,
-}
 
 // -- Session aggregate ---------------------------------------------------------
 
@@ -279,11 +220,6 @@ pub struct GateFailed {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct JobCreated {
     pub title: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct JobClaimed {
-    pub agent_id: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

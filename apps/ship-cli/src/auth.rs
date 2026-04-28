@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::mpsc;
 
-use crate::config::{Credentials, CredentialsAccount, ShipConfig};
+use crate::config::{Credentials, CredentialsAccount, DiskBackedConfig, ShipConfig};
 
 /// Open `url` in the system's default browser.
 fn open_browser(url: &str) {
@@ -171,8 +171,12 @@ fn bind_daemon_owner(token: &str) -> Result<Option<String>> {
         .map(String::from);
     if let Some(ref id) = user_id {
         let value = serde_json::Value::String(id.clone());
-        runtime::db::kv::set("auth.daemon_owner", "user_id", &value)
-            .map_err(|e| anyhow::anyhow!("write daemon owner: {e}"))?;
+        runtime::db::kv::set(
+            shipd::auth::attest::DAEMON_OWNER_NAMESPACE,
+            shipd::auth::attest::DAEMON_OWNER_KEY,
+            &value,
+        )
+        .map_err(|e| anyhow::anyhow!("write daemon owner: {e}"))?;
     }
     Ok(user_id)
 }
@@ -318,7 +322,10 @@ pub fn run_logout() -> Result<()> {
     creds.account = None;
     creds.save()?;
     // Clear the daemon-owner binding so the next ship login can bind fresh.
-    let _ = runtime::db::kv::delete("auth.daemon_owner", "user_id");
+    let _ = runtime::db::kv::delete(
+        shipd::auth::attest::DAEMON_OWNER_NAMESPACE,
+        shipd::auth::attest::DAEMON_OWNER_KEY,
+    );
     println!("Logged out.");
     Ok(())
 }
