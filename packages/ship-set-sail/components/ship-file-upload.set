@@ -45,7 +45,13 @@ function addFiles(incoming) {
     }
     valid.push(f)
   }
-  files.set(multiple() ? [...files(), ...valid] : valid.slice(0, 1))
+  if (multiple()) {
+    files.set([...files(), ...valid])
+  } else if (valid.length > 0) {
+    // Single-file mode: replace only when the new pick is valid.
+    // A rejected pick leaves the existing file (and the error) in place.
+    files.set(valid.slice(0, 1))
+  }
   emitChange()
 }
 

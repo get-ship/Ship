@@ -678,6 +678,9 @@ fn skip_braces(bytes: &[u8], start: usize) -> usize {
     debug_assert_eq!(bytes[start], b'{');
     let mut depth = 0i32;
     let mut i = start;
+    // Track the last non-whitespace byte so we can disambiguate `/` as
+    // regex vs division. `{` is the initial context (regex-starter).
+    let mut prev_significant: u8 = b'{';
     while i < bytes.len() {
         let b = bytes[i];
         if b == b'/' && i + 1 < bytes.len() {
@@ -689,13 +692,23 @@ fn skip_braces(bytes: &[u8], start: usize) -> usize {
                 i = skip_block_comment(bytes, i);
                 continue;
             }
+            // After an identifier/number/`)`/`]` it's division.
+            // Otherwise it starts a regex literal — skip its body so a
+            // contained `"` or `'` doesn't open a phantom string.
+            if regex_context(prev_significant) {
+                i = skip_regex(bytes, i);
+                prev_significant = b'/';
+                continue;
+            }
         }
         if b == b'"' || b == b'\'' {
             i = skip_string(bytes, i, b);
+            prev_significant = b;
             continue;
         }
         if b == b'`' {
             i = skip_template(bytes, i);
+            prev_significant = b'`';
             continue;
         }
         if b == b'{' {
@@ -705,6 +718,49 @@ fn skip_braces(bytes: &[u8], start: usize) -> usize {
             if depth == 0 {
                 return i + 1;
             }
+        }
+        if !b.is_ascii_whitespace() {
+            prev_significant = b;
+        }
+        i += 1;
+    }
+    bytes.len()
+}
+
+/// Returns true when `/` in this context starts a regex literal vs a
+/// division operator. The disambiguator is the previous non-whitespace
+/// byte: identifiers/numbers/`)`/`]` mean division; everything else
+/// (operators, statement starts, brackets) means regex.
+fn regex_context(prev: u8) -> bool {
+    !(prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'$' || prev == b')' || prev == b']')
+}
+
+/// Skip a regex literal `/.../flags` starting at `start`. Handles `\\.`
+/// escapes and `[...]` character classes (which can contain `/`).
+/// Returns the index just past the closing flags.
+fn skip_regex(bytes: &[u8], start: usize) -> usize {
+    let mut i = start + 1; // past opening `/`
+    let mut in_class = false;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if b == b'\\' && i + 1 < bytes.len() {
+            i += 2;
+            continue;
+        }
+        if b == b'[' {
+            in_class = true;
+        } else if b == b']' {
+            in_class = false;
+        } else if b == b'/' && !in_class {
+            i += 1;
+            // Skip flags (gimsuy etc.).
+            while i < bytes.len() && bytes[i].is_ascii_alphabetic() {
+                i += 1;
+            }
+            return i;
+        } else if b == b'\n' {
+            // Regex literals don't span lines — bail; treat as not-a-regex.
+            return start + 1;
         }
         i += 1;
     }
