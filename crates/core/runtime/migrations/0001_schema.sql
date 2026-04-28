@@ -43,17 +43,12 @@ CREATE TABLE IF NOT EXISTS workspace_session (
   started_at                  TEXT NOT NULL,
   ended_at                    TEXT,
   agent_id                    TEXT,
-  preset_id                   TEXT,
   primary_provider            TEXT,
   goal                        TEXT,
   summary                     TEXT,
   updated_workspace_ids_json  TEXT NOT NULL DEFAULT '[]',
-  compiled_at                 TEXT,
-  compile_error               TEXT,
-  config_generation_at_start  INTEGER,
   tool_call_count             INTEGER NOT NULL DEFAULT 0,
   drained_at                  TEXT,
-  mcp_provider                TEXT,
   last_activity_at            TEXT,
   created_at                  TEXT NOT NULL,
   updated_at                  TEXT NOT NULL
@@ -102,7 +97,6 @@ CREATE TABLE IF NOT EXISTS events (
   elevated         INTEGER NOT NULL DEFAULT 0,
   job_id           TEXT,
   agent_id         TEXT,
-  agent_version    TEXT,
   target_actor_id  TEXT,
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );

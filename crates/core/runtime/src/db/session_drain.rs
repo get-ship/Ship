@@ -18,9 +18,7 @@ use crate::events::types::{
 const S_COLS: &str =
     "id, workspace_id, workspace_branch, status, started_at, ended_at, \
      agent_id, primary_provider, goal, summary, updated_workspace_ids_json, \
-     compiled_at, compile_error, config_generation_at_start, \
-     tool_call_count, drained_at, mcp_provider, last_activity_at, \
-     created_at, updated_at";
+     tool_call_count, drained_at, last_activity_at, created_at, updated_at";
 
 fn parse_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
     let uwids_json: String = row.get(10);
@@ -36,15 +34,11 @@ fn parse_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
         goal: row.get(8),
         summary: row.get(9),
         updated_workspace_ids: serde_json::from_str(&uwids_json).unwrap_or_default(),
-        compiled_at: row.get(11),
-        compile_error: row.get(12),
-        config_generation_at_start: row.get(13),
-        tool_call_count: row.get(14),
-        drained_at: row.get(15),
-        mcp_provider: row.get(16),
-        last_activity_at: row.get(17),
-        created_at: row.get(18),
-        updated_at: row.get(19),
+        tool_call_count: row.get(11),
+        drained_at: row.get(12),
+        last_activity_at: row.get(13),
+        created_at: row.get(14),
+        updated_at: row.get(15),
     }
 }
 

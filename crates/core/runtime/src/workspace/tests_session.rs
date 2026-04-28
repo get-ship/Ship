@@ -27,13 +27,11 @@ mod tests {
         assert_eq!(started.status, WorkspaceSessionStatus::Active);
         assert_eq!(started.goal.as_deref(), Some("Implement parser"));
         assert_eq!(started.primary_provider.as_deref(), Some("claude"));
-        assert!(!started.stale_context);
         assert!(started.ended_at.is_none());
 
         let active = get_active_workspace_session(&ship_dir, "feature/session-flow")?
             .ok_or_else(|| anyhow::anyhow!("active session not found"))?;
         assert_eq!(active.id, started.id);
-        assert!(!active.stale_context);
 
         let ended = end_workspace_session(
             &ship_dir,

@@ -88,17 +88,9 @@ pub struct WorkspaceSession {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_record_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub compiled_at: Option<DateTime<Utc>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub compile_error: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub config_generation_at_start: Option<i64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub last_activity_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub liveness: Option<SessionLiveness>,
-    #[serde(default)]
-    pub stale_context: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -171,7 +163,6 @@ pub struct WorkspaceRepairReport {
     pub agent_id: Option<String>,
     pub providers_expected: Vec<String>,
     pub missing_provider_configs: Vec<String>,
-    pub had_compile_error: bool,
     pub needs_recompile: bool,
     pub reapplied_compile: bool,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -61,9 +61,7 @@ use super::compile::{compile_workspace_context, resolve_session_providers};
 use super::crud::get_workspace;
 use super::helpers::*;
 use super::lifecycle::create_workspace;
-use super::session::{
-    annotate_session_stale_state, hydrate_workspace_session, persist_session_artifact,
-};
+use super::session::{hydrate_workspace_session, persist_session_artifact};
 use super::types_session::*;
 
 // ---- Post-session hooks ----------------------------------------------------
@@ -146,8 +144,7 @@ pub fn start_workspace_session(
 
     // Idempotent: return existing active session.
     if let Some(active) = get_active_workspace_session_db(&workspace.id)? {
-        let mut existing = hydrate_workspace_session(active);
-        annotate_session_stale_state(&mut existing, &std::collections::HashMap::new());
+        let existing = hydrate_workspace_session(active);
         let payload = SessionAttached {
             existing_session_id: existing.id.clone(),
             workspace_id: workspace.id.clone(),
@@ -165,7 +162,6 @@ pub fn start_workspace_session(
     let providers = resolve_session_providers(ship_dir, &workspace, agent_id.as_deref())?;
     let primary_provider = resolve_primary_provider(primary_provider, &providers, &workspace)?;
     let _providers = compile_workspace_context(ship_dir, &workspace, agent_id.as_deref())?;
-    let config_generation_at_start: Option<i64> = None;
 
     let session_id = crate::gen_nanoid();
     let started_payload = SessionStarted {
@@ -174,8 +170,6 @@ pub fn start_workspace_session(
         workspace_branch: workspace.name.clone(),
         agent_id,
         primary_provider: Some(primary_provider),
-        config_generation_at_start,
-        compiled_at: None,
     };
     let _envelope = insert_session_with_started_event(&session_id, &workspace.id, &started_payload)?;
     let created = get_workspace_session_db(&session_id)?
@@ -254,7 +248,6 @@ pub fn end_workspace_session(
         duration_secs: Some(duration_secs_val as u64),
         gate_result: request.gate_result.clone(),
         updated_workspace_ids: active.updated_workspace_ids.clone(),
-        compile_error: active.compile_error.clone(),
         agent_id: active.agent_id.clone(),
         provider: active.primary_provider.clone(),
         model: request.model.clone(),

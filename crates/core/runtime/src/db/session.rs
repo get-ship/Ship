@@ -6,6 +6,11 @@ use sqlx::Row;
 use super::types::{WorkspaceSessionDb, WorkspaceSessionRecordDb};
 use super::{block_on, open_db};
 
+const SESSION_COLS: &str = "id, workspace_id, workspace_branch, status, started_at, \
+    ended_at, agent_id, primary_provider, goal, summary, \
+    updated_workspace_ids_json, tool_call_count, drained_at, last_activity_at, \
+    created_at, updated_at";
+
 fn parse_workspace_session_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
     let updated_workspace_ids_json: String = row.get(10);
     let updated_workspace_ids =
@@ -22,46 +27,40 @@ fn parse_workspace_session_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessio
         goal: row.get(8),
         summary: row.get(9),
         updated_workspace_ids,
-        compiled_at: row.get(11),
-        compile_error: row.get(12),
-        config_generation_at_start: row.get(13),
-        tool_call_count: row.get(14),
-        drained_at: row.get(15),
-        mcp_provider: row.get(16),
-        last_activity_at: row.get(17),
-        created_at: row.get(18),
-        updated_at: row.get(19),
+        tool_call_count: row.get(11),
+        drained_at: row.get(12),
+        last_activity_at: row.get(13),
+        created_at: row.get(14),
+        updated_at: row.get(15),
     }
 }
 
 pub fn get_workspace_session_db(session_id: &str) -> Result<Option<WorkspaceSessionDb>> {
     let mut conn = open_db()?;
+    let sql = format!(
+        "SELECT {SESSION_COLS} FROM workspace_session WHERE id = ?"
+    );
     let row = block_on(async {
-        sqlx::query(
-            "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, last_activity_at, created_at, updated_at
-             FROM workspace_session
-             WHERE id = ?",
-        )
-        .bind(session_id)
-        .fetch_optional(&mut conn)
-        .await
+        sqlx::query(&sql)
+            .bind(session_id)
+            .fetch_optional(&mut conn)
+            .await
     })?;
     Ok(row.as_ref().map(parse_workspace_session_row))
 }
 
 pub fn get_active_workspace_session_db(workspace_id: &str) -> Result<Option<WorkspaceSessionDb>> {
     let mut conn = open_db()?;
+    let sql = format!(
+        "SELECT {SESSION_COLS} FROM workspace_session \
+         WHERE workspace_id = ? AND status = 'active' \
+         ORDER BY started_at DESC LIMIT 1"
+    );
     let row = block_on(async {
-        sqlx::query(
-            "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, last_activity_at, created_at, updated_at
-             FROM workspace_session
-             WHERE workspace_id = ? AND status = 'active'
-             ORDER BY started_at DESC
-             LIMIT 1",
-        )
-        .bind(workspace_id)
-        .fetch_optional(&mut conn)
-        .await
+        sqlx::query(&sql)
+            .bind(workspace_id)
+            .fetch_optional(&mut conn)
+            .await
     })?;
     Ok(row.as_ref().map(parse_workspace_session_row))
 }
@@ -73,30 +72,27 @@ pub fn list_workspace_sessions_db(
     let mut conn = open_db()?;
     let clamped_limit = limit.clamp(1, 500) as i64;
     let rows = if let Some(workspace_id) = workspace_id {
+        let sql = format!(
+            "SELECT {SESSION_COLS} FROM workspace_session \
+             WHERE workspace_id = ? ORDER BY started_at DESC LIMIT ?"
+        );
         block_on(async {
-            sqlx::query(
-                "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, last_activity_at, created_at, updated_at
-                 FROM workspace_session
-                 WHERE workspace_id = ?
-                 ORDER BY started_at DESC
-                 LIMIT ?",
-            )
-            .bind(workspace_id)
-            .bind(clamped_limit)
-            .fetch_all(&mut conn)
-            .await
+            sqlx::query(&sql)
+                .bind(workspace_id)
+                .bind(clamped_limit)
+                .fetch_all(&mut conn)
+                .await
         })?
     } else {
+        let sql = format!(
+            "SELECT {SESSION_COLS} FROM workspace_session \
+             ORDER BY started_at DESC LIMIT ?"
+        );
         block_on(async {
-            sqlx::query(
-                "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, last_activity_at, created_at, updated_at
-                 FROM workspace_session
-                 ORDER BY started_at DESC
-                 LIMIT ?",
-            )
-            .bind(clamped_limit)
-            .fetch_all(&mut conn)
-            .await
+            sqlx::query(&sql)
+                .bind(clamped_limit)
+                .fetch_all(&mut conn)
+                .await
         })?
     };
 

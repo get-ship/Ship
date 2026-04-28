@@ -79,7 +79,6 @@ mod tests {
             duration_secs: Some(0),
             gate_result: None,
             updated_workspace_ids: Vec::new(),
-            compile_error: None,
             ..Default::default()
         };
         let _end_envelope = crate::db::session_events::update_session_with_ended_event(

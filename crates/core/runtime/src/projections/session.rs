@@ -97,10 +97,6 @@ struct StartedPayload {
     agent_id: Option<String>,
     #[serde(default)]
     primary_provider: Option<String>,
-    #[serde(default)]
-    config_generation_at_start: Option<i64>,
-    #[serde(default)]
-    compiled_at: Option<String>,
 }
 
 fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
@@ -113,9 +109,8 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
             "INSERT INTO workspace_session \
              (id, workspace_id, workspace_branch, status, started_at, ended_at, \
               agent_id, primary_provider, goal, summary, \
-              updated_workspace_ids_json, compiled_at, compile_error, \
-              config_generation_at_start, created_at, updated_at) \
-             VALUES (?, ?, ?, 'active', ?, NULL, ?, ?, ?, NULL, '[]', ?, NULL, ?, ?, ?) \
+              updated_workspace_ids_json, created_at, updated_at) \
+             VALUES (?, ?, ?, 'active', ?, NULL, ?, ?, ?, NULL, '[]', ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
                workspace_id = excluded.workspace_id, \
                workspace_branch = excluded.workspace_branch, \
@@ -124,8 +119,6 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
                agent_id = excluded.agent_id, \
                primary_provider = excluded.primary_provider, \
                goal = excluded.goal, \
-               compiled_at = excluded.compiled_at, \
-               config_generation_at_start = excluded.config_generation_at_start, \
                updated_at = excluded.updated_at",
         )
         .bind(session_id)
@@ -135,8 +128,6 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
         .bind(&p.agent_id)
         .bind(&p.primary_provider)
         .bind(&p.goal)
-        .bind(&p.compiled_at)
-        .bind(p.config_generation_at_start)
         .bind(&now)
         .bind(&now)
         .execute(conn)
@@ -157,8 +148,6 @@ struct EndedPayload {
     gate_result: Option<String>,
     #[serde(default)]
     updated_workspace_ids: Vec<String>,
-    #[serde(default)]
-    compile_error: Option<String>,
 }
 
 fn apply_ended(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
@@ -174,14 +163,12 @@ fn apply_ended(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()>
              ended_at = ?, \
              summary = ?, \
              updated_workspace_ids_json = ?, \
-             compile_error = ?, \
              updated_at = ? \
              WHERE id = ?",
         )
         .bind(&now)
         .bind(&p.summary)
         .bind(&updated_ids_json)
-        .bind(&p.compile_error)
         .bind(&now)
         .bind(session_id)
         .execute(conn)

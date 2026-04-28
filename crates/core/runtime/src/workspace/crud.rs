@@ -143,7 +143,6 @@ pub fn repair_workspace(
         providers_expected: matrix.allowed_providers,
         needs_recompile: !missing_provider_configs.is_empty(),
         missing_provider_configs,
-        had_compile_error: false,
         reapplied_compile,
         resolution_error: matrix.resolution_error,
         actions,

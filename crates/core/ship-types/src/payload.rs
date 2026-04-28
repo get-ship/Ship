@@ -90,10 +90,6 @@ pub struct SessionStarted {
     pub agent_id: Option<String>,
     #[serde(default)]
     pub primary_provider: Option<String>,
-    #[serde(default)]
-    pub config_generation_at_start: Option<i64>,
-    #[serde(default)]
-    pub compiled_at: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -111,8 +107,6 @@ pub struct SessionEnded {
     pub gate_result: Option<String>,
     #[serde(default)]
     pub updated_workspace_ids: Vec<String>,
-    #[serde(default)]
-    pub compile_error: Option<String>,
     // Telemetry fields — populated at session end
     #[serde(default)]
     pub agent_id: Option<String>,
