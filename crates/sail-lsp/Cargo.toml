@@ -12,6 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 sail-compiler = { path = "../sail-compiler" }
+tree-sitter-set = { path = "../../grammars/tree-sitter-set" }
 lsp-server = "0.7"
 lsp-types = "0.95"
 tree-sitter = "0.26"

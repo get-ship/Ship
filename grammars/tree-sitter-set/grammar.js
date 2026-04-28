@@ -15,7 +15,7 @@
 // Conformance target: every `.set` in `packages/ship-set-sail/components/`
 // parses without ERROR nodes. Validation lives in `test/corpus/`.
 
-module.exports = grammar({
+export default grammar({
   name: 'set',
 
   extras: $ => [/\s/, $.line_comment, $.block_comment],

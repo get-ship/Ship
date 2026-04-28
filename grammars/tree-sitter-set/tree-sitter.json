@@ -1,11 +1,14 @@
 {
+  "$schema": "https://tree-sitter.github.io/tree-sitter/assets/schemas/config.schema.json",
   "grammars": [
     {
       "name": "set",
       "camelcase": "Set",
       "scope": "source.set",
       "path": ".",
-      "file-types": ["set"],
+      "file-types": [
+        "set"
+      ],
       "highlights": "queries/highlights.scm",
       "injections": "queries/injections.scm",
       "locals": "queries/locals.scm",
@@ -18,15 +21,18 @@
     "license": "MIT",
     "description": "Tree-sitter grammar for the Sail .set single-file component format",
     "authors": [
-      { "name": "Sail" }
+      {
+        "name": "Sail"
+      }
     ]
   },
   "bindings": {
     "c": false,
     "go": false,
+    "java": false,
     "node": true,
     "python": false,
-    "rust": false,
+    "rust": true,
     "swift": false,
     "zig": false
   }

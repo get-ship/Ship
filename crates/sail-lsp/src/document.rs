@@ -1,40 +1,34 @@
 //! In-memory document state — source text + parse tree + diagnostics.
 //!
-//! # Tree-sitter integration shape (v0 stub)
+//! # Tree-sitter integration
 //!
-//! `Documents::parser` is a real `tree_sitter::Parser`, but no language
-//! is set yet — `tree-sitter-set` is being scaffolded in a parallel job
-//! and its generated parser isn't wired here. As a result every
-//! `parse(...)` call returns `None`, leaving `DocumentState::tree` at
-//! `None`. The shape is here so that, once the grammar exits flux, the
-//! follow-up only has to:
+//! `Documents::parser` carries the `tree-sitter-set` language; every
+//! `upsert` reparses the new text and stores the resulting `Tree` on
+//! the document. Subsequent edits pass the previous tree to
+//! `Parser::parse(text, prev_tree)`, so re-parses are incremental
+//! against the prior parse tree.
 //!
-//!   1. Add `tree-sitter-set = { path = "../../grammars/tree-sitter-set" }`
-//!      to `Cargo.toml`.
-//!   2. Call `parser.set_language(&tree_sitter_set::LANGUAGE.into())`
-//!      in `Documents::new`.
-//!   3. Switch `TextDocumentSyncKind` to `INCREMENTAL` and replay the
-//!      `TextDocumentContentChangeEvent` ranges into `Tree::edit`
-//!      before reparsing — `parse(text, prev_tree)` already threads
-//!      the previous tree for incremental reparse.
-//!
-//! Until then, FULL sync is the actual transport and the tree field
-//! stays `None` — no scaffold pretending to be more than it is.
+//! FULL document sync is still the LSP transport in v0 — the editor
+//! sends the entire new text on every change. Switching to INCREMENTAL
+//! sync (replay `TextDocumentContentChangeEvent` ranges into
+//! `Tree::edit` before reparsing) is the next milestone; the parse
+//! plumbing already supports it.
 
 use std::collections::HashMap;
 
 use lsp_types::{Diagnostic, Url};
 use tree_sitter::{Parser, Tree};
 
-// V0 stores fields the binary doesn't read yet — `text` and
-// `diagnostics` feed the next-milestone hover/completion handlers
-// (see README "Next milestone"). The push-diagnostics path computes
-// fresh on every change, so caching `diagnostics` is the staged shape,
-// not yet a consumer.
+// `text` and `diagnostics` feed next-milestone hover/completion handlers
+// (see README "Next milestone"). The push-diagnostics path computes fresh
+// on every change, so caching `diagnostics` is the staged shape rather
+// than today's consumer.
 #[allow(dead_code)]
 pub struct DocumentState {
     pub text: String,
-    /// Always `None` in v0 — see module docs.
+    /// Tree-sitter parse tree. `Some` once the parser has consumed the
+    /// document at least once; threaded into the next reparse for
+    /// incremental updates.
     pub tree: Option<Tree>,
     pub diagnostics: Vec<Diagnostic>,
 }
@@ -52,16 +46,18 @@ impl Default for Documents {
 
 impl Documents {
     pub fn new() -> Self {
+        let mut parser = Parser::new();
+        parser
+            .set_language(&tree_sitter_set::LANGUAGE.into())
+            .expect("tree-sitter-set LANGUAGE matches the linked tree-sitter ABI");
         Self {
             inner: HashMap::new(),
-            // Language is intentionally unset; see module docs.
-            parser: Parser::new(),
+            parser,
         }
     }
 
-    /// Insert (or replace) a document. Reparses with the current parser
-    /// — until a language is set, this returns `None` and `tree` stays
-    /// empty.
+    /// Insert (or replace) a document. Reparses incrementally against
+    /// the previously-cached tree (if any) and stores the new tree.
     pub fn upsert(
         &mut self,
         uri: Url,
@@ -106,15 +102,17 @@ mod tests {
     }
 
     #[test]
-    fn upsert_stores_text_and_diagnostics() {
+    fn upsert_stores_text_diagnostics_and_tree() {
         let mut docs = Documents::new();
         let u = url("file:///x/widget.set");
         docs.upsert(u.clone(), "<script></script>".into(), Vec::new());
         let d = docs.get(&u).expect("present");
         assert_eq!(d.text, "<script></script>");
         assert!(d.diagnostics.is_empty());
-        // No language set on parser → no tree in v0.
-        assert!(d.tree.is_none());
+        // tree-sitter-set is wired; an empty <script></script> still
+        // parses to a non-error root.
+        let tree = d.tree.as_ref().expect("tree present");
+        assert!(!tree.root_node().has_error(), "unexpected ERROR node");
     }
 
     #[test]

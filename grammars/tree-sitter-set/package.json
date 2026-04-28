@@ -1,6 +1,7 @@
 {
   "name": "tree-sitter-set",
   "version": "0.1.0",
+  "type": "module",
   "description": "Tree-sitter grammar for the Sail .set single-file component format",
   "main": "bindings/node",
   "scripts": {
