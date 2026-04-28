@@ -121,30 +121,3 @@ fn set_started_errors_for_missing_workspace() {
     assert!(err.to_string().contains("Workspace not found"));
 }
 
-// ── seed_service_workspace ──────────────────────────────────────────────────
-
-#[test]
-fn seed_service_workspace_creates_ship_workspace() -> Result<()> {
-    let tmp = tempdir()?;
-    let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
-
-    seed_service_workspace(&ship_dir)?;
-    let workspaces = list_workspaces(&ship_dir)?;
-    assert!(workspaces.iter().any(|w| w.name == "ship"));
-    Ok(())
-}
-
-#[test]
-fn seed_service_workspace_is_idempotent() -> Result<()> {
-    let tmp = tempdir()?;
-    let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
-
-    seed_service_workspace(&ship_dir)?;
-    seed_service_workspace(&ship_dir)?;
-    let count = list_workspaces(&ship_dir)?
-        .iter()
-        .filter(|w| w.name == "ship")
-        .count();
-    assert_eq!(count, 1, "seed_service_workspace must be idempotent");
-    Ok(())
-}

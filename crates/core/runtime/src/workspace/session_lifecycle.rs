@@ -4,58 +4,11 @@ use crate::db::session_events::{
     update_session_with_ended_event,
 };
 use crate::events::types::{SessionAttached, SessionEnded, SessionStarted};
+use crate::git;
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 use std::path::Path;
 use std::process::Command;
-
-// ---- Git metrics -----------------------------------------------------------
-
-#[derive(Debug, Default)]
-struct GitMetrics {
-    files_changed: Option<i64>,
-    lines_added: Option<i64>,
-    lines_removed: Option<i64>,
-}
-
-fn collect_git_metrics(ship_dir: &Path) -> GitMetrics {
-    let project_dir = ship_dir.parent().unwrap_or(ship_dir);
-    let output = Command::new("git")
-        .args(["diff", "--stat", "--stat-width=200", "HEAD"])
-        .current_dir(project_dir)
-        .output();
-
-    let output = match output {
-        Ok(o) if o.status.success() => o,
-        _ => return GitMetrics::default(),
-    };
-
-    let stdout = String::from_utf8_lossy(&output.stdout);
-    parse_git_diff_stat(&stdout)
-}
-
-fn parse_git_diff_stat(output: &str) -> GitMetrics {
-    let Some(summary) = output.lines().last() else {
-        return GitMetrics::default();
-    };
-
-    let mut files = None;
-    let mut added = None;
-    let mut removed = None;
-
-    for part in summary.split(',') {
-        let part = part.trim();
-        if part.contains("file") && part.contains("changed") {
-            files = part.split_whitespace().next().and_then(|n| n.parse().ok());
-        } else if part.contains("insertion") {
-            added = part.split_whitespace().next().and_then(|n| n.parse().ok());
-        } else if part.contains("deletion") {
-            removed = part.split_whitespace().next().and_then(|n| n.parse().ok());
-        }
-    }
-
-    GitMetrics { files_changed: files, lines_added: added, lines_removed: removed }
-}
 
 use super::compile::{compile_workspace_context, resolve_session_providers};
 use super::crud::get_workspace;
@@ -249,7 +202,8 @@ pub fn end_workspace_session(
     let duration_secs_val = (ended_ts - started_at).num_seconds();
 
     // Collect git metrics best-effort — failure doesn't prevent session end.
-    let git_metrics = collect_git_metrics(ship_dir);
+    let project_dir = ship_dir.parent().unwrap_or(ship_dir);
+    let git_metrics = git::collect_metrics(project_dir);
     let files_changed = request.files_changed.or(git_metrics.files_changed);
     let lines_added = request.lines_added.or(git_metrics.lines_added);
     let lines_removed = request.lines_removed.or(git_metrics.lines_removed);

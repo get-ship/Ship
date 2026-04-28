@@ -3,7 +3,7 @@ use chrono::Utc;
 use std::path::Path;
 
 use crate::errors::WorkspaceError;
-use super::crud::{get_workspace, list_workspaces};
+use super::crud::get_workspace;
 use super::event_upserts::upsert_workspace_on_created;
 use super::helpers::*;
 use super::types::*;
@@ -65,16 +65,3 @@ pub fn set_workspace_started(
     Ok(())
 }
 
-/// Create the default service workspace ("ship") if it doesn't already exist.
-pub fn seed_service_workspace(ship_dir: &Path) -> Result<(), WorkspaceError> {
-    const PROJECT_BRANCH: &str = "ship";
-
-    let existing = list_workspaces(ship_dir)?;
-    if existing.iter().any(|w| w.name == PROJECT_BRANCH) {
-        return Ok(());
-    }
-
-    upsert_workspace_on_created(ship_dir, PROJECT_BRANCH, None)?;
-
-    Ok(())
-}

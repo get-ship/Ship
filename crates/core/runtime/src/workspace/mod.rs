@@ -55,7 +55,7 @@ pub use event_upserts::{
     upsert_workspace_on_created, upsert_workspace_on_deleted,
 };
 pub use lifecycle::{
-    create_workspace, seed_service_workspace, set_workspace_started, set_workspace_tmux_session,
+    create_workspace, set_workspace_started, set_workspace_tmux_session,
 };
 pub use session::{
     get_active_workspace_session, list_workspace_sessions, record_workspace_session_progress,

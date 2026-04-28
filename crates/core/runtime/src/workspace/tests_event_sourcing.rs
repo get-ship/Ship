@@ -76,18 +76,4 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn seed_service_workspace_emits_created_event() -> Result<()> {
-        let (_tmp, ship_dir) = setup();
-
-        seed_service_workspace(&ship_dir)?;
-
-        let count = count_events_by_type_and_entity("workspace.created", "ship");
-        assert_eq!(
-            count, 1,
-            "seed_service_workspace must emit a workspace.created event, got {count}"
-        );
-        Ok(())
-    }
-
 }

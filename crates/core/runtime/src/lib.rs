@@ -8,6 +8,7 @@ pub mod db;
 pub mod artifacts;
 pub mod env;
 pub mod errors;
+pub mod git;
 pub mod events;
 pub mod home;
 pub mod fs_util;
