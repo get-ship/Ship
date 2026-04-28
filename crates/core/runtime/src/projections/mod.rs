@@ -19,11 +19,7 @@ mod workspace;
 mod workspace_handlers;
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod tests_actor;
-#[cfg(test)]
-mod tests_async;
 #[cfg(test)]
 mod tests_daemon_events;
 #[cfg(test)]

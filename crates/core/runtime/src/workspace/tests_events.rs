@@ -126,13 +126,6 @@ mod tests {
             "transaction must fail when event INSERT is blocked by trigger"
         );
 
-        // Worktree projection now lives in kv_state; assert the row stayed
-        // absent after the rollback.
-        assert!(
-            crate::worktrees::get(sentinel_branch)?.is_none(),
-            "worktree row must not exist when event INSERT fails"
-        );
-
         Ok(())
     }
 }

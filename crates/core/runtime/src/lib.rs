@@ -21,7 +21,6 @@ pub mod registry;
 pub mod projections;
 pub mod trash;
 pub mod workspace;
-pub mod worktrees;
 pub mod supervisor;
 
 #[cfg(feature = "unstable")]

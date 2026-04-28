@@ -12,7 +12,6 @@ use sqlx::SqliteConnection;
 use super::async_projection::AsyncProjection;
 use super::registry::Projection;
 use super::workspace_handlers::*;
-use crate::db::block_on;
 use crate::events::types::event_types;
 use crate::events::EventEnvelope;
 
@@ -59,16 +58,9 @@ impl Projection for WorkspaceProjection {
         }
     }
 
-    fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
-        // The workspace projection now lives in kv_state under namespace
-        // `worktree`. Clear via raw sqlx since the kv module's helpers
-        // open their own connection.
-        block_on(async {
-            sqlx::query("DELETE FROM kv_state WHERE namespace = 'worktree'")
-                .execute(conn)
-                .await?;
-            Ok(())
-        })
+    fn truncate(&self, _conn: &mut SqliteConnection) -> Result<()> {
+        // No projected state to truncate — workspace events are inert.
+        Ok(())
     }
 }
 
