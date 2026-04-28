@@ -24,17 +24,11 @@ prop allowGenerate: boolean = false
 
 state defaultValue = ''
 state editor: any = null
-state markBold = false
-state markItalic = false
-state markStrike = false
-state markCode = false
-state markH1 = false
-state markH2 = false
-state markH3 = false
-state markBullet = false
-state markOrdered = false
-state markTask = false
-state markLink = false
+state marks = {
+  bold: false, italic: false, strike: false, code: false,
+  h1: false, h2: false, h3: false,
+  bullet: false, ordered: false, task: false, link: false,
+}
 state bubbleTop = -9999
 state bubbleLeft = -9999
 state bubbleVisible = false
@@ -61,17 +55,19 @@ function readMarkdown(ed) {
 
 function refreshMarks() {
   const ed = editor(); if (!ed) return
-  markBold.set(ed.isActive('bold'))
-  markItalic.set(ed.isActive('italic'))
-  markStrike.set(ed.isActive('strike'))
-  markCode.set(ed.isActive('code'))
-  markH1.set(ed.isActive('heading', { level: 1 }))
-  markH2.set(ed.isActive('heading', { level: 2 }))
-  markH3.set(ed.isActive('heading', { level: 3 }))
-  markBullet.set(ed.isActive('bulletList'))
-  markOrdered.set(ed.isActive('orderedList'))
-  markTask.set(ed.isActive('taskList'))
-  markLink.set(ed.isActive('link'))
+  marks.set({
+    bold:    ed.isActive('bold'),
+    italic:  ed.isActive('italic'),
+    strike:  ed.isActive('strike'),
+    code:    ed.isActive('code'),
+    h1:      ed.isActive('heading', { level: 1 }),
+    h2:      ed.isActive('heading', { level: 2 }),
+    h3:      ed.isActive('heading', { level: 3 }),
+    bullet:  ed.isActive('bulletList'),
+    ordered: ed.isActive('orderedList'),
+    task:    ed.isActive('taskList'),
+    link:    ed.isActive('link'),
+  })
 }
 
 function hideBubble() { bubbleVisible.set(false) }
@@ -231,9 +227,11 @@ effect {
   }, 50))
 }
 
-effect { const ed = editor(); if (ed) ed.setEditable(!disabled()) }
-effect { el.style.setProperty('--ed-min-h', minHeight()) }
-effect { syncFormValue() }
+effect {
+  const ed = editor(); if (ed) ed.setEditable(!disabled())
+  el.style.setProperty('--ed-min-h', minHeight())
+  syncFormValue()
+}
 </script>
 
 <template>
@@ -242,16 +240,16 @@ effect { syncFormValue() }
   <ship-markdown-editor-toolbar
     label={label}
     disabled={disabled}
-    mark-bold={markBold}
-    mark-italic={markItalic}
-    mark-code={markCode}
-    mark-h1={markH1}
-    mark-h2={markH2}
-    mark-h3={markH3}
-    mark-bullet={markBullet}
-    mark-ordered={markOrdered}
-    mark-task={markTask}
-    mark-link={markLink}
+    mark-bold={marks().bold}
+    mark-italic={marks().italic}
+    mark-code={marks().code}
+    mark-h1={marks().h1}
+    mark-h2={marks().h2}
+    mark-h3={marks().h3}
+    mark-bullet={marks().bullet}
+    mark-ordered={marks().ordered}
+    mark-task={marks().task}
+    mark-link={marks().link}
     onship-mark-toggle={onMarkEvent}
     onship-link-click={onLinkButton}
   ></ship-markdown-editor-toolbar>
@@ -265,10 +263,10 @@ effect { syncFormValue() }
       visible={bubbleVisible}
       pending-active={pendingActive}
       pending-text={pendingText}
-      mark-bold={markBold}
-      mark-italic={markItalic}
-      mark-strike={markStrike}
-      mark-code={markCode}
+      mark-bold={marks().bold}
+      mark-italic={marks().italic}
+      mark-strike={marks().strike}
+      mark-code={marks().code}
       allow-comment={allowComment}
       allow-generate={allowGenerate}
       onship-mark-toggle={onMarkEvent}

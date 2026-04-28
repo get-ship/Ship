@@ -13,7 +13,7 @@
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
   },
   "skills": {
-    "refs": ["ship-components", "set-authoring"],
+    "refs": ["ship-components", "set-authoring", "code-review", "no-slop"],
   },
   "mcp": {
     "servers": ["ship"],
