@@ -69,6 +69,15 @@ pub fn get(id: &str) -> Result<Option<ProjectRecord>> {
     Ok(Some(record))
 }
 
+/// Look up a project by filesystem path. Canonicalises the input, hashes,
+/// and returns the registered record if any. Returns `None` for paths that
+/// haven't been registered (or aren't readable) — does NOT register on miss.
+pub fn find_by_path(path: &Path) -> Result<Option<ProjectRecord>> {
+    let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let id = path_hash(&canonical);
+    get(&id)
+}
+
 /// List all known projects, sorted by `last_seen_at` desc.
 pub fn list() -> Result<Vec<ProjectRecord>> {
     let entries = kv::list_all(NAMESPACE)?;
@@ -170,5 +179,21 @@ mod tests {
     fn touch_unknown_returns_false() {
         let _tmp = fresh_db();
         assert!(!touch("deadbeef").unwrap());
+    }
+
+    #[test]
+    fn find_by_path_returns_registered_record() {
+        let _tmp = fresh_db();
+        let tmp = TempDir::new().unwrap();
+        let registered = register(tmp.path(), Some("by-path")).unwrap();
+        let found = find_by_path(tmp.path()).unwrap().expect("path lookup hit");
+        assert_eq!(found.id, registered.id);
+    }
+
+    #[test]
+    fn find_by_path_returns_none_for_unregistered() {
+        let _tmp = fresh_db();
+        let unregistered = TempDir::new().unwrap();
+        assert!(find_by_path(unregistered.path()).unwrap().is_none());
     }
 }

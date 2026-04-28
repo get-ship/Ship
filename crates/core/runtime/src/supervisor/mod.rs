@@ -147,10 +147,17 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
     let emit_profile = profile.clone();
     let emit_pid = child.pid();
     std::thread::spawn(move || {
+        let cwd = emit_profile.work_dir.to_string_lossy().to_string();
+        let project_id = crate::projects::find_by_path(&emit_profile.work_dir)
+            .ok()
+            .flatten()
+            .map(|p| p.id);
         let payload = crate::events::types::ActorCreated {
             kind: emit_profile.kind.as_str().to_string(),
             environment_type: "local".to_string(),
             workspace_id: emit_profile.workspace_id.clone(),
+            project_id,
+            cwd: Some(cwd),
             agent_id: emit_profile.agent_id.clone(),
             provider: emit_profile.provider.clone(),
             transport: Some(emit_profile.transport.as_str().to_string()),

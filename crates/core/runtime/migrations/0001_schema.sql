@@ -123,6 +123,8 @@ CREATE TABLE IF NOT EXISTS actors (
   environment_type    TEXT NOT NULL DEFAULT 'local',
   status              TEXT NOT NULL DEFAULT 'created',
   workspace_id        TEXT,
+  project_id          TEXT,
+  cwd                 TEXT,
   parent_actor_id     TEXT,
   restart_count       INTEGER NOT NULL DEFAULT 0,
   agent_id            TEXT,
@@ -142,6 +144,7 @@ CREATE TABLE IF NOT EXISTS actors (
   updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_actors_workspace  ON actors(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_actors_project    ON actors(project_id);
 CREATE INDEX IF NOT EXISTS idx_actors_status     ON actors(status);
 CREATE INDEX IF NOT EXISTS idx_actors_provider   ON actors(provider);
 CREATE INDEX IF NOT EXISTS idx_actors_agent_id   ON actors(agent_id);

@@ -238,6 +238,14 @@ pub struct ActorCreated {
     /// Capability ids (skill ids the actor advertises).
     #[serde(default)]
     pub capabilities: Vec<String>,
+    /// Project id this actor belongs to. Looked up from `runtime::projects`
+    /// when None and `cwd` is registered. Daemon services may have neither.
+    #[serde(default)]
+    pub project_id: Option<String>,
+    /// Filesystem cwd the actor runs in. Set explicitly at spawn; falls back
+    /// to project root or supervisor cwd when omitted (legacy callers).
+    #[serde(default)]
+    pub cwd: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
