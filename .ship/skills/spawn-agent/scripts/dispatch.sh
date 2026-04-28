@@ -139,7 +139,7 @@ WITH_ARGS=()
 for s in "${EXTRA_SKILLS[@]}"; do WITH_ARGS+=(--with "$s"); done
 
 echo "Compiling agent: ship use $AGENT ${WITH_ARGS[*]} (SHIP_GLOBAL_DIR=$SHIP_GLOBAL_DIR)"
-if ! (cd "$WORKTREE_PATH" && SHIP_GLOBAL_DIR="$SHIP_GLOBAL_DIR" ship use "$AGENT" "${WITH_ARGS[@]}"); then
+if ! (cd "$WORKTREE_PATH" && SHIP_GLOBAL_DIR="$SHIP_GLOBAL_DIR" ship use "$AGENT" --path "$WORKTREE_PATH" "${WITH_ARGS[@]}"); then
   echo "Error: 'ship use $AGENT' failed in $WORKTREE_PATH. Agent not launched." >&2
   exit 1
 fi
