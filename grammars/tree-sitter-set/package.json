@@ -1,0 +1,24 @@
+{
+  "name": "tree-sitter-set",
+  "version": "0.1.0",
+  "description": "Tree-sitter grammar for the Sail .set single-file component format",
+  "main": "bindings/node",
+  "scripts": {
+    "build": "tree-sitter generate",
+    "test": "tree-sitter test"
+  },
+  "tree-sitter": [
+    {
+      "scope": "source.set",
+      "file-types": ["set"],
+      "highlights": "queries/highlights.scm",
+      "injections": "queries/injections.scm",
+      "locals": "queries/locals.scm"
+    }
+  ],
+  "license": "MIT",
+  "private": true,
+  "devDependencies": {
+    "tree-sitter-cli": "^0.26.0"
+  }
+}

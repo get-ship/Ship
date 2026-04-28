@@ -1,0 +1,39 @@
+==================
+counter — minimal SFC
+==================
+
+<script>
+state count = 0
+derived doubled = count() * 2
+function inc() { count.set(count() + 1) }
+</script>
+
+<template>
+<div class="counter">
+  <p>Count: {count}</p>
+  <button on:click={inc}>+1</button>
+</div>
+</template>
+
+---
+
+(source_file
+  (script_block
+    (state_decl name: (identifier) initial: (expression))
+    (derived_decl name: (identifier) expr: (expression))
+    (function_decl name: (identifier) params: (paren_block) body: (brace_block (_brace_inner) (brace_block (_brace_inner)) (_brace_inner))))
+  (template_block
+    (element
+      open_tag: (tag_name)
+      (static_attr name: (attr_name) value: (string_literal))
+      (element
+        open_tag: (tag_name)
+        (text)
+        (interpolation (_brace_body))
+        close_tag: (tag_name))
+      (element
+        open_tag: (tag_name)
+        (event_attr event: (attr_name) handler: (brace_expression (interpolation (_brace_body))))
+        (text)
+        close_tag: (tag_name))
+      close_tag: (tag_name))))
