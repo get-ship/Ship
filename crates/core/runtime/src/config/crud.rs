@@ -124,60 +124,13 @@ pub fn ensure_registered_namespaces(
     Ok(())
 }
 
-// ─── Mode CRUD ────────────────────────────────────────────────────────────────
-
-pub fn add_agent(project_dir: Option<PathBuf>, mode: AgentProfile) -> Result<()> {
-    let mut config = get_config(project_dir.clone())?;
-    if config.modes.iter().any(|m| m.id == mode.id) {
-        return Err(anyhow!("Mode '{}' already exists", mode.id));
-    }
-    let mode_id = mode.id.clone();
-    config.modes.push(mode);
-    save_config(&config, project_dir.clone())?;
-    emit_config_event("mode", Some(format!("id={}", mode_id)))?;
-    Ok(())
-}
-
-pub fn remove_agent(project_dir: Option<PathBuf>, id: &str) -> Result<()> {
-    let mut config = get_config(project_dir.clone())?;
-    config.modes.retain(|m| m.id != id);
-    if config.active_agent.as_deref() == Some(id) {
-        config.active_agent = None;
-    }
-    save_config(&config, project_dir.clone())?;
-    emit_config_event("mode", Some(format!("id={}", id)))?;
-    Ok(())
-}
-
-pub fn set_active_agent(project_dir: Option<PathBuf>, id: Option<&str>) -> Result<()> {
-    let mut config = get_config(project_dir.clone())?;
-    if let Some(mode_id) = id {
-        let mode_exists = match &project_dir {
-            Some(dir) => get_effective_config(Some(dir.clone()))?
-                .modes
-                .iter()
-                .any(|m| m.id == mode_id),
-            None => config.modes.iter().any(|m| m.id == mode_id),
-        };
-        if !mode_exists {
-            return Err(anyhow!("Mode '{}' not found", mode_id));
-        }
-    }
-    config.active_agent = id.map(|s| s.to_string());
-    save_config(&config, project_dir.clone())?;
-    // Auto-sync to configured agent targets after mode change
-    if let Some(ref dir) = project_dir
-        && let Err(error) = crate::agents::export::sync_active_agent(dir)
-    {
-        tracing::warn!("active mode sync failed: {error}");
-    }
-    emit_config_event(
-        "active_agent",
-        Some(format!("id={}", id.unwrap_or("none"))),
-    )?;
-    Ok(())
-}
-
+// `get_active_agent` reads `ship.jsonc:active_agent` and resolves it to
+// the matching `AgentProfile`. Today MCP's tool-gate is the only live
+// reader; the writer side (`add_agent` / `remove_agent` /
+// `set_active_agent` / `ship mode set`) was scaffolded but never wired
+// to a CLI surface, so the field is effectively read-only-and-always-None
+// in production. Kept for the read path; rebuild the writer when a real
+// `ship use --persist` style UX lands.
 pub fn get_active_agent(project_dir: Option<PathBuf>) -> Result<Option<AgentProfile>> {
     let config = get_config(project_dir)?;
     Ok(config

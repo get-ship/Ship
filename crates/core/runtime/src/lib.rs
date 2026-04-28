@@ -53,11 +53,11 @@ pub use config::catalog::{CatalogEntry, CatalogKind, list_catalog, list_catalog_
 pub use config::hooks::{DefaultRuntimeHooks, RuntimeHooks};
 pub use config::{
     AgentLayerConfig, AgentProfile, AiConfig, GitConfig, HookConfig, HookTrigger, McpServerConfig,
-    McpServerType, NamespaceConfig, PermissionConfig, ProjectConfig, StatusConfig, add_agent,
+    McpServerType, NamespaceConfig, PermissionConfig, ProjectConfig, StatusConfig,
     add_hook, add_mcp_server, add_status, ensure_registered_namespaces, generate_gitignore,
     get_active_agent, get_all_settings, get_config, get_effective_config, get_git_config,
     get_project_statuses, get_setting, is_category_committed, list_hooks, list_mcp_servers,
-    remove_agent, remove_hook, remove_mcp_server, remove_status, save_config, set_active_agent,
+    remove_hook, remove_mcp_server, remove_status, save_config,
     set_category_committed, set_git_config, set_setting, setting_default,
 };
 

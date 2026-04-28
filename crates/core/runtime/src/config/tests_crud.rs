@@ -134,74 +134,9 @@ fn duplicate_hook_rejected() -> anyhow::Result<()> {
 
 // ── Mode CRUD ──────────────────────────────────────────────────────────────
 
-#[test]
-fn add_agent_and_set_active() -> anyhow::Result<()> {
-    let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
-    let mode = AgentProfile {
-        id: "dev".to_string(),
-        name: "Development".to_string(),
-        ..Default::default()
-    };
-    add_agent(Some(dir.clone()), mode)?;
-    set_active_agent(Some(dir.clone()), Some("dev"))?;
-    let active = get_active_agent(Some(dir))?;
-    assert!(active.is_some());
-    assert_eq!(active.unwrap().id, "dev");
-    Ok(())
-}
-
-#[test]
-fn remove_active_agent_clears_active() -> anyhow::Result<()> {
-    let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
-    add_agent(
-        Some(dir.clone()),
-        AgentProfile {
-            id: "x".to_string(),
-            name: "X".to_string(),
-            ..Default::default()
-        },
-    )?;
-    set_active_agent(Some(dir.clone()), Some("x"))?;
-    remove_agent(Some(dir.clone()), "x")?;
-    let cfg = get_config(Some(dir))?;
-    assert!(
-        cfg.active_agent.is_none(),
-        "active_agent should be cleared when agent removed"
-    );
-    Ok(())
-}
-
-#[test]
-fn set_nonexistent_agent_rejected() -> anyhow::Result<()> {
-    let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
-    let result = set_active_agent(Some(dir), Some("ghost"));
-    assert!(result.is_err());
-    Ok(())
-}
-
-#[test]
-fn agent_with_permissions_round_trips() -> anyhow::Result<()> {
-    let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
-    let mode = AgentProfile {
-        id: "restricted".to_string(),
-        name: "Restricted".to_string(),
-        permissions: PermissionConfig {
-            allow: vec!["mcp__ship__*".to_string()],
-            deny: vec!["Bash".to_string()],
-        },
-        ..Default::default()
-    };
-    add_agent(Some(dir.clone()), mode)?;
-    let cfg = get_config(Some(dir))?;
-    let saved = cfg.modes.iter().find(|m| m.id == "restricted").unwrap();
-    assert_eq!(saved.permissions.allow, vec!["mcp__ship__*"]);
-    assert_eq!(saved.permissions.deny, vec!["Bash"]);
-    Ok(())
-}
+// Tests for add_agent / remove_agent / set_active_agent removed
+// alongside the dead `ship mode` chain. Rebuild when a real
+// active-agent UX lands.
 
 #[test]
 fn mcp_server_type_serialization_round_trips() -> anyhow::Result<()> {

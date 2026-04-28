@@ -46,9 +46,9 @@ pub use git::{
 };
 
 pub use crud::{
-    add_agent, add_hook, add_mcp_server, add_status, ensure_registered_namespaces,
-    get_active_agent, get_project_statuses, list_hooks, list_mcp_servers, remove_agent,
-    remove_hook, remove_mcp_server, remove_status, set_active_agent,
+    add_hook, add_mcp_server, add_status, ensure_registered_namespaces,
+    get_active_agent, get_project_statuses, list_hooks, list_mcp_servers,
+    remove_hook, remove_mcp_server, remove_status,
 };
 
 pub use discover::discover_projects;
