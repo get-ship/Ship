@@ -10,9 +10,7 @@ authors: [ship]
 
 A Ship view is a server-rendered reactive HTML page that updates live via SSE, responds to user actions via Datastar attributes, and is composed from the Ship component library (ship-elements). You author it as a single `.html.j2` file in `.ship/views/<name>/`. No build step. No framework. Edit the file, refresh the browser, see your changes.
 
-**This is how you build extensions on Ship.**
-
-> **For SFC component-shaped views** (`.set` files under `packages/ship-set/components/` or `.ship/ship-set/`, or `/ship-set/<tag>` route pages), use the `set-authoring` skill instead. That's a different framework — single-file components with `<script>` + `<template>` + `<style>` blocks, fine-grained signals, `data live` server-truth wiring, and platform-shaped event syntax. The two surfaces coexist; pick by the file extension you're editing (`.html.j2` → this skill, `.set` → `set-authoring`).
+**This is how you build extensions on Ship today.** A new template-language successor (`.html.set` + paired `.ts`) is in development — once it lands, this skill will document the migration path. For now, all production views are `.html.j2`.
 
 ## Quick start — a minimal view in 30 seconds
 
