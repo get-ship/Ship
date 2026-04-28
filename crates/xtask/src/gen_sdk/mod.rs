@@ -10,6 +10,7 @@ use std::{
 use anyhow::{Context, Result};
 use serde_json::{json, Map, Value};
 
+mod data_ts;
 mod jsonc;
 mod macros;
 mod ship_ops;
@@ -69,7 +70,26 @@ pub fn run(repo_root: &Path) -> Result<()> {
         ship_ops::extract()?,
     )?;
 
-    eprintln!("gen-sdk: wrote 7 files to {}", out_dir.display());
+    // Typed TS bindings for the same OPS catalog — set authors get
+    // IDE completion + (phase 2) compile-time validation of `data ship.*`.
+    let data_ts_path = repo_root
+        .join("packages")
+        .join("sdk")
+        .join("src")
+        .join("generated")
+        .join("data.ts");
+    if let Some(parent) = data_ts_path.parent() {
+        fs::create_dir_all(parent)
+            .with_context(|| format!("create {}", parent.display()))?;
+    }
+    fs::write(&data_ts_path, data_ts::emit()?)
+        .with_context(|| format!("write {}", data_ts_path.display()))?;
+
+    eprintln!(
+        "gen-sdk: wrote 7 files to {} + 1 TS file to {}",
+        out_dir.display(),
+        data_ts_path.display()
+    );
     Ok(())
 }
 
