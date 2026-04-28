@@ -1,0 +1,58 @@
+<script>
+prop justify: 'start' | 'center' | 'end' | 'between' = 'start'
+prop align: 'center' | 'start' | 'end' | 'baseline' = 'center'
+prop gap: 'sm' | 'md' | 'lg' = 'md'
+prop variant: 'default' | 'bordered' = 'default'
+
+function focusable() {
+  return Array.from(el.children).filter(c =>
+    !c.getAttribute('slot') && !c.hasAttribute('disabled')
+  )
+}
+
+function onKey(e) {
+  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+  const items = focusable()
+  if (!items.length) return
+  const active = e.composedPath().find(n => items.includes(n)) || null
+  const i = active ? items.indexOf(active) : -1
+  const next = e.key === 'ArrowRight'
+    ? (i + 1) % items.length
+    : (i - 1 + items.length) % items.length
+  items[next].focus()
+  e.preventDefault()
+}
+
+mount {
+  if (!el.hasAttribute('role')) el.setAttribute('role', 'toolbar')
+  if (!el.hasAttribute('aria-orientation')) el.setAttribute('aria-orientation', 'horizontal')
+  el.addEventListener('keydown', onKey)
+  cleanups.push(() => el.removeEventListener('keydown', onKey))
+}
+</script>
+
+<template>
+<slot name="spacer"></slot><slot></slot>
+</template>
+
+<style>
+:host {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+:host([hidden]) { display: none; }
+:host([gap='sm']) { gap: 4px; }
+:host([gap='lg']) { gap: 12px; }
+:host([justify='center']) { justify-content: center; }
+:host([justify='end']) { justify-content: flex-end; }
+:host([justify='between']) { justify-content: space-between; }
+:host([align='start']) { align-items: flex-start; }
+:host([align='end']) { align-items: flex-end; }
+:host([align='baseline']) { align-items: baseline; }
+:host([variant='bordered']) {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+::slotted([slot='spacer']) { flex: 1; }
+</style>
