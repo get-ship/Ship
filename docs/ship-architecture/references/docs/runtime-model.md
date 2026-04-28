@@ -2,7 +2,7 @@
 group: Architecture
 order: 1
 title: Runtime Model
-description: The mental model for what Ship's runtime owns — events as the write path, projections in platform.db, collections as a feature, project as a directory with .ship/, workspace as agent sandbox.
+description: The mental model for what Ship's runtime owns — events as the write path, projections in platform.db, collections as a feature. Project is a directory with .ship/; actors own isolation; worktrees are an attachment, not a primitive.
 ---
 
 # Runtime Model
@@ -35,13 +35,21 @@ KernelRouter::emit(event) → events table → projection → platform.db row
 ```
 
 Projections live in `runtime::projections::*` and write into
-platform.db tables that are *derived state*, not primary records:
+platform.db tables (or kv namespaces) that are *derived state*, not
+primary records:
 
-| Projection | Source events | Target table |
+| Projection | Source events | Target |
 |---|---|---|
-| `projections::session` | `workspace.session.*` | `workspace_session`, `workspace_session_record` |
-| `projections::job` | `job.*` | `jobs` |
-| `projections::actor` | `actor.*` | `actors` |
+| `projections::session` | `session.*` | `workspace_session` table |
+| `projections::actor` | `actor.*` | `actors` table |
+| `projections::workspace` | `workspace.*` | `kv_state` namespace `worktree` (via `runtime::worktrees`) |
+| `projections::job` (in-memory) | `job.*` / `step.*` | `JobRecord` map, computed on demand |
+
+The job projection is a fold-in-memory rather than a table — there's
+no `jobs` row to consult; `runtime::projections::job::load_jobs()`
+queries the event log directly. The workspace projection writes to
+kv-state instead of a table; worktrees are an attachment, not a
+runtime primitive (see Five Primitives below).
 
 This is the canonical pattern. New runtime concerns ride it.
 
@@ -61,6 +69,19 @@ antipattern. Recent examples we've cleaned up:
   improvement.
 - `spec` — dedicated table for what was already a queryable
   user-content row. Migrated into the `specs` collection.
+- `workspace` — projection table for a primitive that conflated
+  session-identity, dev-worktree, tmux-attachment, and agent-sandbox.
+  Each of those jobs moved to its proper home (sessions table, kv
+  namespace `worktree`, actor row, actor row). Table dropped; the
+  workspace.* events now project to kv via `runtime::worktrees`.
+- `workspace_session_record` — write-only mirror of session telemetry
+  that was already (or could trivially be) on `workspace_session`.
+  Collapsed.
+- `jobs` — declared in schema, zero R/W; job state lives entirely in
+  the event log, projected in-memory by `load_jobs()`.
+- `compiled_asset_cache` — claimed to be a content-hash dedupe cache
+  but `content_hash` was write-only; the table was actually a uuid ↔
+  external_id translator for ModeRow refs in kv. Tautological. Excised.
 
 **Rust "migrator" code that lives forever.** Pre-launch we wipe and
 rebuild rather than carry data-migration helpers in the binary
@@ -112,44 +133,62 @@ Things that look like collections-shaped but aren't:
 - Integration state (MCP servers configured, OAuth connections,
   webhooks registered). Should be event-sourced — see below.
 
-## Project ≠ Workspace
+## Five primitives
 
-**Project = a directory with `.ship/` inside it.** A grouping of work,
-git-backed or not. The unit the user thinks about. Identified by a
-stable hash of the canonical path (`runtime::projects` registry).
+Workspace as a runtime primitive retired (see
+`.artifacts/specs/workspace-retirement/`). The runtime now has five
+concepts, each with one job:
 
-**Workspace = an agent sandbox.** A boundary for an agent's filesystem
-access and process lifetime. Multiple workspaces can exist within one
-project (one per running agent, in principle). The user mostly
-doesn't think about workspaces.
+1. **Project** — a directory with `.ship/` inside it (or no
+   directory, for headless / consumer flows that haven't picked one).
+   A tagging primitive: views accept it as a filter, apps register
+   against it. Not a context-switch — multiple projects can be
+   visible at once. Path-hash keyed in `kv_state` namespace `project`
+   via `runtime::projects`. Default `personal` project lives at
+   `~/.ship/`.
 
-The current `workspace` table conflates these — the same row holds
-project-level selections, project-level compile cache, AND
-process-attachment metadata, all keyed by branch. That's wrong on two
-axes:
+2. **Actor** — a running thing. Owns isolation: `cwd`, permissions,
+   transport, lifecycle, MCP tool gate. Supervisor-managed. Already
+   the unit of "what's running"; no parallel "active workspace"
+   concept any more. Per-actor scope replaces the old MCP
+   `active_workspace` singleton.
 
-1. Project and workspace shouldn't share a row.
-2. "Branch" assumes git-as-primitive; many projects don't have a
-   branch at all.
+3. **Worktree** — a dev-flow attachment. A pairing of branch + path
+   (+ optional tmux session) that some actors opt into. **NOT a
+   runtime primitive** — kv-backed via `runtime::worktrees`,
+   maintained by the workspace.* event handlers. Consumer flows that
+   don't need an isolated checkout simply don't have a worktree row.
 
-The model going forward:
+4. **Session** — analytics rollup over actor activity. Has a `kind`
+   discriminator (`pipeline_step | chat_thread | direct_attach`) and
+   context dimensions (`project_id`, `pipeline_run_id?`,
+   `chat_thread_id?`, `branch?`). Telemetry (tokens, files_changed,
+   exit_reason, etc.) is inline; no separate "record" table. There
+   is no live session row — "what's running" is an actor question;
+   "what happened" is a session query.
 
-- **Project** is the user-facing primitive. Path-keyed registry.
-- **Workspace** is internal isolation. Created per-agent-invocation.
-  Has a cwd; has a lifetime; doesn't need to be branch-named.
-- The `workspace` table is being decomposed. Its three jobs land
-  separately:
-  - Project-level **selections** → KV namespace `project.<id>.*`
-    (or events if we want history of "user changed default agent").
-  - Project-level **compile cache** → projection from a
-    `config.compiled` event into a small cache table or in-memory.
-  - Per-agent **process attachment** → already in `actors` (the
-    actor projection) — workspace was duplicating it.
+5. **Adapter** — in-process module that talks to the outside world
+   (git, tmux, providers, future containers) and emits events into
+   the runtime log. Adapters never write runtime projection tables.
+   Today: `runtime::git`, `runtime::supervisor`'s tmux + executor
+   transports. The eventual `ExecutionContext` port (sketched in
+   `.artifacts/specs/workspace-retirement/decisions.md`) will unify
+   the worktree-management subset; deferred until a second adapter
+   is concrete.
 
-`workspace.active_agent` / `active_preset` are stale: there are
-many agents in a project's scope at once; there is no single
-"active" one at the project level. Those columns predate the
-multi-agent reality and should be dropped.
+### Why this set
+
+Sessions are analytics, not stateful entities. Worktrees are an
+attachment, not a primitive. Pipelines are one entry-point of many
+(chats and direct CLI attach are others). Actors are the unification
+— every spawn produces an actor; everything else is a dimension on
+that actor's activity. Project is the tag that lets us scope and
+filter without making it a context-lock.
+
+`workspace` and its associated MCP tools (`create_workspace`,
+`activate_workspace`) survive in the user-facing surface only as a
+naming vestige; the runtime no longer has the concept. A follow-up
+arc may rename them.
 
 ## Integrations are event-sourced
 
@@ -173,14 +212,13 @@ The current `managed_mcp_state` (now in KV) is a step toward this but
 not the destination. KV was a smaller wrong than a dedicated table;
 events + projection is the right shape.
 
-## What `--workspace` is
+## What `--dev-worktree` is
 
 Dev workflow plumbing — multiple Ship-dev worktrees on one machine,
-each running their own daemon on hash-derived ports. Should be hidden
-behind a dev-only flag with semantic naming
-(e.g. `--dev-worktree-mode`). For users, the daemon serves the user;
-projects are selected per-view via the registry. cwd-discovery is the
-fallback for first-launch UX.
+each running their own daemon on hash-derived ports. The flag was
+renamed from `--workspace` to make its dev-only nature obvious. For
+users, the daemon serves the user; projects are selected per-view via
+the registry. cwd-discovery is the fallback for first-launch UX.
 
 ## What `.ship/` is
 
