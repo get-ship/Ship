@@ -158,6 +158,14 @@ pub async fn run_network(
     human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
 
+    // Register the launch-time project (if any) into the project registry
+    // so the launcher / shell sees it on first list. Idempotent.
+    if let Some(root) = project_root.as_ref() {
+        if let Err(e) = runtime::projects::register(root.path(), None) {
+            tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
+        }
+    }
+
     let token = match auth::read_token(&daemon_dir) {
         Ok(existing) if !existing.is_empty() => Arc::new(existing),
         _ => {
