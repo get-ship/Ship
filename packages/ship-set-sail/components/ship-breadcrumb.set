@@ -35,7 +35,7 @@ mount {
   syncSeparators()
   const obs = new MutationObserver(() => syncSeparators())
   obs.observe(el, { childList: true, subtree: false })
-  el.addEventListener('sail:cleanup', () => obs.disconnect())
+  cleanups.push(() => obs.disconnect())
 }
 </script>
 

@@ -25,7 +25,7 @@ mount {
     forValue.set(el.getAttribute('for') || '')
   })
   obs.observe(el, { attributes: true, attributeFilter: ['for'] })
-  el.addEventListener('sail:cleanup', () => obs.disconnect())
+  cleanups.push(() => obs.disconnect())
 }
 </script>
 

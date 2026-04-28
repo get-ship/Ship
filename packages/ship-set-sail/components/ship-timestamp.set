@@ -32,7 +32,7 @@ derived absText = value()
 
 mount {
   const id = setInterval(() => tick.set(tick() + 1), 60_000)
-  el.addEventListener('sail:cleanup', () => clearInterval(id))
+  cleanups.push(() => clearInterval(id))
 }
 
 effect {
