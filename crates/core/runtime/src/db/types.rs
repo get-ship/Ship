@@ -54,16 +54,3 @@ pub struct WorkspaceSessionRecordDb {
     pub created_at: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct CompiledAssetCacheDb {
-    pub uuid: String,
-    pub kind: String,
-    pub external_id: String,
-    pub name: String,
-    pub source_path: String,
-    pub content_hash: String,
-}
-
-/// Backwards-compatible alias — remove after all callers migrate.
-#[allow(dead_code)]
-pub type AgentArtifactRegistryDb = CompiledAssetCacheDb;

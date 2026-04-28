@@ -161,22 +161,6 @@ BEGIN
   UPDATE actors SET last_event_at = NEW.created_at WHERE id = NEW.target_actor_id;
 END;
 
--- Compiled asset cache — tracks compiled skills, rules, and MCP server
--- configs by content hash so the daemon can skip recompilation when the
--- source hasn't changed.
-CREATE TABLE IF NOT EXISTS compiled_asset_cache (
-  uuid         TEXT PRIMARY KEY,
-  kind         TEXT NOT NULL,
-  external_id  TEXT NOT NULL,
-  name         TEXT NOT NULL,
-  source_path  TEXT NOT NULL,
-  content_hash TEXT NOT NULL,
-  updated_at   TEXT NOT NULL,
-  UNIQUE(kind, external_id)
-);
-CREATE INDEX IF NOT EXISTS compiled_asset_cache_kind_idx
-  ON compiled_asset_cache(kind);
-
 -- ═══════════════════════════════════════════════════════════════════
 -- Workflow layer — opinionated planning
 -- ═══════════════════════════════════════════════════════════════════

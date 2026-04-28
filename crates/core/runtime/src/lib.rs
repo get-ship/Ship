@@ -85,15 +85,9 @@ pub use skill_vars::{
 };
 
 // ─── Re-exports from db (formerly state_db) ────────────────────────────────
-pub use db::artifact_registry::{
-    get_compiled_asset_cache_by_external_id_db, get_compiled_asset_cache_by_uuid_db,
-    upsert_compiled_asset_cache_db,
-};
 pub use db::managed_state::{get_managed_state_db, set_managed_state_db};
 pub use db::session::get_workspace_session_record_db;
-pub use db::types::{
-    AgentArtifactRegistryDb, WorkspaceSessionDb, WorkspaceSessionRecordDb,
-};
+pub use db::types::{WorkspaceSessionDb, WorkspaceSessionRecordDb};
 pub use errors::{KernelError, WorkspaceError};
 
 pub use workspace::{

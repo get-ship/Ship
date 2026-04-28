@@ -5,7 +5,6 @@ pub mod library;
 pub mod local;
 pub mod security;
 
-mod artifact_registry;
 mod crud;
 mod discover;
 mod git;
