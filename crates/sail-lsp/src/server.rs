@@ -16,13 +16,16 @@ use lsp_types::request::{
     CodeActionRequest, Completion, GotoDefinition, HoverRequest, Request as _,
 };
 use lsp_types::{
-    CodeActionProviderCapability, CompletionOptions, Diagnostic, HoverProviderCapability,
-    InitializeParams, OneOf, PublishDiagnosticsParams, ServerCapabilities,
-    TextDocumentSyncCapability, TextDocumentSyncKind, Url,
+    CodeActionProviderCapability, CompletionOptions, CompletionParams, CompletionResponse,
+    Diagnostic, HoverParams, HoverProviderCapability, InitializeParams, OneOf,
+    PublishDiagnosticsParams, ServerCapabilities, TextDocumentSyncCapability,
+    TextDocumentSyncKind, Url,
 };
 
+use crate::completion::completions;
 use crate::diagnostics::compile_diagnostics;
 use crate::document::Documents;
+use crate::hover::hover;
 
 /// Run the server on stdio until the client sends `exit`.
 pub fn run_stdio() -> Result<()> {
@@ -53,10 +56,16 @@ fn server_capabilities() -> ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(
             TextDocumentSyncKind::FULL,
         )),
-        // V0 stubs — see README. Capabilities are advertised so editors
-        // can wire keybindings; handlers return empty results.
         hover_provider: Some(HoverProviderCapability::Simple(true)),
-        completion_provider: Some(CompletionOptions::default()),
+        completion_provider: Some(CompletionOptions {
+            trigger_characters: Some(
+                ["<", "{", ".", ":", "="].iter().map(|s| (*s).to_string()).collect(),
+            ),
+            ..Default::default()
+        }),
+        // codeAction + definition stay stubs in v1 — the README marks
+        // them as such. The capabilities are advertised so editors
+        // wire keybindings; handlers return empty results.
         code_action_provider: Some(CodeActionProviderCapability::Simple(true)),
         definition_provider: Some(OneOf::Left(true)),
         ..Default::default()
@@ -71,7 +80,7 @@ fn main_loop(conn: &Connection) -> Result<()> {
                 if conn.handle_shutdown(&req).context("shutdown check")? {
                     return Ok(());
                 }
-                handle_request(conn, req)?;
+                handle_request(conn, &docs, req)?;
             }
             Message::Notification(note) => {
                 handle_notification(conn, &mut docs, note)?;
@@ -84,20 +93,56 @@ fn main_loop(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn handle_request(conn: &Connection, req: Request) -> Result<()> {
-    // V0 stubs: every advertised request returns `null`, which the LSP
-    // spec accepts as "no result" for hover, completion, code actions,
-    // and definition. Real handlers land in subsequent work.
+fn handle_request(conn: &Connection, docs: &Documents, req: Request) -> Result<()> {
     match req.method.as_str() {
-        HoverRequest::METHOD
-        | Completion::METHOD
-        | CodeActionRequest::METHOD
-        | GotoDefinition::METHOD => empty_response(conn, req.id),
+        Completion::METHOD => {
+            let params: CompletionParams = req.extract_params(Completion::METHOD)?;
+            let items = docs
+                .get(&params.text_document_position.text_document.uri)
+                .map(|d| completions(&d.text, params.text_document_position.position))
+                .unwrap_or_default();
+            send_result(conn, req.id, CompletionResponse::Array(items))
+        }
+        HoverRequest::METHOD => {
+            let params: HoverParams = req.extract_params(HoverRequest::METHOD)?;
+            let result = docs
+                .get(&params.text_document_position_params.text_document.uri)
+                .and_then(|d| hover(&d.text, params.text_document_position_params.position));
+            send_result(conn, req.id, result)
+        }
+        // codeAction + definition stay stubbed in v1.
+        CodeActionRequest::METHOD | GotoDefinition::METHOD => empty_response(conn, req.id),
         other => {
             tracing::debug!(method = %other, "unhandled LSP request");
             empty_response(conn, req.id)
         }
     }
+}
+
+trait RequestExt {
+    fn extract_params<P: serde::de::DeserializeOwned>(&self, method: &str) -> Result<P>;
+}
+
+impl RequestExt for Request {
+    fn extract_params<P: serde::de::DeserializeOwned>(&self, method: &str) -> Result<P> {
+        serde_json::from_value(self.params.clone())
+            .with_context(|| format!("decode params for {method}"))
+    }
+}
+
+fn send_result<T: serde::Serialize>(
+    conn: &Connection,
+    id: lsp_server::RequestId,
+    value: T,
+) -> Result<()> {
+    let resp = lsp_server::Response {
+        id,
+        result: Some(serde_json::to_value(value).context("encode response")?),
+        error: None,
+    };
+    conn.sender
+        .send(Message::Response(resp))
+        .context("send response")
 }
 
 fn empty_response(conn: &Connection, id: lsp_server::RequestId) -> Result<()> {
@@ -254,15 +299,97 @@ mod tests {
     }
 
     #[test]
-    fn capabilities_advertise_full_sync_and_v0_stubs() {
+    fn capabilities_advertise_full_sync_and_trigger_chars() {
         let caps = server_capabilities();
         assert!(matches!(
             caps.text_document_sync,
             Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL))
         ));
         assert!(caps.hover_provider.is_some());
-        assert!(caps.completion_provider.is_some());
+        let cp = caps.completion_provider.expect("completion provider");
+        let triggers = cp.trigger_characters.expect("trigger chars registered");
+        for c in ["<", "{", ".", ":", "="] {
+            assert!(triggers.iter().any(|t| t == c), "missing trigger {c}: {triggers:?}");
+        }
         assert!(caps.code_action_provider.is_some());
         assert!(caps.definition_provider.is_some());
+    }
+
+    #[test]
+    fn completion_request_returns_at_least_one_item() {
+        use lsp_types::request::Completion as CompletionReq;
+        use lsp_types::{
+            CompletionParams, PartialResultParams, Position, TextDocumentIdentifier,
+            TextDocumentItem, TextDocumentPositionParams, VersionedTextDocumentIdentifier,
+            WorkDoneProgressParams,
+        };
+        use lsp_types::notification::DidOpenTextDocument;
+        use lsp_types::DidOpenTextDocumentParams;
+
+        let (server_conn, client) = Connection::memory();
+        let server = thread::spawn(move || run(server_conn));
+
+        // initialize
+        let init = serde_json::to_value(InitializeParams {
+            capabilities: ClientCapabilities::default(),
+            ..Default::default()
+        }).unwrap();
+        client.sender.send(Message::Request(req(1, Initialize::METHOD, init))).unwrap();
+        let _ = recv_response(&client);
+        let initialized = serde_json::to_value(InitializedParams {}).unwrap();
+        client.sender.send(Message::Notification(note(Initialized::METHOD, initialized))).unwrap();
+
+        // open a doc with a known signal so completion has something to surface
+        let uri = Url::parse("file:///x/widget.set").unwrap();
+        let text = "<script>\nstate count = 0\n</script>\n<template>{</template>".to_string();
+        let open = DidOpenTextDocumentParams {
+            text_document: TextDocumentItem {
+                uri: uri.clone(),
+                language_id: "set".into(),
+                version: 1,
+                text,
+            },
+        };
+        client.sender.send(Message::Notification(note(
+            DidOpenTextDocument::METHOD,
+            serde_json::to_value(open).unwrap(),
+        ))).unwrap();
+        // drain the diagnostics notification published on open
+        let _ = client.receiver.recv().unwrap();
+
+        // completion at the `{` (line 3, col 11) — interpolation context
+        let completion = CompletionParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier { uri: uri.clone() },
+                position: Position { line: 3, character: 11 },
+            },
+            work_done_progress_params: WorkDoneProgressParams::default(),
+            partial_result_params: PartialResultParams::default(),
+            context: None,
+        };
+        client.sender.send(Message::Request(req(
+            10, CompletionReq::METHOD,
+            serde_json::to_value(completion).unwrap(),
+        ))).unwrap();
+        let resp = recv_response(&client);
+        assert_eq!(resp.id, RequestId::from(10));
+        let val = resp.result.expect("result present");
+        let items: Vec<lsp_types::CompletionItem> = match val {
+            serde_json::Value::Array(_) => serde_json::from_value(val).unwrap(),
+            // CompletionResponse can also serialise as { items, isIncomplete }
+            other => serde_json::from_value::<lsp_types::CompletionList>(other)
+                .map(|l| l.items)
+                .unwrap_or_default(),
+        };
+        assert!(!items.is_empty(), "expected ≥1 completion item, got {items:?}");
+        assert!(items.iter().any(|i| i.label == "count"), "{items:?}");
+
+        // shutdown
+        client.sender.send(Message::Request(req(99, Shutdown::METHOD, serde_json::Value::Null))).unwrap();
+        let _ = recv_response(&client);
+        client.sender.send(Message::Notification(note(Exit::METHOD, serde_json::Value::Null))).unwrap();
+        // Suppress diagnostics that drain into the version we don't care about.
+        let _ = VersionedTextDocumentIdentifier { uri, version: 1 };
+        server.join().expect("server panicked").expect("server returned Err");
     }
 }
