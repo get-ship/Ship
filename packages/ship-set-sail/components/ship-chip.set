@@ -38,7 +38,8 @@ derived ariaDisabled = disabled() ? 'true' : ''
 derived ariaPressed = selected() ? 'true' : 'false'
 
 mount {
-  el.addEventListener('keydown', onKeydown)
+  el.addEventListener("keydown", onKeydown)
+  cleanups.push(() => el.removeEventListener("keydown", onKeydown))
 }
 </script>
 

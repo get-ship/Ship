@@ -16,6 +16,7 @@ prop value: string = ''
 prop label: string = 'Copy'
 
 state copied = false
+state resetTimer: any = null
 
 derived btnText = copied() ? 'Copied' : label()
 
@@ -29,10 +30,14 @@ function copy() {
       bubbles: true,
       composed: true,
     }))
-    setTimeout(() => {
+    // Clear any pending reset from a previous copy so a stale timer
+    // can't flip `copied` back off in the middle of a fresh flash.
+    const t = resetTimer(); if (t) clearTimeout(t)
+    resetTimer.set(setTimeout(() => {
       copied.set(false)
       el.removeAttribute('copied')
-    }, 1200)
+      resetTimer.set(null)
+    }, 1200))
   }
   try {
     const p = navigator.clipboard && navigator.clipboard.writeText
@@ -52,6 +57,13 @@ function copy() {
   }
 }
 
+mount {
+  // Cancel any pending reset timer on disconnect so a stale callback
+  // can't write to the (still-alive) signal after the element is gone.
+  cleanups.push(() => {
+    const t = resetTimer(); if (t) clearTimeout(t)
+  })
+}
 </script>
 
 <template>

@@ -14,7 +14,8 @@ function onKey(e) {
 }
 
 mount {
-  el.addEventListener('keydown', onKey)
+  el.addEventListener("keydown", onKey)
+  cleanups.push(() => el.removeEventListener("keydown", onKey))
 }
 </script>
 

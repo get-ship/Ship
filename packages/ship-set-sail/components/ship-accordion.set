@@ -95,6 +95,10 @@ function syncItems() {
 mount {
   el.addEventListener('ship-accordion-item-toggle', onItemToggle)
   el.addEventListener('ship-accordion-nav', onItemNav)
+  cleanups.push(() => {
+    el.removeEventListener('ship-accordion-item-toggle', onItemToggle)
+    el.removeEventListener('ship-accordion-nav', onItemNav)
+  })
 }
 
 effect {

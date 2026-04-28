@@ -89,6 +89,10 @@ mount {
   defaultValue.set(value())
   el.addEventListener('ship-radio-select', onRadioSelect)
   el.addEventListener('ship-radio-nav', onRadioNav)
+  cleanups.push(() => {
+    el.removeEventListener('ship-radio-select', onRadioSelect)
+    el.removeEventListener('ship-radio-nav', onRadioNav)
+  })
   // Defer the first sync so child <ship-radio> elements are upgraded
   // before we read their attributes and write checked/tone/size back.
   queueMicrotask(() => {
