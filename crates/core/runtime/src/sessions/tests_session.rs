@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::workspace::*;
+    use crate::sessions::*;
     use anyhow::Result;
     use tempfile::tempdir;
 
@@ -9,36 +9,36 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-let started = start_workspace_session(
+let started = start_session(
             &ship_dir,
             "feature/session-flow",
             Some("Implement parser".to_string()),
             None,
             None,
         )?;
-        assert_eq!(started.status, WorkspaceSessionStatus::Active);
+        assert_eq!(started.status, SessionStatus::Active);
         assert_eq!(started.goal.as_deref(), Some("Implement parser"));
         assert_eq!(started.primary_provider.as_deref(), Some("claude"));
         assert!(started.ended_at.is_none());
 
-        let active = get_active_workspace_session(&ship_dir, "feature/session-flow")?
+        let active = get_active_session(&ship_dir, "feature/session-flow")?
             .ok_or_else(|| anyhow::anyhow!("active session not found"))?;
         assert_eq!(active.id, started.id);
 
-        let ended = end_workspace_session(
+        let ended = end_session(
             &ship_dir,
             "feature/session-flow",
-            EndWorkspaceSessionRequest {
+            EndSessionRequest {
                 summary: Some("Implemented parser + tests".to_string()),
                 updated_workspace_ids: vec!["feat-parser".to_string()],
                 ..Default::default()
             },
         )?;
-        assert_eq!(ended.status, WorkspaceSessionStatus::Ended);
+        assert_eq!(ended.status, SessionStatus::Ended);
         assert!(ended.ended_at.is_some());
         assert_eq!(ended.summary.as_deref(), Some("Implemented parser + tests"));
         assert_eq!(ended.updated_workspace_ids, vec!["feat-parser".to_string()]);
-        assert!(get_active_workspace_session(&ship_dir, "feature/session-flow")?.is_none());
+        assert!(get_active_session(&ship_dir, "feature/session-flow")?.is_none());
 
         Ok(())
     }
@@ -48,7 +48,7 @@ let started = start_workspace_session(
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-let started = start_workspace_session(
+let started = start_session(
             &ship_dir,
             "feature/metrics",
             Some("test metrics".to_string()),
@@ -56,10 +56,10 @@ let started = start_workspace_session(
             None,
         )?;
 
-        let ended = end_workspace_session(
+        let ended = end_session(
             &ship_dir,
             "feature/metrics",
-            EndWorkspaceSessionRequest {
+            EndSessionRequest {
                 summary: Some("done".to_string()),
                 updated_workspace_ids: vec![],
                 model: Some("claude-opus-4-20250514".to_string()),
@@ -87,12 +87,12 @@ let started = start_workspace_session(
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-start_workspace_session(&ship_dir, "feature/metrics-defaults", None, None, None)?;
+start_session(&ship_dir, "feature/metrics-defaults", None, None, None)?;
 
-        let ended = end_workspace_session(
+        let ended = end_session(
             &ship_dir,
             "feature/metrics-defaults",
-            EndWorkspaceSessionRequest::default(),
+            EndSessionRequest::default(),
         )?;
 
         assert!(ended.duration_secs.is_some());
@@ -109,14 +109,14 @@ start_workspace_session(&ship_dir, "feature/metrics-defaults", None, None, None)
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-let first = start_workspace_session(
+let first = start_session(
             &ship_dir,
             "feature/session-dupe",
             Some("one".into()),
             None,
             None,
         )?;
-        let attached = start_workspace_session(
+        let attached = start_session(
             &ship_dir,
             "feature/session-dupe",
             Some("two".into()),
@@ -125,7 +125,7 @@ let first = start_workspace_session(
         )?;
 
         assert_eq!(attached.id, first.id);
-        let sessions = list_workspace_sessions(&ship_dir, Some("feature/session-dupe"), 10)?;
+        let sessions = list_sessions(&ship_dir, Some("feature/session-dupe"), 10)?;
         assert_eq!(sessions.len(), 1);
         Ok(())
     }
@@ -135,23 +135,23 @@ let first = start_workspace_session(
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        let a = start_workspace_session(&ship_dir, "feature/a", None, None, None)?;
-        end_workspace_session(
+        let a = start_session(&ship_dir, "feature/a", None, None, None)?;
+        end_session(
             &ship_dir,
             "feature/a",
-            EndWorkspaceSessionRequest::default(),
+            EndSessionRequest::default(),
         )?;
-        let b = start_workspace_session(&ship_dir, "feature/b", None, None, None)?;
+        let b = start_session(&ship_dir, "feature/b", None, None, None)?;
 
-        let all = list_workspace_sessions(&ship_dir, None, 10)?;
+        let all = list_sessions(&ship_dir, None, 10)?;
         assert!(all.iter().any(|session| session.id == a.id));
         assert!(all.iter().any(|session| session.id == b.id));
 
-        let only_a = list_workspace_sessions(&ship_dir, Some("feature/a"), 10)?;
+        let only_a = list_sessions(&ship_dir, Some("feature/a"), 10)?;
         assert!(
             only_a
                 .iter()
-                .all(|session| session.workspace_branch == "feature/a")
+                .all(|session| session.branch == "feature/a")
         );
         assert_eq!(only_a.len(), 1);
         assert_eq!(only_a[0].id, a.id);
@@ -163,7 +163,7 @@ let first = start_workspace_session(
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-let session = start_workspace_session(
+let session = start_session(
             &ship_dir,
             "feature/provider-ok",
             Some("Pin provider".to_string()),
@@ -179,7 +179,7 @@ let session = start_workspace_session(
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-let err = start_workspace_session(
+let err = start_session(
             &ship_dir,
             "feature/provider-deny",
             None,
@@ -207,7 +207,7 @@ let err = start_workspace_session(
 
 // Provider resolution falls back to "claude" by design (agents/config.rs
         // resolution priority level 4). Session start should succeed.
-        let session = start_workspace_session(
+        let session = start_session(
             &ship_dir,
             "feature/no-provider",
             Some("fallback test".to_string()),
@@ -227,7 +227,7 @@ let err = start_workspace_session(
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        let session = start_workspace_session(
+        let session = start_session(
             &ship_dir,
             "feature/auto-create",
             Some("auto-create test".to_string()),
@@ -235,7 +235,7 @@ let err = start_workspace_session(
             None,
         )?;
 
-        assert_eq!(session.status, WorkspaceSessionStatus::Active);
+        assert_eq!(session.status, SessionStatus::Active);
         Ok(())
     }
 
@@ -244,10 +244,10 @@ let err = start_workspace_session(
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-let err = end_workspace_session(
+let err = end_session(
             &ship_dir,
             "feature/no-active",
-            EndWorkspaceSessionRequest::default(),
+            EndSessionRequest::default(),
         )
         .expect_err("should fail with no active session");
 
@@ -264,10 +264,10 @@ let err = end_workspace_session(
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        let err = end_workspace_session(
+        let err = end_session(
             &ship_dir,
             "feature/nonexistent",
-            EndWorkspaceSessionRequest::default(),
+            EndSessionRequest::default(),
         )
         .expect_err("should fail for missing workspace");
 
@@ -284,21 +284,21 @@ let err = end_workspace_session(
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-let s1 = start_workspace_session(
+let s1 = start_session(
             &ship_dir,
             "feature/concurrent",
             Some("first".to_string()),
             None,
             None,
         )?;
-        let s2 = start_workspace_session(
+        let s2 = start_session(
             &ship_dir,
             "feature/concurrent",
             Some("second".to_string()),
             None,
             None,
         )?;
-        let s3 = start_workspace_session(
+        let s3 = start_session(
             &ship_dir,
             "feature/concurrent",
             Some("third".to_string()),
@@ -309,7 +309,7 @@ let s1 = start_workspace_session(
         assert_eq!(s1.id, s2.id);
         assert_eq!(s2.id, s3.id);
         // Only one session should exist.
-        let sessions = list_workspace_sessions(&ship_dir, Some("feature/concurrent"), 10)?;
+        let sessions = list_sessions(&ship_dir, Some("feature/concurrent"), 10)?;
         assert_eq!(sessions.len(), 1);
         Ok(())
     }

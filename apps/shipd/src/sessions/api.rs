@@ -429,7 +429,7 @@ fn err(status: StatusCode, msg: impl Into<String>) -> axum::response::Response {
 fn work_dir_for(state: &ApiState, workspace_id: &str) -> std::path::PathBuf {
     // MVP: workspace dir is the project root unless we find a git
     // worktree entry for the branch. Good enough to unblock the UX;
-    // workspace resolve logic lives in runtime::workspace and can
+    // workspace resolve logic lives in runtime::sessions and can
     // replace this when we thread the context through.
     let _ = workspace_id;
     std::env::current_dir()

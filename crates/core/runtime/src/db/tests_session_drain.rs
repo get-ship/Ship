@@ -18,7 +18,7 @@ fn create_test_session(_ship_dir: &std::path::Path, session_id: &str, workspace_
     let payload = SessionStarted {
         goal: Some("test".into()),
         workspace_id: workspace_id.into(),
-        workspace_branch: branch.into(),
+        branch: branch.into(),
         ..Default::default()
     };
     insert_session_with_started_event(session_id, workspace_id, &payload).unwrap();

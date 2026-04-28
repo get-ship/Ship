@@ -39,7 +39,7 @@ mod ship_run;
 mod validate;
 mod vars;
 mod openapi;
-mod workspace_cmd;
+mod trash_cmd;
 
 use anyhow::Result;
 use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, LintCommands, McpCommands, OpenapiCommands, WorkspaceCommands};
@@ -383,13 +383,13 @@ fn dispatch_workspace(action: WorkspaceCommands) -> Result<()> {
     match action {
         WorkspaceCommands::Trash { purge } => {
             if purge {
-                workspace_cmd::run_trash_purge()
+                trash_cmd::run_trash_purge()
             } else {
-                workspace_cmd::run_trash_list()
+                trash_cmd::run_trash_list()
             }
         }
         WorkspaceCommands::Restore { filename, dest } => {
-            workspace_cmd::run_restore(&filename, dest)
+            trash_cmd::run_restore(&filename, dest)
         }
     }
 }

@@ -45,7 +45,7 @@ pub(crate) fn build_session_provider_matrix(
     ship_dir: &Path,
     branch: &str,
     agent_id: Option<&str>,
-) -> Result<WorkspaceProviderMatrix> {
+) -> Result<ProviderMatrix> {
     let resolved_agent_id = agent_id.and_then(normalize_agent_ref);
     let resolved = resolve_session_agent_config(ship_dir, agent_id)?;
     let providers = resolved.providers;
@@ -64,8 +64,8 @@ pub(crate) fn build_session_provider_matrix(
         None
     };
 
-    Ok(WorkspaceProviderMatrix {
-        workspace_branch: branch.to_string(),
+    Ok(ProviderMatrix {
+        branch: branch.to_string(),
         agent_id: resolved_agent_id,
         source: if resolved.active_agent.is_some() {
             "agent/config".to_string()

@@ -1,10 +1,10 @@
 //! Shared types for the platform database layer.
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct WorkspaceSessionDb {
+pub struct SessionDb {
     pub id: String,
     pub workspace_id: String,
-    pub workspace_branch: String,
+    pub branch: String,
     pub project_id: Option<String>,
     pub kind: String,
     pub pipeline_run_id: Option<String>,

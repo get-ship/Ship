@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::workspace::*;
+    use crate::sessions::*;
     use anyhow::Result;
     use tempfile::tempdir;
 
@@ -73,21 +73,21 @@ HEAD ccccccc
 branch refs/heads/feature/fix-x
 ";
         let path =
-            crate::workspace::helpers::parse_git_worktree_path(porcelain, "v0.2.0");
+            crate::sessions::helpers::parse_git_worktree_path(porcelain, "v0.2.0");
         assert_eq!(
             path.as_deref(),
             Some("/home/user/dev/ship-worktrees/v0.2.0")
         );
 
         let feature_path =
-            crate::workspace::helpers::parse_git_worktree_path(porcelain, "feature/fix-x");
+            crate::sessions::helpers::parse_git_worktree_path(porcelain, "feature/fix-x");
         assert_eq!(
             feature_path.as_deref(),
             Some("/home/user/dev/ship-worktrees/feat-x")
         );
 
         let missing =
-            crate::workspace::helpers::parse_git_worktree_path(porcelain, "feature/nonexistent");
+            crate::sessions::helpers::parse_git_worktree_path(porcelain, "feature/nonexistent");
         assert!(missing.is_none());
     }
 

@@ -3,23 +3,23 @@
 use anyhow::Result;
 use sqlx::Row;
 
-use super::types::WorkspaceSessionDb;
+use super::types::SessionDb;
 use super::{block_on, open_db};
 
-const SESSION_COLS: &str = "id, workspace_id, workspace_branch, project_id, kind, \
+const SESSION_COLS: &str = "id, workspace_id, branch, project_id, kind, \
     pipeline_run_id, chat_thread_id, status, started_at, ended_at, agent_id, \
     primary_provider, goal, summary, updated_workspace_ids_json, tool_call_count, \
     drained_at, last_activity_at, duration_secs, model, files_changed, lines_added, \
     lines_removed, tool_calls, gate_result, exit_reason, created_at, updated_at";
 
-fn parse_workspace_session_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
+fn parse_session_row(row: &sqlx::sqlite::SqliteRow) -> SessionDb {
     let updated_workspace_ids_json: String = row.get(14);
     let updated_workspace_ids =
         serde_json::from_str(&updated_workspace_ids_json).unwrap_or_default();
-    WorkspaceSessionDb {
+    SessionDb {
         id: row.get(0),
         workspace_id: row.get(1),
-        workspace_branch: row.get(2),
+        branch: row.get(2),
         project_id: row.get(3),
         kind: row.get(4),
         pipeline_run_id: row.get(5),
@@ -48,10 +48,10 @@ fn parse_workspace_session_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessio
     }
 }
 
-pub fn get_workspace_session_db(session_id: &str) -> Result<Option<WorkspaceSessionDb>> {
+pub fn get_session_db(session_id: &str) -> Result<Option<SessionDb>> {
     let mut conn = open_db()?;
     let sql = format!(
-        "SELECT {SESSION_COLS} FROM workspace_session WHERE id = ?"
+        "SELECT {SESSION_COLS} FROM sessions WHERE id = ?"
     );
     let row = block_on(async {
         sqlx::query(&sql)
@@ -59,13 +59,13 @@ pub fn get_workspace_session_db(session_id: &str) -> Result<Option<WorkspaceSess
             .fetch_optional(&mut conn)
             .await
     })?;
-    Ok(row.as_ref().map(parse_workspace_session_row))
+    Ok(row.as_ref().map(parse_session_row))
 }
 
-pub fn get_active_workspace_session_db(workspace_id: &str) -> Result<Option<WorkspaceSessionDb>> {
+pub fn get_active_session_db(workspace_id: &str) -> Result<Option<SessionDb>> {
     let mut conn = open_db()?;
     let sql = format!(
-        "SELECT {SESSION_COLS} FROM workspace_session \
+        "SELECT {SESSION_COLS} FROM sessions \
          WHERE workspace_id = ? AND status = 'active' \
          ORDER BY started_at DESC LIMIT 1"
     );
@@ -75,18 +75,18 @@ pub fn get_active_workspace_session_db(workspace_id: &str) -> Result<Option<Work
             .fetch_optional(&mut conn)
             .await
     })?;
-    Ok(row.as_ref().map(parse_workspace_session_row))
+    Ok(row.as_ref().map(parse_session_row))
 }
 
-pub fn list_workspace_sessions_db(
+pub fn list_sessions_db(
     workspace_id: Option<&str>,
     limit: usize,
-) -> Result<Vec<WorkspaceSessionDb>> {
+) -> Result<Vec<SessionDb>> {
     let mut conn = open_db()?;
     let clamped_limit = limit.clamp(1, 500) as i64;
     let rows = if let Some(workspace_id) = workspace_id {
         let sql = format!(
-            "SELECT {SESSION_COLS} FROM workspace_session \
+            "SELECT {SESSION_COLS} FROM sessions \
              WHERE workspace_id = ? ORDER BY started_at DESC LIMIT ?"
         );
         block_on(async {
@@ -98,7 +98,7 @@ pub fn list_workspace_sessions_db(
         })?
     } else {
         let sql = format!(
-            "SELECT {SESSION_COLS} FROM workspace_session \
+            "SELECT {SESSION_COLS} FROM sessions \
              ORDER BY started_at DESC LIMIT ?"
         );
         block_on(async {
@@ -109,6 +109,6 @@ pub fn list_workspace_sessions_db(
         })?
     };
 
-    Ok(rows.iter().map(parse_workspace_session_row).collect())
+    Ok(rows.iter().map(parse_session_row).collect())
 }
 

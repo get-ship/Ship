@@ -17,17 +17,16 @@ CREATE TABLE IF NOT EXISTS kv_state (
   PRIMARY KEY(namespace, key)
 );
 
--- The runtime DB no longer projects workspaces. Worktree state
--- (path, tmux_session_name) lives in `kv_state` under namespace
--- `worktree`, keyed by branch — see `runtime::worktrees`. Worktrees
--- are a dev-flow attachment maintained by the workspace-events
--- handlers; consumers (compile, spawn, dashboard) read via the
--- worktrees registry.
+-- The workspace primitive retired. Worktrees are a git feature, queried
+-- on demand via `runtime::git`; the runtime stores no worktree state.
 
-CREATE TABLE IF NOT EXISTS workspace_session (
+CREATE TABLE IF NOT EXISTS sessions (
   id                          TEXT PRIMARY KEY,
+  -- workspace_id is a session-grouping key (slug-derived from branch).
+  -- The "workspace" name is a vestige of the retired primitive and will
+  -- rename in a follow-up. Do NOT add a workspaces table for it.
   workspace_id                TEXT NOT NULL,
-  workspace_branch            TEXT NOT NULL,
+  branch                      TEXT NOT NULL,
   project_id                  TEXT,
   kind                        TEXT NOT NULL DEFAULT 'direct_attach',
   pipeline_run_id             TEXT,
@@ -56,15 +55,15 @@ CREATE TABLE IF NOT EXISTS workspace_session (
   updated_at                  TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS workspace_session_workspace_idx
-  ON workspace_session(workspace_id, started_at DESC);
+  ON sessions(workspace_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS workspace_session_project_idx
-  ON workspace_session(project_id, started_at DESC);
+  ON sessions(project_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS workspace_session_status_idx
-  ON workspace_session(status, started_at DESC);
+  ON sessions(status, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ws_session_drain
-  ON workspace_session(status, workspace_id, agent_id);
+  ON sessions(status, workspace_id, agent_id);
 
--- Session telemetry lives on workspace_session itself (set at
+-- Session telemetry lives on sessions itself (set at
 -- session.ended). The earlier workspace_session_record table was a
 -- duplicate write site; collapsed in slice 04 of workspace-retirement.
 

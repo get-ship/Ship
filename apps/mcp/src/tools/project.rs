@@ -5,7 +5,7 @@ use runtime::project::{get_active_project_global, get_project_dir, set_active_pr
 use runtime::project::{get_project_name, list_registered_projects};
 use runtime::{
     get_config, read_log, read_recent_events,
-    workspace::get_active_workspace_session as runtime_get_active_workspace_session,
+    sessions::get_active_session as runtime_get_active_session,
 };
 use tokio::sync::Mutex;
 
@@ -124,7 +124,7 @@ pub async fn get_project_info(project_dir: &Path) -> String {
 
     if let Some(branch) = current_branch {
         out.push_str(&format!("- Branch: {}\n", branch));
-        match runtime_get_active_workspace_session(project_dir, &branch) {
+        match runtime_get_active_session(project_dir, &branch) {
             Ok(Some(session)) => {
                 out.push_str(&format!("- Session: ACTIVE (id: {})", session.id));
                 if let Some(ref goal) = session.goal {

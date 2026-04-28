@@ -85,7 +85,7 @@ pub struct SessionStarted {
     #[serde(default)]
     pub workspace_id: String,
     #[serde(default)]
-    pub workspace_branch: String,
+    pub branch: String,
     #[serde(default)]
     pub agent_id: Option<String>,
     #[serde(default)]
@@ -168,7 +168,7 @@ pub struct SessionHeartbeat {
 pub struct SessionAttached {
     pub existing_session_id: String,
     pub workspace_id: String,
-    pub workspace_branch: String,
+    pub branch: String,
 }
 
 // -- Skill aggregate -----------------------------------------------------------

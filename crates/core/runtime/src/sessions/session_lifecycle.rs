@@ -1,4 +1,4 @@
-use crate::db::session::{get_active_workspace_session_db, get_workspace_session_db};
+use crate::db::session::{get_active_session_db, get_session_db};
 use crate::db::session_events::{
     insert_session_attached_event, insert_session_with_started_event,
     update_session_with_ended_event,
@@ -12,13 +12,13 @@ use std::process::Command;
 
 use super::compile::{compile_session_context, resolve_session_providers};
 use super::helpers::*;
-use super::session::{hydrate_workspace_session, persist_session_artifact};
+use super::session::{hydrate_session, persist_session_artifact};
 use super::types_session::*;
 use crate::project::sanitize_file_name;
 
 // ---- Post-session hooks ----------------------------------------------------
 
-fn run_post_session_hooks(ship_dir: &Path, session: &WorkspaceSession) -> Result<()> {
+fn run_post_session_hooks(ship_dir: &Path, session: &Session) -> Result<()> {
     let effective = crate::config::get_effective_config(Some(ship_dir.to_path_buf()))?;
     let hooks: Vec<_> = effective
         .hooks
@@ -48,7 +48,7 @@ fn run_post_session_hooks(ship_dir: &Path, session: &WorkspaceSession) -> Result
         let output = process
             .current_dir(ship_dir)
             .env("SHIP_ACTOR_ID", &session.id)
-            .env("SHIP_SESSION_BRANCH", &session.workspace_branch)
+            .env("SHIP_SESSION_BRANCH", &session.branch)
             .output();
 
         match output {
@@ -77,23 +77,23 @@ fn run_post_session_hooks(ship_dir: &Path, session: &WorkspaceSession) -> Result
 
 /// Start a session on the given branch. Idempotent — returns existing
 /// active session.
-pub fn start_workspace_session(
+pub fn start_session(
     ship_dir: &Path,
     branch: &str,
     goal: Option<String>,
     agent_id: Option<String>,
     primary_provider: Option<String>,
-) -> Result<WorkspaceSession> {
+) -> Result<Session> {
     let branch = ensure_branch_key(branch)?;
     let workspace_id = sanitize_file_name(branch);
 
     // Idempotent: return existing active session.
-    if let Some(active) = get_active_workspace_session_db(&workspace_id)? {
-        let existing = hydrate_workspace_session(active);
+    if let Some(active) = get_active_session_db(&workspace_id)? {
+        let existing = hydrate_session(active);
         let payload = SessionAttached {
             existing_session_id: existing.id.clone(),
             workspace_id: workspace_id.clone(),
-            workspace_branch: branch.to_string(),
+            branch: branch.to_string(),
         };
         insert_session_attached_event(&existing.id, &workspace_id, &payload)?;
         if let Err(e) = persist_session_artifact(ship_dir, &existing, "attach") {
@@ -121,7 +121,7 @@ pub fn start_workspace_session(
     let started_payload = SessionStarted {
         goal: normalize_optional_text(goal),
         workspace_id: workspace_id.clone(),
-        workspace_branch: branch.to_string(),
+        branch: branch.to_string(),
         agent_id,
         primary_provider: Some(primary_provider),
         project_id,
@@ -131,9 +131,9 @@ pub fn start_workspace_session(
     };
     let _envelope =
         insert_session_with_started_event(&session_id, &workspace_id, &started_payload)?;
-    let created = get_workspace_session_db(&session_id)?
+    let created = get_session_db(&session_id)?
         .ok_or_else(|| anyhow!("Failed to load created session"))?;
-    let started = hydrate_workspace_session(created);
+    let started = hydrate_session(created);
 
     if let Err(e) = persist_session_artifact(ship_dir, &started, "start") {
         tracing::warn!("failed to persist session artifact on start: {e}");
@@ -163,19 +163,19 @@ fn resolve_primary_provider(
     }
 }
 
-pub fn end_workspace_session(
+pub fn end_session(
     ship_dir: &Path,
     branch: &str,
-    request: EndWorkspaceSessionRequest,
-) -> Result<WorkspaceSession> {
+    request: EndSessionRequest,
+) -> Result<Session> {
     let branch = ensure_branch_key(branch)?;
     let workspace_id = sanitize_file_name(branch);
 
-    let mut active = get_active_workspace_session_db(&workspace_id)?
+    let mut active = get_active_session_db(&workspace_id)?
         .ok_or_else(|| anyhow!("No active session on branch '{}'", branch))?;
 
     let now = Utc::now().to_rfc3339();
-    active.status = WorkspaceSessionStatus::Ended.to_string();
+    active.status = SessionStatus::Ended.to_string();
     active.ended_at = Some(now.clone());
     active.summary = normalize_optional_text(request.summary);
     active.updated_workspace_ids = request.updated_workspace_ids;
@@ -218,11 +218,11 @@ pub fn end_workspace_session(
     };
     let _envelope = update_session_with_ended_event(&active.id, &active.workspace_id, &ended_payload)?;
 
-    let ended = get_workspace_session_db(&active.id)?
+    let ended = get_session_db(&active.id)?
         .ok_or_else(|| anyhow!("Failed to load ended workspace session"))?;
-    let ended = hydrate_workspace_session(ended);
+    let ended = hydrate_session(ended);
 
-    // Telemetry already landed on workspace_session via apply_ended; no
+    // Telemetry already landed on sessions via apply_ended; no
     // separate session.recorded event needed (slice 04 of workspace-retirement).
 
     if let Err(e) = persist_session_artifact(ship_dir, &ended, "end") {

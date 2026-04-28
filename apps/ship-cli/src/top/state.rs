@@ -74,39 +74,21 @@ pub fn refresh(state: &mut TopState, ship_dir: &Path) {
     refresh_network(state);
 }
 
-fn refresh_workspaces(state: &mut TopState, ship_dir: &Path) {
+fn refresh_workspaces(state: &mut TopState, _ship_dir: &Path) {
+    // The workspace primitive retired (workspace-retirement spec arc).
+    // The top view's "workspaces" panel is being repurposed as a branch
+    // listing — pending an actual data source. For now leave it empty.
     state.workspaces.clear();
-    match runtime::list_workspaces(ship_dir) {
-        Ok(ws_list) => {
-            for ws in ws_list {
-                let status = runtime::workspace_status(&ws);
-                let session_status =
-                    match runtime::get_active_workspace_session(ship_dir, &ws.name) {
-                        Ok(Some(s)) => format!("{}", s.status),
-                        Ok(None) => "—".into(),
-                        Err(_) => "err".into(),
-                    };
-                state.workspaces.push(WorkspaceRow {
-                    branch: ws.name,
-                    status: format!("{}", status),
-                    agent: ws.active_agent.unwrap_or_else(|| "—".into()),
-                    providers: "—".into(),
-                    session_status,
-                });
-            }
-        }
-        Err(e) => state.error = Some(format!("workspaces: {e}")),
-    }
 }
 
 fn refresh_sessions(state: &mut TopState) {
     state.sessions.clear();
-    match runtime::db::session::list_workspace_sessions_db(None, 50) {
+    match runtime::db::session::list_sessions_db(None, 50) {
         Ok(sessions) => {
             for s in sessions {
                 state.sessions.push(SessionRow {
                     id_short: s.id.chars().take(8).collect(),
-                    branch: s.workspace_branch,
+                    branch: s.branch,
                     status: s.status,
                     provider: s.primary_provider.unwrap_or_else(|| "—".into()),
                     agent: s.agent_id.unwrap_or_else(|| "—".into()),

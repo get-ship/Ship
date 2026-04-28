@@ -19,8 +19,8 @@ pub mod project;
 pub mod projects;
 pub mod registry;
 pub mod projections;
+pub mod sessions;
 pub mod trash;
-pub mod workspace;
 pub mod supervisor;
 
 #[cfg(feature = "unstable")]
@@ -88,17 +88,14 @@ pub use skill_vars::{
 
 // ─── Re-exports from db (formerly state_db) ────────────────────────────────
 pub use db::managed_state::{get_managed_state_db, set_managed_state_db};
-pub use db::types::WorkspaceSessionDb;
+pub use db::types::SessionDb;
 pub use errors::{KernelError, WorkspaceError};
 
 pub use trash::{TrashEntry, list_trash, purge_old_trash, restore_file, trash_file};
 
-pub use workspace::{
-    EndWorkspaceSessionRequest, WorkspaceProviderMatrix, WorkspaceRepairReport, WorkspaceSession,
-    WorkspaceSessionStatus,
-    end_workspace_session, get_active_workspace_session,
-    list_workspace_sessions, record_workspace_session_progress,
-    start_workspace_session,
+pub use sessions::{
+    EndSessionRequest, ProviderMatrix, ProviderMatrixRepairReport, Session, SessionStatus,
+    end_session, get_active_session, list_sessions, record_session_progress, start_session,
 };
 
 /// Generate a monotonic ULID string. Thread-safe via thread-local generator.

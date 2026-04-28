@@ -36,28 +36,28 @@ impl SessionLiveness {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
 #[serde(rename_all = "kebab-case")]
-pub enum WorkspaceSessionStatus {
+pub enum SessionStatus {
     #[default]
     Active,
     Ended,
 }
 
-impl std::fmt::Display for WorkspaceSessionStatus {
+impl std::fmt::Display for SessionStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            WorkspaceSessionStatus::Active => write!(f, "active"),
-            WorkspaceSessionStatus::Ended => write!(f, "ended"),
+            SessionStatus::Active => write!(f, "active"),
+            SessionStatus::Ended => write!(f, "ended"),
         }
     }
 }
 
-impl std::str::FromStr for WorkspaceSessionStatus {
+impl std::str::FromStr for SessionStatus {
     type Err = anyhow::Error;
 
     fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
         match value.to_lowercase().as_str() {
-            "active" => Ok(WorkspaceSessionStatus::Active),
-            "ended" => Ok(WorkspaceSessionStatus::Ended),
+            "active" => Ok(SessionStatus::Active),
+            "ended" => Ok(SessionStatus::Ended),
             _ => Err(anyhow::anyhow!(
                 "Invalid workspace session status: {}",
                 value
@@ -67,11 +67,11 @@ impl std::str::FromStr for WorkspaceSessionStatus {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
-pub struct WorkspaceSession {
+pub struct Session {
     pub id: String,
     pub workspace_id: String,
-    pub workspace_branch: String,
-    pub status: WorkspaceSessionStatus,
+    pub branch: String,
+    pub status: SessionStatus,
     pub started_at: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub ended_at: Option<DateTime<Utc>>,
@@ -113,7 +113,7 @@ pub struct WorkspaceSession {
 // ---- Request / report types ------------------------------------------------
 
 #[derive(Debug, Clone, Default)]
-pub struct EndWorkspaceSessionRequest {
+pub struct EndSessionRequest {
     pub summary: Option<String>,
     pub updated_workspace_ids: Vec<String>,
     pub model: Option<String>,
@@ -126,8 +126,8 @@ pub struct EndWorkspaceSessionRequest {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
-pub struct WorkspaceProviderMatrix {
-    pub workspace_branch: String,
+pub struct ProviderMatrix {
+    pub branch: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
     pub source: String,
@@ -138,8 +138,8 @@ pub struct WorkspaceProviderMatrix {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
-pub struct WorkspaceRepairReport {
-    pub workspace_branch: String,
+pub struct ProviderMatrixRepairReport {
+    pub branch: String,
     pub dry_run: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,

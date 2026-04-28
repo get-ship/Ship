@@ -1,6 +1,6 @@
-use crate::db::session::{get_active_workspace_session_db, list_workspace_sessions_db};
+use crate::db::session::{get_active_session_db, list_sessions_db};
 use crate::db::session_events::insert_session_progress_event;
-use crate::db::types::WorkspaceSessionDb;
+use crate::db::types::SessionDb;
 use crate::errors::WorkspaceError;
 use crate::events::types::SessionProgress;
 use crate::project::{get_global_dir, project_slug_from_ship_dir, sanitize_file_name};
@@ -14,18 +14,18 @@ use super::types_session::*;
 
 // ---- Hydration helpers -----------------------------------------------------
 
-pub(super) fn hydrate_workspace_session(row: WorkspaceSessionDb) -> WorkspaceSession {
+pub(super) fn hydrate_session(row: SessionDb) -> Session {
     let last_activity_at = parse_datetime_opt(row.last_activity_at);
-    let status = row.status.parse().unwrap_or(WorkspaceSessionStatus::Active);
-    let liveness = if status == WorkspaceSessionStatus::Active {
+    let status = row.status.parse().unwrap_or(SessionStatus::Active);
+    let liveness = if status == SessionStatus::Active {
         Some(SessionLiveness::from_activity(last_activity_at.as_ref()))
     } else {
         None
     };
-    WorkspaceSession {
+    Session {
         id: row.id,
         workspace_id: row.workspace_id,
-        workspace_branch: row.workspace_branch,
+        branch: row.branch,
         status,
         started_at: parse_datetime(&row.started_at),
         ended_at: parse_datetime_opt(row.ended_at),
@@ -60,7 +60,7 @@ pub(super) fn session_artifacts_dir(ship_dir: &Path, session_id: &str) -> Option
 
 pub(super) fn persist_session_artifact(
     ship_dir: &Path,
-    session: &WorkspaceSession,
+    session: &Session,
     phase: &str,
 ) -> Result<()> {
     let Some(session_dir) = session_artifacts_dir(ship_dir, &session.id) else {
@@ -77,7 +77,7 @@ pub(super) fn persist_session_artifact(
         "phase": phase,
         "timestamp": Utc::now().to_rfc3339(),
         "session_id": session.id,
-        "branch": session.workspace_branch,
+        "branch": session.branch,
         "status": session.status.to_string(),
         "provider": session.primary_provider,
         "goal": session.goal,
@@ -115,20 +115,20 @@ fn append_session_note_artifact(ship_dir: &Path, session_id: &str, note: &str) -
 
 // ---- Public session query/progress API -------------------------------------
 
-pub fn get_active_workspace_session(
+pub fn get_active_session(
     _ship_dir: &Path,
     branch: &str,
-) -> Result<Option<WorkspaceSession>> {
+) -> Result<Option<Session>> {
     let branch = ensure_branch_key(branch)?;
     let workspace_id = sanitize_file_name(branch);
-    Ok(get_active_workspace_session_db(&workspace_id)?.map(hydrate_workspace_session))
+    Ok(get_active_session_db(&workspace_id)?.map(hydrate_session))
 }
 
-pub fn list_workspace_sessions(
+pub fn list_sessions(
     _ship_dir: &Path,
     branch: Option<&str>,
     limit: usize,
-) -> Result<Vec<WorkspaceSession>> {
+) -> Result<Vec<Session>> {
     let workspace_id = if let Some(branch) = branch {
         let branch = ensure_branch_key(branch)?;
         Some(sanitize_file_name(branch))
@@ -136,11 +136,11 @@ pub fn list_workspace_sessions(
         None
     };
 
-    let rows = list_workspace_sessions_db(workspace_id.as_deref(), limit)?;
-    Ok(rows.into_iter().map(hydrate_workspace_session).collect())
+    let rows = list_sessions_db(workspace_id.as_deref(), limit)?;
+    Ok(rows.into_iter().map(hydrate_session).collect())
 }
 
-pub fn record_workspace_session_progress(
+pub fn record_session_progress(
     ship_dir: &Path,
     branch: &str,
     note: &str,
@@ -148,7 +148,7 @@ pub fn record_workspace_session_progress(
 ) -> Result<(), WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
     let workspace_id = sanitize_file_name(branch);
-    let active = get_active_workspace_session_db(&workspace_id)?
+    let active = get_active_session_db(&workspace_id)?
         .ok_or_else(|| anyhow::anyhow!("No active session on branch '{}'", branch))?;
 
     let normalized_note = note.trim();

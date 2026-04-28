@@ -21,7 +21,7 @@ pub struct PeerHandle {
     /// Workspace branch this peer is scoped to. System events with a
     /// workspace_id are only delivered if it matches this field.
     /// None = unscoped, receives system events for all workspaces.
-    pub workspace_branch: Option<String>,
+    pub branch: Option<String>,
 }
 
 /// Routes events from an actor's `Mailbox` to connected agent peers.
@@ -86,7 +86,7 @@ impl EventRelay {
     ///
     /// System events (workspace.*, session.*, actor.*, config.*, gate.*)
     /// are scoped by workspace — a peer only receives system events that
-    /// match its workspace_branch, or events with no workspace_id (global).
+    /// match its branch, or events with no workspace_id (global).
     ///
     /// Skill-namespaced events (e.g. visual-brainstorm.annotation_created)
     /// are only delivered if the peer's allowed_events contains that type.
@@ -112,13 +112,13 @@ impl EventRelay {
         // `target_actor_id` — only the matching actor's mailbox sees them.
         // No further workspace check is needed (and would be wrong: the
         // event's `workspace_id` is the slugged form, while the peer's
-        // `workspace_branch` is the raw git branch name — they don't
+        // `branch` is the raw git branch name — they don't
         // compare).
         if event.target_actor_id.is_none() {
             // Broadcast event: apply workspace scoping so cross-workspace
             // peers don't see each other's traffic.
             if let (Some(event_ws), Some(peer_ws)) =
-                (&event.workspace_id, &peer.workspace_branch)
+                (&event.workspace_id, &peer.branch)
                 && event_ws != peer_ws
             {
                 return false;

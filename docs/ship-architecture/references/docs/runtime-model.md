@@ -133,11 +133,12 @@ Things that look like collections-shaped but aren't:
 - Integration state (MCP servers configured, OAuth connections,
   webhooks registered). Should be event-sourced — see below.
 
-## Five primitives
+## Four primitives
 
-Workspace as a runtime primitive retired (see
-`.artifacts/specs/workspace-retirement/`). The runtime now has five
-concepts, each with one job:
+Workspace as a runtime primitive retired entirely. There is no
+`Workspace` struct, no `workspace` runtime API, no workspace
+projection, no kv namespace tracking workspaces. The runtime has four
+concepts:
 
 1. **Project** — a directory with `.ship/` inside it (or no
    directory, for headless / consumer flows that haven't picked one).
@@ -147,19 +148,12 @@ concepts, each with one job:
    via `runtime::projects`. Default `personal` project lives at
    `~/.ship/`.
 
-2. **Actor** — a running thing. Owns isolation: `cwd`, permissions,
-   transport, lifecycle, MCP tool gate. Supervisor-managed. Already
-   the unit of "what's running"; no parallel "active workspace"
-   concept any more. Per-actor scope replaces the old MCP
-   `active_workspace` singleton.
+2. **Actor** — a running thing. Owns isolation: `cwd`, `project_id`,
+   permissions, transport, lifecycle, MCP tool gate. Supervisor-
+   managed. The unit of "what's running"; per-actor scope replaces
+   the old MCP `active_workspace` singleton.
 
-3. **Worktree** — a dev-flow attachment. A pairing of branch + path
-   (+ optional tmux session) that some actors opt into. **NOT a
-   runtime primitive** — kv-backed via `runtime::worktrees`,
-   maintained by the workspace.* event handlers. Consumer flows that
-   don't need an isolated checkout simply don't have a worktree row.
-
-4. **Session** — analytics rollup over actor activity. Has a `kind`
+3. **Session** — analytics rollup over actor activity. Has a `kind`
    discriminator (`pipeline_step | chat_thread | direct_attach`) and
    context dimensions (`project_id`, `pipeline_run_id?`,
    `chat_thread_id?`, `branch?`). Telemetry (tokens, files_changed,
@@ -167,28 +161,35 @@ concepts, each with one job:
    is no live session row — "what's running" is an actor question;
    "what happened" is a session query.
 
-5. **Adapter** — in-process module that talks to the outside world
+4. **Adapter** — in-process module that talks to the outside world
    (git, tmux, providers, future containers) and emits events into
    the runtime log. Adapters never write runtime projection tables.
    Today: `runtime::git`, `runtime::supervisor`'s tmux + executor
-   transports. The eventual `ExecutionContext` port (sketched in
-   `.artifacts/specs/workspace-retirement/decisions.md`) will unify
-   the worktree-management subset; deferred until a second adapter
-   is concrete.
+   transports.
+
+### Worktree is not a primitive
+
+Git worktrees are a git feature. The runtime doesn't track them as
+state — when a caller needs to know "what's the path for branch X",
+they shell out via `runtime::git` and ask `git worktree list`. There
+is no `runtime::worktrees` module, no kv namespace `worktree`, no
+`Worktree` struct. The actor row carries the `cwd` an agent runs in;
+the supervisor sets it at spawn from whatever path the caller passed
+(or git worktree resolution, for dev flow).
 
 ### Why this set
 
-Sessions are analytics, not stateful entities. Worktrees are an
-attachment, not a primitive. Pipelines are one entry-point of many
-(chats and direct CLI attach are others). Actors are the unification
-— every spawn produces an actor; everything else is a dimension on
-that actor's activity. Project is the tag that lets us scope and
-filter without making it a context-lock.
+Sessions are analytics, not stateful entities. Pipelines are one
+entry-point of many (chats and direct CLI attach are others). Actors
+are the unification — every spawn produces an actor; everything else
+is a dimension on that actor's activity. Project is the tag that lets
+us scope and filter without making it a context-lock.
 
-`workspace` and its associated MCP tools (`create_workspace`,
-`activate_workspace`) survive in the user-facing surface only as a
-naming vestige; the runtime no longer has the concept. A follow-up
-arc may rename them.
+The legacy `workspace_session` table name is a vestige (it holds
+session analytics — rename to `sessions` mechanical). The
+`runtime::workspace` Rust module is similarly vestigial — it holds
+session lifecycle code (start_session / end_session / record_progress
+/ compile_session_context). Both rename in a follow-up.
 
 ## Integrations are event-sourced
 

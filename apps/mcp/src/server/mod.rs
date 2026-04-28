@@ -289,7 +289,7 @@ impl ShipServer {
         relay_state.peers = relay.peers();
 
         // Resolve workspace branch for scoping notifications.
-        let workspace_branch = self
+        let branch = self
             .get_effective_project_dir()
             .await
             .ok()
@@ -305,13 +305,13 @@ impl ShipServer {
                 crate::push::select_adapter(provider.as_deref(), peer);
             tracing::info!(
                 adapter = adapter.adapter_name(),
-                branch = ?workspace_branch,
+                branch = ?branch,
                 "push adapter selected"
             );
             let peer_handle = notification_relay::PeerHandle {
                 adapter,
                 allowed_events: std::collections::HashSet::new(),
-                workspace_branch,
+                branch,
             };
             relay.add_peer(peer_handle).await;
         }
@@ -392,7 +392,7 @@ impl ShipServer {
         }
 
         // Start a fresh session via the runtime.
-        match runtime::start_workspace_session(
+        match runtime::start_session(
             &ship_dir,
             &branch,
             None,

@@ -2,9 +2,9 @@ use std::path::Path;
 
 use runtime::{
     get_config, get_skill_vars, list_models, list_providers, read_log,
-    workspace::{
-        get_active_workspace_session as runtime_get_active_workspace_session,
-        list_workspace_sessions as runtime_list_workspace_sessions,
+    sessions::{
+        get_active_session as runtime_get_active_session,
+        list_sessions as runtime_list_sessions,
     },
 };
 use runtime::{get_effective_skill, list_effective_skills, load_jobs_at};
@@ -174,20 +174,20 @@ fn resolve_workspace_uri(uri: &str, ship_dir: &Path) -> Option<String> {
     if let Some(rest) = uri.strip_prefix("ship://workspaces/")
         && let Some(branch) = rest.strip_suffix("/session")
     {
-        return match runtime_get_active_workspace_session(ship_dir, branch) {
+        return match runtime_get_active_session(ship_dir, branch) {
             Ok(Some(session)) => serde_json::to_string_pretty(&session).ok(),
             Ok(None) => Some(format!("No active session on branch '{}'", branch)),
             Err(err) => Some(format!("Error: {}", err)),
         };
     }
     if uri == "ship://sessions" {
-        return match runtime_list_workspace_sessions(ship_dir, None, 50) {
+        return match runtime_list_sessions(ship_dir, None, 50) {
             Ok(sessions) => serde_json::to_string_pretty(&sessions).ok(),
             Err(err) => Some(format!("Error: {}", err)),
         };
     }
     if let Some(workspace) = uri.strip_prefix("ship://sessions/") {
-        return match runtime_list_workspace_sessions(ship_dir, Some(workspace), 50) {
+        return match runtime_list_sessions(ship_dir, Some(workspace), 50) {
             Ok(sessions) => serde_json::to_string_pretty(&sessions).ok(),
             Err(err) => Some(format!("Error: {}", err)),
         };

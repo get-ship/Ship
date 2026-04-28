@@ -149,7 +149,7 @@ pub async fn list_sessions(
         return e.into_response();
     }
     let workspace_id = params.workspace_id.as_deref();
-    match runtime::db::session::list_workspace_sessions_db(workspace_id, 100) {
+    match runtime::db::session::list_sessions_db(workspace_id, 100) {
         Ok(sessions) => {
             let data: Vec<serde_json::Value> = sessions
                 .into_iter()
@@ -157,7 +157,7 @@ pub async fn list_sessions(
                     serde_json::json!({
                         "id": s.id,
                         "workspace_id": s.workspace_id,
-                        "workspace_branch": s.workspace_branch,
+                        "branch": s.branch,
                         "status": s.status,
                         "started_at": s.started_at,
                         "ended_at": s.ended_at,

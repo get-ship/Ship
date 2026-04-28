@@ -4,7 +4,7 @@ mod tests {
     use crate::events::filter::EventFilter;
     use crate::persistence::event_store::{EventStore, SqliteEventStore};
     use crate::events::types::event_types;
-    use crate::workspace::*;
+    use crate::sessions::*;
     use anyhow::Result;
     use tempfile::tempdir;
 
@@ -25,7 +25,7 @@ mod tests {
     fn start_session_emits_started_event_with_goal() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-let session = start_workspace_session(
+let session = start_session(
             &ship_dir,
             "feature/se-started",
             Some("implement events".to_string()),
@@ -58,7 +58,7 @@ let session = start_workspace_session(
     fn log_progress_emits_progress_event_not_elevated() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-let session = start_workspace_session(
+let session = start_session(
             &ship_dir,
             "feature/se-progress",
             None,
@@ -66,7 +66,7 @@ let session = start_workspace_session(
             None,
         )?;
 
-        record_workspace_session_progress(
+        record_session_progress(
             &ship_dir,
             "feature/se-progress",
             "halfway done",
@@ -95,7 +95,7 @@ let session = start_workspace_session(
     fn end_session_emits_ended_event_with_summary() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-let session = start_workspace_session(
+let session = start_session(
             &ship_dir,
             "feature/se-ended",
             None,
@@ -103,10 +103,10 @@ let session = start_workspace_session(
             None,
         )?;
 
-        end_workspace_session(
+        end_session(
             &ship_dir,
             "feature/se-ended",
-            EndWorkspaceSessionRequest {
+            EndSessionRequest {
                 summary: Some("all done".to_string()),
                 gate_result: Some("pass".to_string()),
                 ..Default::default()
@@ -139,14 +139,14 @@ let session = start_workspace_session(
 
         let workspace_id = crate::project::sanitize_file_name(branch);
 
-        let session = start_workspace_session(&ship_dir, branch, Some("meta test".to_string()), None, None)?;
+        let session = start_session(&ship_dir, branch, Some("meta test".to_string()), None, None)?;
 
-        record_workspace_session_progress(&ship_dir, branch, "checkpoint", None)?;
+        record_session_progress(&ship_dir, branch, "checkpoint", None)?;
 
-        end_workspace_session(
+        end_session(
             &ship_dir,
             branch,
-            EndWorkspaceSessionRequest {
+            EndSessionRequest {
                 summary: Some("done".to_string()),
                 ..Default::default()
             },
@@ -208,7 +208,7 @@ let session = start_workspace_session(
     fn session_started_and_ended_are_elevated_progress_is_not() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-let session = start_workspace_session(
+let session = start_session(
             &ship_dir,
             "feature/se-elevated",
             None,
@@ -216,12 +216,12 @@ let session = start_workspace_session(
             None,
         )?;
 
-        record_workspace_session_progress(&ship_dir, "feature/se-elevated", "midpoint", None)?;
+        record_session_progress(&ship_dir, "feature/se-elevated", "midpoint", None)?;
 
-        end_workspace_session(
+        end_session(
             &ship_dir,
             "feature/se-elevated",
-            EndWorkspaceSessionRequest::default(),
+            EndSessionRequest::default(),
         )?;
 
         let store = event_store();
@@ -254,7 +254,7 @@ let session = start_workspace_session(
     fn attach_emits_session_attached_event() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-let first = start_workspace_session(
+let first = start_session(
             &ship_dir,
             "feature/se-attach",
             Some("original".to_string()),
@@ -262,7 +262,7 @@ let first = start_workspace_session(
             None,
         )?;
 
-        let attached = start_workspace_session(
+        let attached = start_session(
             &ship_dir,
             "feature/se-attach",
             Some("second call".to_string()),
@@ -294,7 +294,7 @@ let first = start_workspace_session(
     fn escalated_progress_blocker_sets_elevated_and_payload() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-let session = start_workspace_session(
+let session = start_session(
             &ship_dir,
             "feature/se-escalate-blocker",
             None,
@@ -302,7 +302,7 @@ let session = start_workspace_session(
             None,
         )?;
 
-        record_workspace_session_progress(
+        record_session_progress(
             &ship_dir,
             "feature/se-escalate-blocker",
             "blocked on missing API key",
@@ -337,7 +337,7 @@ let session = start_workspace_session(
     fn escalated_progress_warning_is_elevated() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-let session = start_workspace_session(
+let session = start_session(
             &ship_dir,
             "feature/se-escalate-warning",
             None,
@@ -345,7 +345,7 @@ let session = start_workspace_session(
             None,
         )?;
 
-        record_workspace_session_progress(
+        record_session_progress(
             &ship_dir,
             "feature/se-escalate-warning",
             "dependency version mismatch",
@@ -378,7 +378,7 @@ let session = start_workspace_session(
     fn escalated_progress_question_is_elevated() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-let session = start_workspace_session(
+let session = start_session(
             &ship_dir,
             "feature/se-escalate-question",
             None,
@@ -386,7 +386,7 @@ let session = start_workspace_session(
             None,
         )?;
 
-        record_workspace_session_progress(
+        record_session_progress(
             &ship_dir,
             "feature/se-escalate-question",
             "should we use gRPC or REST?",
@@ -419,7 +419,7 @@ let session = start_workspace_session(
     fn non_escalated_progress_stays_not_elevated() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-let session = start_workspace_session(
+let session = start_session(
             &ship_dir,
             "feature/se-no-escalation",
             None,
@@ -427,7 +427,7 @@ let session = start_workspace_session(
             None,
         )?;
 
-        record_workspace_session_progress(
+        record_session_progress(
             &ship_dir,
             "feature/se-no-escalation",
             "routine update",

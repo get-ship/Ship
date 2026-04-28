@@ -899,7 +899,7 @@ fn cleanup_active_sessions_on_startup() {
             Ok(()) => {
                 tracing::info!(
                     session_id = %session.id,
-                    workspace = %session.workspace_branch,
+                    workspace = %session.branch,
                     "startup cleanup: ended stale session"
                 );
             }

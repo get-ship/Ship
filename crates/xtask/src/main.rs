@@ -144,10 +144,10 @@ fn collect_types() -> TypeCollection {
 
     // workspace/types_session.rs (the workspace primitive retired; only
     // session-shaped types remain)
-    c.register::<runtime::WorkspaceSession>();
-    c.register::<runtime::WorkspaceSessionStatus>();
-    c.register::<runtime::WorkspaceProviderMatrix>();
-    c.register::<runtime::WorkspaceRepairReport>();
+    c.register::<runtime::Session>();
+    c.register::<runtime::SessionStatus>();
+    c.register::<runtime::ProviderMatrix>();
+    c.register::<runtime::ProviderMatrixRepairReport>();
 
     c
 }

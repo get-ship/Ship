@@ -1,13 +1,13 @@
 //! Session drain primitives for MCP lifecycle management.
 //!
 //! Write operations emit events; projections apply the state changes.
-//! Read operations query the workspace_session projection table directly.
+//! Read operations query the sessions projection table directly.
 
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 use sqlx::Row;
 
-use super::types::WorkspaceSessionDb;
+use super::types::SessionDb;
 use super::{block_on, open_db};
 use crate::db::session_events::emit_session_drain_event;
 use crate::events::types::{
@@ -16,18 +16,18 @@ use crate::events::types::{
 };
 
 const S_COLS: &str =
-    "id, workspace_id, workspace_branch, project_id, kind, pipeline_run_id, \
+    "id, workspace_id, branch, project_id, kind, pipeline_run_id, \
      chat_thread_id, status, started_at, ended_at, agent_id, primary_provider, \
      goal, summary, updated_workspace_ids_json, tool_call_count, drained_at, \
      last_activity_at, duration_secs, model, files_changed, lines_added, \
      lines_removed, tool_calls, gate_result, exit_reason, created_at, updated_at";
 
-fn parse_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
+fn parse_row(row: &sqlx::sqlite::SqliteRow) -> SessionDb {
     let uwids_json: String = row.get(14);
-    WorkspaceSessionDb {
+    SessionDb {
         id: row.get(0),
         workspace_id: row.get(1),
-        workspace_branch: row.get(2),
+        branch: row.get(2),
         project_id: row.get(3),
         kind: row.get(4),
         pipeline_run_id: row.get(5),
@@ -60,11 +60,11 @@ fn parse_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
 pub fn find_draining_session(
     workspace_id: &str,
     agent_id: &str,
-) -> Result<Option<WorkspaceSessionDb>> {
+) -> Result<Option<SessionDb>> {
     let mut conn = open_db()?;
     let row = block_on(async {
         sqlx::query(&format!(
-            "SELECT {S_COLS} FROM workspace_session \
+            "SELECT {S_COLS} FROM sessions \
              WHERE workspace_id = ? AND agent_id = ? AND status = 'draining' \
              ORDER BY started_at DESC LIMIT 1"
         ))
@@ -111,7 +111,7 @@ pub fn cleanup_stale_draining(grace_secs: i64) -> Result<u64> {
     let cutoff = (Utc::now() - chrono::Duration::seconds(grace_secs)).to_rfc3339();
     let rows = block_on(async {
         sqlx::query(
-            "SELECT id, workspace_id FROM workspace_session \
+            "SELECT id, workspace_id FROM sessions \
              WHERE status = 'draining' AND drained_at < ?",
         )
         .bind(&cutoff)
@@ -168,11 +168,11 @@ pub fn update_heartbeat(session_id: &str) -> Result<()> {
 }
 
 /// Query all sessions with status = 'active'.
-pub fn list_active_sessions() -> Result<Vec<WorkspaceSessionDb>> {
+pub fn list_active_sessions() -> Result<Vec<SessionDb>> {
     let mut conn = open_db()?;
     let rows = block_on(async {
         sqlx::query(&format!(
-            "SELECT {S_COLS} FROM workspace_session WHERE status = 'active'"
+            "SELECT {S_COLS} FROM sessions WHERE status = 'active'"
         ))
         .fetch_all(&mut conn)
         .await
@@ -200,7 +200,7 @@ fn lookup_session_workspace(session_id: &str) -> Result<String> {
     let mut conn = open_db()?;
     let wid = block_on(async {
         sqlx::query_scalar::<_, String>(
-            "SELECT workspace_id FROM workspace_session WHERE id = ?",
+            "SELECT workspace_id FROM sessions WHERE id = ?",
         )
         .bind(session_id)
         .fetch_optional(&mut conn)
