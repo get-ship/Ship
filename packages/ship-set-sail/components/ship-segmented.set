@@ -1,0 +1,183 @@
+<script>
+prop value: string = ''
+prop size: 'sm' | 'md' = 'md'
+prop disabled: boolean = false
+
+state options = []
+
+function readOptions() {
+  return Array.from(el.querySelectorAll('ship-segmented-option'))
+    .filter(o => o.closest('ship-segmented') === el)
+    .map((o, idx) => ({
+      index: idx,
+      value: o.getAttribute('value') || '',
+      icon: o.getAttribute('icon') || '',
+      disabled: o.hasAttribute('disabled'),
+      label: (o.textContent || '').trim(),
+    }))
+}
+
+function focusButton(v) {
+  const btns = el.querySelectorAll('button[data-value]')
+  for (const btn of btns) {
+    if (btn.dataset && btn.dataset.value === v) {
+      btn.focus()
+      return
+    }
+  }
+}
+
+function select(v) {
+  if (disabled()) return
+  if (value() === v) return
+  value.set(v)
+  el.setAttribute('value', v)
+  el.dispatchEvent(new CustomEvent('ship-change', {
+    detail: { value: v },
+    bubbles: true,
+    composed: true,
+  }))
+}
+
+function onKeydown(e) {
+  const opts = options()
+  const enabled = opts.filter(o => !o.disabled)
+  if (!enabled.length) return
+  const values = enabled.map(o => o.value)
+  const i = Math.max(0, values.indexOf(value()))
+  let next = i
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+    e.preventDefault()
+    next = (i + 1) % values.length
+  } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+    e.preventDefault()
+    next = (i - 1 + values.length) % values.length
+  } else if (e.key === 'Enter' || e.key === ' ') {
+    e.preventDefault()
+    const target = e.target && e.target.closest ? e.target.closest('button[data-value]') : null
+    if (target && target.dataset && target.dataset.value) select(target.dataset.value)
+    return
+  } else {
+    return
+  }
+  const targetValue = values[next]
+  select(targetValue)
+  queueMicrotask(() => focusButton(targetValue))
+}
+
+mount {
+  if (!el.hasAttribute('role')) el.setAttribute('role', 'radiogroup')
+  // Read options synchronously — option attributes (value/icon/disabled)
+  // and textContent are available on light-DOM children regardless of
+  // whether <ship-segmented-option> has been upgraded yet.
+  options.set(readOptions())
+}
+</script>
+
+<template>
+<div class="container" part="container">
+  {#for opt of options() key={opt.value}}
+    <button
+      type="button"
+      role="radio"
+      part="option"
+      data-value={opt.value}
+      aria-checked={opt.value === value() ? 'true' : 'false'}
+      aria-disabled={(disabled() || opt.disabled) ? 'true' : 'false'}
+      disabled={disabled() || opt.disabled}
+      tabindex={opt.value === value() ? '0' : '-1'}
+      onclick={() => select(opt.value)}
+      onkeydown={onKeydown}
+    >
+      {#if opt.icon}
+        <span class="btn-icon" aria-hidden="true">
+          <ship-icon name={opt.icon} size="sm"></ship-icon>
+        </span>
+      {/if}
+      <span class="btn-label">{opt.label}</span>
+    </button>
+  {/for}
+</div>
+<slot></slot>
+</template>
+
+<style>
+:host {
+  display: inline-flex;
+}
+:host([hidden]) { display: none; }
+
+.container {
+  display: inline-flex;
+  padding: 2px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  gap: 1px;
+}
+
+:host([size='sm']) .container { padding: 2px; }
+
+button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  transition:
+    background var(--duration-fast) var(--ease-out),
+    color var(--duration-fast) var(--ease-out),
+    box-shadow var(--duration-fast) var(--ease-out);
+  white-space: nowrap;
+  line-height: 1;
+}
+
+:host(:not([size='sm'])) button {
+  padding: 5px var(--space-3);
+  font-size: var(--text-sm);
+}
+:host([size='sm']) button {
+  padding: 4px var(--space-2);
+  font-size: var(--text-xs);
+}
+
+button[aria-checked='true'] {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-xs);
+}
+
+button:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--background),
+    0 0 0 4px color-mix(in oklch, var(--primary) 60%, transparent);
+}
+
+button[disabled],
+:host([disabled]) button {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  width: 14px;
+  height: 14px;
+}
+:host(:not([size='sm'])) .btn-icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button { transition: none; }
+}
+</style>
