@@ -1,0 +1,206 @@
+<script>
+// <ship-hover-card> — hover-triggered card overlay. Richer than a
+// tooltip: supports arbitrary slotted content. Shows after a configurable
+// delay, hides after a shorter delay. Anchored to the trigger element.
+// Parity port of packages/ship-set/src/web-components/core/ship-hover-card.ts.
+//
+// Attributes:
+//   open       — boolean; reflects the visible state.
+//   placement  — top | bottom | left | right (default bottom).
+//   show-delay — number (ms, default 300).
+//   hide-delay — number (ms, default 100).
+//
+// Slots:
+//   trigger   — the element that activates the hover card.
+//   (default) — card body content.
+//
+// Events:
+//   ship-open  — dispatched when the card becomes visible.
+//   ship-close — dispatched when the card hides.
+
+prop open: boolean = false
+prop placement: 'top' | 'bottom' | 'left' | 'right' = 'bottom'
+prop showDelay: number = 300
+prop hideDelay: number = 100
+
+state cardId = ''
+state showTimer: any = null
+state hideTimer: any = null
+
+
+function clearTimers() {
+  clearTimeout(showTimer())
+  clearTimeout(hideTimer())
+  showTimer.set(null)
+  hideTimer.set(null)
+}
+
+function emit(name) {
+  el.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true }))
+}
+
+function show() {
+  clearTimers()
+  if (open()) return
+  open.set(true)
+  el.setAttribute('open', '')
+  emit('ship-open')
+}
+
+function hide() {
+  clearTimers()
+  if (!open()) return
+  open.set(false)
+  el.removeAttribute('open')
+  emit('ship-close')
+}
+
+function triggerEl() {
+  // Slot fills are reparented during slot resolution into the
+  // .trigger-wrap container; the first non-bubble child there is the
+  // canonical trigger.
+  const wrap = el.querySelector(':scope > .trigger-wrap')
+  if (!wrap) return null
+  for (const t of wrap.children) return t
+  return null
+}
+
+function setupTrigger() {
+  const t = triggerEl()
+  if (!t) return
+  t.setAttribute('aria-describedby', cardId())
+}
+
+function onMouseEnter() {
+  clearTimers()
+  showTimer.set(setTimeout(() => show(), showDelay()))
+}
+
+function onMouseLeave() {
+  clearTimers()
+  hideTimer.set(setTimeout(() => hide(), hideDelay()))
+}
+
+function onFocusIn() {
+  clearTimers()
+  show()
+}
+
+function onFocusOut() {
+  clearTimers()
+  hideTimer.set(setTimeout(() => hide(), hideDelay()))
+}
+
+mount {
+  cardId.set(`ship-hover-card-${Math.random().toString(36).slice(2, 9)}`)
+  setupTrigger()
+  el.addEventListener('mouseenter', onMouseEnter)
+  el.addEventListener('mouseleave', onMouseLeave)
+  el.addEventListener('focusin', onFocusIn)
+  el.addEventListener('focusout', onFocusOut)
+  cleanups.push(() => el.removeEventListener('mouseenter', onMouseEnter))
+  cleanups.push(() => el.removeEventListener('mouseleave', onMouseLeave))
+  cleanups.push(() => el.removeEventListener('focusin', onFocusIn))
+  cleanups.push(() => el.removeEventListener('focusout', onFocusOut))
+  cleanups.push(() => {
+    clearTimeout(showTimer())
+    clearTimeout(hideTimer())
+  })
+  // Imperative API parity with the Lit class.
+  el.show = show
+  el.hide = hide
+}
+
+effect {
+  el.setAttribute('data-state', open() ? 'open' : 'closed')
+  setupTrigger()
+}
+</script>
+
+<template>
+<span class="trigger-wrap"><slot name="trigger"></slot></span>
+<div
+  id={cardId}
+  class="card"
+  part="card"
+  role="tooltip"
+  aria-hidden={open() ? 'false' : 'true'}
+><div class="arrow"></div><slot></slot></div>
+</template>
+
+<style>
+:host { position: relative; display: inline-flex; }
+.card {
+  position: absolute;
+  z-index: var(--z-popover);
+  min-width: 240px;
+  max-width: 340px;
+  padding: 16px;
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition:
+    opacity var(--duration-medium) var(--ease-out),
+    transform var(--duration-medium) var(--ease-out);
+}
+:host([open]) .card {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+/* Arrow */
+.arrow {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--popover);
+  border: 1px solid var(--border);
+  transform: rotate(45deg);
+  z-index: -1;
+}
+/* Placement: bottom (default) */
+:host([placement='bottom']) .card,
+:host(:not([placement])) .card { top: calc(100% + 8px); left: 50%; transform: translateX(-50%); }
+:host([placement='bottom'][open]) .card,
+:host(:not([placement])[open]) .card { transform: translateX(-50%) translateY(0); }
+:host([placement='bottom']) .arrow,
+:host(:not([placement])) .arrow {
+  top: -6px; left: 50%; transform: translateX(-50%) rotate(45deg);
+  border-bottom: none; border-right: none;
+}
+/* Placement: top */
+:host([placement='top']) .card { bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); }
+:host([placement='top'][open]) .card { transform: translateX(-50%) translateY(0); }
+:host([placement='top']) .arrow {
+  bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg);
+  border-top: none; border-left: none;
+}
+/* Placement: right */
+:host([placement='right']) .card { left: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
+:host([placement='right'][open]) .card { transform: translateY(-50%); }
+:host([placement='right']) .arrow {
+  left: -6px; top: 50%; transform: translateY(-50%) rotate(45deg);
+  border-top: none; border-right: none;
+}
+/* Placement: left */
+:host([placement='left']) .card { right: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
+:host([placement='left'][open]) .card { transform: translateY(-50%); }
+:host([placement='left']) .arrow {
+  right: -6px; top: 50%; transform: translateY(-50%) rotate(45deg);
+  border-bottom: none; border-left: none;
+}
+@media (forced-colors: active) {
+  .card { border: 1px solid CanvasText; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+}
+</style>
