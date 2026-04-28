@@ -6,7 +6,7 @@
 
 use serde::{Deserialize, Serialize};
 
-pub const MANIFEST_VERSION: &str = "0.1.0";
+pub const MANIFEST_VERSION: &str = "0.2.0";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Manifest {
@@ -16,6 +16,12 @@ pub struct Manifest {
     pub lifecycle_hooks: Vec<LifecycleHook>,
     pub template_syntax: Vec<TemplateSyntax>,
     pub reactivity_rules: Vec<ReactivityRule>,
+    /// Per-component prop catalog. Populated by the xtask gen-sdk
+    /// pipeline from the corpus of `.set` files; `manifest::emit()`
+    /// returns an empty list because the canonical compiler crate
+    /// doesn't see the corpus directly.
+    #[serde(default)]
+    pub components: Vec<Component>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -53,7 +59,30 @@ pub struct TemplateSyntax {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ReactivityRule { pub id: String, pub name: String, pub description: String, pub anti_example: String, pub fix_example: String }
 
+/// Per-component prop catalog. One entry per shipped `<ship-*>`
+/// custom element.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct Component {
+    pub tag: String,
+    pub props: Vec<ComponentProp>,
+    pub description: String,
+}
+
+/// Single declared prop on a component. `name` is the source-form
+/// identifier (camelCase as written in the `.set` script); the
+/// kebab-cased attribute form is derived by consumers when needed.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct ComponentProp {
+    pub name: String,
+    #[serde(rename = "type")]
+    pub ty: String,
+    pub required: bool,
+}
+
 /// Build the framework manifest. Pure — no I/O, deterministic.
+/// `components` is empty here; the xtask gen-sdk pipeline walks the
+/// corpus and rebuilds the manifest with the populated catalog before
+/// emitting `sdk-framework.json`.
 pub fn emit() -> Manifest {
     Manifest {
         version: MANIFEST_VERSION.into(),
@@ -62,6 +91,7 @@ pub fn emit() -> Manifest {
         lifecycle_hooks: lifecycle_hooks(),
         template_syntax: template_syntax(),
         reactivity_rules: reactivity_rules(),
+        components: Vec::new(),
     }
 }
 
@@ -281,11 +311,22 @@ mod tests {
 
     #[test]
     fn serialization_round_trips() {
-        let m = emit();
+        let mut m = emit();
+        m.components.push(Component {
+            tag: "ship-button".into(),
+            props: vec![ComponentProp {
+                name: "tone".into(),
+                ty: "string".into(),
+                required: false,
+            }],
+            description: "ship-button".into(),
+        });
         let json = serde_json::to_string(&m).expect("serialize");
         let back: Manifest = serde_json::from_str(&json).expect("deserialize");
         assert_eq!(m, back);
         assert_eq!(back.version, MANIFEST_VERSION);
+        assert_eq!(back.components.len(), 1);
+        assert_eq!(back.components[0].props[0].name, "tone");
     }
 
     #[test]

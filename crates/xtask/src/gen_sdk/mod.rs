@@ -73,7 +73,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
     // sdk-framework.json wraps the sail-compiler manifest. Its envelope
     // version tracks the framework manifest itself, not gen-sdk's
     // VERSION — those evolve independently.
-    write_framework(&out_dir.join("sdk-framework.json"))?;
+    write_framework(&out_dir.join("sdk-framework.json"), repo_root)?;
 
     // Typed TS bindings for the OPS catalog — set authors get IDE
     // completion + (phase 2) compile-time validation of `data ship.*`.
@@ -87,7 +87,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
     // Typed framework manifest — `FrameworkManifest` interface +
     // `FRAMEWORK` const. Pairs with the JSON for TS-side consumers.
     let framework_ts_path = generated_dir.join("framework.ts");
-    fs::write(&framework_ts_path, framework::emit_ts()?)
+    fs::write(&framework_ts_path, framework::emit_ts(repo_root)?)
         .with_context(|| format!("write {}", framework_ts_path.display()))?;
 
     eprintln!(
@@ -98,7 +98,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
     Ok(())
 }
 
-fn write_framework(path: &PathBuf) -> Result<()> {
+fn write_framework(path: &PathBuf, repo_root: &Path) -> Result<()> {
     let mut root = Map::new();
     root.insert("_generated".into(), Value::String(HEADER.into()));
     root.insert(
@@ -111,7 +111,7 @@ fn write_framework(path: &PathBuf) -> Result<()> {
     );
     // The manifest payload sits alongside `version`/`_generated` rather
     // than under an `entries` key — the entire manifest is the entry.
-    if let Value::Object(map) = framework::json_entries()? {
+    if let Value::Object(map) = framework::json_entries(repo_root)? {
         for (k, v) in map {
             // Skip the inner `version` to avoid shadowing the envelope
             // version; the same value is exposed on the envelope.

@@ -1,6 +1,6 @@
 {
   "_generated": "just gen-sdk — DO NOT EDIT",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "$schema": "https://ship.design/schemas/sdk-framework.schema.json",
   "directives": [
     {
@@ -322,6 +322,1406 @@
       "description": "`data` is server-sourced and always live. Static seeds use `state X = expr`.",
       "anti_example": "data live items = ship.items.list()",
       "fix_example": "data items = ship.items.list()"
+    }
+  ],
+  "components": [
+    {
+      "tag": "ship-accordion-item",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "<ship-accordion-item> — single section of a <ship-accordion>. Renders\na trigger button + collapsible content region. The host's [open]\nattribute is managed by the parent accordion; this component reacts\nto it via the open prop (CSS uses :host([open]) for chevron rotation\nand content-wrap height transition).\n\nAttributes (host):\nvalue     — string; unique identifier, required.\ndisabled  — boolean; trigger is non-interactive when set.\nopen      — boolean; managed by parent accordion.\n\nSlots:\ntrigger   — header content rendered inside the button.\n(default) — body content shown when open.\n\nEvents (bubbling, internal — used by parent <ship-accordion>):\nship-accordion-item-toggle — { value }\nship-accordion-nav         — { direction: 'next'|'prev'|'first'|'last' }"
+    },
+    {
+      "tag": "ship-accordion",
+      "props": [
+        {
+          "name": "type",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "<ship-accordion> — disclosable list of sections. Children are\n<ship-accordion-item> elements; this parent coordinates which are\nopen and handles keyboard focus traversal.\n\nAttributes:\ntype   — 'single' | 'multiple' (default 'single').\nsingle: at most one item open at a time.\nmultiple: any subset of items can be open.\nvalue  — comma-separated list of open item values. Reflected to\nattribute on user toggle.\n\nEvents:\nship-change — CustomEvent { detail: { value: string } }, bubbles,\ncomposed. value is the post-toggle value attribute\n(single id, comma-list, or '').\n\nInternal events listened to (bubbled from items):\nship-accordion-item-toggle — toggle the named item.\nship-accordion-nav         — focus next/prev/first/last enabled item."
+    },
+    {
+      "tag": "ship-agents",
+      "props": [],
+      "description": "Agents index page. Server-truth via the sail data resolver wired in\n`apps/shipd/src/views/sail_data_resolvers/agents.rs`. The signal\nupdates whenever the kernel emits a `config.*` event (agent file\ncreate / edit / delete in either project or global scope), so the\npage reflects the registry without a refresh."
+    },
+    {
+      "tag": "ship-alert",
+      "props": [
+        {
+          "name": "tone",
+          "type": "'info' | 'success' | 'warning' | 'destructive' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "dismissible",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-alert"
+    },
+    {
+      "tag": "ship-app-icon",
+      "props": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'glyph' | 'tile' | 'solid'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "radius",
+          "type": "'' | 'sm' | 'md' | 'lg' | 'full'",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "<ship-app-icon> — identity glyph for a Ship app surface. Used by the\nrail, dock, launcher, breadcrumbs, and anywhere an app needs to be\nnamed visually. Single source of truth for the app→glyph + app→hue\nmapping.\n\nAttributes:\nname    — app id. dashboard | pipelines | agents | skills | git |\ncollections | canvas | settings | chat | events | specs |\ntheme | setup | overview | mesh. The alias `theme-studio`\nresolves to `theme`. Unknown names render the slot or a\nneutral \"dot\" glyph.\nvariant — glyph (default, no tile) | tile (soft tinted bg) | solid\n(filled accent bg).\nsize    — sm | md | lg (default md). 16/20/28px tile, 12/14/18 glyph.\nradius  — sm | md | lg | full — overrides the size-derived default.\nlabel   — when set, host gets role=img + aria-label; otherwise\naria-hidden.\n\nSlots:\n(default) — escape hatch for marketplace / extension views to provide\na custom glyph (raw <svg>, an <img>, or a <ship-icon>)."
+    },
+    {
+      "tag": "ship-avatar",
+      "props": [
+        {
+          "name": "src",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "initials",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg' | 'xl'",
+          "required": false
+        },
+        {
+          "name": "shape",
+          "type": "'round' | 'square'",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' | 'primary'",
+          "required": false
+        },
+        {
+          "name": "iconSlug",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "identityHue",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-avatar"
+    },
+    {
+      "tag": "ship-badge",
+      "props": [
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'solid' | 'soft' | 'outline'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "pill",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-badge"
+    },
+    {
+      "tag": "ship-breadcrumb-item",
+      "props": [
+        {
+          "name": "href",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "<ship-breadcrumb-item> — one rung of a breadcrumb path. Renders\neither an <a href> (when href is set and not active) or a span\nlabel with aria-current=page (when active).\n\nAttributes:\nhref   — URL (renders as <a> when present and not active).\nactive — boolean; marks the current path step."
+    },
+    {
+      "tag": "ship-breadcrumb",
+      "props": [],
+      "description": "<ship-breadcrumb> — path-navigation primitive. Hosts one or more\n<ship-breadcrumb-item> children; chevron separators are inserted\nbetween siblings and re-synced via MutationObserver when items\nare added or removed.\n\nSlots:\n(default) — one or more <ship-breadcrumb-item>."
+    },
+    {
+      "tag": "ship-button",
+      "props": [
+        {
+          "name": "tone",
+          "type": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'solid' | 'soft' | 'outline' | 'ghost'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "type",
+          "type": "'button' | 'submit' | 'reset'",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "pressed",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "expanded",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-button"
+    },
+    {
+      "tag": "ship-card",
+      "props": [
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'default' | 'outline'",
+          "required": false
+        },
+        {
+          "name": "padding",
+          "type": "'none' | 'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "interactive",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "accentBar",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "statusRail",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "fill",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-card"
+    },
+    {
+      "tag": "ship-checkbox",
+      "props": [
+        {
+          "name": "checked",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "indeterminate",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "required",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "invalid",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-checkbox"
+    },
+    {
+      "tag": "ship-chip",
+      "props": [
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'solid' | 'soft' | 'outline'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "selected",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "removable",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-chip"
+    },
+    {
+      "tag": "ship-collapsible",
+      "props": [
+        {
+          "name": "open",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "<ship-collapsible> — open/close container with smooth height\nanimation. Trigger slot toggles a content region.\n\nAttributes:\nopen      — boolean; whether the content is visible.\ndisabled  — boolean; prevents toggling.\n\nSlots:\ntrigger   — the element that toggles open/close.\n(default) — collapsible content.\n\nEvents:\nship-toggle — CustomEvent { open: boolean }."
+    },
+    {
+      "tag": "ship-copy-button",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "<ship-copy-button> — copies `value` to the clipboard on click.\nShows a checkmark flash for 1.2s after a successful copy.\n\nAttributes:\nvalue  — string to copy.\nlabel  — accessible label (default \"Copy\").\n\nEvents:\nship-copy { value: string } — fired after a successful copy.\n\nSlots:\n(default) — button label content (falls back to icon + label text)."
+    },
+    {
+      "tag": "ship-dashboard",
+      "props": [],
+      "description": "Workspace Dashboard. Server-truth via the sail data resolver:\n`ship.dashboard.state()` → `{ stats, recent_runs, events, agents,\ncollections, total_events }`. The signal updates whenever the daemon\nemits a relevant event (runs, agent config, collection schemas, the\nevent stream itself), so the page reflects the registry without a\nrefresh.\n\nBehavior parity vs `.ship/views/dashboard/index.html.j2`:\n- Header with ship-app-icon wordmark + live-pulse badge\n- 4 stat tiles with per-tile accent stripes (jobs / agents / events / collections)\n- Recent jobs list (active or, if none, history truncated to 5)\n- Agents grid (first 6, brand-aware avatar via shared resolver inlined here)\n- Latest events feed (3-col grid: ts / type / actor)\n- Quick-links tile row (6 hardcoded routes — same catalog as the partial)\n- Empty states for jobs / agents / events\n\nOut of scope (not provided by the data resolver, not present in the\nJinja either): the `settings.workspace_name` line is rendered as\nthe hardcoded \"workspace dashboard\" subtitle, matching the Jinja\n`{% else %}workspace dashboard{% endif %}` branch."
+    },
+    {
+      "tag": "ship-empty-state",
+      "props": [
+        {
+          "name": "variant",
+          "type": "'default' | 'inline' | 'placeholder' | 'connecting'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "icon",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-empty-state"
+    },
+    {
+      "tag": "ship-error-state",
+      "props": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "body",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'default' | 'inline'",
+          "required": false
+        },
+        {
+          "name": "icon",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "<ship-error-state> — sibling of <ship-empty-state> for the\n\"something broke\" path. Routes every view's error branch through\none component so failures read deliberately (destructive halo,\nclear title, actionable body, optional collapsible technical\ndetails, primary retry).\n\nAttributes:\ntitle, body, size (sm|md|lg), variant (default|inline), icon\n\nSlots:\ntitle, default (body), details, action"
+    },
+    {
+      "tag": "ship-icon",
+      "props": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' | 'primary'",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "<ship-icon> — canonical inline SVG icon. Resolves `name` against the\ncurated Lucide registry generated from `lucide-static` (ISC). Names\nnot present in the curated allowlist fall through to the default\nslot — provide raw SVG there for one-off glyphs.\n\nAttributes:\nname  — Lucide icon id, kebab-case (e.g. \"chevron-right\"). A small\nalias map handles legacy names (`stop` → `stop-circle`,\n`refresh` → `refresh-cw`, `git` → `git-branch`,\n`warning` → `triangle-alert`).\nsize  — sm | md | lg (default md). 12 / 16 / 20px.\ntone  — default | info | success | warning | destructive | accent\n| muted | primary\nlabel — when provided, the host gets role=img + aria-label;\notherwise aria-hidden is set.\n\nSlots:\n(default) — raw SVG passthrough. Used as a fallback when `name`\nis not in the registry."
+    },
+    {
+      "tag": "ship-input",
+      "props": [
+        {
+          "name": "type",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "autocomplete",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "required",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "readonly",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "invalid",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "loading",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'default' | 'ghost'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "describedBy",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "errorMessage",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-input"
+    },
+    {
+      "tag": "ship-kbd",
+      "props": [
+        {
+          "name": "keys",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-kbd"
+    },
+    {
+      "tag": "ship-label",
+      "props": [
+        {
+          "name": "size",
+          "type": "'sm' | 'md'",
+          "required": false
+        },
+        {
+          "name": "required",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "<ship-label> — section/field label. Typography matches specs\n.meta-title and the pipelines .stat-label uppercase micro-kicker.\n\nAttributes:\nfor       — id of the associated control. Mirrored onto the inner\nnative <label for=…>. Read via mount + MutationObserver\nbecause the framework's prop→attribute kebab rule\n(htmlFor → \"html-for\") doesn't let us name the\nattribute \"for\" directly. See gaps.md.\nsize      — sm | md (default sm).\nrequired  — boolean; appends \"*\" after the label.\n\nSlots:\n(default) — label text."
+    },
+    {
+      "tag": "ship-link",
+      "props": [
+        {
+          "name": "href",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "external",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'muted'",
+          "required": false
+        }
+      ],
+      "description": "ship-link"
+    },
+    {
+      "tag": "ship-list-tile",
+      "props": [
+        {
+          "name": "variant",
+          "type": "'row' | 'card'",
+          "required": false
+        },
+        {
+          "name": "interactive",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "selected",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "density",
+          "type": "'compact' | 'normal' | 'relaxed'",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' | 'primary'",
+          "required": false
+        }
+      ],
+      "description": "ship-list-tile — generic row/card tile primitive. Visual rhythm,\ndensity, and tone live here; navigation does NOT. Wrap in <a href>\nwhen you want a link — the platform already knows how to do that\nand gives cmd-click, middle-click, prefetch, view-transitions, etc.\nfor free.\n\nSlots: leading, default (primary), meta (secondary), trailing.\nEvent: ship-select — bubbles, composed, cancelable. Dispatched when\n`interactive` and the user clicks or presses Enter/Space."
+    },
+    {
+      "tag": "ship-mark",
+      "props": [
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        }
+      ],
+      "description": "<ship-mark> — the SHIP brand mark. The original asset is a 9-layer\nSVG with six fixed amber fills + a white silhouette; this collapses\nthose fills into named classes painted from --primary + --background\nvia color-mix, so every theme renders the mark in its own palette\nwithout swapping assets.\n\nAttributes:\nsize  — sm | md | lg (default md). 22 / 28 / 48px square."
+    },
+    {
+      "tag": "ship-markdown-editor-bubble",
+      "props": [
+        {
+          "name": "bubbleTop",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "bubbleLeft",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "visible",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "pendingActive",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "pendingText",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "markBold",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markItalic",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markStrike",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markCode",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "allowComment",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "allowGenerate",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "<ship-markdown-editor-bubble> — selection bubble + comment composer\nfor the markdown editor. Pure view+events: receives position +\nvisibility + mark booleans from the parent; dispatches mark-toggle\n+ action events back. Composer text is held in local state and\nreturned to the parent only on submit/cancel — parent flips\n`pending-active` to true to open with `pending-text` as the\nquoted selection."
+    },
+    {
+      "tag": "ship-markdown-editor-toolbar",
+      "props": [
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markBold",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markItalic",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markCode",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markH1",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markH2",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markH3",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markBullet",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markOrdered",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markTask",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "markLink",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "<ship-markdown-editor-toolbar> — main editor toolbar. Pure\nview+events: receives mark booleans + disabled + label as\nattributes from the parent <ship-markdown-editor>; dispatches\n`ship-mark-toggle` and `ship-link-click` back up. The parent owns\nthe editor instance and drives all TipTap commands."
+    },
+    {
+      "tag": "ship-markdown-editor",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "invalid",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "rows",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "fullHeight",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "showSelectionToolbar",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "allowComment",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "allowGenerate",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "<ship-markdown-editor> — TipTap-backed markdown editor island.\nOwns the editor instance, value sync, mark map, bubble position,\nand pending-comment state. Toolbar + bubble live in sibling .set\nsub-components. TipTap graph lazy-loads from\n`./ship-markdown-editor.init.ts` so element registration stays\nlight. Public methods (focus) and dispose use existing primitives."
+    },
+    {
+      "tag": "ship-pagination",
+      "props": [
+        {
+          "name": "page",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "total",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "perPage",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "<ship-pagination> — pagination bar with prev/next buttons + info.\n\nAttributes:\npage      — current page (1-based, default 1).\ntotal     — total number of items.\nper-page  — items per page (default 25).\ntone      — default | info | success | warning | destructive | accent.\n\nEvents:\nship-change — CustomEvent { page: number }."
+    },
+    {
+      "tag": "ship-progress",
+      "props": [
+        {
+          "name": "value",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md'",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-progress"
+    },
+    {
+      "tag": "ship-provider-blob",
+      "props": [
+        {
+          "name": "provider",
+          "type": "'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'tile' | 'glyph'",
+          "required": false
+        }
+      ],
+      "description": "ship-provider-blob"
+    },
+    {
+      "tag": "ship-radio-group",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-radio-group"
+    },
+    {
+      "tag": "ship-radio",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "checked",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        }
+      ],
+      "description": "ship-radio"
+    },
+    {
+      "tag": "ship-select",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "required",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "invalid",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "describedBy",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-select"
+    },
+    {
+      "tag": "ship-separator",
+      "props": [
+        {
+          "name": "orientation",
+          "type": "'horizontal' | 'vertical'",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'solid' | 'dashed'",
+          "required": false
+        }
+      ],
+      "description": "ship-separator"
+    },
+    {
+      "tag": "ship-skeleton",
+      "props": [
+        {
+          "name": "variant",
+          "type": "'text' | 'circle' | 'rect'",
+          "required": false
+        },
+        {
+          "name": "width",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "height",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "lines",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "animated",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-skeleton"
+    },
+    {
+      "tag": "ship-spinner",
+      "props": [
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-spinner"
+    },
+    {
+      "tag": "ship-stat",
+      "props": [
+        {
+          "name": "accent",
+          "type": "'default' | 'primary' | 'info' | 'success' | 'destructive' | 'warning' | 'accent'",
+          "required": false
+        },
+        {
+          "name": "interactive",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-stat"
+    },
+    {
+      "tag": "ship-status-dot",
+      "props": [
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "pulse",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md'",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-status-dot"
+    },
+    {
+      "tag": "ship-switch",
+      "props": [
+        {
+          "name": "checked",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-switch"
+    },
+    {
+      "tag": "ship-tab-panel",
+      "props": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "active",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-tab-panel"
+    },
+    {
+      "tag": "ship-tab",
+      "props": [
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "count",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-tab"
+    },
+    {
+      "tag": "ship-tabs",
+      "props": [
+        {
+          "name": "active",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'underline' | 'segmented'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "sticky",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "orientation",
+          "type": "'horizontal' | 'vertical'",
+          "required": false
+        }
+      ],
+      "description": "ship-tabs"
+    },
+    {
+      "tag": "ship-textarea",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "placeholder",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "rows",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "required",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "readonly",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "variant",
+          "type": "'default' | 'code'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md'",
+          "required": false
+        },
+        {
+          "name": "resize",
+          "type": "'none' | 'vertical' | 'horizontal' | 'both'",
+          "required": false
+        },
+        {
+          "name": "invalid",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "describedBy",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-textarea"
+    },
+    {
+      "tag": "ship-timestamp",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "format",
+          "type": "'relative' | 'absolute' | 'both'",
+          "required": false
+        }
+      ],
+      "description": "ship-timestamp"
+    },
+    {
+      "tag": "ship-tooltip",
+      "props": [
+        {
+          "name": "placement",
+          "type": "'top' | 'bottom' | 'left' | 'right'",
+          "required": false
+        },
+        {
+          "name": "delay",
+          "type": "number",
+          "required": false
+        }
+      ],
+      "description": "<ship-tooltip> — CSS-only tooltip positioned via absolute offsets.\nWraps its trigger as light-DOM children; the `content` slot\nprovides the bubble body. Shows on hover and on keyboard focus —\nthe visibility transition lives entirely in CSS via :host(:hover)\nand :host(:focus-within), so this component carries no event\nstate, no positioning JS, and no portal escape from the host.\n\nAttributes:\nplacement — top | bottom | left | right (default top).\ndelay     — number, ms show delay (default 100). Currently a\npassthrough — see comments below.\n\nSlots:\n(default) — trigger content.\ncontent   — tooltip body."
     }
   ]
 }

@@ -29,6 +29,7 @@ fn template_context(prefix: &str, symbols: &SymbolTable) -> Vec<CompletionItem> 
     if let Some(v) = bind_completions(prefix) { return v; }
     if let Some(v) = on_completions(prefix) { return v; }
     if let Some(v) = component_tag_completions(prefix) { return v; }
+    if let Some(v) = component_prop_completions(prefix) { return v; }
     if inside_interpolation(prefix) { return signal_completions(symbols); }
     Vec::new()
 }
@@ -86,23 +87,98 @@ fn on_completions(prefix: &str) -> Option<Vec<CompletionItem>> {
     }).collect())
 }
 
-/// Tags pulled from `template_syntax` `component_call` examples —
-/// best-effort until a per-component prop catalog lands.
+/// Tags pulled from the framework manifest's `components` catalog.
+/// Triggered after `<` in template position when the partially-typed
+/// tag is still a valid kebab identifier.
 fn component_tag_completions(prefix: &str) -> Option<Vec<CompletionItem>> {
     let t = trailing_after_lt(prefix)?;
     if !is_kebab(t) { return None; }
-    let mut tags: Vec<String> = framework().template_syntax.iter()
-        .filter(|ts| ts.name == "component_call")
-        .flat_map(|ts| ts.examples.iter().flat_map(|e| extract_tags(e)))
-        .collect();
-    tags.sort(); tags.dedup();
-    if tags.is_empty() { return None; }
-    Some(tags.into_iter().map(|tag| CompletionItem {
-        label: tag,
+    let comps = &framework().components;
+    if comps.is_empty() { return None; }
+    Some(comps.iter().map(|c| CompletionItem {
+        label: c.tag.clone(),
         kind: Some(CompletionItemKind::MODULE),
         detail: Some("custom element".into()),
+        documentation: Some(markdown(c.description.clone())),
         ..Default::default()
     }).collect())
+}
+
+/// Prop completion inside an open custom-element tag. Triggered when
+/// the cursor sits at an attribute boundary inside `<ship-foo …`,
+/// e.g. `<ship-button |>`, `<ship-button tone="primary" |>`. Returns
+/// the per-component prop set from the manifest, kebab-cased to
+/// match attribute syntax.
+fn component_prop_completions(prefix: &str) -> Option<Vec<CompletionItem>> {
+    let (tag, partial) = open_tag_attr_context(prefix)?;
+    let comp = framework().components.iter().find(|c| c.tag == tag)?;
+    if !partial.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') {
+        return None;
+    }
+    Some(comp.props.iter().map(|p| {
+        let attr = kebab_of(&p.name);
+        let detail = format!("{}: {}", attr, p.ty);
+        CompletionItem {
+            label: attr,
+            kind: Some(CompletionItemKind::PROPERTY),
+            detail: Some(detail),
+            documentation: Some(markdown(format!(
+                "`{}` prop of `<{}>` — type `{}`{}.",
+                p.name,
+                tag,
+                p.ty,
+                if p.required { ", required" } else { "" }
+            ))),
+            ..Default::default()
+        }
+    }).collect())
+}
+
+/// If `prefix` ends inside an open custom-element start tag (between
+/// the tag name and the closing `>` / `/>`), return `(tag, partial)`
+/// where `partial` is the token currently being typed. Returns `None`
+/// when the cursor is outside a tag, inside `</`, or the tag is not
+/// kebab-cased.
+fn open_tag_attr_context(prefix: &str) -> Option<(String, &str)> {
+    let lt = prefix.rfind('<')?;
+    let inside = &prefix[lt + 1..];
+    if inside.starts_with('/') { return None; }
+    if inside.contains('>') || inside.contains('<') { return None; }
+    let mut chars = inside.char_indices();
+    let mut name_end = 0;
+    for (i, c) in &mut chars {
+        if c.is_ascii_alphanumeric() || c == '-' {
+            name_end = i + c.len_utf8();
+        } else {
+            break;
+        }
+    }
+    let tag = &inside[..name_end];
+    if !tag.contains('-') { return None; }
+    let after_tag = &inside[name_end..];
+    if !after_tag.starts_with(|c: char| c.is_ascii_whitespace()) { return None; }
+    let partial_start = after_tag
+        .rfind(|c: char| c.is_ascii_whitespace())
+        .map(|i| i + 1)
+        .unwrap_or(0);
+    let partial = &after_tag[partial_start..];
+    if partial.contains('=') || partial.contains('"') || partial.contains('\'') {
+        return None;
+    }
+    Some((tag.to_string(), partial))
+}
+
+fn kebab_of(name: &str) -> String {
+    let mut out = String::new();
+    for (i, c) in name.chars().enumerate() {
+        if c.is_ascii_uppercase() {
+            if i > 0 { out.push('-'); }
+            out.push(c.to_ascii_lowercase());
+        } else {
+            out.push(c);
+        }
+    }
+    out
 }
 
 fn signal_completions(symbols: &SymbolTable) -> Vec<CompletionItem> {
@@ -233,21 +309,6 @@ fn trailing_after_lt(prefix: &str) -> Option<&str> {
 fn is_ident(s: &str) -> bool { s.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') }
 fn is_kebab(s: &str) -> bool { s.chars().all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_') }
 
-fn extract_tags(snippet: &str) -> Vec<String> {
-    let mut out = Vec::new();
-    let b = snippet.as_bytes();
-    let mut i = 0;
-    while i + 1 < b.len() {
-        if b[i] != b'<' { i += 1; continue; }
-        let mut j = i + 1 + (b[i + 1] == b'/') as usize;
-        let s = j;
-        while j < b.len() && (b[j].is_ascii_alphanumeric() || b[j] == b'-') { j += 1; }
-        if j > s && snippet[s..j].contains('-') { out.push(snippet[s..j].into()); }
-        i = j.max(i + 1);
-    }
-    out
-}
-
 fn first_line(s: &str) -> String { s.split('\n').next().unwrap_or("").trim_end().into() }
 
 #[cfg(test)]
@@ -295,5 +356,26 @@ mod tests {
     #[test]
     fn unknown_context_returns_empty() {
         assert!(completions("", pos(0, 0)).is_empty());
+    }
+
+    #[test]
+    fn after_lt_returns_component_tags() {
+        let src = "<script></script>\n<template><</template>";
+        let items = completions(src, pos(1, 11));
+        let l = labels(&items);
+        for required in ["ship-button", "ship-card", "ship-input"] {
+            assert!(l.contains(&required), "missing {required} in {l:?}");
+        }
+    }
+
+    #[test]
+    fn inside_component_tag_returns_props() {
+        let src = "<script></script>\n<template><ship-button ></ship-button></template>";
+        let items = completions(src, pos(1, 23));
+        let l = labels(&items);
+        for required in ["tone", "variant", "size", "disabled"] {
+            assert!(l.contains(&required), "missing {required} in {l:?}");
+        }
+        assert!(items.iter().all(|i| i.kind == Some(CompletionItemKind::PROPERTY)));
     }
 }
