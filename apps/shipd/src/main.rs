@@ -41,10 +41,17 @@ fn main() -> anyhow::Result<()> {
     let port = extract_u16_arg(&args, "--port");
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dev = args.iter().any(|a| a == "--dev");
-    // Workspace resolution: explicit flag wins; otherwise walk up from CWD
-    // looking for `.ship/` like git discovers the repo root. Only fall back
-    // to global-only when the daemon genuinely isn't inside a project.
-    let workspace = extract_str_arg(&args, "--workspace")
+    // Project resolution:
+    //   1. `--dev-worktree <path>` (dev-only; routes the daemon into a
+    //      per-worktree IPC dir + hash-derived port so multiple Ship-dev
+    //      worktrees can run side-by-side without colliding). Hidden
+    //      behind the `dev` semantics — not a user-facing flag.
+    //   2. `--workspace <path>` is the deprecated alias kept for the
+    //      handful of dev scripts that still pass it.
+    //   3. Otherwise walk up from CWD looking for `.ship/`, like git
+    //      discovers the repo root.
+    let workspace = extract_str_arg(&args, "--dev-worktree")
+        .or_else(|| extract_str_arg(&args, "--workspace"))
         .map(std::path::PathBuf::from)
         .or_else(discover_workspace);
 
