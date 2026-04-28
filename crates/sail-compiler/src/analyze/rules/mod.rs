@@ -12,15 +12,15 @@
 //! component.
 //!
 //! Shared infrastructure lives in this file: the per-component prop
-//! catalog (built once at first call from embedded `.set` sources)
-//! and a pair of small visitor helpers used by every rule that walks
-//! the template tree.
+//! catalog (built once at first call from the embedded
+//! `sdk-framework.json` manifest) and a pair of small visitor helpers
+//! used by every rule that walks the template tree.
 
 use std::collections::{BTreeSet, HashMap};
 use std::sync::OnceLock;
 
 use crate::Diagnostic;
-use crate::parse;
+use crate::Manifest;
 use crate::parse::ast::{Node, PropBinding, SailFile, Template};
 
 use super::symbols::SymbolTable;
@@ -105,21 +105,36 @@ where
 /// Catalog of every `<ship-*>` component the framework ships, keyed by
 /// kebab-cased tag and mapped to the kebab-cased attribute names that
 /// correspond to declared `prop` signals. Built once at first call by
-/// re-parsing the embedded `.set` sources.
+/// reading the embedded `sdk-framework.json` manifest, which the
+/// xtask gen-sdk pipeline keeps in lockstep with the corpus under
+/// `packages/ship-set-sail/components/`.
 pub(crate) fn component_catalog() -> &'static HashMap<String, BTreeSet<String>> {
     static CATALOG: OnceLock<HashMap<String, BTreeSet<String>>> = OnceLock::new();
     CATALOG.get_or_init(|| {
         let mut out: HashMap<String, BTreeSet<String>> = HashMap::new();
-        for (tag, src) in COMPONENT_SOURCES {
-            let Ok(file) = parse::parse(src) else { continue };
-            let Some(script) = file.script else { continue };
-            let props: BTreeSet<String> =
-                script.props.iter().map(|p| kebab_of(&p.name)).collect();
-            out.insert((*tag).to_string(), props);
+        for c in &embedded_manifest().components {
+            let props: BTreeSet<String> = c.props.iter().map(|p| kebab_of(&p.name)).collect();
+            out.insert(c.tag.clone(), props);
         }
         out
     })
 }
+
+/// Embedded SDK framework manifest. The compiler ships with the JSON
+/// the xtask gen-sdk pipeline writes to
+/// `packages/ship-set/sdk/sdk-framework.json`; reading it once here
+/// gives every consumer in the crate the same component catalog
+/// without re-parsing the corpus at runtime.
+pub(crate) fn embedded_manifest() -> &'static Manifest {
+    static MANIFEST: OnceLock<Manifest> = OnceLock::new();
+    MANIFEST.get_or_init(|| {
+        serde_json::from_str(EMBEDDED_FRAMEWORK_JSON)
+            .expect("embedded sdk-framework.json must parse")
+    })
+}
+
+const EMBEDDED_FRAMEWORK_JSON: &str =
+    include_str!("../../../../../packages/ship-set/sdk/sdk-framework.json");
 
 pub(crate) fn kebab_of(name: &str) -> String {
     let mut out = String::new();
@@ -134,72 +149,49 @@ pub(crate) fn kebab_of(name: &str) -> String {
     out
 }
 
-/// Embedded `.set` sources for every component in
-/// `packages/ship-set-sail/components/`. New components are added by
-/// a one-liner here; `cargo build` re-runs `include_str!`.
-const COMPONENT_SOURCES: &[(&str, &str)] = &[
-    ("ship-accordion", include_str!("../../../../../packages/ship-set-sail/components/ship-accordion.set")),
-    ("ship-accordion-item", include_str!("../../../../../packages/ship-set-sail/components/ship-accordion-item.set")),
-    ("ship-agents", include_str!("../../../../../packages/ship-set-sail/components/ship-agents.set")),
-    ("ship-alert", include_str!("../../../../../packages/ship-set-sail/components/ship-alert.set")),
-    ("ship-app-icon", include_str!("../../../../../packages/ship-set-sail/components/ship-app-icon.set")),
-    ("ship-avatar", include_str!("../../../../../packages/ship-set-sail/components/ship-avatar.set")),
-    ("ship-badge", include_str!("../../../../../packages/ship-set-sail/components/ship-badge.set")),
-    ("ship-breadcrumb", include_str!("../../../../../packages/ship-set-sail/components/ship-breadcrumb.set")),
-    ("ship-breadcrumb-item", include_str!("../../../../../packages/ship-set-sail/components/ship-breadcrumb-item.set")),
-    ("ship-button", include_str!("../../../../../packages/ship-set-sail/components/ship-button.set")),
-    ("ship-card", include_str!("../../../../../packages/ship-set-sail/components/ship-card.set")),
-    ("ship-checkbox", include_str!("../../../../../packages/ship-set-sail/components/ship-checkbox.set")),
-    ("ship-chip", include_str!("../../../../../packages/ship-set-sail/components/ship-chip.set")),
-    ("ship-collapsible", include_str!("../../../../../packages/ship-set-sail/components/ship-collapsible.set")),
-    ("ship-copy-button", include_str!("../../../../../packages/ship-set-sail/components/ship-copy-button.set")),
-    ("ship-dashboard", include_str!("../../../../../packages/ship-set-sail/components/ship-dashboard.set")),
-    ("ship-empty-state", include_str!("../../../../../packages/ship-set-sail/components/ship-empty-state.set")),
-    ("ship-error-state", include_str!("../../../../../packages/ship-set-sail/components/ship-error-state.set")),
-    ("ship-icon", include_str!("../../../../../packages/ship-set-sail/components/ship-icon.set")),
-    ("ship-input", include_str!("../../../../../packages/ship-set-sail/components/ship-input.set")),
-    ("ship-kbd", include_str!("../../../../../packages/ship-set-sail/components/ship-kbd.set")),
-    ("ship-label", include_str!("../../../../../packages/ship-set-sail/components/ship-label.set")),
-    ("ship-link", include_str!("../../../../../packages/ship-set-sail/components/ship-link.set")),
-    ("ship-list-tile", include_str!("../../../../../packages/ship-set-sail/components/ship-list-tile.set")),
-    ("ship-mark", include_str!("../../../../../packages/ship-set-sail/components/ship-mark.set")),
-    ("ship-markdown-editor", include_str!("../../../../../packages/ship-set-sail/components/ship-markdown-editor.set")),
-    ("ship-markdown-editor-bubble", include_str!("../../../../../packages/ship-set-sail/components/ship-markdown-editor-bubble.set")),
-    ("ship-markdown-editor-toolbar", include_str!("../../../../../packages/ship-set-sail/components/ship-markdown-editor-toolbar.set")),
-    ("ship-pagination", include_str!("../../../../../packages/ship-set-sail/components/ship-pagination.set")),
-    ("ship-progress", include_str!("../../../../../packages/ship-set-sail/components/ship-progress.set")),
-    ("ship-provider-blob", include_str!("../../../../../packages/ship-set-sail/components/ship-provider-blob.set")),
-    ("ship-radio", include_str!("../../../../../packages/ship-set-sail/components/ship-radio.set")),
-    ("ship-radio-group", include_str!("../../../../../packages/ship-set-sail/components/ship-radio-group.set")),
-    ("ship-select", include_str!("../../../../../packages/ship-set-sail/components/ship-select.set")),
-    ("ship-separator", include_str!("../../../../../packages/ship-set-sail/components/ship-separator.set")),
-    ("ship-skeleton", include_str!("../../../../../packages/ship-set-sail/components/ship-skeleton.set")),
-    ("ship-spinner", include_str!("../../../../../packages/ship-set-sail/components/ship-spinner.set")),
-    ("ship-stat", include_str!("../../../../../packages/ship-set-sail/components/ship-stat.set")),
-    ("ship-status-dot", include_str!("../../../../../packages/ship-set-sail/components/ship-status-dot.set")),
-    ("ship-switch", include_str!("../../../../../packages/ship-set-sail/components/ship-switch.set")),
-    ("ship-tab", include_str!("../../../../../packages/ship-set-sail/components/ship-tab.set")),
-    ("ship-tab-panel", include_str!("../../../../../packages/ship-set-sail/components/ship-tab-panel.set")),
-    ("ship-tabs", include_str!("../../../../../packages/ship-set-sail/components/ship-tabs.set")),
-    ("ship-textarea", include_str!("../../../../../packages/ship-set-sail/components/ship-textarea.set")),
-    ("ship-timestamp", include_str!("../../../../../packages/ship-set-sail/components/ship-timestamp.set")),
-    ("ship-tooltip", include_str!("../../../../../packages/ship-set-sail/components/ship-tooltip.set")),
-];
-
 #[cfg(test)]
 mod corpus_probe {
-    //! One-shot scan of the embedded component corpus that prints the
+    //! One-shot scan of the shipped component corpus that prints the
     //! current rule hits. Always passes — output shows up under
     //! `cargo test -- --nocapture` and is what the job report quotes.
+    //!
+    //! Reads `.set` files from disk relative to `CARGO_MANIFEST_DIR`
+    //! at test time. The compiler crate doesn't ship the corpus
+    //! through `include_str!` any more (the per-component prop
+    //! catalog now travels via the embedded `sdk-framework.json`).
+    use std::path::PathBuf;
+
     use crate::Severity;
     use crate::parse;
+    use crate::tag_for_stem;
+
+    fn corpus_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .and_then(|p| p.parent())
+            .expect("repo root")
+            .join("packages/ship-set-sail/components")
+    }
 
     #[test]
     fn probe_corpus() {
         let mut by_code: std::collections::BTreeMap<&'static str, usize> = Default::default();
         let mut hits: Vec<(String, String, String)> = Vec::new();
-        for (tag, src) in super::COMPONENT_SOURCES {
-            let Ok(file) = parse::parse(src) else { continue };
+        let mut entries: Vec<_> = std::fs::read_dir(corpus_dir())
+            .expect("read corpus dir")
+            .filter_map(|e| e.ok())
+            .map(|e| e.path())
+            .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("set"))
+            .collect();
+        entries.sort();
+        for path in entries {
+            let stem = path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or_default();
+            let tag = tag_for_stem(stem);
+            let src = std::fs::read_to_string(&path).expect("read .set");
+            let Ok(file) = parse::parse(&src) else { continue };
             let mut diags = Vec::new();
             super::analyze(&file, &mut diags);
             for d in diags
@@ -214,7 +206,7 @@ mod corpus_probe {
                     _ => continue,
                 };
                 *by_code.entry(code).or_default() += 1;
-                hits.push(((*tag).to_string(), d.code.clone(), d.message.clone()));
+                hits.push((tag.clone(), d.code.clone(), d.message.clone()));
             }
         }
         eprintln!("\n=== rules::corpus_probe — {} total hits ===", hits.len());

@@ -38,8 +38,8 @@ pub mod manifest;
 pub mod schema_source;
 
 pub use manifest::{
-    AntiExample, Directive, LifecycleHook, Manifest, ReactivityRule, ScopeBinding,
-    TemplateSyntax, MANIFEST_VERSION,
+    AntiExample, Component, ComponentProp, Directive, LifecycleHook, Manifest, ReactivityRule,
+    ScopeBinding, TemplateSyntax, MANIFEST_VERSION,
 };
 
 use anyhow::{Context, Result};
