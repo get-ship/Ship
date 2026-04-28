@@ -155,10 +155,10 @@ fn refresh(
     send_diagnostics(conn, &uri, diagnostics)
 }
 
-/// Derive the custom-element tag from the URI's file stem. Mirrors
-/// `sail_compiler::tag_for` but we can't call that one — it takes a
-/// `Path`, and editor URIs may not be paths (untitled buffers, virtual
-/// schemes). Falls back to `"sail-component"` if no stem is present.
+/// Derive the custom-element tag from the URI's file stem. Editor URIs
+/// may not be paths (untitled buffers, virtual schemes), so we extract
+/// the stem from the URI's last path segment and delegate the kebab +
+/// `sail-` policy to `sail_compiler::tag_for_stem`.
 fn tag_for_uri(uri: &Url) -> String {
     let stem = uri
         .path_segments()
@@ -166,21 +166,7 @@ fn tag_for_uri(uri: &Url) -> String {
         .and_then(|name| name.rsplit_once('.').map(|(s, _)| s).or(Some(name)))
         .filter(|s| !s.is_empty())
         .unwrap_or("component");
-    let mut out = String::new();
-    for (i, c) in stem.chars().enumerate() {
-        if c.is_ascii_uppercase() {
-            if i > 0 {
-                out.push('-');
-            }
-            out.push(c.to_ascii_lowercase());
-        } else {
-            out.push(c);
-        }
-    }
-    if !out.contains('-') {
-        out = format!("sail-{out}");
-    }
-    out
+    sail_compiler::tag_for_stem(stem)
 }
 
 fn send_diagnostics(

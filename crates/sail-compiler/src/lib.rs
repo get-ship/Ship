@@ -128,6 +128,15 @@ pub fn tag_for(path: &Path) -> String {
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("component");
+    tag_for_stem(stem)
+}
+
+/// Derive the custom-element tag from a bare stem string. Same kebab +
+/// `sail-` rules as [`tag_for`], factored out so consumers without a
+/// `Path` (LSP servers reading editor URIs, virtual schemes, untitled
+/// buffers) can share the policy without re-implementing it.
+pub fn tag_for_stem(stem: &str) -> String {
+    let stem = if stem.is_empty() { "component" } else { stem };
     let mut out = String::new();
     for (i, c) in stem.chars().enumerate() {
         if c.is_ascii_uppercase() {
