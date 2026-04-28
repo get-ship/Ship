@@ -9,6 +9,10 @@
 
 import { batch, type Signal } from './signal'
 
+/**
+ * Wire-protocol op tag. See
+ * `.artifacts/specs/sail/04-patch-protocol.md` for full per-op semantics.
+ */
 export type PatchOp =
   | 'set'
   | 'merge'
@@ -20,6 +24,10 @@ export type PatchOp =
   | 'splice'
   | 'inc'
 
+/**
+ * One patch envelope. Path-addressed; only the fields relevant to
+ * `op` are populated. `path` defaults to the root.
+ */
 export interface Patch {
   op: PatchOp
   /** JSON path within the signal value. Empty / undefined → root. */
@@ -40,12 +48,23 @@ export interface Patch {
 }
 
 /**
- * Apply a patch to a signal. Reads current value, applies the op
- * immutably (copy-on-write along the path), writes back. Subscribers
- * notified once via batched update if multiple patches apply together.
+ * Apply one patch to `sig`. Reads the current value, walks the path,
+ * applies the op immutably (copy-on-write — unchanged subtrees keep
+ * reference equality), and writes the new root back via `sig.set`.
  *
- * Throws on unknown op (forward-compat: future versions may add ops;
- * callers can wrap in try/catch for graceful degradation).
+ * @param sig Target signal whose value the patch mutates.
+ * @param patch Patch envelope (op + path + op-specific fields).
+ * @throws If `patch.op` is unknown, or the path doesn't match the
+ *   shape the op expects (e.g. `merge` on an array).
+ *
+ * @example
+ * ```ts
+ * const state = signal({ items: [{ id: 1 }] })
+ * applyPatch(state, { op: 'append', path: 'items', value: { id: 2 } })
+ * state().items // [{ id: 1 }, { id: 2 }]
+ * ```
+ *
+ * @see applyPatches to apply many in one batched flush; tokenizePath.
  */
 export function applyPatch<T>(sig: Signal<T>, patch: Patch): void {
   const next = applyOp(sig.__peek(), patch)
@@ -53,8 +72,22 @@ export function applyPatch<T>(sig: Signal<T>, patch: Patch): void {
 }
 
 /**
- * Apply many patches as one atomic update — subscribers notified once
- * at the end. Useful for multi-field server pushes.
+ * Apply many patches as one atomic update. Patches run in order inside
+ * a `batch`, so subscribers fire exactly once at the end regardless of
+ * how many patches the array contains. No-op for empty arrays.
+ *
+ * @param sig Target signal.
+ * @param patches Patches to apply in order.
+ *
+ * @example
+ * ```ts
+ * applyPatches(state, [
+ *   { op: 'set', path: 'loading', value: false },
+ *   { op: 'set', path: 'items',   value: rows  },
+ * ])
+ * ```
+ *
+ * @see applyPatch for the single-patch form; batch.
  */
 export function applyPatches<T>(sig: Signal<T>, patches: Patch[]): void {
   if (patches.length === 0) return
@@ -66,8 +99,23 @@ export function applyPatches<T>(sig: Signal<T>, patches: Patch[]): void {
 // ─── Path tokenization ────────────────────────────────────────────────────────
 
 /**
- * Tokenize a JSON path into segments. Supports `.field`, `[N]` array
- * index, and chains (`a.b[3].c`). Empty path → empty list (root).
+ * Parse a path string (`field`, `[i]`, chains like `a.b[3].c`) into a
+ * list of tokens. The empty string returns an empty list and addresses
+ * the root.
+ *
+ * @param path Path expression in Sail's patch syntax.
+ * @returns Ordered token list.
+ * @throws On malformed paths (unmatched delimiters, stray characters).
+ *
+ * @example
+ * ```ts
+ * tokenizePath('items[2].label')
+ * // [ { kind: 'field', name: 'items' },
+ * //   { kind: 'index', i: 2 },
+ * //   { kind: 'field', name: 'label' } ]
+ * ```
+ *
+ * @see applyPatch — every patch's `path` is tokenized via this fn.
  */
 export function tokenizePath(path: string): PathToken[] {
   if (!path) return []
@@ -91,6 +139,7 @@ export function tokenizePath(path: string): PathToken[] {
   return tokens
 }
 
+/** One segment of a parsed patch path: an object field or an array index. */
 export type PathToken =
   | { kind: 'field'; name: string }
   | { kind: 'index'; i: number }

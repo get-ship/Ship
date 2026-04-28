@@ -11,14 +11,15 @@
 import { applyPatch, type Patch } from './patch'
 import { signal, type Signal } from './signal'
 
+/** Options for `data()` — initial value plus SSE/patch wiring. */
 export interface DataOpts<T> {
   /** Initial value (typically server-rendered). */
   initial: T
   /** SSE endpoint URL; omit for static data (no live subscription). */
   subscribe?: string
-  /** Custom patch handler — overrides the default applyPatch route. */
+  /** Custom patch handler — overrides the default `applyPatch` route. */
   onPatch?: (patch: Patch, sig: Signal<T>) => void
-  /** Error handler for SSE/parse failures. */
+  /** Error handler for SSE / parse failures. */
   onError?: (err: unknown) => void
   /**
    * EventSource constructor injection — defaults to `globalThis.EventSource`.
@@ -27,17 +28,39 @@ export interface DataOpts<T> {
   EventSource?: typeof globalThis.EventSource
 }
 
+/** The handle returned by `data()`: the live signal plus a disposer. */
 export interface DataHandle<T> {
-  /** The reactive signal. */
+  /** The reactive signal — read it like any other signal. */
   signal: Signal<T>
-  /** Disposer — closes the SSE connection. */
+  /** Disposer that closes the SSE connection. Idempotent. */
   dispose: () => void
 }
 
 /**
- * Create a data signal. If `subscribe` is provided and an EventSource
- * implementation is available, opens the stream and routes `patch`
- * events into the signal.
+ * Create a server-owned reactive signal that can subscribe to SSE
+ * patches. If `subscribe` is provided and an `EventSource` impl is
+ * available, opens the stream and routes `patch` events through
+ * `applyPatch` (or `onPatch` when supplied) into the signal.
+ *
+ * The Sail compiler emits this for `data live x = ship.<dom>.<op>(...)`
+ * declarations; SSR pre-renders `initial` and the runtime takes over
+ * patches at hydrate time.
+ *
+ * @param opts Initial value, optional SSE URL, and patch / error hooks.
+ * @returns `{ signal, dispose }` — read the signal, call `dispose` to
+ *   close the stream.
+ *
+ * @example
+ * ```ts
+ * const { signal: agents, dispose } = data<{ items: Agent[] }>({
+ *   initial: { items: [] },
+ *   subscribe: '/api/v1/ship/agents/summaries',
+ * })
+ * effect(() => console.log(agents().items.length))
+ * // later: dispose()
+ * ```
+ *
+ * @see applyPatch for the default patch routing; signal for raw signals.
  */
 export function data<T>(opts: DataOpts<T>): DataHandle<T> {
   const sig = signal(opts.initial)

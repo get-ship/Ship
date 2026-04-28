@@ -6,26 +6,47 @@
 //
 // See .artifacts/specs/sail/03-runtime-architecture.md § Slots.
 
+/**
+ * Declaration of one slot: name, anchor placeholder, and optional
+ * fallback. The compiler emits an array of these for each component
+ * that exposes slots; the runtime consumes the array via `resolveSlots`.
+ */
 export interface SlotDecl {
   /** Slot name; default slot is `'default'`. */
   name: string
-  /** Anchor element (or comment) where slot content goes. */
+  /** Anchor comment where slot content goes. */
   anchor: Comment
   /** Render fallback if no fill provided. Returns nodes to insert. */
   fallback?: () => Node[]
 }
 
 /**
- * Resolve slot fills against the host's pre-existing nodes. Walks
- * the snapshot, routes Elements with `slot="X"` to the matching
- * named anchor, and routes everything else (Elements without a slot
- * attribute, Text, Comment) to the default anchor. Mirrors native
- * `<slot>` distribution semantics so text children like
- * `<my-component>Active</my-component>` aren't dropped.
+ * Distribute a component's pre-existing children into its slot anchors,
+ * matching native `<slot>` distribution semantics. Elements with
+ * `slot="X"` route to the named anchor; everything else (un-named
+ * elements, Text, Comment) routes to the default slot. The `slot`
+ * attribute is stripped during routing.
  *
- * Should be called AFTER the component's template has been rendered
- * (so anchors exist) but before lifecycle hooks fire (so authors see
- * a fully-distributed tree).
+ * Should be called AFTER the component's template has rendered (so
+ * anchors exist) but BEFORE lifecycle hooks fire (so authors see a
+ * fully-distributed tree).
+ *
+ * @param host Custom-element host whose children are being distributed.
+ * @param slots Slot declarations for this component.
+ * @param originalChildren Snapshot of `host.childNodes` taken before
+ *   the template overwrote the host's content (see `snapshotChildren`).
+ *
+ * @example
+ * ```ts
+ * const original = snapshotChildren(host)
+ * host.replaceChildren(template)
+ * resolveSlots(host, [
+ *   { name: 'default', anchor: defaultAnchor },
+ *   { name: 'icon',    anchor: iconAnchor, fallback: () => [defaultIcon()] },
+ * ], original)
+ * ```
+ *
+ * @see snapshotChildren, slotFilled.
  */
 export function resolveSlots(host: Element, slots: SlotDecl[], originalChildren: Node[]): void {
   const fills = new Map<string, Node[]>()
@@ -79,15 +100,28 @@ export function resolveSlots(host: Element, slots: SlotDecl[], originalChildren:
 }
 
 /**
- * `slotFilled(host, 'icon')` → was the named slot filled with author-
- * provided content at mount time, or did it fall back to the default?
+ * Was the named slot filled with author-provided content at mount, or
+ * did it fall back? Lets templates gate styling / aux content on slot
+ * presence without manual DOM probing. Pure-whitespace text fills
+ * count as "not filled" so leading whitespace doesn't pollute the answer.
  *
- * Lets template authors gate fallback content on slot presence without
- * the manual `host.querySelector(':scope > .X > [part="Y"]')` +
- * childNodes walker pattern. Static — slot fills are evaluated once at
- * mount; subsequent fills don't update this. The compiler injects a
- * `slotFilled` local into the component setup so script-block code can
- * call `slotFilled('icon')` without passing the host explicitly.
+ * Static — fills are evaluated once at mount; subsequent reparenting
+ * does not update the result.
+ *
+ * The compiler injects a `slotFilled` local into the component setup,
+ * so script-block code can call `slotFilled('icon')` without passing
+ * the host explicitly.
+ *
+ * @param host Component host element.
+ * @param name Slot name (use `'default'` for the unnamed slot).
+ * @returns True if the slot received meaningful caller-provided content.
+ *
+ * @example
+ * ```ts
+ * if (!slotFilled(host, 'icon')) host.classList.add('iconless')
+ * ```
+ *
+ * @see resolveSlots.
  */
 export function slotFilled(host: Element, name: string): boolean {
   const set = (host as unknown as { __sailSlotFilled?: Set<string> }).__sailSlotFilled
@@ -95,9 +129,22 @@ export function slotFilled(host: Element, name: string): boolean {
 }
 
 /**
- * Snapshot the host's current child *nodes* (not just elements)
- * before innerHTML is replaced. Text and comment children survive
- * the round-trip — native slots distribute them, and so should we.
+ * Snapshot the host's current child nodes (Elements, Text, and Comment)
+ * before its innerHTML is replaced by the component template. Text and
+ * comment children survive the round-trip so native-slot semantics are
+ * preserved — `<my-component>Hi</my-component>` keeps the `Hi` text.
+ *
+ * @param host Component host element.
+ * @returns A new array containing each child node in document order.
+ *
+ * @example
+ * ```ts
+ * const original = snapshotChildren(host)
+ * host.replaceChildren(template)
+ * resolveSlots(host, slots, original)
+ * ```
+ *
+ * @see resolveSlots.
  */
 export function snapshotChildren(host: Element): Node[] {
   return Array.from(host.childNodes)

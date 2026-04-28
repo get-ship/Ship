@@ -10,6 +10,10 @@
 import { effect, type Signal } from './signal'
 import type { Disposer } from './bind'
 
+/**
+ * Inputs to `bindFor` — what to iterate, how to identify items, and
+ * how to render them.
+ */
 export interface BindForOptions<T> {
   /** Anchor placeholder — siblings are inserted AFTER this node. */
   anchor: Comment
@@ -21,6 +25,10 @@ export interface BindForOptions<T> {
   render: (item: T, index: number) => RenderedItem
 }
 
+/**
+ * The shape returned by a `BindForOptions.render` call — DOM nodes for
+ * one row plus optional cleanup and update hooks.
+ */
 export interface RenderedItem {
   nodes: Node[]
   cleanup?: () => void
@@ -43,11 +51,34 @@ interface ItemRecord<T> {
 }
 
 /**
- * Bind a keyed list. The renderer is called once per new item; reused
- * items keep their original DOM nodes across reorders.
+ * Bind a keyed list to the DOM after `opts.anchor`. The renderer is
+ * called once per new key; rows whose keys persist across renders keep
+ * their original nodes (and any focus / scroll / animation state).
  *
- * Reconciliation is O(n+m) — diff by key set, insert new keys, remove
- * gone keys, move existing keys into position.
+ * Reconciliation is O(n+m): diff by key set, remove gone keys, insert
+ * new keys, move existing keys into their new positions.
+ *
+ * Compiler target: `{#for item of list key={item.id}}…{/for}`.
+ *
+ * @param opts Anchor, reactive items source, key fn, and render fn.
+ * @returns Disposer that detaches every row and stops updates.
+ *
+ * @example
+ * ```ts
+ * const items = signal<Row[]>([])
+ * bindFor({
+ *   anchor,
+ *   items: () => items(),
+ *   key: (row) => row.id,
+ *   render: (row) => {
+ *     const li = document.createElement('li')
+ *     li.textContent = row.label
+ *     return { nodes: [li] }
+ *   },
+ * })
+ * ```
+ *
+ * @see bindForSignal for the common case where `items` is a signal.
  */
 export function bindFor<T>(opts: BindForOptions<T>): Disposer {
   const { anchor, items, key, render } = opts
@@ -141,8 +172,23 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
 }
 
 /**
- * Convenience: bind a list using a signal directly. Equivalent to
- * `bindFor({ items: () => sig(), ... })`.
+ * Convenience wrapper around `bindFor` for the common case where the
+ * items source is a signal. Equivalent to
+ * `bindFor({ anchor, items: () => sig(), key, render })`.
+ *
+ * @param anchor Comment placeholder; rows are inserted after it.
+ * @param sig Signal whose value is the current array.
+ * @param key Stable, unique key per item identity.
+ * @param render Per-row renderer.
+ * @returns Disposer.
+ *
+ * @example
+ * ```ts
+ * const rows = signal<Row[]>([])
+ * bindForSignal(anchor, rows, (r) => r.id, renderRow)
+ * ```
+ *
+ * @see bindFor for the full options form.
  */
 export function bindForSignal<T>(
   anchor: Comment,
