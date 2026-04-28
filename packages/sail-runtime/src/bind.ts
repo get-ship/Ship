@@ -184,16 +184,25 @@ export function bindProp<T extends Element>(
  * event. Setting the same value re-checks identity to avoid moving the
  * caret.
  *
- * Compiler target: `bind:value={state}` template syntax.
+ * The optional `onWrite` callback fires after each user-driven signal
+ * write — use it for dispatching public events or syncing form state
+ * without a separate `oninput` handler. It is NOT invoked when the
+ * signal is updated programmatically (otherwise it would loop with
+ * the signal subscription).
+ *
+ * Compiler target: `bind:value={state}` (no callback) or
+ * `bind:value={state} on:bind={fn}` (with callback) template syntax.
  *
  * @param el Form control whose `.value` is two-way bound.
  * @param sig String signal that owns the value.
+ * @param onWrite Optional callback invoked with the new value after
+ *   each user-input-driven signal write.
  * @returns Disposer that stops the binding and removes the listener.
  *
  * @example
  * ```ts
  * const draft = signal('')
- * bindValue(input, draft)
+ * bindValue(input, draft, (v) => el.dispatchEvent(new CustomEvent('change', { detail: v })))
  * ```
  *
  * @see bindChecked for boolean controls; bindProp for one-way prop binding.
@@ -201,12 +210,17 @@ export function bindProp<T extends Element>(
 export function bindValue(
   el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
   sig: Signal<string>,
+  onWrite?: (value: string) => void,
 ): Disposer {
   const dispose = effect(() => {
     const v = sig()
     if (el.value !== v) el.value = v
   })
-  const onInput = () => sig.set(el.value)
+  const onInput = () => {
+    const v = el.value
+    sig.set(v)
+    if (onWrite) onWrite(v)
+  }
   el.addEventListener('input', onInput)
   return () => {
     dispose()

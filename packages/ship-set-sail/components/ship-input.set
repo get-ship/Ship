@@ -36,9 +36,7 @@ function syncFormValue() {
   }
 }
 
-function onInput(e) {
-  const v = e.target.value
-  value.set(v)
+function notify(v) {
   syncFormValue()
   el.dispatchEvent(new CustomEvent('ship-input', {
     detail: { value: v },
@@ -89,7 +87,7 @@ effect {
     aria-label={label}
     aria-describedby={ariaDescribedBy}
     bind:value={value}
-    oninput={onInput}
+    on:bind={notify}
   />
   <!-- Trailing region renders both spinner and slot; visibility is
        controlled by the host's [loading] attribute via CSS. Keeping

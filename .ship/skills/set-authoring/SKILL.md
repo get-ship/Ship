@@ -86,6 +86,7 @@ event NAME: T                     <!-- typed CustomEvent declaration -->
 | `attr={expr}` | Reactive attribute. **Empty / null / undefined / `false` auto-omit.** `true` → presence-only. |
 | `onclick={fn}`, `oninput={fn}`, `onkeydown={fn}` | Platform attribute names. Any `on*` attr with an interpolated value becomes an event listener. **Do NOT use `on:click={fn}`** — the `on:` prefix is deprecated. |
 | `bind:value={sig}`, `bind:checked={sig}` | Two-way binding for form inputs. The runtime owns the input listener — don't pair with `oninput={…}`. |
+| `bind:value={sig} on:bind={fn}` | Side-effect callback for `bind:value`. After the runtime writes the signal on user input, `fn(newValue)` fires — canonical hook for "react to a `bind:value` write" (dispatch a public event, sync `setFormValue`, etc.). Not invoked on programmatic signal writes. |
 | `{#if cond}…{:else if c2}…{:else}…{/if}` | Mustache control flow. |
 | `{#for x of xs}…{/for}` | Optional `key={expr}` for stable identity. |
 | `{#await promise}loading{:then v}…{:catch e}…{/await}` | |
@@ -299,7 +300,7 @@ Exemplars: `ship-breadcrumb.set` (childList), `ship-label.set` (attribute filter
 ### 6. `bind:value` + `oninput` double-wire
 `bind:value` already attaches an input listener. Don't also write `oninput={fn}` on the same element — the framework owns the listener.
 
-If you need to dispatch a custom event on input (e.g., `ship-input`), do it from a separate `effect on value { dispatch(...) }` or from the `oninput` handler exclusively (and drop `bind:value`).
+If you need to dispatch a custom event on input (e.g., `ship-input`) or sync form state, use `on:bind={fn}` — the side-effect callback hook for `bind:value`. The runtime writes the signal first, then invokes `fn(newValue)`. Only fires for user input (not programmatic signal writes), so there's no recursion risk. Exemplars: `ship-input.set`, `ship-textarea.set`.
 
 ### 7. CSS comments in scoped styles
 Top-level CSS comments between rules emit invalid prefixed selectors after host scoping (`[data-component="x"] /* ... */ .foo`). Browser silently drops them. Compiler-side fix tracked in `ergonomics.md` row 10.

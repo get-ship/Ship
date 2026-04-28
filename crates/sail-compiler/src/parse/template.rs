@@ -1027,6 +1027,29 @@ mod tests {
     }
 
     #[test]
+    fn bind_value_with_on_bind_callback() {
+        // `bind:value={x} on:bind={f}` — both attrs recognized.
+        let n = parse_str("<input bind:value={draft} on:bind={notify} />");
+        match &n[0] {
+            Node::Element { attrs, .. } => {
+                assert_eq!(attrs.len(), 2);
+                assert_eq!(attrs[0].name, "bind:value");
+                assert!(matches!(&attrs[0].value, AttrValue::BindTwoWay(e) if e.raw == "draft"));
+                assert_eq!(attrs[1].name, "on:bind");
+                match &attrs[1].value {
+                    AttrValue::OnEvent { event, modifiers, handler } => {
+                        assert_eq!(event, "bind");
+                        assert!(modifiers.is_empty());
+                        assert_eq!(handler.raw, "notify");
+                    }
+                    _ => panic!("expected OnEvent for on:bind"),
+                }
+            }
+            _ => panic!("expected input"),
+        }
+    }
+
+    #[test]
     fn bind_value_attr() {
         let n = parse_str("<input bind:value={draft} />");
         match &n[0] {

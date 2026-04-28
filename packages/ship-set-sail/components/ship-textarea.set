@@ -28,9 +28,7 @@ function syncFormValue() {
   }
 }
 
-function onInput(e) {
-  const v = e.target.value
-  value.set(v)
+function notify(v) {
   syncFormValue()
   el.dispatchEvent(new CustomEvent('ship-input', {
     detail: { value: v },
@@ -73,7 +71,7 @@ effect {
   aria-describedby={describedBy}
   style={resizeStyle}
   bind:value={value}
-  oninput={onInput}
+  on:bind={notify}
 ></textarea>
 </template>
 

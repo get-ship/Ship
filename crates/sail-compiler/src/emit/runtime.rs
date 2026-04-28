@@ -188,6 +188,25 @@ impl<'a> Emitter<'a> {
     }
 
     fn emit_element(&mut self, tag: &str, attrs: &[Attr], children: &[Node]) {
+        // `bind:value={x} on:bind={fn}` — the on:bind handler is hoisted
+        // into `bindValue(el, sig, fn)` rather than wired as a separate
+        // event listener. Detect the pair before emitting attrs so the
+        // BindTwoWay branch can append the callback and the OnEvent
+        // branch can skip the matching `on:bind` entry.
+        let has_bind_value = attrs
+            .iter()
+            .any(|a| matches!(&a.value, AttrValue::BindTwoWay(_) if a.name == "bind:value"));
+        let on_bind_handler: Option<String> = if has_bind_value {
+            attrs.iter().find_map(|a| match &a.value {
+                AttrValue::OnEvent { event, handler, .. } if event == "bind" => {
+                    Some(handler.raw.clone())
+                }
+                _ => None,
+            })
+        } else {
+            None
+        };
+
         // Decide whether this element needs an anchor.
         let needs_anchor = attrs.iter().any(|a| {
             matches!(
@@ -238,12 +257,21 @@ impl<'a> Emitter<'a> {
                     self.imports.insert(bind_fn);
                     let root = self.query_root.clone();
                     let cl = self.cleanup_array.clone();
+                    let extra = match (a.name.as_str(), on_bind_handler.as_deref()) {
+                        ("bind:value", Some(cb)) => format!(", {cb}"),
+                        _ => String::new(),
+                    };
                     self.wires.push(format!(
-                        "  {{\n    const _n = {root}.querySelector('[data-sa=\"{id}\"]');\n    if (_n) {cl}.push({bind_fn}(_n, {sig}));\n  }}",
+                        "  {{\n    const _n = {root}.querySelector('[data-sa=\"{id}\"]');\n    if (_n) {cl}.push({bind_fn}(_n, {sig}{extra}));\n  }}",
                         sig = expr.raw,
                     ));
                 }
                 AttrValue::OnEvent { event, modifiers, handler } => {
+                    // `on:bind` paired with `bind:value` is hoisted into
+                    // the bindValue call; skip emitting a listener wire.
+                    if event == "bind" && has_bind_value {
+                        continue;
+                    }
                     let id = anchor_id.unwrap();
                     self.imports.insert("on");
                     let opts = render_modifier_opts(modifiers);
@@ -1306,6 +1334,18 @@ mod tests {
             "<script>state draft = ''</script>\n<template><input bind:value={draft} /></template>",
         );
         assert!(js.contains("bindValue(_n, draft)"));
+        // No callback arg when on:bind is absent.
+        assert!(!js.contains("bindValue(_n, draft,"));
+    }
+
+    #[test]
+    fn bind_value_with_on_bind_threads_callback() {
+        let js = compile(
+            "<script>state draft = ''\nfunction notify(v) {}</script>\n<template><input bind:value={draft} on:bind={notify} /></template>",
+        );
+        assert!(js.contains("bindValue(_n, draft, notify)"));
+        // The on:bind handler must NOT also be wired as a DOM listener.
+        assert!(!js.contains("on(_n, \"bind\""));
     }
 
     #[test]

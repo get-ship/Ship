@@ -224,6 +224,28 @@ describe('bindValue', () => {
     el.dispatchEvent(new Event('input'))
     expect($v()).toBe('b') // input→signal detached; signal stays at 'b' from previous .set
   })
+
+  it('onWrite callback fires on user input with new value', () => {
+    const el = document.createElement('input')
+    const $v = signal('')
+    const seen: string[] = []
+    bindValue(el, $v, (v) => seen.push(v))
+    el.value = 'typed'
+    el.dispatchEvent(new Event('input'))
+    expect($v()).toBe('typed')
+    expect(seen).toEqual(['typed'])
+  })
+
+  it('onWrite NOT invoked on programmatic signal writes', () => {
+    const el = document.createElement('input')
+    const $v = signal('a')
+    const seen: string[] = []
+    bindValue(el, $v, (v) => seen.push(v))
+    $v.set('b')
+    $v.set('c')
+    expect(el.value).toBe('c')
+    expect(seen).toEqual([])
+  })
 })
 
 describe('bindChecked', () => {
