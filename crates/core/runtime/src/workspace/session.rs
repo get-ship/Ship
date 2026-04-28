@@ -1,7 +1,6 @@
 use crate::db::session::{
     get_active_workspace_session_db, get_workspace_session_record_db, list_workspace_sessions_db,
 };
-use crate::db::workspace_state::get_workspace_config_generation_db;
 use crate::db::session_events::insert_session_progress_event;
 use crate::db::types::WorkspaceSessionDb;
 use crate::errors::WorkspaceError;
@@ -97,12 +96,8 @@ pub(super) fn annotate_session_record(
     Ok(())
 }
 
-fn workspace_generation_map(workspace_id: &str, branch: &str) -> HashMap<String, i64> {
-    let mut map = HashMap::new();
-    if let Ok(Some(generation)) = get_workspace_config_generation_db(workspace_id) {
-        map.insert(branch.to_string(), generation);
-    }
-    map
+fn workspace_generation_map(_workspace_id: &str, _branch: &str) -> HashMap<String, i64> {
+    HashMap::new()
 }
 
 // ---- Session artifacts -----------------------------------------------------

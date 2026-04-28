@@ -45,8 +45,6 @@ pub struct Workspace {
     /// Workspace directory path (if provisioned).
     #[serde(skip_serializing_if = "Option::is_none", alias = "worktree_path")]
     pub path: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub active_agent: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 

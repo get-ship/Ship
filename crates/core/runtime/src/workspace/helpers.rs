@@ -64,21 +64,7 @@ pub(crate) fn new_workspace(branch: &str, now: DateTime<Utc>) -> Workspace {
         id: workspace_id_from_branch(branch),
         name: branch.to_string(),
         path: None,
-        active_agent: None,
         created_at: now,
-    }
-}
-
-// ---- Agent validation ------------------------------------------------------
-
-pub(crate) fn validate_agent_exists(ship_dir: &std::path::Path, agent_id: &str) -> anyhow::Result<String> {
-    let normalized = normalize_agent_ref(agent_id)
-        .ok_or_else(|| anyhow::anyhow!("Workspace agent cannot be empty"))?;
-    let effective = crate::config::get_effective_config(Some(ship_dir.to_path_buf()))?;
-    if effective.modes.iter().any(|mode| mode.id == normalized) {
-        Ok(normalized)
-    } else {
-        Err(anyhow::anyhow!("Agent '{}' not found", normalized))
     }
 }
 

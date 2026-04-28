@@ -4,26 +4,31 @@ use runtime::workspace::{
     CreateWorkspaceRequest as RuntimeCreateWorkspaceRequest,
     create_workspace as runtime_create_workspace,
 };
-use runtime::{AgentProfile, add_agent};
+use runtime::{AgentProfile, get_config, save_config};
 use tempfile::tempdir;
+
+fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
+    let mut config = get_config(Some(project_dir.to_path_buf())).expect("get config");
+    let id = agent.id.clone();
+    config.modes.push(agent);
+    config.active_agent = Some(id);
+    save_config(&config, Some(project_dir.to_path_buf())).expect("save config");
+}
 
 #[test]
 fn mode_gate_normalizes_and_blocks_disallowed_tools() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "mode-gate-test".to_string(),
             name: "Mode Gate Test".to_string(),
             active_tools: vec!["ship_list_notes".to_string()],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("mode-gate-test"))
-        .expect("set active agent");
+    );
 
     ShipServer::enforce_mode_tool_gate(&project_dir, "list_notes").expect("list_notes allowed");
     ShipServer::enforce_mode_tool_gate(&project_dir, "ship_list_notes_tool")

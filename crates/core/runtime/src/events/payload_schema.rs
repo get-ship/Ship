@@ -50,10 +50,7 @@ fn schema_for_event_type(
         "workspace.deleted" => Some(check::<WorkspaceDeleted>),
         "workspace.status_changed" => Some(check::<WorkspaceStatusChanged>),
         "workspace.activated" => Some(check::<WorkspaceActivated>),
-        "workspace.compiled" => Some(check::<WorkspaceCompiled>),
-        "workspace.compile_failed" => Some(check::<WorkspaceCompileFailed>),
         "workspace.archived" => Some(check::<WorkspaceArchived>),
-        "workspace.agent_changed" => Some(check::<WorkspaceAgentChanged>),
         "workspace.reconciled" => Some(check::<WorkspaceReconciled>),
         "workspace.tmux_assigned" => Some(check::<WorkspaceTmuxAssigned>),
         "workspace.started" => Some(check::<WorkspaceStarted>),
@@ -153,9 +150,9 @@ mod tests {
     fn valid_payload_passes() {
         let v = PayloadSchemaValidator;
         let event = EventEnvelope::new(
-            "workspace.compiled",
+            "workspace.created",
             "ws-1",
-            &serde_json::json!({ "config_generation": 1, "duration_ms": 42 }),
+            &serde_json::json!({ "workspace_id": "ws-1" }),
         )
         .unwrap();
         let ctx = caller_ctx(CallerKind::Runtime);
@@ -166,7 +163,7 @@ mod tests {
     fn malformed_payload_rejected() {
         let v = PayloadSchemaValidator;
         let event = EventEnvelope::new(
-            "workspace.compiled",
+            "workspace.created",
             "ws-1",
             &serde_json::json!({ "garbage": true }),
         )

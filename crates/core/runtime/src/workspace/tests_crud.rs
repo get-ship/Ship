@@ -145,7 +145,7 @@ mod tests {
         crate::workspace::compile::compile_workspace_context(
             &ship_dir,
             &workspace,
-            workspace.active_agent.as_deref(),
+            None,
         )?;
         assert!(
             worktree_root.join(".mcp.json").exists(),
@@ -155,25 +155,6 @@ mod tests {
             !tmp.path().join(".mcp.json").exists(),
             "main checkout root should not receive worktree provider config"
         );
-        Ok(())
-    }
-
-    #[test]
-    fn create_workspace_rejects_unknown_active_agent() -> Result<()> {
-        let tmp = tempdir()?;
-        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
-
-        let err = create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/no-mode".to_string(),
-                active_agent: Some("ghost".to_string()),
-                ..Default::default()
-            },
-        )
-        .expect_err("expected invalid agent to be rejected");
-
-        assert!(err.to_string().contains("Agent 'ghost' not found"));
         Ok(())
     }
 

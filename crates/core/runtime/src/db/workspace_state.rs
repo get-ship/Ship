@@ -14,8 +14,7 @@ pub fn get_workspace_by_id_db(id: &str) -> Result<Option<(String, WorkspaceDbRow
     let mut conn = open_db()?;
     let row_opt = block_on(async {
         sqlx::query(
-            "SELECT branch, COALESCE(id, branch), path, \
-             active_agent, created_at \
+            "SELECT branch, COALESCE(id, branch), path, created_at \
              FROM workspace WHERE id = ? OR branch = ? LIMIT 1",
         )
         .bind(id)
@@ -27,12 +26,8 @@ pub fn get_workspace_by_id_db(id: &str) -> Result<Option<(String, WorkspaceDbRow
         let branch: String = row.get(0);
         let rec_id: String = row.get(1);
         let path: Option<String> = row.get(2);
-        let active_agent: Option<String> = row.get(3);
-        let created_at: Option<String> = row.get(4);
-        Ok(Some((
-            branch,
-            (rec_id, path, active_agent, created_at),
-        )))
+        let created_at: Option<String> = row.get(3);
+        Ok(Some((branch, (rec_id, path, created_at))))
     } else {
         Ok(None)
     }
@@ -43,8 +38,7 @@ pub fn get_workspace_db(branch: &str) -> Result<Option<WorkspaceDbRow>> {
     let mut conn = open_db()?;
     let row_opt = block_on(async {
         sqlx::query(
-            "SELECT COALESCE(id, branch), path, \
-             active_agent, created_at \
+            "SELECT COALESCE(id, branch), path, created_at \
              FROM workspace WHERE branch = ?",
         )
         .bind(branch)
@@ -54,9 +48,8 @@ pub fn get_workspace_db(branch: &str) -> Result<Option<WorkspaceDbRow>> {
     if let Some(row) = row_opt {
         let id: String = row.get(0);
         let path: Option<String> = row.get(1);
-        let active_agent: Option<String> = row.get(2);
-        let created_at: Option<String> = row.get(3);
-        Ok(Some((id, path, active_agent, created_at)))
+        let created_at: Option<String> = row.get(2);
+        Ok(Some((id, path, created_at)))
     } else {
         Ok(None)
     }
@@ -66,8 +59,7 @@ pub fn list_workspaces_db() -> Result<Vec<WorkspaceDbListRow>> {
     let mut conn = open_db()?;
     let rows = block_on(async {
         sqlx::query(
-            "SELECT branch, COALESCE(id, branch), path, \
-             active_agent, created_at \
+            "SELECT branch, COALESCE(id, branch), path, created_at \
              FROM workspace \
              ORDER BY created_at DESC",
         )
@@ -80,10 +72,9 @@ pub fn list_workspaces_db() -> Result<Vec<WorkspaceDbListRow>> {
         let branch: String = row.get(0);
         let id: String = row.get(1);
         let path: Option<String> = row.get(2);
-        let active_agent: Option<String> = row.get(3);
-        let created_at: Option<String> = row.get(4);
+        let created_at: Option<String> = row.get(3);
 
-        result.push((branch, id, path, active_agent, created_at));
+        result.push((branch, id, path, created_at));
     }
     Ok(result)
 }
@@ -101,21 +92,6 @@ pub fn get_workspace_tmux_session_db(id: &str) -> Result<Option<String>> {
         .await
     })?;
     Ok(row_opt.flatten())
-}
-
-/// Retrieve the current config_generation for a workspace by id or branch.
-pub fn get_workspace_config_generation_db(id: &str) -> Result<Option<i64>> {
-    let mut conn = open_db()?;
-    let row_opt = block_on(async {
-        sqlx::query_scalar::<_, i64>(
-            "SELECT config_generation FROM workspace WHERE id = ? OR branch = ? LIMIT 1",
-        )
-        .bind(id)
-        .bind(id)
-        .fetch_optional(&mut conn)
-        .await
-    })?;
-    Ok(row_opt)
 }
 
 /// Check if a workspace has an active session.

@@ -440,46 +440,4 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn session_stale_context_turns_true_after_recompile() -> Result<()> {
-        let tmp = tempdir()?;
-        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
-
-        let config = crate::config::ProjectConfig {
-            providers: vec!["claude".to_string()],
-            ..Default::default()
-        };
-        crate::config::save_config(&config, Some(ship_dir.clone()))?;
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/stale-session".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let started = start_workspace_session(
-            &ship_dir,
-            "feature/stale-session",
-            Some("test stale".to_string()),
-            None,
-            None,
-        )?;
-        assert!(started.config_generation_at_start.is_some());
-
-        // Trigger a recompile which bumps config_generation.
-        let workspace = get_workspace(&ship_dir, "feature/stale-session")?
-            .ok_or_else(|| anyhow::anyhow!("workspace missing"))?;
-        crate::workspace::compile::compile_workspace_context(&ship_dir, &workspace, None)?;
-
-        let active = get_active_workspace_session(&ship_dir, "feature/stale-session")?
-            .ok_or_else(|| anyhow::anyhow!("active session missing"))?;
-        assert!(active.stale_context);
-
-        let sessions = list_workspace_sessions(&ship_dir, Some("feature/stale-session"), 10)?;
-        assert!(!sessions.is_empty());
-        assert!(sessions[0].stale_context);
-        Ok(())
-    }
 }

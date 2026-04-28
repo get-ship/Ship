@@ -2,10 +2,7 @@ pub const WORKSPACE_CREATED: &str = "workspace.created";
 pub const WORKSPACE_DELETED: &str = "workspace.deleted";
 pub const WORKSPACE_STATUS_CHANGED: &str = "workspace.status_changed";
 pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
-pub const WORKSPACE_COMPILED: &str = "workspace.compiled";
-pub const WORKSPACE_COMPILE_FAILED: &str = "workspace.compile_failed";
 pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";
-pub const WORKSPACE_AGENT_CHANGED: &str = "workspace.agent_changed";
 pub const WORKSPACE_RECONCILED: &str = "workspace.reconciled";
 pub const WORKSPACE_TMUX_ASSIGNED: &str = "workspace.tmux_assigned";
 pub const WORKSPACE_STARTED: &str = "workspace.started";
@@ -89,10 +86,7 @@ pub const ALL: &[&str] = &[
     WORKSPACE_DELETED,
     WORKSPACE_STATUS_CHANGED,
     WORKSPACE_ACTIVATED,
-    WORKSPACE_COMPILED,
-    WORKSPACE_COMPILE_FAILED,
     WORKSPACE_ARCHIVED,
-    WORKSPACE_AGENT_CHANGED,
     WORKSPACE_RECONCILED,
     WORKSPACE_TMUX_ASSIGNED,
     WORKSPACE_STARTED,

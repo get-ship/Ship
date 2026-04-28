@@ -5,15 +5,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceCreated {
     pub workspace_id: String,
-    pub workspace_type: String,
-    #[serde(default)]
-    pub active_agent: Option<String>,
-    #[serde(default)]
-    pub providers: Vec<String>,
-    #[serde(default)]
-    pub mcp_servers: Vec<String>,
-    #[serde(default)]
-    pub skills: Vec<String>,
     #[serde(default)]
     pub path: Option<String>,
 }
@@ -36,23 +27,7 @@ pub struct WorkspaceActivated {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceCompiled {
-    pub config_generation: u32,
-    pub duration_ms: u64,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceCompileFailed {
-    pub error: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceArchived {}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct WorkspaceAgentChanged {
-    pub agent_id: Option<String>,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceReconciled {
@@ -406,11 +381,6 @@ mod tests {
     fn workspace_created_payload_deserializes() {
         let original = WorkspaceCreated {
             workspace_id: "ws-1".to_string(),
-            workspace_type: "feature".to_string(),
-            active_agent: None,
-            providers: vec![],
-            mcp_servers: vec![],
-            skills: vec![],
             path: None,
         };
         let json = serde_json::to_string(&original).unwrap();

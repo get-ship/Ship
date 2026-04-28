@@ -27,26 +27,7 @@ mod workspace_tests {
             branch,
             &serde_json::json!({
                 "workspace_id": branch,
-                "workspace_type": "feature",
-                "active_agent": null,
-                "providers": [],
-                "mcp_servers": [],
-                "skills": [],
                 "path": null
-            }),
-        )
-        .unwrap()
-        .with_context(Some(branch), None)
-        .elevate()
-    }
-
-    fn workspace_compiled_event(branch: &str) -> EventEnvelope {
-        EventEnvelope::new(
-            event_types::WORKSPACE_COMPILED,
-            branch,
-            &serde_json::json!({
-                "config_generation": 1,
-                "duration_ms": 42
             }),
         )
         .unwrap()
@@ -110,7 +91,6 @@ mod workspace_tests {
 
         let events = vec![
             workspace_created_event("feature/rebuild-a"),
-            workspace_compiled_event("feature/rebuild-a"),
             workspace_created_event("feature/rebuild-b"),
         ];
 
@@ -122,7 +102,7 @@ mod workspace_tests {
         let exists_b = query_workspace_exists(&mut conn, "feature/rebuild-b");
 
         let report = bus.rebuild(&events, &mut conn).unwrap();
-        assert_eq!(report.events_replayed, 3);
+        assert_eq!(report.events_replayed, 2);
 
         let rebuilt_a = query_workspace_exists(&mut conn, "feature/rebuild-a");
         let rebuilt_b = query_workspace_exists(&mut conn, "feature/rebuild-b");
@@ -139,30 +119,6 @@ mod workspace_tests {
             report.projections_rebuilt.contains(&"workspace_state".to_string()),
             "report must list rebuilt projections"
         );
-    }
-
-    // ── Idempotency tests ─────────────────────────────────────────────
-
-    #[test]
-    fn compiled_projection_is_idempotent() {
-        let mut conn = setup();
-        let bus = bus();
-        let branch = "feature/idem-compiled";
-
-        bus.dispatch(&workspace_created_event(branch), &mut conn);
-
-        let event = workspace_compiled_event(branch);
-        bus.dispatch(&event, &mut conn);
-        bus.dispatch(&event, &mut conn); // apply same event twice
-
-        let config_gen: Option<i64> = block_on(async {
-            sqlx::query_scalar("SELECT config_generation FROM workspace WHERE branch = ?")
-                .bind(branch)
-                .fetch_optional(&mut conn)
-                .await
-        })
-        .unwrap();
-        assert_eq!(config_gen, Some(1), "applying same compiled event twice must not double-increment");
     }
 
     #[test]
@@ -231,38 +187,6 @@ mod workspace_tests {
     }
 
     #[test]
-    fn event_versioning_v1_compiled_without_new_fields() {
-        let mut conn = setup();
-        let bus = bus();
-        let branch = "feature/versioning-test";
-
-        bus.dispatch(&workspace_created_event(branch), &mut conn);
-
-        let v1_event = EventEnvelope::new(
-            event_types::WORKSPACE_COMPILED,
-            branch,
-            &serde_json::json!({
-                "config_generation": 5,
-                "duration_ms": 100
-            }),
-        )
-        .unwrap()
-        .with_context(Some(branch), None)
-        .elevate();
-
-        bus.dispatch(&v1_event, &mut conn);
-
-        let config_gen: Option<i64> = block_on(async {
-            sqlx::query_scalar("SELECT config_generation FROM workspace WHERE branch = ?")
-                .bind(branch)
-                .fetch_optional(&mut conn)
-                .await
-        })
-        .unwrap();
-        assert_eq!(config_gen, Some(5), "v1 event must set config_generation from payload");
-    }
-
-    #[test]
     fn rebuild_preserves_tmux_state() {
         let mut conn = setup();
         let bus = bus();
@@ -281,16 +205,15 @@ mod workspace_tests {
             .unwrap()
             .with_context(Some(branch), None)
             .elevate(),
-            workspace_compiled_event(branch),
         ];
 
         for e in &events {
             bus.dispatch(e, &mut conn);
         }
 
-        let before: Option<(Option<String>, Option<String>, i64)> = block_on(async {
+        let before: Option<(Option<String>, Option<String>)> = block_on(async {
             sqlx::query_as(
-                "SELECT tmux_session_name, path, config_generation \
+                "SELECT tmux_session_name, path \
                  FROM workspace WHERE branch = ?",
             )
             .bind(branch)
@@ -301,9 +224,9 @@ mod workspace_tests {
 
         bus.rebuild(&events, &mut conn).unwrap();
 
-        let after: Option<(Option<String>, Option<String>, i64)> = block_on(async {
+        let after: Option<(Option<String>, Option<String>)> = block_on(async {
             sqlx::query_as(
-                "SELECT tmux_session_name, path, config_generation \
+                "SELECT tmux_session_name, path \
                  FROM workspace WHERE branch = ?",
             )
             .bind(branch)

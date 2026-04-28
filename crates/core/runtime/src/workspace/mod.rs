@@ -52,12 +52,10 @@ pub use crud::{
     list_workspaces, repair_workspace, workspace_status,
 };
 pub use event_upserts::{
-    upsert_workspace_on_compile_failed, upsert_workspace_on_compiled, upsert_workspace_on_created,
-    upsert_workspace_on_deleted,
+    upsert_workspace_on_created, upsert_workspace_on_deleted,
 };
 pub use lifecycle::{
-    create_workspace, seed_service_workspace,
-    set_workspace_active_agent, set_workspace_started, set_workspace_tmux_session,
+    create_workspace, seed_service_workspace, set_workspace_started, set_workspace_tmux_session,
 };
 pub use session::{
     get_active_workspace_session, get_workspace_session_record, list_workspace_sessions,

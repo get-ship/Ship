@@ -16,7 +16,7 @@ fn init() -> (tempfile::TempDir, std::path::PathBuf) {
 
 fn create_test_session(ship_dir: &std::path::Path, session_id: &str, workspace_id: &str) {
     let branch = workspace_id;
-    upsert_workspace_on_created(ship_dir, branch, None, None).unwrap();
+    upsert_workspace_on_created(ship_dir, branch, None).unwrap();
     let payload = SessionStarted {
         goal: Some("test".into()),
         workspace_id: workspace_id.into(),

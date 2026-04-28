@@ -82,36 +82,6 @@ fn create_workspace_update_preserves_existing_path() -> Result<()> {
     Ok(())
 }
 
-// ── set_workspace_active_agent ──────────────────────────────────────────────
-
-#[test]
-fn set_active_agent_errors_for_missing_workspace() {
-    let tmp = tempdir().unwrap();
-    let ship_dir = crate::project::init_project(tmp.path().to_path_buf()).unwrap();
-
-    let err = set_workspace_active_agent(&ship_dir, "nonexistent", Some("agent"))
-        .unwrap_err();
-    assert!(err.to_string().contains("Workspace not found"));
-}
-
-#[test]
-fn set_active_agent_clear_succeeds() -> Result<()> {
-    let tmp = tempdir()?;
-    let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
-
-    create_workspace(
-        &ship_dir,
-        CreateWorkspaceRequest {
-            branch: "feature/clear-agent".into(),
-            ..Default::default()
-        },
-    )?;
-
-    let ws = set_workspace_active_agent(&ship_dir, "feature/clear-agent", None)?;
-    assert!(ws.active_agent.is_none());
-    Ok(())
-}
-
 // ── set_workspace_started ───────────────────────────────────────────────────
 
 #[test]

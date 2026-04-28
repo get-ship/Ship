@@ -90,26 +90,4 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn set_active_agent_emits_agent_changed_event() -> Result<()> {
-        let (_tmp, ship_dir) = setup();
-
-        let req = CreateWorkspaceRequest {
-            branch: "feature/agent-change-test".to_string(),
-            ..Default::default()
-        };
-        create_workspace(&ship_dir, req)?;
-
-        set_workspace_active_agent(&ship_dir, "feature/agent-change-test", None)?;
-
-        let count = count_events_by_type_and_entity(
-            "workspace.agent_changed",
-            "feature/agent-change-test",
-        );
-        assert_eq!(
-            count, 1,
-            "set_workspace_active_agent must emit workspace.agent_changed, got {count}"
-        );
-        Ok(())
-    }
 }

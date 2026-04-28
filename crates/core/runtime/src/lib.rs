@@ -104,7 +104,7 @@ pub use workspace::{
     get_workspace, get_workspace_provider_matrix, get_workspace_session_record,
     list_trash, list_workspace_sessions, list_workspaces, purge_old_trash,
     reconcile_workspace, record_workspace_session_progress, repair_workspace,
-    restore_file, set_workspace_active_agent, set_workspace_started, start_workspace_session,
+    restore_file, set_workspace_started, start_workspace_session,
     trash_file, workspace_status,
 };
 

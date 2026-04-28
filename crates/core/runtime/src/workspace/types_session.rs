@@ -183,6 +183,5 @@ pub struct WorkspaceRepairReport {
 #[derive(Debug, Clone, Default)]
 pub struct CreateWorkspaceRequest {
     pub branch: String,
-    pub active_agent: Option<String>,
     pub path: Option<String>,
 }

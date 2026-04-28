@@ -3,16 +3,14 @@
 pub type WorkspaceDbRow = (
     String,         // 0: id
     Option<String>, // 1: path
-    Option<String>, // 2: active_agent
-    Option<String>, // 3: created_at
+    Option<String>, // 2: created_at
 );
 
 pub type WorkspaceDbListRow = (
     String,         // 0: branch (name)
     String,         // 1: id
     Option<String>, // 2: path
-    Option<String>, // 3: active_agent
-    Option<String>, // 4: created_at
+    Option<String>, // 3: created_at
 );
 
 #[derive(Debug, Clone, PartialEq, Eq)]

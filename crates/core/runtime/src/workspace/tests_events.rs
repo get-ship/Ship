@@ -47,70 +47,6 @@ mod tests {
         Ok(())
     }
 
-    // ── test 2: set_agent emits workspace.agent_changed event ──────────────────
-
-    #[test]
-    fn set_agent_emits_agent_changed_event() -> Result<()> {
-        let (_tmp, ship_dir) = setup();
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/evt-agent".to_string(),
-                ..Default::default()
-            },
-        )?;
-        let _ = set_workspace_active_agent(&ship_dir, "feature/evt-agent", None)?;
-
-        let store = event_store();
-        let events = store.query(&EventFilter {
-            entity_id: Some("feature/evt-agent".to_string()),
-            event_type: Some(event_types::WORKSPACE_AGENT_CHANGED.to_string()),
-            ..Default::default()
-        })?;
-
-        assert!(!events.is_empty(), "expected workspace.agent_changed event after set_agent");
-        Ok(())
-    }
-
-    // ── test 3: compile failure emits workspace.compile_failed ────────────────
-
-    #[test]
-    #[ignore = "provider resolution always falls back to claude; need a different compile failure trigger"]
-    fn compile_failure_emits_compile_failed_event() -> Result<()> {
-        let (_tmp, ship_dir) = setup();
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/evt-fail".to_string(),
-                ..Default::default()
-            },
-        )?;
-        let mut config = crate::config::get_config(Some(ship_dir.clone()))?;
-        config.active_agent = Some("nonexistent-agent-id".to_string());
-        crate::config::save_config(&config, Some(ship_dir.clone()))?;
-        let result = set_workspace_active_agent(&ship_dir, "feature/evt-fail", Some("nonexistent-agent-id"));
-        assert!(result.is_err(), "expected compile failure");
-
-        let store = event_store();
-        let events = store.query(&EventFilter {
-            entity_id: Some("feature/evt-fail".to_string()),
-            event_type: Some(event_types::WORKSPACE_COMPILE_FAILED.to_string()),
-            ..Default::default()
-        })?;
-
-        assert!(
-            !events.is_empty(),
-            "expected workspace.compile_failed event after compile error"
-        );
-        let ev = &events[0];
-        let payload: crate::events::types::WorkspaceCompileFailed =
-            serde_json::from_str(&ev.payload_json)?;
-        assert!(!payload.error.is_empty(), "error string must be non-empty");
-        Ok(())
-    }
-
     // ── test 4: workspace events have correct metadata ───────────────────────
 
     #[test]
@@ -181,11 +117,6 @@ mod tests {
         let sentinel_branch = "atomicity-sentinel";
         let payload = WorkspaceCreated {
             workspace_id: sentinel_branch.to_string(),
-            workspace_type: "feature".to_string(),
-            active_agent: None,
-            providers: vec![],
-            mcp_servers: vec![],
-            skills: vec![],
             path: None,
         };
         let result = emit_workspace_created(sentinel_branch, &payload);

@@ -3,7 +3,6 @@ use crate::db::session_events::{
     insert_session_attached_event, insert_session_recorded_event,
     insert_session_with_started_event, update_session_with_ended_event,
 };
-use crate::db::workspace_state::get_workspace_config_generation_db;
 use crate::events::types::{SessionAttached, SessionEnded, SessionRecorded, SessionStarted};
 use anyhow::{Result, anyhow};
 use chrono::Utc;
@@ -141,7 +140,6 @@ pub fn start_workspace_session(
         Some(ws) => ws,
         None => create_workspace(ship_dir, CreateWorkspaceRequest {
             branch: branch.to_string(),
-            active_agent: agent_id.clone(),
             ..Default::default()
         })?,
     };
@@ -163,13 +161,11 @@ pub fn start_workspace_session(
     }
 
     // Resolve providers and compile context.
-    let agent_id = agent_id
-        .or(workspace.active_agent.clone())
-        .and_then(|v| normalize_optional_text(Some(v)));
+    let agent_id = agent_id.and_then(|v| normalize_optional_text(Some(v)));
     let providers = resolve_session_providers(ship_dir, &workspace, agent_id.as_deref())?;
     let primary_provider = resolve_primary_provider(primary_provider, &providers, &workspace)?;
     let _providers = compile_workspace_context(ship_dir, &workspace, agent_id.as_deref())?;
-    let config_generation_at_start = get_workspace_config_generation_db(&workspace.id)?;
+    let config_generation_at_start: Option<i64> = None;
 
     let session_id = crate::gen_nanoid();
     let started_payload = SessionStarted {

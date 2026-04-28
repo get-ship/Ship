@@ -10,8 +10,7 @@ use crate::db::{block_on, block_on_anyhow, open_db};
 use crate::persistence::event_store::append_event_with_conn;
 use crate::events::types::event_types;
 use crate::events::types::{
-    WorkspaceAgentChanged, WorkspaceBranchSwitched,
-    WorkspaceCompileFailed, WorkspaceCompiled, WorkspaceConfigChanged, WorkspaceCreated,
+    WorkspaceBranchSwitched, WorkspaceConfigChanged, WorkspaceCreated,
     WorkspaceDeleted, WorkspaceReconciled, WorkspaceStarted,
     WorkspaceTmuxAssigned, WorkspaceWorktreeAdded, WorkspaceWorktreeRemoved,
 };
@@ -62,17 +61,6 @@ fn run_tx<P: serde::Serialize>(
 
 // ── public API ────────────────────────────────────────────────────────────────
 
-pub fn emit_workspace_compiled(branch: &str, payload: &WorkspaceCompiled) -> Result<EventEnvelope> {
-    run_tx(branch, event_types::WORKSPACE_COMPILED, payload)
-}
-
-pub fn emit_workspace_compile_failed(
-    branch: &str,
-    payload: &WorkspaceCompileFailed,
-) -> Result<EventEnvelope> {
-    run_tx(branch, event_types::WORKSPACE_COMPILE_FAILED, payload)
-}
-
 pub fn emit_workspace_created(branch: &str, payload: &WorkspaceCreated) -> Result<EventEnvelope> {
     run_tx(branch, event_types::WORKSPACE_CREATED, payload)
 }
@@ -80,10 +68,6 @@ pub fn emit_workspace_created(branch: &str, payload: &WorkspaceCreated) -> Resul
 pub fn emit_workspace_deleted(branch: &str) -> Result<EventEnvelope> {
     let payload = WorkspaceDeleted { branch: branch.to_string() };
     run_tx(branch, event_types::WORKSPACE_DELETED, &payload)
-}
-
-pub fn emit_workspace_agent_changed(branch: &str, payload: &WorkspaceAgentChanged) -> Result<EventEnvelope> {
-    run_tx(branch, event_types::WORKSPACE_AGENT_CHANGED, payload)
 }
 
 pub fn emit_workspace_reconciled(branch: &str, payload: &WorkspaceReconciled) -> Result<EventEnvelope> {

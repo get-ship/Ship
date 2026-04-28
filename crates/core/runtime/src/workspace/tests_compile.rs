@@ -30,41 +30,6 @@ mod tests {
     }
 
     #[test]
-    fn set_workspace_active_agent_updates_and_clears_override() -> Result<()> {
-        let tmp = tempdir()?;
-        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
-
-        let config = crate::config::ProjectConfig {
-            modes: vec![crate::config::AgentProfile {
-                id: "planning".to_string(),
-                name: "Planning".to_string(),
-                target_agents: vec!["codex".to_string()],
-                ..Default::default()
-            }],
-            ..Default::default()
-        };
-        crate::config::save_config(&config, Some(ship_dir.clone()))?;
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/mode-override".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        // set_workspace_active_agent records the agent but does not compile.
-        // Compilation happens at session start.
-        let updated =
-            set_workspace_active_agent(&ship_dir, "feature/mode-override", Some("planning"))?;
-        assert_eq!(updated.active_agent.as_deref(), Some("planning"));
-
-        let cleared = set_workspace_active_agent(&ship_dir, "feature/mode-override", None)?;
-        assert!(cleared.active_agent.is_none());
-        Ok(())
-    }
-
-    #[test]
     fn provider_matrix_uses_config_default_source() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;

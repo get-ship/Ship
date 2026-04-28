@@ -15,7 +15,7 @@ use super::types_session::*;
 /// Look up a workspace by its id (or branch as fallback).
 pub fn get_workspace_by_id(_ship_dir: &Path, id: &str) -> Result<Option<Workspace>> {
     let row = get_workspace_by_id_db(id)?;
-    let Some((branch, (ws_id, path, active_agent, created_at))) = row else {
+    let Some((branch, (ws_id, path, created_at))) = row else {
         return Ok(None);
     };
 
@@ -23,7 +23,6 @@ pub fn get_workspace_by_id(_ship_dir: &Path, id: &str) -> Result<Option<Workspac
         id: ws_id,
         name: branch,
         path,
-        active_agent,
         created_at: created_at
             .map(|s| parse_datetime(&s))
             .unwrap_or_else(chrono::Utc::now),
@@ -32,7 +31,7 @@ pub fn get_workspace_by_id(_ship_dir: &Path, id: &str) -> Result<Option<Workspac
 
 pub fn get_workspace(_ship_dir: &Path, branch: &str) -> Result<Option<Workspace>> {
     let row = get_workspace_db(branch)?;
-    let Some((id, path, active_agent, created_at)) = row else {
+    let Some((id, path, created_at)) = row else {
         return Ok(None);
     };
 
@@ -40,7 +39,6 @@ pub fn get_workspace(_ship_dir: &Path, branch: &str) -> Result<Option<Workspace>
         id,
         name: branch.to_string(),
         path,
-        active_agent,
         created_at: created_at
             .map(|s| parse_datetime(&s))
             .unwrap_or_else(chrono::Utc::now),
@@ -56,12 +54,11 @@ pub fn list_workspaces(ship_dir: &Path) -> Result<Vec<Workspace>> {
 pub(crate) fn list_workspaces_raw(_ship_dir: &Path) -> Result<Vec<Workspace>> {
     let rows = list_workspaces_db()?;
     let mut workspaces = Vec::with_capacity(rows.len());
-    for (branch, id, path, active_agent, created_at) in rows {
+    for (branch, id, path, created_at) in rows {
         workspaces.push(Workspace {
             id,
             name: branch,
             path,
-            active_agent,
             created_at: created_at
                 .map(|s| parse_datetime(&s))
                 .unwrap_or_else(chrono::Utc::now),
@@ -111,8 +108,7 @@ pub fn repair_workspace(
     let branch = ensure_branch_key(branch)?;
     let workspace = get_workspace(ship_dir, branch)?
         .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
-    let mut matrix =
-        get_workspace_provider_matrix(ship_dir, branch, workspace.active_agent.as_deref())?;
+    let mut matrix = get_workspace_provider_matrix(ship_dir, branch, None)?;
 
     let mut actions = Vec::new();
     let mut missing_provider_configs =
@@ -131,12 +127,9 @@ pub fn repair_workspace(
     let needs_recompile = !missing_provider_configs.is_empty();
 
     if !dry_run && needs_recompile && matrix.resolution_error.is_none() {
-        let active = workspace.active_agent.clone();
-        let _workspace =
-            super::lifecycle::set_workspace_active_agent(ship_dir, branch, active.as_deref())?;
-        matrix =
-            get_workspace_provider_matrix(ship_dir, branch, _workspace.active_agent.as_deref())?;
-        let context_root = super::compile::resolve_workspace_context_root(ship_dir, &_workspace);
+        super::compile::compile_workspace_context(ship_dir, &workspace, None)?;
+        matrix = get_workspace_provider_matrix(ship_dir, branch, None)?;
+        let context_root = super::compile::resolve_workspace_context_root(ship_dir, &workspace);
         missing_provider_configs =
             super::compile::missing_provider_configs_for_workspace(&context_root, &matrix.allowed_providers);
         reapplied_compile = true;
@@ -146,7 +139,7 @@ pub fn repair_workspace(
     Ok(WorkspaceRepairReport {
         workspace_branch: workspace.name.clone(),
         dry_run,
-        agent_id: workspace.active_agent.clone(),
+        agent_id: None,
         providers_expected: matrix.allowed_providers,
         needs_recompile: !missing_provider_configs.is_empty(),
         missing_provider_configs,
