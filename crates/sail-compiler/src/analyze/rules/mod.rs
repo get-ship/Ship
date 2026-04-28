@@ -138,6 +138,8 @@ pub(crate) fn kebab_of(name: &str) -> String {
 /// `packages/ship-set-sail/components/`. New components are added by
 /// a one-liner here; `cargo build` re-runs `include_str!`.
 const COMPONENT_SOURCES: &[(&str, &str)] = &[
+    ("ship-accordion", include_str!("../../../../../packages/ship-set-sail/components/ship-accordion.set")),
+    ("ship-accordion-item", include_str!("../../../../../packages/ship-set-sail/components/ship-accordion-item.set")),
     ("ship-agents", include_str!("../../../../../packages/ship-set-sail/components/ship-agents.set")),
     ("ship-alert", include_str!("../../../../../packages/ship-set-sail/components/ship-alert.set")),
     ("ship-app-icon", include_str!("../../../../../packages/ship-set-sail/components/ship-app-icon.set")),
@@ -167,6 +169,9 @@ const COMPONENT_SOURCES: &[(&str, &str)] = &[
     ("ship-pagination", include_str!("../../../../../packages/ship-set-sail/components/ship-pagination.set")),
     ("ship-progress", include_str!("../../../../../packages/ship-set-sail/components/ship-progress.set")),
     ("ship-provider-blob", include_str!("../../../../../packages/ship-set-sail/components/ship-provider-blob.set")),
+    ("ship-radio", include_str!("../../../../../packages/ship-set-sail/components/ship-radio.set")),
+    ("ship-radio-group", include_str!("../../../../../packages/ship-set-sail/components/ship-radio-group.set")),
+    ("ship-select", include_str!("../../../../../packages/ship-set-sail/components/ship-select.set")),
     ("ship-separator", include_str!("../../../../../packages/ship-set-sail/components/ship-separator.set")),
     ("ship-skeleton", include_str!("../../../../../packages/ship-set-sail/components/ship-skeleton.set")),
     ("ship-spinner", include_str!("../../../../../packages/ship-set-sail/components/ship-spinner.set")),
