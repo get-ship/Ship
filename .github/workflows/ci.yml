@@ -44,3 +44,19 @@ jobs:
         run: cargo build --features unstable -p ship-cli -p mcp -p shipd
       - name: Test
         run: cargo test --workspace
+      - name: Bundle sail-runtime
+        run: pnpm -F @sail/runtime bundle
+      - name: Build sail CLI
+        run: cargo build --bin sail
+      - name: Sail — check every shipped component
+        run: |
+          fail=0
+          for f in packages/ship-set-sail/components/*.set; do
+            cargo run -q -p sail-cli -- check "$f" || fail=$((fail+1))
+          done
+          if [ "$fail" -gt 0 ]; then
+            echo "::error::$fail .set files failed sail check"
+            exit 1
+          fi
+      - name: ship-set-sail vitest
+        run: pnpm -F @sail/ship-set test
