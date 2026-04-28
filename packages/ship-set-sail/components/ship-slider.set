@@ -20,7 +20,6 @@ derived pct = range() > 0
 derived fillStyle = `width: ${pct()}%`
 derived thumbStyle = `left: ${pct()}%`
 derived ariaLabel = label() || 'slider'
-derived ariaDisabled = disabled() ? 'true' : 'false'
 
 function syncFormValue() {
   if (internals && typeof internals.setFormValue === 'function') {
@@ -88,7 +87,7 @@ effect {
     name={name}
     disabled={disabled}
     aria-label={ariaLabel}
-    aria-disabled={ariaDisabled}
+    aria-disabled={disabled() ? 'true' : 'false'}
     oninput={onInput}
   />
 </div>

@@ -21,9 +21,6 @@ prop errorMessage: string = ''
 state defaultValue = ''
 state errId = ''
 
-derived ariaInvalid = invalid() ? 'true' : 'false'
-derived ariaRequired = required() ? 'true' : 'false'
-derived ariaBusy = loading() ? 'true' : 'false'
 derived ariaDescribedBy = invalid() && errorMessage()
   ? (describedBy() ? `${errId()} ${describedBy()}` : errId())
   : describedBy()
@@ -81,9 +78,9 @@ effect {
     required={required}
     disabled={disabled}
     readonly={readonly}
-    aria-invalid={ariaInvalid}
-    aria-required={ariaRequired}
-    aria-busy={ariaBusy}
+    aria-invalid={invalid() ? 'true' : 'false'}
+    aria-required={required() ? 'true' : 'false'}
+    aria-busy={loading() ? 'true' : 'false'}
     aria-label={label}
     aria-describedby={ariaDescribedBy}
     bind:value={value}

@@ -10,7 +10,6 @@ prop pressed: string = ''
 prop expanded: string = ''
 
 derived isInert = disabled() || loading()
-derived ariaBusy = loading() ? 'true' : 'false'
 derived ariaDisabled = isInert() ? 'true' : 'false'
 </script>
 
@@ -19,7 +18,7 @@ derived ariaDisabled = isInert() ? 'true' : 'false'
   part="button"
   type={type}
   disabled={isInert}
-  aria-busy={ariaBusy}
+  aria-busy={loading() ? 'true' : 'false'}
   aria-disabled={ariaDisabled}
   aria-label={label}
   aria-pressed={pressed}

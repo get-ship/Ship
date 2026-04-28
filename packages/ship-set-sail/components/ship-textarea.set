@@ -18,8 +18,6 @@ prop describedBy: string = ''
 
 state defaultValue = ''
 
-derived ariaInvalid = invalid() ? 'true' : 'false'
-derived ariaRequired = required() ? 'true' : 'false'
 derived resizeStyle = `resize: ${resize()}`
 
 function syncFormValue() {
@@ -65,8 +63,8 @@ effect {
   required={required}
   disabled={disabled}
   readonly={readonly}
-  aria-invalid={ariaInvalid}
-  aria-required={ariaRequired}
+  aria-invalid={invalid() ? 'true' : 'false'}
+  aria-required={required() ? 'true' : 'false'}
   aria-label={label}
   aria-describedby={describedBy}
   style={resizeStyle}

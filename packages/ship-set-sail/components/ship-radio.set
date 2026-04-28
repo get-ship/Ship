@@ -5,7 +5,6 @@ prop checked: boolean = false
 prop tone: 'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' = 'default'
 prop size: 'sm' | 'md' | 'lg' = 'md'
 
-derived ariaChecked = checked() ? 'true' : 'false'
 derived radioTabindex = checked() ? '0' : '-1'
 
 function onClick(e) {
@@ -39,7 +38,7 @@ function onKeydown(e) {
       type="radio"
       role="radio"
       disabled={disabled}
-      aria-checked={ariaChecked}
+      aria-checked={checked() ? 'true' : 'false'}
       aria-label={value}
       tabindex={radioTabindex}
       onclick={onClick}

@@ -35,7 +35,6 @@ function dispatchRemove() {
 
 derived chipTabIndex = disabled() ? '-1' : '0'
 derived ariaDisabled = disabled() ? 'true' : ''
-derived ariaPressed = selected() ? 'true' : 'false'
 
 mount {
   el.addEventListener("keydown", onKeydown)
@@ -48,7 +47,7 @@ mount {
   role="button"
   tabindex={chipTabIndex}
   aria-disabled={ariaDisabled}
-  aria-pressed={ariaPressed}
+  aria-pressed={selected() ? 'true' : 'false'}
 />
 <span class="chip" part="chip">
   <span class="leading" part="leading"><slot name="leading"></slot></span>

@@ -16,7 +16,6 @@ state defaultChecked = false
 state input = null
 
 derived ariaChecked = indeterminate() ? 'mixed' : (checked() ? 'true' : 'false')
-derived ariaInvalid = invalid() ? 'true' : 'false'
 derived ariaLabel = label() || name() || 'checkbox'
 
 function syncFormValue() {
@@ -88,7 +87,7 @@ effect {
       disabled={disabled}
       required={required}
       aria-checked={ariaChecked}
-      aria-invalid={ariaInvalid}
+      aria-invalid={invalid() ? 'true' : 'false'}
       aria-label={ariaLabel}
       bind:checked={checked}
       onchange={onChange}

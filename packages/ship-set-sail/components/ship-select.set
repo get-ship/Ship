@@ -14,7 +14,6 @@ prop describedBy: string = ''
 state defaultValue = ''
 state displayLabel = ''
 
-derived ariaInvalid = invalid() ? 'true' : 'false'
 
 function syncFormValue() {
   if (internals && typeof internals.setFormValue === 'function') {
@@ -110,7 +109,7 @@ effect {
     name={name}
     required={required}
     disabled={disabled}
-    aria-invalid={ariaInvalid}
+    aria-invalid={invalid() ? 'true' : 'false'}
     aria-label={label}
     aria-describedby={describedBy}
     onchange={onChange}

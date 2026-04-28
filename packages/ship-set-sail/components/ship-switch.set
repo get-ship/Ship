@@ -11,7 +11,6 @@ prop label: string = ''
 
 state defaultChecked = false
 
-derived ariaChecked = checked() ? 'true' : 'false'
 derived ariaLabel = label() || name() || 'toggle'
 
 function syncFormValue() {
@@ -65,7 +64,7 @@ effect {
       type="checkbox"
       role="switch"
       disabled={disabled}
-      aria-checked={ariaChecked}
+      aria-checked={checked() ? 'true' : 'false'}
       aria-label={ariaLabel}
       bind:checked={checked}
       onchange={onChange}

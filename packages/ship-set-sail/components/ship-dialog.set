@@ -29,7 +29,6 @@ state mountReady = false
 
 derived dataState = open() ? 'open' : 'closed'
 derived effectiveRole = roleOverride() || 'dialog'
-derived ariaModal = modal() ? 'true' : 'false'
 
 function focusableWithin(root) {
   const sel = 'a[href],area[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),iframe,[contenteditable]:not([contenteditable="false"]),[tabindex]:not([tabindex^="-"])'
@@ -186,7 +185,7 @@ effect {
 <dialog
   part="dialog"
   role={effectiveRole}
-  aria-modal={ariaModal}
+  aria-modal={modal() ? 'true' : 'false'}
   aria-labelledby={headerId}
   aria-describedby={bodyId}
   onclose={onClose}

@@ -203,16 +203,38 @@ fn check_expr(
 /// string/template literals, member access RHS (`.X`), and numeric
 /// suffixes.
 pub fn extract_idents(expr: &str) -> Vec<String> {
+    let stripped = strip_js_comments(expr);
+    let expr = stripped.as_str();
     let bytes = expr.as_bytes();
     let mut out = Vec::new();
     let mut i = 0usize;
     let mut in_str: Option<u8> = None;
     let mut after_dot = false;
+    // Track when we're inside a template-literal `${…}` substitution so
+    // identifiers there count as references (slider's `pct` is read via
+    // `\`width: ${pct()}%\`` in fillStyle/thumbStyle — without this,
+    // unused_derived false-flags it).
+    let mut tmpl_subst_depth: u32 = 0;
     while i < bytes.len() {
         let b = bytes[i];
         if let Some(q) = in_str {
             if b == b'\\' && i + 1 < bytes.len() { i += 2; continue; }
+            if q == b'`' && b == b'$' && i + 1 < bytes.len() && bytes[i + 1] == b'{' {
+                in_str = None;
+                tmpl_subst_depth = tmpl_subst_depth.saturating_add(1);
+                i += 2;
+                continue;
+            }
             if b == q { in_str = None; }
+            i += 1; continue;
+        }
+        if tmpl_subst_depth > 0 && b == b'}' {
+            tmpl_subst_depth -= 1;
+            if tmpl_subst_depth == 0 { in_str = Some(b'`'); }
+            i += 1; continue;
+        }
+        if tmpl_subst_depth > 0 && b == b'{' {
+            tmpl_subst_depth += 1;
             i += 1; continue;
         }
         if b == b'"' || b == b'\'' || b == b'`' {
@@ -238,6 +260,52 @@ pub fn extract_idents(expr: &str) -> Vec<String> {
             continue;
         }
         if !b.is_ascii_whitespace() { after_dot = false; }
+        i += 1;
+    }
+    out
+}
+
+/// Strip `//` and `/* … */` comments while preserving string literal
+/// contents (so `'no // comment here'` stays untouched). Mirrors the
+/// `strip_comments` helper in `analyze::rules::cleanup_pattern`; we
+/// could share once a `parse::lex` utility lands. Without this,
+/// comments with apostrophes (`can't`, `don't`) open phantom string
+/// state that swallows real identifiers.
+fn strip_js_comments(src: &str) -> String {
+    let b = src.as_bytes();
+    let mut out = String::with_capacity(src.len());
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        if c == b'"' || c == b'\'' || c == b'`' {
+            let q = c;
+            out.push(c as char);
+            i += 1;
+            while i < b.len() {
+                let x = b[i];
+                if x == b'\\' && i + 1 < b.len() {
+                    out.push(x as char);
+                    out.push(b[i + 1] as char);
+                    i += 2;
+                    continue;
+                }
+                out.push(x as char);
+                i += 1;
+                if x == q { break; }
+            }
+            continue;
+        }
+        if c == b'/' && i + 1 < b.len() && b[i + 1] == b'/' {
+            while i < b.len() && b[i] != b'\n' { i += 1; }
+            continue;
+        }
+        if c == b'/' && i + 1 < b.len() && b[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < b.len() && !(b[i] == b'*' && b[i + 1] == b'/') { i += 1; }
+            i = (i + 2).min(b.len());
+            continue;
+        }
+        out.push(c as char);
         i += 1;
     }
     out

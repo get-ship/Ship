@@ -21,7 +21,6 @@ state open = false
 
 derived hasIcon = !!icon()
 derived hasDetails = slotFilled(el, 'details')
-derived ariaExpanded = open() ? 'true' : 'false'
 derived toggleLabel = open() ? 'Hide details' : 'Show details'
 derived titleText = title() || 'Something went wrong'
 
@@ -55,7 +54,7 @@ mount {
     </div>
     {#if hasDetails}
       <button class="details-toggle" type="button"
-              aria-expanded={ariaExpanded}
+              aria-expanded={open() ? 'true' : 'false'}
               onclick={onToggle}>{toggleLabel()}</button>
       <div class="details" hidden={!open}>
         <slot name="details"></slot>

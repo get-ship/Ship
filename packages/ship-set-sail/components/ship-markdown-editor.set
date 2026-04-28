@@ -38,8 +38,6 @@ state changeTimer: any = null
 state syncTimer: any = null
 state suppressNextUpdate = false
 
-derived ariaInvalid = invalid() ? 'true' : 'false'
-derived ariaDisabled = disabled() ? 'true' : 'false'
 derived minHeight = `${Math.max(rows() * 28, 160)}px`
 
 function syncFormValue() {
@@ -235,7 +233,7 @@ effect {
 </script>
 
 <template>
-<:host aria-invalid={ariaInvalid} aria-disabled={ariaDisabled} />
+<:host aria-invalid={invalid() ? 'true' : 'false'} aria-disabled={disabled() ? 'true' : 'false'} />
 <div class="shell" part="shell" data-shell>
   <ship-markdown-editor-toolbar
     label={label}

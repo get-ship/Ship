@@ -23,7 +23,6 @@ prop placement: 'top' | 'bottom' | 'top-end' | 'bottom-end' | 'left' | 'right' =
 
 state panelId = ''
 
-derived ariaHidden = open() ? 'false' : 'true'
 
 function emit(name) {
   el.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true }))
@@ -113,7 +112,7 @@ effect {
   class="panel"
   role="dialog"
   aria-modal="false"
-  aria-hidden={ariaHidden}
+  aria-hidden={open() ? 'false' : 'true'}
 ><slot></slot></div>
 </template>
 

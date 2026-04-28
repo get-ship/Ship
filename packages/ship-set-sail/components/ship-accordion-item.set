@@ -25,7 +25,6 @@ prop open: boolean = false
 state triggerId = ''
 state contentId = ''
 
-derived ariaExpanded = open() ? 'true' : 'false'
 
 function emitToggle() {
   if (disabled()) return
@@ -68,7 +67,7 @@ mount {
   part="trigger"
   type="button"
   id={triggerId}
-  aria-expanded={ariaExpanded}
+  aria-expanded={open() ? 'true' : 'false'}
   aria-controls={contentId}
   disabled={disabled}
   onclick={emitToggle}
