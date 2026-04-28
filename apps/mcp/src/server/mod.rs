@@ -141,7 +141,7 @@ impl ShipServer {
         let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
         let skills_list = runtime::list_skills(&ship_dir).unwrap_or_default();
         let skill_subs =
-            runtime::workspace::artifact_events::skill_event_subscriptions(&skills_list);
+            runtime::agents::skill::artifact_events::skill_event_subscriptions(&skills_list);
 
         // Default subscription set for an agent peer. The mesh's
         // subscribe_namespaces IS the filter — anything not declared

@@ -8,6 +8,7 @@ use std::path::Path;
 
 use anyhow::{Result, anyhow};
 
+pub mod artifact_events;
 mod install;
 mod storage;
 mod types;

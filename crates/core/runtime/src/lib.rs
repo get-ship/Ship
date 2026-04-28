@@ -17,10 +17,11 @@ pub mod log;
 pub mod persistence;
 pub mod project;
 pub mod projects;
-pub mod worktrees;
 pub mod registry;
 pub mod projections;
+pub mod trash;
 pub mod workspace;
+pub mod worktrees;
 pub mod supervisor;
 
 #[cfg(feature = "unstable")]
@@ -91,16 +92,18 @@ pub use db::managed_state::{get_managed_state_db, set_managed_state_db};
 pub use db::types::WorkspaceSessionDb;
 pub use errors::{KernelError, WorkspaceError};
 
+pub use trash::{TrashEntry, list_trash, purge_old_trash, restore_file, trash_file};
+
 pub use workspace::{
     CreateWorkspaceRequest, EndWorkspaceSessionRequest, Environment, Process, ProcessStatus,
-    TrashEntry, Workspace, WorkspaceProviderMatrix, WorkspaceRepairReport, WorkspaceSession,
+    Workspace, WorkspaceProviderMatrix, WorkspaceRepairReport, WorkspaceSession,
     WorkspaceSessionStatus, WorkspaceStatus,
     create_workspace, delete_workspace, end_workspace_session, get_active_workspace_session,
     get_workspace, get_workspace_provider_matrix,
-    list_trash, list_workspace_sessions, list_workspaces, purge_old_trash,
+    list_workspace_sessions, list_workspaces,
     reconcile_workspace, record_workspace_session_progress, repair_workspace,
-    restore_file, set_workspace_started, start_workspace_session,
-    trash_file, workspace_status,
+    set_workspace_started, start_workspace_session,
+    workspace_status,
 };
 
 /// Generate a monotonic ULID string. Thread-safe via thread-local generator.
