@@ -15,6 +15,7 @@ pub mod hooks;
 pub mod log;
 pub mod persistence;
 pub mod project;
+pub mod projects;
 pub mod registry;
 pub mod projections;
 pub mod workspace;
