@@ -1,0 +1,327 @@
+{
+  "_generated": "just gen-sdk — DO NOT EDIT",
+  "version": "0.1.0",
+  "$schema": "https://ship.design/schemas/sdk-framework.schema.json",
+  "directives": [
+    {
+      "name": "prop",
+      "kind": "script_decl",
+      "syntax": "prop NAME [: TYPE] [!] = DEFAULT",
+      "description": "Public component property. Becomes a kebab-cased attribute on the host. Read as `NAME()`, written as `NAME.set(v)`. `!` marks required.",
+      "examples": [
+        "prop value: string = ''",
+        "prop count: number! = 0"
+      ],
+      "anti_examples": [
+        {
+          "code": "prop value = ''",
+          "reason": "Type annotation required for typed reactivity."
+        }
+      ]
+    },
+    {
+      "name": "state",
+      "kind": "script_decl",
+      "syntax": "state NAME [: TYPE] = INITIAL",
+      "description": "Local signal. Same `NAME()` / `NAME.set(v)` access as props.",
+      "examples": [
+        "state open = false",
+        "state items: string[] = []"
+      ]
+    },
+    {
+      "name": "derived",
+      "kind": "script_decl",
+      "syntax": "derived NAME = EXPR",
+      "description": "Memoised computed signal. Re-runs on any reactive read inside `EXPR`. Auto-tracked.",
+      "examples": [
+        "derived total = items().length"
+      ]
+    },
+    {
+      "name": "data",
+      "kind": "script_decl",
+      "syntax": "data NAME = ship.<domain>.<op>(ARGS)",
+      "description": "Server-sourced signal — implicitly live. Subscribed via SSE; initial value is `null`. RHS must be a `ship.*` schema-source call. For local seed, use `state`.",
+      "examples": [
+        "data agents = ship.agents.summaries()"
+      ],
+      "anti_examples": [
+        {
+          "code": "data live X = ship.x.y()",
+          "reason": "`live` keyword removed; live is implicit."
+        },
+        {
+          "code": "data X = 42",
+          "reason": "RHS must be `ship.<domain>.<op>(...)`. Use `state` for seed."
+        }
+      ]
+    },
+    {
+      "name": "function",
+      "kind": "script_decl",
+      "syntax": "function NAME(ARGS) { BODY }",
+      "description": "Plain JS in component scope. Has access to all injected scope bindings.",
+      "examples": [
+        "function close() { open.set(false) }"
+      ]
+    },
+    {
+      "name": "event",
+      "kind": "script_decl",
+      "syntax": "event NAME: TYPE",
+      "description": "Typed CustomEvent declaration. Surfaces in the `.d.ts` as a known dispatch target.",
+      "examples": [
+        "event submit: { value: string }"
+      ]
+    },
+    {
+      "name": "component_form_associated",
+      "kind": "script_decl",
+      "syntax": "component formAssociated",
+      "description": "Element-level config. Attaches `ElementInternals` and exposes it as `internals`. Required before any `on form_*` hook.",
+      "examples": [
+        "component formAssociated"
+      ]
+    }
+  ],
+  "scope_bindings": [
+    {
+      "name": "el",
+      "type": "HTMLElement",
+      "available_in": [
+        "mount",
+        "effect",
+        "function",
+        "form_lifecycle"
+      ],
+      "description": "The host custom element instance. Use for `el.dispatchEvent`, `el.querySelector`, `el.setAttribute`, etc."
+    },
+    {
+      "name": "internals",
+      "type": "ElementInternals | undefined",
+      "available_in": [
+        "mount",
+        "effect",
+        "function",
+        "form_lifecycle"
+      ],
+      "description": "Set when `component formAssociated` is declared. Use for `internals.setFormValue(...)` and friends."
+    },
+    {
+      "name": "props",
+      "type": "Readonly<Record<string, unknown>>",
+      "available_in": [
+        "mount",
+        "effect",
+        "function",
+        "form_lifecycle"
+      ],
+      "description": "Read-only proxy. `props.X` is `X()` — alternate access shape."
+    },
+    {
+      "name": "cleanups",
+      "type": "Array<() => void>",
+      "available_in": [
+        "mount",
+        "effect",
+        "function",
+        "form_lifecycle"
+      ],
+      "description": "Push disposers for `mount`-time setup that needs teardown. The runtime calls them on unmount."
+    },
+    {
+      "name": "slotFilled",
+      "type": "(host: HTMLElement, name: string) => boolean",
+      "available_in": [
+        "mount",
+        "effect",
+        "function",
+        "form_lifecycle"
+      ],
+      "description": "Returns true iff the named slot received caller-provided content."
+    }
+  ],
+  "lifecycle_hooks": [
+    {
+      "name": "mount",
+      "syntax": "mount { BODY }",
+      "fires": "Once on `connectedCallback` after the DOM is wired.",
+      "description": "One-time setup. Push to `cleanups` for subscriptions that need teardown."
+    },
+    {
+      "name": "effect",
+      "syntax": "effect { BODY }",
+      "fires": "On any reactive read inside the body changing.",
+      "description": "Auto-tracked — do NOT use `effect on X { … }`."
+    },
+    {
+      "name": "form_reset",
+      "syntax": "on form_reset { BODY }",
+      "fires": "When the parent `<form>` is reset (form-associated only).",
+      "description": "Lifecycle hook for `formResetCallback`. Requires `component formAssociated`."
+    },
+    {
+      "name": "form_restore",
+      "syntax": "on form_restore(state) { BODY }",
+      "fires": "When the browser restores form state (BFCache / autofill).",
+      "description": "Lifecycle hook for `formStateRestoreCallback`. Param name pulls from `e.detail.<param>`."
+    },
+    {
+      "name": "form_disabled",
+      "syntax": "on form_disabled(disabled) { BODY }",
+      "fires": "When the host form's `disabled` state toggles.",
+      "description": "Lifecycle hook for `formDisabledCallback`."
+    }
+  ],
+  "template_syntax": [
+    {
+      "name": "interpolation",
+      "syntax": "{EXPR}",
+      "description": "Reactive text interpolation. Re-renders the text node when any signal read inside `EXPR` changes.",
+      "examples": [
+        "<span>{count()}</span>"
+      ]
+    },
+    {
+      "name": "attribute_interpolation",
+      "syntax": "ATTR={EXPR}",
+      "description": "Reactive attribute. Empty / null / undefined / `false` auto-omit. `true` becomes presence-only.",
+      "examples": [
+        "<div title={tooltip()} />"
+      ]
+    },
+    {
+      "name": "event_attribute",
+      "syntax": "ON_EVENT={HANDLER}",
+      "description": "Any `on*` attr with an interpolated value is an event listener. Use platform names; `on:click` prefix is removed.",
+      "examples": [
+        "<button onclick={close}>close</button>"
+      ]
+    },
+    {
+      "name": "two_way_binding",
+      "syntax": "bind:PROP={SIGNAL}",
+      "description": "Two-way binding for form inputs. The runtime owns the input listener.",
+      "examples": [
+        "<input bind:value={value} />"
+      ]
+    },
+    {
+      "name": "if_block",
+      "syntax": "{#if COND}…{:else if COND}…{:else}…{/if}",
+      "description": "Mustache control flow. `:elif` is also accepted as shorthand.",
+      "examples": [
+        "{#if hasItems}<ul>…</ul>{:else}empty{/if}"
+      ]
+    },
+    {
+      "name": "for_block",
+      "syntax": "{#for ITEM of ITER}…[{:empty}…]{/for}",
+      "description": "List rendering. Optional `key={EXPR}` for stable identity.",
+      "examples": [
+        "{#for x of items() (key={x.id})}<li>{x.name}</li>{/for}"
+      ]
+    },
+    {
+      "name": "await_block",
+      "syntax": "{#await PROMISE}…{:then VALUE}…{:catch ERROR}…{/await}",
+      "description": "Async control flow. Loading branch until the promise settles.",
+      "examples": [
+        "{#await load()}…{:then v}{v}{:catch e}{e.message}{/await}"
+      ]
+    },
+    {
+      "name": "raw_html",
+      "syntax": "{@html EXPR}",
+      "description": "Raw HTML interpolation. Author owns sanitisation.",
+      "examples": [
+        "{@html sanitised}"
+      ]
+    },
+    {
+      "name": "slot",
+      "syntax": "<slot [name=\"NAME\"]>FALLBACK</slot>",
+      "description": "Light-DOM slot. Body is the fallback when no caller content arrives.",
+      "examples": [
+        "<slot name=\"icon\"><ship-icon name=\"info\" /></slot>"
+      ]
+    },
+    {
+      "name": "slot_fill",
+      "syntax": "slot=\"NAME\" on a child of a custom-element call",
+      "description": "Routes a child into the named slot of the consumed component. The `slot=` attr is stripped after distribution; query via `slotFilled(el, 'name')`.",
+      "examples": [
+        "<ship-tile><span slot=\"trailing\">→</span></ship-tile>"
+      ]
+    },
+    {
+      "name": "host_attrs",
+      "syntax": "<:host ATTR={EXPR} … />",
+      "description": "Reactive bindings on the component's host element. Replaces the `mount + effect + el.setAttribute` ritual. Self-closing only.",
+      "examples": [
+        "<:host role={interactive() ? 'button' : 'listitem'} />"
+      ]
+    },
+    {
+      "name": "style_external",
+      "syntax": "<style src=\"./PATH.css\"></style>",
+      "description": "External stylesheet. Inlined at compile time.",
+      "examples": [
+        "<style src=\"./my-component.css\"></style>"
+      ]
+    },
+    {
+      "name": "component_call",
+      "syntax": "<TAG PROP={EXPR} ON_EVENT={FN}>CHILDREN</TAG>",
+      "description": "Custom-element invocation. Resolved against the registry.",
+      "examples": [
+        "<ship-list-tile variant=\"card\" onclick={open}>…</ship-list-tile>"
+      ]
+    }
+  ],
+  "reactivity_rules": [
+    {
+      "id": "R1",
+      "name": "signal_call_required",
+      "description": "Reading a signal in expression context requires `()`. Bare identifiers reference the signal accessor itself.",
+      "anti_example": "{count}",
+      "fix_example": "{count()}"
+    },
+    {
+      "id": "R2",
+      "name": "no_signal_set_in_template",
+      "description": "Mutations belong in handlers, not templates.",
+      "anti_example": "<button onclick={count.set(count() + 1)}>",
+      "fix_example": "function inc() { count.set(count() + 1) }; <button onclick={inc}>"
+    },
+    {
+      "id": "R3",
+      "name": "no_effect_dependency_list",
+      "description": "`effect` auto-tracks reactive reads. Legacy `effect on X { … }` is removed.",
+      "anti_example": "effect on count { console.log(count()) }",
+      "fix_example": "effect { console.log(count()) }"
+    },
+    {
+      "id": "R4",
+      "name": "platform_event_attrs",
+      "description": "Event handlers use platform attribute names. `on:click` prefix is removed.",
+      "anti_example": "<button on:click={fn} />",
+      "fix_example": "<button onclick={fn} />"
+    },
+    {
+      "id": "R5",
+      "name": "no_bind_with_oninput",
+      "description": "`bind:value` already attaches an input listener. Don't pair with `oninput`.",
+      "anti_example": "<input bind:value={v} oninput={fn} />",
+      "fix_example": "<input bind:value={v} /> + effect { fn(v()) }"
+    },
+    {
+      "id": "R6",
+      "name": "data_is_implicitly_live",
+      "description": "`data` is server-sourced and always live. Static seeds use `state X = expr`.",
+      "anti_example": "data live items = ship.items.list()",
+      "fix_example": "data items = ship.items.list()"
+    }
+  ]
+}
