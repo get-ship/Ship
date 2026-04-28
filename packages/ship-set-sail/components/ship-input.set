@@ -100,7 +100,7 @@ effect {
   <span class="trailing-wrap"><slot name="trailing"></slot></span>
 </div>
 {#if showError}
-  <span id={errId} role="alert" style="display:none">{errorMessage}</span>
+  <span id={errId} role="alert" style="display:none">{errorMessage()}</span>
 {/if}
 </template>
 

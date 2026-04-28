@@ -83,7 +83,7 @@ effect {
   {#if showImage}
     <img src={resolvedSrc()} alt={name} onerror={onError} />
   {:else}
-    <span class="initials" part="initials">{initialsValue}</span>
+    <span class="initials" part="initials">{initialsValue()}</span>
   {/if}
 </span>
 </template>

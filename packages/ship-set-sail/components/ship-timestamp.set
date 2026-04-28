@@ -47,11 +47,11 @@ unmount {
 <template>
 {#if value}
   {#if format === 'absolute'}
-    <time datetime={value}>{absText}</time>
+    <time datetime={value}>{absText()}</time>
   {:else if format === 'both'}
-    <time datetime={value}>{rel}</time><span class="abs">({absText})</span>
+    <time datetime={value}>{rel()}</time><span class="abs">({absText()})</span>
   {:else}
-    <time datetime={value}>{rel}</time>
+    <time datetime={value}>{rel()}</time>
   {/if}
 {:else}
   <span></span>

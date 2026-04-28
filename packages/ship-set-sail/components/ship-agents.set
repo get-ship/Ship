@@ -18,7 +18,7 @@ derived totalLabel = `${total()} agent${total() === 1 ? '' : 's'}`
   <header class="agents-head">
     <div class="agents-head-titles">
       <h1 class="agents-title">Agents</h1>
-      <p class="agents-sub">{totalLabel}</p>
+      <p class="agents-sub">{totalLabel()}</p>
     </div>
     <a href="/agents/create" class="agents-cta-link">
       <ship-button tone="primary" variant="solid">

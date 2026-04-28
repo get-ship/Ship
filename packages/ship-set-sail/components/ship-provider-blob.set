@@ -52,7 +52,7 @@ effect {
 </script>
 
 <template>
-<span class="tile" role="img" aria-label={blobLabel} part="tile">{@html blobSvg}</span>
+<span class="tile" role="img" aria-label={blobLabel} part="tile">{@html blobSvg()}</span>
 <span class="label" part="label"><slot></slot></span>
 </template>
 

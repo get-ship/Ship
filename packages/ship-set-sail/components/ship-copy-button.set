@@ -66,7 +66,7 @@ function copy() {
   {:else}
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="4" y="4" width="9" height="9" rx="1"></rect><path d="M11 4V3a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1"></path></svg>
   {/if}
-  <slot>{btnText}</slot>
+  <slot>{btnText()}</slot>
 </button>
 </template>
 

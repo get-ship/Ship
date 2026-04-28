@@ -99,7 +99,7 @@ effect {
 
 <template>
 <div class="field" part="field">
-  <span class="value" aria-hidden="true">{displayLabel}</span>
+  <span class="value" aria-hidden="true">{displayLabel()}</span>
   <svg class="chevron" part="chevron" viewBox="0 0 16 16"
     aria-hidden="true" focusable="false" fill="none"
     stroke="currentColor" stroke-width="1.75"

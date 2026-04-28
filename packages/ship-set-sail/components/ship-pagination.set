@@ -52,7 +52,7 @@ function onNext() {
     aria-label="Previous page"
   >Prev</ship-button>
   <span class="info">
-    Page {page} of {totalPages}{#if hasTotal} <span>({startIdx}–{endIdx} of {total})</span>{/if}
+    Page {page()} of {totalPages()}{#if hasTotal} <span>({startIdx()}–{endIdx()} of {total()})</span>{/if}
   </span>
   <span class="spacer"></span>
   <ship-button

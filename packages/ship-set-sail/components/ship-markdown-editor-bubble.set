@@ -117,7 +117,7 @@ effect {
 {#if pendingActive}
   <div class="composer" part="composer" role="dialog" aria-label="Add comment"
     style={composerStyle} onmousedown={stopMouseDown}>
-    <div class="composer-quote">“{quote}”</div>
+    <div class="composer-quote">“{quote()}”</div>
     <textarea data-composer-input rows="2" placeholder="Add your comment…"
       bind:value={composerValue}
       onkeydown={onComposerKey}></textarea>

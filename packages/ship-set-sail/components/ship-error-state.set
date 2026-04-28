@@ -48,15 +48,15 @@ mount {
 
   <div class="copy">
     <div class="title" part="title">
-      <slot name="title">{titleText}</slot>
+      <slot name="title">{titleText()}</slot>
     </div>
     <div class="desc" part="desc">
-      <slot>{body}</slot>
+      <slot>{body()}</slot>
     </div>
     {#if hasDetails}
       <button class="details-toggle" type="button"
               aria-expanded={ariaExpanded}
-              onclick={onToggle}>{toggleLabel}</button>
+              onclick={onToggle}>{toggleLabel()}</button>
       <div class="details" hidden={!open}>
         <slot name="details"></slot>
       </div>

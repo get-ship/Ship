@@ -109,28 +109,28 @@ derived collectionsLabel = `${collectionsCount()}`
     <div class="dash-stat-wrap dash-stat-wrap--jobs" role="listitem">
       <ship-stat>
         <span slot="label">Total jobs</span>
-        {totalJobs}
-        <span slot="hint">{activeLabel}</span>
+        {totalJobs()}
+        <span slot="hint">{activeLabel()}</span>
       </ship-stat>
     </div>
     <div class="dash-stat-wrap dash-stat-wrap--agents" role="listitem">
       <ship-stat>
         <span slot="label">Agents</span>
-        {agentsLabel}
+        {agentsLabel()}
         <span slot="hint">configured</span>
       </ship-stat>
     </div>
     <div class="dash-stat-wrap dash-stat-wrap--events" role="listitem">
       <ship-stat>
         <span slot="label">Events</span>
-        {eventTotal}
+        {eventTotal()}
         <span slot="hint">in stream</span>
       </ship-stat>
     </div>
     <div class="dash-stat-wrap dash-stat-wrap--collections" role="listitem">
       <ship-stat>
         <span slot="label">Collections</span>
-        {collectionsLabel}
+        {collectionsLabel()}
         <span slot="hint">schemas defined</span>
       </ship-stat>
     </div>
@@ -183,7 +183,7 @@ derived collectionsLabel = `${collectionsCount()}`
         <h2 class="dash-section-title">
           <ship-icon class="dash-section-icon" name="users" aria-hidden="true"></ship-icon>
           Agents
-          <ship-badge tone="muted" variant="soft" size="sm">{agentsCount}</ship-badge>
+          <ship-badge tone="muted" variant="soft" size="sm">{agentsCount()}</ship-badge>
         </h2>
         <a class="dash-section-link" href="/api/v1/v/agents">
           Manage <ship-icon name="chevron-right" size="sm" aria-hidden="true"></ship-icon>
@@ -193,7 +193,8 @@ derived collectionsLabel = `${collectionsCount()}`
         {#if hasAgents}
           <div class="dash-agents-grid">
             {#for agent of agentsTop()}
-              <ship-list-tile variant="card" density="compact" interactive navigable={`/agents/${agent.id}`} class="dash-agent-tile">
+              <a class="dash-agent-link" href={`/agents/${agent.id}`}>
+              <ship-list-tile variant="card" density="compact" interactive class="dash-agent-tile">
                 {#if avatarKind(agent) === 'simpleicons'}
                   <ship-avatar slot="leading" size="md" shape="square" identity-hue={agent.id} icon-slug={avatarSlug(agent)} name={agentName(agent)}></ship-avatar>
                 {:else if avatarKind(agent) === 'short'}
@@ -229,6 +230,7 @@ derived collectionsLabel = `${collectionsCount()}`
                   </div>
                 </div>
               </ship-list-tile>
+              </a>
             {/for}
           </div>
         {:else}
