@@ -12,16 +12,16 @@ mod job;
 mod mesh;
 mod planning;
 mod project;
+mod session;
 mod view;
-mod workspace;
 
 pub use dispatch::*;
 pub use job::*;
 pub use mesh::*;
 pub use planning::*;
 pub use project::*;
+pub use session::*;
 pub use view::*;
-pub use workspace::*;
 pub use chat::*;
 pub use lint::*;
 pub use view_errors::*;

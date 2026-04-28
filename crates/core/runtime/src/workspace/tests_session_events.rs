@@ -25,15 +25,7 @@ mod tests {
     fn start_session_emits_started_event_with_goal() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/se-started".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
+let session = start_workspace_session(
             &ship_dir,
             "feature/se-started",
             Some("implement events".to_string()),
@@ -66,15 +58,7 @@ mod tests {
     fn log_progress_emits_progress_event_not_elevated() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/se-progress".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
+let session = start_workspace_session(
             &ship_dir,
             "feature/se-progress",
             None,
@@ -111,15 +95,7 @@ mod tests {
     fn end_session_emits_ended_event_with_summary() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/se-ended".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
+let session = start_workspace_session(
             &ship_dir,
             "feature/se-ended",
             None,
@@ -161,16 +137,7 @@ mod tests {
         let (_tmp, ship_dir) = setup();
         let branch = "feature/se-metadata";
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: branch.to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let workspace = get_workspace(&ship_dir, branch)?
-            .ok_or_else(|| anyhow::anyhow!("workspace not found"))?;
+        let workspace_id = crate::project::sanitize_file_name(branch);
 
         let session = start_workspace_session(&ship_dir, branch, Some("meta test".to_string()), None, None)?;
 
@@ -221,13 +188,13 @@ mod tests {
             );
             assert_eq!(
                 ev.workspace_id.as_deref(),
-                Some(workspace.id.as_str()),
+                Some(workspace_id.as_str()),
                 "workspace_id must equal workspace id, got {:?}",
                 ev.workspace_id
             );
             assert_eq!(
                 ev.parent_actor_id.as_deref(),
-                Some(workspace.id.as_str()),
+                Some(workspace_id.as_str()),
                 "parent_actor_id must equal workspace id, got {:?}",
                 ev.parent_actor_id
             );
@@ -241,15 +208,7 @@ mod tests {
     fn session_started_and_ended_are_elevated_progress_is_not() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/se-elevated".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
+let session = start_workspace_session(
             &ship_dir,
             "feature/se-elevated",
             None,
@@ -295,15 +254,7 @@ mod tests {
     fn attach_emits_session_attached_event() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/se-attach".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let first = start_workspace_session(
+let first = start_workspace_session(
             &ship_dir,
             "feature/se-attach",
             Some("original".to_string()),
@@ -343,15 +294,7 @@ mod tests {
     fn escalated_progress_blocker_sets_elevated_and_payload() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/se-escalate-blocker".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
+let session = start_workspace_session(
             &ship_dir,
             "feature/se-escalate-blocker",
             None,
@@ -394,15 +337,7 @@ mod tests {
     fn escalated_progress_warning_is_elevated() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/se-escalate-warning".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
+let session = start_workspace_session(
             &ship_dir,
             "feature/se-escalate-warning",
             None,
@@ -443,15 +378,7 @@ mod tests {
     fn escalated_progress_question_is_elevated() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/se-escalate-question".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
+let session = start_workspace_session(
             &ship_dir,
             "feature/se-escalate-question",
             None,
@@ -492,15 +419,7 @@ mod tests {
     fn non_escalated_progress_stays_not_elevated() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/se-no-escalation".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
+let session = start_workspace_session(
             &ship_dir,
             "feature/se-no-escalation",
             None,

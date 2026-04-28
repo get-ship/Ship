@@ -63,7 +63,7 @@ fn rebuild_replays_events_without_panic() {
     let report = rebuild::rebuild_projections(&ship_dir).unwrap();
 
     assert_eq!(report.events_replayed, 3);
-    assert!(report.projections_rebuilt.len() >= 3);
+    assert!(report.projections_rebuilt.len() >= 2);
     assert!(report.duration_ms < 10_000);
 }
 
@@ -72,7 +72,7 @@ fn rebuild_empty_event_log() {
     let (_tmp, ship_dir) = setup();
     let report = rebuild::rebuild_projections(&ship_dir).unwrap();
     assert_eq!(report.events_replayed, 0);
-    assert!(report.projections_rebuilt.len() >= 3);
+    assert!(report.projections_rebuilt.len() >= 2);
 }
 
 #[test]
@@ -80,10 +80,6 @@ fn rebuild_report_lists_all_projections() {
     let (_tmp, ship_dir) = setup();
     let report = rebuild::rebuild_projections(&ship_dir).unwrap();
     let names = &report.projections_rebuilt;
-    assert!(
-        names.contains(&"workspace_state".to_string()),
-        "report must include workspace_state"
-    );
     assert!(
         names.contains(&"session_state".to_string()),
         "report must include session_state"

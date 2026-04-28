@@ -6,7 +6,6 @@ use tempfile::tempdir;
 use crate::db::session_drain::*;
 use crate::db::session_events::insert_session_with_started_event;
 use crate::events::types::SessionStarted;
-use crate::workspace::event_upserts::upsert_workspace_on_created;
 
 fn init() -> (tempfile::TempDir, std::path::PathBuf) {
     let tmp = tempdir().unwrap();
@@ -14,9 +13,8 @@ fn init() -> (tempfile::TempDir, std::path::PathBuf) {
     (tmp, ship_dir)
 }
 
-fn create_test_session(ship_dir: &std::path::Path, session_id: &str, workspace_id: &str) {
+fn create_test_session(_ship_dir: &std::path::Path, session_id: &str, workspace_id: &str) {
     let branch = workspace_id;
-    upsert_workspace_on_created(ship_dir, branch, None).unwrap();
     let payload = SessionStarted {
         goal: Some("test".into()),
         workspace_id: workspace_id.into(),

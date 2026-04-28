@@ -9,15 +9,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/session-flow".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let started = start_workspace_session(
+let started = start_workspace_session(
             &ship_dir,
             "feature/session-flow",
             Some("Implement parser".to_string()),
@@ -56,15 +48,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/metrics".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let started = start_workspace_session(
+let started = start_workspace_session(
             &ship_dir,
             "feature/metrics",
             Some("test metrics".to_string()),
@@ -103,15 +87,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/metrics-defaults".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        start_workspace_session(&ship_dir, "feature/metrics-defaults", None, None, None)?;
+start_workspace_session(&ship_dir, "feature/metrics-defaults", None, None, None)?;
 
         let ended = end_workspace_session(
             &ship_dir,
@@ -133,15 +109,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/session-dupe".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let first = start_workspace_session(
+let first = start_workspace_session(
             &ship_dir,
             "feature/session-dupe",
             Some("one".into()),
@@ -166,21 +134,6 @@ mod tests {
     fn workspace_session_list_filters_by_branch_workspace() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/a".to_string(),
-                ..Default::default()
-            },
-        )?;
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/b".to_string(),
-                ..Default::default()
-            },
-        )?;
 
         let a = start_workspace_session(&ship_dir, "feature/a", None, None, None)?;
         end_workspace_session(
@@ -210,15 +163,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/provider-ok".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
+let session = start_workspace_session(
             &ship_dir,
             "feature/provider-ok",
             Some("Pin provider".to_string()),
@@ -234,15 +179,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/provider-deny".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let err = start_workspace_session(
+let err = start_workspace_session(
             &ship_dir,
             "feature/provider-deny",
             None,
@@ -253,7 +190,7 @@ mod tests {
 
         assert!(
             err.to_string()
-                .contains("Provider 'gemini' not allowed for workspace")
+                .contains("Provider 'gemini' not allowed for branch")
         );
         Ok(())
     }
@@ -268,15 +205,7 @@ mod tests {
         config.providers = vec![];
         crate::config::save_config(&config, Some(ship_dir.clone()))?;
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/no-provider".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        // Provider resolution falls back to "claude" by design (agents/config.rs
+// Provider resolution falls back to "claude" by design (agents/config.rs
         // resolution priority level 4). Session start should succeed.
         let session = start_workspace_session(
             &ship_dir,
@@ -294,12 +223,9 @@ mod tests {
     }
 
     #[test]
-    fn start_session_auto_creates_workspace_when_missing() -> Result<()> {
+    fn start_session_creates_session_for_branch() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
-
-        // No workspace exists yet for this branch.
-        assert!(get_workspace(&ship_dir, "feature/auto-create")?.is_none());
 
         let session = start_workspace_session(
             &ship_dir,
@@ -310,35 +236,6 @@ mod tests {
         )?;
 
         assert_eq!(session.status, WorkspaceSessionStatus::Active);
-        let ws = get_workspace(&ship_dir, "feature/auto-create")?;
-        assert!(ws.is_some(), "workspace should have been auto-created");
-        Ok(())
-    }
-
-    #[test]
-    fn start_session_on_existing_workspace() -> Result<()> {
-        let tmp = tempdir()?;
-        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/existing".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let session = start_workspace_session(
-            &ship_dir,
-            "feature/existing",
-            Some("test".to_string()),
-            None,
-            None,
-        )?;
-        assert_eq!(session.status, WorkspaceSessionStatus::Active);
-
-        let ws = get_workspace(&ship_dir, "feature/existing")?;
-        assert!(ws.is_some(), "workspace should exist");
         Ok(())
     }
 
@@ -347,15 +244,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/no-active".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let err = end_workspace_session(
+let err = end_workspace_session(
             &ship_dir,
             "feature/no-active",
             EndWorkspaceSessionRequest::default(),
@@ -363,7 +252,7 @@ mod tests {
         .expect_err("should fail with no active session");
 
         assert!(
-            err.to_string().contains("No active workspace session"),
+            err.to_string().contains("No active session"),
             "error should mention no active session, got: {}",
             err
         );
@@ -383,8 +272,8 @@ mod tests {
         .expect_err("should fail for missing workspace");
 
         assert!(
-            err.to_string().contains("Workspace not found"),
-            "error should mention workspace not found, got: {}",
+            err.to_string().contains("No active session"),
+            "error should mention no active session, got: {}",
             err
         );
         Ok(())
@@ -395,15 +284,7 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/concurrent".to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        let s1 = start_workspace_session(
+let s1 = start_workspace_session(
             &ship_dir,
             "feature/concurrent",
             Some("first".to_string()),

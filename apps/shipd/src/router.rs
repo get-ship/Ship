@@ -444,14 +444,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::UpdateSetting, settings_api::update_setting)
         .ship_route(Route::GetSetting_template(), settings_api::get_setting)
         .ship_route(Route::ListProviders, settings_api::list_providers)
-        // Supervisor
-        .ship_route(Route::StartWorkspace_template(), supervisor::start_workspace)
         // Project
         .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
         .ship_route(Route::ListWorkspaceAgents_template(), project_api::list_agents)
         .ship_route(Route::WriteWorkspaceAgent_template(), project_api::write_agent)
-        .ship_route(Route::DeleteWorkspace_template(), project_api::delete_workspace)
-        .ship_route(Route::ActivateWorkspace_template(), project_api::activate_workspace)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
         .ship_route(Route::GitStatus, services::git::status_handler)

@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use crate::requests::*;
 use crate::tools::{
     artifacts as artifact_tools, dispatch as dispatch_tools, event, job as job_tools, project,
-    session, session_files, skills, stability, workspace, workspace_ops,
+    session, session_files, skills, stability,
 };
 use skills::set_skill_var_tool;
 
@@ -371,12 +371,6 @@ impl ShipServer {
             Err(_) => return,
         };
 
-        // Reconcile worktree state against git before session creation.
-        let _ = runtime::reconcile_workspace(
-            &ship_dir,
-            &branch,
-        );
-
         let agent_id = runtime::get_active_agent(Some(ship_dir.clone()))
             .ok()
             .flatten()
@@ -458,36 +452,6 @@ impl ShipServer {
             .into_iter()
             .map(|t| t.name.to_string())
             .collect()
-    }
-
-    // ---- Workspace ----
-
-    #[tool(
-        description = "Create a new workspace with a git worktree. For 'service' kind the worktree step is skipped."
-    )]
-    async fn create_workspace(
-        &self,
-        Parameters(req): Parameters<CreateWorkspaceRequest>,
-    ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        workspace::create_workspace(&project_dir, req)
-    }
-
-    #[tool(
-        description = "Complete a workspace: writes a handoff.md and optionally prunes the git worktree."
-    )]
-    async fn complete_workspace(
-        &self,
-        Parameters(req): Parameters<CompleteWorkspaceRequest>,
-    ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        workspace_ops::complete_workspace(&project_dir, req)
     }
 
     // ---- Session ----

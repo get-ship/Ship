@@ -87,20 +87,21 @@ impl From<git2::Error> for GitError {
 
 // ── root resolution ──────────────────────────────────────────────────────
 
-/// Resolve which directory to treat as the git root. Workspace id (when
-/// given and non-"project") is resolved via the runtime workspace registry;
-/// otherwise falls through to the project root discovered from CWD, and
-/// finally `ship_dir.parent()` as a last resort (tests).
+/// Resolve which directory to treat as the git root.
+///
+/// Workspace id (when given and non-"project") is treated as a branch
+/// name and resolved to its worktree via `git worktree list`. Otherwise
+/// falls through to the project root discovered from CWD, and finally
+/// `ship_dir.parent()` as a last resort (tests).
 pub fn resolve_root(
     ship_dir: &Path,
     workspace_id: Option<&str>,
 ) -> Result<PathBuf, String> {
-    if let Some(id) = workspace_id.filter(|s| !s.is_empty() && *s != "project") {
-        if let Ok((root, _)) = runtime::workspace::resolve_project_root(ship_dir, id) {
-            if root.join(".git").exists() || runtime::ShipHome::project_ship_dir(&root).exists() {
-                return Ok(root);
-            }
-        }
+    if let Some(branch) = workspace_id.filter(|s| !s.is_empty() && *s != "project")
+        && let Some(path) = crate::project_api::worktree_path_for_branch(branch)
+        && (path.join(".git").exists() || runtime::ShipHome::project_ship_dir(&path).exists())
+    {
+        return Ok(path);
     }
     if let Ok(project_ship) = runtime::project::get_project_dir(None) {
         if let Some(root) = project_ship.parent() {

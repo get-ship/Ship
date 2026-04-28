@@ -144,7 +144,6 @@ pub async fn run_network(
     runtime.set_mesh_registry(mesh_registry);
     let rt = Arc::new(runtime);
 
-    supervisor::subscribe_workspace_events(rt.kernel().clone(), global_dir.clone(), rt.health_registry()).await;
     let job_mgr = managers::JobManager::init(rt.kernel().clone(), global_dir.clone(), rt.health_registry()).await;
     if let Some(dh) = job_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);

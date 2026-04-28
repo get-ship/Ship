@@ -140,22 +140,3 @@ fn orphan_cleanup_under_line_limit() {
     );
 }
 
-// ── New workspace modules ─────────────────────────────────────────────────────
-
-#[test]
-fn workspace_api_under_line_limit() {
-    let lines = include_str!("workspace_api.rs").lines().count();
-    assert!(
-        lines <= LINE_LIMIT,
-        "workspace_api.rs has {lines} lines (limit {LINE_LIMIT})"
-    );
-}
-
-#[test]
-fn workspace_sync_under_line_limit() {
-    let lines = include_str!("workspace_sync.rs").lines().count();
-    assert!(
-        lines <= LINE_LIMIT,
-        "workspace_sync.rs has {lines} lines (limit {LINE_LIMIT})"
-    );
-}

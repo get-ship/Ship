@@ -9,7 +9,6 @@ use chrono::Utc;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use super::crud::get_workspace;
 use super::helpers::*;
 use super::types_session::*;
 
@@ -117,15 +116,12 @@ fn append_session_note_artifact(ship_dir: &Path, session_id: &str, note: &str) -
 // ---- Public session query/progress API -------------------------------------
 
 pub fn get_active_workspace_session(
-    ship_dir: &Path,
+    _ship_dir: &Path,
     branch: &str,
 ) -> Result<Option<WorkspaceSession>> {
     let branch = ensure_branch_key(branch)?;
-    let workspace = match get_workspace(ship_dir, branch)? {
-        Some(workspace) => workspace,
-        None => return Ok(None),
-    };
-    Ok(get_active_workspace_session_db(&workspace.id)?.map(hydrate_workspace_session))
+    let workspace_id = sanitize_file_name(branch);
+    Ok(get_active_workspace_session_db(&workspace_id)?.map(hydrate_workspace_session))
 }
 
 pub fn list_workspace_sessions(
@@ -135,10 +131,7 @@ pub fn list_workspace_sessions(
 ) -> Result<Vec<WorkspaceSession>> {
     let workspace_id = if let Some(branch) = branch {
         let branch = ensure_branch_key(branch)?;
-        match get_workspace(_ship_dir, branch)? {
-            Some(workspace) => Some(workspace.id),
-            None => return Ok(Vec::new()),
-        }
+        Some(sanitize_file_name(branch))
     } else {
         None
     };
@@ -154,10 +147,9 @@ pub fn record_workspace_session_progress(
     escalation: Option<&str>,
 ) -> Result<(), WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
-    let workspace = get_workspace(ship_dir, branch)?
-        .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
-    let active = get_active_workspace_session_db(&workspace.id)?
-        .ok_or_else(|| anyhow::anyhow!("No active workspace session for '{}'", workspace.name))?;
+    let workspace_id = sanitize_file_name(branch);
+    let active = get_active_workspace_session_db(&workspace_id)?
+        .ok_or_else(|| anyhow::anyhow!("No active session on branch '{}'", branch))?;
 
     let normalized_note = note.trim();
     if normalized_note.is_empty() {
@@ -168,7 +160,7 @@ pub fn record_workspace_session_progress(
         message: normalized_note.to_string(),
         escalation: escalation.map(String::from),
     };
-    insert_session_progress_event(&active.id, &workspace.id, &progress_payload, escalation.is_some())?;
+    insert_session_progress_event(&active.id, &workspace_id, &progress_payload, escalation.is_some())?;
 
     if let Err(error) = append_session_note_artifact(ship_dir, &active.id, normalized_note) {
         tracing::warn!("failed to persist session note artifact: {error}");

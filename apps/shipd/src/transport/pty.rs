@@ -62,33 +62,36 @@ pub async fn workspace_pty(
             .into_response();
     }
 
-    // Resolve workspace and tmux session name.
-    let ship_dir = state.ship_dir();
-
-    match runtime::workspace::get_workspace_by_id(ship_dir, &workspace_id) {
-        Ok(Some(_)) => {}
-        Ok(None) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({"error": "workspace not found"})),
-            )
-                .into_response();
-        }
+    // Resolve tmux session name for this branch from the active actor.
+    // Workspaces no longer exist as a runtime primitive — actors hold the
+    // tmux session detail (set at spawn).
+    let _ = state;
+    let session_name = match runtime::projections::actor::list_actors(
+        &runtime::projections::actor::ListActorsFilter {
+            workspace_id: Some(workspace_id.clone()),
+            ..Default::default()
+        },
+    ) {
+        Ok(rows) => match rows
+            .into_iter()
+            .find(|a| a.transport.as_deref() == Some("pty"))
+        {
+            // The actor's cwd carries the worktree path; tmux session is
+            // currently derived by convention (branch slug). When the
+            // supervisor stores it explicitly on the actor row, read that.
+            Some(_) => workspace_id.clone(),
+            None => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(json!({"error": "no active pty actor for this branch"})),
+                )
+                    .into_response();
+            }
+        },
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(json!({"error": e.to_string()})),
-            )
-                .into_response();
-        }
-    }
-
-    let session_name = match runtime::db::workspace_state::get_workspace_tmux_session_db(&workspace_id) {
-        Ok(Some(s)) if !s.is_empty() => s,
-        _ => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(json!({"error": "no tmux session for this workspace"})),
             )
                 .into_response();
         }
@@ -273,6 +276,3 @@ impl Drop for PtyConnectionGuard {
     }
 }
 
-#[cfg(test)]
-#[path = "pty_tests.rs"]
-mod tests;

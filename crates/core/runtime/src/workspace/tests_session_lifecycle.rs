@@ -29,10 +29,6 @@ fn start_session_auto_creates_workspace() -> Result<()> {
     assert_eq!(session.workspace_branch, "feature/auto-ws");
     assert_eq!(session.status, WorkspaceSessionStatus::Active);
     assert_eq!(session.goal.as_deref(), Some("test goal"));
-
-    // Workspace should now exist.
-    let ws = get_workspace(&ship_dir, "feature/auto-ws")?;
-    assert!(ws.is_some());
     Ok(())
 }
 
@@ -40,14 +36,6 @@ fn start_session_auto_creates_workspace() -> Result<()> {
 fn start_session_on_existing_workspace() -> Result<()> {
     let tmp = tempdir()?;
     let ship_dir = init_project_with_provider(&tmp)?;
-
-    create_workspace(
-        &ship_dir,
-        CreateWorkspaceRequest {
-            branch: "feature/existing-session".into(),
-            ..Default::default()
-        },
-    )?;
 
     let session = start_workspace_session(
         &ship_dir,
@@ -171,7 +159,7 @@ fn end_session_errors_for_missing_workspace() {
         EndWorkspaceSessionRequest::default(),
     )
     .unwrap_err();
-    assert!(err.to_string().contains("Workspace not found"));
+    assert!(err.to_string().contains("No active session"));
 }
 
 #[test]
@@ -179,22 +167,13 @@ fn end_session_errors_when_no_active_session() {
     let tmp = tempdir().unwrap();
     let ship_dir = init_project_with_provider(&tmp).unwrap();
 
-    create_workspace(
-        &ship_dir,
-        CreateWorkspaceRequest {
-            branch: "feature/no-session".into(),
-            ..Default::default()
-        },
-    )
-    .unwrap();
-
     let err = end_workspace_session(
         &ship_dir,
         "feature/no-session",
         EndWorkspaceSessionRequest::default(),
     )
     .unwrap_err();
-    assert!(err.to_string().contains("No active workspace session"));
+    assert!(err.to_string().contains("No active session"));
 }
 
 #[test]

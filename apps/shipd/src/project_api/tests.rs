@@ -24,22 +24,13 @@ fn test_branch(name: &str) -> String {
     format!("test/{name}-{n}")
 }
 
-/// Create a workspace record pointing at the given temp dir so `resolve_worktree` can find it.
-/// Returns `(branch, ApiState)` with an explicit `ship_dir` — no env var mutation.
+/// Set up a project_api test environment. Returns `(branch, ApiState)`
+/// — branch is just a label for tests; runtime no longer tracks workspaces.
 fn create_test_workspace(dir: &TempDir) -> (String, crate::rest_api::ApiState) {
     let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let branch = test_branch("ws");
-    runtime::workspace::create_workspace(
-        &ship_dir,
-        runtime::workspace::CreateWorkspaceRequest {
-            branch: branch.clone(),
-            path: Some(dir.path().to_string_lossy().to_string()),
-            ..Default::default()
-        },
-    )
-    .unwrap();
     (branch, make_api_state_with_dir(&ship_dir))
 }
 
@@ -257,28 +248,6 @@ async fn list_agents_strips_comments() {
     assert_eq!(agents[0]["description"], "has comments");
 }
 
-// ---- Workspace activate ----
-
-#[tokio::test(flavor = "multi_thread")]
-async fn activate_creates_workspace() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-    let branch = test_branch("activate-new");
-    let (status, body) = activate_workspace(State(state), full_auth(), Path(branch.clone())).await.unwrap();
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body.0.data["branch"], branch);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn activate_existing_workspace() {
-    let dir = TempDir::new().unwrap();
-    let (branch, state) = create_test_workspace(&dir);
-
-    let (status, body) = activate_workspace(State(state), full_auth(), Path(branch.clone())).await.unwrap();
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body.0.data["branch"], branch);
-}
-
 // ---- Event emit ----
 
 #[tokio::test(flavor = "multi_thread")]
@@ -344,32 +313,3 @@ async fn session_file_path_traversal_blocked() {
     );
 }
 
-#[tokio::test(flavor = "multi_thread")]
-async fn resolve_worktree_ignores_pathless_workspace_fallback() {
-    // Reproduces the bug where a workspace registered in the DB without
-    // an explicit `path` made resolve_project_root fall back to
-    // ship_dir.parent() — if ship_dir is HOME/.ship, the fallback is HOME
-    // itself, which has a `.ship/` dir and passed the old existence
-    // check. Writes then landed in the global ~/.ship/pipelines/ instead
-    // of the real project.
-    let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
-    let branch = test_branch("no-path");
-    runtime::workspace::create_workspace(
-        &ship_dir,
-        runtime::workspace::CreateWorkspaceRequest {
-            branch: branch.clone(),
-            path: None, // explicit: no path
-            ..Default::default()
-        },
-    )
-    .unwrap();
-
-    // With no explicit path, no checked-out worktree matching `branch`,
-    // and no matching current branch, the resolver must return 404
-    // rather than silently returning the parent of ship_dir.
-    let err = resolve_worktree(&ship_dir, &branch).unwrap_err();
-    assert_eq!(err.0, StatusCode::NOT_FOUND);
-}

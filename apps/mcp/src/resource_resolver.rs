@@ -4,10 +4,7 @@ use runtime::{
     get_config, get_skill_vars, list_models, list_providers, read_log,
     workspace::{
         get_active_workspace_session as runtime_get_active_workspace_session,
-        get_workspace as runtime_get_workspace,
-        get_workspace_provider_matrix as runtime_get_workspace_provider_matrix,
         list_workspace_sessions as runtime_list_workspace_sessions,
-        list_workspaces as runtime_list_workspaces,
     },
 };
 use runtime::{get_effective_skill, list_effective_skills, load_jobs_at};
@@ -174,33 +171,12 @@ async fn resolve_mesh_agents() -> Option<String> {
 }
 
 fn resolve_workspace_uri(uri: &str, ship_dir: &Path) -> Option<String> {
-    if uri == "ship://workspaces" {
-        return match runtime_list_workspaces(ship_dir) {
-            Ok(workspaces) => serde_json::to_string_pretty(&workspaces).ok(),
-            Err(err) => Some(format!("Error: {}", err)),
-        };
-    }
-    if let Some(rest) = uri.strip_prefix("ship://workspaces/")
-        && let Some(branch) = rest.strip_suffix("/provider-matrix")
-    {
-        return match runtime_get_workspace_provider_matrix(ship_dir, branch, None) {
-            Ok(matrix) => serde_json::to_string_pretty(&matrix).ok(),
-            Err(err) => Some(format!("Error: {}", err)),
-        };
-    }
     if let Some(rest) = uri.strip_prefix("ship://workspaces/")
         && let Some(branch) = rest.strip_suffix("/session")
     {
         return match runtime_get_active_workspace_session(ship_dir, branch) {
             Ok(Some(session)) => serde_json::to_string_pretty(&session).ok(),
-            Ok(None) => Some(format!("No active workspace session for '{}'", branch)),
-            Err(err) => Some(format!("Error: {}", err)),
-        };
-    }
-    if let Some(branch) = uri.strip_prefix("ship://workspaces/") {
-        return match runtime_get_workspace(ship_dir, branch) {
-            Ok(Some(workspace)) => serde_json::to_string_pretty(&workspace).ok(),
-            Ok(None) => Some(format!("Workspace '{}' not found", branch)),
+            Ok(None) => Some(format!("No active session on branch '{}'", branch)),
             Err(err) => Some(format!("Error: {}", err)),
         };
     }

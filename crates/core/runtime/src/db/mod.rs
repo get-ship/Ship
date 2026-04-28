@@ -24,8 +24,6 @@ pub mod session_events;
 #[cfg(test)]
 pub mod session_events_testutil;
 pub mod types;
-pub mod workspace_events;
-pub mod workspace_state;
 
 #[cfg(test)]
 mod tests_integrity;

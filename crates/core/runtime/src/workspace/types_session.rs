@@ -152,9 +152,3 @@ pub struct WorkspaceRepairReport {
     pub actions: Vec<String>,
 }
 
-/// Input for creating or updating a workspace runtime record.
-#[derive(Debug, Clone, Default)]
-pub struct CreateWorkspaceRequest {
-    pub branch: String,
-    pub path: Option<String>,
-}

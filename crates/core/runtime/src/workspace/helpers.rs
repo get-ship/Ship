@@ -1,8 +1,5 @@
-use crate::project::sanitize_file_name;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-
-use super::types::*;
 
 // ---- Parsing helpers -------------------------------------------------------
 
@@ -51,20 +48,5 @@ pub(crate) fn ensure_branch_key(branch: &str) -> Result<&str> {
         return Err(anyhow::anyhow!("Workspace branch/key cannot be empty"));
     }
     Ok(trimmed)
-}
-
-// ---- Workspace construction ------------------------------------------------
-
-pub(crate) fn workspace_id_from_branch(branch: &str) -> String {
-    sanitize_file_name(branch)
-}
-
-pub(crate) fn new_workspace(branch: &str, now: DateTime<Utc>) -> Workspace {
-    Workspace {
-        id: workspace_id_from_branch(branch),
-        name: branch.to_string(),
-        path: None,
-        created_at: now,
-    }
 }
 

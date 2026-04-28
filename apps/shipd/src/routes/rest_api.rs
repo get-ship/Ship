@@ -414,32 +414,18 @@ pub async fn hooks_checkout(
         }
     };
 
-    match runtime::reconcile_workspace(&ship_dir, &req.branch) {
-        Ok(Some(ws)) => (
-            StatusCode::OK,
-            Json(MeshResponse {
-                ok: true,
-                data: serde_json::json!({
-                    "name": ws.name,
-                    "path": ws.path,
-                }),
-            }),
-        ),
-        Ok(None) => (
-            StatusCode::OK,
-            Json(MeshResponse {
-                ok: true,
-                data: serde_json::json!("no workspace for branch"),
-            }),
-        ),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(e.to_string()),
-            }),
-        ),
-    }
+    let _ = ship_dir;
+    // The workspace primitive retired; this hook used to refresh workspace
+    // state on git checkout. Now there's nothing to reconcile — actors carry
+    // their cwd, sessions carry branch as a dimension, git is queried on
+    // demand. The endpoint stays as an OK no-op for backward compat.
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: serde_json::json!({ "branch": req.branch }),
+        }),
+    )
 }
 
 /// SSE endpoint — drains an agent's mailbox as server-sent events.

@@ -10,12 +10,11 @@ use chrono::Utc;
 use std::path::Path;
 use std::process::Command;
 
-use super::compile::{compile_workspace_context, resolve_session_providers};
-use super::crud::get_workspace;
+use super::compile::{compile_session_context, resolve_session_providers};
 use super::helpers::*;
-use super::lifecycle::create_workspace;
 use super::session::{hydrate_workspace_session, persist_session_artifact};
 use super::types_session::*;
+use crate::project::sanitize_file_name;
 
 // ---- Post-session hooks ----------------------------------------------------
 
@@ -76,7 +75,8 @@ fn run_post_session_hooks(ship_dir: &Path, session: &WorkspaceSession) -> Result
 
 // ---- Start / end -----------------------------------------------------------
 
-/// Start a workspace session. Idempotent — returns existing active session.
+/// Start a session on the given branch. Idempotent — returns existing
+/// active session.
 pub fn start_workspace_session(
     ship_dir: &Path,
     branch: &str,
@@ -85,25 +85,17 @@ pub fn start_workspace_session(
     primary_provider: Option<String>,
 ) -> Result<WorkspaceSession> {
     let branch = ensure_branch_key(branch)?;
-
-    // Get or create workspace record.
-    let workspace = match get_workspace(ship_dir, branch)? {
-        Some(ws) => ws,
-        None => create_workspace(ship_dir, CreateWorkspaceRequest {
-            branch: branch.to_string(),
-            ..Default::default()
-        })?,
-    };
+    let workspace_id = sanitize_file_name(branch);
 
     // Idempotent: return existing active session.
-    if let Some(active) = get_active_workspace_session_db(&workspace.id)? {
+    if let Some(active) = get_active_workspace_session_db(&workspace_id)? {
         let existing = hydrate_workspace_session(active);
         let payload = SessionAttached {
             existing_session_id: existing.id.clone(),
-            workspace_id: workspace.id.clone(),
-            workspace_branch: workspace.name.clone(),
+            workspace_id: workspace_id.clone(),
+            workspace_branch: branch.to_string(),
         };
-        insert_session_attached_event(&existing.id, &workspace.id, &payload)?;
+        insert_session_attached_event(&existing.id, &workspace_id, &payload)?;
         if let Err(e) = persist_session_artifact(ship_dir, &existing, "attach") {
             tracing::warn!("failed to persist attached session artifact: {e}");
         }
@@ -112,18 +104,14 @@ pub fn start_workspace_session(
 
     // Resolve providers and compile context.
     let agent_id = agent_id.and_then(|v| normalize_optional_text(Some(v)));
-    let providers = resolve_session_providers(ship_dir, &workspace, agent_id.as_deref())?;
-    let primary_provider = resolve_primary_provider(primary_provider, &providers, &workspace)?;
-    let _providers = compile_workspace_context(ship_dir, &workspace, agent_id.as_deref())?;
+    let providers = resolve_session_providers(ship_dir, branch, agent_id.as_deref())?;
+    let primary_provider = resolve_primary_provider(primary_provider, &providers, branch)?;
+    let _providers = compile_session_context(ship_dir, branch, None, agent_id.as_deref())?;
 
-    // Look up project_id from the workspace's worktree path (or ship_dir
-    // parent as fallback). When the project isn't registered, leaves
-    // project_id as None — registration is explicit, never implicit.
-    let project_lookup_path = workspace
-        .path
-        .as_deref()
-        .map(std::path::PathBuf::from)
-        .unwrap_or_else(|| ship_dir.parent().unwrap_or(ship_dir).to_path_buf());
+    // Look up project_id from ship_dir.parent (the project root). When the
+    // project isn't registered, leaves project_id as None — registration is
+    // explicit, never implicit.
+    let project_lookup_path = ship_dir.parent().unwrap_or(ship_dir).to_path_buf();
     let project_id = crate::projects::find_by_path(&project_lookup_path)
         .ok()
         .flatten()
@@ -132,8 +120,8 @@ pub fn start_workspace_session(
     let session_id = crate::gen_nanoid();
     let started_payload = SessionStarted {
         goal: normalize_optional_text(goal),
-        workspace_id: workspace.id.clone(),
-        workspace_branch: workspace.name.clone(),
+        workspace_id: workspace_id.clone(),
+        workspace_branch: branch.to_string(),
         agent_id,
         primary_provider: Some(primary_provider),
         project_id,
@@ -141,9 +129,10 @@ pub fn start_workspace_session(
         pipeline_run_id: None,
         chat_thread_id: None,
     };
-    let _envelope = insert_session_with_started_event(&session_id, &workspace.id, &started_payload)?;
+    let _envelope =
+        insert_session_with_started_event(&session_id, &workspace_id, &started_payload)?;
     let created = get_workspace_session_db(&session_id)?
-        .ok_or_else(|| anyhow!("Failed to load created workspace session"))?;
+        .ok_or_else(|| anyhow!("Failed to load created session"))?;
     let started = hydrate_workspace_session(created);
 
     if let Err(e) = persist_session_artifact(ship_dir, &started, "start") {
@@ -156,21 +145,21 @@ pub fn start_workspace_session(
 fn resolve_primary_provider(
     requested: Option<String>,
     providers: &[String],
-    workspace: &super::types::Workspace,
+    branch: &str,
 ) -> Result<String> {
     if let Some(req) = requested {
         let normalized = normalize_provider_ref(&req)
             .ok_or_else(|| anyhow!("Session provider cannot be empty"))?;
         if !providers.iter().any(|p| p == &normalized) {
             return Err(anyhow!(
-                "Provider '{}' not allowed for workspace '{}' (allowed: {})",
-                normalized, workspace.name, providers.join(", ")
+                "Provider '{}' not allowed for branch '{}' (allowed: {})",
+                normalized, branch, providers.join(", ")
             ));
         }
         Ok(normalized)
     } else {
         providers.first().cloned()
-            .ok_or_else(|| anyhow!("No providers resolved for workspace '{}'", workspace.name))
+            .ok_or_else(|| anyhow!("No providers resolved for branch '{}'", branch))
     }
 }
 
@@ -180,11 +169,10 @@ pub fn end_workspace_session(
     request: EndWorkspaceSessionRequest,
 ) -> Result<WorkspaceSession> {
     let branch = ensure_branch_key(branch)?;
-    let workspace = get_workspace(ship_dir, branch)?
-        .ok_or_else(|| anyhow!("Workspace not found for branch '{}'", branch))?;
+    let workspace_id = sanitize_file_name(branch);
 
-    let mut active = get_active_workspace_session_db(&workspace.id)?
-        .ok_or_else(|| anyhow!("No active workspace session for '{}'", workspace.name))?;
+    let mut active = get_active_workspace_session_db(&workspace_id)?
+        .ok_or_else(|| anyhow!("No active session on branch '{}'", branch))?;
 
     let now = Utc::now().to_rfc3339();
     active.status = WorkspaceSessionStatus::Ended.to_string();

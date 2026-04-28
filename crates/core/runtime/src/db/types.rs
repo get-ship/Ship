@@ -1,18 +1,5 @@
 //! Shared types for the platform database layer.
 
-pub type WorkspaceDbRow = (
-    String,         // 0: id
-    Option<String>, // 1: path
-    Option<String>, // 2: created_at
-);
-
-pub type WorkspaceDbListRow = (
-    String,         // 0: branch (name)
-    String,         // 1: id
-    Option<String>, // 2: path
-    Option<String>, // 3: created_at
-);
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WorkspaceSessionDb {
     pub id: String,

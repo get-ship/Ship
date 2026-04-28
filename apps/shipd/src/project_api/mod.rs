@@ -43,15 +43,8 @@ pub(crate) fn resolve_worktree(
     ship_dir: &std::path::Path,
     id: &str,
 ) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
-    // 1. DB-backed workspace resolution — only trust explicit paths.
-    if let Ok((root, ws)) = runtime::workspace::resolve_project_root(ship_dir, id)
-        && ws.path.is_some()
-        && (runtime::ShipHome::project_ship_dir(&root).exists() || root.join(".git").exists())
-    {
-        return Ok(root);
-    }
-
-    // 2. Workspace name is a branch — resolve to its actual worktree path
+    let _ = ship_dir;
+    // 1. Workspace name is a branch — resolve to its actual worktree path
     //    via `git worktree list`. This gives artifact scope per worktree:
     //    /home/user/ship/.artifacts/ for main
     //    /home/user/ship-worktrees/fix/.artifacts/ for fix branch
@@ -97,7 +90,7 @@ fn current_branch_at(root: &std::path::Path) -> Option<String> {
 
 /// Look up the worktree path for a branch via `git worktree list --porcelain`.
 /// Returns None if the branch isn't a checked-out worktree.
-fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
+pub(crate) fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
     let project_ship = runtime::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
     let output = std::process::Command::new("git")
@@ -320,72 +313,6 @@ pub async fn emit_event(
     Ok(ok_response(json!({ "id": envelope_id })))
 }
 
-// ---- Workspace delete endpoint ----
-
-/// DELETE /api/v1/workspaces/{id}
-#[utoipa::path(
-    operation_id = "deleteWorkspace",
-    delete,
-    path = "/api/v1/workspaces/{id}",
-    params(("id" = String, Path, description = "Workspace id / branch")),
-    responses(
-        (status = 200, description = "Workspace deleted", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
-    ),
-    tag = "project"
-)]
-pub async fn delete_workspace(
-    State(state): State<ApiState>,
-    axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,
-    axum::extract::Path(id): axum::extract::Path<String>,
-) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    require_scope(&auth, Scope::WriteWorkspace)?;
-    runtime::workspace::delete_workspace(state.ship_dir(), &id).map_err(|e| {
-        err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
-    })?;
-
-    Ok(ok_response(json!({ "branch": id })))
-}
-
-// ---- Workspace ensure endpoint (replaces activate) ----
-
-/// POST /api/v1/workspaces/{id}/activate
-///
-/// Creates the workspace if it doesn't exist. No-op if it does.
-/// Kept as /activate for API backward compat.
-#[utoipa::path(
-    operation_id = "activateWorkspace",
-    post,
-    path = "/api/v1/workspaces/{id}/activate",
-    params(("id" = String, Path, description = "Workspace id / branch")),
-    responses(
-        (status = 200, description = "Workspace created or already existed", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
-    ),
-    tag = "project"
-)]
-pub async fn activate_workspace(
-    State(state): State<ApiState>,
-    axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,
-    axum::extract::Path(id): axum::extract::Path<String>,
-) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    require_scope(&auth, Scope::WriteWorkspace)?;
-    runtime::workspace::create_workspace(
-        state.ship_dir(),
-        runtime::workspace::CreateWorkspaceRequest {
-            branch: id.clone(),
-            ..Default::default()
-        },
-    ).map_err(|e| {
-        err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
-    })?;
-
-    Ok(ok_response(json!({ "branch": id })))
-}
 
 #[cfg(test)]
 mod tests;

@@ -5,14 +5,12 @@ use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
 
 use super::helpers::*;
-use super::types::*;
 use super::types_session::*;
 
 // ---- Agent config resolution -----------------------------------------------
 
-pub(crate) fn resolve_workspace_agent_config(
+pub(crate) fn resolve_session_agent_config(
     ship_dir: &Path,
-    _workspace: &Workspace,
     agent_id: Option<&str>,
 ) -> Result<ProviderSettings> {
     let agent_id = agent_id
@@ -28,14 +26,14 @@ pub(crate) fn resolve_workspace_agent_config(
 
 pub(crate) fn resolve_session_providers(
     ship_dir: &Path,
-    workspace: &Workspace,
+    branch: &str,
     agent_id: Option<&str>,
 ) -> Result<Vec<String>> {
-    let resolved = resolve_workspace_agent_config(ship_dir, workspace, agent_id)?;
+    let resolved = resolve_session_agent_config(ship_dir, agent_id)?;
     if resolved.providers.is_empty() {
         return Err(anyhow!(
-            "No valid providers resolved for workspace '{}'",
-            workspace.name
+            "No valid providers resolved for session on branch '{}'",
+            branch
         ));
     }
     Ok(resolved.providers)
@@ -43,13 +41,13 @@ pub(crate) fn resolve_session_providers(
 
 // ---- Provider matrix -------------------------------------------------------
 
-pub(crate) fn build_workspace_provider_matrix(
+pub(crate) fn build_session_provider_matrix(
     ship_dir: &Path,
-    workspace: &Workspace,
+    branch: &str,
     agent_id: Option<&str>,
 ) -> Result<WorkspaceProviderMatrix> {
     let resolved_agent_id = agent_id.and_then(normalize_agent_ref);
-    let resolved = resolve_workspace_agent_config(ship_dir, workspace, agent_id)?;
+    let resolved = resolve_session_agent_config(ship_dir, agent_id)?;
     let providers = resolved.providers;
 
     let supported_providers = crate::agents::export::list_providers(ship_dir)?
@@ -59,15 +57,15 @@ pub(crate) fn build_workspace_provider_matrix(
 
     let resolution_error = if providers.is_empty() {
         Some(format!(
-            "No valid providers resolved for workspace '{}'",
-            workspace.name
+            "No valid providers resolved for session on branch '{}'",
+            branch
         ))
     } else {
         None
     };
 
     Ok(WorkspaceProviderMatrix {
-        workspace_branch: workspace.name.clone(),
+        workspace_branch: branch.to_string(),
         agent_id: resolved_agent_id,
         source: if resolved.active_agent.is_some() {
             "agent/config".to_string()
@@ -82,11 +80,14 @@ pub(crate) fn build_workspace_provider_matrix(
 
 // ---- Context root and missing configs --------------------------------------
 
-pub(crate) fn resolve_workspace_context_root(
+/// Resolve the on-disk root where provider config files should be written.
+/// Caller passes the worktree path explicitly (or None to fall back to the
+/// project root, computed from `ship_dir.parent()`).
+pub(crate) fn resolve_session_context_root(
     ship_dir: &Path,
-    workspace: &Workspace,
+    explicit_path: Option<&str>,
 ) -> PathBuf {
-    if let Some(path) = workspace.path.as_deref() {
+    if let Some(path) = explicit_path {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
@@ -95,7 +96,7 @@ pub(crate) fn resolve_workspace_context_root(
     ship_dir.parent().unwrap_or(ship_dir).to_path_buf()
 }
 
-pub(crate) fn missing_provider_configs_for_workspace(
+pub(crate) fn missing_provider_configs_for_session(
     context_root: &Path,
     providers: &[String],
 ) -> Vec<String> {
@@ -113,27 +114,28 @@ pub(crate) fn missing_provider_configs_for_workspace(
         .collect()
 }
 
-// ---- Compile workspace context ---------------------------------------------
+// ---- Compile session context ---------------------------------------------
 
-/// Compile workspace context and return the resolved provider list.
+/// Compile session context and return the resolved provider list.
 ///
 /// Writes provider config files to the worktree as a side effect. Returns the
 /// providers that were exported.
-pub(crate) fn compile_workspace_context(
+pub(crate) fn compile_session_context(
     ship_dir: &Path,
-    workspace: &Workspace,
+    branch: &str,
+    cwd: Option<&str>,
     agent_id_override: Option<&str>,
 ) -> Result<Vec<String>> {
     let agent_id = agent_id_override
         .map(|a| a.to_string())
         .and_then(|value| normalize_optional_text(Some(value)));
     let resolved_agent =
-        resolve_workspace_agent_config(ship_dir, workspace, agent_id.as_deref())?;
+        resolve_session_agent_config(ship_dir, agent_id.as_deref())?;
     let providers = resolved_agent.providers.clone();
     if providers.is_empty() {
         return Err(anyhow!(
-            "No valid providers resolved for workspace '{}'",
-            workspace.name
+            "No valid providers resolved for session on branch '{}'",
+            branch
         ));
     }
 
@@ -148,7 +150,7 @@ pub(crate) fn compile_workspace_context(
         .map(|skill| skill.id.clone())
         .collect::<Vec<_>>();
 
-    let context_root = resolve_workspace_context_root(ship_dir, workspace);
+    let context_root = resolve_session_context_root(ship_dir, cwd);
     for provider in &providers {
         crate::agents::export::export_to_filtered_with_mode_override_and_skills_at_root(
             ship_dir.to_path_buf(),
@@ -160,8 +162,8 @@ pub(crate) fn compile_workspace_context(
         )
         .map_err(|error| {
             error.context(format!(
-                "Failed to compile provider '{}' for workspace '{}'",
-                provider, workspace.name
+                "Failed to compile provider '{}' for branch '{}'",
+                provider, branch
             ))
         })?;
     }
