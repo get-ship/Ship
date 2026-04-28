@@ -180,6 +180,12 @@ fn template_syntax() -> Vec<TemplateSyntax> {
         t("two_way_binding", "bind:PROP={SIGNAL}",
           "Two-way binding for form inputs. The runtime owns the input listener.",
           &["<input bind:value={value} />"]),
+        t("bind_callback", "bind:value={SIGNAL} on:bind={FN}",
+          "Side-effect callback for `bind:value`. After the runtime writes the \
+           signal on user input, `FN(newValue)` fires — for dispatching public \
+           events, syncing form state, etc. Not invoked on programmatic signal \
+           writes. Pair with `bind:value` only.",
+          &["<input bind:value={value} on:bind={notify} />"]),
         t("if_block", "{#if COND}…{:else if COND}…{:else}…{/if}",
           "Mustache control flow. `:elif` is also accepted as shorthand.",
           &["{#if hasItems}<ul>…</ul>{:else}empty{/if}"]),

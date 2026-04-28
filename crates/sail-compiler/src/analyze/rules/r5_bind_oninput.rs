@@ -160,4 +160,14 @@ mod tests {
         );
         assert!(d.iter().all(|x| x.code != "SAIL/W0105"), "got {d:?}");
     }
+
+    #[test]
+    fn bind_with_on_bind_callback_passes() {
+        // `on:bind` is the side-effect callback hook for `bind:value`,
+        // not a redundant input listener — it must not fire R5.
+        let d = run(
+            "<template><input bind:value={draft} on:bind={notify} /></template>",
+        );
+        assert!(d.iter().all(|x| x.code != "SAIL/W0105"), "got {d:?}");
+    }
 }
