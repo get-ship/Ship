@@ -312,9 +312,20 @@ Top-level CSS comments between rules emit invalid prefixed selectors after host 
 
 Before declaring a port done:
 - `pnpm -F @sail/ship-set test <name>` passes.
-- `cargo test -p sail-compiler --lib` still 138/138.
+- `cargo test -p sail-compiler --lib` still green.
+- `cargo run -p sail-cli -- check packages/ship-set-sail/components/<name>.set` exits 0 — required gate. `pnpm test` only sees compile *errors*; this checks the rule layer that catches listener leaks, bare-signal reads, redundant bind+oninput, unknown component props, and unknown `ship.*` data paths. Default `--severity error` gates on errors; pass `--severity warning` to also gate on warnings.
 - `.ship/sail/<name>.set` symlink exists (`ln -sf ../../packages/ship-set-sail/components/<name>.set .ship/sail/<name>.set`).
 - For pages: `cargo build -p shipd --features unstable` clean, then probe via Playwright or browser at `/sail/<tag>` — no console errors, no request failures.
+
+### `sail check` rule surface
+
+| Code | What it catches |
+|---|---|
+| `SAIL/E0501` | listener / timer leak — `addEventListener` / `setInterval` / `setTimeout` without a paired remove/clear. Includes the phantom `addEventListener('sail:cleanup', …)` (the runtime never dispatches it). |
+| `SAIL/W0101` | bare signal read in text interpolation — `{count}` instead of `{count()}`. |
+| `SAIL/W0105` | `bind:value` + `oninput` on the same element — double-wires the input event. |
+| `SAIL/W0201` | unknown prop on a `<ship-*>` component — typo or removed prop. |
+| `SAIL/W0301` | unknown `ship.<domain>.<op>(…)` data path — typo or stale catalog. |
 
 ## Where things live
 

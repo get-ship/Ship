@@ -48,7 +48,7 @@ fn check_component(tag: &str, props: &[PropBinding], diagnostics: &mut Vec<Diagn
             None => format!("`<{tag}>` declares no `{}` prop", p.name),
         };
         diagnostics.push(Diagnostic {
-            severity: Severity::Warning,
+            severity: Severity::Error,
             code: "SAIL/W0201".to_string(),
             message: format!("unknown prop `{}` on <{tag}>", p.name),
             span: None,
@@ -110,6 +110,7 @@ mod tests {
         assert_eq!(w.len(), 1, "got {d:?}");
         assert!(w[0].message.contains("bogus"));
         assert!(w[0].message.contains("ship-button"));
+        assert_eq!(w[0].severity, Severity::Error);
     }
 
     #[test]

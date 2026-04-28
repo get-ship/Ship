@@ -92,7 +92,7 @@ fn check_element(tag: &str, attrs: &[Attr], diagnostics: &mut Vec<Diagnostic>) {
         return;
     }
     diagnostics.push(Diagnostic {
-        severity: Severity::Warning,
+        severity: Severity::Error,
         code: "SAIL/W0105".to_string(),
         message: format!(
             "<{tag}> has both `bind:value` and an input listener — they fire on the same event"
@@ -123,6 +123,7 @@ mod tests {
         let w: Vec<_> = d.iter().filter(|x| x.code == "SAIL/W0105").collect();
         assert_eq!(w.len(), 1, "got {d:?}");
         assert!(w[0].help.as_deref().unwrap().contains("bind:value"));
+        assert_eq!(w[0].severity, Severity::Error);
     }
 
     #[test]
