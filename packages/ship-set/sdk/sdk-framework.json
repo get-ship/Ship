@@ -153,7 +153,7 @@
       "name": "effect",
       "syntax": "effect { BODY }",
       "fires": "On any reactive read inside the body changing.",
-      "description": "Auto-tracked — do NOT use `effect on X { … }`."
+      "description": "Auto-tracked. The parser also accepts `effect on X { … }` and `effect once { … }`, but auto-tracking is the preferred shape — `effect on X` is redundant whenever the body already reads `X()`."
     },
     {
       "name": "form_reset",
@@ -297,8 +297,8 @@
     },
     {
       "id": "R3",
-      "name": "no_effect_dependency_list",
-      "description": "`effect` auto-tracks reactive reads. Legacy `effect on X { … }` is removed.",
+      "name": "prefer_auto_tracked_effect",
+      "description": "`effect` auto-tracks reactive reads. The legacy `effect on X { … }` form still parses but is redundant whenever the body reads `X()`; prefer the bare form.",
       "anti_example": "effect on count { console.log(count()) }",
       "fix_example": "effect { console.log(count()) }"
     },

@@ -144,7 +144,9 @@ fn lifecycle_hooks() -> Vec<LifecycleHook> {
           "One-time setup. Push to `cleanups` for subscriptions that need teardown."),
         h("effect", "effect { BODY }",
           "On any reactive read inside the body changing.",
-          "Auto-tracked — do NOT use `effect on X { … }`."),
+          "Auto-tracked. The parser also accepts `effect on X { … }` and \
+           `effect once { … }`, but auto-tracking is the preferred shape — \
+           `effect on X` is redundant whenever the body already reads `X()`."),
         h("form_reset", "on form_reset { BODY }",
           "When the parent `<form>` is reset (form-associated only).",
           "Lifecycle hook for `formResetCallback`. Requires `component formAssociated`."),
@@ -225,8 +227,10 @@ fn reactivity_rules() -> Vec<ReactivityRule> {
           "Mutations belong in handlers, not templates.",
           "<button onclick={count.set(count() + 1)}>",
           "function inc() { count.set(count() + 1) }; <button onclick={inc}>"),
-        r("R3", "no_effect_dependency_list",
-          "`effect` auto-tracks reactive reads. Legacy `effect on X { … }` is removed.",
+        r("R3", "prefer_auto_tracked_effect",
+          "`effect` auto-tracks reactive reads. The legacy `effect on X { … }` \
+           form still parses but is redundant whenever the body reads `X()`; \
+           prefer the bare form.",
           "effect on count { console.log(count()) }",
           "effect { console.log(count()) }"),
         r("R4", "platform_event_attrs",
