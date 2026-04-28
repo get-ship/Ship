@@ -70,9 +70,10 @@ pub fn run(repo_root: &Path) -> Result<()> {
         "sdk-ship-ops",
         ship_ops::extract()?,
     )?;
-    // sdk-framework.json wraps the sail-compiler manifest. Its envelope
+    // sdk-framework.json wraps the ship-set-compiler manifest. Its envelope
     // version tracks the framework manifest itself, not gen-sdk's
     // VERSION — those evolve independently.
+    // TODO(Phase 4): replace stub with real manifest from ship-set-compiler.
     write_framework(&out_dir.join("sdk-framework.json"), repo_root)?;
 
     // Typed TS bindings for the OPS catalog — set authors get IDE

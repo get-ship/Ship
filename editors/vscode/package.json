@@ -1,7 +1,7 @@
 {
-  "name": "sail-set",
-  "displayName": "Sail (.set)",
-  "description": "Syntax highlighting and language server support for Sail (.set) component files.",
+  "name": "ship-set",
+  "displayName": "ship-set (.set)",
+  "description": "Syntax highlighting and language server support for ship-set (.set) component files.",
   "version": "0.1.0",
   "publisher": "ship",
   "engines": {
@@ -19,7 +19,7 @@
       {
         "id": "set",
         "aliases": [
-          "Sail Set",
+          "ship-set",
           "set"
         ],
         "extensions": [
@@ -36,14 +36,14 @@
       }
     ],
     "configuration": {
-      "title": "Sail",
+      "title": "ship-set",
       "properties": {
-        "sail.serverPath": {
+        "ship-set.serverPath": {
           "type": "string",
-          "default": "sail-lsp",
-          "description": "Path to the sail-lsp executable. Either an absolute path or a name resolved against PATH."
+          "default": "ship-set-lsp",
+          "description": "Path to the ship-set-lsp executable. Either an absolute path or a name resolved against PATH."
         },
-        "sail.trace.server": {
+        "ship-set.trace.server": {
           "type": "string",
           "enum": [
             "off",
@@ -51,7 +51,7 @@
             "verbose"
           ],
           "default": "off",
-          "description": "Trace LSP communication between VS Code and sail-lsp."
+          "description": "Trace LSP communication between VS Code and ship-set-lsp."
         }
       }
     }

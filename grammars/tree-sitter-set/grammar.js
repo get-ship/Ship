@@ -12,7 +12,7 @@
 // stays small and authoritative for the framework surface, not the
 // host languages.
 //
-// Conformance target: every `.set` in `packages/ship-set-sail/components/`
+// Conformance target: every `.set` in `packages/ship-set/components/`
 // parses without ERROR nodes. Validation lives in `test/corpus/`.
 
 export default grammar({

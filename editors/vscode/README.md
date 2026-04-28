@@ -15,39 +15,39 @@ files (`.set`).
   `{:then}`, `{:catch}`, `{:empty}`), interpolation `{...}`, raw HTML
   `{@html ...}`, and binding directives (`bind:`, `on:`, `use:`,
   `class:`, `style:`).
-- **Language client**: launches the `sail-lsp` binary and wires up
+- **Language client**: launches the `ship-set-lsp` binary and wires up
   push diagnostics, hover, and completion (with `<`, `{`, `.`, `:`,
   `=` as trigger characters).
 
 ## Requirements
 
-You need a `sail-lsp` binary on your system. The extension does not
+You need a `ship-set-lsp` binary on your system. The extension does not
 ship one — install it separately from the Ship monorepo.
 
-### Building `sail-lsp`
+### Building `ship-set-lsp`
 
 From the repository root:
 
 ```bash
-cargo build --release -p sail-lsp
+cargo build --release -p ship-set-lsp
 ```
 
-The binary lands at `target/release/sail-lsp` (or `target/debug/sail-lsp`
+The binary lands at `target/release/ship-set-lsp` (or `target/debug/ship-set-lsp`
 for a debug build).
 
 ## Configuration
 
 | Setting              | Default     | Description                                                                                       |
 | -------------------- | ----------- | ------------------------------------------------------------------------------------------------- |
-| `sail.serverPath`    | `sail-lsp`  | Path to the `sail-lsp` executable. Use an absolute path, or a name resolved against `PATH`.       |
-| `sail.trace.server`  | `off`       | Trace LSP traffic between VS Code and `sail-lsp`. Set to `messages` or `verbose` while debugging. |
+| `ship-set.serverPath`    | `ship-set-lsp`  | Path to the `ship-set-lsp` executable. Use an absolute path, or a name resolved against `PATH`.       |
+| `ship-set.trace.server`  | `off`       | Trace LSP traffic between VS Code and `ship-set-lsp`. Set to `messages` or `verbose` while debugging. |
 
-Add the binary to your PATH, or point `sail.serverPath` at it:
+Add the binary to your PATH, or point `ship-set.serverPath` at it:
 
 ```jsonc
 // .vscode/settings.json
 {
-  "sail.serverPath": "/abs/path/to/target/release/sail-lsp"
+  "ship-set.serverPath": "/abs/path/to/target/release/ship-set-lsp"
 }
 ```
 
@@ -60,7 +60,7 @@ cd editors/vscode
 pnpm install
 pnpm run compile
 npx vsce package
-code --install-extension sail-set-0.1.0.vsix
+code --install-extension ship-set-0.1.0.vsix
 ```
 
 ### Development load
@@ -81,4 +81,4 @@ code --install-extension sail-set-0.1.0.vsix
   `grammars/tree-sitter-set/queries/highlights.scm`.
 - The LSP server itself advertises `codeAction` and `definition`
   capabilities, but the handlers currently return empty results;
-  upstream those land in `crates/sail-lsp`.
+  upstream those land in `crates/ship-set-lsp`.

@@ -1,10 +1,10 @@
 # tree-sitter-set
 
-Tree-sitter grammar for the Sail `.set` single-file component format.
+Tree-sitter grammar for the ship-set `.set` single-file component format.
 
 ## Status
 
-V1. Every `.set` file in `packages/ship-set-sail/components/` (41
+V1. Every `.set` file in `packages/ship-set/components/` (41
 production ports) parses without ERROR nodes. ABI 15. Corpus tests
 cover the script declaration set, host/element/attribute forms,
 template control flow (`{#if}` / `{#for}` / `{:else}`), HTML comments,
@@ -50,7 +50,7 @@ npx tree-sitter test
 
 ```bash
 cd grammars/tree-sitter-set
-for f in ../../packages/ship-set-sail/components/*.set; do
+for f in ../../packages/ship-set/components/*.set; do
   npx tree-sitter parse "$f" --quiet || echo "FAIL: $f"
 done
 ```

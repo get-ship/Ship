@@ -373,7 +373,7 @@
     {
       "tag": "ship-agents",
       "props": [],
-      "description": "Agents index page. Server-truth via the sail data resolver wired in\n`apps/shipd/src/views/sail_data_resolvers/agents.rs`. The signal\nupdates whenever the kernel emits a `config.*` event (agent file\ncreate / edit / delete in either project or global scope), so the\npage reflects the registry without a refresh."
+      "description": "Agents index page. Server-truth via the ship-set data resolver wired in\n`apps/shipd/src/views/ship_set_data_resolvers/agents.rs`. The signal\nupdates whenever the kernel emits a `config.*` event (agent file\ncreate / edit / delete in either project or global scope), so the\npage reflects the registry without a refresh."
     },
     {
       "tag": "ship-alert",
@@ -734,7 +734,7 @@
     {
       "tag": "ship-dashboard",
       "props": [],
-      "description": "Workspace Dashboard. Server-truth via the sail data resolver:\n`ship.dashboard.state()` → `{ stats, recent_runs, events, agents,\ncollections, total_events }`. The signal updates whenever the daemon\nemits a relevant event (runs, agent config, collection schemas, the\nevent stream itself), so the page reflects the registry without a\nrefresh.\n\nBehavior parity vs `.ship/views/dashboard/index.html.j2`:\n- Header with ship-app-icon wordmark + live-pulse badge\n- 4 stat tiles with per-tile accent stripes (jobs / agents / events / collections)\n- Recent jobs list (active or, if none, history truncated to 5)\n- Agents grid (first 6, brand-aware avatar via shared resolver inlined here)\n- Latest events feed (3-col grid: ts / type / actor)\n- Quick-links tile row (6 hardcoded routes — same catalog as the partial)\n- Empty states for jobs / agents / events\n\nOut of scope (not provided by the data resolver, not present in the\nJinja either): the `settings.workspace_name` line is rendered as\nthe hardcoded \"workspace dashboard\" subtitle, matching the Jinja\n`{% else %}workspace dashboard{% endif %}` branch."
+      "description": "Workspace Dashboard. Server-truth via the ship-set data resolver:\n`ship.dashboard.state()` → `{ stats, recent_runs, events, agents,\ncollections, total_events }`. The signal updates whenever the daemon\nemits a relevant event (runs, agent config, collection schemas, the\nevent stream itself), so the page reflects the registry without a\nrefresh.\n\nBehavior parity vs `.ship/views/dashboard/index.html.j2`:\n- Header with ship-app-icon wordmark + live-pulse badge\n- 4 stat tiles with per-tile accent stripes (jobs / agents / events / collections)\n- Recent jobs list (active or, if none, history truncated to 5)\n- Agents grid (first 6, brand-aware avatar via shared resolver inlined here)\n- Latest events feed (3-col grid: ts / type / actor)\n- Quick-links tile row (6 hardcoded routes — same catalog as the partial)\n- Empty states for jobs / agents / events\n\nOut of scope (not provided by the data resolver, not present in the\nJinja either): the `settings.workspace_name` line is rendered as\nthe hardcoded \"workspace dashboard\" subtitle, matching the Jinja\n`{% else %}workspace dashboard{% endif %}` branch."
     },
     {
       "tag": "ship-empty-state",

@@ -84,7 +84,7 @@ pub fn build_router(
     let pair_status_reg = pairing_registry.clone();
     let attest_verifier = attestation_verifier.clone();
     let attest_sessions = session_registry.clone();
-    let sail_data_state = rt.clone();
+    let ship_set_data_state = rt.clone();
     let public_routes = Router::new()
         .route(
             "/auth/pair/init",
@@ -133,46 +133,34 @@ pub fn build_router(
             "/_ship/components/{file}",
             axum::routing::get(views::components::serve_component_js),
         )
-        // `.ship/sail/*.sail` compiled via the sail-compiler crate.
+        // `.ship/ship-set/*.set` compiled via the ship-set-compiler crate.
         // Public for the same reason: outputs are generated artifacts,
         // not user secrets, and pages need to load them without auth.
         .route(
-            "/_sail/components/{file}",
-            axum::routing::get(views::sail::serve_sail),
+            "/_ship-set/components/{file}",
+            axum::routing::get(views::ship_set::serve_ship_set),
         )
         .route(
-            "/_sail/hmr",
-            axum::routing::get(views::sail_hmr::serve_hmr),
+            "/_ship-set/hmr",
+            axum::routing::get(views::ship_set_hmr::serve_hmr),
         )
         .route(
-            "/_sail/hmr-client.js",
-            axum::routing::get(views::sail_hmr::serve_hmr_client_js),
+            "/_ship-set/hmr-client.js",
+            axum::routing::get(views::ship_set_hmr::serve_hmr_client_js),
         )
         .route(
-            "/_sail/runtime.js",
-            axum::routing::get(views::sail::serve_sail_runtime),
+            "/_ship-set/runtime.js",
+            axum::routing::get(views::ship_set::serve_ship_set_runtime),
         )
         .route(
-            "/sail/{tag}",
-            axum::routing::get(views::sail::serve_sail_page),
+            "/ship-set/{tag}",
+            axum::routing::get(views::ship_set::serve_ship_set_page),
         )
         .route(
-            "/_sail/data",
-            axum::routing::get(move |q: axum::extract::Query<views::sail_data::DataQuery>| {
-                views::sail_data::serve_data(axum::extract::State(sail_data_state.clone()), q)
+            "/_ship-set/data",
+            axum::routing::get(move |q: axum::extract::Query<views::ship_set_data::DataQuery>| {
+                views::ship_set_data::serve_data(axum::extract::State(ship_set_data_state.clone()), q)
             }),
-        )
-        .route(
-            "/_sail/demo",
-            axum::routing::get(views::sail::serve_sail_demo),
-        )
-        .route(
-            "/_sail/demo/sail",
-            axum::routing::get(views::sail::serve_sail_demo_sail),
-        )
-        .route(
-            "/_sail/demo/lit",
-            axum::routing::get(views::sail::serve_sail_demo_lit),
         );
 
     let auth_token = token;

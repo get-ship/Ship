@@ -141,11 +141,11 @@ export class ShipNavTop extends LitElement {
         ? html`<ship-button
               variant="ghost"
               size="sm"
-              id="dev-sail-agents"
-              title="Open /sail/ship-agents (set page, dev only)"
+              id="dev-ship-set-agents"
+              title="Open /ship-set/ship-agents (set page, dev only)"
               aria-label="Open set agents page"
               @click=${() => {
-                window.location.href = "/sail/ship-agents";
+                window.location.href = "/ship-set/ship-agents";
               }}
             >
               <ship-icon slot="leading" name="rocket"></ship-icon>

@@ -21,7 +21,7 @@ path = "src/main.rs"
 runtime = { path = "../../crates/core/runtime" }
 lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
-sail-compiler = { path = "../../crates/sail-compiler" }
+# TODO(Phase 4): ship-set-compiler will replace sail-compiler here once available.
 ship-jobs = { path = "../../crates/core/ship-jobs" }
 build-info = { path = "../../crates/core/build-info" }
 chrono = { workspace = true }

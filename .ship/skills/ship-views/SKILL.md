@@ -12,7 +12,7 @@ A Ship view is a server-rendered reactive HTML page that updates live via SSE, r
 
 **This is how you build extensions on Ship.**
 
-> **For SFC component-shaped views** (`.set` files under `packages/ship-set-sail/components/` or `.ship/sail/`, or `/sail/<tag>` route pages), use the `set-authoring` skill instead. That's a different framework — single-file components with `<script>` + `<template>` + `<style>` blocks, fine-grained signals, `data live` server-truth wiring, and platform-shaped event syntax. The two surfaces coexist; pick by the file extension you're editing (`.html.j2` → this skill, `.set` → `set-authoring`).
+> **For SFC component-shaped views** (`.set` files under `packages/ship-set/components/` or `.ship/ship-set/`, or `/ship-set/<tag>` route pages), use the `set-authoring` skill instead. That's a different framework — single-file components with `<script>` + `<template>` + `<style>` blocks, fine-grained signals, `data live` server-truth wiring, and platform-shaped event syntax. The two surfaces coexist; pick by the file extension you're editing (`.html.j2` → this skill, `.set` → `set-authoring`).
 
 ## Quick start — a minimal view in 30 seconds
 

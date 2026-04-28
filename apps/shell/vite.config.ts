@@ -176,12 +176,11 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/daemon/, ""),
         },
-        // Sail components + demo — daemon serves compiled .set files at
-        // /_sail/components/<tag>.{js,html,d.ts,json}, the side-by-side
-        // demo at /_sail/demo, HMR stream at /_sail/hmr, and the
-        // schema-source endpoint at /_sail/data. Listed BEFORE /_ship
-        // so the more-specific /_sail prefix wins the match.
-        "/_sail": {
+        // ship-set components — daemon serves compiled .set files at
+        // /_ship-set/components/<tag>.{js,html,d.ts,json}, HMR stream at
+        // /_ship-set/hmr, and the schema-source endpoint at /_ship-set/data.
+        // Listed BEFORE /_ship so the more-specific /_ship-set prefix wins.
+        "/_ship-set": {
           target: daemon,
           changeOrigin: true,
           configure: (proxy) => {
@@ -191,9 +190,9 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
-        // Top-level user-facing page route for full-page Sail views
-        // (GET /sail/<tag>). Distinct from /_sail/* (framework internals).
-        "/sail": {
+        // Top-level user-facing page route for full-page ship-set views
+        // (GET /ship-set/<tag>). Distinct from /_ship-set/* (framework internals).
+        "/ship-set": {
           target: daemon,
           changeOrigin: true,
           configure: (proxy) => {

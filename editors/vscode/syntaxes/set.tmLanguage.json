@@ -1,6 +1,6 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "Sail Set",
+  "name": "ship-set",
   "scopeName": "source.set",
   "fileTypes": ["set"],
   "patterns": [
@@ -33,7 +33,7 @@
       "name": "meta.embedded.block.set.script",
       "contentName": "source.js",
       "patterns": [
-        { "include": "#sail-script-keywords" },
+        { "include": "#ship-set-script-keywords" },
         { "include": "source.js" }
       ]
     },
@@ -84,18 +84,18 @@
       ]
     },
 
-    "sail-script-keywords": {
+    "ship-set-script-keywords": {
       "patterns": [
         {
-          "name": "keyword.declaration.sail.set",
+          "name": "keyword.declaration.ship-set.set",
           "match": "\\b(prop|state|derived|data|effect|event|mount|unmount|function|component|async|once)\\b"
         },
         {
-          "name": "keyword.control.sail.set",
+          "name": "keyword.control.ship-set.set",
           "match": "\\bon\\s+(form_reset|form_restore|form_disabled|form_associated)\\b"
         },
         {
-          "name": "keyword.control.sail.set",
+          "name": "keyword.control.ship-set.set",
           "match": "\\b(formAssociated)\\b"
         }
       ]

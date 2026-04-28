@@ -317,7 +317,7 @@ mod tests {
 const PRELUDE: &str = r#"/**
  * The runtime handle returned by every `ship.<domain>.<op>(...)` call.
  * Backed by the daemon's SSE patch protocol — see
- * `packages/sail-runtime/src/data.ts` for the canonical implementation
+ * `packages/ship-set-runtime/src/data.ts` for the canonical implementation
  * used by the `.set` compiler. TS-only consumers can import a runtime
  * implementation from `@ship/sdk/data` once it lands (phase 2).
  */

@@ -9,8 +9,8 @@ import {
 let client: LanguageClient | undefined;
 
 export async function activate(_context: ExtensionContext): Promise<void> {
-  const config = workspace.getConfiguration('sail');
-  const serverPath = config.get<string>('serverPath') ?? 'sail-lsp';
+  const config = workspace.getConfiguration('ship-set');
+  const serverPath = config.get<string>('serverPath') ?? 'ship-set-lsp';
 
   const serverOptions: ServerOptions = {
     run: { command: serverPath, transport: TransportKind.stdio },
@@ -22,18 +22,18 @@ export async function activate(_context: ExtensionContext): Promise<void> {
     synchronize: {
       fileEvents: workspace.createFileSystemWatcher('**/*.set'),
     },
-    outputChannel: window.createOutputChannel('Sail LSP'),
+    outputChannel: window.createOutputChannel('ship-set LSP'),
   };
 
-  client = new LanguageClient('sail-lsp', 'Sail LSP', serverOptions, clientOptions);
+  client = new LanguageClient('ship-set-lsp', 'ship-set LSP', serverOptions, clientOptions);
 
   try {
     await client.start();
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     window.showErrorMessage(
-      `Failed to start sail-lsp ("${serverPath}"). ` +
-        `Set "sail.serverPath" or install sail-lsp on PATH. ${message}`,
+      `Failed to start ship-set-lsp ("${serverPath}"). ` +
+        `Set "ship-set.serverPath" or install ship-set-lsp on PATH. ${message}`,
     );
   }
 }

@@ -1,8 +1,8 @@
 ---
 name: set-authoring
 stable-id: set-authoring
-description: Author single-file `.set` components and route pages — Ship's reactive web-component framework. Use this when creating or editing files under `packages/ship-set-sail/components/` or `.ship/sail/`, or when authoring a `/sail/<tag>` route page. Covers the consolidated directive surface (`<:host>`, `data` for live server signals, `prop`/`state`/`derived`, slot helpers, form lifecycle), injected scope, recipes, and active gotchas. Distinct from `ship-views` — that skill is for Jinja+Datastar `.html.j2` views; this one is for the SFC component framework.
-tags: [set, sail, components, sfc, reactive, ports, framework]
+description: Author single-file `.set` components and route pages — Ship's reactive web-component framework. Use this when creating or editing files under `packages/ship-set/components/` or `.ship/ship-set/`, or when authoring a `/ship-set/<tag>` route page. Covers the consolidated directive surface (`<:host>`, `data` for live server signals, `prop`/`state`/`derived`, slot helpers, form lifecycle), injected scope, recipes, and active gotchas. Distinct from `ship-views` — that skill is for Jinja+Datastar `.html.j2` views; this one is for the SFC component framework.
+tags: [set, ship-set, components, sfc, reactive, ports, framework]
 authors: [ship]
 ---
 
@@ -10,7 +10,7 @@ authors: [ship]
 
 A `.set` file is a single-file component (script + template + style) that compiles to a custom element. Authoring is HTML-shaped with Solid-style fine-grained reactivity and a server-truth wire model (`data X = ship.foo.bar()` + SSE patches).
 
-**Use this skill when:** opening or creating a file under `packages/ship-set-sail/components/`, `.ship/sail/`, or any `<tag>.set` file. For Jinja `.html.j2` views, use `ship-views` instead.
+**Use this skill when:** opening or creating a file under `packages/ship-set/components/`, `.ship/ship-set/`, or any `<tag>.set` file. For Jinja `.html.j2` views, use `ship-views` instead.
 
 ## First principles — the agent-one-shot filter
 
@@ -68,7 +68,7 @@ event NAME: T                     <!-- typed CustomEvent declaration -->
 | `prop X: T = default` | Typed component prop. Becomes attribute (kebab-cased). Read as `X()` in script, written as `X.set(v)`. |
 | `state X = default` | Local signal. Same access shape as prop. |
 | `derived X = expr` | Memoized — re-runs when read deps change. Auto-tracked. |
-| `data X = expr` | Server-sourced signal — implicitly **live**. SSE-subscribed via `/_sail/data?expr=...`. The expression is a server-side schema-source call (e.g. `ship.agents.summaries()`), NOT a JS expression. Initial value is `null`; first SSE patch delivers real data. **For a one-shot local seed, use `state X = expr`.** |
+| `data X = expr` | Server-sourced signal — implicitly **live**. SSE-subscribed via `/_ship-set/data?expr=...`. The expression is a server-side schema-source call (e.g. `ship.agents.summaries()`), NOT a JS expression. Initial value is `null`; first SSE patch delivers real data. **For a one-shot local seed, use `state X = expr`.** |
 | `let X [: T] = init` / `const X [: T] = init` | Module-level non-reactive variable. Plain JS — **not** a signal, no `X()` call needed. Emitted before reactive signals; initializers that reference a signal not yet declared are a runtime error (use `derived` instead). |
 | `function fn(…) { … }` | Plain JS in component scope. |
 | `mount { … }` | One-time setup. `el`, `internals`, `props` injected. |
@@ -107,8 +107,8 @@ event NAME: T                     <!-- typed CustomEvent declaration -->
 |---|---|
 | `on:click={fn}` | `onclick={fn}` |
 | `effect on X { … }` | `effect { … }` (auto-tracks) |
-| `<sail:window onkeydown={fn} />` | `mount { window.addEventListener('keydown', fn); cleanups.push(() => window.removeEventListener('keydown', fn)) }` |
-| `<sail:document>` | Same as `<sail:window>` |
+| `<ship-set:window onkeydown={fn} />` | `mount { window.addEventListener('keydown', fn); cleanups.push(() => window.removeEventListener('keydown', fn)) }` |
+| `<ship-set:document>` | Same as `<ship-set:window>` |
 | `attr?={expr}` (proposed) | Just `attr={expr}` — auto-omit on empty handles it |
 | `data live X = expr` | `data X = expr` (live is implicit; the legacy `live` keyword is rejected by the parser) |
 | `data X = expr` (static) | `state X = expr` for a one-shot local seed |
@@ -136,7 +136,7 @@ Each recipe links to a real exemplar. **Read the exemplar before authoring** —
 
 ### Page composition with live server data
 
-Exemplar: `packages/ship-set-sail/components/ship-agents.set` (~118 LOC + styles).
+Exemplar: `packages/ship-set/components/ship-agents.set` (~118 LOC + styles).
 
 ```html
 <script>
@@ -168,7 +168,7 @@ derived hasItems = total() > 0
 
 ### Form-associated component
 
-Exemplar: `packages/ship-set-sail/components/ship-input.set` (~106 LOC + styles).
+Exemplar: `packages/ship-set/components/ship-input.set` (~106 LOC + styles).
 
 ```html
 <script>
@@ -207,7 +207,7 @@ effect { syncFormValue() }
 
 ### ARIA-aware component (host attrs reactive)
 
-Exemplar: `packages/ship-set-sail/components/ship-list-tile.set` (~244 LOC).
+Exemplar: `packages/ship-set/components/ship-list-tile.set` (~244 LOC).
 
 ```html
 <script>
@@ -233,7 +233,7 @@ function onClick() { if (interactive()) dispatchSelect() }
 
 ### Slot with conditional fallback
 
-Exemplar: `packages/ship-set-sail/components/ship-icon.set`, `ship-empty-state.set`.
+Exemplar: `packages/ship-set/components/ship-icon.set`, `ship-empty-state.set`.
 
 ```html
 <script>
@@ -312,13 +312,13 @@ Top-level CSS comments between rules emit invalid prefixed selectors after host 
 ## Verification
 
 Before declaring a port done:
-- `pnpm -F @sail/ship-set test <name>` passes.
-- `cargo test -p sail-compiler --lib` still green.
-- `cargo run -p sail-cli -- check packages/ship-set-sail/components/<name>.set` exits 0 — required gate. `pnpm test` only sees compile *errors*; this checks the rule layer that catches listener leaks, bare-signal reads, redundant bind+oninput, unknown component props, and unknown `ship.*` data paths. Default `--severity error` gates on errors; pass `--severity warning` to also gate on warnings.
-- `.ship/sail/<name>.set` symlink exists (`ln -sf ../../packages/ship-set-sail/components/<name>.set .ship/sail/<name>.set`).
-- For pages: `cargo build -p shipd --features unstable` clean, then probe via Playwright or browser at `/sail/<tag>` — no console errors, no request failures.
+- `pnpm -F @ship-set/runtime test <name>` passes.
+- `TODO(Phase 4): cargo test -p ship-set-compiler --lib` still green.
+- `cargo run -p sail-cli -- check packages/ship-set/components/<name>.set` exits 0 — required gate. `pnpm test` only sees compile *errors*; this checks the rule layer that catches listener leaks, bare-signal reads, redundant bind+oninput, unknown component props, and unknown `ship.*` data paths. Default `--severity error` gates on errors; pass `--severity warning` to also gate on warnings.
+- `.ship/ship-set/<name>.set` symlink exists (`ln -sf ../../packages/ship-set/components/<name>.set .ship/ship-set/<name>.set`).
+- For pages: `cargo build -p shipd --features unstable` clean, then probe via Playwright or browser at `/ship-set/<tag>` — no console errors, no request failures.
 
-### `sail check` rule surface
+### ship-set-compiler check rule surface (TODO Phase 4)
 
 | Code | What it catches |
 |---|---|
@@ -332,13 +332,13 @@ Before declaring a port done:
 
 | Path | What |
 |---|---|
-| `packages/ship-set-sail/components/<name>.set` | Component + page sources |
-| `packages/ship-set-sail/test/<name>.test.ts` | Per-port jsdom tests |
-| `packages/ship-set-sail/test/helpers.ts` | `loadSailComponent` test infrastructure |
-| `.ship/sail/<name>.set` | Symlinks the daemon serves at `/_sail/components/<name>.js` |
-| `crates/sail-compiler/src/` | The Rust compiler |
-| `packages/sail-runtime/src/` | The TS runtime (signals, bindings, slot resolution, patch protocol) |
-| `apps/shipd/src/views/sail*.rs` | Daemon-side compile+serve, `data` resolver dispatch |
+| `packages/ship-set/components/<name>.set` | Component + page sources |
+| `packages/ship-set/test/<name>.test.ts` | Per-port jsdom tests |
+| `packages/ship-set/test/helpers.ts` | `loadSailComponent` test infrastructure |
+| `.ship/ship-set/<name>.set` | Symlinks the daemon serves at `/_sail/components/<name>.js` |
+| `crates/ship-set-compiler/src/` | The Rust compiler |
+| `packages/ship-set-runtime/src/` | The TS runtime (signals, bindings, slot resolution, patch protocol) |
+| `apps/shipd/src/views/ship_set*.rs` | Daemon-side compile+serve, `data` resolver dispatch |
 | `apps/shipd/src/services/registry.rs` | Service registry — every `data X = ship.<domain>.<op>()` resolves through here |
 | `.artifacts/set/ergonomics.md` | Running list of authoring frictions (gitignored, append-only) |
 | `.artifacts/set/gaps.md` | Running list of framework gaps (gitignored, append-only) |
