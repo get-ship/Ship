@@ -1,0 +1,146 @@
+==================
+host element with bindings
+==================
+
+<template>
+<:host role="status" aria-busy="true" aria-label={ariaLabel} />
+</template>
+
+---
+
+(source_file
+  (template_block
+    (template_open)
+    (text)
+    (host_element
+      (static_attr name: (attr_name) value: (string_literal))
+      (static_attr name: (attr_name) value: (string_literal))
+      (dynamic_attr
+        name: (attr_name)
+        value: (brace_expression (interpolation))))
+    (text)
+    (template_close)))
+
+==================
+control flow — if + for + else with key
+==================
+
+<template>
+{#if hasItems}
+  {#for item, i of items() key={item.id}}
+    <span class="row">{item.name}</span>
+  {/for}
+{:else}
+  <p>No items</p>
+{/if}
+</template>
+
+---
+
+(source_file
+  (template_block
+    (template_open)
+    (text)
+    (if_block
+      then: (text)
+      then: (for_block
+        item: (for_pattern
+          (identifier)
+          (identifier))
+        iter: (identifier)
+        key: (brace_expression (interpolation))
+        body: (text)
+        body: (element
+          open_tag: (tag_name)
+          (static_attr name: (attr_name) value: (string_literal))
+          (interpolation)
+          close_tag: (tag_name))
+        body: (text))
+      then: (text)
+      else: (else_clause
+        (text)
+        (element
+          open_tag: (tag_name)
+          (text)
+          close_tag: (tag_name))
+        (text)))
+    (text)
+    (template_close)))
+
+==================
+attribute forms — bind, on:, oninput, modifiers
+==================
+
+<template>
+<input
+  bind:value={value}
+  oninput={onInput}
+  on:keydown|preventDefault|key.Enter={save}
+  required
+/>
+</template>
+
+---
+
+(source_file
+  (template_block
+    (template_open)
+    (text)
+    (element
+      tag: (tag_name)
+      (bind_attr name: (attr_name) value: (brace_expression (interpolation)))
+      (event_attr
+        event_dom: (on_attr_name)
+        handler: (brace_expression (interpolation)))
+      (event_attr
+        event: (attr_name)
+        modifier: (event_modifier (identifier))
+        modifier: (event_modifier (identifier) (identifier))
+        handler: (brace_expression (interpolation)))
+      (boolean_attr (attr_name)))
+    (text)
+    (template_close)))
+
+==================
+HTML comment in template
+==================
+
+<template>
+<div>
+  <!-- this is a comment with <tags> inside -->
+  <p>Hi</p>
+</div>
+</template>
+
+---
+
+(source_file
+  (template_block
+    (template_open)
+    (text)
+    (element
+      open_tag: (tag_name)
+      (text)
+      (html_comment)
+      (text)
+      (element
+        open_tag: (tag_name)
+        (text)
+        close_tag: (tag_name))
+      (text)
+      close_tag: (tag_name))
+    (text)
+    (template_close)))
+
+==================
+external style block
+==================
+
+<style src="./ship-error-state.css"></style>
+
+---
+
+(source_file
+  (style_block
+    (style_open)
+    (style_close)))
