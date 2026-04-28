@@ -29,6 +29,12 @@ pub mod cleanup_pattern;
 pub mod prop_exists;
 pub mod r1_signal_call;
 pub mod r5_bind_oninput;
+pub mod redundant_aria_string;
+pub mod unused_derived;
+pub mod unused_state;
+mod walk;
+
+pub(crate) use walk::{collect_all_references, for_each_attr_expr, for_each_expr};
 
 /// Run every rule against `file`, pushing diagnostics into `diagnostics`.
 /// Rule order is fixed but doesn't matter for correctness.
@@ -38,6 +44,9 @@ pub fn analyze(file: &SailFile, diagnostics: &mut Vec<Diagnostic>) {
     r5_bind_oninput::analyze(file, diagnostics);
     prop_exists::analyze(file, diagnostics);
     cleanup_pattern::analyze(file, diagnostics);
+    unused_state::analyze(file, &symbols, diagnostics);
+    unused_derived::analyze(file, &symbols, diagnostics);
+    redundant_aria_string::analyze(file, &symbols, diagnostics);
 }
 
 /// Visit every text-interpolation expression in the template (`{expr}`
@@ -198,11 +207,20 @@ mod corpus_probe {
             for d in diags.iter().filter(|d| {
                 matches!(
                     d.code.as_str(),
-                    "SAIL/E0101" | "SAIL/E0105" | "SAIL/E0201" | "SAIL/E0501"
+                    "SAIL/E0101"
+                        | "SAIL/E0102"
+                        | "SAIL/E0103"
+                        | "SAIL/E0104"
+                        | "SAIL/E0105"
+                        | "SAIL/E0201"
+                        | "SAIL/E0501"
                 )
             }) {
                 let code: &'static str = match d.code.as_str() {
                     "SAIL/E0101" => "SAIL/E0101",
+                    "SAIL/E0102" => "SAIL/E0102",
+                    "SAIL/E0103" => "SAIL/E0103",
+                    "SAIL/E0104" => "SAIL/E0104",
                     "SAIL/E0105" => "SAIL/E0105",
                     "SAIL/E0201" => "SAIL/E0201",
                     "SAIL/E0501" => "SAIL/E0501",
