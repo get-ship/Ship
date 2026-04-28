@@ -1,0 +1,216 @@
+<script>
+// <ship-dialog> — modal/non-modal overlay backed by the native <dialog>.
+// Parity port of packages/ship-set/src/web-components/core/ship-dialog.ts.
+//
+// Open/close is driven by the [open] prop; show()/showModal()/close()
+// are exposed on the host for parity with the Lit class. Focus trap is
+// native to <dialog> in modal mode + sentinel bookends for cross-path
+// safety. Backdrop click closes when [dismissible]. Scroll lock is
+// reference-counted on document.body so nested dialogs don't double-lock.
+
+prop open: boolean = false
+prop modal: boolean = true
+prop size: 'sm' | 'md' | 'lg' | 'full' = 'md'
+prop backdrop: 'default' | 'blur' | 'solid' = 'default'
+prop dismissible: boolean = true
+prop noCloseButton: boolean = false
+prop noHeader: boolean = false
+prop noFooter: boolean = false
+prop roleOverride: 'dialog' | 'alertdialog' = 'dialog'
+
+state headerId = ''
+state bodyId = ''
+state savedFocus: HTMLElement | null = null
+state hasScrollLock = false
+// The reactive effect is set up before the compiler renders the template,
+// so getDialog() returns null on the initial run. mountReady flips to true
+// from mount{} (which runs after rendering) so the effect can do its work.
+state mountReady = false
+
+derived dataState = open() ? 'open' : 'closed'
+derived effectiveRole = roleOverride() || 'dialog'
+derived ariaModal = modal() ? 'true' : 'false'
+
+function focusableWithin(root) {
+  const sel = 'a[href],area[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),iframe,[contenteditable]:not([contenteditable="false"]),[tabindex]:not([tabindex^="-"])'
+  const nodes = Array.from(root.querySelectorAll(sel))
+  return nodes.filter(n => !n.hasAttribute('disabled') && n.getAttribute('aria-hidden') !== 'true')
+}
+
+function getDialog() { return el.querySelector('dialog') }
+
+function acquireScrollLock() {
+  if (typeof document === 'undefined') return
+  const body = document.body
+  const cur = parseInt(body.dataset.shipDialogLockCount || '0', 10) || 0
+  if (cur === 0) {
+    body.dataset.shipDialogSavedOverflow = body.style.overflow
+    body.dataset.shipDialogSavedPaddingRight = body.style.paddingRight
+    const scrollbarW = window.innerWidth - document.documentElement.clientWidth
+    if (scrollbarW > 0) {
+      const current = parseFloat(getComputedStyle(body).paddingRight || '0') || 0
+      body.style.paddingRight = `${current + scrollbarW}px`
+    }
+    body.style.overflow = 'hidden'
+  }
+  body.dataset.shipDialogLockCount = String(cur + 1)
+}
+
+function releaseScrollLock() {
+  if (typeof document === 'undefined') return
+  const body = document.body
+  const cur = parseInt(body.dataset.shipDialogLockCount || '0', 10) || 0
+  if (cur === 0) return
+  if (cur === 1) {
+    body.style.overflow = body.dataset.shipDialogSavedOverflow || ''
+    body.style.paddingRight = body.dataset.shipDialogSavedPaddingRight || ''
+    delete body.dataset.shipDialogSavedOverflow
+    delete body.dataset.shipDialogSavedPaddingRight
+    delete body.dataset.shipDialogLockCount
+  } else {
+    body.dataset.shipDialogLockCount = String(cur - 1)
+  }
+}
+
+function collectFocusables() {
+  const root = getDialog()
+  if (!root) return []
+  return focusableWithin(root).filter(e => !e.classList.contains('sentinel'))
+}
+
+function focusWithFallback(target) {
+  target.focus()
+  if (document.activeElement === document.body || document.activeElement === target) {
+    const leaf = (target.shadowRoot && target.shadowRoot.querySelector('button,input,select,textarea,[tabindex]:not([tabindex^="-"])'))
+      || target.querySelector('button,input,select,textarea,[tabindex]:not([tabindex^="-"])')
+    if (leaf) leaf.focus()
+  }
+}
+
+function focusInitial() {
+  const root = getDialog()
+  if (!root) return
+  const autofocus = el.querySelector('[autofocus]') || root.querySelector('[autofocus]')
+  if (autofocus) { autofocus.focus(); return }
+  const items = collectFocusables()
+  const primary = items.find(e => !e.classList.contains('close')) || items[0]
+  if (primary) primary.focus()
+  else if (typeof root.focus === 'function') root.focus()
+}
+
+function onClose() {
+  // Fired by <dialog> on Escape and on programmatic .close().
+  open.set(false)
+}
+
+function onBackdropClick(e) {
+  if (!dismissible()) return
+  if (e.target === getDialog()) open.set(false)
+}
+
+function onSentinelStartFocus() {
+  const items = collectFocusables()
+  if (items.length === 0) return
+  focusWithFallback(items[items.length - 1])
+}
+
+function onSentinelEndFocus() {
+  const items = collectFocusables()
+  if (items.length === 0) return
+  focusWithFallback(items[0])
+}
+
+function onDismiss() {
+  el.dispatchEvent(new CustomEvent('ship-dismiss', { bubbles: true, composed: true }))
+  open.set(false)
+}
+
+function show() { open.set(true) }
+function showModal() { open.set(true) }
+function close() { open.set(false) }
+
+mount {
+  const uid = Math.random().toString(36).slice(2, 9)
+  headerId.set(`ship-dialog-header-${uid}`)
+  bodyId.set(`ship-dialog-body-${uid}`)
+  // Imperative API parity with the Lit class. Tests + callers reach
+  // for el.show() / el.close() — patch them onto the host instance.
+  el.show = show
+  el.showModal = showModal
+  el.close = close
+  mountReady.set(true)
+  cleanups.push(() => {
+    if (hasScrollLock()) {
+      releaseScrollLock()
+      hasScrollLock.set(false)
+    }
+  })
+}
+
+effect {
+  if (!mountReady()) return
+  const o = open()
+  const dlg = getDialog()
+  if (!dlg) return
+  // hasScrollLock doubles as the "currently-shown" idempotency guard so
+  // re-runs triggered by the lock signal itself don't double-dispatch
+  // ship-open / ship-close.
+  if (o && !hasScrollLock()) {
+    savedFocus.set(document.activeElement instanceof HTMLElement ? document.activeElement : null)
+    const wantModal = modal()
+    if (wantModal && typeof dlg.showModal === 'function') {
+      try { dlg.showModal() } catch { /* jsdom / re-entry */ }
+    } else if (!wantModal && typeof dlg.show === 'function') {
+      try { dlg.show() } catch { /* jsdom */ }
+    }
+    acquireScrollLock()
+    hasScrollLock.set(true)
+    queueMicrotask(() => focusInitial())
+    el.dispatchEvent(new CustomEvent('ship-open', { bubbles: true, composed: true }))
+  } else if (!o && hasScrollLock()) {
+    if (dlg.open) {
+      try { dlg.close() } catch { /* jsdom */ }
+    }
+    releaseScrollLock()
+    hasScrollLock.set(false)
+    const saved = savedFocus()
+    if (saved && typeof saved.focus === 'function') saved.focus()
+    savedFocus.set(null)
+    el.dispatchEvent(new CustomEvent('ship-close', { bubbles: true, composed: true }))
+  }
+}
+</script>
+
+<template>
+<:host data-state={dataState} open={open} size={size} backdrop={backdrop} no-close-button={noCloseButton} no-header={noHeader} no-footer={noFooter} />
+<dialog
+  part="dialog"
+  role={effectiveRole}
+  aria-modal={ariaModal}
+  aria-labelledby={headerId}
+  aria-describedby={bodyId}
+  onclose={onClose}
+  onclick={onBackdropClick}
+>
+  <span tabindex="0" class="sentinel" aria-hidden="true" onfocus={onSentinelStartFocus}></span>
+  <div class="wrap">
+    <button class="close" part="close" type="button" aria-label="Close dialog" onclick={onDismiss}>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+        <path d="M3.5 3.5l9 9M12.5 3.5l-9 9"></path>
+      </svg>
+    </button>
+    <div class="header" part="header" id={headerId}>
+      <slot name="header"></slot>
+    </div>
+    <div class="body" part="body" id={bodyId}>
+      <slot></slot>
+    </div>
+    <div class="footer" part="footer">
+      <slot name="footer"></slot>
+    </div>
+  </div>
+  <span tabindex="0" class="sentinel" aria-hidden="true" onfocus={onSentinelEndFocus}></span>
+</dialog>
+</template>
+
+<style src="./ship-dialog.css"></style>
