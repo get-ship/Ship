@@ -5713,6 +5713,7 @@ dependencies = [
  "compiler",
  "regex",
  "runtime",
+ "sail-compiler",
  "serde",
  "serde_json",
  "ship-types",
