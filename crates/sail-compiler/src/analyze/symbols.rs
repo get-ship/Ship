@@ -18,6 +18,8 @@ pub enum SignalKind {
     Derived,
     /// `data X[: T] = ship.<domain>.<op>(args)` — server-truth signal.
     Data { ty: Option<String> },
+    /// `let/const/var X[: T] [= init]` — module-level non-reactive decl.
+    Module { kind: String, ty: Option<String> },
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -71,6 +73,12 @@ impl SymbolTable {
         for d in &script.data {
             signals.insert(d.name.clone(), SignalKind::Data { ty: d.ty.clone() });
         }
+        for m in &script.module_decls {
+            signals.insert(m.name.clone(), SignalKind::Module {
+                kind: m.kind.clone(),
+                ty: m.ty.clone(),
+            });
+        }
         let functions = script.functions.iter()
             .map(|f| (f.name.clone(), FunctionInfo { raw: f.raw.clone() }))
             .collect();
@@ -88,6 +96,20 @@ impl SymbolTable {
     /// Is the given identifier a reactive signal in this file?
     pub fn is_signal(&self, name: &str) -> bool {
         self.signals.contains_key(name)
+    }
+
+    /// Is the given identifier a reactive signal (prop/state/derived/data)
+    /// that must be called as `name()` to read its value? Returns false
+    /// for module-level `let`/`const`/`var` declarations, which are plain
+    /// JS variables and don't need the call syntax.
+    pub fn is_reactive_signal(&self, name: &str) -> bool {
+        matches!(
+            self.signals.get(name),
+            Some(SignalKind::Prop { .. })
+                | Some(SignalKind::State { .. })
+                | Some(SignalKind::Derived)
+                | Some(SignalKind::Data { .. })
+        )
     }
 
     /// Is the given identifier a top-level function?

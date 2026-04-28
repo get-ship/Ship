@@ -54,6 +54,7 @@ pub fn collect_known_names(script: Option<&ScriptBlock>) -> std::collections::Ha
     for d in &s.derived { out.insert(d.name.clone()); }
     for d in &s.data { out.insert(d.name.clone()); }
     for f in &s.functions { out.insert(f.name.clone()); }
+    for m in &s.module_decls { out.insert(m.name.clone()); }
     // Best-effort imports + top-level consts.
     for line in s.raw.lines() {
         let trimmed = line.trim();

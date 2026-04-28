@@ -31,7 +31,7 @@ pub fn analyze(file: &SailFile, symbols: &SymbolTable, diagnostics: &mut Vec<Dia
 fn check_expr(expr: &Expr, symbols: &SymbolTable, diagnostics: &mut Vec<Diagnostic>) {
     let mut already: std::collections::HashSet<String> = Default::default();
     for (name, follower) in extract_top_idents_with_followers(&expr.raw) {
-        if !symbols.is_signal(&name) { continue; }
+        if !symbols.is_reactive_signal(&name) { continue; }
         if matches!(follower, Some('(') | Some('.')) { continue; }
         if !already.insert(name.clone()) { continue; }
         diagnostics.push(Diagnostic {

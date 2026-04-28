@@ -18,8 +18,8 @@
 //! See `docs/sail/01-language-spec.md` § Script block.
 
 use super::ast::{
-    DataDecl, DerivedDecl, EffectDecl, EventDecl, FunctionDecl, PropDecl, ScriptBlock, SourceMap,
-    StateDecl,
+    DataDecl, DerivedDecl, EffectDecl, EventDecl, FunctionDecl, ModuleDecl, PropDecl, ScriptBlock,
+    SourceMap, StateDecl,
 };
 use crate::Span;
 
@@ -208,6 +208,15 @@ fn scan_inner(script: &mut ScriptBlock, source_map: Option<&SourceMap>) {
                             at_stmt_start = true;
                             continue;
                         }
+                    }
+                }
+                "let" | "const" | "var" => {
+                    if let Some((mut decl, next)) = parse_module_decl(&src, bytes, word, end) {
+                        decl.span = span_for(i, next);
+                        script.module_decls.push(decl);
+                        i = next;
+                        at_stmt_start = true;
+                        continue;
                     }
                 }
                 _ => {}
@@ -535,6 +544,45 @@ fn parse_function(src: &str, bytes: &[u8], start: usize) -> Option<(FunctionDecl
         FunctionDecl {
             name: name.to_string(),
             raw,
+            span: None,
+        },
+        i,
+    ))
+}
+
+fn parse_module_decl(
+    src: &str,
+    bytes: &[u8],
+    kind: &str,
+    start: usize,
+) -> Option<(ModuleDecl, usize)> {
+    let i = skip_inline_ws(bytes, start);
+    let (name, mut i) = read_word(bytes, i)?;
+    let mut ty: Option<String> = None;
+
+    i = skip_inline_ws(bytes, i);
+    if peek_byte(bytes, i) == Some(b':') {
+        i += 1;
+        let (t, end) = read_type_until(src, bytes, i, &[b'=', b';', b'\n']);
+        ty = Some(t.trim().to_string());
+        i = end;
+    }
+    i = skip_inline_ws(bytes, i);
+    let initializer = if peek_byte(bytes, i) == Some(b'=') {
+        i += 1;
+        let (expr, end) = read_expr_until_stmt_end(src, bytes, i);
+        i = end;
+        Some(expr.trim().to_string())
+    } else {
+        None
+    };
+
+    Some((
+        ModuleDecl {
+            kind: kind.to_string(),
+            name: name.to_string(),
+            ty,
+            initializer,
             span: None,
         },
         i,
@@ -879,6 +927,7 @@ mod tests {
             mount: None,
             unmount: None,
             functions: vec![],
+            module_decls: vec![],
             form_associated: false,
             form_lifecycle: vec![],
         };
@@ -1111,5 +1160,75 @@ mount { init() }
         let s = scan_str("import { x } from './x'\nconst y = 1\nstate z = y");
         assert_eq!(s.state.len(), 1);
         assert_eq!(s.state[0].name, "z");
+    }
+
+    // ── module_decls ─────────────────────────────────────────────────────
+
+    #[test]
+    fn module_decl_let_bare() {
+        let s = scan_str("let counter = 0");
+        assert_eq!(s.module_decls.len(), 1);
+        let m = &s.module_decls[0];
+        assert_eq!(m.kind, "let");
+        assert_eq!(m.name, "counter");
+        assert!(m.ty.is_none());
+        assert_eq!(m.initializer.as_deref(), Some("0"));
+    }
+
+    #[test]
+    fn module_decl_const_with_string() {
+        let s = scan_str("const PREFIX = 'ship-'");
+        assert_eq!(s.module_decls.len(), 1);
+        let m = &s.module_decls[0];
+        assert_eq!(m.kind, "const");
+        assert_eq!(m.name, "PREFIX");
+        assert_eq!(m.initializer.as_deref(), Some("'ship-'"));
+    }
+
+    #[test]
+    fn module_decl_var_empty() {
+        let s = scan_str("var Z = ''");
+        assert_eq!(s.module_decls.len(), 1);
+        let m = &s.module_decls[0];
+        assert_eq!(m.kind, "var");
+        assert_eq!(m.name, "Z");
+        assert_eq!(m.initializer.as_deref(), Some("''"));
+    }
+
+    #[test]
+    fn module_decl_with_type_annotation() {
+        let s = scan_str("let tid: number | null = null");
+        assert_eq!(s.module_decls.len(), 1);
+        let m = &s.module_decls[0];
+        assert_eq!(m.kind, "let");
+        assert_eq!(m.name, "tid");
+        assert_eq!(m.ty.as_deref(), Some("number | null"));
+        assert_eq!(m.initializer.as_deref(), Some("null"));
+    }
+
+    #[test]
+    fn module_decl_no_initializer() {
+        let s = scan_str("let tid: number | null");
+        assert_eq!(s.module_decls.len(), 1);
+        let m = &s.module_decls[0];
+        assert_eq!(m.name, "tid");
+        assert!(m.initializer.is_none());
+    }
+
+    #[test]
+    fn module_decl_alongside_state() {
+        let s = scan_str("const PI = 3.14\nstate count = 0");
+        assert_eq!(s.module_decls.len(), 1);
+        assert_eq!(s.state.len(), 1);
+        assert_eq!(s.module_decls[0].name, "PI");
+        assert_eq!(s.state[0].name, "count");
+    }
+
+    #[test]
+    fn module_decl_object_initializer() {
+        let s = scan_str("const SVGS = { a: '<svg/>', b: '<svg/>' }");
+        assert_eq!(s.module_decls.len(), 1);
+        assert!(s.module_decls[0].initializer.as_deref().unwrap().contains("SVGS") == false);
+        assert!(s.module_decls[0].initializer.is_some());
     }
 }

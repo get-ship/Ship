@@ -224,6 +224,7 @@ pub fn build_shell(source: &str, raw: RawBlocks) -> super::ast::SailFile {
             mount: None,
             unmount: None,
             functions: Vec::new(),
+            module_decls: Vec::new(),
             form_associated: false,
             form_lifecycle: Vec::new(),
         }),
