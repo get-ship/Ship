@@ -194,6 +194,7 @@ fn check_expr(
                 help: Some(
                     "did you forget a `state`/`derived`/`prop` declaration, or import?".into(),
                 ),
+                fix: None,
             });
         }
     }

@@ -21,7 +21,7 @@
 
 use crate::analyze::symbols::SymbolTable;
 use crate::parse::ast::{Expr, SailFile};
-use crate::{Diagnostic, Severity};
+use crate::{Diagnostic, DiagnosticFix, FixEdit, Severity};
 
 pub fn analyze(file: &SailFile, symbols: &SymbolTable, diagnostics: &mut Vec<Diagnostic>) {
     let Some(tpl) = file.template.as_ref() else { return };
@@ -34,6 +34,11 @@ fn check_expr(expr: &Expr, symbols: &SymbolTable, diagnostics: &mut Vec<Diagnost
         if !symbols.is_signal(&name) { continue; }
         if matches!(follower, Some('(') | Some('.')) { continue; }
         if !already.insert(name.clone()) { continue; }
+        let fixed = insert_signal_call(&expr.raw, &name);
+        let fix = expr.span.as_ref().map(|span| DiagnosticFix {
+            title: format!("add `()` to `{name}` call"),
+            edits: vec![FixEdit { range: span.clone(), replacement: fixed }],
+        });
         diagnostics.push(Diagnostic {
             severity: Severity::Error,
             code: "SAIL/E0101".to_string(),
@@ -42,6 +47,7 @@ fn check_expr(expr: &Expr, symbols: &SymbolTable, diagnostics: &mut Vec<Diagnost
             help: Some(format!(
                 "signal '{name}' must be called as '{name}()' to read the value reactively"
             )),
+            fix,
         });
     }
 }
@@ -89,6 +95,36 @@ fn extract_top_idents_with_followers(expr: &str) -> Vec<(String, Option<char>)> 
         i += 1;
     }
     out
+}
+
+/// Replace bare occurrences of `name` with `name()` in a JS expression.
+/// "Bare" means: not preceded by `.`, not followed by `(` or an
+/// identifier character. Handles the case where the same signal appears
+/// multiple times in one expression (all occurrences are fixed).
+fn insert_signal_call(expr: &str, name: &str) -> String {
+    let name_bytes = name.as_bytes();
+    let bytes = expr.as_bytes();
+    let mut result = String::with_capacity(expr.len() + 2);
+    let mut i = 0;
+    while i < bytes.len() {
+        let remaining = bytes.len() - i;
+        if remaining >= name_bytes.len() && &bytes[i..i + name_bytes.len()] == name_bytes {
+            let end = i + name_bytes.len();
+            let preceded_by_dot = i > 0 && bytes[i - 1] == b'.';
+            let next = bytes.get(end).copied();
+            let next_is_ident = matches!(next, Some(c) if c.is_ascii_alphanumeric() || c == b'_');
+            let next_is_call = next == Some(b'(');
+            if !preceded_by_dot && !next_is_ident && !next_is_call {
+                result.push_str(name);
+                result.push_str("()");
+                i = end;
+                continue;
+            }
+        }
+        result.push(bytes[i] as char);
+        i += 1;
+    }
+    result
 }
 
 #[cfg(test)]
@@ -176,5 +212,47 @@ mod tests {
         assert_eq!(span.line, 4, "{:?}", span);
         assert_eq!(span.col, 18, "{:?}", span);
         assert!(span.end_col > span.col, "{:?}", span);
+    }
+
+    #[test]
+    fn fix_is_present_and_inserts_call() {
+        let d = run("<script>state count = 0</script><template>{count}</template>");
+        let w = warns(&d);
+        assert_eq!(w.len(), 1);
+        let fix = w[0].fix.as_ref().expect("fix should be present for E0101");
+        assert!(fix.title.contains("count"), "title: {}", fix.title);
+        assert_eq!(fix.edits.len(), 1);
+        assert_eq!(fix.edits[0].replacement, "count()");
+    }
+
+    #[test]
+    fn fix_range_matches_span() {
+        let src = "<script>\nstate count = 0\n</script>\n<template><span>{count}</span></template>";
+        let d = run(src);
+        let w = warns(&d);
+        assert_eq!(w.len(), 1);
+        let span = w[0].span.as_ref().expect("span on diagnostic");
+        let fix = w[0].fix.as_ref().expect("fix on diagnostic");
+        let fix_range = &fix.edits[0].range;
+        assert_eq!(fix_range.line, span.line, "fix range line matches span");
+        assert_eq!(fix_range.col, span.col, "fix range col matches span");
+    }
+
+    #[test]
+    fn fix_corrects_arithmetic_expression() {
+        let d = run("<script>state count = 0</script><template>{count + 1}</template>");
+        let w = warns(&d);
+        assert_eq!(w.len(), 1);
+        let fix = w[0].fix.as_ref().expect("fix present");
+        assert_eq!(fix.edits[0].replacement, "count() + 1");
+    }
+
+    #[test]
+    fn insert_signal_call_replaces_bare_ident() {
+        assert_eq!(insert_signal_call("count", "count"), "count()");
+        assert_eq!(insert_signal_call("count + 1", "count"), "count() + 1");
+        assert_eq!(insert_signal_call("count.set(0)", "count"), "count.set(0)");
+        assert_eq!(insert_signal_call("count()", "count"), "count()");
+        assert_eq!(insert_signal_call("notcount", "count"), "notcount");
     }
 }

@@ -21,7 +21,7 @@
 
 use crate::analyze::symbols::SymbolTable;
 use crate::parse::ast::SailFile;
-use crate::{Diagnostic, Severity};
+use crate::{Diagnostic, DiagnosticFix, FixEdit, Severity};
 
 pub fn analyze(file: &SailFile, _symbols: &SymbolTable, diagnostics: &mut Vec<Diagnostic>) {
     let Some(script) = file.script.as_ref() else { return };
@@ -31,15 +31,20 @@ pub fn analyze(file: &SailFile, _symbols: &SymbolTable, diagnostics: &mut Vec<Di
 
     for s in &script.state {
         if referenced.contains(&s.name) { continue; }
+        let fix = s.span.as_ref().map(|span| DiagnosticFix {
+            title: format!("remove unused `state {}`", s.name),
+            edits: vec![FixEdit { range: span.clone(), replacement: String::new() }],
+        });
         diagnostics.push(Diagnostic {
             severity: Severity::Error,
             code: "SAIL/E0102".to_string(),
             message: format!("state `{}` declared but never read", s.name),
-            span: None,
+            span: s.span.clone(),
             help: Some(format!(
                 "remove `state {0} = …` or read it via `{0}()` in a template, derived, effect, or function body",
                 s.name
             )),
+            fix,
         });
     }
 }
@@ -138,5 +143,29 @@ mod tests {
     fn no_state_no_diagnostics() {
         let d = run("<script>\nprop label = ''\n</script><template>{label}</template>");
         assert!(errs(&d).is_empty(), "got {d:?}");
+    }
+
+    #[test]
+    fn fix_is_present_with_delete_edit() {
+        let d = run("<script>state count = 0</script><template>x</template>");
+        let e = errs(&d);
+        assert_eq!(e.len(), 1);
+        let fix = e[0].fix.as_ref().expect("fix should be present for E0102");
+        assert!(fix.title.contains("count"), "title: {}", fix.title);
+        assert_eq!(fix.edits.len(), 1);
+        assert_eq!(fix.edits[0].replacement, "", "replacement should be empty (delete)");
+    }
+
+    #[test]
+    fn fix_range_matches_diagnostic_span() {
+        let src = "<script>\nstate count = 0\n</script><template>x</template>";
+        let d = run(src);
+        let e = errs(&d);
+        assert_eq!(e.len(), 1);
+        let diag_span = e[0].span.as_ref().expect("span on diagnostic");
+        let fix = e[0].fix.as_ref().expect("fix on diagnostic");
+        let fix_range = &fix.edits[0].range;
+        assert_eq!(fix_range.line, diag_span.line, "fix range line matches span");
+        assert_eq!(fix_range.col, diag_span.col, "fix range col matches span");
     }
 }
