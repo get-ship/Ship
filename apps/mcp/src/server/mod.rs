@@ -105,7 +105,8 @@ impl ShipServer {
     }
 
     async fn get_effective_project_dir(&self) -> Result<PathBuf, String> {
-        project::get_effective_project_dir(&self.active_project).await
+        let actor_id = self.resolve_actor_id().await;
+        project::get_effective_project_dir(&actor_id, &self.active_project).await
     }
 
     pub async fn store_peer(&self, peer: Peer<RoleServer>) {

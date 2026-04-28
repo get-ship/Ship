@@ -45,9 +45,26 @@ pub async fn open_project(
 }
 
 /// Resolve the effective project directory (parent of `.ship/`).
+///
+/// `actor_id` is the bridge-resolved actor for this MCP connection
+/// (see `ShipServer::resolve_actor_id`). When set and the actor has a
+/// `project_id`, that's the source of truth — per-actor scope replaces
+/// the legacy `active_project` singleton. Falls back to the singleton
+/// + cwd + global + single-registered chain for connections without an
+/// associated actor (external IDE clients etc).
 pub async fn get_effective_project_dir(
+    actor_id: &str,
     active_project: &Arc<Mutex<Option<PathBuf>>>,
 ) -> Result<PathBuf, String> {
+    if !actor_id.is_empty()
+        && let Ok(Some(actor)) = runtime::projections::actor::get_actor(actor_id)
+        && let Some(project_id) = actor.project_id.as_deref()
+        && let Ok(Some(project)) = runtime::projects::get(project_id)
+        && let Ok(dir) = get_project_dir(Some(PathBuf::from(&project.path)))
+    {
+        return Ok(resolve_project_root(dir));
+    }
+
     {
         let active = active_project.lock().await;
         if let Some(ref path) = *active {
@@ -76,7 +93,7 @@ pub async fn get_effective_project_dir(
         .map(resolve_project_root)
         .map_err(|e| {
             format!(
-                "No active project and auto-detection failed: {}. Checked process cwd, global active project, and registered projects.",
+                "No active project and auto-detection failed: {}. Checked actor scope, process cwd, global active project, and registered projects.",
                 e
             )
         })
