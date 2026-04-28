@@ -1,0 +1,119 @@
+<script>
+// <ship-accordion> — disclosable list of sections. Children are
+// <ship-accordion-item> elements; this parent coordinates which are
+// open and handles keyboard focus traversal.
+//
+// Attributes:
+//   type   — 'single' | 'multiple' (default 'single').
+//            single: at most one item open at a time.
+//            multiple: any subset of items can be open.
+//   value  — comma-separated list of open item values. Reflected to
+//            attribute on user toggle.
+//
+// Events:
+//   ship-change — CustomEvent { detail: { value: string } }, bubbles,
+//                 composed. value is the post-toggle value attribute
+//                 (single id, comma-list, or '').
+//
+// Internal events listened to (bubbled from items):
+//   ship-accordion-item-toggle — toggle the named item.
+//   ship-accordion-nav         — focus next/prev/first/last enabled item.
+
+prop type: string = 'single'
+prop value: string = ''
+
+function getItems() {
+  // Slot fills are reparented during slot resolution; query the whole
+  // subtree and filter to items whose nearest accordion is this one
+  // (handles nested accordions correctly).
+  return Array.from(el.querySelectorAll('ship-accordion-item'))
+    .filter(i => i.closest('ship-accordion') === el)
+}
+
+function getEnabled() {
+  return getItems().filter(i => !i.hasAttribute('disabled'))
+}
+
+function getOpenSet() {
+  const v = value()
+  return new Set(v ? v.split(',').filter(Boolean) : [])
+}
+
+function applyValue(next) {
+  const v = Array.from(next).join(',')
+  value.set(v)
+  if (v) el.setAttribute('value', v)
+  else el.removeAttribute('value')
+  syncItems()
+  el.dispatchEvent(new CustomEvent('ship-change', {
+    detail: { value: v },
+    bubbles: true,
+    composed: true,
+  }))
+}
+
+function onItemToggle(e) {
+  e.stopPropagation()
+  const itemVal = e.detail.value
+  const open = getOpenSet()
+  if (type() === 'single') {
+    if (open.has(itemVal)) applyValue(new Set())
+    else applyValue(new Set([itemVal]))
+  } else {
+    if (open.has(itemVal)) open.delete(itemVal)
+    else open.add(itemVal)
+    applyValue(open)
+  }
+}
+
+function onItemNav(e) {
+  e.stopPropagation()
+  const enabled = getEnabled()
+  if (!enabled.length) return
+  const cur = e.target.closest('ship-accordion-item')
+  const idx = cur ? enabled.indexOf(cur) : -1
+  let target
+  switch (e.detail.direction) {
+    case 'next':  target = enabled[(idx + 1) % enabled.length]; break
+    case 'prev':  target = enabled[(idx - 1 + enabled.length) % enabled.length]; break
+    case 'first': target = enabled[0]; break
+    case 'last':  target = enabled[enabled.length - 1]; break
+  }
+  const btn = target && target.querySelector('button.trigger')
+  if (btn) btn.focus()
+}
+
+function syncItems() {
+  const open = getOpenSet()
+  for (const item of getItems()) {
+    const itemVal = item.getAttribute('value') || ''
+    if (open.has(itemVal)) item.setAttribute('open', '')
+    else item.removeAttribute('open')
+  }
+}
+
+mount {
+  el.addEventListener('ship-accordion-item-toggle', onItemToggle)
+  el.addEventListener('ship-accordion-nav', onItemNav)
+}
+
+effect {
+  // Re-runs on value() changes — touches getOpenSet() which reads
+  // value(). Also runs once at mount, syncing the initial value
+  // attribute to children.
+  syncItems()
+}
+</script>
+
+<template>
+<slot></slot>
+</template>
+
+<style>
+:host {
+  display: block;
+  font-family: var(--font-body);
+  color: var(--foreground);
+}
+:host([hidden]) { display: none; }
+</style>

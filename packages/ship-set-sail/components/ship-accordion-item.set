@@ -1,0 +1,181 @@
+<script>
+// <ship-accordion-item> — single section of a <ship-accordion>. Renders
+// a trigger button + collapsible content region. The host's [open]
+// attribute is managed by the parent accordion; this component reacts
+// to it via the open prop (CSS uses :host([open]) for chevron rotation
+// and content-wrap height transition).
+//
+// Attributes (host):
+//   value     — string; unique identifier, required.
+//   disabled  — boolean; trigger is non-interactive when set.
+//   open      — boolean; managed by parent accordion.
+//
+// Slots:
+//   trigger   — header content rendered inside the button.
+//   (default) — body content shown when open.
+//
+// Events (bubbling, internal — used by parent <ship-accordion>):
+//   ship-accordion-item-toggle — { value }
+//   ship-accordion-nav         — { direction: 'next'|'prev'|'first'|'last' }
+
+prop value: string = ''
+prop disabled: boolean = false
+prop open: boolean = false
+
+state triggerId = ''
+state contentId = ''
+
+derived ariaExpanded = open() ? 'true' : 'false'
+
+function emitToggle() {
+  if (disabled()) return
+  el.dispatchEvent(new CustomEvent('ship-accordion-item-toggle', {
+    detail: { value: value() },
+    bubbles: true,
+    composed: true,
+  }))
+}
+
+function onKeydown(e) {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault()
+    el.dispatchEvent(new CustomEvent('ship-accordion-nav', {
+      detail: { direction: e.key === 'ArrowDown' ? 'next' : 'prev' },
+      bubbles: true, composed: true,
+    }))
+  } else if (e.key === 'Home' || e.key === 'End') {
+    e.preventDefault()
+    el.dispatchEvent(new CustomEvent('ship-accordion-nav', {
+      detail: { direction: e.key === 'Home' ? 'first' : 'last' },
+      bubbles: true, composed: true,
+    }))
+  }
+}
+
+mount {
+  // Per-instance unique IDs for aria-controls / aria-labelledby.
+  // Module-level counters aren't emitted by the compiler yet, so we
+  // derive from a random suffix stable for the component's lifetime.
+  const uid = Math.random().toString(36).slice(2, 9)
+  triggerId.set(`ship-acc-trigger-${uid}`)
+  contentId.set(`ship-acc-content-${uid}`)
+}
+</script>
+
+<template>
+<button
+  class="trigger"
+  part="trigger"
+  type="button"
+  id={triggerId}
+  aria-expanded={ariaExpanded}
+  aria-controls={contentId}
+  disabled={disabled}
+  onclick={emitToggle}
+  onkeydown={onKeydown}
+>
+  <slot name="trigger"></slot>
+  <svg class="chevron" part="chevron" viewBox="0 0 16 16" fill="none"
+    stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+    stroke-linejoin="round" aria-hidden="true">
+    <path d="M4 6l4 4 4-4"></path>
+  </svg>
+</button>
+<div class="content-wrap" part="content"
+  id={contentId}
+  role="region"
+  aria-labelledby={triggerId}
+>
+  <div class="content-inner">
+    <div class="content-body">
+      <slot></slot>
+    </div>
+  </div>
+</div>
+</template>
+
+<style>
+:host {
+  display: block;
+  border-bottom: 1px solid var(--border);
+}
+:host([hidden]) { display: none; }
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: var(--space-4) 0;
+  background: none;
+  border: none;
+  font: inherit;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--foreground);
+  cursor: pointer;
+  text-align: left;
+  line-height: var(--leading-normal);
+  transition: color var(--duration-fast) var(--ease-out);
+}
+.trigger:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.trigger:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 var(--ring-offset) var(--background),
+    0 0 0 calc(var(--ring-offset) + var(--ring-width))
+      color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+  border-radius: var(--radius-sm);
+}
+@media (forced-colors: active) {
+  .trigger:focus-visible {
+    outline: 2px solid CanvasText;
+    outline-offset: 2px;
+  }
+}
+
+:host([disabled]) .trigger {
+  cursor: not-allowed;
+  color: var(--muted-foreground);
+}
+:host([disabled]) .trigger:hover {
+  text-decoration: none;
+}
+
+.chevron {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--muted-foreground);
+  transition: transform var(--duration-medium) var(--ease-out);
+}
+:host([open]) .chevron {
+  transform: rotate(180deg);
+}
+
+.content-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--duration-medium) var(--ease-out);
+}
+:host([open]) .content-wrap {
+  grid-template-rows: 1fr;
+}
+.content-inner {
+  overflow: hidden;
+}
+.content-body {
+  padding-bottom: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  line-height: var(--leading-relaxed);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron, .content-wrap { transition: none; }
+}
+</style>
