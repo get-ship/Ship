@@ -24,7 +24,8 @@
 //! emit shape.
 
 use crate::parse::ast::{
-    Attr, AttrValue, EventModifier, Expr, Node, Pattern, ScriptBlock, SailFile, Template,
+    Attr, AttrValue, EventModifier, Expr, ModuleDecl, Node, Pattern, ScriptBlock, SailFile,
+    Template,
 };
 
 /// Emit the JS module source for a parsed Sail file. `tag` is the
@@ -816,6 +817,17 @@ impl<'a> Emitter<'a> {
         out.push_str("  const cleanups = []\n");
 
         if let Some(s) = script {
+            // Module-level let/const/var declarations — emitted verbatim
+            // before reactive signals so functions and effects can reference
+            // them. Initializers that reference signals forward-declare are
+            // a runtime error; authors who need a reactive initializer
+            // should use `derived` instead.
+            for md in &s.module_decls {
+                out.push_str(&emit_module_decl(md));
+            }
+        }
+
+        if let Some(s) = script {
             // Props: seed each signal from the current attribute (if
             // present) so values set BEFORE connection survive. The
             // browser fires attributeChangedCallback during upgrade
@@ -1291,6 +1303,17 @@ fn is_ident_byte(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
 }
 
+fn emit_module_decl(md: &ModuleDecl) -> String {
+    // Type annotations are stripped here (verbatim TS is unsupported at
+    // module-decl emit time — the runtime is JS). The initializer is
+    // emitted verbatim; it is the author's responsibility to ensure any
+    // signal references have been declared already.
+    match &md.initializer {
+        Some(init) => format!("  {} {} = {}\n", md.kind, md.name, init),
+        None => format!("  {} {}\n", md.kind, md.name),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1763,5 +1786,45 @@ function inc() { count.set(count() + 1) }
         assert!(!expr_references("counter + 1", "count"));
         assert!(!expr_references("'count is 1'", "count"));
         assert!(expr_references("doIt(count)", "count"));
+    }
+
+    // ── module_decl emit ─────────────────────────────────────────────────
+
+    #[test]
+    fn module_decl_emits_before_signals() {
+        // `const ID = ...` must appear before `signal(...)` wiring in the
+        // factory closure so functions/effects can reference the constant.
+        let js = compile(
+            "<script>\nconst ID = Math.random().toString(36).slice(2, 9)\nstate count = 0\n</script>\n<template><span>{count}</span></template>",
+        );
+        let id_pos = js.find("const ID = Math.random()").expect("module decl emitted");
+        let signal_pos = js.find("const count = signal(0)").expect("state emitted");
+        assert!(
+            id_pos < signal_pos,
+            "module decl must come before signal declarations"
+        );
+    }
+
+    #[test]
+    fn module_decl_let_emitted_verbatim() {
+        let js = compile(
+            "<script>\nlet tid: number | null = null\nstate count = 0\n</script>\n<template><span>{count}</span></template>",
+        );
+        // Type annotation stripped; only `let tid = null` lands in JS.
+        assert!(js.contains("let tid = null"), "let decl emitted: {js}");
+        // NOT emitted as a signal.
+        assert!(!js.contains("signal(null)") || js.contains("signal(0)"));
+    }
+
+    #[test]
+    fn const_decl_not_wrapped_as_reactive_in_template() {
+        // `const PI = 3.14` is a plain variable; `{PI}` in the template
+        // should NOT become `PI()` in the binding (it's not a signal).
+        let js = compile(
+            "<script>\nconst PI = 3.14\n</script>\n<template><span>{PI}</span></template>",
+        );
+        assert!(js.contains("const PI = 3.14"), "const decl present");
+        // bindText lambda references `PI` without call parens.
+        assert!(js.contains("String(PI)"), "PI not wrapped as PI()");
     }
 }

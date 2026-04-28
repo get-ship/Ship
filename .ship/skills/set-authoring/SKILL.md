@@ -69,6 +69,7 @@ event NAME: T                     <!-- typed CustomEvent declaration -->
 | `state X = default` | Local signal. Same access shape as prop. |
 | `derived X = expr` | Memoized — re-runs when read deps change. Auto-tracked. |
 | `data X = expr` | Server-sourced signal — implicitly **live**. SSE-subscribed via `/_sail/data?expr=...`. The expression is a server-side schema-source call (e.g. `ship.agents.summaries()`), NOT a JS expression. Initial value is `null`; first SSE patch delivers real data. **For a one-shot local seed, use `state X = expr`.** |
+| `let X [: T] = init` / `const X [: T] = init` | Module-level non-reactive variable. Plain JS — **not** a signal, no `X()` call needed. Emitted before reactive signals; initializers that reference a signal not yet declared are a runtime error (use `derived` instead). |
 | `function fn(…) { … }` | Plain JS in component scope. |
 | `mount { … }` | One-time setup. `el`, `internals`, `props` injected. |
 | `effect { … }` | Runs on every reactive read inside the body. Auto-tracked — do NOT use `effect on X { … }`. |

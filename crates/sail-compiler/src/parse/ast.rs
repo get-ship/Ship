@@ -66,6 +66,16 @@ impl SourceMap {
 }
 
 #[derive(Debug, Clone)]
+pub struct ModuleDecl {
+    /// `let`, `const`, or `var`
+    pub kind: String,
+    pub name: String,
+    pub ty: Option<String>,
+    pub initializer: Option<String>,
+    pub span: Option<Span>,
+}
+
+#[derive(Debug, Clone)]
 pub struct ScriptBlock {
     pub lang: ScriptLang,
     pub raw: String,                       // verbatim, for type-stripping
@@ -83,6 +93,7 @@ pub struct ScriptBlock {
     pub mount: Option<String>,
     pub unmount: Option<String>,
     pub functions: Vec<FunctionDecl>,
+    pub module_decls: Vec<ModuleDecl>,
     /// `component formAssociated` declaration. When true, the emitted
     /// custom element class declares `static formAssociated = true`,
     /// the runtime calls `attachInternals()` at construction, and the

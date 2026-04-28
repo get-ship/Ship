@@ -160,5 +160,13 @@ pub(crate) fn collect_all_references(file: &SailFile) -> HashSet<String> {
     for h in &script.form_lifecycle {
         for n in extract_idents(&h.body) { out.insert(n); }
     }
+    for md in &script.module_decls {
+        if let Some(init) = &md.initializer {
+            for n in extract_idents(init) {
+                if n != md.name { out.insert(n); }
+            }
+        }
+        out.insert(md.name.clone());
+    }
     out
 }

@@ -66,7 +66,7 @@ fn is_boolean_signal(name: &str, symbols: &SymbolTable, script: &ScriptBlock) ->
             let Some(s) = script.state.iter().find(|s| s.name == name) else { return false };
             matches!(s.initial.trim(), "true" | "false")
         }
-        Some(SignalKind::Derived) | None => false,
+        Some(SignalKind::Derived) | Some(SignalKind::Module { .. }) | None => false,
     }
 }
 
