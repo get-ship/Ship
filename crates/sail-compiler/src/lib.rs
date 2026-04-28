@@ -106,6 +106,7 @@ fn compile_source_inner(
     let mut diagnostics: Vec<Diagnostic> = Vec::new();
     analyze::reactivity::analyze(&file, &mut diagnostics);
     analyze::tokens::analyze(&file, opts.tokens.as_ref(), &mut diagnostics);
+    analyze::data_paths::analyze(&file, &mut diagnostics);
     let (js, _html) = emit::runtime::emit_with_html(&file, tag);
     let ssr = emit::ssr::emit(&file, tag);
     let dts = emit::types::emit(&file, tag);

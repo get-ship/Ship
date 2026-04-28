@@ -12,6 +12,7 @@ pub mod types;
 pub mod reactivity;
 pub mod deps;
 pub mod tokens;
+pub mod data_paths;
 
 use crate::parse::ast::SailFile;
 use crate::Diagnostic;
