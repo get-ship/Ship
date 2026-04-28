@@ -1,0 +1,13 @@
+<script>
+prop value: string = ''
+prop icon: string = ''
+prop disabled: boolean = false
+</script>
+
+<template>
+<slot></slot>
+</template>
+
+<style>
+:host { display: none; }
+</style>
