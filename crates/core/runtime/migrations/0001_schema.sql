@@ -161,27 +161,6 @@ BEGIN
   UPDATE actors SET last_event_at = NEW.created_at WHERE id = NEW.target_actor_id;
 END;
 
--- ═══════════════════════════════════════════════════════════════════
--- Workflow layer — opinionated planning
--- ═══════════════════════════════════════════════════════════════════
-
-CREATE TABLE IF NOT EXISTS jobs (
-  id            TEXT PRIMARY KEY,
-  kind          TEXT NOT NULL,
-  status        TEXT NOT NULL DEFAULT 'pending',
-  branch        TEXT,
-  payload_json  TEXT NOT NULL DEFAULT '{}',
-  created_by    TEXT,
-  claimed_by    TEXT,
-  touched_files TEXT NOT NULL DEFAULT '[]',
-  assigned_to   TEXT,
-  priority      INTEGER NOT NULL DEFAULT 0,
-  blocked_by    TEXT,
-  file_scope    TEXT NOT NULL DEFAULT '[]',
-  capability_id TEXT,
-  created_at    TEXT NOT NULL,
-  updated_at    TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS jobs_status_idx ON jobs(status, created_at DESC);
-CREATE INDEX IF NOT EXISTS jobs_branch_idx ON jobs(branch, status);
-CREATE INDEX IF NOT EXISTS idx_jobs_assigned ON jobs(assigned_to, status);
+-- Job state lives entirely in the event log. `runtime::projections::job::
+-- load_jobs()` folds `job.*` / `step.*` events into JobRecords on demand;
+-- there is no `jobs` projection table.
