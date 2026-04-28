@@ -18,13 +18,33 @@
 //! See `docs/sail/01-language-spec.md` § Script block.
 
 use super::ast::{
-    DataDecl, DerivedDecl, EffectDecl, EventDecl, FunctionDecl, PropDecl, ScriptBlock, StateDecl,
+    DataDecl, DerivedDecl, EffectDecl, EventDecl, FunctionDecl, PropDecl, ScriptBlock, SourceMap,
+    StateDecl,
 };
+use crate::Span;
 
 /// Mutate `script` in place: scan `script.raw` for keyword forms and
-/// populate the typed declaration vectors.
+/// populate the typed declaration vectors. **Does not populate spans.**
+/// Used by the LSP's permissive completion path which doesn't need
+/// position info but does need the symbol table; wraps
+/// [`scan_with_spans`] with a no-op source map.
 pub fn scan(script: &mut ScriptBlock) {
+    scan_inner(script, None);
+}
+
+/// Like [`scan`], but populates `Span` on each declaration relative to
+/// `source_map`. Uses `script.body_byte_offset` to lift body-relative
+/// offsets back to absolute source positions before resolving line/col.
+pub fn scan_with_spans(script: &mut ScriptBlock, source_map: &SourceMap) {
+    scan_inner(script, Some(source_map));
+}
+
+fn scan_inner(script: &mut ScriptBlock, source_map: Option<&SourceMap>) {
     let src = script.raw.clone();
+    let body_offset = script.body_byte_offset;
+    let span_for = |start: usize, end: usize| -> Option<Span> {
+        source_map.map(|m| m.span(body_offset + start, body_offset + end))
+    };
     let bytes = src.as_bytes();
     let len = bytes.len();
     let mut i = 0usize;
@@ -85,7 +105,8 @@ pub fn scan(script: &mut ScriptBlock) {
         if let Some((word, end)) = read_word(bytes, i) {
             match word {
                 "prop" => {
-                    if let Some((decl, next)) = parse_prop(&src, bytes, end) {
+                    if let Some((mut decl, next)) = parse_prop(&src, bytes, end) {
+                        decl.span = span_for(i, next);
                         script.props.push(decl);
                         i = next;
                         at_stmt_start = true;
@@ -93,7 +114,8 @@ pub fn scan(script: &mut ScriptBlock) {
                     }
                 }
                 "state" => {
-                    if let Some((decl, next)) = parse_state(&src, bytes, end) {
+                    if let Some((mut decl, next)) = parse_state(&src, bytes, end) {
+                        decl.span = span_for(i, next);
                         script.state.push(decl);
                         i = next;
                         at_stmt_start = true;
@@ -101,7 +123,8 @@ pub fn scan(script: &mut ScriptBlock) {
                     }
                 }
                 "derived" => {
-                    if let Some((decl, next)) = parse_derived(&src, bytes, end) {
+                    if let Some((mut decl, next)) = parse_derived(&src, bytes, end) {
+                        decl.span = span_for(i, next);
                         script.derived.push(decl);
                         i = next;
                         at_stmt_start = true;
@@ -109,7 +132,8 @@ pub fn scan(script: &mut ScriptBlock) {
                     }
                 }
                 "data" => {
-                    if let Some((decl, next)) = parse_data(&src, bytes, end) {
+                    if let Some((mut decl, next)) = parse_data(&src, bytes, end) {
+                        decl.span = span_for(i, next);
                         script.data.push(decl);
                         i = next;
                         at_stmt_start = true;
@@ -117,7 +141,8 @@ pub fn scan(script: &mut ScriptBlock) {
                     }
                 }
                 "effect" => {
-                    if let Some((decl, next)) = parse_effect(&src, bytes, end) {
+                    if let Some((mut decl, next)) = parse_effect(&src, bytes, end) {
+                        decl.span = span_for(i, next);
                         script.effects.push(decl);
                         i = next;
                         at_stmt_start = true;
@@ -125,7 +150,8 @@ pub fn scan(script: &mut ScriptBlock) {
                     }
                 }
                 "event" => {
-                    if let Some((decl, next)) = parse_event(&src, bytes, end) {
+                    if let Some((mut decl, next)) = parse_event(&src, bytes, end) {
+                        decl.span = span_for(i, next);
                         script.events.push(decl);
                         i = next;
                         at_stmt_start = true;
@@ -149,7 +175,8 @@ pub fn scan(script: &mut ScriptBlock) {
                     }
                 }
                 "function" | "async" => {
-                    if let Some((decl, next)) = parse_function(&src, bytes, i) {
+                    if let Some((mut decl, next)) = parse_function(&src, bytes, i) {
+                        decl.span = span_for(i, next);
                         script.functions.push(decl);
                         i = next;
                         at_stmt_start = true;
@@ -160,7 +187,8 @@ pub fn scan(script: &mut ScriptBlock) {
                     // `on form_reset {…}` / `on form_restore(state) {…}` /
                     // `on form_disabled(disabled) {…}` — typed lifecycle
                     // handlers for form-associated components.
-                    if let Some((decl, next)) = parse_on_lifecycle(&src, bytes, end) {
+                    if let Some((mut decl, next)) = parse_on_lifecycle(&src, bytes, end) {
+                        decl.span = span_for(i, next);
                         script.form_lifecycle.push(decl);
                         i = next;
                         at_stmt_start = true;
@@ -229,6 +257,7 @@ fn parse_prop(src: &str, bytes: &[u8], start: usize) -> Option<(PropDecl, usize)
             ty,
             default,
             required,
+            span: None,
         },
         i,
     ))
@@ -258,6 +287,7 @@ fn parse_state(src: &str, bytes: &[u8], start: usize) -> Option<(StateDecl, usiz
             name: name.to_string(),
             ty,
             initial: initial.trim().to_string(),
+            span: None,
         },
         end,
     ))
@@ -276,6 +306,7 @@ fn parse_derived(src: &str, bytes: &[u8], start: usize) -> Option<(DerivedDecl, 
         DerivedDecl {
             name: name.to_string(),
             expr: expr.trim().to_string(),
+            span: None,
         },
         end,
     ))
@@ -319,6 +350,7 @@ fn parse_data(src: &str, bytes: &[u8], start: usize) -> Option<(DataDecl, usize)
             ty,
             expr: expr.trim().to_string(),
             live,
+            span: None,
         },
         end,
     ))
@@ -362,6 +394,7 @@ fn parse_effect(src: &str, bytes: &[u8], start: usize) -> Option<(EffectDecl, us
             deps,
             once,
             body,
+            span: None,
         },
         body_end + 1,
     ))
@@ -382,6 +415,7 @@ fn parse_event(src: &str, bytes: &[u8], start: usize) -> Option<(EventDecl, usiz
         EventDecl {
             name: name.to_string(),
             payload_ty,
+            span: None,
         },
         i,
     ))
@@ -422,7 +456,7 @@ fn parse_on_lifecycle(
     let body_end = find_brace_close(bytes, k)?;
     let body = src[body_start..body_end].to_string();
     Some((
-        super::ast::FormLifecycleHandler { event, payload, body },
+        super::ast::FormLifecycleHandler { event, payload, body, span: None },
         body_end + 1,
     ))
 }
@@ -501,6 +535,7 @@ fn parse_function(src: &str, bytes: &[u8], start: usize) -> Option<(FunctionDecl
         FunctionDecl {
             name: name.to_string(),
             raw,
+            span: None,
         },
         i,
     ))
@@ -834,6 +869,7 @@ mod tests {
         let mut sb = ScriptBlock {
             lang: ScriptLang::Ts,
             raw: src.to_string(),
+            body_byte_offset: 0,
             props: vec![],
             state: vec![],
             derived: vec![],
@@ -846,7 +882,8 @@ mod tests {
             form_associated: false,
             form_lifecycle: vec![],
         };
-        scan(&mut sb);
+        let map = SourceMap::new(src);
+        scan_with_spans(&mut sb, &map);
         sb
     }
 

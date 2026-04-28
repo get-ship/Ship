@@ -13,7 +13,7 @@
 //! native `<input>` / `<textarea>` — which is what the corpus uses.
 
 use crate::parse::ast::{Attr, AttrValue, Node, SailFile, Template};
-use crate::{Diagnostic, Severity};
+use crate::{Diagnostic, Severity, Span};
 
 pub fn analyze(file: &SailFile, diagnostics: &mut Vec<Diagnostic>) {
     let Some(tpl) = file.template.as_ref() else { return };
@@ -28,8 +28,8 @@ fn walk_template(tpl: &Template, diagnostics: &mut Vec<Diagnostic>) {
 
 fn walk_node(n: &Node, diagnostics: &mut Vec<Diagnostic>) {
     match n {
-        Node::Element { tag, attrs, children } => {
-            check_element(tag, attrs, diagnostics);
+        Node::Element { tag, attrs, children, span } => {
+            check_element(tag, attrs, span.as_ref(), diagnostics);
             for c in children {
                 walk_node(c, diagnostics);
             }
@@ -78,7 +78,12 @@ fn walk_node(n: &Node, diagnostics: &mut Vec<Diagnostic>) {
     }
 }
 
-fn check_element(tag: &str, attrs: &[Attr], diagnostics: &mut Vec<Diagnostic>) {
+fn check_element(
+    tag: &str,
+    attrs: &[Attr],
+    span: Option<&Span>,
+    diagnostics: &mut Vec<Diagnostic>,
+) {
     let bind_value = attrs
         .iter()
         .any(|a| a.name == "bind:value" && matches!(a.value, AttrValue::BindTwoWay(_)));
@@ -97,7 +102,7 @@ fn check_element(tag: &str, attrs: &[Attr], diagnostics: &mut Vec<Diagnostic>) {
         message: format!(
             "<{tag}> has both `bind:value` and an input listener — they fire on the same event"
         ),
-        span: None,
+        span: span.cloned(),
         help: Some(
             "bind:value attaches the input listener; oninput is redundant. Use one or the other"
                 .to_string(),
@@ -160,6 +165,20 @@ mod tests {
             "<template><input bind:value={draft} onclick={focusNext} /></template>",
         );
         assert!(d.iter().all(|x| x.code != "SAIL/E0105"), "got {d:?}");
+    }
+
+    #[test]
+    fn diagnostic_carries_span_at_offending_element() {
+        // `<input bind:value={draft} oninput={touch} />` lives on
+        // line 2; verify the R5 diagnostic anchors at it.
+        let src = "<template>\n<input bind:value={draft} oninput={touch} />\n</template>";
+        let d = run(src);
+        let w: Vec<_> = d.iter().filter(|x| x.code == "SAIL/E0105").collect();
+        assert_eq!(w.len(), 1, "got {d:?}");
+        let span = w[0].span.as_ref().expect("expected span on R5 diagnostic");
+        assert_eq!(span.line, 2, "{:?}", span);
+        assert_eq!(span.col, 1, "{:?}", span);
+        assert!(span.end_col > span.col, "{:?}", span);
     }
 
     #[test]

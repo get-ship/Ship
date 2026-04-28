@@ -65,7 +65,7 @@ pub fn analyze(file: &SailFile, diagnostics: &mut Vec<Diagnostic>) {
             message: format!(
                 "unknown data path `ship.{path}` — not registered in services::schema::OPS",
             ),
-            span: None,
+            span: decl.span.clone(),
             help,
         });
     }
@@ -212,6 +212,20 @@ mod tests {
         assert_eq!(extract_ship_path("computed()"), None);
         assert_eq!(extract_ship_path("notship.foo.bar()"), None);
         assert_eq!(extract_ship_path(""), None);
+    }
+
+    #[test]
+    fn diagnostic_carries_span_at_data_decl() {
+        // The `data agents = ship.agents.summries()` declaration sits
+        // on line 2 (after the <script> tag), starting at col 1. Verify
+        // the unknown-data-path diagnostic anchors there.
+        let src = "<script>\ndata agents = ship.agents.summries()\n</script>\n<template>x</template>";
+        let d = diag(src);
+        let w = d.iter().find(|x| x.code == "SAIL/E0301").expect("expected diagnostic");
+        let span = w.span.as_ref().expect("expected span on data-path diagnostic");
+        assert_eq!(span.line, 2, "{:?}", span);
+        assert_eq!(span.col, 1, "{:?}", span);
+        assert!(span.end_col > span.col, "{:?}", span);
     }
 
     #[test]

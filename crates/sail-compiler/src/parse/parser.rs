@@ -202,11 +202,19 @@ fn parse_attr_value(attrs: &str, name: &str) -> Option<String> {
 /// (keyword scan), template (HTML + interpolations), and style
 /// (CSS + tokens) lives in subsequent phases — this just gives us
 /// the three-block scaffolding with attrs decoded.
+///
+/// Spans are NOT populated by this builder. Callers that want spans
+/// run [`super::script::scan_with_spans`] / [`super::template::parse`]
+/// against the same `SourceMap` afterwards. The LSP's permissive
+/// completion path relies on this distinction: it builds a shell mid-
+/// edit without spans for symbol-level completions.
 pub fn build_shell(source: &str, raw: RawBlocks) -> super::ast::SailFile {
+    let source_map = SourceMap::new(source);
     super::ast::SailFile {
         script: raw.script.map(|b| ScriptBlock {
             lang: parse_script_lang(&b.attrs_raw),
             raw: b.body,
+            body_byte_offset: b.body_byte_offset,
             props: Vec::new(),
             state: Vec::new(),
             derived: Vec::new(),
@@ -231,13 +239,12 @@ pub fn build_shell(source: &str, raw: RawBlocks) -> super::ast::SailFile {
             let (global, src) = parse_style_attrs(&b.attrs_raw);
             StyleBlock {
                 raw: b.body,
+                body_byte_offset: b.body_byte_offset,
                 global,
                 src,
             }
         }),
-        source_map: SourceMap {
-            source: source.to_string(),
-        },
+        source_map,
     }
 }
 
@@ -245,15 +252,21 @@ pub fn build_shell(source: &str, raw: RawBlocks) -> super::ast::SailFile {
 /// shell building. Body parsing of each block lands incrementally.
 pub fn parse_file(source: &str) -> Result<super::ast::SailFile> {
     let raw = extract_blocks(source).context("extract blocks")?;
+    let template_offset = raw.template.as_ref().map(|b| b.body_byte_offset).unwrap_or(0);
     let mut file = build_shell(source, raw);
     if let Some(script) = file.script.as_mut() {
-        super::script::scan(script);
+        super::script::scan_with_spans(script, &file.source_map);
     }
     if let Some(template) = file.template.as_mut() {
         // The shell stuffed the raw body into a single Text node — pull
-        // it back out and run the proper template parser.
+        // it back out and run the proper template parser, this time
+        // carrying enough context to populate spans.
         if let Some(super::ast::Node::Text(body)) = template.root.first().cloned() {
-            *template = super::template::parse(&body)?;
+            *template = super::template::parse_with_spans(
+                &body,
+                template_offset,
+                &file.source_map,
+            )?;
         }
     }
     Ok(file)
