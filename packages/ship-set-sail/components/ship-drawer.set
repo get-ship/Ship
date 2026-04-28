@@ -1,0 +1,223 @@
+<script>
+// <ship-drawer> — side-sheet drawer built on the native <dialog>.
+// Slides in from the right (default) or left edge. Always modal —
+// matches the Lit source's showModal() recipe; non-modal mode is
+// not part of the source corpus and is therefore not ported.
+//
+// Attributes:
+//   open         — boolean; reflect; drawer visibility.
+//   side         — 'right' | 'left' (default 'right').
+//   size         — 'sm' | 'md' | 'lg' (default 'md').
+//   dismissible  — boolean (default true); Escape/backdrop close.
+//                  The × close button always dismisses, regardless.
+//
+// Slots:
+//   title       — header title text.
+//   description — muted subtitle under title.
+//   (default)   — body content (scrolls).
+//   footer      — sticky bottom actions.
+//
+// Parts: dialog | header | body | footer | close
+//
+// Events:
+//   ship-open    — fires after the drawer becomes visible.
+//   ship-close   — fires when dismissed via Escape, backdrop, or ×.
+//   ship-dismiss — fires when the × button is clicked specifically.
+
+prop open: boolean = false
+prop side: 'right' | 'left' = 'right'
+prop size: 'sm' | 'md' | 'lg' = 'md'
+prop dismissible: boolean = true
+
+state headerId = ''
+state bodyId = ''
+
+// Cross-instance scroll lock. The compiler doesn't emit module-level
+// `let X = 0` counters yet (gaps row 1), so we stash the counter on
+// `document.body.dataset`. Multiple drawers stack: only the first
+// acquires hides overflow; only the last release restores it.
+function acquireScrollLock() {
+  if (typeof document === 'undefined') return
+  const ds = document.body.dataset
+  const cur = parseInt(ds.shipDrawerLock || '0', 10)
+  if (cur === 0) {
+    ds.shipDrawerOverflow = document.body.style.overflow
+    ds.shipDrawerPad = document.body.style.paddingRight
+    const sw = window.innerWidth - document.documentElement.clientWidth
+    if (sw > 0) {
+      const cp = parseFloat(getComputedStyle(document.body).paddingRight || '0') || 0
+      document.body.style.paddingRight = `${cp + sw}px`
+    }
+    document.body.style.overflow = 'hidden'
+  }
+  ds.shipDrawerLock = String(cur + 1)
+}
+
+function releaseScrollLock() {
+  if (typeof document === 'undefined') return
+  const ds = document.body.dataset
+  const cur = parseInt(ds.shipDrawerLock || '0', 10)
+  if (cur === 0) return
+  if (cur === 1) {
+    document.body.style.overflow = ds.shipDrawerOverflow ?? ''
+    document.body.style.paddingRight = ds.shipDrawerPad ?? ''
+    delete ds.shipDrawerOverflow
+    delete ds.shipDrawerPad
+    delete ds.shipDrawerLock
+  } else {
+    ds.shipDrawerLock = String(cur - 1)
+  }
+}
+
+function getDialog() {
+  return el.querySelector(':scope > dialog')
+}
+
+function focusInitial() {
+  const root = getDialog()
+  if (!root) return
+  const auto = el.querySelector('[autofocus]') || root.querySelector('[autofocus]')
+  if (auto && typeof auto.focus === 'function') { auto.focus(); return }
+  // Compiler doesn't emit module-level const yet (gaps row 1) — inline.
+  const sel = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex^="-"])'
+  const items = Array.from(root.querySelectorAll(sel))
+    .filter((n) => n.getAttribute('aria-hidden') !== 'true')
+  const primary = items.find((n) => !n.classList.contains('close')) || items[0]
+  if (primary && typeof primary.focus === 'function') primary.focus()
+  else if (typeof root.focus === 'function') root.focus()
+}
+
+// Drive showModal/close + ship-open/ship-close. Transition state
+// (`__open`, `__lock`, `__savedFocus`) lives on the host element rather
+// than as state signals so the effect doesn't self-trigger when we
+// flip them — the only reactive read here is `open()`. jsdom doesn't
+// reliably toggle `dialog.open` from showModal()/close(), so we track
+// the transition ourselves instead of inspecting the dialog's flag.
+function applyOpen() {
+  const isOpen = open()
+  el.setAttribute('data-state', isOpen ? 'open' : 'closed')
+  if (isOpen) el.setAttribute('open', '')
+  else el.removeAttribute('open')
+
+  const dialog = getDialog()
+  if (!dialog) return
+
+  if (isOpen && !el.__shipDrawerOpen) {
+    el.__shipDrawerOpen = true
+    el.__shipDrawerSavedFocus = document.activeElement
+    try { dialog.showModal() } catch { /* jsdom */ }
+    if (!el.__shipDrawerLock) {
+      acquireScrollLock()
+      el.__shipDrawerLock = true
+    }
+    queueMicrotask(focusInitial)
+    el.dispatchEvent(new CustomEvent('ship-open', { bubbles: true, composed: true }))
+  } else if (!isOpen && el.__shipDrawerOpen) {
+    el.__shipDrawerOpen = false
+    try { dialog.close() } catch { /* jsdom */ }
+    if (el.__shipDrawerLock) {
+      releaseScrollLock()
+      el.__shipDrawerLock = false
+    }
+    const target = el.__shipDrawerSavedFocus
+    el.__shipDrawerSavedFocus = null
+    if (target && typeof target.focus === 'function') target.focus()
+    el.dispatchEvent(new CustomEvent('ship-close', { bubbles: true, composed: true }))
+  }
+}
+
+function show() { open.set(true) }
+function close() { open.set(false) }
+
+// Native <dialog> close event (Escape's default action). Drop the prop
+// to false; the effect's applyOpen() handles dispatch + cleanup. If
+// the close was already prop-driven, applyOpen has already run and
+// `__shipDrawerOpen` is false — the close branch is idempotent.
+function onCloseEvent() {
+  open.set(false)
+}
+
+function onBackdropClick(e) {
+  if (!dismissible()) return
+  if (e.target === getDialog()) close()
+}
+
+function onDismiss() {
+  el.dispatchEvent(new CustomEvent('ship-dismiss', { bubbles: true, composed: true }))
+  close()
+}
+
+// Native <dialog> emits `cancel` on Escape; default action closes
+// and fires `close`. When dismissible=false we want Escape to stay
+// inert — call preventDefault on the cancel.
+function onCancel(e) {
+  if (!dismissible()) e.preventDefault()
+}
+
+mount {
+  const sfx = Math.random().toString(36).slice(2, 9)
+  headerId.set(`ship-drawer-header-${sfx}`)
+  bodyId.set(`ship-drawer-body-${sfx}`)
+  // Imperative API parity with the Lit source.
+  el.show = show
+  el.close = close
+  // The reactive effect runs once at component construction, before
+  // the template HTML is rendered into the host. If `open` is true at
+  // construction time, that first run finds no <dialog> and bails. We
+  // re-fire here, after slot resolution, so the initial-open case
+  // wires up showModal() / scroll lock / ship-open dispatch.
+  applyOpen()
+}
+
+unmount {
+  if (el.__shipDrawerLock) {
+    releaseScrollLock()
+    el.__shipDrawerLock = false
+  }
+}
+
+effect {
+  applyOpen()
+}
+</script>
+
+<template>
+<dialog
+  part="dialog"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby={headerId}
+  aria-describedby={bodyId}
+  on:close={onCloseEvent}
+  on:cancel={onCancel}
+  on:click={onBackdropClick}
+>
+  <div class="header" part="header" id={headerId}>
+    <div class="header-content">
+      <div class="title"><slot name="title"></slot></div>
+      <div class="description"><slot name="description"></slot></div>
+    </div>
+    <button
+      class="close"
+      part="close"
+      type="button"
+      aria-label="Close drawer"
+      on:click={onDismiss}
+    >
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+        stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"
+        aria-hidden="true" focusable="false">
+        <path d="M3.5 3.5l9 9M12.5 3.5l-9 9"></path>
+      </svg>
+    </button>
+  </div>
+  <div class="body" part="body" id={bodyId}>
+    <slot></slot>
+  </div>
+  <div class="footer" part="footer">
+    <slot name="footer"></slot>
+  </div>
+</dialog>
+</template>
+
+<style src="./ship-drawer.css"></style>
