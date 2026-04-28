@@ -794,6 +794,17 @@
       "description": "<ship-error-state> — sibling of <ship-empty-state> for the\n\"something broke\" path. Routes every view's error branch through\none component so failures read deliberately (destructive halo,\nclear title, actionable body, optional collapsible technical\ndetails, primary retry).\n\nAttributes:\ntitle, body, size (sm|md|lg), variant (default|inline), icon\n\nSlots:\ntitle, default (body), details, action"
     },
     {
+      "tag": "ship-field",
+      "props": [
+        {
+          "name": "invalid",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "<ship-field> — vertical stack for a label + control + hint/error.\nPresentational wrapper; the slotted control owns the form value, so\nthis component is NOT formAssociated.\n\nAttributes:\ninvalid — boolean. When set, the error slot is revealed and the\nhint slot is hidden via CSS. Also flips the wired\ncontrol's `invalid` prop (or aria-invalid, on plain\nnative elements) and points its aria-describedby at\nthe error region instead of the hint.\n\nSlots:\nlabel     — label element (e.g. <ship-label>).\n(default) — the control. Wired via querySelector at mount and\nre-wired on light-DOM mutations + when `invalid`\nflips. The first non-named child is the canonical\ncontrol.\nhint      — muted helper text under the control.\nerror     — destructive-toned error text. Replaces hint when\ninvalid is set."
+    },
+    {
       "tag": "ship-icon",
       "props": [
         {
@@ -1344,6 +1355,48 @@
       "description": "ship-radio"
     },
     {
+      "tag": "ship-segmented-option",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "icon",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-segmented-option"
+    },
+    {
+      "tag": "ship-segmented",
+      "props": [
+        {
+          "name": "value",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md'",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        }
+      ],
+      "description": "ship-segmented"
+    },
+    {
       "tag": "ship-select",
       "props": [
         {
@@ -1440,6 +1493,57 @@
         }
       ],
       "description": "ship-skeleton"
+    },
+    {
+      "tag": "ship-slider",
+      "props": [
+        {
+          "name": "value",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "min",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "max",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "step",
+          "type": "number",
+          "required": false
+        },
+        {
+          "name": "disabled",
+          "type": "boolean",
+          "required": false
+        },
+        {
+          "name": "tone",
+          "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'",
+          "required": false
+        },
+        {
+          "name": "size",
+          "type": "'sm' | 'md' | 'lg'",
+          "required": false
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "required": false
+        }
+      ],
+      "description": "ship-slider"
     },
     {
       "tag": "ship-spinner",

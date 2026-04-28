@@ -169,12 +169,16 @@ function bindProp(el, prop, get) {
     el[prop] = get();
   });
 }
-function bindValue(el, sig) {
+function bindValue(el, sig, onWrite) {
   const dispose = effect(() => {
     const v = sig();
     if (el.value !== v) el.value = v;
   });
-  const onInput = () => sig.set(el.value);
+  const onInput = () => {
+    const v = el.value;
+    sig.set(v);
+    if (onWrite) onWrite(v);
+  };
   el.addEventListener("input", onInput);
   return () => {
     dispose();
