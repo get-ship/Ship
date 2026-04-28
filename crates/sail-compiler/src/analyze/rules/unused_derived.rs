@@ -18,7 +18,7 @@
 
 use crate::analyze::symbols::SymbolTable;
 use crate::parse::ast::SailFile;
-use crate::{Diagnostic, Severity};
+use crate::{Diagnostic, DiagnosticFix, FixEdit, Severity};
 
 pub fn analyze(file: &SailFile, _symbols: &SymbolTable, diagnostics: &mut Vec<Diagnostic>) {
     let Some(script) = file.script.as_ref() else { return };
@@ -28,15 +28,20 @@ pub fn analyze(file: &SailFile, _symbols: &SymbolTable, diagnostics: &mut Vec<Di
 
     for d in &script.derived {
         if referenced.contains(&d.name) { continue; }
+        let fix = d.span.as_ref().map(|span| DiagnosticFix {
+            title: format!("remove unused `derived {}`", d.name),
+            edits: vec![FixEdit { range: span.clone(), replacement: String::new() }],
+        });
         diagnostics.push(Diagnostic {
             severity: Severity::Error,
             code: "SAIL/E0103".to_string(),
             message: format!("derived `{}` declared but never read", d.name),
-            span: None,
+            span: d.span.clone(),
             help: Some(format!(
                 "remove `derived {0} = …` or read it via `{0}()` in a template, sibling derived, effect, or function body",
                 d.name
             )),
+            fix,
         });
     }
 }
@@ -105,5 +110,29 @@ mod tests {
     fn no_derived_no_diagnostics() {
         let d = run("<script>\nstate count = 0\n</script><template>{count()}</template>");
         assert!(errs(&d).is_empty(), "got {d:?}");
+    }
+
+    #[test]
+    fn fix_is_present_with_delete_edit() {
+        let d = run("<script>\nstate count = 0\nderived doubled = count() * 2\n</script><template>{count()}</template>");
+        let e = errs(&d);
+        assert_eq!(e.len(), 1);
+        let fix = e[0].fix.as_ref().expect("fix should be present for E0103");
+        assert!(fix.title.contains("doubled"), "title: {}", fix.title);
+        assert_eq!(fix.edits.len(), 1);
+        assert_eq!(fix.edits[0].replacement, "", "replacement should be empty (delete)");
+    }
+
+    #[test]
+    fn fix_range_matches_diagnostic_span() {
+        let src = "<script>\nstate count = 0\nderived doubled = count() * 2\n</script><template>{count()}</template>";
+        let d = run(src);
+        let e = errs(&d);
+        assert_eq!(e.len(), 1);
+        let diag_span = e[0].span.as_ref().expect("span on diagnostic");
+        let fix = e[0].fix.as_ref().expect("fix on diagnostic");
+        let fix_range = &fix.edits[0].range;
+        assert_eq!(fix_range.line, diag_span.line, "fix range line matches span");
+        assert_eq!(fix_range.col, diag_span.col, "fix range col matches span");
     }
 }

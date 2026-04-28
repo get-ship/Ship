@@ -30,6 +30,7 @@ pub fn analyze(file: &SailFile, tokens: Option<&TokenSet>, diagnostics: &mut Vec
                     help: Some(
                         "check the configured token source; tokens are referenced as `${name.path}`".into(),
                     ),
+                    fix: None,
                 });
             }
         }

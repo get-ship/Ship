@@ -107,6 +107,7 @@ fn check_element(
             "bind:value attaches the input listener; oninput is redundant. Use one or the other"
                 .to_string(),
         ),
+        fix: None,
     });
 }
 

@@ -46,6 +46,7 @@ pub fn analyze(file: &SailFile, symbols: &SymbolTable, diagnostics: &mut Vec<Dia
             help: Some(format!(
                 "drop the derived and write the binding inline: `aria-…={{{operand}()}}` — the runtime stringifies booleans in attribute position"
             )),
+            fix: None,
         });
     }
 }

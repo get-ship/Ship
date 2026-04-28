@@ -124,6 +124,7 @@ fn emit(
         message,
         span,
         help: Some(help),
+        fix: None,
     });
 }
 

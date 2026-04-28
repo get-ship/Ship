@@ -199,6 +199,26 @@ pub struct Diagnostic {
     pub message: String,
     pub span: Option<Span>,
     pub help: Option<String>,
+    /// Machine-applicable fix for the diagnostic, if one exists.
+    /// LSP consumers serialize this into `Diagnostic.data` for
+    /// `textDocument/codeAction` round-trips.
+    pub fix: Option<DiagnosticFix>,
+}
+
+/// A machine-applicable fix for a diagnostic — title shown in the UI
+/// plus the set of text edits to apply.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct DiagnosticFix {
+    pub title: String,
+    pub edits: Vec<FixEdit>,
+}
+
+/// One text edit within a `DiagnosticFix`. Replaces `range` with
+/// `replacement`; an empty `replacement` is a deletion.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct FixEdit {
+    pub range: Span,
+    pub replacement: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -208,7 +228,7 @@ pub enum Severity {
     Info,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct Span {
     pub file: String,
     pub line: u32,
