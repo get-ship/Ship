@@ -60,7 +60,7 @@ pub fn analyze(file: &SailFile, diagnostics: &mut Vec<Diagnostic>) {
             None => Some("run `cargo xtask gen-sdk` to refresh the catalog".to_string()),
         };
         diagnostics.push(Diagnostic {
-            severity: Severity::Warning,
+            severity: Severity::Error,
             code: "SAIL/W0301".to_string(),
             message: format!(
                 "unknown data path `ship.{path}` — not registered in services::schema::OPS",
@@ -184,8 +184,8 @@ mod tests {
     fn unknown_op_warns_with_suggestion() {
         let src = "<script>data agents = ship.agents.summries()</script>\n<template>x</template>";
         let d = diag(src);
-        let w = d.iter().find(|x| x.code == "SAIL/W0301").expect("expected warning");
-        assert_eq!(w.severity, Severity::Warning);
+        let w = d.iter().find(|x| x.code == "SAIL/W0301").expect("expected diagnostic");
+        assert_eq!(w.severity, Severity::Error);
         assert!(w.message.contains("ship.agents.summries"), "msg: {}", w.message);
         let help = w.help.as_deref().unwrap_or("");
         assert!(help.contains("agents.summaries"), "help: {help}");

@@ -35,7 +35,7 @@ fn check_expr(expr: &Expr, symbols: &SymbolTable, diagnostics: &mut Vec<Diagnost
         if matches!(follower, Some('(') | Some('.')) { continue; }
         if !already.insert(name.clone()) { continue; }
         diagnostics.push(Diagnostic {
-            severity: Severity::Warning,
+            severity: Severity::Error,
             code: "SAIL/W0101".to_string(),
             message: format!("signal `{name}` referenced without call in `{}`", expr.raw),
             span: None,
@@ -115,6 +115,7 @@ mod tests {
         assert_eq!(w.len(), 1, "got {d:?}");
         assert!(w[0].message.contains("count"));
         assert!(w[0].help.as_deref().unwrap().contains("count()"));
+        assert_eq!(w[0].severity, Severity::Error);
     }
 
     #[test]

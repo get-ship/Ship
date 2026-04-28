@@ -11,7 +11,7 @@
 //! case; standalone OSS users get it next.
 
 use anyhow::{Context, Result, bail};
-use clap::{Parser, Subcommand};
+use clap::{Parser, Subcommand, ValueEnum};
 use sail_compiler::{CompileOpts, Severity, compile_file, compile_source_with, tag_for};
 use std::path::{Path, PathBuf};
 
@@ -20,6 +20,36 @@ use std::path::{Path, PathBuf};
 struct Cli {
     #[command(subcommand)]
     cmd: Cmd,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ValueEnum)]
+enum SeverityArg {
+    Error,
+    Warning,
+    Info,
+}
+
+impl SeverityArg {
+    /// Rank of this threshold on the Info < Warning < Error scale. A
+    /// diagnostic gates the exit code when its severity rank is at-or-
+    /// above the threshold's rank.
+    fn rank(self) -> u8 {
+        match self {
+            SeverityArg::Info => 0,
+            SeverityArg::Warning => 1,
+            SeverityArg::Error => 2,
+        }
+    }
+    fn rank_of(severity: Severity) -> u8 {
+        match severity {
+            Severity::Info => 0,
+            Severity::Warning => 1,
+            Severity::Error => 2,
+        }
+    }
+    fn gates(self, severity: Severity) -> bool {
+        Self::rank_of(severity) >= self.rank()
+    }
 }
 
 #[derive(Subcommand, Debug)]
@@ -32,10 +62,17 @@ enum Cmd {
         #[arg(short, long, default_value = "dist")]
         out: PathBuf,
     },
-    /// Parse every `.set` under <path> and report any errors.
+    /// Parse every `.set` under <path> and report any diagnostics.
+    ///
+    /// Exits non-zero if any diagnostic at-or-above `--severity` fired.
+    /// Default threshold is `error`, so warnings and info notes are
+    /// reported but don't gate the exit code.
     Check {
         #[arg(default_value = ".")]
         path: PathBuf,
+        /// Lowest severity that gates the exit code.
+        #[arg(long, value_enum, default_value_t = SeverityArg::Error)]
+        severity: SeverityArg,
     },
     /// Scaffold a new Sail project directory.
     New {
@@ -56,7 +93,7 @@ fn main() {
     let cli = Cli::parse();
     let result = match cli.cmd {
         Cmd::Build { path, out } => run_build(&path, &out),
-        Cmd::Check { path } => run_check(&path),
+        Cmd::Check { path, severity } => run_check(&path, severity),
         Cmd::New { name } => run_new(&name),
         Cmd::Migrate { path, out } => run_migrate(&path, out.as_deref()),
     };
@@ -92,13 +129,13 @@ fn run_build(root: &Path, out: &Path) -> Result<()> {
     Ok(())
 }
 
-fn run_check(root: &Path) -> Result<()> {
+fn run_check(root: &Path, threshold: SeverityArg) -> Result<()> {
     let files = collect_sail_files(root)?;
     if files.is_empty() {
         eprintln!("sail: no .set files found under {}", root.display());
         return Ok(());
     }
-    let mut errors = 0usize;
+    let mut gating = 0usize;
     let opts = CompileOpts::default();
     for path in &files {
         let source = std::fs::read_to_string(path)
@@ -107,28 +144,55 @@ fn run_check(root: &Path) -> Result<()> {
         match compile_source_with(&source, &tag, &opts) {
             Ok(result) => {
                 for d in &result.diagnostics {
-                    let label = match d.severity {
-                        Severity::Error => { errors += 1; "error" }
-                        Severity::Warning => "warning",
-                        Severity::Info => "info",
-                    };
-                    eprintln!("{label} [{}]: {}: {}", d.code, path.display(), d.message);
-                    if let Some(h) = &d.help {
-                        eprintln!("    help: {h}");
+                    print_diagnostic(path, d);
+                    if threshold.gates(d.severity) {
+                        gating += 1;
                     }
                 }
             }
             Err(e) => {
-                eprintln!("error: {}: {e:#}", path.display());
-                errors += 1;
+                // A parse-level failure has no Diagnostic, but it still
+                // means the file can't compile — surface it as an
+                // error-severity line and gate accordingly.
+                eprintln!("{}:1:1: ERROR SAIL/PARSE — {e:#}", path.display());
+                gating += 1;
             }
         }
     }
-    if errors > 0 {
-        bail!("{errors} file(s) failed to compile");
+    if gating > 0 {
+        bail!(
+            "{gating} diagnostic(s) at-or-above {:?} severity",
+            threshold
+        );
     }
     eprintln!("sail: {} file(s) ok", files.len());
     Ok(())
+}
+
+/// Render one diagnostic in the canonical `file:line:col: SEVERITY CODE
+/// — message` shape, with the help text on a continuation line. When
+/// the diagnostic carries no span (most rule diagnostics today), fall
+/// back to `:1:1` so the format stays stable for downstream parsers.
+fn print_diagnostic(path: &Path, d: &sail_compiler::Diagnostic) {
+    let label = match d.severity {
+        Severity::Error => "ERROR",
+        Severity::Warning => "WARNING",
+        Severity::Info => "INFO",
+    };
+    let (line, col) = d
+        .span
+        .as_ref()
+        .map(|s| (s.line, s.col))
+        .unwrap_or((1, 1));
+    eprintln!(
+        "{}:{line}:{col}: {label} {} — {}",
+        path.display(),
+        d.code,
+        d.message
+    );
+    if let Some(h) = &d.help {
+        eprintln!("    help: {h}");
+    }
 }
 
 /// Best-effort structural port of a `.ship` SFC to `.set`.
@@ -469,15 +533,30 @@ mod tests {
     fn check_passes_clean_files_and_fails_broken() {
         let dir = tmp_dir();
         std::fs::write(dir.path().join("ok.set"), "<template><span>ok</span></template>").unwrap();
-        run_check(dir.path()).unwrap();
+        run_check(dir.path(), SeverityArg::Error).unwrap();
 
         std::fs::write(
             dir.path().join("bad.set"),
             "<template><div></span></template>",
         )
         .unwrap();
-        let err = run_check(dir.path()).unwrap_err();
-        assert!(err.to_string().contains("failed to compile"));
+        let err = run_check(dir.path(), SeverityArg::Error).unwrap_err();
+        assert!(err.to_string().contains("at-or-above"));
+    }
+
+    #[test]
+    fn check_severity_threshold_gates() {
+        // `addEventListener` without `removeEventListener` fires
+        // `SAIL/E0501` (Error). With --severity error this gates;
+        // with --severity warning it also gates (Error >= Warning).
+        let dir = tmp_dir();
+        std::fs::write(
+            dir.path().join("leaky.set"),
+            "<script>mount { el.addEventListener(\"click\", h) }</script><template>x</template>",
+        )
+        .unwrap();
+        assert!(run_check(dir.path(), SeverityArg::Error).is_err());
+        assert!(run_check(dir.path(), SeverityArg::Warning).is_err());
     }
 
     #[test]

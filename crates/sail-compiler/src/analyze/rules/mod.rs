@@ -25,6 +25,7 @@ use crate::parse::ast::{Node, PropBinding, SailFile, Template};
 
 use super::symbols::SymbolTable;
 
+pub mod cleanup_pattern;
 pub mod prop_exists;
 pub mod r1_signal_call;
 pub mod r5_bind_oninput;
@@ -36,6 +37,7 @@ pub fn analyze(file: &SailFile, diagnostics: &mut Vec<Diagnostic>) {
     r1_signal_call::analyze(file, &symbols, diagnostics);
     r5_bind_oninput::analyze(file, diagnostics);
     prop_exists::analyze(file, diagnostics);
+    cleanup_pattern::analyze(file, diagnostics);
 }
 
 /// Visit every text-interpolation expression in the template (`{expr}`
@@ -161,7 +163,6 @@ mod corpus_probe {
     //! catalog now travels via the embedded `sdk-framework.json`).
     use std::path::PathBuf;
 
-    use crate::Severity;
     use crate::parse;
     use crate::tag_for_stem;
 
@@ -194,15 +195,17 @@ mod corpus_probe {
             let Ok(file) = parse::parse(&src) else { continue };
             let mut diags = Vec::new();
             super::analyze(&file, &mut diags);
-            for d in diags
-                .iter()
-                .filter(|d| matches!(d.severity, Severity::Warning))
-                .filter(|d| matches!(d.code.as_str(), "SAIL/W0101" | "SAIL/W0105" | "SAIL/W0201"))
-            {
+            for d in diags.iter().filter(|d| {
+                matches!(
+                    d.code.as_str(),
+                    "SAIL/W0101" | "SAIL/W0105" | "SAIL/W0201" | "SAIL/E0501"
+                )
+            }) {
                 let code: &'static str = match d.code.as_str() {
                     "SAIL/W0101" => "SAIL/W0101",
                     "SAIL/W0105" => "SAIL/W0105",
                     "SAIL/W0201" => "SAIL/W0201",
+                    "SAIL/E0501" => "SAIL/E0501",
                     _ => continue,
                 };
                 *by_code.entry(code).or_default() += 1;
