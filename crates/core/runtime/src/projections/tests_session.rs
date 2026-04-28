@@ -123,6 +123,67 @@ mod session_tests {
     }
 
     #[test]
+    fn started_payload_persists_project_id_and_kind_dimensions() {
+        let mut conn = setup();
+        let bus = bus();
+        let event = EventEnvelope::new(
+            event_types::SESSION_STARTED,
+            "sess-dim-1",
+            &serde_json::json!({
+                "goal": "pipeline step",
+                "workspace_id": "ws-dim",
+                "workspace_branch": "feat/dim",
+                "project_id": "proj-aaa",
+                "kind": "pipeline_step",
+                "pipeline_run_id": "run-1",
+                "agent_id": "rust-runtime",
+                "primary_provider": "codex"
+            }),
+        )
+        .unwrap()
+        .with_context(Some("ws-dim"), Some("sess-dim-1"))
+        .with_actor_id("sess-dim-1")
+        .elevate();
+
+        bus.dispatch(&event, &mut conn);
+
+        let row: Option<(Option<String>, String, Option<String>, Option<String>)> =
+            block_on(async {
+                sqlx::query_as(
+                    "SELECT project_id, kind, pipeline_run_id, chat_thread_id \
+                     FROM workspace_session WHERE id = ?",
+                )
+                .bind("sess-dim-1")
+                .fetch_optional(&mut conn)
+                .await
+            })
+            .unwrap();
+        let (project_id, kind, pipeline_run_id, chat_thread_id) =
+            row.expect("session row missing");
+        assert_eq!(project_id.as_deref(), Some("proj-aaa"));
+        assert_eq!(kind, "pipeline_step");
+        assert_eq!(pipeline_run_id.as_deref(), Some("run-1"));
+        assert!(chat_thread_id.is_none());
+    }
+
+    #[test]
+    fn started_payload_defaults_kind_to_direct_attach() {
+        let mut conn = setup();
+        let bus = bus();
+        let event = session_started_event("sess-default-kind", "ws-dim2");
+        bus.dispatch(&event, &mut conn);
+
+        let kind: Option<String> = block_on(async {
+            sqlx::query_scalar("SELECT kind FROM workspace_session WHERE id = ?")
+                .bind("sess-default-kind")
+                .fetch_optional(&mut conn)
+                .await
+        })
+        .unwrap();
+        assert_eq!(kind.as_deref(), Some("direct_attach"));
+    }
+
+    #[test]
     fn dispatch_ended_updates_session() {
         let mut conn = setup();
         let bus = bus();

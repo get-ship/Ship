@@ -90,6 +90,21 @@ pub struct SessionStarted {
     pub agent_id: Option<String>,
     #[serde(default)]
     pub primary_provider: Option<String>,
+    /// Project this session belongs to. Looked up at start from the
+    /// actor's project_id or the workspace path. None for sessions that
+    /// have no associated project (daemon services, ephemeral runs).
+    #[serde(default)]
+    pub project_id: Option<String>,
+    /// Entry-point discriminator: `pipeline_step | chat_thread |
+    /// direct_attach`. Defaults to `direct_attach` when not specified.
+    #[serde(default)]
+    pub kind: Option<String>,
+    /// Set when this session is a step within a pipeline run.
+    #[serde(default)]
+    pub pipeline_run_id: Option<String>,
+    /// Set when this session is a chat-thread invocation.
+    #[serde(default)]
+    pub chat_thread_id: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

@@ -6,32 +6,36 @@ use sqlx::Row;
 use super::types::{WorkspaceSessionDb, WorkspaceSessionRecordDb};
 use super::{block_on, open_db};
 
-const SESSION_COLS: &str = "id, workspace_id, workspace_branch, status, started_at, \
-    ended_at, agent_id, primary_provider, goal, summary, \
-    updated_workspace_ids_json, tool_call_count, drained_at, last_activity_at, \
-    created_at, updated_at";
+const SESSION_COLS: &str = "id, workspace_id, workspace_branch, project_id, kind, \
+    pipeline_run_id, chat_thread_id, status, started_at, ended_at, agent_id, \
+    primary_provider, goal, summary, updated_workspace_ids_json, tool_call_count, \
+    drained_at, last_activity_at, created_at, updated_at";
 
 fn parse_workspace_session_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
-    let updated_workspace_ids_json: String = row.get(10);
+    let updated_workspace_ids_json: String = row.get(14);
     let updated_workspace_ids =
         serde_json::from_str(&updated_workspace_ids_json).unwrap_or_default();
     WorkspaceSessionDb {
         id: row.get(0),
         workspace_id: row.get(1),
         workspace_branch: row.get(2),
-        status: row.get(3),
-        started_at: row.get(4),
-        ended_at: row.get(5),
-        agent_id: row.get(6),
-        primary_provider: row.get(7),
-        goal: row.get(8),
-        summary: row.get(9),
+        project_id: row.get(3),
+        kind: row.get(4),
+        pipeline_run_id: row.get(5),
+        chat_thread_id: row.get(6),
+        status: row.get(7),
+        started_at: row.get(8),
+        ended_at: row.get(9),
+        agent_id: row.get(10),
+        primary_provider: row.get(11),
+        goal: row.get(12),
+        summary: row.get(13),
         updated_workspace_ids,
-        tool_call_count: row.get(11),
-        drained_at: row.get(12),
-        last_activity_at: row.get(13),
-        created_at: row.get(14),
-        updated_at: row.get(15),
+        tool_call_count: row.get(15),
+        drained_at: row.get(16),
+        last_activity_at: row.get(17),
+        created_at: row.get(18),
+        updated_at: row.get(19),
     }
 }
 

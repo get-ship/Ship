@@ -94,6 +94,14 @@ struct StartedPayload {
     workspace_id: String,
     workspace_branch: String,
     #[serde(default)]
+    project_id: Option<String>,
+    #[serde(default)]
+    kind: Option<String>,
+    #[serde(default)]
+    pipeline_run_id: Option<String>,
+    #[serde(default)]
+    chat_thread_id: Option<String>,
+    #[serde(default)]
     agent_id: Option<String>,
     #[serde(default)]
     primary_provider: Option<String>,
@@ -103,17 +111,23 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
     let p: StartedPayload = serde_json::from_str(&event.payload_json)?;
     let now = event.created_at.to_rfc3339();
     let session_id = &event.entity_id;
+    let kind = p.kind.unwrap_or_else(|| "direct_attach".to_string());
 
     block_on(async {
         sqlx::query(
             "INSERT INTO workspace_session \
-             (id, workspace_id, workspace_branch, status, started_at, ended_at, \
+             (id, workspace_id, workspace_branch, project_id, kind, \
+              pipeline_run_id, chat_thread_id, status, started_at, ended_at, \
               agent_id, primary_provider, goal, summary, \
               updated_workspace_ids_json, created_at, updated_at) \
-             VALUES (?, ?, ?, 'active', ?, NULL, ?, ?, ?, NULL, '[]', ?, ?) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, NULL, ?, ?, ?, NULL, '[]', ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
                workspace_id = excluded.workspace_id, \
                workspace_branch = excluded.workspace_branch, \
+               project_id = excluded.project_id, \
+               kind = excluded.kind, \
+               pipeline_run_id = excluded.pipeline_run_id, \
+               chat_thread_id = excluded.chat_thread_id, \
                status = excluded.status, \
                started_at = excluded.started_at, \
                agent_id = excluded.agent_id, \
@@ -124,6 +138,10 @@ fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<(
         .bind(session_id)
         .bind(&p.workspace_id)
         .bind(&p.workspace_branch)
+        .bind(&p.project_id)
+        .bind(&kind)
+        .bind(&p.pipeline_run_id)
+        .bind(&p.chat_thread_id)
         .bind(&now)
         .bind(&p.agent_id)
         .bind(&p.primary_provider)

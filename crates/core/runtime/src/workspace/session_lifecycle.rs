@@ -163,6 +163,19 @@ pub fn start_workspace_session(
     let primary_provider = resolve_primary_provider(primary_provider, &providers, &workspace)?;
     let _providers = compile_workspace_context(ship_dir, &workspace, agent_id.as_deref())?;
 
+    // Look up project_id from the workspace's worktree path (or ship_dir
+    // parent as fallback). When the project isn't registered, leaves
+    // project_id as None — registration is explicit, never implicit.
+    let project_lookup_path = workspace
+        .path
+        .as_deref()
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| ship_dir.parent().unwrap_or(ship_dir).to_path_buf());
+    let project_id = crate::projects::find_by_path(&project_lookup_path)
+        .ok()
+        .flatten()
+        .map(|p| p.id);
+
     let session_id = crate::gen_nanoid();
     let started_payload = SessionStarted {
         goal: normalize_optional_text(goal),
@@ -170,6 +183,10 @@ pub fn start_workspace_session(
         workspace_branch: workspace.name.clone(),
         agent_id,
         primary_provider: Some(primary_provider),
+        project_id,
+        kind: Some("direct_attach".to_string()),
+        pipeline_run_id: None,
+        chat_thread_id: None,
     };
     let _envelope = insert_session_with_started_event(&session_id, &workspace.id, &started_payload)?;
     let created = get_workspace_session_db(&session_id)?

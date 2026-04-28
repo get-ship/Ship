@@ -39,6 +39,10 @@ CREATE TABLE IF NOT EXISTS workspace_session (
   id                          TEXT PRIMARY KEY,
   workspace_id                TEXT NOT NULL,
   workspace_branch            TEXT NOT NULL,
+  project_id                  TEXT,
+  kind                        TEXT NOT NULL DEFAULT 'direct_attach',
+  pipeline_run_id             TEXT,
+  chat_thread_id              TEXT,
   status                      TEXT NOT NULL DEFAULT 'active',
   started_at                  TEXT NOT NULL,
   ended_at                    TEXT,
@@ -55,6 +59,8 @@ CREATE TABLE IF NOT EXISTS workspace_session (
 );
 CREATE INDEX IF NOT EXISTS workspace_session_workspace_idx
   ON workspace_session(workspace_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS workspace_session_project_idx
+  ON workspace_session(project_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS workspace_session_status_idx
   ON workspace_session(status, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ws_session_drain
