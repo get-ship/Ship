@@ -19,21 +19,38 @@ function inc() { count.set(count() + 1) }
 
 (source_file
   (script_block
-    (state_decl name: (identifier) initial: (expression))
-    (derived_decl name: (identifier) expr: (expression))
-    (function_decl name: (identifier) params: (paren_block) body: (brace_block (_brace_inner) (brace_block (_brace_inner)) (_brace_inner))))
+    (script_open)
+    (state_decl
+      name: (identifier)
+      initial: (expression))
+    (derived_decl
+      name: (identifier)
+      expr: (expression
+        (identifier)))
+    (function_decl
+      name: (identifier)
+      params: (paren_block)
+      body: (brace_block))
+    (script_close))
   (template_block
+    (template_open)
+    (text)
     (element
       open_tag: (tag_name)
       (static_attr name: (attr_name) value: (string_literal))
+      (text)
       (element
         open_tag: (tag_name)
         (text)
-        (interpolation (_brace_body))
+        (interpolation)
         close_tag: (tag_name))
+      (text)
       (element
         open_tag: (tag_name)
-        (event_attr event: (attr_name) handler: (brace_expression (interpolation (_brace_body))))
+        (event_attr event: (attr_name) handler: (brace_expression (interpolation)))
         (text)
         close_tag: (tag_name))
-      close_tag: (tag_name))))
+      (text)
+      close_tag: (tag_name))
+    (text)
+    (template_close)))

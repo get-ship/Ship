@@ -1,0 +1,33 @@
+{
+  "grammars": [
+    {
+      "name": "set",
+      "camelcase": "Set",
+      "scope": "source.set",
+      "path": ".",
+      "file-types": ["set"],
+      "highlights": "queries/highlights.scm",
+      "injections": "queries/injections.scm",
+      "locals": "queries/locals.scm",
+      "injection-regex": "^set$",
+      "abi": 15
+    }
+  ],
+  "metadata": {
+    "version": "0.1.0",
+    "license": "MIT",
+    "description": "Tree-sitter grammar for the Sail .set single-file component format",
+    "authors": [
+      { "name": "Sail" }
+    ]
+  },
+  "bindings": {
+    "c": false,
+    "go": false,
+    "node": true,
+    "python": false,
+    "rust": false,
+    "swift": false,
+    "zig": false
+  }
+}
