@@ -5,7 +5,7 @@ surface that ties [`tree-sitter-set`](../../grammars/tree-sitter-set/)
 (parse foundation) to [`sail-compiler`](../sail-compiler/) (semantic
 analyzer).
 
-## Status: v0 scaffold
+## Status: v1
 
 Wired:
 
@@ -16,12 +16,18 @@ Wired:
   open/change runs `sail_compiler::compile_source` and republishes
 - Diagnostic severity, code (`SAIL/E####`), source (`"sail"`), span,
   and `help` text propagated 1:1
+- `textDocument/completion` — context-sensitive items sourced from
+  `sdk-framework.json`, `sdk-ship-ops.json`, and the local symbol
+  table (script-line directives, signals in interpolations, `ship.*`
+  paths, `bind:`/`on:` attribute targets, component tags)
+- `textDocument/hover` — descriptions for signals, functions,
+  framework directives, scope bindings, lifecycle hooks, `ship.X.Y`
+  ops, and `{#if}` / `{#for}` / `{#await}` / `{@html}` template
+  blocks
 
 Stubbed (capabilities advertised so editors wire keybindings; handlers
 return `null`):
 
-- `textDocument/hover`
-- `textDocument/completion`
 - `textDocument/codeAction`
 - `textDocument/definition`
 
@@ -112,14 +118,16 @@ caching, no debounce, no semantic logic of its own.
 
 ## Next milestone
 
-1. Tree-sitter-set parser usable → set the language, store real
-   `Tree`s, switch to `INCREMENTAL` sync.
-2. Hover handler — query the tree at position, surface the matching
-   declaration's signature from the compiler's analysis output.
-3. Code actions — wire compiler-suggested fixes (the `help` field on
+1. Tree-sitter-set incremental edits — switch `TextDocumentSyncKind`
+   from `FULL` to `INCREMENTAL` and replay each
+   `TextDocumentContentChangeEvent` range through `Tree::edit` before
+   reparsing.
+2. Code actions — wire compiler-suggested fixes (the `help` field on
    diagnostics already carries the text) as quick-fix actions.
-4. Definition — jump from a state/prop reference to its declaration.
-
-The reactivity-aware diagnostics (R1–R6 from
-`.artifacts/specs/sail/`) and framework manifest export are downstream
-of those four.
+3. Definition — jump from a state/prop reference to its declaration.
+4. Per-component prop catalog — `sdk-framework.json` exposes the
+   `component_call` syntax form but no per-tag prop list. Component-
+   tag completion currently surfaces tag names extracted from the
+   manifest's example snippets; a richer catalog (registry rows with
+   per-component prop / event tables) would unlock attribute-level
+   completions inside `<ship-tile …>`.
