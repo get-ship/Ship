@@ -98,8 +98,9 @@ fn extract_top_idents_with_followers(expr: &str) -> Vec<(String, Option<char>)> 
 }
 
 /// Replace bare occurrences of `name` with `name()` in a JS expression.
-/// "Bare" means: not preceded by `.`, not followed by `(` or an
-/// identifier character. Handles the case where the same signal appears
+/// "Bare" means: not preceded by `.`, not followed by `(`, `.`, or an
+/// identifier character (so `count.set(0)` isn't rewritten to
+/// `count().set(0)`). Handles the case where the same signal appears
 /// multiple times in one expression (all occurrences are fixed).
 fn insert_signal_call(expr: &str, name: &str) -> String {
     let name_bytes = name.as_bytes();
@@ -111,10 +112,18 @@ fn insert_signal_call(expr: &str, name: &str) -> String {
         if remaining >= name_bytes.len() && &bytes[i..i + name_bytes.len()] == name_bytes {
             let end = i + name_bytes.len();
             let preceded_by_dot = i > 0 && bytes[i - 1] == b'.';
+            let preceded_by_ident = i > 0
+                && (bytes[i - 1].is_ascii_alphanumeric() || bytes[i - 1] == b'_');
             let next = bytes.get(end).copied();
             let next_is_ident = matches!(next, Some(c) if c.is_ascii_alphanumeric() || c == b'_');
             let next_is_call = next == Some(b'(');
-            if !preceded_by_dot && !next_is_ident && !next_is_call {
+            let next_is_member = next == Some(b'.');
+            if !preceded_by_dot
+                && !preceded_by_ident
+                && !next_is_ident
+                && !next_is_call
+                && !next_is_member
+            {
                 result.push_str(name);
                 result.push_str("()");
                 i = end;

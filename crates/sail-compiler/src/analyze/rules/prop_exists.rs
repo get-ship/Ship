@@ -53,6 +53,7 @@ fn check_component(tag: &str, props: &[PropBinding], diagnostics: &mut Vec<Diagn
             message: format!("unknown prop `{}` on <{tag}>", p.name),
             span: p.span.clone(),
             help: Some(help),
+            fix: None,
         });
     }
 }

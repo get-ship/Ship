@@ -67,6 +67,7 @@ pub fn analyze(file: &SailFile, diagnostics: &mut Vec<Diagnostic>) {
             ),
             span: decl.span.clone(),
             help,
+            fix: None,
         });
     }
 }
