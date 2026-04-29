@@ -1,81 +1,93 @@
 # tree-sitter-set
 
-Tree-sitter grammar for the ship-set `.set` single-file component format.
+Tree-sitter grammar for the ship-set `.html.set` / `.set` template
+language.
 
 ## Status
 
-V1. Every `.set` file in `packages/ship-set/components/` (41
-production ports) parses without ERROR nodes. ABI 15. Corpus tests
-cover the script declaration set, host/element/attribute forms,
-template control flow (`{#if}` / `{#for}` / `{:else}`), HTML comments,
-and the external `<style src=…>` shape.
+V2. Conformance corpus passes against `views/agents/view.html.set`
+with no ERROR nodes. ABI 15.
+
+## What the grammar parses
+
+`.html.set` is HTML extended with template grammar. The grammar
+recognises:
+
+- **Directive elements** — `<data>`, `<state>`, `<component>`,
+  `<prop>`, `<while-loading>`, `<while-error>` (just HTML elements
+  as far as the grammar is concerned; the runtime extracts them by
+  tag name; queries flag them visually).
+- **Standard HTML elements** — both the explicit-close form
+  (`<div>…</div>`) and the self-closing form (`<ship-icon …/>`),
+  plus the void-element forms (`<link>`, `<br>`, `<img>`, …).
+- **Binding attributes** — `bind:value={x}`, `on:event[|mod]*={fn}`,
+  `class:active={cond}`, `style:--tone={value}`, `attr:{name}={value}`,
+  `let:err`. Plain attributes (`name="x"`, `name={expr}`, bare-name
+  boolean attrs) round-trip through their own rules.
+- **Brace interpolation** — `{expr}` in text and attribute-value
+  position. The expression body is captured as an opaque balanced
+  atom stream; host-language highlighting comes from a TypeScript
+  injection (`queries/injections.scm`).
+- **Control-flow blocks**
+  - `{#if cond}` / `{:else if cond}` / `{:elif cond}` / `{:else}` / `{/if}`
+  - `{#for x of items key={x.id}}` / `{:else}` / `{/for}` (key is optional;
+    pattern accepts `(item, idx)`-style tuples)
+  - `{#match value}` / `{:case 'a'}` / `{:default}` / `{/match}`
+- **HTML comments** `<!-- … -->`.
 
 ## Architecture
 
-Thin outer grammar identifies the three top-level blocks
-(`<script>`, `<template>`, `<style>`) and the framework-specific
-declarations inside `<script>` (prop / state / derived / data / effect
-/ event / mount / unmount / function / component / `on form_*`).
+The grammar is a thin HTML-shaped outer layer plus the template
+extensions. Expression bodies (inside `{…}`) are tokenised as
+balanced atom sequences so the parser doesn't re-implement
+TypeScript — `queries/injections.scm` routes those ranges to
+`tree-sitter-typescript`. Inline `<style>…</style>` content is
+similarly injected to `tree-sitter-css`.
 
-Right-hand-side expressions, function/effect/mount bodies, attribute
-brace-expressions, and CSS bodies are captured as opaque
-balanced-delimiter sequences. A follow-up will inject existing
-tree-sitter grammars (`tree-sitter-typescript`, `tree-sitter-html`,
-`tree-sitter-css`) for those ranges via `queries/injections.scm` so we
-don't re-implement the host languages.
+Two tokeniser carve-outs keep the host language and the framework
+keywords disambiguated:
 
-The lexer relies on a few precedence carve-outs to keep the host
-language and the framework keywords disambiguated at statement
-boundaries:
-
-- Identifier-shaped tokens go through tree-sitter's keyword extraction
-  so `state`, `derived`, … terminate an expression at a statement
-  boundary while still parsing as identifiers inside a function body.
-- A dedicated `_member_access` token (`.foo`) keeps
-  `ship.dashboard.state()` from misreading `.state` as the keyword.
-- Line/block comments are bumped above the balanced-atom token so a
-  `//` run that doesn't include any delimiter can't be eaten by an
-  atom and (later, via stray apostrophes/backticks) open a phantom
-  string or template literal.
+- `_member` matches `.foo` as one token so member access can't be
+  mis-tokenised as `.` + identifier (which would let keyword
+  extraction trigger on names like `.key`, `.of`, …).
+- The for-loop iterator body uses an `_iter_punct` rule that excludes
+  a top-level `=` so the optional `key={…}` continuation peels off
+  cleanly.
 
 ## Build
 
 ```bash
-npm install
-npx tree-sitter generate
-npx tree-sitter test
+cd grammars/tree-sitter-set
+npm install                 # one-shot install of tree-sitter-cli
+npx tree-sitter generate    # writes src/parser.c
+npx tree-sitter test        # runs the corpus
 ```
 
-## Validation corpus
+## Validation
 
 ```bash
 cd grammars/tree-sitter-set
-for f in ../../packages/ship-set/components/*.set; do
-  npx tree-sitter parse "$f" --quiet || echo "FAIL: $f"
-done
+npx tree-sitter parse ../../views/agents/view.html.set --quiet \
+  || echo "FAIL: views/agents/view.html.set"
 ```
 
 Expected: prints nothing.
 
-## Known v2 work
+## Known v3 work
 
-- **External scanner.** Multi-line expressions and CSS bodies currently
-  rely on a balanced-rule + precedence approximation. An external C
-  scanner would (a) let CSS bodies span literal `<` characters
-  (currently we rely on `style_close` winning by length), (b) handle
-  template literals containing `${\`}` (a backtick inside `${…}`
-  inside a backtick — none in the corpus today), and (c) make the
-  expression-vs-keyword disambiguation explicit instead of relying on
-  the lexer's keyword-extraction priority.
-- **Host-language injections.** `queries/injections.scm` is not yet
-  shipped; the long-form opaque ranges (script chunks, template brace
-  bodies, style bodies) will pick up `tree-sitter-typescript` /
-  `tree-sitter-html` / `tree-sitter-css` once injections land.
-- **Locals.** `queries/locals.scm` would expose declaration scopes
-  (props, state, derived, function params) for jump-to-def in editors
-  that consume the `@local.*` family. Currently absent.
+- **External scanner.** Multi-line balanced expressions and
+  raw-text element bodies (`<style>` / `<script>` without `src`)
+  rely on a regex/precedence approximation. An external C scanner
+  would handle template literals containing `${\``}` (a backtick
+  inside `${…}` inside a backtick — none in the corpus today) and
+  let inline `<style>` bodies span unmatched `{` characters cleanly.
+- **`queries/locals.scm`.** Would expose declaration scopes
+  (component props, `<state>` names, `let:` bindings) for
+  jump-to-def in editors that consume the `@local.*` family.
+  Currently absent.
 - **HTML attribute namespaces.** `attr_name` excludes `:` so the
-  `bind:` / `on:` directives win the lexer race; the corpus has no
-  SVG-style namespaced attributes (`xlink:href`, …) so this is safe
-  today but worth revisiting if SVG lands as a first-class template
+  `bind:` / `on:` / `class:` / `style:` / `attr:` / `let:`
+  directives win the lexer race; the corpus has no SVG-style
+  namespaced attributes (`xlink:href`, …) so this is safe today
+  but worth revisiting if SVG lands as a first-class template
   surface.

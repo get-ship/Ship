@@ -1,64 +1,16 @@
-; Tree-sitter highlight scopes for `.set` (Sail) components.
+; Tree-sitter highlight scopes for `.html.set` / `.set` template files.
+;
 ; Scope names follow the conventional `tree-sitter-highlight` palette
-; (see https://tree-sitter.github.io/tree-sitter/syntax-highlighting).
+; (https://tree-sitter.github.io/tree-sitter/syntax-highlighting).
 ; Editors map them onto their own theme tokens.
 
-; ── framework keywords ────────────────────────────────────────────────
-"prop"      @keyword
-"state"     @keyword
-"derived"   @keyword
-"data"      @keyword
-"effect"    @keyword
-"event"     @keyword
-"mount"     @keyword
-"unmount"   @keyword
-"function"  @keyword
-"async"     @keyword
-"component" @keyword
-"once"      @keyword
-"on"        @keyword
-"of"        @keyword
-"key"       @keyword
-
-"formAssociated"  @keyword
-"form_reset"      @keyword
-"form_restore"    @keyword
-"form_disabled"   @keyword
-
-; Template control-flow openers/closers.
-"{#if"     @keyword.control
-"{:elif"   @keyword.control
-"{:else if" @keyword.control
-"{:else}"  @keyword.control
-"{/if}"    @keyword.control
-"{#for"    @keyword.control
-"{:empty}" @keyword.control
-"{/for}"   @keyword.control
-"{#await"  @keyword.control
-"{:then"   @keyword.control
-"{:catch"  @keyword.control
-"{/await}" @keyword.control
-"{@html"   @keyword.control
-
-; ── declaration names ─────────────────────────────────────────────────
-(prop_decl     name: (identifier) @variable.member)
-(state_decl    name: (identifier) @variable.member)
-(derived_decl  name: (identifier) @variable.member)
-(data_decl     name: (identifier) @variable.member)
-(event_decl    name: (identifier) @variable.member)
-(function_decl name: (identifier) @function)
-
-; ── types ─────────────────────────────────────────────────────────────
-(type_annotation) @type
-
-; ── template tags / attributes ────────────────────────────────────────
-(tag_name)  @tag
+; ── HTML element / attribute structure ───────────────────────────────
+(tag_name) @tag
 (attr_name) @attribute
-(on_attr_name) @attribute
-"<:host"   @tag
-"</:host>" @tag
-"bind:"    @attribute
-"on:"      @attribute
+(attr_local) @attribute
+(style_prop_name) @attribute
+
+(string_literal) @string
 
 ; Element bracket punctuation.
 "<"  @punctuation.bracket
@@ -66,22 +18,56 @@
 "</" @punctuation.bracket
 "/>" @punctuation.bracket
 
-; Interpolation / brace boundaries.
+; ── directive elements (recognised by tag name) ──────────────────────
+; Highlight `<data>`, `<state>`, `<component>`, `<prop>`,
+; `<while-loading>`, `<while-error>` distinctively so authors can see
+; the runtime contract at a glance.
+((tag_name) @keyword.directive
+  (#match? @keyword.directive "^(data|state|component|prop|while-loading|while-error|slot)$"))
+
+; ── binding attribute prefixes ───────────────────────────────────────
+"bind:"  @keyword.directive
+"on:"    @keyword.directive
+"class:" @keyword.directive
+"style:" @keyword.directive
+"attr:"  @keyword.directive
+"let:"   @keyword.directive
+"|"      @punctuation.delimiter
+
+; ── template control flow markers ────────────────────────────────────
+"{#if"      @keyword.directive
+"{:elif"    @keyword.directive
+"{:else if" @keyword.directive
+"{:else}"   @keyword.directive
+"{/if}"     @keyword.directive
+"{#for"     @keyword.directive
+"of"        @keyword.directive
+"key"       @keyword.directive
+"{/for}"    @keyword.directive
+"{#match"   @keyword.directive
+"{:case"    @keyword.directive
+"{:default}" @keyword.directive
+"{/match}"  @keyword.directive
+
+; Brace boundaries.
 "{" @punctuation.special
 "}" @punctuation.special
 
-; ── literals / leaves ─────────────────────────────────────────────────
-(string_literal) @string
-(text)           @text
+; ── expression body (inside `{…}`) ───────────────────────────────────
+; Identifiers in expression position are variable reads; member
+; access shows up as a single `.foo` token (the `_member` rule).
+(interpolation (identifier) @variable)
+(brace_expression (identifier) @variable)
+(if_block cond: (identifier) @variable)
+(for_block iter: (identifier) @variable)
+(match_block value: (identifier) @variable)
+(case_clause value: (identifier) @variable)
 
-(line_comment)   @comment
-(block_comment)  @comment
-(html_comment)   @comment
+; For-loop binding pattern names are locals introduced by the loop.
+(for_pattern (identifier) @variable.parameter)
 
-; Block boundaries (opens/closes for the three top-level sections).
-(script_open)    @tag.directive
-(script_close)   @tag.directive
-(template_open)  @tag.directive
-(template_close) @tag.directive
-(style_open)     @tag.directive
-(style_close)    @tag.directive
+; let:NAME — slot binding name.
+(let_attr name: (attr_local) @variable.parameter)
+
+; ── comments ─────────────────────────────────────────────────────────
+(html_comment) @comment

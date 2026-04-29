@@ -23,7 +23,8 @@
           "set"
         ],
         "extensions": [
-          ".set"
+          ".set",
+          ".html.set"
         ],
         "configuration": "./language-configuration.json"
       }

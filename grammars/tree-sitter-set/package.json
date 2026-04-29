@@ -2,7 +2,7 @@
   "name": "tree-sitter-set",
   "version": "0.1.0",
   "type": "module",
-  "description": "Tree-sitter grammar for the Sail .set single-file component format",
+  "description": "Tree-sitter grammar for the ship-set .html.set / .set template language",
   "main": "bindings/node",
   "scripts": {
     "build": "tree-sitter generate",
@@ -11,10 +11,9 @@
   "tree-sitter": [
     {
       "scope": "source.set",
-      "file-types": ["set"],
+      "file-types": ["set", "html.set"],
       "highlights": "queries/highlights.scm",
-      "injections": "queries/injections.scm",
-      "locals": "queries/locals.scm"
+      "injections": "queries/injections.scm"
     }
   ],
   "license": "MIT",

@@ -7,11 +7,11 @@
       "scope": "source.set",
       "path": ".",
       "file-types": [
-        "set"
+        "set",
+        "html.set"
       ],
       "highlights": "queries/highlights.scm",
       "injections": "queries/injections.scm",
-      "locals": "queries/locals.scm",
       "injection-regex": "^set$",
       "abi": 15
     }

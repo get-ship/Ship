@@ -1,96 +1,24 @@
 [
   {
-    "type": "await_block",
+    "type": "attr_attr",
     "named": true,
     "fields": {
-      "catch": {
+      "name": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
-            "type": "await_catch",
+            "type": "brace_expression",
             "named": true
           }
         ]
       },
-      "loading": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "await_block",
-            "named": true
-          },
-          {
-            "type": "element",
-            "named": true
-          },
-          {
-            "type": "for_block",
-            "named": true
-          },
-          {
-            "type": "host_element",
-            "named": true
-          },
-          {
-            "type": "html_comment",
-            "named": true
-          },
-          {
-            "type": "if_block",
-            "named": true
-          },
-          {
-            "type": "interpolation",
-            "named": true
-          },
-          {
-            "type": "raw_html",
-            "named": true
-          },
-          {
-            "type": "text",
-            "named": true
-          }
-        ]
-      },
-      "promise": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "(",
-            "named": false
-          },
-          {
-            "type": ")",
-            "named": false
-          },
-          {
-            "type": "[",
-            "named": false
-          },
-          {
-            "type": "]",
-            "named": false
-          },
-          {
-            "type": "{",
-            "named": false
-          },
-          {
-            "type": "}",
-            "named": false
-          }
-        ]
-      },
-      "then": {
+      "value": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
-            "type": "await_then",
+            "type": "brace_expression",
             "named": true
           }
         ]
@@ -98,120 +26,14 @@
     }
   },
   {
-    "type": "await_catch",
+    "type": "attr_local",
     "named": true,
-    "fields": {
-      "binding": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "await_block",
-          "named": true
-        },
-        {
-          "type": "element",
-          "named": true
-        },
-        {
-          "type": "for_block",
-          "named": true
-        },
-        {
-          "type": "host_element",
-          "named": true
-        },
-        {
-          "type": "html_comment",
-          "named": true
-        },
-        {
-          "type": "if_block",
-          "named": true
-        },
-        {
-          "type": "interpolation",
-          "named": true
-        },
-        {
-          "type": "raw_html",
-          "named": true
-        },
-        {
-          "type": "text",
-          "named": true
-        }
-      ]
-    }
+    "fields": {}
   },
   {
-    "type": "await_then",
+    "type": "attr_name",
     "named": true,
-    "fields": {
-      "binding": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      }
-    },
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "await_block",
-          "named": true
-        },
-        {
-          "type": "element",
-          "named": true
-        },
-        {
-          "type": "for_block",
-          "named": true
-        },
-        {
-          "type": "host_element",
-          "named": true
-        },
-        {
-          "type": "html_comment",
-          "named": true
-        },
-        {
-          "type": "if_block",
-          "named": true
-        },
-        {
-          "type": "interpolation",
-          "named": true
-        },
-        {
-          "type": "raw_html",
-          "named": true
-        },
-        {
-          "type": "text",
-          "named": true
-        }
-      ]
-    }
+    "fields": {}
   },
   {
     "type": "bind_attr",
@@ -222,7 +44,7 @@
         "required": true,
         "types": [
           {
-            "type": "attr_name",
+            "type": "attr_local",
             "named": true
           }
         ]
@@ -255,117 +77,154 @@
     }
   },
   {
-    "type": "brace_block",
-    "named": true,
-    "fields": {}
-  },
-  {
     "type": "brace_expression",
     "named": true,
     "fields": {},
     "children": {
-      "multiple": false,
-      "required": true,
-      "types": [
-        {
-          "type": "interpolation",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "component_decl",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "data_decl",
-    "named": true,
-    "fields": {
-      "expr": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "type": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "type_annotation",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "dep_list",
-    "named": true,
-    "fields": {},
-    "children": {
       "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "dotted_identifier",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "derived_decl",
-    "named": true,
-    "fields": {
-      "expr": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "dotted_identifier",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "identifier",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "case_clause",
+    "named": true,
+    "fields": {
+      "value": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "[",
+            "named": false
+          },
+          {
+            "type": "]",
+            "named": false
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "{",
+            "named": false
+          },
+          {
+            "type": "}",
+            "named": false
+          }
+        ]
+      }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "element",
+          "named": true
+        },
+        {
+          "type": "for_block",
+          "named": true
+        },
+        {
+          "type": "html_comment",
+          "named": true
+        },
+        {
+          "type": "if_block",
+          "named": true
+        },
+        {
+          "type": "interpolation",
+          "named": true
+        },
+        {
+          "type": "match_block",
+          "named": true
+        },
+        {
+          "type": "text",
+          "named": true
+        }
+      ]
+    }
+  },
+  {
+    "type": "class_attr",
+    "named": true,
+    "fields": {
+      "name": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "attr_local",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "brace_expression",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
+    "type": "default_clause",
+    "named": true,
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "element",
+          "named": true
+        },
+        {
+          "type": "for_block",
+          "named": true
+        },
+        {
+          "type": "html_comment",
+          "named": true
+        },
+        {
+          "type": "if_block",
+          "named": true
+        },
+        {
+          "type": "interpolation",
+          "named": true
+        },
+        {
+          "type": "match_block",
+          "named": true
+        },
+        {
+          "type": "text",
           "named": true
         }
       ]
@@ -398,42 +257,6 @@
     }
   },
   {
-    "type": "effect_decl",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "brace_block",
-            "named": true
-          }
-        ]
-      },
-      "deps": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "dep_list",
-            "named": true
-          }
-        ]
-      },
-      "once": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "once",
-            "named": false
-          }
-        ]
-      }
-    }
-  },
-  {
     "type": "element",
     "named": true,
     "fields": {
@@ -447,19 +270,9 @@
           }
         ]
       },
-      "open_tag": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "tag_name",
-            "named": true
-          }
-        ]
-      },
       "tag": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
             "type": "tag_name",
@@ -473,7 +286,7 @@
       "required": false,
       "types": [
         {
-          "type": "await_block",
+          "type": "attr_attr",
           "named": true
         },
         {
@@ -482,6 +295,10 @@
         },
         {
           "type": "boolean_attr",
+          "named": true
+        },
+        {
+          "type": "class_attr",
           "named": true
         },
         {
@@ -501,10 +318,6 @@
           "named": true
         },
         {
-          "type": "host_element",
-          "named": true
-        },
-        {
           "type": "html_comment",
           "named": true
         },
@@ -517,11 +330,19 @@
           "named": true
         },
         {
-          "type": "raw_html",
+          "type": "let_attr",
+          "named": true
+        },
+        {
+          "type": "match_block",
           "named": true
         },
         {
           "type": "static_attr",
+          "named": true
+        },
+        {
+          "type": "style_attr",
           "named": true
         },
         {
@@ -556,6 +377,10 @@
             "named": false
           },
           {
+            "type": "identifier",
+            "named": true
+          },
+          {
             "type": "{",
             "named": false
           },
@@ -571,19 +396,11 @@
       "required": false,
       "types": [
         {
-          "type": "await_block",
-          "named": true
-        },
-        {
           "type": "element",
           "named": true
         },
         {
           "type": "for_block",
-          "named": true
-        },
-        {
-          "type": "host_element",
           "named": true
         },
         {
@@ -599,7 +416,7 @@
           "named": true
         },
         {
-          "type": "raw_html",
+          "type": "match_block",
           "named": true
         },
         {
@@ -618,19 +435,11 @@
       "required": false,
       "types": [
         {
-          "type": "await_block",
-          "named": true
-        },
-        {
           "type": "element",
           "named": true
         },
         {
           "type": "for_block",
-          "named": true
-        },
-        {
-          "type": "host_element",
           "named": true
         },
         {
@@ -646,7 +455,7 @@
           "named": true
         },
         {
-          "type": "raw_html",
+          "type": "match_block",
           "named": true
         },
         {
@@ -662,20 +471,10 @@
     "fields": {
       "event": {
         "multiple": false,
-        "required": false,
+        "required": true,
         "types": [
           {
-            "type": "attr_name",
-            "named": true
-          }
-        ]
-      },
-      "event_dom": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "on_attr_name",
+            "type": "attr_local",
             "named": true
           }
         ]
@@ -695,125 +494,17 @@
         "required": false,
         "types": [
           {
-            "type": "event_modifier",
+            "type": "attr_local",
             "named": true
           }
         ]
       }
-    }
-  },
-  {
-    "type": "event_decl",
-    "named": true,
-    "fields": {
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "payload_type": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "type_annotation",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "event_modifier",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "expression",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
-        }
-      ]
     }
   },
   {
     "type": "for_block",
     "named": true,
     "fields": {
-      "body": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "await_block",
-            "named": true
-          },
-          {
-            "type": "element",
-            "named": true
-          },
-          {
-            "type": "for_block",
-            "named": true
-          },
-          {
-            "type": "host_element",
-            "named": true
-          },
-          {
-            "type": "html_comment",
-            "named": true
-          },
-          {
-            "type": "if_block",
-            "named": true
-          },
-          {
-            "type": "interpolation",
-            "named": true
-          },
-          {
-            "type": "raw_html",
-            "named": true
-          },
-          {
-            "type": "text",
-            "named": true
-          }
-        ]
-      },
-      "empty": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "for_empty",
-            "named": true
-          }
-        ]
-      },
       "item": {
         "multiple": false,
         "required": true,
@@ -868,30 +559,21 @@
           }
         ]
       }
-    }
-  },
-  {
-    "type": "for_empty",
-    "named": true,
-    "fields": {},
+    },
     "children": {
       "multiple": true,
       "required": false,
       "types": [
         {
-          "type": "await_block",
-          "named": true
-        },
-        {
           "type": "element",
           "named": true
         },
         {
-          "type": "for_block",
+          "type": "else_clause",
           "named": true
         },
         {
-          "type": "host_element",
+          "type": "for_block",
           "named": true
         },
         {
@@ -907,7 +589,7 @@
           "named": true
         },
         {
-          "type": "raw_html",
+          "type": "match_block",
           "named": true
         },
         {
@@ -927,117 +609,6 @@
       "types": [
         {
           "type": "identifier",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "form_lifecycle_block",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "brace_block",
-            "named": true
-          }
-        ]
-      },
-      "event": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "form_disabled",
-            "named": false
-          },
-          {
-            "type": "form_reset",
-            "named": false
-          },
-          {
-            "type": "form_restore",
-            "named": false
-          }
-        ]
-      },
-      "payload": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "function_decl",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "brace_block",
-            "named": true
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "params": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "paren_block",
-            "named": true
-          }
-        ]
-      }
-    }
-  },
-  {
-    "type": "host_element",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "bind_attr",
-          "named": true
-        },
-        {
-          "type": "boolean_attr",
-          "named": true
-        },
-        {
-          "type": "dynamic_attr",
-          "named": true
-        },
-        {
-          "type": "event_attr",
-          "named": true
-        },
-        {
-          "type": "static_attr",
           "named": true
         }
       ]
@@ -1068,6 +639,10 @@
             "named": false
           },
           {
+            "type": "identifier",
+            "named": true
+          },
+          {
             "type": "{",
             "named": false
           },
@@ -1076,127 +651,76 @@
             "named": false
           }
         ]
-      },
-      "elif": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "elif_clause",
-            "named": true
-          }
-        ]
-      },
-      "else": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "else_clause",
-            "named": true
-          }
-        ]
-      },
-      "then": {
-        "multiple": true,
-        "required": false,
-        "types": [
-          {
-            "type": "await_block",
-            "named": true
-          },
-          {
-            "type": "element",
-            "named": true
-          },
-          {
-            "type": "for_block",
-            "named": true
-          },
-          {
-            "type": "host_element",
-            "named": true
-          },
-          {
-            "type": "html_comment",
-            "named": true
-          },
-          {
-            "type": "if_block",
-            "named": true
-          },
-          {
-            "type": "interpolation",
-            "named": true
-          },
-          {
-            "type": "raw_html",
-            "named": true
-          },
-          {
-            "type": "text",
-            "named": true
-          }
-        ]
       }
+    },
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "element",
+          "named": true
+        },
+        {
+          "type": "elif_clause",
+          "named": true
+        },
+        {
+          "type": "else_clause",
+          "named": true
+        },
+        {
+          "type": "for_block",
+          "named": true
+        },
+        {
+          "type": "html_comment",
+          "named": true
+        },
+        {
+          "type": "if_block",
+          "named": true
+        },
+        {
+          "type": "interpolation",
+          "named": true
+        },
+        {
+          "type": "match_block",
+          "named": true
+        },
+        {
+          "type": "text",
+          "named": true
+        }
+      ]
     }
   },
   {
     "type": "interpolation",
     "named": true,
-    "fields": {}
-  },
-  {
-    "type": "mount_block",
-    "named": true,
-    "fields": {
-      "body": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "brace_block",
-            "named": true
-          }
-        ]
-      }
+    "fields": {},
+    "children": {
+      "multiple": true,
+      "required": false,
+      "types": [
+        {
+          "type": "identifier",
+          "named": true
+        }
+      ]
     }
   },
   {
-    "type": "paren_block",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "prop_decl",
+    "type": "let_attr",
     "named": true,
     "fields": {
-      "default": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
       "name": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "type": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "type_annotation",
+            "type": "attr_local",
             "named": true
           }
         ]
@@ -1204,72 +728,54 @@
     }
   },
   {
-    "type": "raw_html",
+    "type": "match_block",
     "named": true,
-    "fields": {}
-  },
-  {
-    "type": "script_block",
-    "named": true,
-    "fields": {},
+    "fields": {
+      "value": {
+        "multiple": true,
+        "required": false,
+        "types": [
+          {
+            "type": "(",
+            "named": false
+          },
+          {
+            "type": ")",
+            "named": false
+          },
+          {
+            "type": "[",
+            "named": false
+          },
+          {
+            "type": "]",
+            "named": false
+          },
+          {
+            "type": "identifier",
+            "named": true
+          },
+          {
+            "type": "{",
+            "named": false
+          },
+          {
+            "type": "}",
+            "named": false
+          }
+        ]
+      }
+    },
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
-          "type": "component_decl",
+          "type": "case_clause",
           "named": true
         },
         {
-          "type": "data_decl",
-          "named": true
-        },
-        {
-          "type": "derived_decl",
-          "named": true
-        },
-        {
-          "type": "effect_decl",
-          "named": true
-        },
-        {
-          "type": "event_decl",
-          "named": true
-        },
-        {
-          "type": "form_lifecycle_block",
-          "named": true
-        },
-        {
-          "type": "function_decl",
-          "named": true
-        },
-        {
-          "type": "js_chunk",
-          "named": true
-        },
-        {
-          "type": "mount_block",
-          "named": true
-        },
-        {
-          "type": "prop_decl",
-          "named": true
-        },
-        {
-          "type": "script_close",
-          "named": true
-        },
-        {
-          "type": "script_open",
-          "named": true
-        },
-        {
-          "type": "state_decl",
-          "named": true
-        },
-        {
-          "type": "unmount_block",
+          "type": "default_clause",
           "named": true
         }
       ]
@@ -1285,54 +791,34 @@
       "required": false,
       "types": [
         {
-          "type": "script_block",
+          "type": "element",
           "named": true
         },
         {
-          "type": "style_block",
+          "type": "for_block",
           "named": true
         },
         {
-          "type": "template_block",
+          "type": "html_comment",
+          "named": true
+        },
+        {
+          "type": "if_block",
+          "named": true
+        },
+        {
+          "type": "interpolation",
+          "named": true
+        },
+        {
+          "type": "match_block",
+          "named": true
+        },
+        {
+          "type": "text",
           "named": true
         }
       ]
-    }
-  },
-  {
-    "type": "state_decl",
-    "named": true,
-    "fields": {
-      "initial": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "expression",
-            "named": true
-          }
-        ]
-      },
-      "name": {
-        "multiple": false,
-        "required": true,
-        "types": [
-          {
-            "type": "identifier",
-            "named": true
-          }
-        ]
-      },
-      "type": {
-        "multiple": false,
-        "required": false,
-        "types": [
-          {
-            "type": "type_annotation",
-            "named": true
-          }
-        ]
-      }
     }
   },
   {
@@ -1367,130 +853,30 @@
     "fields": {}
   },
   {
-    "type": "style_block",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "style_body",
-          "named": true
-        },
-        {
-          "type": "style_close",
-          "named": true
-        },
-        {
-          "type": "style_open",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "style_body",
-    "named": true,
-    "fields": {}
-  },
-  {
-    "type": "template_block",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": true,
-      "types": [
-        {
-          "type": "await_block",
-          "named": true
-        },
-        {
-          "type": "element",
-          "named": true
-        },
-        {
-          "type": "for_block",
-          "named": true
-        },
-        {
-          "type": "host_element",
-          "named": true
-        },
-        {
-          "type": "html_comment",
-          "named": true
-        },
-        {
-          "type": "if_block",
-          "named": true
-        },
-        {
-          "type": "interpolation",
-          "named": true
-        },
-        {
-          "type": "raw_html",
-          "named": true
-        },
-        {
-          "type": "template_close",
-          "named": true
-        },
-        {
-          "type": "template_open",
-          "named": true
-        },
-        {
-          "type": "text",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "type_annotation",
-    "named": true,
-    "fields": {},
-    "children": {
-      "multiple": true,
-      "required": false,
-      "types": [
-        {
-          "type": "identifier",
-          "named": true
-        }
-      ]
-    }
-  },
-  {
-    "type": "unmount_block",
+    "type": "style_attr",
     "named": true,
     "fields": {
-      "body": {
+      "name": {
         "multiple": false,
         "required": true,
         "types": [
           {
-            "type": "brace_block",
+            "type": "style_prop_name",
+            "named": true
+          }
+        ]
+      },
+      "value": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "brace_expression",
             "named": true
           }
         ]
       }
     }
-  },
-  {
-    "type": "!",
-    "named": false
-  },
-  {
-    "type": "\"",
-    "named": false
-  },
-  {
-    "type": "'",
-    "named": false
   },
   {
     "type": "(",
@@ -1505,15 +891,7 @@
     "named": false
   },
   {
-    "type": ".",
-    "named": false
-  },
-  {
     "type": "/>",
-    "named": false
-  },
-  {
-    "type": ":",
     "named": false
   },
   {
@@ -1525,23 +903,11 @@
     "named": false
   },
   {
-    "type": "</:host>",
-    "named": false
-  },
-  {
-    "type": "<:host",
-    "named": false
-  },
-  {
     "type": "=",
     "named": false
   },
   {
     "type": ">",
-    "named": false
-  },
-  {
-    "type": "?",
     "named": false
   },
   {
@@ -1553,60 +919,15 @@
     "named": false
   },
   {
-    "type": "async",
+    "type": "attr:",
     "named": false
-  },
-  {
-    "type": "attr_name",
-    "named": true
   },
   {
     "type": "bind:",
     "named": false
   },
   {
-    "type": "block_comment",
-    "named": true,
-    "extra": true
-  },
-  {
-    "type": "component",
-    "named": false
-  },
-  {
-    "type": "data",
-    "named": false
-  },
-  {
-    "type": "derived",
-    "named": false
-  },
-  {
-    "type": "effect",
-    "named": false
-  },
-  {
-    "type": "event",
-    "named": false
-  },
-  {
-    "type": "formAssociated",
-    "named": false
-  },
-  {
-    "type": "form_disabled",
-    "named": false
-  },
-  {
-    "type": "form_reset",
-    "named": false
-  },
-  {
-    "type": "form_restore",
-    "named": false
-  },
-  {
-    "type": "function",
+    "type": "class:",
     "named": false
   },
   {
@@ -1618,20 +939,11 @@
     "named": true
   },
   {
-    "type": "js_chunk",
-    "named": true
-  },
-  {
     "type": "key",
     "named": false
   },
   {
-    "type": "line_comment",
-    "named": true,
-    "extra": true
-  },
-  {
-    "type": "mount",
+    "type": "let:",
     "named": false
   },
   {
@@ -1639,43 +951,15 @@
     "named": false
   },
   {
-    "type": "on",
-    "named": false
-  },
-  {
     "type": "on:",
     "named": false
   },
   {
-    "type": "on_attr_name",
-    "named": true
-  },
-  {
-    "type": "once",
+    "type": "style:",
     "named": false
   },
   {
-    "type": "prop",
-    "named": false
-  },
-  {
-    "type": "script_close",
-    "named": true
-  },
-  {
-    "type": "script_open",
-    "named": true
-  },
-  {
-    "type": "state",
-    "named": false
-  },
-  {
-    "type": "style_close",
-    "named": true
-  },
-  {
-    "type": "style_open",
+    "type": "style_prop_name",
     "named": true
   },
   {
@@ -1683,27 +967,11 @@
     "named": true
   },
   {
-    "type": "template_close",
-    "named": true
-  },
-  {
-    "type": "template_open",
-    "named": true
-  },
-  {
     "type": "text",
     "named": true
   },
   {
-    "type": "unmount",
-    "named": false
-  },
-  {
     "type": "{",
-    "named": false
-  },
-  {
-    "type": "{#await",
     "named": false
   },
   {
@@ -1715,7 +983,7 @@
     "named": false
   },
   {
-    "type": "{/await}",
+    "type": "{#match",
     "named": false
   },
   {
@@ -1727,7 +995,15 @@
     "named": false
   },
   {
-    "type": "{:catch",
+    "type": "{/match}",
+    "named": false
+  },
+  {
+    "type": "{:case",
+    "named": false
+  },
+  {
+    "type": "{:default}",
     "named": false
   },
   {
@@ -1740,18 +1016,6 @@
   },
   {
     "type": "{:else}",
-    "named": false
-  },
-  {
-    "type": "{:empty}",
-    "named": false
-  },
-  {
-    "type": "{:then",
-    "named": false
-  },
-  {
-    "type": "{@html",
     "named": false
   },
   {
