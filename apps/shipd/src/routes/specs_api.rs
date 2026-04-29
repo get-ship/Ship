@@ -1,7 +1,9 @@
-//! Specs REST API — CRUD over the `spec` table and pipeline launch.
+//! Specs REST API — `/api/v1/specs/*`. CRUD plus pipeline launch.
 //!
-//! Routes are mounted under `/api/v1/runtime` in lib.rs. All real work
-//! delegates through `SpecsService` (mr-02 trait).
+//! Specs are a first-party collection (`SPECS_ID`); the routes are
+//! thin shims over `CollectionsService` plus on-disk body files.
+//! `launch` delegates to the generic
+//! `services::launcher::launch_collection_item`.
 
 use axum::{
     Json,
@@ -9,16 +11,22 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use crate::services::specs::service::Spec;
 use serde::Deserialize;
 use serde_json::json;
 use std::collections::HashMap;
 
 use crate::access::RuntimeAccess;
 use crate::rest_api::{ApiState, MeshResponse};
-use crate::services::specs::service::{
-    CreateArgs, Error as SpecsError, SpecsService, UpdateArgs,
+use crate::services::collections::service::{
+    CollectionsService, CreateItemArgs, Error as CollectionsError, UpdateItemArgs,
 };
+use crate::services::launcher::{LaunchError, launch_collection_item};
+use crate::services::specs::shape::{
+    Spec, build_create_data, build_update_data, default_body_path, load_body, save_body,
+    spec_from_item,
+};
+
+use runtime::collections::builtin::SPECS_ID;
 
 type Resp = (StatusCode, Json<MeshResponse>);
 
@@ -30,18 +38,27 @@ fn err(status: StatusCode, msg: impl Into<String>) -> Resp {
     (status, Json(MeshResponse { ok: false, data: serde_json::json!(msg.into()) }))
 }
 
-fn map_err(e: SpecsError) -> Resp {
-    use SpecsError::*;
+fn map_collections_err(e: CollectionsError) -> Resp {
+    use CollectionsError::*;
     match e {
         NotFound(m) => err(StatusCode::NOT_FOUND, m),
         Validation(m) => err(StatusCode::BAD_REQUEST, m),
-        Io(m) => err(StatusCode::INTERNAL_SERVER_ERROR, m),
-        Internal(m) => err(StatusCode::INTERNAL_SERVER_ERROR, m),
+        Conflict(m) => err(StatusCode::CONFLICT, m),
+        Io(m) | Internal(m) => err(StatusCode::INTERNAL_SERVER_ERROR, m),
     }
 }
 
-fn specs(state: &ApiState) -> &dyn SpecsService {
-    state.services().specs()
+fn map_launch_err(e: LaunchError) -> Resp {
+    use LaunchError::*;
+    match e {
+        NotFound(m) => err(StatusCode::NOT_FOUND, m),
+        Validation(m) => err(StatusCode::BAD_REQUEST, m),
+        Io(m) | Internal(m) => err(StatusCode::INTERNAL_SERVER_ERROR, m),
+    }
+}
+
+fn collections(state: &ApiState) -> &dyn CollectionsService {
+    state.services().collections()
 }
 
 fn spec_to_json(s: &Spec) -> serde_json::Value {
@@ -117,7 +134,7 @@ pub struct UpdateSpecRequest {
 
 // ---- Handlers ----
 
-/// GET /api/v1/runtime/specs
+/// GET /api/v1/specs
 #[utoipa::path(
     operation_id = "listSpecs",
     get,
@@ -129,16 +146,30 @@ pub struct UpdateSpecRequest {
     tag = "specs"
 )]
 pub async fn list_specs(State(state): State<ApiState>) -> impl IntoResponse {
-    match specs(&state).list() {
-        Ok(list) => {
-            let data: Vec<_> = list.iter().map(spec_to_json).collect();
+    let req = runtime::collections::query::QueryRequest {
+        collection: SPECS_ID.to_string(),
+        filter: Default::default(),
+        sort: {
+            let mut s = std::collections::BTreeMap::new();
+            s.insert("updated_at".into(), -1);
+            s
+        },
+        limit: 1000,
+        offset: 0,
+    };
+    match collections(&state).query_items(SPECS_ID, req).await {
+        Ok(items) => {
+            let data: Vec<_> = items
+                .into_iter()
+                .map(|i| spec_to_json(&spec_from_item(i)))
+                .collect();
             ok(serde_json::json!({ "specs": data }))
         }
-        Err(e) => map_err(e),
+        Err(e) => map_collections_err(e),
     }
 }
 
-/// GET /api/v1/runtime/specs/{id}
+/// GET /api/v1/specs/{id}
 #[utoipa::path(
     operation_id = "getSpec",
     get,
@@ -155,17 +186,19 @@ pub async fn get_spec(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match specs(&state).get_with_body(&id) {
-        Ok((s, body)) => {
-            let mut v = spec_to_json(&s);
+    match collections(&state).get_item(SPECS_ID, &id).await {
+        Ok(item) => {
+            let spec = spec_from_item(item);
+            let body = load_body(&spec.body_path).unwrap_or_default();
+            let mut v = spec_to_json(&spec);
             v["body"] = serde_json::Value::String(body);
             ok(v)
         }
-        Err(e) => map_err(e),
+        Err(e) => map_collections_err(e),
     }
 }
 
-/// POST /api/v1/runtime/specs
+/// POST /api/v1/specs
 #[utoipa::path(
     operation_id = "createSpec",
     post,
@@ -182,23 +215,37 @@ pub async fn create_spec(
     State(state): State<ApiState>,
     Json(req): Json<CreateSpecRequest>,
 ) -> impl IntoResponse {
-    let args = CreateArgs {
-        title: req.title,
-        body: req.body,
-        status: req.status,
-        pipeline: req.pipeline,
-        vars: req.vars,
-        criteria: req.criteria,
-        scope: req.scope,
-        priority: req.priority,
+    if req.title.trim().is_empty() {
+        return err(StatusCode::BAD_REQUEST, "title is required");
+    }
+    let id = runtime::gen_ulid();
+    let body_path = default_body_path(&id);
+    if let Err(e) = save_body(&body_path, &req.body) {
+        return err(StatusCode::INTERNAL_SERVER_ERROR, format!("save body: {e}"));
+    }
+    let data = build_create_data(
+        &req.title,
+        &body_path,
+        req.status.as_deref(),
+        req.pipeline.as_deref(),
+        &req.vars,
+        &req.criteria,
+        &req.scope,
+        req.priority,
+    );
+    let args = CreateItemArgs {
+        collection: SPECS_ID.to_string(),
+        id,
+        data,
+        created_by: None,
     };
-    match specs(&state).create(args) {
-        Ok(spec) => ok(spec_to_json(&spec)),
-        Err(e) => map_err(e),
+    match collections(&state).create_item(args).await {
+        Ok(item) => ok(spec_to_json(&spec_from_item(item))),
+        Err(e) => map_collections_err(e),
     }
 }
 
-/// PUT /api/v1/runtime/specs/{id}
+/// PUT /api/v1/specs/{id}
 #[utoipa::path(
     operation_id = "updateSpec",
     put,
@@ -218,23 +265,48 @@ pub async fn update_spec(
     Path(id): Path<String>,
     Json(req): Json<UpdateSpecRequest>,
 ) -> impl IntoResponse {
-    let args = UpdateArgs {
-        title: req.title,
-        body: req.body,
-        status: req.status,
-        pipeline: req.pipeline,
-        vars: req.vars,
-        criteria: req.criteria,
-        scope: req.scope,
-        priority: req.priority,
+    // Body writes need the existing item's body_path. Fetch it first; an
+    // update against a nonexistent id should 404 before disk I/O anyway.
+    let body_path = if req.body.is_some() {
+        match collections(&state).get_item(SPECS_ID, &id).await {
+            Ok(item) => spec_from_item(item).body_path,
+            Err(e) => return map_collections_err(e),
+        }
+    } else {
+        String::new()
     };
-    match specs(&state).update(&id, args) {
-        Ok(spec) => ok(spec_to_json(&spec)),
-        Err(e) => map_err(e),
+    if let Some(body) = &req.body {
+        let path = if body_path.is_empty() {
+            default_body_path(&id)
+        } else {
+            body_path.clone()
+        };
+        if let Err(e) = save_body(&path, body) {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, format!("save body: {e}"));
+        }
+    }
+    let pipeline = req.pipeline.as_ref().map(|opt| opt.as_deref());
+    let updates = build_update_data(
+        req.title.as_deref(),
+        req.status.as_deref(),
+        pipeline,
+        req.vars.as_ref(),
+        req.criteria.as_deref(),
+        req.scope.as_deref(),
+        req.priority,
+    );
+    let args = UpdateItemArgs {
+        collection: SPECS_ID.to_string(),
+        id,
+        data: updates,
+    };
+    match collections(&state).update_item(args).await {
+        Ok(item) => ok(spec_to_json(&spec_from_item(item))),
+        Err(e) => map_collections_err(e),
     }
 }
 
-/// DELETE /api/v1/runtime/specs/{id}
+/// DELETE /api/v1/specs/{id}
 #[utoipa::path(
     operation_id = "deleteSpec",
     delete,
@@ -251,13 +323,14 @@ pub async fn delete_spec(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match specs(&state).delete(&id) {
-        Ok(()) => ok(serde_json::json!({ "id": id })),
-        Err(e) => map_err(e),
+    match collections(&state).delete_item(SPECS_ID, &id).await {
+        Ok(true) => ok(serde_json::json!({ "id": id })),
+        Ok(false) => err(StatusCode::NOT_FOUND, format!("spec '{id}' not found")),
+        Err(e) => map_collections_err(e),
     }
 }
 
-/// POST /api/v1/runtime/specs/{id}/launch — create a job from the spec.
+/// POST /api/v1/specs/{id}/launch — create a job from the spec.
 #[utoipa::path(
     operation_id = "launchSpec",
     post,
@@ -275,8 +348,10 @@ pub async fn launch_spec(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> impl IntoResponse {
-    match specs(&state).launch(&id).await {
+    let kernel = state.kernel().clone();
+    match launch_collection_item(collections(&state), &kernel, SPECS_ID, &id).await {
         Ok(job_id) => ok(serde_json::json!({ "job_id": job_id, "spec_id": id })),
-        Err(e) => map_err(e),
+        Err(e) => map_launch_err(e),
     }
 }
+

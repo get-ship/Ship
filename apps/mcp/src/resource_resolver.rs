@@ -37,13 +37,6 @@ pub async fn resolve_resource_uri(
     {
         return crate::network_client::view_session_raw(rest).await.ok();
     }
-    if uri == "ship://specs" {
-        return resolve_specs_list(&ship_dir);
-    }
-    if let Some(id) = uri.strip_prefix("ship://specs/") {
-        let spec_path = runtime::project::specs_dir(&ship_dir).join(format!("{id}.md"));
-        return std::fs::read_to_string(&spec_path).ok();
-    }
     if uri == "ship://skills" {
         let entries = list_effective_skills(&ship_dir).ok()?;
         if entries.is_empty() {
@@ -113,33 +106,6 @@ pub async fn resolve_resource_uri(
         return Some(result);
     }
     None
-}
-
-fn resolve_specs_list(ship_dir: &Path) -> Option<String> {
-    let specs_path = runtime::project::specs_dir(ship_dir);
-    match std::fs::read_dir(&specs_path) {
-        Ok(entries) => {
-            let mut specs: Vec<String> = entries
-                .filter_map(|e| e.ok())
-                .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("md"))
-                .filter_map(|e| {
-                    e.path()
-                        .file_stem()
-                        .and_then(|s| s.to_str().map(String::from))
-                })
-                .collect();
-            if specs.is_empty() {
-                return Some("No specs found.".to_string());
-            }
-            specs.sort();
-            let mut out = String::from("Specs:\n");
-            for s in &specs {
-                out.push_str(&format!("- {s}\n"));
-            }
-            Some(out)
-        }
-        Err(_) => Some("No specs found.".to_string()),
-    }
 }
 
 fn resolve_jobs_list() -> Option<String> {

@@ -6,7 +6,6 @@ use runtime::read_recent_events;
 pub fn static_resource_list() -> Vec<rmcp::model::Annotated<RawResource>> {
     vec![
         RawResource::new("ship://project_info", "Project Info").no_annotation(),
-        RawResource::new("ship://specs", "Specs").no_annotation(),
         RawResource::new("ship://adrs", "ADRs").no_annotation(),
         RawResource::new("ship://skills", "Skills").no_annotation(),
         RawResource::new("ship://workspaces", "Workspaces").no_annotation(),
@@ -40,7 +39,6 @@ pub fn static_resource_template_list() -> Vec<rmcp::model::Annotated<RawResource
             "Session File",
             "application/octet-stream",
         ),
-        tmpl("ship://specs/{id}", "Spec", "text/markdown"),
         tmpl("ship://adrs/{id}", "ADR", "text/markdown"),
         tmpl(
             "ship://workspaces/{branch}",

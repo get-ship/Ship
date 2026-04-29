@@ -43,9 +43,9 @@
     "notes": "ship://session/{path}. Reads .artifacts/ files. Template-based resource. Functional."
   },
   {
-    "id": "resource-specs-adrs",
+    "id": "resource-adrs",
     "status": "stable",
-    "notes": "ship://specs, ship://specs/{id}, ship://adrs, ship://adrs/{id}. Read from filesystem and DB respectively."
+    "notes": "ship://adrs, ship://adrs/{id}. Read from filesystem."
   },
   {
     "id": "resource-modes-providers",

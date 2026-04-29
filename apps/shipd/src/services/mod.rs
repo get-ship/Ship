@@ -7,6 +7,7 @@
 
 pub mod files;
 pub mod jsonc;
+pub mod launcher;
 pub mod path_tolerant;
 pub mod registry;
 pub mod schema;

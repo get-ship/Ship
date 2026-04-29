@@ -131,9 +131,6 @@ pub struct ShipRuntime {
     /// `ArtifactsService` impl — ninth mr-02 migration. Db-bound;
     /// shares the `data_service` Arc with the runtime.
     artifacts: std::sync::Arc<dyn crate::services::artifacts::service::ArtifactsService>,
-    /// `SpecsService` impl — tenth mr-02 migration. Db-bound to
-    /// `runtime::db::specs`; launch path emits through the kernel.
-    specs: std::sync::Arc<dyn crate::services::specs::service::SpecsService>,
 }
 
 impl ShipRuntime {
@@ -271,11 +268,6 @@ impl ShipRuntime {
             kernel.clone(),
             data_service.clone(),
         );
-        let specs = crate::services::specs::service::SpecsServiceImpl::arc(
-            global_dir.clone(),
-            kernel.clone(),
-            data_service.clone(),
-        );
 
         Ok(Self {
             config,
@@ -332,7 +324,6 @@ impl ShipRuntime {
             git: crate::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             collections,
             artifacts,
-            specs,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -422,11 +413,6 @@ impl ShipRuntime {
         &self,
     ) -> &dyn crate::services::artifacts::service::ArtifactsService {
         &*self.artifacts
-    }
-
-    /// `SpecsService` accessor — spec CRUD + pipeline launch.
-    pub fn specs(&self) -> &dyn crate::services::specs::service::SpecsService {
-        &*self.specs
     }
 
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
@@ -679,11 +665,6 @@ impl ShipRuntime {
             kernel.clone(),
             data_service.clone(),
         );
-        let specs = crate::services::specs::service::SpecsServiceImpl::arc(
-            ship_dir.clone(),
-            kernel.clone(),
-            data_service.clone(),
-        );
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
@@ -722,7 +703,6 @@ impl ShipRuntime {
             git,
             collections,
             artifacts,
-            specs,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -754,11 +734,6 @@ impl ShipRuntime {
                 data_service.clone(),
             );
         let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
-            ship_dir.clone(),
-            kernel.clone(),
-            data_service.clone(),
-        );
-        let specs = crate::services::specs::service::SpecsServiceImpl::arc(
             ship_dir.clone(),
             kernel.clone(),
             data_service.clone(),
@@ -801,7 +776,6 @@ impl ShipRuntime {
             git,
             collections,
             artifacts,
-            specs,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),

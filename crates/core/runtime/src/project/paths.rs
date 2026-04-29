@@ -38,10 +38,6 @@ pub fn notes_dir(ship_dir: &Path) -> PathBuf {
     project_ns(ship_dir).join("notes")
 }
 
-pub fn specs_dir(ship_dir: &Path) -> PathBuf {
-    project_ns(ship_dir).join("specs")
-}
-
 pub fn features_dir(ship_dir: &Path) -> PathBuf {
     project_ns(ship_dir).join("features")
 }

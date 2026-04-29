@@ -30,7 +30,6 @@ use crate::services::permissions::service::PermissionsService;
 use crate::services::pipelines::service::PipelinesService;
 use crate::services::rules::service::RulesService;
 use crate::services::skills::service::SkillsService;
-use crate::services::specs::service::SpecsService;
 use crate::ship_runtime::ShipRuntime;
 
 /// Per-domain service surface. Each migrated mr-02 service appears here
@@ -47,7 +46,6 @@ pub trait ServicesAccess: Send + Sync {
     fn git(&self) -> &dyn GitService;
     fn collections(&self) -> &dyn CollectionsService;
     fn artifacts(&self) -> &dyn ArtifactsService;
-    fn specs(&self) -> &dyn SpecsService;
 }
 
 /// Auth + session registry surface. Today this is just the scoped
@@ -99,9 +97,6 @@ impl ServicesAccess for ShipRuntime {
     }
     fn artifacts(&self) -> &dyn ArtifactsService {
         ShipRuntime::artifacts(self)
-    }
-    fn specs(&self) -> &dyn SpecsService {
-        ShipRuntime::specs(self)
     }
 }
 
