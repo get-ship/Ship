@@ -229,6 +229,17 @@ impl KernelRouter {
         }
     }
 
+    /// Deliver an already-persisted event to actor mailboxes.
+    ///
+    /// Used by callers that have written through `SqliteEventStore::append`
+    /// (or another canonical writer) and want the kernel to push the event
+    /// to subscribed actor mailboxes without re-persisting. No validators
+    /// run — the caller already established the event's legitimacy by
+    /// persisting it.
+    pub fn deliver(&self, event: &EventEnvelope) {
+        self.inner.deliver(event);
+    }
+
     /// Delivery-only path — **deprecated**.
     ///
     /// Validators run (including EmitContext checks) but no persistence occurs.

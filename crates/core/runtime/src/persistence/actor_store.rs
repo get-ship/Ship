@@ -143,15 +143,13 @@ pub(crate) fn raw_append(db_path: &Path, event: &EventEnvelope) -> Result<()> {
     let mut conn = open_db_at(db_path)?;
     let created_at = event.created_at.to_rfc3339();
     block_on(async {
-        // INSERT OR IGNORE makes this idempotent — multiple writers
-        // can call append for the same event id without UNIQUE
-        // constraint failures. Necessary because some emit paths go
-        // through both `db::*_events::run_tx` (which already wrote
-        // the row) AND `kernel.emit` (which calls this helper). The
-        // first write wins; subsequent attempts are no-ops. Cheaper
-        // than coordinating two parallel write paths.
+        // Plain INSERT — the parallel-write workaround (`OR IGNORE`)
+        // was for the legacy `db::*_events::run_tx` path that wrote
+        // rows that `kernel.emit` would then re-write. After slice 02c
+        // canonicalized event writes through `SqliteEventStore::append`,
+        // each event id has exactly one writer.
         sqlx::query(
-            "INSERT OR IGNORE INTO events \
+            "INSERT INTO events \
              (id, event_type, entity_id, actor, payload_json, version, \
               causation_id, workspace_id, session_id, \
               actor_id, parent_actor_id, elevated, created_at, target_actor_id) \

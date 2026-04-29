@@ -1,7 +1,7 @@
 use crate::resource_resolver::resolve_resource_uri;
 use runtime::db::ensure_db;
 use runtime::db::ensure_db_at;
-use runtime::events::store::append_event_with_conn;
+use runtime::events::{EventStore, SqliteEventStore};
 use runtime::project::init_project;
 use runtime::EventEnvelope;
 use std::future;
@@ -25,9 +25,8 @@ fn setup_with_db() -> (tempfile::TempDir, std::path::PathBuf) {
 }
 
 fn append_event(ship_dir: &std::path::Path, event: &EventEnvelope) {
-    let db_path = ship_dir.join("platform.db");
-    let mut conn = runtime::db::open_db_at(&db_path).unwrap();
-    append_event_with_conn(event, &mut conn).unwrap();
+    let store = SqliteEventStore::new_at(ship_dir).unwrap();
+    store.append(event).unwrap();
 }
 
 async fn resolve(uri: &str, dir: &std::path::Path) -> Option<String> {

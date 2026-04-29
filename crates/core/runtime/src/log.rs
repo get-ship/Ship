@@ -4,7 +4,6 @@ use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
 use crate::events::types::ProjectLog;
-use crate::events::validator::{CallerKind, EmitContext};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -38,16 +37,12 @@ pub fn log_action_by(
     envelope.actor = actor.to_string();
     store.append(&envelope)?;
 
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Cli,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    if let Some(kr) = crate::events::kernel_router()
-        && let Err(e) = block_on_anyhow(async { kr.lock().await.emit(envelope, &ctx).await })
-    {
-        tracing::warn!("log: kernel route of project.log failed: {e}");
+    // Mailbox delivery (no re-persist — `store.append` already persisted).
+    if let Some(kr) = crate::events::kernel_router() {
+        let _ = block_on_anyhow(async {
+            kr.lock().await.deliver(&envelope);
+            Ok(())
+        });
     }
     Ok(())
 }

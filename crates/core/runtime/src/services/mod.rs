@@ -48,6 +48,8 @@ mod tests;
 #[cfg(test)]
 mod integration_tests;
 #[cfg(test)]
+mod cross_component_tests;
+#[cfg(test)]
 #[path = "tests_drain.rs"]
 mod tests_drain;
 
