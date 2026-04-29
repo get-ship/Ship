@@ -86,5 +86,20 @@ export type { Decoder } from './decode'
 export { data } from './data'
 export type { DataOpts, DataHandle } from './data'
 
-// Remaining: morph.ts (vendored idiomorph) lands next per
-// 03-runtime-architecture.md § Implementation phasing.
+export { state, debounce } from './state'
+export type { State } from './state'
+
+export { live } from './live'
+export type { LiveState, LiveSignal } from './live'
+
+export { bindWhileLoading, bindWhileError } from './while'
+export type {
+  BindWhileLoadingOptions,
+  BindWhileErrorOptions,
+} from './while'
+
+export { view } from './view'
+export type { ViewContext, ViewSetup, ViewDef } from './view'
+
+export { component, prop } from './component'
+export type { PropDef, ComponentDef, ComponentSetupContext } from './component'

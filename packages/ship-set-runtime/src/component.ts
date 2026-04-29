@@ -8,6 +8,17 @@
 import type { Disposer } from './bind'
 import type { Signal } from './signal'
 
+// The declarative `component()` factory lives in component-factory.ts to
+// keep this file under the 300-line cap. Re-exported here so the public
+// API can be imported from a single module.
+export {
+  component,
+  prop,
+  type PropDef,
+  type ComponentDef,
+  type ComponentSetupContext,
+} from './component-factory'
+
 /**
  * The factory the compiler emits per component. Receives the host
  * element, a place to attach prop signals, and (for form-associated
@@ -95,7 +106,7 @@ export function defineComponent(
         return schema.observedAttrs
       }
 
-      private cleanup?: Disposer
+      private cleanup: Disposer | undefined
       private propSignals: Record<string, Signal<unknown>> = {}
       private internals: ElementInternals
 
@@ -152,7 +163,7 @@ export function defineComponent(
       return schema.observedAttrs
     }
 
-    private cleanup?: Disposer
+    private cleanup: Disposer | undefined
     private propSignals: Record<string, Signal<unknown>> = {}
 
     connectedCallback() {
