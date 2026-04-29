@@ -2,134 +2,37 @@
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
   "name": "ship-set",
   "scopeName": "source.set",
-  "fileTypes": ["set"],
+  "fileTypes": ["set", "html.set"],
   "patterns": [
-    { "include": "#script-block" },
-    { "include": "#template-block" },
-    { "include": "#style-block" },
-    { "include": "#html-comment" }
+    { "include": "#comment" },
+    { "include": "#directive-element" },
+    { "include": "#control-flow-block" },
+    { "include": "#interpolation" },
+    { "include": "#tag" }
   ],
   "repository": {
-    "html-comment": {
+    "comment": {
       "name": "comment.block.html.set",
       "begin": "<!--",
-      "end": "-->"
+      "end": "-->",
+      "captures": {
+        "0": { "name": "punctuation.definition.comment.set" }
+      }
     },
 
-    "script-block": {
-      "begin": "(<)(script)\\b([^>]*)(>)",
+    "directive-element": {
+      "comment": "Distinct color for runtime directive elements (data/state/component/prop/while-*).",
+      "begin": "(</?)(data|state|component|prop|while-loading|while-error)\\b",
       "beginCaptures": {
         "1": { "name": "punctuation.definition.tag.begin.set" },
-        "2": { "name": "entity.name.tag.script.set" },
-        "3": { "patterns": [{ "include": "#tag-attributes" }] },
-        "4": { "name": "punctuation.definition.tag.end.set" }
-      },
-      "end": "(</)(script)(>)",
-      "endCaptures": {
-        "1": { "name": "punctuation.definition.tag.begin.set" },
-        "2": { "name": "entity.name.tag.script.set" },
-        "3": { "name": "punctuation.definition.tag.end.set" }
-      },
-      "name": "meta.embedded.block.set.script",
-      "contentName": "source.js",
-      "patterns": [
-        { "include": "#ship-set-script-keywords" },
-        { "include": "source.js" }
-      ]
-    },
-
-    "style-block": {
-      "begin": "(<)(style)\\b([^>]*)(>)",
-      "beginCaptures": {
-        "1": { "name": "punctuation.definition.tag.begin.set" },
-        "2": { "name": "entity.name.tag.style.set" },
-        "3": { "patterns": [{ "include": "#tag-attributes" }] },
-        "4": { "name": "punctuation.definition.tag.end.set" }
-      },
-      "end": "(</)(style)(>)",
-      "endCaptures": {
-        "1": { "name": "punctuation.definition.tag.begin.set" },
-        "2": { "name": "entity.name.tag.style.set" },
-        "3": { "name": "punctuation.definition.tag.end.set" }
-      },
-      "name": "meta.embedded.block.set.style",
-      "contentName": "source.css",
-      "patterns": [
-        { "include": "source.css" }
-      ]
-    },
-
-    "template-block": {
-      "begin": "(<)(template)\\b([^>]*)(>)",
-      "beginCaptures": {
-        "1": { "name": "punctuation.definition.tag.begin.set" },
-        "2": { "name": "entity.name.tag.template.set" },
-        "3": { "patterns": [{ "include": "#tag-attributes" }] },
-        "4": { "name": "punctuation.definition.tag.end.set" }
-      },
-      "end": "(</)(template)(>)",
-      "endCaptures": {
-        "1": { "name": "punctuation.definition.tag.begin.set" },
-        "2": { "name": "entity.name.tag.template.set" },
-        "3": { "name": "punctuation.definition.tag.end.set" }
-      },
-      "name": "meta.embedded.block.set.template",
-      "patterns": [
-        { "include": "#html-comment" },
-        { "include": "#template-control-flow" },
-        { "include": "#raw-html-block" },
-        { "include": "#interpolation" },
-        { "include": "#host-tag" },
-        { "include": "#tag" }
-      ]
-    },
-
-    "ship-set-script-keywords": {
-      "patterns": [
-        {
-          "name": "keyword.declaration.ship-set.set",
-          "match": "\\b(prop|state|derived|data|effect|event|mount|unmount|function|component|async|once)\\b"
-        },
-        {
-          "name": "keyword.control.ship-set.set",
-          "match": "\\bon\\s+(form_reset|form_restore|form_disabled|form_associated)\\b"
-        },
-        {
-          "name": "keyword.control.ship-set.set",
-          "match": "\\b(formAssociated)\\b"
-        }
-      ]
-    },
-
-    "tag-attributes": {
-      "patterns": [
-        {
-          "match": "\\b([a-zA-Z_][a-zA-Z0-9_-]*)\\s*=\\s*(\"[^\"]*\"|'[^']*')",
-          "captures": {
-            "1": { "name": "entity.other.attribute-name.set" },
-            "2": { "name": "string.quoted.set" }
-          }
-        },
-        {
-          "name": "entity.other.attribute-name.set",
-          "match": "\\b[a-zA-Z_][a-zA-Z0-9_-]*\\b"
-        }
-      ]
-    },
-
-    "host-tag": {
-      "begin": "(<)(:host)\\b",
-      "beginCaptures": {
-        "1": { "name": "punctuation.definition.tag.begin.set" },
-        "2": { "name": "entity.name.tag.host.set" }
+        "2": { "name": "keyword.directive.tag.set" }
       },
       "end": "(/?>)",
       "endCaptures": {
         "1": { "name": "punctuation.definition.tag.end.set" }
       },
       "patterns": [
-        { "include": "#tag-attribute-with-binding" },
-        { "include": "#interpolation" }
+        { "include": "#tag-attributes" }
       ]
     },
 
@@ -144,15 +47,24 @@
         "1": { "name": "punctuation.definition.tag.end.set" }
       },
       "patterns": [
-        { "include": "#tag-attribute-with-binding" },
-        { "include": "#interpolation" }
+        { "include": "#tag-attributes" }
       ]
     },
 
-    "tag-attribute-with-binding": {
+    "tag-attributes": {
+      "patterns": [
+        { "include": "#binding-attribute" },
+        { "include": "#attribute-with-brace-value" },
+        { "include": "#attribute-with-string-value" },
+        { "include": "#bare-attribute" }
+      ]
+    },
+
+    "binding-attribute": {
+      "comment": "bind:/on:/class:/style:/attr:/let: prefixes — distinct color from plain attributes.",
       "patterns": [
         {
-          "match": "\\b(bind|on|use|class|style|transition|in|out|animate)(:)([a-zA-Z_][a-zA-Z0-9_-]*)",
+          "match": "(bind|class|style|attr|let)(:)([a-zA-Z_][a-zA-Z0-9_-]*|--[a-zA-Z_][a-zA-Z0-9_-]*)?",
           "captures": {
             "1": { "name": "storage.modifier.directive.set" },
             "2": { "name": "punctuation.separator.directive.set" },
@@ -160,79 +72,94 @@
           }
         },
         {
-          "match": "(@)([a-zA-Z_][a-zA-Z0-9_-]*)",
+          "comment": "on:event[|modifier]* — capture event name and modifier list separately.",
+          "match": "(on)(:)([a-zA-Z_][a-zA-Z0-9_-]*)((?:\\|[a-zA-Z_][a-zA-Z0-9_-]*)*)",
           "captures": {
-            "1": { "name": "punctuation.definition.directive.set" },
-            "2": { "name": "entity.other.attribute-name.directive.set" }
+            "1": { "name": "storage.modifier.directive.set" },
+            "2": { "name": "punctuation.separator.directive.set" },
+            "3": { "name": "entity.other.attribute-name.directive.set" },
+            "4": { "name": "support.function.event-modifier.set" }
           }
-        },
-        {
-          "match": "\\b([a-zA-Z_][a-zA-Z0-9_-]*)\\s*(=)",
-          "captures": {
-            "1": { "name": "entity.other.attribute-name.set" },
-            "2": { "name": "punctuation.separator.key-value.set" }
-          }
-        },
+        }
+      ]
+    },
+
+    "attribute-with-brace-value": {
+      "begin": "([a-zA-Z_][a-zA-Z0-9_-]*)\\s*(=)\\s*(?=\\{)",
+      "beginCaptures": {
+        "1": { "name": "entity.other.attribute-name.set" },
+        "2": { "name": "punctuation.separator.key-value.set" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#interpolation" }
+      ]
+    },
+
+    "attribute-with-string-value": {
+      "begin": "([a-zA-Z_][a-zA-Z0-9_-]*)\\s*(=)",
+      "beginCaptures": {
+        "1": { "name": "entity.other.attribute-name.set" },
+        "2": { "name": "punctuation.separator.key-value.set" }
+      },
+      "end": "(?<=['\"])",
+      "patterns": [
         {
           "name": "string.quoted.double.set",
           "begin": "\"",
-          "end": "\"",
-          "patterns": [{ "include": "#interpolation" }]
+          "end": "\""
         },
         {
           "name": "string.quoted.single.set",
           "begin": "'",
-          "end": "'",
-          "patterns": [{ "include": "#interpolation" }]
-        },
-        {
-          "name": "entity.other.attribute-name.set",
-          "match": "\\b[a-zA-Z_][a-zA-Z0-9_-]*\\b"
+          "end": "'"
         }
       ]
     },
 
-    "template-control-flow": {
+    "bare-attribute": {
+      "match": "\\b[a-zA-Z_][a-zA-Z0-9_-]*\\b",
+      "name": "entity.other.attribute-name.set"
+    },
+
+    "control-flow-block": {
       "patterns": [
         {
-          "begin": "(\\{)(#if|#for|#await)\\b",
+          "comment": "Block openers: {#if, {#for, {#match. Body up to } is JS-ish — inject TS.",
+          "begin": "(\\{)(#if|#for|#match)\\b",
           "beginCaptures": {
             "1": { "name": "punctuation.section.embedded.begin.set" },
             "2": { "name": "keyword.control.directive.set" }
           },
-          "end": "\\}",
+          "end": "(\\})",
           "endCaptures": {
-            "0": { "name": "punctuation.section.embedded.end.set" }
+            "1": { "name": "punctuation.section.embedded.end.set" }
           },
-          "contentName": "source.js",
+          "contentName": "meta.embedded.expression.set",
           "patterns": [
-            { "include": "#each-keywords" },
-            { "include": "source.js" }
+            { "include": "#for-keywords" },
+            { "include": "source.ts" }
           ]
         },
         {
-          "begin": "(\\{)(:elif|:else if|:then|:catch)\\b",
+          "comment": "Mid-block markers carrying a body: {:else if, {:elif, {:case.",
+          "begin": "(\\{)(:else if|:elif|:case)\\b",
           "beginCaptures": {
             "1": { "name": "punctuation.section.embedded.begin.set" },
             "2": { "name": "keyword.control.directive.set" }
           },
-          "end": "\\}",
+          "end": "(\\})",
           "endCaptures": {
-            "0": { "name": "punctuation.section.embedded.end.set" }
+            "1": { "name": "punctuation.section.embedded.end.set" }
           },
-          "contentName": "source.js",
-          "patterns": [{ "include": "source.js" }]
+          "contentName": "meta.embedded.expression.set",
+          "patterns": [
+            { "include": "source.ts" }
+          ]
         },
         {
-          "match": "(\\{)(:else|:empty)(\\})",
-          "captures": {
-            "1": { "name": "punctuation.section.embedded.begin.set" },
-            "2": { "name": "keyword.control.directive.set" },
-            "3": { "name": "punctuation.section.embedded.end.set" }
-          }
-        },
-        {
-          "match": "(\\{)(/if|/for|/await)(\\})",
+          "comment": "Body-less markers: {:else}, {:default}, {/if}, {/for}, {/match}.",
+          "match": "(\\{)(:else|:default|/if|/for|/match)(\\})",
           "captures": {
             "1": { "name": "punctuation.section.embedded.begin.set" },
             "2": { "name": "keyword.control.directive.set" },
@@ -242,29 +169,17 @@
       ]
     },
 
-    "each-keywords": {
+    "for-keywords": {
       "patterns": [
         {
           "name": "keyword.operator.directive.set",
-          "match": "\\b(of|as|key)\\b"
+          "match": "\\b(of|key)\\b"
         }
       ]
     },
 
-    "raw-html-block": {
-      "begin": "(\\{@html)\\b",
-      "beginCaptures": {
-        "1": { "name": "keyword.control.directive.set" }
-      },
-      "end": "\\}",
-      "endCaptures": {
-        "0": { "name": "punctuation.section.embedded.end.set" }
-      },
-      "contentName": "source.js",
-      "patterns": [{ "include": "source.js" }]
-    },
-
     "interpolation": {
+      "comment": "Plain {expr} — body is a TS expression.",
       "begin": "\\{",
       "beginCaptures": {
         "0": { "name": "punctuation.section.embedded.begin.set" }
@@ -273,8 +188,10 @@
       "endCaptures": {
         "0": { "name": "punctuation.section.embedded.end.set" }
       },
-      "contentName": "source.js",
-      "patterns": [{ "include": "source.js" }]
+      "contentName": "meta.embedded.expression.set",
+      "patterns": [
+        { "include": "source.ts" }
+      ]
     }
   }
 }
