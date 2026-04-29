@@ -3694,6 +3694,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-set-compiler"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "ship-types"
 version = "0.1.0"
 dependencies = [
