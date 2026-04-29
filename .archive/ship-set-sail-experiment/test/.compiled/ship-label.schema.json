@@ -1,0 +1,17 @@
+{
+  "events": {},
+  "props": {
+    "required": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "size": {
+      "default": "'sm'",
+      "required": false,
+      "type": "'sm' | 'md'"
+    }
+  },
+  "tag": "ship-label",
+  "version": "1.0"
+}

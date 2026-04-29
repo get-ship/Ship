@@ -1,0 +1,42 @@
+{
+  "events": {},
+  "props": {
+    "checked": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "disabled": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "label": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "name": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md' | 'lg'"
+    },
+    "tone": {
+      "default": "'default'",
+      "required": false,
+      "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+    },
+    "value": {
+      "default": "'on'",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-switch",
+  "version": "1.0"
+}

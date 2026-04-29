@@ -1,0 +1,42 @@
+{
+  "events": {},
+  "props": {
+    "accentBar": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "fill": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "interactive": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "padding": {
+      "default": "'md'",
+      "required": false,
+      "type": "'none' | 'sm' | 'md' | 'lg'"
+    },
+    "statusRail": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "tone": {
+      "default": "'default'",
+      "required": false,
+      "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+    },
+    "variant": {
+      "default": "'default'",
+      "required": false,
+      "type": "'default' | 'outline'"
+    }
+  },
+  "tag": "ship-card",
+  "version": "1.0"
+}

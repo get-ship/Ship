@@ -1,0 +1,62 @@
+{
+  "events": {},
+  "props": {
+    "allowComment": {
+      "default": "true",
+      "required": false,
+      "type": "boolean"
+    },
+    "allowGenerate": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "bubbleLeft": {
+      "default": "-9999",
+      "required": false,
+      "type": "number"
+    },
+    "bubbleTop": {
+      "default": "-9999",
+      "required": false,
+      "type": "number"
+    },
+    "markBold": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markCode": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markItalic": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markStrike": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "pendingActive": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "pendingText": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "visible": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    }
+  },
+  "tag": "ship-markdown-editor-bubble",
+  "version": "1.0"
+}

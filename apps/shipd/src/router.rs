@@ -133,13 +133,6 @@ pub fn build_router(
             "/_ship/components/{file}",
             axum::routing::get(views::components::serve_component_js),
         )
-        // `.ship/ship-set/*.set` compiled via the ship-set-compiler crate.
-        // Public for the same reason: outputs are generated artifacts,
-        // not user secrets, and pages need to load them without auth.
-        .route(
-            "/_ship-set/components/{file}",
-            axum::routing::get(views::ship_set::serve_ship_set),
-        )
         .route(
             "/_ship-set/hmr",
             axum::routing::get(views::ship_set_hmr::serve_hmr),
@@ -175,10 +168,6 @@ pub fn build_router(
         .route(
             "/set/{name}",
             axum::routing::get(views::ship_set_view::serve_set_view),
-        )
-        .route(
-            "/ship-set/{tag}",
-            axum::routing::get(views::ship_set::serve_ship_set_page),
         )
         .route(
             "/_ship-set/data",

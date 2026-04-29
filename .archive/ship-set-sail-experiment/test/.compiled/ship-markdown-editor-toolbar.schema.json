@@ -1,0 +1,67 @@
+{
+  "events": {},
+  "props": {
+    "disabled": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "label": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "markBold": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markBullet": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markCode": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markH1": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markH2": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markH3": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markItalic": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markLink": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markOrdered": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "markTask": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    }
+  },
+  "tag": "ship-markdown-editor-toolbar",
+  "version": "1.0"
+}

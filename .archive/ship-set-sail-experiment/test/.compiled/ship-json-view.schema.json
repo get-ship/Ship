@@ -1,0 +1,22 @@
+{
+  "events": {},
+  "props": {
+    "data": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "depth": {
+      "default": "1",
+      "required": false,
+      "type": "number"
+    },
+    "expanded": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    }
+  },
+  "tag": "ship-json-view",
+  "version": "1.0"
+}

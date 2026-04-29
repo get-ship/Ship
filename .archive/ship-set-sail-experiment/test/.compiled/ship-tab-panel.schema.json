@@ -1,0 +1,17 @@
+{
+  "events": {},
+  "props": {
+    "active": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "name": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-tab-panel",
+  "version": "1.0"
+}

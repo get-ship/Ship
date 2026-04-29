@@ -1,0 +1,17 @@
+{
+  "events": {},
+  "props": {
+    "label": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "value": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-metachip",
+  "version": "1.0"
+}

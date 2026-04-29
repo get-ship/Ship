@@ -1,0 +1,47 @@
+{
+  "events": {},
+  "props": {
+    "iconSlug": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "identityHue": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "initials": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "name": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "shape": {
+      "default": "'round'",
+      "required": false,
+      "type": "'round' | 'square'"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md' | 'lg' | 'xl'"
+    },
+    "src": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "tone": {
+      "default": "'muted'",
+      "required": false,
+      "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' | 'primary'"
+    }
+  },
+  "tag": "ship-avatar",
+  "version": "1.0"
+}

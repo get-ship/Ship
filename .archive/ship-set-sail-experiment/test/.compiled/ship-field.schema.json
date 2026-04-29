@@ -1,0 +1,12 @@
+{
+  "events": {},
+  "props": {
+    "invalid": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    }
+  },
+  "tag": "ship-field",
+  "version": "1.0"
+}

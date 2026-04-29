@@ -1,0 +1,32 @@
+{
+  "events": {},
+  "props": {
+    "animated": {
+      "default": "true",
+      "required": false,
+      "type": "boolean"
+    },
+    "height": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "lines": {
+      "default": "1",
+      "required": false,
+      "type": "number"
+    },
+    "variant": {
+      "default": "'text'",
+      "required": false,
+      "type": "'text' | 'circle' | 'rect'"
+    },
+    "width": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-skeleton",
+  "version": "1.0"
+}

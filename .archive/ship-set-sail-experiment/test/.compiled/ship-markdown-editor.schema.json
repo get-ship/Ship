@@ -1,0 +1,72 @@
+{
+  "events": {},
+  "props": {
+    "allowComment": {
+      "default": "true",
+      "required": false,
+      "type": "boolean"
+    },
+    "allowGenerate": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "disabled": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "fullHeight": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "invalid": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "label": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "name": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "placeholder": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "rows": {
+      "default": "12",
+      "required": false,
+      "type": "number"
+    },
+    "showSelectionToolbar": {
+      "default": "true",
+      "required": false,
+      "type": "boolean"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md' | 'lg'"
+    },
+    "tone": {
+      "default": "'default'",
+      "required": false,
+      "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+    },
+    "value": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-markdown-editor",
+  "version": "1.0"
+}

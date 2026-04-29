@@ -1,0 +1,27 @@
+{
+  "events": {},
+  "props": {
+    "label": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "pulse": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md'"
+    },
+    "tone": {
+      "default": "'success'",
+      "required": false,
+      "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+    }
+  },
+  "tag": "ship-status-dot",
+  "version": "1.0"
+}

@@ -1,0 +1,12 @@
+{
+  "events": {},
+  "props": {
+    "keys": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-kbd",
+  "version": "1.0"
+}

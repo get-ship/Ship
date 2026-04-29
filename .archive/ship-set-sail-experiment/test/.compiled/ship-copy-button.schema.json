@@ -1,0 +1,17 @@
+{
+  "events": {},
+  "props": {
+    "label": {
+      "default": "'Copy'",
+      "required": false,
+      "type": "string"
+    },
+    "value": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-copy-button",
+  "version": "1.0"
+}

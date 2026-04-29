@@ -1,0 +1,52 @@
+{
+  "events": {},
+  "props": {
+    "disabled": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "label": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "max": {
+      "default": "100",
+      "required": false,
+      "type": "number"
+    },
+    "min": {
+      "default": "0",
+      "required": false,
+      "type": "number"
+    },
+    "name": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md' | 'lg'"
+    },
+    "step": {
+      "default": "1",
+      "required": false,
+      "type": "number"
+    },
+    "tone": {
+      "default": "'default'",
+      "required": false,
+      "type": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+    },
+    "value": {
+      "default": "0",
+      "required": false,
+      "type": "number"
+    }
+  },
+  "tag": "ship-slider",
+  "version": "1.0"
+}

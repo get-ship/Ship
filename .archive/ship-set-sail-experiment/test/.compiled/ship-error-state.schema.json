@@ -1,0 +1,32 @@
+{
+  "events": {},
+  "props": {
+    "body": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "icon": {
+      "default": "'alert-circle'",
+      "required": false,
+      "type": "string"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md' | 'lg'"
+    },
+    "title": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "variant": {
+      "default": "'default'",
+      "required": false,
+      "type": "'default' | 'inline'"
+    }
+  },
+  "tag": "ship-error-state",
+  "version": "1.0"
+}

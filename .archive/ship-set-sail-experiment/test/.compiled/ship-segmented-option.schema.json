@@ -1,0 +1,22 @@
+{
+  "events": {},
+  "props": {
+    "disabled": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "icon": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "value": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-segmented-option",
+  "version": "1.0"
+}

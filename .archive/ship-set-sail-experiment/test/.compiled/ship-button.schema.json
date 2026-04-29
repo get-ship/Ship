@@ -1,0 +1,52 @@
+{
+  "events": {},
+  "props": {
+    "disabled": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "expanded": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "label": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "loading": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "pressed": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md' | 'lg'"
+    },
+    "tone": {
+      "default": "'default'",
+      "required": false,
+      "type": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+    },
+    "type": {
+      "default": "'button'",
+      "required": false,
+      "type": "'button' | 'submit' | 'reset'"
+    },
+    "variant": {
+      "default": "'solid'",
+      "required": false,
+      "type": "'solid' | 'soft' | 'outline' | 'ghost'"
+    }
+  },
+  "tag": "ship-button",
+  "version": "1.0"
+}

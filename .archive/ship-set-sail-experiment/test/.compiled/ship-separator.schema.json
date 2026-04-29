@@ -1,0 +1,17 @@
+{
+  "events": {},
+  "props": {
+    "orientation": {
+      "default": "'horizontal'",
+      "required": false,
+      "type": "'horizontal' | 'vertical'"
+    },
+    "variant": {
+      "default": "'solid'",
+      "required": false,
+      "type": "'solid' | 'dashed'"
+    }
+  },
+  "tag": "ship-separator",
+  "version": "1.0"
+}

@@ -176,10 +176,9 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/daemon/, ""),
         },
-        // ship-set components — daemon serves compiled .set files at
-        // /_ship-set/components/<tag>.{js,html,d.ts,json}, HMR stream at
-        // /_ship-set/hmr, and the schema-source endpoint at /_ship-set/data.
-        // Listed BEFORE /_ship so the more-specific /_ship-set prefix wins.
+        // ship-set framework — daemon serves the runtime/dom/sdk-client
+        // bundles, view templates, and the SDK-data SSE endpoint under
+        // /_ship-set/*. Listed before /_ship so the more-specific prefix wins.
         "/_ship-set": {
           target: daemon,
           changeOrigin: true,
@@ -190,9 +189,9 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
-        // Top-level user-facing page route for full-page ship-set views
-        // (GET /ship-set/<tag>). Distinct from /_ship-set/* (framework internals).
-        "/ship-set": {
+        // ship-set views — file-system routed at /set/<name>, served by
+        // shipd's ship_set_view handler.
+        "/set": {
           target: daemon,
           changeOrigin: true,
           configure: (proxy) => {

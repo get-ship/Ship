@@ -1,0 +1,22 @@
+{
+  "events": {},
+  "props": {
+    "disabled": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md'"
+    },
+    "value": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-segmented",
+  "version": "1.0"
+}

@@ -1,0 +1,12 @@
+{
+  "events": {},
+  "props": {
+    "open": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    }
+  },
+  "tag": "ship-context-menu",
+  "version": "1.0"
+}

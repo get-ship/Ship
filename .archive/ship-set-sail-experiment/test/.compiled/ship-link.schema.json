@@ -1,0 +1,22 @@
+{
+  "events": {},
+  "props": {
+    "external": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "href": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    },
+    "tone": {
+      "default": "'default'",
+      "required": false,
+      "type": "'default' | 'muted'"
+    }
+  },
+  "tag": "ship-link",
+  "version": "1.0"
+}

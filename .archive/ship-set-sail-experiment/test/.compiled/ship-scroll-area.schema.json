@@ -1,0 +1,17 @@
+{
+  "events": {},
+  "props": {
+    "orientation": {
+      "default": "'vertical'",
+      "required": false,
+      "type": "'vertical' | 'horizontal' | 'both'"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md' | 'lg'"
+    }
+  },
+  "tag": "ship-scroll-area",
+  "version": "1.0"
+}

@@ -1,0 +1,17 @@
+{
+  "events": {},
+  "props": {
+    "dismissible": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "tone": {
+      "default": "'info'",
+      "required": false,
+      "type": "'info' | 'success' | 'warning' | 'destructive' | 'muted'"
+    }
+  },
+  "tag": "ship-alert",
+  "version": "1.0"
+}

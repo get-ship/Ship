@@ -1,0 +1,17 @@
+{
+  "events": {},
+  "props": {
+    "format": {
+      "default": "'relative'",
+      "required": false,
+      "type": "'relative' | 'absolute' | 'both'"
+    },
+    "value": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-timestamp",
+  "version": "1.0"
+}

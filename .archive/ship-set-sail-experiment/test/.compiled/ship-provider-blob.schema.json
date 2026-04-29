@@ -1,0 +1,22 @@
+{
+  "events": {},
+  "props": {
+    "provider": {
+      "default": "'claude'",
+      "required": false,
+      "type": "'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'"
+    },
+    "size": {
+      "default": "'md'",
+      "required": false,
+      "type": "'sm' | 'md' | 'lg'"
+    },
+    "variant": {
+      "default": "'tile'",
+      "required": false,
+      "type": "'tile' | 'glyph'"
+    }
+  },
+  "tag": "ship-provider-blob",
+  "version": "1.0"
+}

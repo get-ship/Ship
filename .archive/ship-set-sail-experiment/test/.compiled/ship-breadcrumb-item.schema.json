@@ -1,0 +1,17 @@
+{
+  "events": {},
+  "props": {
+    "active": {
+      "default": "false",
+      "required": false,
+      "type": "boolean"
+    },
+    "href": {
+      "default": "''",
+      "required": false,
+      "type": "string"
+    }
+  },
+  "tag": "ship-breadcrumb-item",
+  "version": "1.0"
+}
