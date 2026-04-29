@@ -1,3 +1,4 @@
+import * as path from 'path';
 import { ExtensionContext, window, workspace } from 'vscode';
 import {
   LanguageClient,
@@ -8,14 +9,16 @@ import {
 
 let client: LanguageClient | undefined;
 
-export async function activate(_context: ExtensionContext): Promise<void> {
+export async function activate(context: ExtensionContext): Promise<void> {
   const config = workspace.getConfiguration('ship-set');
-  const serverPath = config.get<string>('serverPath') ?? 'ship-set-lsp';
+  const serverPath = config.get<string>('serverPath') ?? '';
 
-  const serverOptions: ServerOptions = {
-    run: { command: serverPath, transport: TransportKind.stdio },
-    debug: { command: serverPath, transport: TransportKind.stdio },
-  };
+  const serverOptions: ServerOptions = serverPath
+    ? {
+        run: { command: serverPath, transport: TransportKind.stdio },
+        debug: { command: serverPath, transport: TransportKind.stdio },
+      }
+    : nodeServer(context);
 
   const clientOptions: LanguageClientOptions = {
     documentSelector: [{ scheme: 'file', language: 'set' }],
@@ -32,10 +35,23 @@ export async function activate(_context: ExtensionContext): Promise<void> {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     window.showErrorMessage(
-      `Failed to start ship-set-lsp ("${serverPath}"). ` +
-        `Set "ship-set.serverPath" or install ship-set-lsp on PATH. ${message}`,
+      `Failed to start ship-set LSP. Set "ship-set.serverPath" to override. ${message}`,
     );
   }
+}
+
+function nodeServer(context: ExtensionContext): ServerOptions {
+  const module = context.asAbsolutePath(
+    path.join('..', '..', 'packages', 'ship-set-lsp', 'dist', 'server.js'),
+  );
+  return {
+    run: { module, transport: TransportKind.ipc },
+    debug: {
+      module,
+      transport: TransportKind.ipc,
+      options: { execArgv: ['--nolazy', '--inspect=6009'] },
+    },
+  };
 }
 
 export function deactivate(): Thenable<void> | undefined {
