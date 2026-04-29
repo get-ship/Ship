@@ -280,6 +280,129 @@ async fn fresh_daemon_writes_canonical_home_layout() {
     }
 }
 
+/// `/set/agents` is the Phase-3 ship-set view — unauthenticated, returns
+/// the HTML shell that hydrates the agents grid. The shell must reference
+/// the importmap entries the boot script uses.
+#[tokio::test]
+async fn set_agents_serves_html_shell() {
+    let d = TestDaemon::start().await;
+    let res = d.bare().get(d.url("/set/agents")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    let ct = res
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(ct.contains("text/html"));
+    let body = res.text().await.unwrap();
+    assert!(body.contains(r#"data-view="agents""#));
+    assert!(body.contains("/_ship-set/runtime.js"));
+    assert!(body.contains("/_ship-set/dom.js"));
+    assert!(body.contains("/_ship-set/sdk-client.js"));
+    assert!(body.contains("/_ship-set/views/agents/view.html.set"));
+    assert!(body.contains("/_ship-set/views/agents/view.js"));
+}
+
+/// The view's framework asset endpoints must serve module JS so the
+/// shell's importmap entries resolve.
+#[tokio::test]
+async fn set_agents_assets_served_as_module_js() {
+    let d = TestDaemon::start().await;
+    for path in [
+        "/_ship-set/runtime.js",
+        "/_ship-set/dom.js",
+        "/_ship-set/sdk-client.js",
+        "/_ship-set/views/agents/view.js",
+    ] {
+        let res = d.bare().get(d.url(path)).send().await.unwrap();
+        assert_eq!(res.status(), 200, "GET {path} expected 200");
+        let ct = res
+            .headers()
+            .get("content-type")
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .to_string();
+        assert!(
+            ct.contains("javascript"),
+            "GET {path} content-type expected javascript, got {ct}"
+        );
+    }
+    let tpl_res = d
+        .bare()
+        .get(d.url("/_ship-set/views/agents/view.html.set"))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(tpl_res.status(), 200);
+    let tpl = tpl_res.text().await.unwrap();
+    assert!(tpl.contains("agents-grid"));
+    assert!(tpl.contains("while-loading"));
+}
+
+/// Path traversal / charset enforcement on `/set/{name}`.
+#[tokio::test]
+async fn set_view_rejects_invalid_names() {
+    let d = TestDaemon::start().await;
+    for path in ["/set/Agents", "/set/a%2F..%2Fb"] {
+        let res = d.bare().get(d.url(path)).send().await.unwrap();
+        assert_eq!(res.status(), 404, "expected 404 for {path}");
+    }
+}
+
+/// The `_ship-set/data` SSE endpoint streams an initial `set` patch with
+/// the agents.summaries payload. We poll the stream just long enough to
+/// pull one frame and assert its envelope.
+#[tokio::test]
+async fn agents_summaries_sse_emits_initial_set_patch() {
+    use std::time::Duration;
+    let d = TestDaemon::start().await;
+    let url = d.url("/_ship-set/data?expr=ship.agents.summaries()");
+    let mut res = d
+        .authed()
+        .get(&url)
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(res.status(), 200);
+    let ct = res
+        .headers()
+        .get("content-type")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(ct.contains("text/event-stream"));
+    // Read chunks until we see a complete SSE frame (terminated by \n\n).
+    let mut buf = Vec::new();
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(5);
+    loop {
+        if tokio::time::Instant::now() > deadline {
+            panic!("SSE first frame did not arrive within 5s — got: {}", String::from_utf8_lossy(&buf));
+        }
+        let chunk = tokio::time::timeout(Duration::from_secs(1), res.chunk()).await;
+        match chunk {
+            Ok(Ok(Some(bytes))) => {
+                buf.extend_from_slice(&bytes);
+                if buf.windows(2).any(|w| w == b"\n\n") {
+                    break;
+                }
+            }
+            Ok(Ok(None)) => break,
+            _ => continue,
+        }
+    }
+    drop(res);
+    let body = String::from_utf8_lossy(&buf);
+    assert!(body.contains("event: patch"), "first frame must be event: patch — got: {body}");
+    assert!(body.contains("\"op\":\"set\""));
+    assert!(body.contains("\"value\""));
+    // Payload must shape-match an agents.summaries result (items array).
+    assert!(body.contains("\"items\""));
+}
+
 #[tokio::test]
 async fn mesh_register_and_discover() {
     let d = TestDaemon::start().await;

@@ -7,8 +7,11 @@
 // loading → ok | error states. Tracked dep changes inside the thunk
 // re-fire the source.
 //
-// In Phase 1 the Promise-return case is the focus; the SSE/patch-routed
-// path will reuse data()'s machinery in Phase 3 (see TODO inside).
+// Two source shapes are supported:
+//   - Promise<T> | T          — Phase-1 round-trip; resolves to ok.
+//   - LiveSource<T>           — SSE/patch path; subscribe() owns the
+//                               signal lifecycle. The Phase-3 SDK
+//                               client returns this shape.
 
 import { effect, signal, type Signal } from './signal'
 
@@ -20,6 +23,19 @@ export type LiveState<T> =
 
 /** A signal that carries the loading/ok/error lifecycle of a live source. */
 export type LiveSignal<T> = Signal<LiveState<T>>
+
+/**
+ * Source shape for SSE/patch-streamed data. `subscribe` takes ownership
+ * of the live signal: it transitions to `ok` on the first patch, applies
+ * subsequent patches, and may transition to `error` on transport failure.
+ * The returned disposer closes the connection.
+ *
+ * The Phase-3 ship-set-sdk-client returns this shape from each method;
+ * `live()` detects it via the `subscribe` property and wires it through.
+ */
+export interface LiveSource<T> {
+  subscribe: (sig: LiveSignal<T>) => () => void
+}
 
 /** Options for `live()`. */
 export interface LiveOpts {
@@ -33,6 +49,11 @@ export interface LiveOpts {
 const toError = (err: unknown): Error =>
   err instanceof Error ? err : new Error(String(err))
 
+const isLiveSource = <T>(v: unknown): v is LiveSource<T> =>
+  typeof v === 'object' &&
+  v !== null &&
+  typeof (v as { subscribe?: unknown }).subscribe === 'function'
+
 /**
  * Run `source` inside a tracked reactive scope; expose the result as a
  * `LiveSignal<T>` whose value walks `loading → ok | error`.
@@ -43,31 +64,31 @@ const toError = (err: unknown): Error =>
  * - `source` runs eagerly. If it returns a Promise (or a sync value
  *   that we wrap), the signal updates to `{ kind: 'ok', value }` on
  *   resolve or `{ kind: 'error', error }` on reject.
+ * - If `source` returns a `LiveSource<T>`, `subscribe(sig)` is called
+ *   immediately. The subscriber owns transitions — typically pushes
+ *   the first SSE patch into `ok`, then applies subsequent patches.
+ *   The disposer returned by `subscribe` is invoked on dep-change
+ *   re-runs and on tear-down.
  * - Any tracked signal read inside `source` becomes a dep. When a dep
  *   changes, the signal flips back to `loading`, the previous in-flight
- *   resolution is invalidated (token-based, like `bindAwait`), and
- *   `source` runs again.
+ *   resolution is invalidated (token-based), and `source` runs again.
  *
- * For SSE/patch-streamed sources, `source` is expected to resolve to
- * the initial snapshot; the underlying stream wiring will reuse
- * `data()`'s `applyPatch` route in Phase 3.
- *
- * TODO(phase-3): wire SSE/patch routing through `data()` for sources
- * that opt into a live subscription. Phase 1 focuses on the Promise
- * round-trip.
- *
- * @param source Thunk that returns a Promise (or sync value). Tracked
- *   signal reads inside register as deps.
+ * @param source Thunk that returns a Promise, a `LiveSource<T>`, or
+ *   a sync value. Tracked signal reads inside register as deps.
  * @param opts Optional `onError` hook fired on each rejection.
  * @returns A `LiveSignal<T>` — read it like any other signal.
  *
  * @example
  * ```ts
+ * // Promise round-trip
  * const id = state('agent-1')
  * const agent = live(() => ship.agents.get(id()))
+ *
+ * // SSE/patch (LiveSource)
+ * const agents = live(() => ship.agents.summaries())
  * effect(() => {
- *   const s = agent()
- *   if (s.kind === 'ok') console.log(s.value.name)
+ *   const s = agents()
+ *   if (s.kind === 'ok') console.log(s.value.items.length)
  * })
  * ```
  *
@@ -76,7 +97,7 @@ const toError = (err: unknown): Error =>
  *   the lifecycle states.
  */
 export function live<T>(
-  source: () => Promise<T> | T,
+  source: () => LiveSource<T> | Promise<T> | T,
   opts?: LiveOpts,
 ): LiveSignal<T> {
   const sig = signal<LiveState<T>>({ kind: 'loading' })
@@ -84,7 +105,7 @@ export function live<T>(
 
   effect(() => {
     const myToken = ++token
-    let result: Promise<T> | T
+    let result: LiveSource<T> | Promise<T> | T
     try {
       result = source()
     } catch (err) {
@@ -95,7 +116,22 @@ export function live<T>(
       return
     }
     sig.set({ kind: 'loading' })
-    Promise.resolve(result).then(
+
+    if (isLiveSource<T>(result)) {
+      let disposed = false
+      const unsub = result.subscribe(sig)
+      return () => {
+        if (disposed) return
+        disposed = true
+        try {
+          unsub()
+        } catch (err) {
+          opts?.onError?.(err)
+        }
+      }
+    }
+
+    Promise.resolve(result as Promise<T> | T).then(
       (value) => {
         if (myToken !== token) return
         sig.set({ kind: 'ok', value })
@@ -107,6 +143,7 @@ export function live<T>(
         opts?.onError?.(err)
       },
     )
+    return undefined
   })
 
   return sig

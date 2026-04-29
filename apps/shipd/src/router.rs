@@ -153,6 +153,30 @@ pub fn build_router(
             axum::routing::get(views::ship_set::serve_ship_set_runtime),
         )
         .route(
+            "/_ship-set/dom.js",
+            axum::routing::get(views::ship_set_view::serve_ship_set_dom),
+        )
+        .route(
+            "/_ship-set/sdk-client.js",
+            axum::routing::get(views::ship_set_view::serve_ship_set_sdk_client),
+        )
+        .route(
+            "/_ship-set/views/{name}/view.html.set",
+            axum::routing::get(views::ship_set_view::serve_set_view_template),
+        )
+        .route(
+            "/_ship-set/views/{name}/view.js",
+            axum::routing::get(views::ship_set_view::serve_set_view_setup),
+        )
+        .route(
+            "/_ship-set/views/{name}/view.css",
+            axum::routing::get(views::ship_set_view::serve_set_view_css),
+        )
+        .route(
+            "/set/{name}",
+            axum::routing::get(views::ship_set_view::serve_set_view),
+        )
+        .route(
             "/ship-set/{tag}",
             axum::routing::get(views::ship_set::serve_ship_set_page),
         )

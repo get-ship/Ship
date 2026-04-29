@@ -2,7 +2,7 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-// src/signal.ts
+// packages/ship-set-runtime/src/signal.ts
 var CURRENT_OBSERVER = null;
 var BATCH_DEPTH = 0;
 var PENDING = /* @__PURE__ */ new Set();
@@ -126,7 +126,7 @@ function untrack(fn) {
   }
 }
 
-// src/bind.ts
+// packages/ship-set-runtime/src/bind.ts
 function bindText(node, get) {
   return effect(() => {
     const v = get();
@@ -163,10 +163,10 @@ function bindClass(el, name, get) {
     else el.classList.remove(name);
   });
 }
-function bindProp(el, prop, get) {
+function bindProp(el, prop2, get) {
   return effect(() => {
     ;
-    el[prop] = get();
+    el[prop2] = get();
   });
 }
 function bindValue(el, sig, onWrite) {
@@ -198,7 +198,7 @@ function bindChecked(el, sig) {
   };
 }
 
-// src/on.ts
+// packages/ship-set-runtime/src/on.ts
 function on(el, event, handler, opts = {}) {
   const modifiers = opts.modifiers ?? [];
   let timer;
@@ -277,7 +277,7 @@ function matchesKey(e, spec) {
   return e.key.toLowerCase() === key;
 }
 
-// src/patch.ts
+// packages/ship-set-runtime/src/patch.ts
 function applyPatch(sig, patch) {
   const next = applyOp(sig.__peek(), patch);
   sig.set(next);
@@ -420,7 +420,7 @@ function rebuild(root, path, mut) {
   }
 }
 
-// src/for.ts
+// packages/ship-set-runtime/src/for.ts
 function bindFor(opts) {
   const { anchor, items, key, render } = opts;
   let prev = [];
@@ -502,7 +502,7 @@ function bindForSignal(anchor, sig, key, render) {
   return bindFor({ anchor, items: () => sig(), key, render });
 }
 
-// src/if.ts
+// packages/ship-set-runtime/src/if.ts
 function bindIf(opts) {
   const { anchor, cond, then_, else_ } = opts;
   let active = null;
@@ -543,7 +543,7 @@ function bindIf(opts) {
   };
 }
 
-// src/await.ts
+// packages/ship-set-runtime/src/await.ts
 function bindAwait(opts) {
   const { anchor, promise, loading, then_, catch_ } = opts;
   let active = null;
@@ -594,7 +594,7 @@ function bindAwait(opts) {
   };
 }
 
-// src/raw-html.ts
+// packages/ship-set-runtime/src/raw-html.ts
 function bindRawHtml(el, get, deps = []) {
   return effect(() => {
     for (const d of deps) d();
@@ -602,7 +602,7 @@ function bindRawHtml(el, get, deps = []) {
   });
 }
 
-// src/morph.ts
+// packages/ship-set-runtime/src/morph.ts
 function morph(target, source, opts = {}) {
   morphElement(target, source, opts);
 }
@@ -668,7 +668,7 @@ function morphNode(t, s, parent, opts) {
   }
 }
 
-// src/slot.ts
+// packages/ship-set-runtime/src/slot.ts
 function resolveSlots(host, slots, originalChildren) {
   const fills = /* @__PURE__ */ new Map();
   for (const child of originalChildren) {
@@ -716,11 +716,185 @@ function snapshotChildren(host) {
   return Array.from(host.childNodes);
 }
 
-// src/component.ts
+// packages/ship-set-runtime/src/decode.ts
+var decodeString = (raw) => raw ?? "";
+var decodeNumber = (raw) => {
+  if (raw === null || raw === "") return NaN;
+  return Number(raw);
+};
+var decodeBoolean = (raw) => {
+  if (raw === null) return false;
+  const v = raw.toLowerCase();
+  if (v === "false") return false;
+  return true;
+};
+function decodeJson(fallback) {
+  return (raw) => {
+    if (raw === null || raw === "") return fallback;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return fallback;
+    }
+  };
+}
+function decodeEnum(allowed, fallback) {
+  const set = new Set(allowed);
+  return (raw) => raw !== null && set.has(raw) ? raw : fallback;
+}
+
+// packages/ship-set-runtime/src/component-factory.ts
+var prop = {
+  /** String-valued prop. Default `''`. */
+  string(opts = {}) {
+    return { type: "string", ...opts };
+  },
+  /** Boolean prop using HTML attribute-presence semantics. */
+  bool(opts = {}) {
+    return { type: "bool", ...opts };
+  },
+  /** Numeric prop. Empty/missing decode to `NaN`. */
+  number(opts = {}) {
+    return { type: "number", ...opts };
+  },
+  /**
+   * Enum-style prop. Values outside `values` (including missing) decode
+   * to `default` if provided, otherwise the first allowed value.
+   */
+  union(values, opts = {}) {
+    return { type: "union", values, ...opts };
+  },
+  /** JSON-parsed object prop. Bad/missing input falls back to `default`. */
+  object(opts = {}) {
+    return { type: "object", ...opts };
+  },
+  /** JSON-parsed array prop. Bad/missing input falls back to `default ?? []`. */
+  array(opts = {}) {
+    return { type: "array", ...opts };
+  }
+};
+var decoderFor = (def) => {
+  switch (def.type) {
+    case "string":
+      return decodeString;
+    case "bool":
+      return decodeBoolean;
+    case "number":
+      return decodeNumber;
+    case "union": {
+      const values = def.values ?? [];
+      const fallback = def.default ?? values[0] ?? "";
+      return decodeEnum(values, fallback);
+    }
+    case "object":
+      return decodeJson(def.default);
+    case "array":
+      return decodeJson(def.default ?? []);
+  }
+};
+var camelOf = (attr) => attr.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+var encodeAttr = (def, value) => {
+  if (value === void 0 || value === null) return null;
+  switch (def.type) {
+    case "string":
+      return value === "" ? null : String(value);
+    case "number":
+      return Number.isNaN(value) ? null : String(value);
+    case "bool":
+      return value ? "" : null;
+    case "union":
+      return String(value);
+    case "object":
+    case "array":
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return null;
+      }
+  }
+};
+var injectScopedStyles = (tag, css) => {
+  const id = `ship-set-style-${tag}`;
+  if (document.getElementById(id)) return;
+  const style = document.createElement("style");
+  style.id = id;
+  style.textContent = `[data-component="${tag}"] { ${css} }`;
+  document.head.appendChild(style);
+};
+var seedSignal = (host, attr, def, decode) => {
+  const raw = host.getAttribute(attr);
+  const initial = raw !== null ? decode(raw) : def.default;
+  return signal(initial);
+};
+var buildSchema = (def) => {
+  const observedAttrs = [];
+  const props = {};
+  for (const [attr, propDef] of Object.entries(def.props)) {
+    observedAttrs.push(attr);
+    props[attr] = { camel: camelOf(attr), decode: decoderFor(propDef) };
+  }
+  const schema = { observedAttrs, props };
+  if (def.formAssociated) schema.formAssociated = true;
+  return schema;
+};
+function component(tag, def) {
+  const schema = buildSchema(def);
+  const propEntries = Object.entries(def.props);
+  defineComponent(tag, schema, (host, propSignals, internals) => {
+    let shadowAttached = null;
+    if (def.shadow) {
+      shadowAttached = host.shadowRoot ?? host.attachShadow({ mode: "open" });
+      if (def.styles) {
+        const style = document.createElement("style");
+        style.textContent = def.styles;
+        shadowAttached.appendChild(style);
+      }
+    } else if (def.styles) {
+      injectScopedStyles(tag, def.styles);
+    }
+    const cleanups = [];
+    for (const [attr, propDef] of propEntries) {
+      const camel = camelOf(attr);
+      const decode = schema.props[attr].decode;
+      const sig = seedSignal(host, attr, propDef, decode);
+      propSignals[camel] = sig;
+      if (propDef.reflect) {
+        let first = true;
+        const dispose = effect(() => {
+          const v = sig();
+          if (first) {
+            first = false;
+            return;
+          }
+          const next = encodeAttr(propDef, v);
+          if (next === null) host.removeAttribute(attr);
+          else host.setAttribute(attr, next);
+        });
+        cleanups.push(dispose);
+      }
+    }
+    if (def.setup) {
+      const ctx = { props: propSignals, host, cleanups };
+      if (internals) ctx.internals = internals;
+      def.setup(ctx);
+    }
+    return () => {
+      for (const c of cleanups.splice(0)) {
+        try {
+          c();
+        } catch (e) {
+          console.error(`[ship-set:${tag}] cleanup threw:`, e);
+        }
+      }
+    };
+  });
+}
+
+// packages/ship-set-runtime/src/component.ts
 function defineComponent(tag, schema, factory) {
   if (customElements.get(tag)) return;
   if (schema.formAssociated) {
-    class SailFormElement extends HTMLElement {
+    class ShipSetFormElement extends HTMLElement {
       constructor() {
         super();
         __publicField(this, "cleanup");
@@ -767,11 +941,11 @@ function defineComponent(tag, schema, factory) {
         );
       }
     }
-    __publicField(SailFormElement, "formAssociated", true);
-    customElements.define(tag, SailFormElement);
+    __publicField(ShipSetFormElement, "formAssociated", true);
+    customElements.define(tag, ShipSetFormElement);
     return;
   }
-  class SailElement extends HTMLElement {
+  class ShipSetElement extends HTMLElement {
     constructor() {
       super(...arguments);
       __publicField(this, "cleanup");
@@ -799,40 +973,13 @@ function defineComponent(tag, schema, factory) {
       if (sig) sig.set(meta.decode(value));
     }
   }
-  customElements.define(tag, SailElement);
+  customElements.define(tag, ShipSetElement);
 }
-function camelOf(attr) {
+function camelOf2(attr) {
   return attr.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 
-// src/decode.ts
-var decodeString = (raw) => raw ?? "";
-var decodeNumber = (raw) => {
-  if (raw === null || raw === "") return NaN;
-  return Number(raw);
-};
-var decodeBoolean = (raw) => {
-  if (raw === null) return false;
-  const v = raw.toLowerCase();
-  if (v === "false") return false;
-  return true;
-};
-function decodeJson(fallback) {
-  return (raw) => {
-    if (raw === null || raw === "") return fallback;
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return fallback;
-    }
-  };
-}
-function decodeEnum(allowed, fallback) {
-  const set = new Set(allowed);
-  return (raw) => raw !== null && set.has(raw) ? raw : fallback;
-}
-
-// src/data.ts
+// packages/ship-set-runtime/src/data.ts
 function data(opts) {
   const sig = signal(opts.initial);
   const ESCtor = opts.EventSource ?? globalThis.EventSource;
@@ -868,6 +1015,140 @@ function data(opts) {
     }
   };
 }
+
+// packages/ship-set-runtime/src/state.ts
+function debounce(input, ms) {
+  const out = signal(untrack(() => input()));
+  let timer = null;
+  effect(() => {
+    const value = input();
+    if (timer !== null) clearTimeout(timer);
+    timer = setTimeout(() => {
+      timer = null;
+      out.set(value);
+    }, ms);
+    return () => {
+      if (timer !== null) {
+        clearTimeout(timer);
+        timer = null;
+      }
+    };
+  });
+  return out;
+}
+
+// packages/ship-set-runtime/src/live.ts
+var toError = (err) => err instanceof Error ? err : new Error(String(err));
+var isLiveSource = (v) => typeof v === "object" && v !== null && typeof v.subscribe === "function";
+function live(source, opts) {
+  const sig = signal({ kind: "loading" });
+  let token = 0;
+  effect(() => {
+    const myToken = ++token;
+    let result;
+    try {
+      result = source();
+    } catch (err) {
+      if (myToken !== token) return;
+      const error = toError(err);
+      sig.set({ kind: "error", error });
+      opts?.onError?.(err);
+      return;
+    }
+    sig.set({ kind: "loading" });
+    if (isLiveSource(result)) {
+      let disposed = false;
+      const unsub = result.subscribe(sig);
+      return () => {
+        if (disposed) return;
+        disposed = true;
+        try {
+          unsub();
+        } catch (err) {
+          opts?.onError?.(err);
+        }
+      };
+    }
+    Promise.resolve(result).then(
+      (value) => {
+        if (myToken !== token) return;
+        sig.set({ kind: "ok", value });
+      },
+      (err) => {
+        if (myToken !== token) return;
+        const error = toError(err);
+        sig.set({ kind: "error", error });
+        opts?.onError?.(err);
+      }
+    );
+    return void 0;
+  });
+  return sig;
+}
+
+// packages/ship-set-runtime/src/while.ts
+var tearDownBranch = (active) => {
+  if (!active) return null;
+  for (const n of active.nodes) {
+    try {
+      n.parentNode?.removeChild(n);
+    } catch {
+    }
+  }
+  active.cleanup?.();
+  return null;
+};
+var insertBranch = (anchor, br) => {
+  const parent = anchor.parentNode;
+  if (!parent) return;
+  for (const n of br.nodes) parent.insertBefore(n, anchor);
+};
+function bindWhileLoading(opts) {
+  const { anchor, signal: sig, render } = opts;
+  let active = null;
+  let mounted = false;
+  const dispose = effect(() => {
+    const want = sig().kind === "loading";
+    if (want === mounted) return;
+    mounted = want;
+    if (want) {
+      active = render();
+      insertBranch(anchor, active);
+    } else {
+      active = tearDownBranch(active);
+    }
+  });
+  return () => {
+    dispose();
+    active = tearDownBranch(active);
+  };
+}
+function bindWhileError(opts) {
+  const { anchor, signal: sig, render } = opts;
+  let active = null;
+  let mounted = false;
+  const dispose = effect(() => {
+    const v = sig();
+    const want = v.kind === "error";
+    if (want === mounted) return;
+    mounted = want;
+    if (want && v.kind === "error") {
+      active = render(v.error);
+      insertBranch(anchor, active);
+    } else {
+      active = tearDownBranch(active);
+    }
+  });
+  return () => {
+    dispose();
+    active = tearDownBranch(active);
+  };
+}
+
+// packages/ship-set-runtime/src/view.ts
+function view(setup) {
+  return { setup };
+}
 export {
   applyPatch,
   applyPatches,
@@ -884,8 +1165,12 @@ export {
   bindShow,
   bindText,
   bindValue,
-  camelOf,
+  bindWhileError,
+  bindWhileLoading,
+  camelOf2 as camelOf,
+  component,
   data,
+  debounce,
   decodeBoolean,
   decodeEnum,
   decodeJson,
@@ -894,13 +1179,17 @@ export {
   defineComponent,
   derived,
   effect,
+  live,
   matchesKey,
   morph,
   on,
+  prop,
   resolveSlots,
   signal,
   slotFilled,
   snapshotChildren,
+  signal as state,
   tokenizePath,
-  untrack
+  untrack,
+  view
 };

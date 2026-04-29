@@ -1,0 +1,26 @@
+{
+  "name": "@ship-set/sdk-client",
+  "version": "0.1.0",
+  "description": "Browser-side Ship SDK shim — HTTP fetches and SSE/patch live sources for ship-set views.",
+  "type": "module",
+  "license": "MIT",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": [
+    "src",
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "bundle": "esbuild src/index.ts --bundle --format=esm --target=es2020 --external:@ship-set/runtime --outfile=../../apps/shipd/assets/ship-set-sdk-client.js --log-level=warning",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship-set/runtime": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^2.0.0"
+  }
+}

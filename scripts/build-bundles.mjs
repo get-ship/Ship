@@ -25,6 +25,12 @@ const targets = [
   { name: 'ship-code-editor',     entry: 'packages/ship-set/src/web-components/islands/ship-code-editor.ts' },
   { name: 'ship-markdown-editor', entry: 'packages/ship-set/src/web-components/islands/ship-markdown-editor.ts' },
   { name: 'ship-terminal',        entry: 'packages/ship-set/src/web-components/islands/ship-terminal.ts' },
+  // Phase 3 ship-set runtime + dom + sdk + per-view setups (committed
+  // assets the daemon `include_str!`s from apps/shipd/assets/).
+  { name: 'ship-set-runtime',     entry: 'packages/ship-set-runtime/src/index.ts' },
+  { name: 'ship-set-dom',         entry: 'packages/ship-set-dom/src/index.ts',         external: ['@ship-set/runtime'] },
+  { name: 'ship-set-sdk-client',  entry: 'packages/ship-set-sdk-client/src/index.ts',  external: ['@ship-set/runtime'] },
+  { name: 'views/agents/view',    entry: 'views/agents/view.ts',                       external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
 ];
 
 const args = new Set(process.argv.slice(2));
@@ -66,7 +72,8 @@ function fileMtimeHash(paths) {
 async function buildOne(t) {
   const entryAbs = join(repoRoot, t.entry);
   const outfile = join(assetsDir, `${t.name}.js`);
-  const cacheFile = join(cacheDir, `${t.name}.inputs.json`);
+  const cacheFile = join(cacheDir, `${t.name.replace(/[\\/]/g, '__')}.inputs.json`);
+  mkdirSync(dirname(outfile), { recursive: true });
 
   if (!force && existsSync(outfile) && existsSync(cacheFile)) {
     try {
@@ -86,6 +93,7 @@ async function buildOne(t) {
     entryPoints: [entryAbs],
     outfile,
     metafile: true,
+    ...(t.external ? { external: t.external } : {}),
   });
 
   const inputs = Object.keys(result.metafile.inputs).map((p) =>

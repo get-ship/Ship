@@ -1,0 +1,14 @@
+{
+  "name": "@views/agents",
+  "version": "0.1.0",
+  "description": "Agents list view — ship-set authoring shape, served at /set/agents.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "bundle": "esbuild view.ts --bundle --format=esm --target=es2020 --external:@ship-set/runtime --external:@ship-set/sdk-client --outfile=../../apps/shipd/assets/views/agents/view.js --log-level=warning"
+  },
+  "dependencies": {
+    "@ship-set/runtime": "workspace:*",
+    "@ship-set/sdk-client": "workspace:*"
+  }
+}

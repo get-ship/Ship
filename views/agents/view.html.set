@@ -1,0 +1,93 @@
+<div class="ship-view agents-view">
+  <link rel="stylesheet" href="/_ship-set/views/agents/view.css">
+  <div class="agents-wrap">
+
+    <header class="agents-head">
+      <div class="agents-head-titles">
+        <h1 class="agents-title">Agents</h1>
+        <p class="agents-sub">{total()} agent{total() === 1 ? '' : 's'}</p>
+      </div>
+      <ship-button tone="primary" variant="solid"
+                   on:click={() => navigate('/agents/create')}>
+        <ship-icon slot="leading" name="plus"></ship-icon>
+        New agent
+      </ship-button>
+    </header>
+
+    <while-loading bind="agents">
+      <p class="loading-copy" data-test="loading">Loading agents&hellip;</p>
+    </while-loading>
+
+    <while-error bind="agents" let:err>
+      <p class="loading-copy" data-test="error">Error loading agents: {err.message}</p>
+    </while-error>
+
+    {#if agents().kind === 'ok'}
+      {#if items().length === 0}
+        <ship-empty-state icon="sparkles" variant="default" size="lg" data-test="empty">
+          <span slot="title">No agents yet</span>
+          Drop a JSONC file under
+          <code class="agents-empty-code">.ship/agents/</code>
+          or create one from the Studio.
+          <ship-button slot="action" tone="primary" variant="solid"
+                       on:click={() => navigate('/agents/create')}>
+            <ship-icon slot="leading" name="plus"></ship-icon>
+            New agent
+          </ship-button>
+        </ship-empty-state>
+      {:else}
+        <div class="agents-grid" data-view-enter data-test="grid">
+          {#for a of items() key={a.id}}
+            <ship-list-tile variant="card" density="normal" interactive
+                            navigable={'/agents/' + a.id}
+                            class="agents-card-tile"
+                            data-test="agent">
+              <div class="agents-card-icon-tile" slot="leading">
+                <span class="agents-card-letter">{a.letter}</span>
+              </div>
+              <div class="agents-card-body">
+                <div class="agents-card-head">
+                  <div class="agents-card-title">{a.name}</div>
+                  <p class="agents-card-desc">{a.description || 'No description'}</p>
+                </div>
+                <div class="agents-card-stats">
+                  <span>{a.skills_count} skill{a.skills_count === 1 ? '' : 's'}</span>
+                  <span class="agents-card-sep">&middot;</span>
+                  <span>{a.mcp_count} MCP</span>
+                  <span class="agents-card-sep">&middot;</span>
+                  <span>{a.rules_count} rule{a.rules_count === 1 ? '' : 's'}</span>
+                </div>
+                {#if a.providers && a.providers.length > 0}
+                  <div class="agents-card-providers" aria-label="Compiles to">
+                    {#for p of a.providers.slice(0, 4)}
+                      <ship-provider-blob provider={p} size="sm" variant="glyph" title={p}></ship-provider-blob>
+                    {/for}
+                    {#if a.providers.length > 4}
+                      <ship-chip tone="muted" variant="outline" size="sm">+{a.providers.length - 4}</ship-chip>
+                    {/if}
+                  </div>
+                {/if}
+                <div class="agents-card-badges">
+                  <ship-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{a.source}</ship-badge>
+                  {#if a.active}
+                    <ship-chip tone="primary" variant="soft" size="sm">
+                      <ship-status-dot slot="leading" tone="primary" size="sm" pulse></ship-status-dot>
+                      active session
+                    </ship-chip>
+                  {/if}
+                  {#for t of (a.tags || []).slice(0, 2)}
+                    <ship-chip tone="muted" variant="soft" size="sm">{t}</ship-chip>
+                  {/for}
+                  {#if (a.tags || []).length > 2}
+                    <ship-chip tone="muted" variant="outline" size="sm">+{(a.tags || []).length - 2}</ship-chip>
+                  {/if}
+                </div>
+              </div>
+            </ship-list-tile>
+          {/for}
+        </div>
+      {/if}
+    {/if}
+
+  </div>
+</div>

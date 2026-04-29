@@ -90,7 +90,7 @@ export { state, debounce } from './state'
 export type { State } from './state'
 
 export { live } from './live'
-export type { LiveState, LiveSignal } from './live'
+export type { LiveState, LiveSignal, LiveSource, LiveOpts } from './live'
 
 export { bindWhileLoading, bindWhileError } from './while'
 export type {

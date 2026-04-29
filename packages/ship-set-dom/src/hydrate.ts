@@ -103,7 +103,8 @@ export function hydrate(
     scope[decl.name] = mountState(decl, scope)
   }
   if (setup) {
-    const ret = setup.call(undefined)
+    const ctx = { ship, route, navigate }
+    const ret = (setup as (ctx: typeof ctx) => unknown)(ctx)
     if (ret && typeof ret === 'object') {
       scope = extendScope(scope, ret as Scope)
     }
