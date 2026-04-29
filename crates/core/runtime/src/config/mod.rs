@@ -1,6 +1,5 @@
 pub mod catalog;
 pub mod credentials;
-pub mod hooks;
 pub mod library;
 pub mod local;
 pub mod security;

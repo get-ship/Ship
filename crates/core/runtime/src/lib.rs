@@ -52,7 +52,6 @@ pub use agent_export::{
     enable_provider, export_to, import_from_claude, list_models, list_providers, sync_active_agent,
 };
 pub use config::catalog::{CatalogEntry, CatalogKind, list_catalog, list_catalog_by_kind, search_catalog};
-pub use config::hooks::{DefaultRuntimeHooks, RuntimeHooks};
 pub use config::{
     AgentLayerConfig, AgentProfile, AiConfig, GitConfig, HookConfig, HookTrigger, McpServerConfig,
     McpServerType, NamespaceConfig, PermissionConfig, ProjectConfig, StatusConfig,

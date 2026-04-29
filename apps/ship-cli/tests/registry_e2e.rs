@@ -214,13 +214,13 @@ fn workspace_state_active_profile_round_trip() {
 
     // First write.
     db::kv::set(
-        "workspace",
+        "profile",
         "active_profile",
         &serde_json::json!("my-profile"),
     )
     .expect("kv set must succeed");
 
-    let val = db::kv::get("workspace", "active_profile")
+    let val = db::kv::get("profile", "active_profile")
         .expect("kv get must succeed")
         .expect("value must be present");
     assert_eq!(
@@ -231,13 +231,13 @@ fn workspace_state_active_profile_round_trip() {
 
     // Second write — same value, idempotent.
     db::kv::set(
-        "workspace",
+        "profile",
         "active_profile",
         &serde_json::json!("my-profile"),
     )
     .expect("second kv set must succeed");
 
-    let val2 = db::kv::get("workspace", "active_profile")
+    let val2 = db::kv::get("profile", "active_profile")
         .expect("kv get after second write must succeed")
         .expect("value must still be present");
     assert_eq!(
