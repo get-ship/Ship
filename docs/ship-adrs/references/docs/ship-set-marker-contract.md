@@ -39,6 +39,8 @@ The framework needs to commit before the IR render walker (Phase D) can land —
 | `data-set-text="<key>"` | Text-interpolation binding (host is the text node's parent; child is a stable comment marker) | `data-set-text="count"` |
 | `data-set-attr:<name>="<key>"` | Attribute-interpolation binding | `data-set-attr:href="profileUrl"` |
 | `data-set-class:<name>="<key>"` | Conditional class | `data-set-class:active="isActive"` |
+| `data-set-style:<name>="<key>"` | Conditional inline style property | `data-set-style:color="primaryColor"` |
+| `data-set-attr-dynamic="<key>"` | Attribute whose **name** is reactive (e.g. `<a {hrefAttr}={url}>`) | `data-set-attr-dynamic="b7"` |
 | `data-set-if="<key>"` | `{#if}` boundary; element is the rendered branch root | `data-set-if="branch_3"` |
 | `data-set-for="<key>"` | `{#for}` boundary; child elements have `data-set-key="<value>"` | `data-set-for="loop_1"` |
 | `data-set-match="<key>"` | `{#match}` boundary | `data-set-match="branch_7"` |
@@ -108,9 +110,15 @@ Rejected for naming. Datastar uses `data-on-click`, `data-text`, `data-show`. We
 - **Marker stability across recompiles.** When the same `.html.set` is recompiled, do the `<key>` identifiers stay stable across builds? They do not need to, since the server and client are always served from the same IR module — but if hot-reload starts streaming partial DOM patches, key stability becomes a constraint. Defer the call until hot-reload exists.
 - **Server-side conditional bindings inside dead branches.** When a `{#if}` server-evaluates to false, the unrendered branch's bindings are skipped — but the IR still has them. Does the runtime ever need to attach a binding for a branch that wasn't initially rendered? Today: no, branches mount from scratch when the `if` flips. If we add stream-rendered partial DOM in the future, this question reopens.
 
+## Amendments
+
+### 2026-04-30 — `data-set-style:` and `data-set-attr-dynamic` added
+
+The Phase D-1 walker landed with two attribute kinds not in the original table: `data-set-style:<name>="<key>"` for `style:` directives (the inline-style analog of `class:`) and `data-set-attr-dynamic="<key>"` for attributes whose name is itself reactive (`<a {hrefAttr}={url}>`). Both follow the same family naming convention and the same `<key>` resolution rule as the original table — they are extensions, not divergences. Folded into the canonical attribute family above so the contract stays a single source of truth.
+
 ## References
 
 - [SSR and the attach runtime](../../../ship-set-framework/references/docs/ssr-hydration.md) — the doc this ADR concretizes.
-- [Implementation status](../../../ship-set-framework/references/docs/status.md) — Phase D (IR render walker), Phase E (attach-only client runtime) consume this contract.
+- [Implementation status](../../../ship-set-framework/references/docs/status.md) — Phase D-1/D-2/D-3 (IR render walker), Phase E (attach-only client runtime) consume this contract.
 - [Three-role architecture ADR](./ship-set-three-role-architecture.md) — the framework spine that constrains the marker namespace.
 - Datastar's `data-*` attribute family — referenced for shape, not for names. Their docs are at <https://data-star.dev>.
