@@ -19,14 +19,19 @@
 //! No expression evaluation happens in this phase; every dynamic value
 //! is a marker.
 
+use crate::bindings;
 use crate::diagnostics::CompileError;
 use crate::ir::{AttrInstr, ElementInstr, ForInstr, IfInstr, Instr, MatchInstr, Program};
+use crate::keys::BindingRegistry;
 
 mod control_flow;
 mod escape;
-mod eval;
+pub(crate) mod eval;
 mod island;
+mod out;
+mod render_for;
 mod scope;
+mod template_helpers;
 mod walker;
 
 #[cfg(test)]
@@ -60,42 +65,33 @@ pub struct RenderOutput {
 /// stay so the client runtime can re-bind). Expressions outside the
 /// subset, or that touch unbound names, fall back to D-1's marker-
 /// only shape.
-pub fn render(program: &Program, opts: &RenderOpts) -> Result<RenderOutput, CompileError> {
+///
+/// Phase E-prep: the walker consumes a `BindingRegistry` built earlier
+/// in `compile()` so its emitted `b<N>` keys index into the same
+/// manifest the JS emitter writes out as `export const bindings`.
+pub fn render(
+    program: &Program,
+    registry: &BindingRegistry,
+    opts: &RenderOpts,
+) -> Result<RenderOutput, CompileError> {
     let _ = opts; // reserved for view-name diagnostics in later phases.
     let initial = scope::build(program);
     let init_json = initial.init.clone();
-    let mut state = walker::Walker::new(initial.scope);
+    let mut state = walker::Walker::new(initial.scope, registry);
     state.walk_block(&program.template);
     let mut html = state.into_html();
     html.push_str(&island::emit(&init_json));
     Ok(RenderOutput { html, init: init_json })
 }
 
-/// Allocates stable opaque marker keys (`b0`, `b1`, …) in source order.
-#[derive(Debug, Default)]
-pub(crate) struct KeyAllocator {
-    next: usize,
-}
-
-impl KeyAllocator {
-    pub(crate) fn alloc(&mut self) -> String {
-        let key = format!("b{}", self.next);
-        self.next += 1;
-        key
-    }
-
-    /// Snapshot the next-key counter. Pairs with `restore` to give
-    /// `{#for}` iterations identical key sequences inside their bodies
-    /// (Phase E's attach runtime needs one binding per source-position,
-    /// not per DOM node).
-    pub(crate) fn snapshot(&self) -> usize {
-        self.next
-    }
-
-    /// Restore the next-key counter to a prior snapshot value.
-    pub(crate) fn restore(&mut self, n: usize) {
-        self.next = n;
-    }
+/// Convenience wrapper that builds the registry inline. Used by tests
+/// and external callers that don't already have a registry handy.
+pub fn render_default(
+    program: &Program,
+    opts: &RenderOpts,
+) -> Result<RenderOutput, CompileError> {
+    let registry = bindings::build(program);
+    render(program, &registry, opts)
 }
 
 /// Re-export the shape of a single emit decision so the walker can
