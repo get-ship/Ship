@@ -22,6 +22,7 @@
 use crate::diagnostics::CompileError;
 use crate::ir::{AttrInstr, ElementInstr, ForInstr, IfInstr, Instr, MatchInstr, Program};
 
+mod control_flow;
 mod escape;
 mod eval;
 mod island;
@@ -62,11 +63,12 @@ pub struct RenderOutput {
 pub fn render(program: &Program, opts: &RenderOpts) -> Result<RenderOutput, CompileError> {
     let _ = opts; // reserved for view-name diagnostics in later phases.
     let initial = scope::build(program);
-    let mut state = walker::Walker::new(&initial.scope);
+    let init_json = initial.init.clone();
+    let mut state = walker::Walker::new(initial.scope);
     state.walk_block(&program.template);
     let mut html = state.into_html();
-    html.push_str(&island::emit(&initial.init));
-    Ok(RenderOutput { html, init: initial.init })
+    html.push_str(&island::emit(&init_json));
+    Ok(RenderOutput { html, init: init_json })
 }
 
 /// Allocates stable opaque marker keys (`b0`, `b1`, …) in source order.
@@ -80,6 +82,19 @@ impl KeyAllocator {
         let key = format!("b{}", self.next);
         self.next += 1;
         key
+    }
+
+    /// Snapshot the next-key counter. Pairs with `restore` to give
+    /// `{#for}` iterations identical key sequences inside their bodies
+    /// (Phase E's attach runtime needs one binding per source-position,
+    /// not per DOM node).
+    pub(crate) fn snapshot(&self) -> usize {
+        self.next
+    }
+
+    /// Restore the next-key counter to a prior snapshot value.
+    pub(crate) fn restore(&mut self, n: usize) {
+        self.next = n;
     }
 }
 
@@ -132,6 +147,7 @@ pub(crate) fn marker_attr_name(attr: &AttrInstr) -> Option<String> {
 
 /// Marker name for control-flow instructions. Used for the
 /// `<template data-set-…>` placeholder.
+#[allow(dead_code)]
 pub(crate) fn control_flow_kind(instr: &Instr) -> Option<&'static str> {
     match instr {
         Instr::If(IfInstr { .. }) => Some("if"),

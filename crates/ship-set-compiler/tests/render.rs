@@ -100,16 +100,16 @@ fn expr_attribute_emits_data_set_attr() {
 
 #[test]
 fn if_emits_template_placeholder() {
-    let src = "<state name=\"on\" value=\"true\" />\n{#if on}<p>x</p>{/if}";
+    // Unbound condition → evaluator errors → D-1 placeholder fallback.
+    let src = "{#if missing}<p>x</p>{/if}";
     let html = render_source(src);
     assert!(
         html.contains(r#"<template data-set-if="b0"></template>"#),
         "expected if placeholder; got: {html:?}"
     );
-    // Body must NOT be rendered in D-1.
     assert!(
         !html.contains("<p>x</p>"),
-        "body must not be recursed in D-1; got: {html:?}"
+        "body must not be recursed when condition is unevaluable; got: {html:?}"
     );
 }
 
@@ -125,11 +125,16 @@ fn for_emits_template_placeholder() {
 
 #[test]
 fn match_emits_template_placeholder() {
-    let src = "<state name=\"v\" value=\"'a'\" />\n{#match v}{:case 'a'}A{:default}D{/match}";
+    // Unbound discriminant → evaluator errors → D-1 placeholder fallback.
+    let src = "{#match missing}{:case 'a'}A{:default}D{/match}";
     let html = render_source(src);
     assert!(
         html.contains(r#"<template data-set-match="b0"></template>"#),
         "expected match placeholder; got: {html:?}"
+    );
+    assert!(
+        !html.contains(">A<") && !html.contains(">D<"),
+        "no body must render when discriminant is unevaluable; got: {html:?}"
     );
 }
 
@@ -295,5 +300,183 @@ fn agents_view_island_carries_loading_envelope() {
         agents,
         &serde_json::json!({"kind": "loading"}),
         "init.agents shape mismatch"
+    );
+}
+
+// ---------- Phase D-3: control-flow rendering ----------
+
+#[test]
+fn if_truthy_branch_renders_body() {
+    let src = "<state name=\"show\" value=\"true\" />\n{#if show}<p>yes</p>{/if}";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"<template data-set-if="b0"><p>yes</p></template>"#),
+        "expected truthy branch body inside template; got: {html:?}"
+    );
+}
+
+#[test]
+fn if_falsy_branch_skipped() {
+    let src = "<state name=\"show\" value=\"false\" />\n{#if show}<p>yes</p>{/if}";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"<template data-set-if="b0"></template>"#),
+        "expected empty template for falsy branch with no else; got: {html:?}"
+    );
+    assert!(!html.contains("<p>yes</p>"));
+}
+
+#[test]
+fn if_else_branch_renders_when_falsy() {
+    let src = "<state name=\"x\" value=\"false\" />\n{#if x}<p>a</p>{:else}<p>b</p>{/if}";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"<template data-set-if="b0"><p>b</p></template>"#),
+        "expected else body; got: {html:?}"
+    );
+    assert!(!html.contains("<p>a</p>"));
+}
+
+#[test]
+fn if_unevaluable_falls_back_to_placeholder() {
+    // `route.params.id` is a string lookup on the empty `route.params`
+    // placeholder, so the strict-equality test against `'42'` evaluates
+    // cleanly to false. To get a genuinely unevaluable shape we have
+    // to reference an unbound name — same end-state semantics.
+    let src = "{#if missing.id === '42'}<p>x</p>{/if}";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"<template data-set-if="b0"></template>"#),
+        "expected empty placeholder; got: {html:?}"
+    );
+    assert!(!html.contains("<p>x</p>"));
+}
+
+#[test]
+fn for_renders_each_iteration() {
+    let src = "<state name=\"items\" value=\"[1,2,3]\" />\n{#for n of items}<li>{n}</li>{/for}";
+    let html = render_source(src);
+    // Body has one dynamic-text key allocated once and shared across iterations.
+    assert!(
+        html.contains(r#"<template data-set-for="b0">"#),
+        "expected for template open; got: {html:?}"
+    );
+    assert!(html.contains("<li><!--set:text:b1-->1<!--/set--></li>"));
+    assert!(html.contains("<li><!--set:text:b1-->2<!--/set--></li>"));
+    assert!(html.contains("<li><!--set:text:b1-->3<!--/set--></li>"));
+    assert!(html.contains("</template>"));
+}
+
+#[test]
+fn for_emits_data_set_key() {
+    let src = "<state name=\"items\" value=\"[1,2,3]\" />\n{#for n of items key={n}}<li>{n}</li>{/for}";
+    let html = render_source(src);
+    assert!(html.contains(r#"<li data-set-key="1">"#), "missing key=1: {html:?}");
+    assert!(html.contains(r#"<li data-set-key="2">"#), "missing key=2: {html:?}");
+    assert!(html.contains(r#"<li data-set-key="3">"#), "missing key=3: {html:?}");
+}
+
+#[test]
+fn for_iterations_share_inner_keys() {
+    let src = "<state name=\"items\" value=\"[1,2]\" />\n{#for n of items}<li>{n}</li>{/for}";
+    let html = render_source(src);
+    let occurrences = html.matches("set:text:b1").count();
+    // One open marker per iteration; `b1` reused across all iterations.
+    assert_eq!(
+        occurrences, 2,
+        "expected the same b1 key reused across iterations; got {occurrences}: {html:?}"
+    );
+}
+
+#[test]
+fn for_empty_renders_else_body() {
+    let src =
+        "<state name=\"items\" value=\"[]\" />\n{#for n of items}<li>{n}</li>{:else}<p>none</p>{/for}";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"<template data-set-for="b0"><p>none</p></template>"#),
+        "expected else body inside for template; got: {html:?}"
+    );
+}
+
+#[test]
+fn for_unevaluable_iterable_falls_back() {
+    let src = "{#for n of missing}<li>{n}</li>{/for}";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"<template data-set-for="b0"></template>"#),
+        "expected empty placeholder for unevaluable iterable; got: {html:?}"
+    );
+    assert!(!html.contains("<li>"));
+}
+
+#[test]
+fn match_evaluates_discriminant() {
+    let src = "<state name=\"kind\" value=\"'a'\" />\n{#match kind}{:case 'a'}<p>A</p>{:case 'b'}<p>B</p>{/match}";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"<template data-set-match="b0"><p>A</p></template>"#),
+        "expected case A rendered; got: {html:?}"
+    );
+    assert!(!html.contains("<p>B</p>"));
+}
+
+#[test]
+fn match_unevaluable_falls_back() {
+    let src = "{#match missing}{:case 'a'}<p>A</p>{:default}<p>D</p>{/match}";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"<template data-set-match="b0"></template>"#),
+        "expected empty placeholder for unevaluable discriminant; got: {html:?}"
+    );
+    assert!(!html.contains("<p>A</p>"));
+    assert!(!html.contains("<p>D</p>"));
+}
+
+#[test]
+fn nested_control_flow_round_trip() {
+    let src = "<state name=\"x\" value=\"true\" />\n<state name=\"xs\" value=\"[1,2]\" />\n{#if x}{#for n of xs}<li>{n}</li>{/for}{/if}";
+    let html = render_source(src);
+    // Outer if takes b0; inner for takes b1; inner dynamic text takes b2.
+    assert!(html.contains(r#"<template data-set-if="b0">"#));
+    assert!(html.contains(r#"<template data-set-for="b1">"#));
+    assert!(html.contains("<li><!--set:text:b2-->1<!--/set--></li>"));
+    assert!(html.contains("<li><!--set:text:b2-->2<!--/set--></li>"));
+    // for body closes inside if body which closes outside.
+    let if_open = html.find("data-set-if=\"b0\"").unwrap();
+    let for_open = html.find("data-set-for=\"b1\"").unwrap();
+    assert!(if_open < for_open, "nesting order wrong: {html:?}");
+}
+
+#[test]
+fn agents_view_round_trip_with_d3() {
+    let src = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("views/agents/view.html.set"),
+    )
+    .expect("read agents view");
+    let program = parse(&src).expect("parse agents view");
+    let opts = RenderOpts { view_name: "agents".into() };
+    let out = render(&program, &opts).expect("render agents view");
+    // Outer `{#if agents().kind === 'ok'}` evaluates against the loading
+    // envelope at SSR time, so it falls into the placeholder branch.
+    assert!(
+        out.html.contains("data-set-if="),
+        "expected at least one data-set-if marker: {}",
+        &out.html[..200.min(out.html.len())]
+    );
+    // The agents view contains a `{#for}` somewhere; its outer guard
+    // (the `{#if agents().kind === 'ok'}`) is falsy, so the for marker
+    // never reaches the output. We only require that the walker did
+    // not panic and produced a reachable shape — assert the `__set_init__`
+    // island is still emitted.
+    assert!(out.html.contains("__set_init__"), "init island missing");
+    assert_eq!(
+        out.init.get("agents"),
+        Some(&serde_json::json!({"kind": "loading"})),
     );
 }
