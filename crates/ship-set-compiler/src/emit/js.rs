@@ -31,12 +31,14 @@ use super::template_emit::{ExprBank, TemplateEmitter};
 use super::util::{camel_of, js_ident};
 use super::writer::{js_string, Writer};
 use crate::ir::*;
+use crate::keys::BindingRegistry;
 use crate::lower::{directives::prop_default_literal, Lowered};
 use crate::{CompileMode, CompileOpts};
 
 pub fn emit_module(
     program: &Program,
     lowered: &Lowered,
+    bindings: &BindingRegistry,
     opts: &CompileOpts,
     mode: CompileMode,
 ) -> String {
@@ -56,7 +58,31 @@ pub fn emit_module(
         CompileMode::Component => emit_component_export(&mut w, program, body),
         _ => emit_view_export(&mut w, body),
     }
+    emit_bindings(&mut w, bindings);
     w.into_string()
+}
+
+fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
+    w.nl();
+    w.line("export const bindings = [");
+    w.enter();
+    for b in bindings.iter() {
+        let deps_js = b
+            .deps
+            .iter()
+            .map(|d| js_string(d))
+            .collect::<Vec<_>>()
+            .join(", ");
+        w.line(&format!(
+            "{{ key: {}, kind: {}, expr: {}, deps: [{}] }},",
+            js_string(&b.key),
+            js_string(&b.kind.as_marker_str()),
+            js_string(&b.expr),
+            deps_js,
+        ));
+    }
+    w.leave();
+    w.line("];");
 }
 
 fn emit_imports(w: &mut Writer, lowered: &Lowered, opts: &CompileOpts) {

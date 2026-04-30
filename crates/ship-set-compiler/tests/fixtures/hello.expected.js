@@ -29,3 +29,6 @@ export default view((ctx) => {
     },
   });
 });
+
+export const bindings = [
+];

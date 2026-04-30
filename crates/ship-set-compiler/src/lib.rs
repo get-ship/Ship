@@ -26,10 +26,12 @@
 
 use std::path::PathBuf;
 
+pub mod bindings;
 pub mod check;
 pub mod diagnostics;
 pub mod emit;
 pub mod ir;
+pub mod keys;
 pub mod lower;
 pub mod parse;
 pub mod render;
@@ -75,6 +77,7 @@ pub struct CompileOutput {
 pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, CompileError> {
     let program = parse::parse(source).map_err(|e| attach_path(e, &opts))?;
     check::run(&program).map_err(|e| attach_path(e, &opts))?;
+    let bindings = bindings::build(&program);
     let lowered = lower::lower(&program);
     let mode = match opts.mode {
         CompileMode::Auto => {
@@ -97,7 +100,7 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
         ));
     }
 
-    let js = emit::js::emit_module(&program, &lowered, &opts, mode);
+    let js = emit::js::emit_module(&program, &lowered, &bindings, &opts, mode);
     let cem = match (mode, &program.component) {
         (CompileMode::Component, Some(comp)) => Some(emit::cem::emit_cem(comp, &opts)),
         _ => None,

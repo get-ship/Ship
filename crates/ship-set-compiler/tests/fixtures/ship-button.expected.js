@@ -79,3 +79,11 @@ export default component("ship-button-test", {
   return $scope;
   },
 });
+
+export const bindings = [
+  { key: "b0", kind: "attr:disabled", expr: "disabled() || loading()", deps: ["disabled", "loading"] },
+  { key: "b1", kind: "attr:aria-busy", expr: "loading() ? 'true' : 'false'", deps: ["loading"] },
+  { key: "b2", kind: "attr:aria-label", expr: "label()", deps: ["label"] },
+  { key: "b3", kind: "text", expr: "label()", deps: ["label"] },
+  { key: "b4", kind: "if", expr: "loading()", deps: ["loading"] },
+];

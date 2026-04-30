@@ -6,8 +6,9 @@
 //! the body. These tests pin the rendered HTML so any regression in
 //! marker shape, evaluator output, or island serialization is loud.
 
+use ship_set_compiler::bindings;
 use ship_set_compiler::parse::parse;
-use ship_set_compiler::render::{RenderOpts, RenderOutput, render};
+use ship_set_compiler::render::{RenderOpts, RenderOutput, render_default as render};
 
 fn render_source(src: &str) -> String {
     render_full(src).html
@@ -479,4 +480,122 @@ fn agents_view_round_trip_with_d3() {
         out.init.get("agents"),
         Some(&serde_json::json!({"kind": "loading"})),
     );
+}
+
+// ---------- Phase E-prep: walker / registry parity ----------
+
+/// For every `data-set-<kind>="b<N>"` marker (and every
+/// `<!--set:text:b<N>-->`) the walker emits, look up `bindings[N]` and
+/// confirm the registry entry's kind matches the marker family.
+#[test]
+fn walker_keys_match_registry() {
+    let src = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("views/agents/view.html.set"),
+    )
+    .expect("read agents view");
+    let program = parse(&src).expect("parse");
+    let registry = bindings::build(&program);
+    let opts = RenderOpts { view_name: "agents".into() };
+    let out = render(&program, &opts).expect("render");
+
+    // Pull `(kind_str, key)` pairs out of the rendered HTML in order.
+    let pairs = extract_marker_pairs(&out.html);
+    assert!(
+        !pairs.is_empty(),
+        "agents view should emit at least one marker; got: {}",
+        &out.html[..400.min(out.html.len())]
+    );
+
+    for (marker_kind, key) in pairs {
+        let n: usize = key
+            .strip_prefix('b')
+            .and_then(|n| n.parse().ok())
+            .unwrap_or_else(|| panic!("malformed key {key}"));
+        let entry = registry
+            .get(n)
+            .unwrap_or_else(|| panic!("registry missing index {n} (key {key})"));
+        assert_eq!(
+            entry.key, key,
+            "registry[{n}].key={} but marker key={key}",
+            entry.key
+        );
+        assert_eq!(
+            entry.kind.as_marker_str(),
+            marker_kind,
+            "registry[{n}].kind={} but marker kind={marker_kind}",
+            entry.kind.as_marker_str()
+        );
+    }
+}
+
+/// Find every `data-set-<kind>="bN"` attribute and `<!--set:text:bN-->`
+/// comment marker in the rendered HTML, returning `(kind_str, key)`.
+fn extract_marker_pairs(html: &str) -> Vec<(String, String)> {
+    let mut out: Vec<(String, String)> = Vec::new();
+    let bytes = html.as_bytes();
+    let mut i = 0;
+
+    // data-set-<kind>="bN"
+    while i < bytes.len() {
+        if let Some(rest) = html[i..].strip_prefix("data-set-") {
+            // Read kind up to '='.
+            let eq_pos = rest.find('=');
+            let quote_pos = rest.find('"');
+            if let (Some(eq), Some(qs)) = (eq_pos, quote_pos) {
+                if qs == eq + 1 {
+                    let kind = &rest[..eq];
+                    if let Some(qe) = rest[qs + 1..].find('"') {
+                        let key = &rest[qs + 1..qs + 1 + qe];
+                        if key.starts_with('b') {
+                            out.push((kind.to_string(), key.to_string()));
+                        }
+                        i += "data-set-".len() + qs + 1 + qe + 1;
+                        continue;
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+
+    // <!--set:text:bN-->
+    let mut j = 0;
+    while let Some(start) = html[j..].find("<!--set:text:") {
+        let abs = j + start + "<!--set:text:".len();
+        if let Some(end_off) = html[abs..].find("-->") {
+            let key = &html[abs..abs + end_off];
+            if key.starts_with('b') {
+                out.push(("text".to_string(), key.to_string()));
+            }
+            j = abs + end_off + 3;
+        } else {
+            break;
+        }
+    }
+
+    out
+}
+
+#[test]
+fn walker_keys_match_registry_for_counter_fixture() {
+    let src = std::fs::read_to_string(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/counter.html.set"),
+    )
+    .expect("read counter fixture");
+    let program = parse(&src).expect("parse");
+    let registry = bindings::build(&program);
+    let opts = RenderOpts { view_name: "counter".into() };
+    let out = render(&program, &opts).expect("render");
+
+    for (marker_kind, key) in extract_marker_pairs(&out.html) {
+        let n: usize = key.strip_prefix('b').unwrap().parse().unwrap();
+        let entry = registry.get(n).expect("registry has entry");
+        assert_eq!(entry.kind.as_marker_str(), marker_kind);
+    }
 }

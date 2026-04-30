@@ -4,27 +4,74 @@
 //! evaluation into text/attribute output, and D-1 nailed the marker
 //! shapes. On evaluator failure we fall back to the marker-only shape
 //! so client-side attachment still works.
+//!
+//! ## Phase E-prep — registry parity
+//!
+//! Key allocation is shared with `bindings::BindingRegistry`. The
+//! registry pre-walks the IR (every branch, taken or not) and assigns
+//! `b<N>` keys; the walker walks the IR again here, emitting HTML, and
+//! its `b<N>` keys must match the registry index-for-index. To keep
+//! the counter aligned across un-rendered branches, the walker walks
+//! every branch — but suppresses HTML output for the un-taken ones via
+//! the `Out` wrapper's silent mode.
 
 use crate::ir::{AttrInstr, ElementInstr, Instr};
+use crate::keys::{BindingRegistry, KeyAllocator};
 
 use super::control_flow;
 use super::escape::{escape_attr_value, escape_text_value};
 use super::eval::{Scope, eval, stringify, truthy};
-use super::{EmitDecision, KeyAllocator, decide_element};
+use super::out::Out;
+use super::{EmitDecision, decide_element};
 
-pub(crate) struct Walker {
-    pub(super) out: String,
+pub(crate) struct Walker<'r> {
+    pub(super) out: Out,
     pub(super) keys: KeyAllocator,
     pub(super) scope: Scope,
+    pub(super) registry: &'r BindingRegistry,
+    /// Counter for parity with the registry. Increments each time the
+    /// walker would have allocated a key. Used by `next_key` to assert
+    /// the registry's `b<N>` matches.
+    pub(super) reg_idx: usize,
 }
 
-impl Walker {
-    pub(crate) fn new(scope: Scope) -> Self {
-        Self { out: String::new(), keys: KeyAllocator::default(), scope }
+impl<'r> Walker<'r> {
+    pub(crate) fn new(scope: Scope, registry: &'r BindingRegistry) -> Self {
+        Self {
+            out: Out::new(),
+            keys: KeyAllocator::default(),
+            scope,
+            registry,
+            reg_idx: 0,
+        }
     }
 
     pub(crate) fn into_html(self) -> String {
-        self.out
+        self.out.into_string()
+    }
+
+    /// Allocate the next `b<N>` key. Asserts (in debug builds) that
+    /// the registry's entry at the matching index has the same key
+    /// string — drift means the two traversals fell out of sync.
+    pub(super) fn next_key(&mut self) -> String {
+        let key = self.keys.alloc();
+        debug_assert_eq!(
+            self.registry.get(self.reg_idx).map(|b| b.key.as_str()),
+            Some(key.as_str()),
+            "walker/registry key drift at index {}",
+            self.reg_idx
+        );
+        self.reg_idx += 1;
+        key
+    }
+
+    /// Walk a block of instructions with HTML output suppressed.
+    /// Key allocation continues so the registry-parity counter stays
+    /// in lockstep with un-taken branches.
+    pub(super) fn walk_block_silent(&mut self, instrs: &[Instr]) {
+        self.out.enter_silent();
+        self.walk_block(instrs);
+        self.out.exit_silent();
     }
 
     pub(crate) fn walk_block(&mut self, instrs: &[Instr]) {
@@ -42,7 +89,7 @@ impl Walker {
                 self.out.push_str("-->");
             }
             Instr::DynamicText { expr } => {
-                let key = self.keys.alloc();
+                let key = self.next_key();
                 let inner = eval(&expr.source, &self.scope)
                     .map(|v| escape_text_value(&stringify(&v)))
                     .unwrap_or_default();
@@ -159,29 +206,29 @@ impl Walker {
                 self.push_attr(name, value);
             }
             AttrInstr::Expr { name, expr, .. } => {
-                let key = self.keys.alloc();
+                let key = self.next_key();
                 if let Ok(v) = eval(&expr.source, &self.scope) {
                     self.push_attr(name, &stringify(&v));
                 }
                 self.push_marker(&format!("data-set-attr:{name}"), &key);
             }
             AttrInstr::Class { name, .. } => {
-                let key = self.keys.alloc();
+                let key = self.next_key();
                 self.push_marker(&format!("data-set-class:{name}"), &key);
             }
             AttrInstr::Style { name, .. } => {
-                let key = self.keys.alloc();
+                let key = self.next_key();
                 self.push_marker(&format!("data-set-style:{name}"), &key);
             }
             AttrInstr::BindValue { expr, .. } => {
-                let key = self.keys.alloc();
+                let key = self.next_key();
                 if let Ok(v) = eval(&expr.source, &self.scope) {
                     self.push_attr("value", &stringify(&v));
                 }
                 self.push_marker("data-set-bind:value", &key);
             }
             AttrInstr::BindChecked { expr, .. } => {
-                let key = self.keys.alloc();
+                let key = self.next_key();
                 if let Ok(v) = eval(&expr.source, &self.scope) {
                     if truthy(&v) {
                         self.out.push(' ');
@@ -191,11 +238,11 @@ impl Walker {
                 self.push_marker("data-set-bind:checked", &key);
             }
             AttrInstr::On { event, .. } => {
-                let key = self.keys.alloc();
+                let key = self.next_key();
                 self.push_marker(&format!("data-set-on:{event}"), &key);
             }
             AttrInstr::DynamicAttr { .. } => {
-                let key = self.keys.alloc();
+                let key = self.next_key();
                 self.push_marker("data-set-attr-dynamic", &key);
             }
         }

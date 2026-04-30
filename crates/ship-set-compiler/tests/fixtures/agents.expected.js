@@ -174,3 +174,11 @@ export default view((ctx) => {
     },
   });
 });
+
+export const bindings = [
+  { key: "b0", kind: "text", expr: "err.message", deps: ["err"] },
+  { key: "b1", kind: "if", expr: "agents().kind === 'ok'", deps: ["agents"] },
+  { key: "b2", kind: "if", expr: "agents().value.items.length === 0", deps: ["agents"] },
+  { key: "b3", kind: "for", expr: "agents().value.items", deps: ["agents"] },
+  { key: "b4", kind: "text", expr: "agent.name", deps: ["agent"] },
+];

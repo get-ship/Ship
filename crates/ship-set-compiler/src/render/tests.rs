@@ -3,14 +3,6 @@
 use super::*;
 
 #[test]
-fn key_allocator_yields_sequential_b_keys() {
-    let mut k = KeyAllocator::default();
-    assert_eq!(k.alloc(), "b0");
-    assert_eq!(k.alloc(), "b1");
-    assert_eq!(k.alloc(), "b2");
-}
-
-#[test]
 fn marker_attr_name_covers_dynamic_kinds() {
     use crate::diagnostics::Span;
     use crate::ir::Expr;
