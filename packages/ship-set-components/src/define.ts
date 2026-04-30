@@ -1,83 +1,50 @@
-// Component-registration helper.
+// Component-registration helper — DEPRECATED stub kept during the
+// Arc B-1 transition window.
 //
-// Each ported primitive's `.ts` file imports its `.html.set` template
-// (esbuild's `text` loader on `.set` returns the file contents as a
-// string) and optionally a sibling `.css` (also text-loaded). The
-// helper splices the CSS into the template's `<component>` block as a
-// `<style>` child and feeds the result to `hydrate()`, which parses
-// the directive and registers the custom element.
+// Until Arc B-1, this helper read the `.html.set` template, optionally
+// spliced a sibling `.css` into the `<component>` block, and called
+// `hydrate()` to parse the directive and register the custom element.
+// Registration now happens ahead-of-time: `ship-set-compiler` emits a
+// `<tag>.compiled.js` per primitive, the .ts file side-effect imports
+// it, and the compiled module's top-level `component(...)` call
+// registers the element. No runtime parser is involved.
 //
-// Why splice CSS in at registration time instead of authoring inline
-// `<style>` blocks in every `.html.set`?
-//
-//   - A primitive's CSS surface routinely runs 100–500 lines (tone
-//     matrices, focus rings, motion). Authoring it inline pushes the
-//     `.html.set` past the 300-line cap on every nontrivial port.
-//   - Editors handle stand-alone `.css` natively (linting, formatting,
-//     completion). Editing inside an HTML `<style>` element loses
-//     that.
-//   - The .ts file is the integration point already — `.html.set` is
-//     declarative, .ts is imperative; co-locating the imports keeps
-//     the integration boundary in one file.
-//
-// Hydrate is invoked with a throwaway container — for a `<component>`
-// directive, hydrate registers the custom element via the runtime's
-// `defineComponent` and returns a no-op disposer; nothing renders into
-// the container. Subsequent `<set-*>` instances appear when authors
-// place the tag in a parent template.
-
-import { hydrate } from '@ship-set/dom'
+// The function below is preserved as a no-op so any straggler caller
+// surfaces a console warning instead of a hard failure. Plan: remove
+// this file in the Arc B-2 follow-up once the deprecation window
+// closes (one week of zero callers).
 
 /**
- * Options accepted by `defineComponent`. Both fields are optional; the
- * minimal call is `defineComponent(template)` for components with
- * inline `<style>` already in the template.
+ * Options once accepted by `defineComponent`. Both fields are now
+ * ignored; CSS is sourced from the `.html.set` `<style>` block (or
+ * the `--styles <css>` flag passed to `ship-set-compiler`), and the
+ * document is always the page document at registration time.
  */
 export interface DefineComponentOptions {
-  /**
-   * CSS to attach inside the component's shadow root. Authors usually
-   * pass an `import css from './tag.css'` (esbuild text loader). The
-   * helper splices `<style>${css}</style>` immediately before the
-   * `</component>` closing tag of the template.
-   *
-   * For light-DOM components, ignore this and inline whatever scoping
-   * the framework's auto-prefix provides.
-   */
+  /** @deprecated Inline styles in the `.html.set` `<style>` child of
+   *  `<component>` instead, or pass them to `ship-set-compiler --styles`. */
   styles?: string
-
-  /**
-   * Document to register against (defaults to the page document). Pass
-   * a jsdom Document in tests; the helper otherwise reads
-   * `globalThis.document`.
-   */
+  /** @deprecated Components register against the page document at
+   *  module-import time; no document override is supported. */
   doc?: Document
 }
 
 /**
- * Register a `.html.set` ported primitive. Splices `opts.styles` (when
- * provided) into the template's `<component>` block, then calls
- * `hydrate()` to parse the directive and define the custom element.
- *
- * Idempotent — the runtime's `defineComponent` skips re-registration
- * if the tag is already in the registry.
- *
- * @param template Raw `.html.set` source.
- * @param opts Optional CSS + document override.
+ * @deprecated Components are AOT-compiled by `ship-set-compiler`. This
+ * helper exists only as a no-op stub during the migration window;
+ * call sites will be removed in the follow-up Arc B-2. Do not add new
+ * callers — author components as `.html.set` + side-effect-importing
+ * `.ts` files instead, and register implicitly via
+ * `import './<tag>/<tag>'`.
  */
 export function defineComponent(
-  template: string,
-  opts: DefineComponentOptions = {},
+  _template: string,
+  _opts: DefineComponentOptions = {},
 ): void {
-  const doc = opts.doc ?? (typeof document !== 'undefined' ? document : undefined)
-  if (!doc) {
-    throw new Error(
-      '[ship-set/components] defineComponent: no document available — ' +
-        'pass `opts.doc` when calling outside the browser/jsdom.',
+  if (typeof console !== 'undefined') {
+    console.warn(
+      '[ship-set/components] defineComponent is deprecated; ' +
+        'components are now AOT-compiled by ship-set-compiler.',
     )
   }
-  const merged = opts.styles
-    ? template.replace('</component>', `<style>${opts.styles}</style></component>`)
-    : template
-  const container = doc.createElement('div')
-  hydrate(merged, undefined, { container })
 }

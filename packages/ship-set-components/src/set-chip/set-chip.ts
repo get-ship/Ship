@@ -1,7 +1,2 @@
-import { defineComponent } from '../define'
-import template from './set-chip.html.set'
-
-/** Register `<set-chip>`. Idempotent. */
-export function registerSetChip(): void {
-  defineComponent(template)
-}
+// AOT-compiled at build time — see scripts/build-bundles.mjs.
+import './set-chip.compiled.js'

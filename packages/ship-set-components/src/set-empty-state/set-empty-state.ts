@@ -1,7 +1,2 @@
-import { defineComponent } from '../define'
-import template from './set-empty-state.html.set'
-
-/** Register `<set-empty-state>`. Idempotent. */
-export function registerSetEmptyState(): void {
-  defineComponent(template)
-}
+// AOT-compiled at build time — see scripts/build-bundles.mjs.
+import './set-empty-state.compiled.js'

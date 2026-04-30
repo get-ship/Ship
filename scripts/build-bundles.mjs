@@ -12,7 +12,7 @@
 
 import { build, context } from 'esbuild';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync, renameSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -30,7 +30,34 @@ const targets = [
   { name: 'ship-set-runtime',     entry: 'packages/ship-set-runtime/src/index.ts' },
   { name: 'ship-set-dom',         entry: 'packages/ship-set-dom/src/index.ts',         external: ['@ship-set/runtime'] },
   { name: 'ship-set-sdk-client',  entry: 'packages/ship-set-sdk-client/src/index.ts',  external: ['@ship-set/runtime'] },
-  { name: 'ship-set-components',  entry: 'packages/ship-set-components/src/index.ts',  external: ['@ship-set/runtime', '@ship-set/dom'], loaders: { '.set': 'text' } },
+  // ship-set-components: each ported primitive's .html.set is
+  // AOT-compiled by ship-set-compiler before esbuild runs. The
+  // compiler emits <tag>.compiled.js next to the source; the .ts
+  // file is a side-effect import of that compiled module
+  // (`import './<tag>.compiled.js'`), so esbuild inlines the
+  // generated `customElements.define()` call. After Arc B-1 the
+  // bundle has no @ship-set/dom dep — `external` reflects that.
+  { name: 'ship-set-components',  entry: 'packages/ship-set-components/src/index.ts',  external: ['@ship-set/runtime'],
+    componentSources: [
+      { htmlSet: 'packages/ship-set-components/src/set-status-dot/set-status-dot.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-spinner/set-spinner.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-badge/set-badge.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-chip/set-chip.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-card/set-card.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-link/set-link.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-divider/set-divider.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-skeleton/set-skeleton.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-stat/set-stat.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-mark/set-mark.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-kbd/set-kbd.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-avatar/set-avatar.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-progress/set-progress.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-button/set-button.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-tabs/set-tabs.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-tab/set-tab.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-empty-state/set-empty-state.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-input/set-input.html.set' },
+    ] },
   // Each view: compile .html.set via the Rust compiler first (it
   // emits view.js next to view.ts, re-imports view.ts as setup, and
   // exports the `bindings` manifest attach() needs), then esbuild
@@ -62,36 +89,52 @@ function hashTree(entryAbs) {
 
 /**
  * Run the Rust ship-set-compiler against a single `.html.set` source.
- * Output goes to a sibling `.compiled/` directory (gitignored) which
- * is then esbuild's entry. The compiler emits `view.js` (with the
- * `bindings` manifest + setup function) plus a `view.schema.json`.
+ *
+ * Views: emitted `<stem>.js` carries the `bindings` manifest + the
+ * default-export setup that re-imports the paired controller `.ts`.
+ * esbuild then bundles the compiled file, inlining the controller.
+ *
+ * Components: passing `mode: 'component'` emits a self-contained
+ * module with no setup pairing — just the `component(...)` call that
+ * registers the custom element on import. The build script renames
+ * the output to `<stem>.compiled.js` so the .ts side-effect import
+ * (`import './<stem>.compiled.js'`) is unambiguous in the source
+ * tree. When `cssPath` is supplied, the compiler splices that file's
+ * contents into the source's `<component>` block before parsing —
+ * the same shape the legacy runtime helper used.
  */
-async function compileHtmlSet(htmlSetPath) {
+async function compileHtmlSet(htmlSetPath, opts = {}) {
+  const { mode = 'view', cssPath = null } = opts;
   const { spawnSync } = await import('node:child_process');
   const inputAbs = join(repoRoot, htmlSetPath);
-  // Emit alongside the source — view.js sits next to view.html.set
-  // and view.ts. The compiled view.js does `import setup from "./view.ts"`,
-  // so esbuild can resolve the controller from the same directory.
   const outDir = dirname(inputAbs);
-  const result = spawnSync(
-    'cargo',
-    [
-      'run',
-      '--quiet',
-      '-p',
-      'ship-set-compiler',
-      '--',
-      'build',
-      inputAbs,
-      '--out',
-      outDir,
-    ],
-    { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
-  );
+  const stem = htmlSetPath.split('/').pop().replace(/\.html\.set$/, '');
+  const args = [
+    'run', '--quiet', '-p', 'ship-set-compiler', '--',
+    'build', inputAbs, '--out', outDir,
+  ];
+  if (mode === 'component') {
+    // No paired setup — components are declarative; the .ts file is
+    // just a side-effect import of the compiled output.
+    args.push('--mode', 'component', '--no-setup');
+  }
+  if (cssPath) {
+    args.push('--styles', join(repoRoot, cssPath));
+  }
+  const result = spawnSync('cargo', args, {
+    cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  });
   if (result.status !== 0) {
     throw new Error(
       `ship-set-compiler failed for ${htmlSetPath}:\n${result.stderr || result.stdout}`,
     );
+  }
+  if (mode === 'component') {
+    // Rename <stem>.js → <stem>.compiled.js so the build artifact is
+    // visibly distinct from the .ts source next to it.
+    const emitted = join(outDir, `${stem}.js`);
+    const renamed = join(outDir, `${stem}.compiled.js`);
+    renameSync(emitted, renamed);
   }
 }
 
@@ -112,13 +155,22 @@ function fileMtimeHash(paths) {
 }
 
 async function buildOne(t) {
-  // For view targets: compile the .html.set first via the Rust
-  // compiler. The emitted .compiled/view.js carries the `bindings`
-  // manifest attach() reads + a default export that re-imports the
-  // controller view.ts. esbuild then bundles the compiled file,
-  // inlining the controller.
+  // Views: compile the .html.set first; the emitted view.js carries
+  // the `bindings` manifest attach() reads + a default export that
+  // re-imports the controller view.ts. esbuild bundles the compiled
+  // file, inlining the controller.
   if (t.htmlSet) {
     await compileHtmlSet(t.htmlSet);
+  }
+  // Components (Arc B-1): compile each ported primitive's .html.set
+  // ahead-of-time. The compiler's `customElements.define()` call
+  // happens as a top-level side-effect of the emitted module; the
+  // `<tag>.ts` source-side files just `import './<tag>.compiled.js'`
+  // so the entire bundle is registration-by-import.
+  if (t.componentSources) {
+    for (const cs of t.componentSources) {
+      await compileHtmlSet(cs.htmlSet, { mode: 'component', cssPath: cs.cssPath });
+    }
   }
   const entryAbs = join(repoRoot, t.entry);
   const outfile = join(assetsDir, `${t.name}.js`);
@@ -167,6 +219,42 @@ async function buildOne(t) {
       throw new Error(
         `[bundles] ${t.name}.js missing required exports — bindings:${hasBindings} default:${hasDefault}. View bundles must be compiled via ship-set-compiler before esbuild.`,
       );
+    }
+  }
+
+  // Regression guard (Arc B-1): the components bundle is registration
+  // by side-effect — `customElements.define()` calls only, no template
+  // parsing. If any future change drags `hydrate` / `parse` /
+  // @ship-set/dom back in, this asserts and we don't ship the size
+  // regression. Each ported tag must also appear in the bundle so a
+  // missing source file can't quietly fall off the registration list.
+  if (t.componentSources) {
+    const out = readFileSync(outfile, 'utf8');
+    if (/from\s*["']@ship-set\/dom["']/.test(out)) {
+      throw new Error(
+        `[bundles] ${t.name}.js still imports from @ship-set/dom — Arc B-1 broken`,
+      );
+    }
+    if (/\bhydrate\s*\(/.test(out) || /\bimport\b[^;]*\bhydrate\b/.test(out)) {
+      throw new Error(
+        `[bundles] ${t.name}.js still references hydrate — Arc B-1 broken`,
+      );
+    }
+    if (/\bimport\b[^;]*\bparse\b[^;]*from\s*["']@ship-set\/dom["']/.test(out)) {
+      throw new Error(
+        `[bundles] ${t.name}.js still imports parse from @ship-set/dom — Arc B-1 broken`,
+      );
+    }
+    for (const cs of t.componentSources) {
+      const tag = cs.htmlSet.split('/').pop().replace(/\.html\.set$/, '');
+      // The compiler emits `component("set-button", { … })` —
+      // matching the literal tag string is the most direct way to
+      // confirm every ported primitive made it into the bundle.
+      if (!out.includes(`"${tag}"`)) {
+        throw new Error(
+          `[bundles] ${t.name}.js missing ${tag} registration — check componentSources`,
+        );
+      }
     }
   }
 

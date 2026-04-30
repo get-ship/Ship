@@ -57,11 +57,21 @@ pub struct CompileOpts {
     pub mode: CompileMode,
     /// For diagnostics. Optional.
     pub source_path: Option<PathBuf>,
+    /// External CSS to splice into the source's `<component>` block as
+    /// a `<style>` child before parsing. Mirrors the runtime
+    /// `defineComponent(template, { styles })` helper. Only valid when
+    /// the source declares a `<component>`; otherwise `compile()` errors.
+    pub styles: Option<String>,
 }
 
 impl Default for CompileOpts {
     fn default() -> Self {
-        Self { setup_url: None, mode: CompileMode::Auto, source_path: None }
+        Self {
+            setup_url: None,
+            mode: CompileMode::Auto,
+            source_path: None,
+            styles: None,
+        }
     }
 }
 
@@ -75,7 +85,21 @@ pub struct CompileOutput {
 
 /// Compile a `.html.set` source string.
 pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, CompileError> {
-    let program = parse::parse(source).map_err(|e| attach_path(e, &opts))?;
+    let merged_owned;
+    let effective_source: &str = if let Some(css) = opts.styles.as_deref() {
+        if !source.contains("</component>") {
+            return Err(CompileError::new(
+                "--styles is only valid for component sources \
+                 (no </component> closing tag found)",
+            ));
+        }
+        let injected = format!("<style>{css}</style></component>");
+        merged_owned = source.replacen("</component>", &injected, 1);
+        &merged_owned
+    } else {
+        source
+    };
+    let program = parse::parse(effective_source).map_err(|e| attach_path(e, &opts))?;
     check::run(&program).map_err(|e| attach_path(e, &opts))?;
     let bindings = bindings::build(&program);
     let lowered = lower::lower(&program);

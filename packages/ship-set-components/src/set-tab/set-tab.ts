@@ -1,7 +1,2 @@
-import { defineComponent } from '../define'
-import template from './set-tab.html.set'
-
-/** Register `<set-tab>`. Idempotent. */
-export function registerSetTab(): void {
-  defineComponent(template)
-}
+// AOT-compiled at build time — see scripts/build-bundles.mjs.
+import './set-tab.compiled.js'

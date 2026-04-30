@@ -1,7 +1,2 @@
-import { defineComponent } from '../define'
-import template from './set-button.html.set'
-
-/** Register `<set-button>`. Idempotent. */
-export function registerSetButton(): void {
-  defineComponent(template)
-}
+// AOT-compiled at build time — see scripts/build-bundles.mjs.
+import './set-button.compiled.js'
