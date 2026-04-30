@@ -77,8 +77,7 @@ Updated as the implementation moves. If you find a drift between this page and r
 
 ## Open questions
 
-1. **`<data>` reactive `source=`.** Can the `source` attribute reference signals (`source="ship.agents.get(route.params.id)"` where `route.params.id` is reactive)? If yes, the subscription needs to re-fetch on parameter change. Tracked as Arc C-3.
-2. **Custom-element shadow DOM opt-in syntax.** `<component name="ship-foo" shadow>` attribute, or a flag in the `<component>` declaration's metadata? Tracked as Arc E-1.
+(All previously-flagged open questions resolved by ADRs in `docs/ship-adrs/`. See: `ship-set-marker-contract`, `ship-set-declarative-state`, `ship-set-hook-composition`, `ship-set-typed-custom-events`, `ship-set-effect-lifecycle`, `ship-set-component-shadow-opt-in`. New open questions surface here when they arrive with a forcing function.)
 
 ## Phased-out adjacent skills
 
