@@ -1,0 +1,14 @@
+{
+  "name": "@views/counter",
+  "version": "0.1.0",
+  "description": "Counter view — tier-1 ship-set demo (declarative state, no controller), served at /set/counter.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "bundle": "esbuild view.ts --bundle --format=esm --target=es2020 --external:@ship-set/runtime --external:@ship-set/sdk-client --outfile=../../apps/shipd/assets/views/counter/view.js --log-level=warning"
+  },
+  "dependencies": {
+    "@ship-set/runtime": "workspace:*",
+    "@ship-set/sdk-client": "workspace:*"
+  }
+}

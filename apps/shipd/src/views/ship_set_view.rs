@@ -61,6 +61,13 @@ const GIT_VIEW_CSS: &str = include_str!("../../../../views/git/view.css");
 const GIT_VIEW_JS: &str =
     include_str!("../../assets/views/git/view.js");
 
+const COUNTER_VIEW_HTML_SET: &str =
+    include_str!("../../../../views/counter/view.html.set");
+const COUNTER_VIEW_CSS: &str =
+    include_str!("../../../../views/counter/view.css");
+const COUNTER_VIEW_JS: &str =
+    include_str!("../../assets/views/counter/view.js");
+
 // ── Bundled framework modules ────────────────────────────────────────
 
 const SHIP_SET_DOM_JS: &str = include_str!("../../assets/ship-set-dom.js");
@@ -116,6 +123,7 @@ pub async fn serve_set_view_template(Path(name): Path<String>) -> Response {
     let body = match name.as_str() {
         "agents" => AGENTS_VIEW_HTML_SET,
         "git" => GIT_VIEW_HTML_SET,
+        "counter" => COUNTER_VIEW_HTML_SET,
         _ => return not_found(&format!("template not found: {name}")),
     };
     Response::builder()
@@ -134,6 +142,7 @@ pub async fn serve_set_view_setup(Path(name): Path<String>) -> Response {
     let body = match name.as_str() {
         "agents" => AGENTS_VIEW_JS,
         "git" => GIT_VIEW_JS,
+        "counter" => COUNTER_VIEW_JS,
         _ => return not_found(&format!("setup not found: {name}")),
     };
     js_response(body)
@@ -147,6 +156,7 @@ pub async fn serve_set_view_css(Path(name): Path<String>) -> Response {
     let body = match name.as_str() {
         "agents" => AGENTS_VIEW_CSS,
         "git" => GIT_VIEW_CSS,
+        "counter" => COUNTER_VIEW_CSS,
         _ => return not_found(&format!("css not found: {name}")),
     };
     Response::builder()
@@ -181,13 +191,14 @@ fn is_valid_view_name(s: &str) -> bool {
 }
 
 fn view_exists(name: &str) -> bool {
-    matches!(name, "agents" | "git")
+    matches!(name, "agents" | "git" | "counter")
 }
 
 fn title_for(name: &str) -> &'static str {
     match name {
         "agents" => "Agents",
         "git" => "Git",
+        "counter" => "Counter",
         _ => "Ship",
     }
 }
