@@ -31,6 +31,8 @@ const AGENTS_VIEW_HTML_SET: &str =
     include_str!("../../../../views/agents/view.html.set");
 const GIT_VIEW_HTML_SET: &str =
     include_str!("../../../../views/git/view.html.set");
+const COUNTER_VIEW_HTML_SET: &str =
+    include_str!("../../../../views/counter/view.html.set");
 
 #[derive(Debug, Deserialize, Default)]
 pub struct RenderQuery {
@@ -101,6 +103,7 @@ fn view_source(name: &str) -> Option<&'static str> {
     match name {
         "agents" => Some(AGENTS_VIEW_HTML_SET),
         "git" => Some(GIT_VIEW_HTML_SET),
+        "counter" => Some(COUNTER_VIEW_HTML_SET),
         _ => None,
     }
 }
