@@ -18,7 +18,7 @@ mod parser;
 #[cfg(test)]
 mod tests;
 
-pub use coerce::{truthy, to_string as stringify};
+pub use coerce::{strict_eq, truthy, to_string as stringify};
 pub use parser::parse_expr;
 
 /// Map of identifier name -> JSON value. Built once per render from

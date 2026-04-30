@@ -1,26 +1,25 @@
-//! IR walker. Owns the output buffer + key allocator + initial scope
-//! and emits HTML one instruction at a time. Phase D-2 extends D-1
-//! with renderable-subset evaluation: every dynamic interpolation runs
-//! through `super::eval` against the page's `<state>` / `<data>` /
-//! `route` scope, and on success the rendered value is inlined into
-//! the HTML alongside the `data-set-*` marker that the attach runtime
-//! uses to re-bind. On evaluator failure we fall back to the D-1
-//! marker-only shape so client-side attachment still works.
+//! IR walker. Owns the output buffer + key allocator + scope and emits
+//! HTML one instruction at a time. Phase D-3 fills in control-flow
+//! bodies against the initial scope; D-2 brought renderable-subset
+//! evaluation into text/attribute output, and D-1 nailed the marker
+//! shapes. On evaluator failure we fall back to the marker-only shape
+//! so client-side attachment still works.
 
 use crate::ir::{AttrInstr, ElementInstr, Instr};
 
+use super::control_flow;
 use super::escape::{escape_attr_value, escape_text_value};
 use super::eval::{Scope, eval, stringify, truthy};
-use super::{EmitDecision, KeyAllocator, control_flow_kind, decide_element};
+use super::{EmitDecision, KeyAllocator, decide_element};
 
-pub(crate) struct Walker<'a> {
-    out: String,
-    keys: KeyAllocator,
-    scope: &'a Scope,
+pub(crate) struct Walker {
+    pub(super) out: String,
+    pub(super) keys: KeyAllocator,
+    pub(super) scope: Scope,
 }
 
-impl<'a> Walker<'a> {
-    pub(crate) fn new(scope: &'a Scope) -> Self {
+impl Walker {
+    pub(crate) fn new(scope: Scope) -> Self {
         Self { out: String::new(), keys: KeyAllocator::default(), scope }
     }
 
@@ -34,15 +33,7 @@ impl<'a> Walker<'a> {
         }
     }
 
-    fn walk_instr(&mut self, instr: &Instr) {
-        if let Some(kind) = control_flow_kind(instr) {
-            let key = self.keys.alloc();
-            self.out.push_str(&format!(
-                "<template data-set-{kind}=\"{key}\"></template>"
-            ));
-            return;
-        }
-
+    pub(super) fn walk_instr(&mut self, instr: &Instr) {
         match instr {
             Instr::StaticText { text, .. } => self.out.push_str(text),
             Instr::Comment { data, .. } => {
@@ -52,31 +43,43 @@ impl<'a> Walker<'a> {
             }
             Instr::DynamicText { expr } => {
                 let key = self.keys.alloc();
-                let inner = eval(&expr.source, self.scope)
+                let inner = eval(&expr.source, &self.scope)
                     .map(|v| escape_text_value(&stringify(&v)))
                     .unwrap_or_default();
                 self.out.push_str(&format!("<!--set:text:{key}-->{inner}<!--/set-->"));
             }
             Instr::Element(el) => self.walk_element(el),
-            Instr::If(_) | Instr::For(_) | Instr::Match(_) => {
-                unreachable!("control-flow handled by control_flow_kind branch");
-            }
+            Instr::If(if_instr) => control_flow::render_if(self, if_instr),
+            Instr::For(for_instr) => control_flow::render_for(self, for_instr),
+            Instr::Match(match_instr) => control_flow::render_match(self, match_instr),
         }
     }
 
-    fn walk_element(&mut self, el: &ElementInstr) {
+    pub(super) fn walk_element(&mut self, el: &ElementInstr) {
+        self.walk_element_with_extra(el, &[]);
+    }
+
+    pub(super) fn walk_element_with_extra(
+        &mut self,
+        el: &ElementInstr,
+        extra: &[(&str, &str)],
+    ) {
         match decide_element(el) {
             EmitDecision::Skip => {}
-            EmitDecision::Void => self.emit_open_tag(el),
+            EmitDecision::Void => self.emit_open_tag(el, extra),
             EmitDecision::Normal => {
-                self.emit_open_tag(el);
+                self.emit_open_tag(el, extra);
                 self.walk_block(&el.children);
                 self.out.push_str(&format!("</{}>", el.tag));
             }
         }
     }
 
-    fn emit_open_tag(&mut self, el: &ElementInstr) {
+    pub(super) fn push_raw(&mut self, s: &str) {
+        self.out.push_str(s);
+    }
+
+    fn emit_open_tag(&mut self, el: &ElementInstr, extra: &[(&str, &str)]) {
         self.out.push('<');
         self.out.push_str(&el.tag);
 
@@ -94,6 +97,9 @@ impl<'a> Walker<'a> {
             }
             self.emit_attr_marker(attr);
         }
+        for (name, value) in extra {
+            self.push_attr(name, value);
+        }
         self.out.push('>');
     }
 
@@ -110,7 +116,7 @@ impl<'a> Walker<'a> {
                     }
                 }
                 AttrInstr::Class { name, expr, .. } => {
-                    if let Ok(v) = eval(&expr.source, self.scope) {
+                    if let Ok(v) = eval(&expr.source, &self.scope) {
                         if truthy(&v) {
                             classes.push(name.clone());
                         }
@@ -132,7 +138,7 @@ impl<'a> Walker<'a> {
                     }
                 }
                 AttrInstr::Style { name, expr, .. } => {
-                    if let Ok(v) = eval(&expr.source, self.scope) {
+                    if let Ok(v) = eval(&expr.source, &self.scope) {
                         if truthy(&v) {
                             styles.push(format!("{name}: {}", stringify(&v)));
                         }
@@ -154,7 +160,7 @@ impl<'a> Walker<'a> {
             }
             AttrInstr::Expr { name, expr, .. } => {
                 let key = self.keys.alloc();
-                if let Ok(v) = eval(&expr.source, self.scope) {
+                if let Ok(v) = eval(&expr.source, &self.scope) {
                     self.push_attr(name, &stringify(&v));
                 }
                 self.push_marker(&format!("data-set-attr:{name}"), &key);
@@ -169,14 +175,14 @@ impl<'a> Walker<'a> {
             }
             AttrInstr::BindValue { expr, .. } => {
                 let key = self.keys.alloc();
-                if let Ok(v) = eval(&expr.source, self.scope) {
+                if let Ok(v) = eval(&expr.source, &self.scope) {
                     self.push_attr("value", &stringify(&v));
                 }
                 self.push_marker("data-set-bind:value", &key);
             }
             AttrInstr::BindChecked { expr, .. } => {
                 let key = self.keys.alloc();
-                if let Ok(v) = eval(&expr.source, self.scope) {
+                if let Ok(v) = eval(&expr.source, &self.scope) {
                     if truthy(&v) {
                         self.out.push(' ');
                         self.out.push_str("checked");
