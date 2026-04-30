@@ -31,9 +31,13 @@ const targets = [
   { name: 'ship-set-dom',         entry: 'packages/ship-set-dom/src/index.ts',         external: ['@ship-set/runtime'] },
   { name: 'ship-set-sdk-client',  entry: 'packages/ship-set-sdk-client/src/index.ts',  external: ['@ship-set/runtime'] },
   { name: 'ship-set-components',  entry: 'packages/ship-set-components/src/index.ts',  external: ['@ship-set/runtime', '@ship-set/dom'], loaders: { '.set': 'text' } },
-  { name: 'views/agents/view',    entry: 'views/agents/view.ts',                       external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
-  { name: 'views/counter/view',   entry: 'views/counter/view.ts',                      external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
-  { name: 'views/git/view',       entry: 'views/git/view.ts',                          external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
+  // Each view: compile .html.set via the Rust compiler first (it
+  // emits view.js next to view.ts, re-imports view.ts as setup, and
+  // exports the `bindings` manifest attach() needs), then esbuild
+  // bundles the compiled output, inlining the controller.
+  { name: 'views/agents/view',    entry: 'views/agents/view.js',  htmlSet: 'views/agents/view.html.set',  external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
+  { name: 'views/counter/view',   entry: 'views/counter/view.js', htmlSet: 'views/counter/view.html.set', external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
+  { name: 'views/git/view',       entry: 'views/git/view.js',     htmlSet: 'views/git/view.html.set',     external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
 ];
 
 const args = new Set(process.argv.slice(2));
@@ -56,6 +60,41 @@ function hashTree(entryAbs) {
   return null; // placeholder — computed after build via metafile
 }
 
+/**
+ * Run the Rust ship-set-compiler against a single `.html.set` source.
+ * Output goes to a sibling `.compiled/` directory (gitignored) which
+ * is then esbuild's entry. The compiler emits `view.js` (with the
+ * `bindings` manifest + setup function) plus a `view.schema.json`.
+ */
+async function compileHtmlSet(htmlSetPath) {
+  const { spawnSync } = await import('node:child_process');
+  const inputAbs = join(repoRoot, htmlSetPath);
+  // Emit alongside the source — view.js sits next to view.html.set
+  // and view.ts. The compiled view.js does `import setup from "./view.ts"`,
+  // so esbuild can resolve the controller from the same directory.
+  const outDir = dirname(inputAbs);
+  const result = spawnSync(
+    'cargo',
+    [
+      'run',
+      '--quiet',
+      '-p',
+      'ship-set-compiler',
+      '--',
+      'build',
+      inputAbs,
+      '--out',
+      outDir,
+    ],
+    { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  if (result.status !== 0) {
+    throw new Error(
+      `ship-set-compiler failed for ${htmlSetPath}:\n${result.stderr || result.stdout}`,
+    );
+  }
+}
+
 function fileMtimeHash(paths) {
   const h = createHash('sha256');
   for (const p of paths) {
@@ -73,6 +112,14 @@ function fileMtimeHash(paths) {
 }
 
 async function buildOne(t) {
+  // For view targets: compile the .html.set first via the Rust
+  // compiler. The emitted .compiled/view.js carries the `bindings`
+  // manifest attach() reads + a default export that re-imports the
+  // controller view.ts. esbuild then bundles the compiled file,
+  // inlining the controller.
+  if (t.htmlSet) {
+    await compileHtmlSet(t.htmlSet);
+  }
   const entryAbs = join(repoRoot, t.entry);
   const outfile = join(assetsDir, `${t.name}.js`);
   const cacheFile = join(cacheDir, `${t.name.replace(/[\\/]/g, '__')}.inputs.json`);
