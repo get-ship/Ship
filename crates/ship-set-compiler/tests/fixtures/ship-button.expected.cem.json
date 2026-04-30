@@ -4,7 +4,7 @@
   "modules": [
     {
       "kind": "javascript-module",
-      "path": "/home/madvib/dev/ship-worktrees/ship-set-compiler-phase4/crates/ship-set-compiler/tests/fixtures/ship-button.html.set",
+      "path": "ship-button.html.set",
       "declarations": [
         {
           "kind": "class",
@@ -98,7 +98,7 @@
           "name": "ship-button-test",
           "declaration": {
             "name": "ShipButtonTest",
-            "module": "/home/madvib/dev/ship-worktrees/ship-set-compiler-phase4/crates/ship-set-compiler/tests/fixtures/ship-button.html.set"
+            "module": "ship-button.html.set"
           }
         }
       ]

@@ -9,7 +9,8 @@ pub fn emit_cem(component: &ComponentDecl, opts: &CompileOpts) -> Value {
     let path = opts
         .source_path
         .as_ref()
-        .map(|p| p.to_string_lossy().to_string())
+        .and_then(|p| p.file_name())
+        .map(|f| f.to_string_lossy().to_string())
         .unwrap_or_else(|| format!("{}.html.set", component.tag));
 
     let attributes: Vec<Value> = component.props.iter().map(attr_entry).collect();
