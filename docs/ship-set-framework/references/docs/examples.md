@@ -171,7 +171,7 @@ What this exercises beyond tier 2:
 - Hook namespacing in templates (`filter.filtered`, `sel.selected`)
 - Action references inside `<use-kbd>` resolving to `on.*`
 
-## Tier 2 — settings form (object controller + useForm hook)
+## Tier 3 — settings form (object controller + useForm hook)
 
 Forms exercise two-way binding, validation, and the `useForm` controller hook. Lands once `useForm` ships — see [status.md](status.md) for the current hook surface.
 
