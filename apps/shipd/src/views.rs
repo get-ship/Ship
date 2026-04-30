@@ -39,6 +39,7 @@ pub mod ship_set_data;
 pub mod ship_set_data_resolvers;
 pub mod ship_set_hmr;
 pub mod ship_set_view;
+pub mod ship_set_view_shell;
 pub mod ship_set_render;
 pub mod setup;
 pub mod templates;

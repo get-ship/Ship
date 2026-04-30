@@ -1,25 +1,30 @@
 //! Routed serving of `views/<name>/` ship-set views.
 //!
-//! Phase 3 design: each `views/<name>/` directory bundles three artifacts
-//! the daemon ships at compile time —
+//! Phase F design: the `/set/<name>` handler runs the
+//! `ship_set_compiler` walker against the embedded `view.html.set`
+//! source, wraps the SSR fragment in a document shell, and ships a
+//! boot script that calls `attach(root, { module, ship, route,
+//! navigate })`. First paint is server-rendered; the client runtime
+//! re-binds the `data-set-*` markers in place. Replaces the Phase 3
+//! empty-shell + `hydrate()` parse-on-the-client path.
 //!
-//! - `views/<name>/view.html.set` (template source — fetched at runtime)
+//! Each `views/<name>/` directory bundles three artifacts the daemon
+//! ships at compile time —
+//!
+//! - `views/<name>/view.html.set` (template source — embedded + fetched
+//!   at `/_ship-set/views/<name>/view.html.set` for tooling)
 //! - `views/<name>/view.css`      (style sheet — fetched at runtime)
 //! - `apps/shipd/assets/views/<name>/view.js`
-//!     (esbuild-bundled paired setup — fetched at runtime)
-//!
-//! The route handler returns a small HTML shell that imports the
-//! bundled runtime + dom + sdk-client modules, fetches the template +
-//! setup, and calls `hydrate(template, setup, { container, ship,
-//! route, navigate })`. SSR is intentionally out of scope for Phase 3
-//! — the shell renders a loading placeholder, client-side hydration
-//! takes over.
+//!     (esbuild-bundled paired setup — imported by the boot script)
 //!
 //! Security: the `name` path segment is validated against a tight
 //! charset (lowercase ASCII + hyphens) so the lookup can't escape
-//! `views/`. Only the agents view is registered for Phase 3, but the
-//! handler is generic so additional views can be added without a
-//! routing change.
+//! `views/`.
+//!
+//! TODO(phase-G): the wrapper template here and in
+//! `ship_set_render.rs::wrap_document` are 80%+ identical. Phase G
+//! dedupes via a shared helper once the Phase 3 parse-and-build path
+//! and the F-1 debug endpoint can share a single render path.
 
 use axum::{
     body::Body,
@@ -27,25 +32,9 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
+use ship_set_compiler::{parse, render};
 
-/// Minimal HTML entity escape for the view name + title injected into
-/// the shell's attribute / text content. Names are already validated by
-/// `is_valid_view_name`, but escape unconditionally so any future
-/// loosening of the charset can't surprise the shell.
-fn escape_html(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for ch in s.chars() {
-        match ch {
-            '&' => out.push_str("&amp;"),
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '"' => out.push_str("&quot;"),
-            '\'' => out.push_str("&#x27;"),
-            c => out.push(c),
-        }
-    }
-    out
-}
+use super::ship_set_view_shell::render_shell;
 
 // ── Compile-time embedded view assets ────────────────────────────────
 
@@ -93,19 +82,35 @@ pub async fn serve_ship_set_components() -> Response {
     js_response(SHIP_SET_COMPONENTS_JS)
 }
 
-/// `GET /set/{name}` — HTML shell that hydrates `views/{name}/`.
+/// `GET /set/{name}` — server-rendered HTML for `views/{name}/` plus a
+/// boot script that calls `attach()`.
 ///
-/// Phase 3 wires `agents` only. Additional views opt in by adding their
-/// bundled artifacts and a match arm below.
+/// The walker output is wrapped in a document shell that loads the same
+/// bundled runtime / dom / sdk-client modules the F-1 debug endpoint
+/// uses. Compile errors surface as a 500 with the rendered diagnostic
+/// (matches the F-1 endpoint's behaviour and lets `curl` see the same
+/// failure mode locally).
 pub async fn serve_set_view(Path(name): Path<String>) -> Response {
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
-    if !view_exists(&name) {
-        return not_found(&format!("ship-set view not found: {name}"));
-    }
+    let source = match view_source(&name) {
+        Some(s) => s,
+        None => return not_found(&format!("ship-set view not found: {name}")),
+    };
+
+    let program = match parse::parse(source) {
+        Ok(p) => p,
+        Err(err) => return render_error(err.render(source)),
+    };
+    let opts = render::RenderOpts { view_name: name.clone() };
+    let rendered = match render::render_default(&program, &opts) {
+        Ok(r) => r,
+        Err(err) => return render_error(err.render(source)),
+    };
+
     let title = title_for(&name);
-    let html = render_shell(&name, title);
+    let html = render_shell(&name, title, &rendered.html);
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
@@ -190,8 +195,22 @@ fn is_valid_view_name(s: &str) -> bool {
         && s.chars().all(|c| c.is_ascii_lowercase() || c == '-')
 }
 
-fn view_exists(name: &str) -> bool {
-    matches!(name, "agents" | "git" | "counter")
+fn view_source(name: &str) -> Option<&'static str> {
+    match name {
+        "agents" => Some(AGENTS_VIEW_HTML_SET),
+        "git" => Some(GIT_VIEW_HTML_SET),
+        "counter" => Some(COUNTER_VIEW_HTML_SET),
+        _ => None,
+    }
+}
+
+fn render_error(message: String) -> Response {
+    Response::builder()
+        .status(StatusCode::INTERNAL_SERVER_ERROR)
+        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .body(Body::from(message))
+        .unwrap_or_else(|_| Response::new(Body::from("compile error")))
 }
 
 fn title_for(name: &str) -> &'static str {
@@ -201,74 +220,6 @@ fn title_for(name: &str) -> &'static str {
         "counter" => "Counter",
         _ => "Ship",
     }
-}
-
-/// Render the HTML shell. Inline import map maps the bare specifiers
-/// the bundles import from (`@ship-set/runtime`, `@ship-set/sdk-client`)
-/// onto the daemon-served URLs. The boot script then dynamically
-/// imports `@ship-set/dom`, the view's setup module, and the SDK
-/// constructor; fetches the template; calls `hydrate()`.
-fn render_shell(name: &str, title: &str) -> String {
-    let safe_name = escape_html(name);
-    let safe_title = escape_html(title);
-    format!(
-        r#"<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{safe_title}</title>
-  <link rel="stylesheet" href="/api/assets/view-tokens.css">
-  <link rel="stylesheet" href="/_ship-set/views/{safe_name}/view.css">
-  <script type="module" src="/api/assets/ship-elements.js"></script>
-  <script type="importmap">
-  {{
-    "imports": {{
-      "@ship-set/runtime":     "/_ship-set/runtime.js",
-      "@ship-set/dom":         "/_ship-set/dom.js",
-      "@ship-set/sdk-client":  "/_ship-set/sdk-client.js"
-    }}
-  }}
-  </script>
-  <!-- Side-effect import: registers every `<set-*>` ported component
-       on page load, before any view template renders. -->
-  <script type="module" src="/_ship-set/components.js"></script>
-</head>
-<body>
-  <div id="ship-set-root" data-view="{safe_name}">
-    <p class="ship-set-shell-loading" style="font-family:var(--font-body,sans-serif);color:var(--muted-foreground,#666);padding:32px;">Loading {safe_title}&hellip;</p>
-  </div>
-  <script type="module">
-    import {{ hydrate }} from '@ship-set/dom';
-    import {{ createClient }} from '@ship-set/sdk-client';
-    import setup from '/_ship-set/views/{safe_name}/view.js';
-
-    const navigate = (path) => {{ window.location.href = path; }};
-    const ship = createClient();
-    const route = {{}};
-
-    const tplResp = await fetch('/_ship-set/views/{safe_name}/view.html.set');
-    if (!tplResp.ok) throw new Error('failed to load template: ' + tplResp.status);
-    const template = await tplResp.text();
-
-    const root = document.getElementById('ship-set-root');
-    root.innerHTML = '';
-
-    const setupFn = (typeof setup === 'function')
-      ? setup
-      : (setup && typeof setup === 'object' && typeof setup.setup === 'function'
-          ? setup.setup
-          : undefined);
-
-    const handle = hydrate(template, setupFn, {{ container: root, ship, route, navigate }});
-    window.__shipSetHandle = handle;
-  </script>
-</body>
-</html>
-"#,
-        safe_title = safe_title,
-        safe_name = safe_name,
-    )
 }
 
 #[cfg(test)]
@@ -285,15 +236,6 @@ mod tests {
         assert!(is_valid_view_name("agent-detail"));
     }
 
-    #[test]
-    fn shell_inlines_view_name() {
-        let html = render_shell("agents", "Agents");
-        assert!(html.contains(r#"data-view="agents""#));
-        assert!(html.contains("/_ship-set/views/agents/view.html.set"));
-        assert!(html.contains("/_ship-set/views/agents/view.js"));
-        assert!(html.contains(r#"<title>Agents</title>"#));
-    }
-
     #[tokio::test(flavor = "multi_thread")]
     async fn unknown_view_returns_404() {
         let resp = serve_set_view(Path("unknown".to_string())).await;
@@ -307,11 +249,35 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn agents_shell_returns_html() {
+    async fn agents_shell_returns_ssr_html() {
         let resp = serve_set_view(Path("agents".to_string())).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let ct = resp.headers().get(header::CONTENT_TYPE).unwrap();
         assert!(ct.to_str().unwrap().contains("text/html"));
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body = std::str::from_utf8(&bytes).unwrap();
+        assert!(body.contains(r#"id="ship-set-root""#));
+        assert!(body.contains(r#"data-view="agents""#));
+        assert!(body.contains("data-ssr-root"));
+        assert!(body.contains("data-set-"));
+        assert!(body.contains("__set_init__"));
+        assert!(body.contains("import { attach } from '@ship-set/dom'"));
+        assert!(!body.contains("hydrate(template"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn counter_shell_returns_ssr_html() {
+        let resp = serve_set_view(Path("counter".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body = std::str::from_utf8(&bytes).unwrap();
+        assert!(body.contains(r#"data-view="counter""#));
+        assert!(body.contains("data-set-"));
+        assert!(body.contains("__set_init__"));
     }
 
     #[tokio::test(flavor = "multi_thread")]

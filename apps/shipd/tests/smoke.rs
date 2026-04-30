@@ -280,11 +280,13 @@ async fn fresh_daemon_writes_canonical_home_layout() {
     }
 }
 
-/// `/set/agents` is the Phase-3 ship-set view — unauthenticated, returns
-/// the HTML shell that hydrates the agents grid. The shell must reference
-/// the importmap entries the boot script uses.
+/// `/set/agents` is the production ship-set view — unauthenticated,
+/// returns SSR HTML wired up with `attach()`. The boot script imports
+/// the bundled `@ship-set/dom` runtime via the inline importmap and
+/// reuses the `id="ship-set-root"` / `data-view="agents"` selectors
+/// existing integrations (and tests) rely on.
 #[tokio::test]
-async fn set_agents_serves_html_shell() {
+async fn set_agents_serves_ssr_html() {
     let d = TestDaemon::start().await;
     let res = d.bare().get(d.url("/set/agents")).send().await.unwrap();
     assert_eq!(res.status(), 200);
@@ -297,12 +299,54 @@ async fn set_agents_serves_html_shell() {
         .to_string();
     assert!(ct.contains("text/html"));
     let body = res.text().await.unwrap();
+    // Existing selectors still work.
+    assert!(body.contains(r#"id="ship-set-root""#));
     assert!(body.contains(r#"data-view="agents""#));
+    // Importmap entries the boot script resolves.
     assert!(body.contains("/_ship-set/runtime.js"));
     assert!(body.contains("/_ship-set/dom.js"));
     assert!(body.contains("/_ship-set/sdk-client.js"));
-    assert!(body.contains("/_ship-set/views/agents/view.html.set"));
-    assert!(body.contains("/_ship-set/views/agents/view.js"));
+    // SSR walker output is inlined.
+    assert!(body.contains("data-ssr-root"));
+    assert!(body.contains("data-set-"));
+    assert!(body.contains("__set_init__"));
+    // Boot script attaches reactivity in place — no parse-and-build.
+    assert!(body.contains("import { attach } from '@ship-set/dom'"));
+    assert!(!body.contains("hydrate(template"));
+    assert!(!body.contains("fetch('/_ship-set/views/agents/view.html.set')"));
+}
+
+/// Until Phase E-2 lands the control-flow swap, `views/agents/`
+/// renders the loading branch on first paint. Lock that in so a future
+/// regression in the walker's branch-selection is loud.
+#[tokio::test]
+async fn set_agents_first_paint_is_loading_branch() {
+    let d = TestDaemon::start().await;
+    let res = d.bare().get(d.url("/set/agents")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    let body = res.text().await.unwrap();
+    assert!(
+        body.contains("Loading agents"),
+        "expected 'Loading agents' copy in first paint; body was {body:.400}",
+    );
+    // The init island must mark agents as loading so attach() picks
+    // the same branch on hydration.
+    assert!(body.contains(r#""kind":"loading""#));
+}
+
+/// Counter view has no control-flow gate, so first paint is fully
+/// interactive once attach() boots. Verifies the SSR fragment carries
+/// the bound text + click handler markers and the init island.
+#[tokio::test]
+async fn set_counter_serves_interactive_ssr() {
+    let d = TestDaemon::start().await;
+    let res = d.bare().get(d.url("/set/counter")).send().await.unwrap();
+    assert_eq!(res.status(), 200);
+    let body = res.text().await.unwrap();
+    assert!(body.contains(r#"data-view="counter""#));
+    assert!(body.contains("data-set-"));
+    assert!(body.contains("__set_init__"));
+    assert!(body.contains("import { attach } from '@ship-set/dom'"));
 }
 
 /// The view's framework asset endpoints must serve module JS so the
