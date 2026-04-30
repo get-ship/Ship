@@ -36,6 +36,22 @@ impl Out {
         self.silent -= 1;
     }
 
+    /// Force the silent depth to zero (visible) and return the prior
+    /// depth so it can be handed back to `restore_silent`. Phase E-2
+    /// fragment rendering uses this at the target boundary: the walker
+    /// is silent everywhere except inside the target's body, where it
+    /// flips back to visible to emit the fragment HTML.
+    pub(crate) fn save_make_visible(&mut self) -> u32 {
+        let prev = self.silent;
+        self.silent = 0;
+        prev
+    }
+
+    /// Restore a depth captured by `save_make_visible`.
+    pub(crate) fn restore_silent(&mut self, prev: u32) {
+        self.silent = prev;
+    }
+
     pub(crate) fn into_string(self) -> String {
         self.inner
     }

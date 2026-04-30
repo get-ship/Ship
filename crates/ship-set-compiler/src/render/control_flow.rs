@@ -19,6 +19,17 @@
 //! allocates one key per source-position-bearing-a-binding. To stay
 //! aligned, the walker also walks every branch — but suppresses HTML
 //! output for the un-rendered ones via `walk_block_silent`.
+//!
+//! ## Phase E-2 — fragment mode
+//!
+//! When the walker is rendering a fragment for a specific boundary key,
+//! `walker.enter_target_if_match(&key)` returns true at the matching
+//! `{#if}` / `{#for}` / `{#match}`. In that case the wrapper (active
+//! `<div>` or empty `<template>`) is suppressed: the runtime already
+//! has the wrapper in place and is swapping the wrapper's children, not
+//! the wrapper itself. The body is emitted with output forced visible
+//! by `enter_target_if_match`; `exit_target` restores silent mode so
+//! the rest of the IR walks without producing more HTML.
 
 use crate::ir::{IfInstr, MatchInstr};
 
@@ -49,18 +60,23 @@ pub(super) fn render_if(walker: &mut Walker<'_>, instr: &IfInstr) {
         }
     }
 
+    let is_target = walker.enter_target_if_match(&key);
+
     if error {
         walk_all_silent(walker, &instr.branches, instr.else_body.as_deref());
-        empty_template(walker, "if", &key);
-        return;
-    }
-
-    if let Some(t) = taken {
+        if !is_target {
+            empty_template(walker, "if", &key);
+        }
+    } else if let Some(t) = taken {
         for (i, branch) in instr.branches.iter().enumerate() {
             if i == t {
-                open_active(walker, "if", &key);
+                if !is_target {
+                    open_active(walker, "if", &key);
+                }
                 walker.walk_block(&branch.body);
-                close_active(walker);
+                if !is_target {
+                    close_active(walker);
+                }
             } else {
                 walker.walk_block_silent(&branch.body);
             }
@@ -68,18 +84,25 @@ pub(super) fn render_if(walker: &mut Walker<'_>, instr: &IfInstr) {
         if let Some(else_body) = &instr.else_body {
             walker.walk_block_silent(else_body);
         }
-        return;
+    } else {
+        for branch in &instr.branches {
+            walker.walk_block_silent(&branch.body);
+        }
+        if let Some(else_body) = &instr.else_body {
+            if !is_target {
+                open_active(walker, "if", &key);
+            }
+            walker.walk_block(else_body);
+            if !is_target {
+                close_active(walker);
+            }
+        } else if !is_target {
+            empty_template(walker, "if", &key);
+        }
     }
 
-    for branch in &instr.branches {
-        walker.walk_block_silent(&branch.body);
-    }
-    if let Some(else_body) = &instr.else_body {
-        open_active(walker, "if", &key);
-        walker.walk_block(else_body);
-        close_active(walker);
-    } else {
-        empty_template(walker, "if", &key);
+    if is_target {
+        walker.exit_target();
     }
 }
 
@@ -119,6 +142,8 @@ pub(super) fn render_match(walker: &mut Walker<'_>, instr: &MatchInstr) {
         }
     }
 
+    let is_target = walker.enter_target_if_match(&key);
+
     if error {
         for case in &instr.cases {
             walker.walk_block_silent(&case.body);
@@ -126,16 +151,19 @@ pub(super) fn render_match(walker: &mut Walker<'_>, instr: &MatchInstr) {
         if let Some(default) = &instr.default {
             walker.walk_block_silent(default);
         }
-        empty_template(walker, "match", &key);
-        return;
-    }
-
-    if let Some(t) = taken {
+        if !is_target {
+            empty_template(walker, "match", &key);
+        }
+    } else if let Some(t) = taken {
         for (i, case) in instr.cases.iter().enumerate() {
             if i == t {
-                open_active(walker, "match", &key);
+                if !is_target {
+                    open_active(walker, "match", &key);
+                }
                 walker.walk_block(&case.body);
-                close_active(walker);
+                if !is_target {
+                    close_active(walker);
+                }
             } else {
                 walker.walk_block_silent(&case.body);
             }
@@ -143,17 +171,24 @@ pub(super) fn render_match(walker: &mut Walker<'_>, instr: &MatchInstr) {
         if let Some(default) = &instr.default {
             walker.walk_block_silent(default);
         }
-        return;
+    } else {
+        for case in &instr.cases {
+            walker.walk_block_silent(&case.body);
+        }
+        if let Some(default) = &instr.default {
+            if !is_target {
+                open_active(walker, "match", &key);
+            }
+            walker.walk_block(default);
+            if !is_target {
+                close_active(walker);
+            }
+        } else if !is_target {
+            empty_template(walker, "match", &key);
+        }
     }
 
-    for case in &instr.cases {
-        walker.walk_block_silent(&case.body);
-    }
-    if let Some(default) = &instr.default {
-        open_active(walker, "match", &key);
-        walker.walk_block(default);
-        close_active(walker);
-    } else {
-        empty_template(walker, "match", &key);
+    if is_target {
+        walker.exit_target();
     }
 }

@@ -38,13 +38,22 @@ export function indexBindings(bindings: Binding[]): Map<string, Binding> {
   return map
 }
 
+/** Options for `walkMarkers`. */
+export interface WalkMarkersOptions {
+  /** When true, do not yield markers on `root` itself — only descendants.
+   *  Used by Phase E-2's `wireBoundary` so re-entering wireSubtree from
+   *  inside a boundary doesn't double-wire the boundary's own marker. */
+  skipRoot?: boolean
+}
+
 /**
  * Yield every marker under `root`, in document order.
  *
  * Two passes:
- *   1. SHOW_ELEMENT — every element including `root`. For each
- *      `data-set-*` attribute (other than `data-set-key`), look up
- *      the binding by attribute value and yield an `element` hit.
+ *   1. SHOW_ELEMENT — every element including `root` (unless
+ *      `opts.skipRoot` is set). For each `data-set-*` attribute (other
+ *      than `data-set-key`), look up the binding by attribute value and
+ *      yield an `element` hit.
  *   2. SHOW_COMMENT — every `<!--set:text:bN-->` opener gets paired
  *      with its sibling `<!--/set-->` closer; yields a `text` hit.
  *
@@ -55,11 +64,15 @@ export function indexBindings(bindings: Binding[]): Map<string, Binding> {
 export function* walkMarkers(
   root: HTMLElement,
   byKey: Map<string, Binding>,
+  opts: WalkMarkersOptions = {},
 ): Generator<MarkerHit> {
   const owner = root.ownerDocument ?? document
-  // SHOW_ELEMENT: include root itself.
+  // SHOW_ELEMENT: include root unless skipRoot is set.
   const elWalker = owner.createTreeWalker(root, NodeFilter.SHOW_ELEMENT)
   let el: Element | null = elWalker.currentNode as Element
+  if (opts.skipRoot && el === root) {
+    el = elWalker.nextNode() as Element | null
+  }
   while (el !== null) {
     for (const attr of Array.from(el.attributes)) {
       if (!attr.name.startsWith(ATTR_PREFIX)) continue

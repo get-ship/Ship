@@ -14,15 +14,44 @@
 //! the counter aligned across un-rendered branches, the walker walks
 //! every branch — but suppresses HTML output for the un-taken ones via
 //! the `Out` wrapper's silent mode.
+//!
+//! ## Phase E-2 — fragment rendering
+//!
+//! `FragmentState` flips the walker into "search-then-emit-then-skip"
+//! mode for `render::render_fragment`. The walker walks the entire IR
+//! (so the registry counter stays in lockstep) but emits HTML only for
+//! the body of the boundary whose `b<N>` key matches the requested
+//! target. The wrapper itself (`<div data-set-…>` / `<template
+//! data-set-…>`) is suppressed because the runtime already has the
+//! wrapper in place — it's swapping the wrapper's children, not the
+//! wrapper itself. See `render::render_fragment` for the entry point.
+//!
+//! Element / attribute emission lives in `walker_attrs.rs` to keep
+//! this file under the 300-line cap.
 
-use crate::ir::{AttrInstr, ElementInstr, Instr};
+use crate::ir::Instr;
 use crate::keys::{BindingRegistry, KeyAllocator};
 
 use super::control_flow;
-use super::escape::{escape_attr_value, escape_text_value};
-use super::eval::{Scope, eval, stringify, truthy};
+use super::escape::escape_text_value;
+use super::eval::{Scope, eval, stringify};
 use super::out::Out;
-use super::{EmitDecision, decide_element};
+
+/// Fragment-rendering state for `render::render_fragment`. The full
+/// `render::render` path uses `Off` and never touches it.
+#[derive(Debug)]
+pub(super) enum FragmentState {
+    Off,
+    /// Walking the IR silently, looking for the boundary whose key
+    /// matches the carried target string.
+    Searching(String),
+    /// Inside the target body. The carried u32 is the silent depth that
+    /// was active at entry; restored on exit.
+    Rendering(u32),
+    /// Target found and emitted. Walking continues silently to keep the
+    /// registry counter aligned but no further HTML is produced.
+    Done,
+}
 
 pub(crate) struct Walker<'r> {
     pub(super) out: Out,
@@ -33,6 +62,7 @@ pub(crate) struct Walker<'r> {
     /// walker would have allocated a key. Used by `next_key` to assert
     /// the registry's `b<N>` matches.
     pub(super) reg_idx: usize,
+    pub(super) frag: FragmentState,
 }
 
 impl<'r> Walker<'r> {
@@ -43,7 +73,23 @@ impl<'r> Walker<'r> {
             scope,
             registry,
             reg_idx: 0,
+            frag: FragmentState::Off,
         }
+    }
+
+    /// Construct a walker pre-loaded for `render_fragment`: starts in
+    /// silent mode so the IR walk produces no HTML until the target
+    /// boundary is hit, then control-flow renderers flip back to visible
+    /// for the boundary's body and silent again afterward.
+    pub(crate) fn new_fragment(
+        scope: Scope,
+        registry: &'r BindingRegistry,
+        target: String,
+    ) -> Self {
+        let mut w = Self::new(scope, registry);
+        w.out.enter_silent();
+        w.frag = FragmentState::Searching(target);
+        w
     }
 
     pub(crate) fn into_html(self) -> String {
@@ -102,179 +148,36 @@ impl<'r> Walker<'r> {
         }
     }
 
-    pub(super) fn walk_element(&mut self, el: &ElementInstr) {
-        self.walk_element_with_extra(el, &[]);
+    /// If the walker is searching for `key`, switch into rendering mode
+    /// (visible output) and return true; the caller then suppresses the
+    /// boundary wrapper. Otherwise return false; normal wrapper emission
+    /// applies.
+    pub(super) fn enter_target_if_match(&mut self, key: &str) -> bool {
+        let hit = matches!(&self.frag, FragmentState::Searching(t) if t == key);
+        if hit {
+            let prev = self.out.save_make_visible();
+            self.frag = FragmentState::Rendering(prev);
+        }
+        hit
     }
 
-    pub(super) fn walk_element_with_extra(
-        &mut self,
-        el: &ElementInstr,
-        extra: &[(&str, &str)],
-    ) {
-        match decide_element(el) {
-            EmitDecision::Skip => {}
-            EmitDecision::Void => self.emit_open_tag(el, extra),
-            EmitDecision::Normal => {
-                self.emit_open_tag(el, extra);
-                self.walk_block(&el.children);
-                self.out.push_str(&format!("</{}>", el.tag));
-            }
+    /// Pair of `enter_target_if_match` for the rendering branch. Restore
+    /// silent depth and mark the target as consumed.
+    pub(super) fn exit_target(&mut self) {
+        if let FragmentState::Rendering(prev) = self.frag {
+            self.out.restore_silent(prev);
+            self.frag = FragmentState::Done;
         }
     }
 
-    pub(super) fn push_raw(&mut self, s: &str) {
-        self.out.push_str(s);
+    /// True once the target boundary has been encountered (whether its
+    /// body was non-empty or empty). `render_fragment` reads this after
+    /// the walk to detect "registry says key exists but walker never hit
+    /// it" — a debug-only invariant violation.
+    pub(super) fn target_found(&self) -> bool {
+        matches!(
+            self.frag,
+            FragmentState::Done | FragmentState::Rendering(_)
+        )
     }
-
-    fn emit_open_tag(&mut self, el: &ElementInstr, extra: &[(&str, &str)]) {
-        self.out.push('<');
-        self.out.push_str(&el.tag);
-
-        let class_text = self.collect_classes(&el.attrs);
-        let style_text = self.collect_styles(&el.attrs);
-        let first_class_pos = el.attrs.iter().position(is_class_related);
-        let first_style_pos = el.attrs.iter().position(is_style_related);
-
-        for (i, attr) in el.attrs.iter().enumerate() {
-            if Some(i) == first_class_pos && !class_text.is_empty() {
-                self.push_attr("class", &class_text);
-            }
-            if Some(i) == first_style_pos && !style_text.is_empty() {
-                self.push_attr("style", &style_text);
-            }
-            self.emit_attr_marker(attr);
-        }
-        for (name, value) in extra {
-            self.push_attr(name, value);
-        }
-        self.out.push('>');
-    }
-
-    /// Walk attributes once and gather every class fragment we want in
-    /// the merged `class="..."` attribute — static `class="..."` values
-    /// plus any `class:NAME={truthy expr}` toggles.
-    fn collect_classes(&self, attrs: &[AttrInstr]) -> String {
-        let mut classes: Vec<String> = Vec::new();
-        for attr in attrs {
-            match attr {
-                AttrInstr::Static { name, value, .. } if name == "class" => {
-                    if !value.is_empty() {
-                        classes.push(value.clone());
-                    }
-                }
-                AttrInstr::Class { name, expr, .. } => {
-                    if let Ok(v) = eval(&expr.source, &self.scope) {
-                        if truthy(&v) {
-                            classes.push(name.clone());
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        classes.join(" ")
-    }
-
-    fn collect_styles(&self, attrs: &[AttrInstr]) -> String {
-        let mut styles: Vec<String> = Vec::new();
-        for attr in attrs {
-            match attr {
-                AttrInstr::Static { name, value, .. } if name == "style" => {
-                    if !value.is_empty() {
-                        styles.push(trim_trailing_semi(value));
-                    }
-                }
-                AttrInstr::Style { name, expr, .. } => {
-                    if let Ok(v) = eval(&expr.source, &self.scope) {
-                        if truthy(&v) {
-                            styles.push(format!("{name}: {}", stringify(&v)));
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-        styles.join("; ")
-    }
-
-    fn emit_attr_marker(&mut self, attr: &AttrInstr) {
-        match attr {
-            AttrInstr::Static { name, value, .. } => {
-                if name == "class" || name == "style" {
-                    return;
-                }
-                self.push_attr(name, value);
-            }
-            AttrInstr::Expr { name, expr, .. } => {
-                let key = self.next_key();
-                if let Ok(v) = eval(&expr.source, &self.scope) {
-                    self.push_attr(name, &stringify(&v));
-                }
-                self.push_marker(&format!("data-set-attr:{name}"), &key);
-            }
-            AttrInstr::Class { name, .. } => {
-                let key = self.next_key();
-                self.push_marker(&format!("data-set-class:{name}"), &key);
-            }
-            AttrInstr::Style { name, .. } => {
-                let key = self.next_key();
-                self.push_marker(&format!("data-set-style:{name}"), &key);
-            }
-            AttrInstr::BindValue { expr, .. } => {
-                let key = self.next_key();
-                if let Ok(v) = eval(&expr.source, &self.scope) {
-                    self.push_attr("value", &stringify(&v));
-                }
-                self.push_marker("data-set-bind:value", &key);
-            }
-            AttrInstr::BindChecked { expr, .. } => {
-                let key = self.next_key();
-                if let Ok(v) = eval(&expr.source, &self.scope) {
-                    if truthy(&v) {
-                        self.out.push(' ');
-                        self.out.push_str("checked");
-                    }
-                }
-                self.push_marker("data-set-bind:checked", &key);
-            }
-            AttrInstr::On { event, .. } => {
-                let key = self.next_key();
-                self.push_marker(&format!("data-set-on:{event}"), &key);
-            }
-            AttrInstr::DynamicAttr { .. } => {
-                let key = self.next_key();
-                self.push_marker("data-set-attr-dynamic", &key);
-            }
-        }
-    }
-
-    fn push_attr(&mut self, name: &str, value: &str) {
-        self.out.push(' ');
-        self.out.push_str(name);
-        self.out.push_str("=\"");
-        self.out.push_str(&escape_attr_value(value));
-        self.out.push('"');
-    }
-
-    fn push_marker(&mut self, name: &str, key: &str) {
-        self.out.push(' ');
-        self.out.push_str(name);
-        self.out.push_str("=\"");
-        self.out.push_str(key);
-        self.out.push('"');
-    }
-}
-
-fn is_class_related(attr: &AttrInstr) -> bool {
-    matches!(attr, AttrInstr::Static { name, .. } if name == "class")
-        || matches!(attr, AttrInstr::Class { .. })
-}
-
-fn is_style_related(attr: &AttrInstr) -> bool {
-    matches!(attr, AttrInstr::Static { name, .. } if name == "style")
-        || matches!(attr, AttrInstr::Style { .. })
-}
-
-fn trim_trailing_semi(s: &str) -> String {
-    s.trim_end().trim_end_matches(';').trim_end().to_string()
 }

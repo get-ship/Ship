@@ -41,6 +41,8 @@ pub mod ship_set_hmr;
 pub mod ship_set_view;
 pub mod ship_set_view_shell;
 pub mod ship_set_render;
+pub mod ship_set_render_fragment;
+mod ship_set_render_helpers;
 pub mod setup;
 pub mod templates;
 pub mod session;

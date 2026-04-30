@@ -1,4 +1,4 @@
-// packages/ship-set-dom/src/template/expr.ts
+// src/template/expr.ts
 function compileExpr(expr, opts = {}) {
   const trimmed = expr.trim();
   if (!trimmed) {
@@ -120,7 +120,7 @@ function validate(expr, opts) {
   }
 }
 
-// packages/ship-set-dom/src/preprocess.ts
+// src/preprocess.ts
 var VOID_TAGS = /* @__PURE__ */ new Set([
   "area",
   "base",
@@ -273,7 +273,7 @@ function expandSelfClose(source) {
   return out;
 }
 
-// packages/ship-set-dom/src/parse.ts
+// src/parse.ts
 var TOP_LEVEL_TAGS = /* @__PURE__ */ new Set(["data", "state", "component"]);
 function parseSetSource(source) {
   const prepared = preprocess(source);
@@ -446,7 +446,7 @@ var trimEdges = (parent) => {
 };
 var isEmptyText = (n) => n.nodeType === 3 && (n.textContent ?? "").trim() === "";
 
-// packages/ship-set-dom/src/bindings/attr-compile.ts
+// src/bindings/attr-compile.ts
 var EXPR_RE = /^\{(.*)\}$/s;
 var isExprValue = (v) => EXPR_RE.test(v.trim());
 var stripBraces = (v) => {
@@ -594,7 +594,7 @@ var compileDynamicAttr = (name, value, loc) => {
   };
 };
 
-// packages/ship-set-dom/src/template/tokenize.ts
+// src/template/tokenize.ts
 function tokenizeChildren(parent) {
   const out = [];
   for (const node of Array.from(parent.childNodes)) {
@@ -688,7 +688,7 @@ function classifyBrace(inner, raw) {
   return { kind: "expr", src: inner, loc };
 }
 
-// packages/ship-set-dom/src/template/compile-blocks.ts
+// src/template/compile-blocks.ts
 var IF_TERMS = ["else-if", "else", "close-if"];
 var FOR_TERMS = ["else", "close-for"];
 var MATCH_TERMS = ["case", "default", "close-match"];
@@ -863,7 +863,7 @@ function parseMatch(tokens, start, scope) {
   return { instr, end: i };
 }
 
-// packages/ship-set-dom/src/template/compile.ts
+// src/template/compile.ts
 function compileChildren(parent) {
   const tokens = tokenizeChildren(parent);
   return parseTokens(tokens, 0).instrs;
@@ -971,10 +971,10 @@ var requiredAttr = (el, name, label) => {
   return v;
 };
 
-// packages/ship-set-dom/src/template/render.ts
+// src/template/render.ts
 import { bindText, effect as effect3 } from "@ship-set/runtime";
 
-// packages/ship-set-dom/src/template/render-attrs.ts
+// src/template/render-attrs.ts
 import {
   bindAttr,
   bindClass,
@@ -1064,7 +1064,7 @@ function applyAttr(el, a, scope, disposers) {
   }
 }
 
-// packages/ship-set-dom/src/template/render-for.ts
+// src/template/render-for.ts
 import {
   bindFor,
   effect as effect2
@@ -1140,7 +1140,7 @@ function mountFor(anchor, instr, scope, doc) {
   };
 }
 
-// packages/ship-set-dom/src/template/render-while.ts
+// src/template/render-while.ts
 import {
   bindWhileLoading,
   bindWhileError
@@ -1193,7 +1193,7 @@ function renderWhileError(decl, body, scope, doc) {
   };
 }
 
-// packages/ship-set-dom/src/template/render.ts
+// src/template/render.ts
 var extendScope = (parent, additions) => Object.assign(Object.create(parent), additions);
 var composeDisposers = (ds) => () => {
   for (const d of ds) {
@@ -1348,7 +1348,7 @@ function renderMatch(instr, scope, doc) {
   };
 }
 
-// packages/ship-set-dom/src/directives/data.ts
+// src/directives/data.ts
 import { live } from "@ship-set/runtime";
 function mountData(decl, ship, route, scope) {
   if (decl.live) {
@@ -1357,14 +1357,14 @@ function mountData(decl, ship, route, scope) {
   return decl.source(ship, route, scope);
 }
 
-// packages/ship-set-dom/src/directives/state.ts
+// src/directives/state.ts
 import { state } from "@ship-set/runtime";
 function mountState(decl, scope) {
   const initial = decl.value(scope);
   return state(initial);
 }
 
-// packages/ship-set-dom/src/directives/component.ts
+// src/directives/component.ts
 import { component, prop } from "@ship-set/runtime";
 var camelOf = (s) => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 var buildPropDef = (decl) => {
@@ -1434,7 +1434,7 @@ function registerComponent(decl, body, doc, userSetup) {
   });
 }
 
-// packages/ship-set-dom/src/hydrate.ts
+// src/hydrate.ts
 import { getTemplateHook } from "@ship-set/runtime";
 function hydrate(template, setup, opts) {
   if (!opts || !opts.container) {
@@ -1577,7 +1577,7 @@ function compileTopLevel(nodes) {
   return compileChildren(fragment);
 }
 
-// packages/ship-set-dom/src/attach/island.ts
+// src/attach/island.ts
 import { signal } from "@ship-set/runtime";
 var INIT_ID = "__set_init__";
 function readInitIsland(root) {
@@ -1626,7 +1626,7 @@ function isLiveStateEnvelope(v) {
   return k === "loading" || k === "ok" || k === "error";
 }
 
-// packages/ship-set-dom/src/attach/manifest.ts
+// src/attach/manifest.ts
 var ATTR_PREFIX = "data-set-";
 var TEXT_OPEN_PREFIX = "set:text:";
 var TEXT_CLOSE = "/set";
@@ -1635,10 +1635,13 @@ function indexBindings(bindings) {
   for (const b of bindings) map.set(b.key, b);
   return map;
 }
-function* walkMarkers(root, byKey) {
+function* walkMarkers(root, byKey, opts = {}) {
   const owner = root.ownerDocument ?? document;
   const elWalker = owner.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
   let el = elWalker.currentNode;
+  if (opts.skipRoot && el === root) {
+    el = elWalker.nextNode();
+  }
   while (el !== null) {
     for (const attr of Array.from(el.attributes)) {
       if (!attr.name.startsWith(ATTR_PREFIX)) continue;
@@ -1677,10 +1680,10 @@ function isComment(n) {
   return n.nodeType === 8;
 }
 
-// packages/ship-set-dom/src/attach/bindings/text.ts
+// src/attach/bindings/text.ts
 import { effect as effect4 } from "@ship-set/runtime";
 
-// packages/ship-set-dom/src/attach/eval.ts
+// src/attach/eval.ts
 var cache = /* @__PURE__ */ new WeakMap();
 var MODULE_KEY = {};
 function compileExpr2(expr) {
@@ -1699,7 +1702,7 @@ function compileExpr2(expr) {
   return fn;
 }
 
-// packages/ship-set-dom/src/attach/bindings/text.ts
+// src/attach/bindings/text.ts
 function wireText(open, close, scope, expr) {
   const parent = open.parentNode;
   if (!parent) return () => {
@@ -1730,7 +1733,7 @@ function stringify(v) {
   return String(v);
 }
 
-// packages/ship-set-dom/src/attach/bindings/event.ts
+// src/attach/bindings/event.ts
 function wireOn(el, eventName, scope, expr) {
   const ev = compileExpr2(expr);
   const listener = (e) => {
@@ -1753,7 +1756,7 @@ function wireOn(el, eventName, scope, expr) {
   return () => el.removeEventListener(eventName, listener);
 }
 
-// packages/ship-set-dom/src/attach/bindings/bind-value.ts
+// src/attach/bindings/bind-value.ts
 import { effect as effect5 } from "@ship-set/runtime";
 function wireBindValue(el, scope, expr) {
   const sig = scope[expr];
@@ -1786,7 +1789,7 @@ function isWritableSignal(v) {
   return typeof v === "function" && "set" in v && typeof v.set === "function";
 }
 
-// packages/ship-set-dom/src/attach/bindings/bind-checked.ts
+// src/attach/bindings/bind-checked.ts
 import { effect as effect6 } from "@ship-set/runtime";
 function wireBindChecked(el, scope, expr) {
   const sig = scope[expr];
@@ -1816,7 +1819,7 @@ function isWritableSignal2(v) {
   return typeof v === "function" && "set" in v && typeof v.set === "function";
 }
 
-// packages/ship-set-dom/src/attach/bindings/attr.ts
+// src/attach/bindings/attr.ts
 import { effect as effect7 } from "@ship-set/runtime";
 function wireAttr(el, name, scope, expr) {
   const ev = compileExpr2(expr);
@@ -1836,7 +1839,7 @@ function wireAttr(el, name, scope, expr) {
   });
 }
 
-// packages/ship-set-dom/src/attach/bindings/class.ts
+// src/attach/bindings/class.ts
 import { effect as effect8 } from "@ship-set/runtime";
 function wireClass(el, name, scope, expr) {
   const ev = compileExpr2(expr);
@@ -1852,7 +1855,7 @@ function wireClass(el, name, scope, expr) {
   });
 }
 
-// packages/ship-set-dom/src/attach/bindings/style.ts
+// src/attach/bindings/style.ts
 import { effect as effect9 } from "@ship-set/runtime";
 function wireStyle(el, propName, scope, expr) {
   const ev = compileExpr2(expr);
@@ -1872,7 +1875,7 @@ function wireStyle(el, propName, scope, expr) {
   });
 }
 
-// packages/ship-set-dom/src/attach/bindings/attr-dynamic.ts
+// src/attach/bindings/attr-dynamic.ts
 import { effect as effect10 } from "@ship-set/runtime";
 function wireAttrDynamic(el, scope, expr) {
   const ev = compileExpr2(expr);
@@ -1891,44 +1894,203 @@ function wireAttrDynamic(el, scope, expr) {
   });
 }
 
-// packages/ship-set-dom/src/attach/boundaries.ts
+// src/attach/boundaries.ts
 import { effect as effect11 } from "@ship-set/runtime";
-function wireBoundary(el, binding, scope, recurse) {
-  const cleanups = [];
-  const isActive = el.tagName.toLowerCase() === "div";
-  if (binding.expr.length > 0) {
-    const ev = compileExpr2(binding.expr);
-    let firstRun = true;
-    const dispose = effect11(() => {
+function wireBoundary(el, binding, ctx) {
+  let current = el;
+  let branchDispose = null;
+  if (isActive(current)) {
+    branchDispose = wireSubtree(current, ctx, { skipRoot: true });
+  }
+  const ev = binding.expr ? compileExpr2(binding.expr) : null;
+  let firstRun = true;
+  let inflight = 0;
+  const condDispose = effect11(() => {
+    if (ev) {
       try {
-        ev(scope);
+        ev(ctx.scope);
       } catch {
       }
-      if (firstRun) {
-        firstRun = false;
-        return;
+    }
+    if (firstRun) {
+      firstRun = false;
+      return;
+    }
+    void runSwap();
+  });
+  function runSwap() {
+    if (!ctx.viewName) {
+      console.error(
+        "[ship-set/attach] cannot swap control-flow boundary " + binding.key + ": attach() was called without a viewName option."
+      );
+      return Promise.resolve();
+    }
+    const myFetch = ++inflight;
+    const init = serializeScope(ctx.scope, ctx.initKeys);
+    const url = "/_ship-set/render-fragment/" + encodeURIComponent(ctx.viewName);
+    return fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ init, key: binding.key })
+    }).then(async (res) => {
+      if (!res.ok) {
+        const body = await res.text().catch(() => "<no body>");
+        throw new Error(
+          "fragment-render " + res.status + ": " + body.slice(0, 200)
+        );
       }
-      console.warn(
-        "[ship-set/attach] control-flow signal changed for binding " + binding.key + " (kind=" + binding.kind + "). Re-rendering active control-flow boundaries is Phase E-2; for now reload the page to see the new branch. (expr: " + binding.expr + ")"
+      return await res.json();
+    }).then((body) => {
+      if (myFetch !== inflight) return;
+      applySwap(body.html);
+    }).catch((err) => {
+      console.error(
+        "[ship-set/attach] fragment render failed:",
+        err,
+        "\nbinding:",
+        binding.key
       );
     });
-    cleanups.push(dispose);
   }
-  if (isActive) {
-    cleanups.push(recurse(el));
+  function applySwap(html) {
+    if (branchDispose) {
+      try {
+        branchDispose();
+      } catch (err) {
+        console.error("[ship-set/attach] branch dispose threw:", err);
+      }
+      branchDispose = null;
+    }
+    const replacement = buildReplacement(current, binding, html);
+    const parent = current.parentNode;
+    if (!parent) {
+      console.error(
+        "[ship-set/attach] boundary element detached from DOM; cannot swap"
+      );
+      return;
+    }
+    parent.replaceChild(replacement, current);
+    current = replacement;
+    branchDispose = wireSubtree(replacement, ctx, { skipRoot: true });
+  }
+  return () => {
+    try {
+      condDispose();
+    } catch (err) {
+      console.error("[ship-set/attach] boundary cond dispose threw:", err);
+    }
+    if (branchDispose) {
+      try {
+        branchDispose();
+      } catch (err) {
+        console.error("[ship-set/attach] branch dispose threw:", err);
+      }
+      branchDispose = null;
+    }
+  };
+}
+function isActive(el) {
+  return el.tagName.toLowerCase() === "div";
+}
+function buildReplacement(prior, binding, html) {
+  const owner = prior.ownerDocument ?? document;
+  const div = owner.createElement("div");
+  div.setAttribute("data-set-" + binding.kind, binding.key);
+  div.style.display = "contents";
+  if (html) {
+    const tpl = owner.createElement("template");
+    tpl.innerHTML = html;
+    div.appendChild(tpl.content);
+  }
+  return div;
+}
+
+// src/attach/wire.ts
+function wireMarker(hit, ctx) {
+  if (hit.kind === "text") {
+    return wireText(hit.open, hit.close, ctx.scope, hit.binding.expr);
+  }
+  const { binding, el } = hit;
+  const kind = binding.kind;
+  if (kind === "text") return void 0;
+  if (kind === "bind:value") {
+    return wireBindValue(
+      el,
+      ctx.scope,
+      binding.expr
+    );
+  }
+  if (kind === "bind:checked") {
+    return wireBindChecked(el, ctx.scope, binding.expr);
+  }
+  if (kind === "attr-dynamic") {
+    return wireAttrDynamic(el, ctx.scope, binding.expr);
+  }
+  if (kind === "if" || kind === "for" || kind === "match" || kind === "await") {
+    return wireBoundary(el, binding, ctx);
+  }
+  if (kind.startsWith("on:")) {
+    return wireOn(el, kind.slice(3), ctx.scope, binding.expr);
+  }
+  if (kind.startsWith("attr:")) {
+    return wireAttr(el, kind.slice(5), ctx.scope, binding.expr);
+  }
+  if (kind.startsWith("class:")) {
+    return wireClass(el, kind.slice(6), ctx.scope, binding.expr);
+  }
+  if (kind.startsWith("style:")) {
+    return wireStyle(el, kind.slice(6), ctx.scope, binding.expr);
+  }
+  console.warn("[ship-set/attach] unknown binding kind:", kind);
+  return void 0;
+}
+function wireSubtree(root, ctx, opts = {}) {
+  const cleanups = [];
+  for (const hit of walkMarkers(root, ctx.byKey, { skipRoot: opts.skipRoot })) {
+    const c = wireMarker(hit, ctx);
+    if (c) cleanups.push(c);
   }
   return () => {
     for (const c of cleanups) {
       try {
         c();
       } catch (err) {
-        console.error("[ship-set/attach] boundary cleanup threw:", err);
+        console.error("[ship-set/attach] subtree cleanup threw:", err);
       }
     }
   };
 }
+var SKIP_KEYS = /* @__PURE__ */ new Set(["route", "ship", "navigate"]);
+function serializeScope(scope, initKeys) {
+  const out = {};
+  for (const k of initKeys) {
+    pull(scope, k, out);
+  }
+  for (const [k, v] of Object.entries(scope)) {
+    if (k in out) continue;
+    if (SKIP_KEYS.has(k)) continue;
+    if (typeof v === "function" && "__peek" in v) {
+      try {
+        out[k] = v();
+      } catch {
+      }
+    }
+  }
+  return out;
+}
+function pull(scope, k, out) {
+  const v = scope[k];
+  if (typeof v === "function") {
+    try {
+      out[k] = v();
+    } catch {
+    }
+  } else if (v !== void 0) {
+    out[k] = v;
+  }
+}
 
-// packages/ship-set-dom/src/attach.ts
+// src/attach.ts
 var LIFECYCLE_KEY = "__shipSetLifecycle";
 function attach(root, opts) {
   if (!root) {
@@ -1961,10 +2123,15 @@ function attach(root, opts) {
     Object.assign(scope, setupRet);
   }
   const lifecycle = extractLifecycle(setupRet);
-  const byKey = indexBindings(mod.bindings);
+  const ctx = {
+    byKey: indexBindings(mod.bindings),
+    scope,
+    initKeys: /* @__PURE__ */ new Set([...init.stateKeys, ...init.liveKeys]),
+    viewName: opts.viewName
+  };
   const cleanups = [];
-  for (const hit of walkMarkers(root, byKey)) {
-    const c = wireMarker(hit, scope);
+  for (const hit of walkMarkers(root, ctx.byKey)) {
+    const c = wireMarker(hit, ctx);
     if (c) cleanups.push(c);
   }
   if (lifecycle?.mount) {
@@ -2000,55 +2167,8 @@ function extractLifecycle(ret) {
   if (lc && typeof lc === "object") return lc;
   return void 0;
 }
-function wireMarker(hit, scope) {
-  if (hit.kind === "text") {
-    return wireText(hit.open, hit.close, scope, hit.binding.expr);
-  }
-  const { binding, el } = hit;
-  const kind = binding.kind;
-  if (kind === "text") {
-    return void 0;
-  }
-  if (kind === "bind:value") {
-    return wireBindValue(
-      el,
-      scope,
-      binding.expr
-    );
-  }
-  if (kind === "bind:checked") {
-    return wireBindChecked(el, scope, binding.expr);
-  }
-  if (kind === "attr-dynamic") {
-    return wireAttrDynamic(el, scope, binding.expr);
-  }
-  if (kind === "if" || kind === "for" || kind === "match" || kind === "await") {
-    return wireBoundary(el, binding, scope, (active) => recurseLeaves(active, scope));
-  }
-  if (kind.startsWith("on:")) {
-    const eventName = kind.slice(3);
-    return wireOn(el, eventName, scope, binding.expr);
-  }
-  if (kind.startsWith("attr:")) {
-    return wireAttr(el, kind.slice(5), scope, binding.expr);
-  }
-  if (kind.startsWith("class:")) {
-    return wireClass(el, kind.slice(6), scope, binding.expr);
-  }
-  if (kind.startsWith("style:")) {
-    return wireStyle(el, kind.slice(6), scope, binding.expr);
-  }
-  console.warn("[ship-set/attach] unknown binding kind:", kind);
-  return void 0;
-}
-function recurseLeaves(el, scope) {
-  void el;
-  void scope;
-  return () => {
-  };
-}
 
-// packages/ship-set-dom/src/setup-loader.ts
+// src/setup-loader.ts
 async function loadSetup(setUrl, loader = (p) => import(
   /* @vite-ignore */
   p

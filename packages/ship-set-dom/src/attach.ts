@@ -8,25 +8,19 @@
 // attach. See `.artifacts/job-spec.md` (Phase E v1) and
 // `docs/ship-adrs/.../ship-set-marker-contract.md` for the contract.
 //
-// Control-flow boundaries (if / for / match / await) are recognised
-// — leaf bindings inside an active branch get wired — but
-// swap-on-signal-change is **deferred to Phase E-2**. See
-// `attach/boundaries.ts` for the deferred behavior.
+// Phase E-2 — control-flow boundaries (if / for / match / await) now
+// swap-on-signal-change via a server round-trip. See
+// `attach/boundaries.ts` for the swap mechanics; the runtime needs a
+// `viewName` option so it knows which fragment-render endpoint to POST
+// to. When `viewName` is omitted, boundaries still register reactive
+// deps but log an error instead of swapping.
 //
 // Existing `hydrate` / parse-and-build path stays in place;
 // `attach` is a sibling capability targeting SSR'd DOM.
 
 import { readInitIsland } from './attach/island'
-import { indexBindings, walkMarkers, type MarkerHit } from './attach/manifest'
-import { wireText } from './attach/bindings/text'
-import { wireOn } from './attach/bindings/event'
-import { wireBindValue } from './attach/bindings/bind-value'
-import { wireBindChecked } from './attach/bindings/bind-checked'
-import { wireAttr } from './attach/bindings/attr'
-import { wireClass } from './attach/bindings/class'
-import { wireStyle } from './attach/bindings/style'
-import { wireAttrDynamic } from './attach/bindings/attr-dynamic'
-import { wireBoundary } from './attach/boundaries'
+import { indexBindings, walkMarkers } from './attach/manifest'
+import { wireMarker, type WireContext } from './attach/wire'
 
 /** Marker `kind` portion of the `data-set-<kind>` attribute family. */
 export type BindingKind =
@@ -82,6 +76,10 @@ export interface AttachOptions {
   ship?: unknown
   route?: { params: Record<string, string>; query: Record<string, string> }
   navigate?: (path: string) => void
+  /** Name of the view (the path segment under `views/`). Required for
+   *  Phase E-2 control-flow swap; optional if the page has no boundaries
+   *  whose deps can change. */
+  viewName?: string
 }
 
 export type AttachDisposer = () => void
@@ -142,10 +140,16 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
   }
   const lifecycle = extractLifecycle(setupRet)
 
-  const byKey = indexBindings(mod.bindings)
+  const ctx: WireContext = {
+    byKey: indexBindings(mod.bindings),
+    scope,
+    initKeys: new Set([...init.stateKeys, ...init.liveKeys]),
+    viewName: opts.viewName,
+  }
+
   const cleanups: Array<() => void> = []
-  for (const hit of walkMarkers(root, byKey)) {
-    const c = wireMarker(hit, scope)
+  for (const hit of walkMarkers(root, ctx.byKey)) {
+    const c = wireMarker(hit, ctx)
     if (c) cleanups.push(c)
   }
 
@@ -157,11 +161,10 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
     }
   }
 
-  // SSE channel opening for `<data live>` is Phase E-2 territory —
-  // the JSON island carries the initial envelope; the SDK side that
-  // produces a `LiveSource<T>` to subscribe to lives in the daemon
-  // round-trip the F-phase enables. v1 ships with the initial state
-  // visible and stale; the warning lands when control-flow flips.
+  // SSE channel opening for `<data live>` is Phase F's territory — the
+  // JSON island carries the initial envelope and Phase E-2 lets the
+  // runtime react to envelope flips, but the actual SSE-→ LiveSignal
+  // wiring lives outside attach.
 
   let disposed = false
   return () => {
@@ -189,64 +192,4 @@ function extractLifecycle(ret: unknown): Lifecycle | undefined {
   const lc = (ret as Record<string, unknown>)[LIFECYCLE_KEY]
   if (lc && typeof lc === 'object') return lc as Lifecycle
   return undefined
-}
-
-function wireMarker(hit: MarkerHit, scope: Record<string, unknown>): (() => void) | undefined {
-  if (hit.kind === 'text') {
-    return wireText(hit.open, hit.close, scope, hit.binding.expr)
-  }
-  const { binding, el } = hit
-  const kind = binding.kind
-  if (kind === 'text') {
-    // Element-level text marker isn't in the contract, but be lenient.
-    return undefined
-  }
-  if (kind === 'bind:value') {
-    return wireBindValue(
-      el as HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement,
-      scope,
-      binding.expr,
-    )
-  }
-  if (kind === 'bind:checked') {
-    return wireBindChecked(el as HTMLInputElement, scope, binding.expr)
-  }
-  if (kind === 'attr-dynamic') {
-    return wireAttrDynamic(el, scope, binding.expr)
-  }
-  if (kind === 'if' || kind === 'for' || kind === 'match' || kind === 'await') {
-    return wireBoundary(el, binding, scope, (active) => recurseLeaves(active, scope))
-  }
-  if (kind.startsWith('on:')) {
-    const eventName = kind.slice(3)
-    return wireOn(el, eventName, scope, binding.expr)
-  }
-  if (kind.startsWith('attr:')) {
-    return wireAttr(el, kind.slice(5), scope, binding.expr)
-  }
-  if (kind.startsWith('class:')) {
-    return wireClass(el, kind.slice(6), scope, binding.expr)
-  }
-  if (kind.startsWith('style:')) {
-    return wireStyle(el as HTMLElement, kind.slice(6), scope, binding.expr)
-  }
-  console.warn('[ship-set/attach] unknown binding kind:', kind)
-  return undefined
-}
-
-/**
- * Recurse into an active control-flow branch wrapper and wire every
- * marker found beneath it. Used by `wireBoundary` so leaf bindings
- * inside `<div data-set-if>` get the same treatment as siblings of
- * the boundary — Phase E-2 will replace the `recurse` thunk when
- * branches can swap.
- */
-function recurseLeaves(el: Element, scope: Record<string, unknown>): () => void {
-  // The full attach already walked from `root`, so descendants of an
-  // active branch were already enumerated and wired. This function is
-  // reserved as the seam where Phase E-2 will re-wire freshly mounted
-  // branch DOM. Today it's a no-op placeholder.
-  void el
-  void scope
-  return () => {}
 }
