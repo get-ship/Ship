@@ -18,6 +18,16 @@
 export { hydrate } from './hydrate'
 export type { HydrateOptions, HydrateHandle } from './hydrate'
 
+export { attach } from './attach'
+export type {
+  AttachOptions,
+  AttachDisposer,
+  Binding,
+  BindingKind,
+  SetCompiledModule,
+  SetupContext,
+} from './attach'
+
 export { loadSetup, pairedTsPath } from './setup-loader'
 
 export { parseSetSource } from './parse'
