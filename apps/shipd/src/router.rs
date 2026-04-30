@@ -169,6 +169,14 @@ pub fn build_router(
             "/_ship-set/views/{name}/view.css",
             axum::routing::get(views::ship_set_view::serve_set_view_css),
         )
+        // F-1 SSR walker debug endpoint. Returns the render walker's
+        // output for a compiled `.html.set` view — wrapped HTML by
+        // default, `?format=json` for `{ html, init }`. Inspection
+        // surface only; the production SSR cut-over is Phase F.
+        .route(
+            "/_ship-set/render/{name}",
+            axum::routing::get(views::ship_set_render::serve_set_render),
+        )
         .route(
             "/set/{name}",
             axum::routing::get(views::ship_set_view::serve_set_view),

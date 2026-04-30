@@ -3754,6 +3754,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-jobs",
+ "ship-set-compiler",
  "syn",
  "tempfile",
  "thiserror 2.0.18",
