@@ -23,12 +23,15 @@ use crate::diagnostics::CompileError;
 use crate::ir::{AttrInstr, ElementInstr, ForInstr, IfInstr, Instr, MatchInstr, Program};
 
 mod escape;
+mod eval;
+mod island;
+mod scope;
 mod walker;
 
 #[cfg(test)]
 mod tests;
 
-pub use escape::{escape_attr_value, is_void_element};
+pub use escape::{escape_attr_value, escape_text_value, is_void_element};
 
 /// Public entry point.
 #[derive(Debug, Clone)]
@@ -40,19 +43,30 @@ pub struct RenderOpts {
 /// Output of a render pass.
 #[derive(Debug, Clone)]
 pub struct RenderOutput {
+    /// Rendered HTML, including the `<script type="application/json"
+    /// id="__set_init__">…</script>` island appended after the body.
     pub html: String,
+    /// Structured access to the JSON-island contents — useful for
+    /// tests and SSR consumers that don't want to re-parse the inline
+    /// JSON.
+    pub init: serde_json::Value,
 }
 
 /// Render a parsed program to HTML with `data-set-*` markers.
 ///
-/// `D-1` does not evaluate any expressions; every dynamic binding
-/// becomes an opaque-key marker. Later phases (D-2 evaluation, D-3
-/// control-flow expansion) produce the full output.
+/// D-2 evaluates the renderable subset against the program's initial
+/// scope and inlines the result into text/attribute output (markers
+/// stay so the client runtime can re-bind). Expressions outside the
+/// subset, or that touch unbound names, fall back to D-1's marker-
+/// only shape.
 pub fn render(program: &Program, opts: &RenderOpts) -> Result<RenderOutput, CompileError> {
-    let _ = opts; // reserved for D-2 (JSON island id)
-    let mut state = walker::Walker::new();
+    let _ = opts; // reserved for view-name diagnostics in later phases.
+    let initial = scope::build(program);
+    let mut state = walker::Walker::new(&initial.scope);
     state.walk_block(&program.template);
-    Ok(RenderOutput { html: state.into_html() })
+    let mut html = state.into_html();
+    html.push_str(&island::emit(&initial.init));
+    Ok(RenderOutput { html, init: initial.init })
 }
 
 /// Allocates stable opaque marker keys (`b0`, `b1`, …) in source order.
@@ -97,7 +111,11 @@ pub(crate) fn decide_element(el: &ElementInstr) -> EmitDecision {
 
 /// Map an attribute-instruction variant onto the `data-set-*` marker
 /// name to emit. Returns `None` for `Static` (which is rendered
-/// verbatim without a marker).
+/// verbatim without a marker). The walker no longer routes through
+/// this helper directly — each variant has its own emit branch — but
+/// it's kept as the single source of truth for marker names that the
+/// render-helper unit tests exercise.
+#[allow(dead_code)]
 pub(crate) fn marker_attr_name(attr: &AttrInstr) -> Option<String> {
     match attr {
         AttrInstr::Static { .. } => None,

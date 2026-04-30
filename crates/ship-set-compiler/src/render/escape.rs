@@ -34,6 +34,22 @@ pub fn escape_attr_value(s: &str) -> String {
     out
 }
 
+/// Escape an evaluator-produced string for emission as text content
+/// (between `<!--set:text:bN-->` markers, or any element text). Quotes
+/// are left intact — only `&`, `<`, `>` need entity-escaping in PCDATA.
+pub fn escape_text_value(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -60,5 +76,15 @@ mod tests {
     #[test]
     fn escape_attr_passes_through_safe_chars() {
         assert_eq!(escape_attr_value("hello world 123"), "hello world 123");
+    }
+
+    #[test]
+    fn escape_text_handles_html_specials() {
+        assert_eq!(escape_text_value("a & b<c>d"), "a &amp; b&lt;c&gt;d");
+    }
+
+    #[test]
+    fn escape_text_leaves_quotes_alone() {
+        assert_eq!(escape_text_value(r#""hi""#), r#""hi""#);
     }
 }
