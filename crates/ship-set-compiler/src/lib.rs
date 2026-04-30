@@ -26,6 +26,7 @@
 
 use std::path::PathBuf;
 
+pub mod check;
 pub mod diagnostics;
 pub mod emit;
 pub mod ir;
@@ -72,6 +73,7 @@ pub struct CompileOutput {
 /// Compile a `.html.set` source string.
 pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, CompileError> {
     let program = parse::parse(source).map_err(|e| attach_path(e, &opts))?;
+    check::run(&program).map_err(|e| attach_path(e, &opts))?;
     let lowered = lower::lower(&program);
     let mode = match opts.mode {
         CompileMode::Auto => {
