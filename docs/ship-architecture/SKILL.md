@@ -8,6 +8,8 @@ authors: [ship]
 
 # Ship Architecture
 
+> **Target architecture**: see [Architecture Charter](references/docs/charter.md) — the four layers, contract boundaries, and non-negotiables. The sections below describe the codebase as it currently stands; the charter is canonical for intent.
+
 Ship is an agent configuration compiler and runtime. It compiles declarative agent configuration (`.ship/`) into provider-native files (Claude, Gemini, Codex, Cursor), and provides a daemon for multi-agent coordination, pipeline execution, and event-driven state management.
 
 ## Crate Structure
