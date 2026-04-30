@@ -2,7 +2,7 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-// packages/ship-set-runtime/src/signal.ts
+// src/signal.ts
 var CURRENT_OBSERVER = null;
 var BATCH_DEPTH = 0;
 var PENDING = /* @__PURE__ */ new Set();
@@ -126,7 +126,7 @@ function untrack(fn) {
   }
 }
 
-// packages/ship-set-runtime/src/bind.ts
+// src/bind.ts
 function bindText(node, get) {
   return effect(() => {
     const v = get();
@@ -198,7 +198,7 @@ function bindChecked(el, sig) {
   };
 }
 
-// packages/ship-set-runtime/src/on.ts
+// src/on.ts
 function on(el, event, handler, opts = {}) {
   const modifiers = opts.modifiers ?? [];
   let timer;
@@ -277,7 +277,7 @@ function matchesKey(e, spec) {
   return e.key.toLowerCase() === key;
 }
 
-// packages/ship-set-runtime/src/patch.ts
+// src/patch.ts
 function applyPatch(sig, patch) {
   const next = applyOp(sig.__peek(), patch);
   sig.set(next);
@@ -420,7 +420,7 @@ function rebuild(root, path, mut) {
   }
 }
 
-// packages/ship-set-runtime/src/for.ts
+// src/for.ts
 function bindFor(opts) {
   const { anchor, items, key, render } = opts;
   let prev = [];
@@ -502,7 +502,7 @@ function bindForSignal(anchor, sig, key, render) {
   return bindFor({ anchor, items: () => sig(), key, render });
 }
 
-// packages/ship-set-runtime/src/if.ts
+// src/if.ts
 function bindIf(opts) {
   const { anchor, cond, then_, else_ } = opts;
   let active = null;
@@ -543,7 +543,7 @@ function bindIf(opts) {
   };
 }
 
-// packages/ship-set-runtime/src/await.ts
+// src/await.ts
 function bindAwait(opts) {
   const { anchor, promise, loading, then_, catch_ } = opts;
   let active = null;
@@ -594,7 +594,7 @@ function bindAwait(opts) {
   };
 }
 
-// packages/ship-set-runtime/src/raw-html.ts
+// src/raw-html.ts
 function bindRawHtml(el, get, deps = []) {
   return effect(() => {
     for (const d of deps) d();
@@ -602,7 +602,7 @@ function bindRawHtml(el, get, deps = []) {
   });
 }
 
-// packages/ship-set-runtime/src/morph.ts
+// src/morph.ts
 function morph(target, source, opts = {}) {
   morphElement(target, source, opts);
 }
@@ -668,7 +668,7 @@ function morphNode(t, s, parent, opts) {
   }
 }
 
-// packages/ship-set-runtime/src/slot.ts
+// src/slot.ts
 function resolveSlots(host, slots, originalChildren) {
   const fills = /* @__PURE__ */ new Map();
   for (const child of originalChildren) {
@@ -716,7 +716,7 @@ function snapshotChildren(host) {
   return Array.from(host.childNodes);
 }
 
-// packages/ship-set-runtime/src/decode.ts
+// src/decode.ts
 var decodeString = (raw) => raw ?? "";
 var decodeNumber = (raw) => {
   if (raw === null || raw === "") return NaN;
@@ -743,7 +743,7 @@ function decodeEnum(allowed, fallback) {
   return (raw) => raw !== null && set.has(raw) ? raw : fallback;
 }
 
-// packages/ship-set-runtime/src/component-factory.ts
+// src/component-factory.ts
 var prop = {
   /** String-valued prop. Default `''`. */
   string(opts = {}) {
@@ -890,7 +890,7 @@ function component(tag, def) {
   });
 }
 
-// packages/ship-set-runtime/src/component.ts
+// src/component.ts
 function defineComponent(tag, schema, factory) {
   if (customElements.get(tag)) return;
   if (schema.formAssociated) {
@@ -979,7 +979,7 @@ function camelOf2(attr) {
   return attr.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 
-// packages/ship-set-runtime/src/data.ts
+// src/data.ts
 function data(opts) {
   const sig = signal(opts.initial);
   const ESCtor = opts.EventSource ?? globalThis.EventSource;
@@ -1016,7 +1016,7 @@ function data(opts) {
   };
 }
 
-// packages/ship-set-runtime/src/state.ts
+// src/state.ts
 function debounce(input, ms) {
   const out = signal(untrack(() => input()));
   let timer = null;
@@ -1037,7 +1037,7 @@ function debounce(input, ms) {
   return out;
 }
 
-// packages/ship-set-runtime/src/live.ts
+// src/live.ts
 var toError = (err) => err instanceof Error ? err : new Error(String(err));
 var isLiveSource = (v) => typeof v === "object" && v !== null && typeof v.subscribe === "function";
 function live(source, opts) {
@@ -1085,8 +1085,16 @@ function live(source, opts) {
   });
   return sig;
 }
+function unwrap(sig) {
+  const s = sig();
+  return s.kind === "ok" ? s.value : void 0;
+}
+function unwrapOr(sig, fallback) {
+  const s = sig();
+  return s.kind === "ok" ? s.value : fallback;
+}
 
-// packages/ship-set-runtime/src/while.ts
+// src/while.ts
 var tearDownBranch = (active) => {
   if (!active) return null;
   for (const n of active.nodes) {
@@ -1145,11 +1153,438 @@ function bindWhileError(opts) {
   };
 }
 
-// packages/ship-set-runtime/src/view.ts
-function view(setup) {
-  return { setup };
+// src/controller-hook-resolver.ts
+function resolveHook(hook, ctx, outerScope) {
+  const hookState = resolveHookState(hook.state, { ship: ctx.ship, ...outerScope });
+  const stateSignals = {};
+  for (const [k, v] of Object.entries(hookState)) {
+    stateSignals[k] = signal(v);
+  }
+  const baseScope = {
+    ship: ctx.ship,
+    route: ctx.route ?? {},
+    navigate: ctx.navigate ?? ((_path) => {
+    }),
+    ...outerScope,
+    ...stateSignals
+  };
+  const writableProxy = buildHookWritableProxy(stateSignals, baseScope);
+  const declScope = { ...baseScope };
+  const deriveds = {};
+  for (const [k, fn] of Object.entries(hook.derived ?? {})) {
+    deriveds[k] = derived(() => fn(declScope));
+  }
+  Object.assign(declScope, deriveds);
+  const onHandlers = {};
+  for (const [k, fn] of Object.entries(hook.on ?? {})) {
+    onHandlers[k] = (...args) => fn(writableProxy, ...args);
+  }
+  const useResults = {};
+  const useSection = typeof hook.use === "function" ? hook.use(declScope) : hook.use ?? {};
+  for (const [k, sub] of Object.entries(useSection)) {
+    useResults[k] = resolveHook(sub, ctx, declScope);
+  }
+  return {
+    ...stateSignals,
+    ...deriveds,
+    ...onHandlers,
+    ...useResults
+  };
 }
+function resolveHookState(section, scope) {
+  if (section === void 0) return {};
+  if (typeof section === "function") {
+    return section(scope);
+  }
+  return section;
+}
+function buildHookWritableProxy(stateSignals, baseScope) {
+  return new Proxy({}, {
+    get(_target, key) {
+      if (key in stateSignals) return stateSignals[key]();
+      return baseScope[key];
+    },
+    set(_target, key, value) {
+      if (key in stateSignals) {
+        stateSignals[key].set(value);
+        return true;
+      }
+      console.warn(
+        `[ship-set] hook handler tried to write s.${key} = \u2026 but ${key} is not a hook state key. The assignment was ignored.`
+      );
+      return true;
+    },
+    has(_target, key) {
+      return key in stateSignals || key in baseScope;
+    },
+    ownKeys() {
+      return Object.keys(stateSignals);
+    },
+    getOwnPropertyDescriptor(_target, key) {
+      if (key in stateSignals) {
+        return { configurable: true, enumerable: true, writable: true, value: stateSignals[key]() };
+      }
+      return void 0;
+    }
+  });
+}
+
+// src/controller-resolver.ts
+var LIFECYCLE_KEY = "__shipSetLifecycle";
+function resolveController(def, ctx) {
+  const shape = normalize(def, ctx);
+  const baseScope = {
+    ship: ctx.ship,
+    route: ctx.route ?? {},
+    navigate: ctx.navigate ?? ((_path) => {
+    }),
+    ...ctx.scope ?? {}
+  };
+  const stateSignals = pickStateSignals(ctx.scope ?? {}, ctx.stateKeys);
+  const writableProxy = buildWritableProxy(stateSignals, baseScope);
+  const declScope = { ...baseScope };
+  const deriveds = buildDeriveds(shape, declScope);
+  Object.assign(declScope, deriveds);
+  const useResults = buildUseResults(shape, declScope, ctx);
+  for (const [k, v] of Object.entries(useResults)) {
+    declScope[k] = v;
+  }
+  const onHandlers = buildOnHandlers(shape, writableProxy);
+  const bindings = {
+    ...deriveds,
+    ...onHandlers,
+    ...useResults
+  };
+  if (shape.mount || shape.unmount) {
+    const lifecycle = {
+      state: writableProxy
+    };
+    if (shape.mount) lifecycle.mount = shape.mount;
+    if (shape.unmount) lifecycle.unmount = shape.unmount;
+    Object.defineProperty(bindings, LIFECYCLE_KEY, {
+      value: lifecycle,
+      enumerable: false,
+      configurable: true,
+      writable: false
+    });
+  }
+  return bindings;
+}
+function normalize(def, ctx) {
+  if (typeof def === "function") {
+    return def({ ship: ctx.ship });
+  }
+  return def;
+}
+function pickStateSignals(scope, stateKeys) {
+  const out = {};
+  if (stateKeys) {
+    for (const k of stateKeys) {
+      const v = scope[k];
+      if (isSignal(v)) out[k] = v;
+    }
+    return out;
+  }
+  for (const [k, v] of Object.entries(scope)) {
+    if (isSignal(v)) out[k] = v;
+  }
+  return out;
+}
+function isSignal(v) {
+  return typeof v === "function" && "set" in v && typeof v.set === "function";
+}
+function buildWritableProxy(stateSignals, baseScope) {
+  return new Proxy({}, {
+    get(_target, key) {
+      if (key in stateSignals) return stateSignals[key]();
+      return baseScope[key];
+    },
+    set(_target, key, value) {
+      if (key in stateSignals) {
+        stateSignals[key].set(value);
+        return true;
+      }
+      console.warn(
+        `[ship-set] handler tried to write s.${key} = \u2026 but ${key} is not declared as <state name="${key}"> in the template. The assignment was ignored.`
+      );
+      return true;
+    },
+    has(_target, key) {
+      return key in stateSignals || key in baseScope;
+    },
+    ownKeys() {
+      return Object.keys(stateSignals);
+    },
+    getOwnPropertyDescriptor(_target, key) {
+      if (key in stateSignals) {
+        return { configurable: true, enumerable: true, writable: true, value: stateSignals[key]() };
+      }
+      return void 0;
+    }
+  });
+}
+function buildDeriveds(shape, declScope) {
+  const section = shape.derived ?? {};
+  const out = {};
+  for (const [k, fn] of Object.entries(section)) {
+    out[k] = derived(() => fn(declScope));
+  }
+  return out;
+}
+function buildOnHandlers(shape, writableProxy) {
+  const section = shape.on ?? {};
+  const out = {};
+  for (const [k, fn] of Object.entries(section)) {
+    out[k] = (...args) => fn(writableProxy, ...args);
+  }
+  return out;
+}
+function buildUseResults(shape, declScope, ctx) {
+  if (shape.use === void 0) return {};
+  const useSection = typeof shape.use === "function" ? shape.use(declScope) : shape.use;
+  const out = {};
+  for (const [k, hookShape] of Object.entries(useSection)) {
+    out[k] = resolveHook(hookShape, ctx, declScope);
+  }
+  return out;
+}
+function controller(def) {
+  return {
+    setup: (ctx) => resolveController(def, ctx),
+    __def: def
+  };
+}
+
+// src/hooks/filtered-list.ts
+function readItems(source) {
+  const v = source();
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === "object" && "kind" in v) {
+    const env = v;
+    if (env.kind === "ok" && env.value && Array.isArray(env.value.items)) {
+      return env.value.items;
+    }
+    return [];
+  }
+  return [];
+}
+function useFilteredList(source, predicate) {
+  return {
+    state: { query: "" },
+    derived: {
+      filtered: ({ query }) => {
+        const q = query();
+        return readItems(source).filter((i) => predicate(i, q));
+      }
+    },
+    on: {
+      setQuery: (s, q) => {
+        s.query = q;
+      },
+      clear: (s) => {
+        s.query = "";
+      }
+    }
+  };
+}
+
+// src/hooks/selection.ts
+function readItems2(source) {
+  const v = source();
+  if (Array.isArray(v)) return v;
+  if (v && typeof v === "object" && "kind" in v) {
+    const env = v;
+    if (env.kind === "ok" && env.value && Array.isArray(env.value.items)) {
+      return env.value.items;
+    }
+    return [];
+  }
+  return [];
+}
+function useSelection(source, keyOf) {
+  return {
+    state: { selectedId: null },
+    derived: {
+      selected: ({ selectedId }) => {
+        const id = selectedId();
+        if (id === null) return null;
+        return readItems2(source).find((i) => keyOf(i) === id) ?? null;
+      }
+    },
+    on: {
+      select: (s, id) => {
+        s.selectedId = id;
+      },
+      clear: (s) => {
+        s.selectedId = null;
+      },
+      toggle: (s, id) => {
+        s.selectedId = s.selectedId === id ? null : id;
+      }
+    }
+  };
+}
+
+// src/hooks/form.ts
+function resolveInitial(init) {
+  return typeof init === "function" ? init() : init;
+}
+function snapshotValues(state, keys) {
+  const out = {};
+  for (const k of keys) {
+    const v = state[k];
+    out[k] = typeof v === "function" ? v() : v;
+  }
+  return out;
+}
+function useForm(opts) {
+  const init = resolveInitial(opts.initial);
+  const fieldKeys = Object.keys(init);
+  const initialValues = {
+    ...init,
+    pending: false,
+    lastError: null
+  };
+  return {
+    state: initialValues,
+    derived: {
+      values: (s) => snapshotValues(s, fieldKeys),
+      errors: (s) => {
+        const values = snapshotValues(s, fieldKeys);
+        const validated = opts.validate ? opts.validate(values) : {};
+        const out = {};
+        for (const k of fieldKeys) {
+          const v = validated[k];
+          out[k] = v === void 0 || v === null ? null : v;
+        }
+        return out;
+      },
+      valid: (s) => {
+        const values = snapshotValues(s, fieldKeys);
+        if (!opts.validate) return true;
+        const validated = opts.validate(values);
+        for (const k of fieldKeys) {
+          const v = validated[k];
+          if (v !== void 0 && v !== null) return false;
+        }
+        return true;
+      },
+      dirty: (s) => {
+        for (const k of fieldKeys) {
+          const v = s[k]();
+          if (!Object.is(v, init[k])) return true;
+        }
+        return false;
+      }
+    },
+    on: {
+      reset: (s) => {
+        for (const k of fieldKeys) {
+          s[k] = init[k];
+        }
+        s.pending = false;
+        s.lastError = null;
+      },
+      submit: async (s, event) => {
+        if (event && typeof event.preventDefault === "function") {
+          event.preventDefault();
+        }
+        const proxy = s;
+        const values = snapshotValues(proxy, fieldKeys);
+        if (opts.validate) {
+          const validated = opts.validate(values);
+          for (const k of fieldKeys) {
+            const v = validated[k];
+            if (v !== void 0 && v !== null) return;
+          }
+        }
+        if (!opts.submit) return;
+        proxy.pending = true;
+        proxy.lastError = null;
+        try {
+          await opts.submit(values);
+        } catch (err) {
+          proxy.lastError = err instanceof Error ? err : new Error(String(err));
+        } finally {
+          proxy.pending = false;
+        }
+      }
+    }
+  };
+}
+
+// src/template-hooks/registry.ts
+var registry = /* @__PURE__ */ new Map();
+function registerTemplateHook(hook) {
+  registry.set(
+    hook.name,
+    hook
+  );
+}
+function getTemplateHook(name) {
+  return registry.get(name);
+}
+function clearRegistry() {
+  registry.clear();
+}
+function listRegisteredHooks() {
+  return Array.from(registry.keys()).sort();
+}
+
+// src/template-hooks/kbd.ts
+var useKbdHook = {
+  name: "kbd",
+  attrs: { shortcuts: "literal", resolve: "literal" },
+  children: true,
+  factory: (ctx) => {
+    const { shortcuts, resolve } = ctx.attrs;
+    if (!shortcuts || shortcuts.length === 0) return;
+    const handler = (event) => {
+      for (const sc of shortcuts) {
+        if (matchesKey(event, sc.key)) {
+          const fn = resolve(sc.action);
+          if (fn) fn(event);
+          return;
+        }
+      }
+    };
+    document.addEventListener("keydown", handler);
+    ctx.cleanup(() => document.removeEventListener("keydown", handler));
+  }
+};
+
+// src/template-hooks/click-outside.ts
+var useClickOutsideHook = {
+  name: "click-outside",
+  attrs: { target: "binding", action: "binding" },
+  factory: (ctx) => {
+    const { target, action } = ctx.attrs;
+    if (!target || !action) return;
+    const handler = (event) => {
+      const t = event.target;
+      if (t instanceof Node && target.contains(t)) return;
+      action(event);
+    };
+    document.addEventListener("mousedown", handler, true);
+    ctx.cleanup(() => document.removeEventListener("mousedown", handler, true));
+  }
+};
+
+// src/template-hooks/shell.ts
+var useShellHook = {
+  name: "shell",
+  attrs: { as: "literal" },
+  factory: (_ctx) => {
+    return typeof window !== "undefined" && window.__shipShell || {};
+  }
+};
+
+// src/template-hooks/index.ts
+registerTemplateHook(useKbdHook);
+registerTemplateHook(useClickOutsideHook);
+registerTemplateHook(useShellHook);
 export {
+  LIFECYCLE_KEY,
   applyPatch,
   applyPatches,
   batch,
@@ -1168,7 +1603,9 @@ export {
   bindWhileError,
   bindWhileLoading,
   camelOf2 as camelOf,
+  clearRegistry,
   component,
+  controller,
   data,
   debounce,
   decodeBoolean,
@@ -1179,11 +1616,15 @@ export {
   defineComponent,
   derived,
   effect,
+  getTemplateHook,
+  listRegisteredHooks,
   live,
   matchesKey,
   morph,
   on,
   prop,
+  registerTemplateHook,
+  resolveController,
   resolveSlots,
   signal,
   slotFilled,
@@ -1191,5 +1632,9 @@ export {
   signal as state,
   tokenizePath,
   untrack,
-  view
+  unwrap,
+  unwrapOr,
+  useFilteredList,
+  useForm,
+  useSelection
 };

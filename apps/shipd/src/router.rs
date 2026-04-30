@@ -154,6 +154,10 @@ pub fn build_router(
             axum::routing::get(views::ship_set_view::serve_ship_set_sdk_client),
         )
         .route(
+            "/_ship-set/components.js",
+            axum::routing::get(views::ship_set_view::serve_ship_set_components),
+        )
+        .route(
             "/_ship-set/views/{name}/view.html.set",
             axum::routing::get(views::ship_set_view::serve_set_view_template),
         )

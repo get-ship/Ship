@@ -48,16 +48,47 @@ pub fn parse_expr(expr: &str) -> Option<ParsedExpr> {
 }
 
 /// Resolve a `ship.*` expression by delegating to the service
-/// registry. Empty args become an empty JSON object.
+/// registry.
+///
+/// Args grammar: a single JSON object literal between the parens, or
+/// nothing. Empty args become an empty JSON object. Anything else
+/// (positional args, identifier-only args, JS expressions) is rejected
+/// — clients are expected to substitute identifiers and serialize a
+/// JSON literal before opening the SSE channel.
 pub fn resolve(parsed: &ParsedExpr, state: &ApiState) -> Result<Value, String> {
-    if !parsed.args.trim().is_empty() {
+    let args = parse_args(&parsed.args)?;
+    registry::call(&parsed.registry_name, &args, state)
+        .map_err(|e| format!("{e}"))
+}
+
+/// Parse the argument string of a `ship.<x>(...)` expression into a
+/// JSON object the registry can consume. Three accepted forms:
+///
+///   - Empty / whitespace → `{}`
+///   - Bare object literal — `{ "id": "abc-1" }`
+///   - Quoted/encoded object literal — same shape after URL decoding
+///
+/// Anything else surfaces as a 400-shaped error string. Keeping the
+/// grammar this narrow is deliberate: the client side controls
+/// serialization and never needs anything richer; loosening this
+/// silently invites injection-shaped behavior into a server-evaluated
+/// expression.
+fn parse_args(raw: &str) -> Result<Value, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Ok(Value::Object(Default::default()));
+    }
+    let parsed: Value = serde_json::from_str(trimmed).map_err(|e| {
+        format!(
+            "data live expression args must be a JSON object literal (got `{trimmed}`): {e}"
+        )
+    })?;
+    if !parsed.is_object() {
         return Err(format!(
-            "argument-bearing data live expressions not yet supported (got `({})`)",
-            parsed.args,
+            "data live expression args must be a JSON OBJECT literal (got `{trimmed}`)"
         ));
     }
-    registry::call(&parsed.registry_name, &Value::Object(Default::default()), state)
-        .map_err(|e| format!("{e}"))
+    Ok(parsed)
 }
 
 /// Kernel namespaces to subscribe to for live updates. v1: every
@@ -112,9 +143,44 @@ mod tests {
     }
 
     #[test]
-    fn rejects_args_for_now() {
-        // Argument-bearing expressions are deferred until proper arg parsing.
-        let p = parse_expr("ship.jobs.detail(id)").unwrap();
-        assert_eq!(p.args, "id");
+    fn parses_args_string() {
+        let p = parse_expr("ship.git.diff({\"commit\":\"abc123\"})").unwrap();
+        assert_eq!(p.registry_name, "git.diff");
+        assert_eq!(p.args, "{\"commit\":\"abc123\"}");
+    }
+
+    #[test]
+    fn parse_args_empty_returns_empty_object() {
+        let v = parse_args("").unwrap();
+        assert!(v.is_object());
+        assert_eq!(v.as_object().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn parse_args_whitespace_returns_empty_object() {
+        let v = parse_args("   ").unwrap();
+        assert!(v.is_object());
+    }
+
+    #[test]
+    fn parse_args_object_literal() {
+        let v = parse_args(r#"{"id": "abc-1"}"#).unwrap();
+        assert_eq!(v["id"], "abc-1");
+    }
+
+    #[test]
+    fn parse_args_rejects_bare_identifier() {
+        assert!(parse_args("foo").is_err());
+    }
+
+    #[test]
+    fn parse_args_rejects_array_literal() {
+        // Registries take object args, not arrays.
+        assert!(parse_args("[1,2,3]").is_err());
+    }
+
+    #[test]
+    fn parse_args_rejects_partial_json() {
+        assert!(parse_args("{commit:abc}").is_err()); // unquoted keys
     }
 }

@@ -9,6 +9,16 @@ function createClient(opts) {
         `${baseUrl}/_ship-set/data?expr=${encodeURIComponent("ship.agents.summaries()")}`,
         ESCtor
       )
+    },
+    git: {
+      overview: () => makeSseSource(
+        `${baseUrl}/_ship-set/data?expr=${encodeURIComponent("ship.git.overview()")}`,
+        ESCtor
+      ),
+      diff: (args) => makeSseSource(
+        `${baseUrl}/_ship-set/data?expr=${encodeURIComponent(`ship.git.diff(${JSON.stringify(args)})`)}`,
+        ESCtor
+      )
     }
   };
 }

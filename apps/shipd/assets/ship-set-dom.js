@@ -283,20 +283,25 @@ function parseSetSource(source) {
   const data = [];
   const state2 = [];
   let component2 = null;
+  const uses = [];
   const toRemove = [];
   for (const child of Array.from(body.children)) {
     const tag = child.tagName.toLowerCase();
-    if (!TOP_LEVEL_TAGS.has(tag)) continue;
-    toRemove.push(child);
-    if (tag === "data") data.push(parseData(child));
-    else if (tag === "state") state2.push(parseState(child));
-    else if (tag === "component") {
-      if (component2) {
-        throw new Error(
-          "[ship-set-dom] only one <component> declaration allowed per file"
-        );
+    if (TOP_LEVEL_TAGS.has(tag)) {
+      toRemove.push(child);
+      if (tag === "data") data.push(parseData(child));
+      else if (tag === "state") state2.push(parseState(child));
+      else if (tag === "component") {
+        if (component2) {
+          throw new Error(
+            "[ship-set-dom] only one <component> declaration allowed per file"
+          );
+        }
+        component2 = parseComponent(child);
       }
-      component2 = parseComponent(child);
+    } else if (tag.startsWith("use-")) {
+      toRemove.push(child);
+      uses.push(parseUse(child));
     }
   }
   for (const el of toRemove) el.remove();
@@ -305,16 +310,41 @@ function parseSetSource(source) {
     data,
     state: state2,
     component: component2,
+    uses,
     templateNodes: Array.from(body.childNodes),
     doc
   };
 }
+var parseUse = (el) => {
+  const name = el.tagName.toLowerCase().slice("use-".length);
+  const attrs = {};
+  for (const a of Array.from(el.attributes)) {
+    if (a.name.startsWith("bind:")) {
+      const ident = a.value.replace(/^\{|\}$/g, "").trim();
+      attrs[a.name.slice("bind:".length)] = { kind: "binding", raw: ident };
+    } else if (a.value.startsWith("{") && a.value.endsWith("}")) {
+      attrs[a.name] = {
+        kind: "identifier",
+        raw: a.value.slice(1, -1).trim()
+      };
+    } else {
+      attrs[a.name] = { kind: "literal", raw: a.value };
+    }
+  }
+  const children = [];
+  for (const c of Array.from(el.children)) {
+    const childAttrs = {};
+    for (const ca of Array.from(c.attributes)) childAttrs[ca.name] = ca.value;
+    children.push({ tag: c.tagName.toLowerCase(), attrs: childAttrs });
+  }
+  return { name, attrs, children };
+};
 var parseData = (el) => {
   const name = required(el, "name", "<data>");
   const source = required(el, "source", "<data>");
   return {
     name,
-    source: compileSource(source, ["ship", "route"], {
+    source: compileSource(source, ["ship", "route", "$scope"], {
       location: `<data name="${name}">`
     }),
     live: el.hasAttribute("live")
@@ -338,12 +368,15 @@ var stripExprBraces = (s) => {
 };
 var parseComponent = (el) => {
   const tag = required(el, "name", "<component>");
+  const shadow = el.hasAttribute("shadow");
   const props = [];
+  const styleParts = [];
   for (const child of Array.from(el.children)) {
-    if (child.tagName.toLowerCase() !== "prop") continue;
-    props.push(parseProp(child));
+    const childTag = child.tagName.toLowerCase();
+    if (childTag === "prop") props.push(parseProp(child));
+    else if (childTag === "style") styleParts.push(child.textContent ?? "");
   }
-  return { tag, props };
+  return { tag, props, shadow, styles: styleParts.join("\n") };
 };
 var parseProp = (el) => {
   const name = required(el, "name", "<prop>");
@@ -1317,11 +1350,11 @@ function renderMatch(instr, scope, doc) {
 
 // packages/ship-set-dom/src/directives/data.ts
 import { live } from "@ship-set/runtime";
-function mountData(decl, ship, route) {
+function mountData(decl, ship, route, scope) {
   if (decl.live) {
-    return live(() => decl.source(ship, route));
+    return live(() => decl.source(ship, route, scope));
   }
-  return decl.source(ship, route);
+  return decl.source(ship, route, scope);
 }
 
 // packages/ship-set-dom/src/directives/state.ts
@@ -1367,6 +1400,8 @@ function registerComponent(decl, body, doc, userSetup) {
   for (const p of decl.props) props[p.name] = buildPropDef(p);
   component(decl.tag, {
     props,
+    ...decl.shadow ? { shadow: true } : {},
+    ...decl.styles ? { styles: decl.styles } : {},
     setup: ({ props: propSignals, host, cleanups }) => {
       const scope = {};
       for (const [attr, sig] of Object.entries(propSignals)) {
@@ -1383,7 +1418,8 @@ function registerComponent(decl, body, doc, userSetup) {
       }
       const finalScope = extras ? extendScope(scope, extras) : scope;
       const r = render(body, finalScope, doc);
-      for (const n of r.nodes) host.appendChild(n);
+      const target = host.shadowRoot ?? host;
+      for (const n of r.nodes) target.appendChild(n);
       const cleanup = r.mount();
       cleanups.push(() => {
         for (const n of r.nodes) {
@@ -1399,6 +1435,7 @@ function registerComponent(decl, body, doc, userSetup) {
 }
 
 // packages/ship-set-dom/src/hydrate.ts
+import { getTemplateHook } from "@ship-set/runtime";
 function hydrate(template, setup, opts) {
   if (!opts || !opts.container) {
     throw new Error("[ship-set-dom] hydrate: opts.container is required");
@@ -1420,25 +1457,58 @@ function hydrate(template, setup, opts) {
     } };
   }
   let scope = { ship, route, navigate };
-  for (const decl of parsed.data) {
-    scope[decl.name] = mountData(decl, ship, route);
-  }
   for (const decl of parsed.state) {
     scope[decl.name] = mountState(decl, scope);
   }
+  for (const decl of parsed.data) {
+    scope[decl.name] = mountData(decl, ship, route, scope);
+  }
+  const LIFECYCLE_KEY = "__shipSetLifecycle";
+  let lifecycle;
   if (setup) {
-    const ctx = { ship, route, navigate };
+    const ctx = { ship, route, navigate, scope: { ...scope } };
     const ret = setup(ctx);
     if (ret && typeof ret === "object") {
       scope = extendScope(scope, ret);
+      const lc = ret[LIFECYCLE_KEY];
+      if (lc && typeof lc === "object") {
+        lifecycle = lc;
+      }
     }
+  }
+  const hookCleanups = [];
+  for (const u of parsed.uses) {
+    invokeUseHook(u, scope, opts.container, (cleanup2) => {
+      hookCleanups.push(cleanup2);
+    });
   }
   const instrs = compileTopLevel(parsed.templateNodes);
   const r = render(instrs, scope, opts.container.ownerDocument);
   for (const n of r.nodes) opts.container.appendChild(n);
   const cleanup = r.mount();
+  if (lifecycle?.mount) {
+    try {
+      lifecycle.mount(lifecycle.state, opts.container);
+    } catch (err) {
+      console.error("[ship-set-dom] controller mount() threw:", err);
+    }
+  }
   return {
     dispose: () => {
+      if (lifecycle?.unmount) {
+        try {
+          lifecycle.unmount(lifecycle.state);
+        } catch (err) {
+          console.error("[ship-set-dom] controller unmount() threw:", err);
+        }
+      }
+      for (const fn of hookCleanups) {
+        try {
+          fn();
+        } catch (err) {
+          console.error("[ship-set-dom] template hook cleanup threw:", err);
+        }
+      }
       for (const n of r.nodes) {
         try {
           n.parentNode?.removeChild(n);
@@ -1448,6 +1518,47 @@ function hydrate(template, setup, opts) {
       cleanup();
     }
   };
+}
+function invokeUseHook(decl, scope, container, registerCleanup) {
+  const hook = getTemplateHook(decl.name);
+  if (!hook) {
+    console.warn(`[ship-set-dom] no template hook registered for <use-${decl.name}>`);
+    return;
+  }
+  const resolvedAttrs = {};
+  for (const [k, v] of Object.entries(decl.attrs)) {
+    if (v.kind === "literal") {
+      resolvedAttrs[k] = v.raw;
+    } else {
+      resolvedAttrs[k] = scope[v.raw];
+    }
+  }
+  if (decl.name === "kbd") {
+    const shortcuts = decl.children.filter((c) => c.tag === "on").map((c) => ({ key: c.attrs.key ?? "", action: c.attrs.action ?? "" })).filter((s) => s.key && s.action);
+    resolvedAttrs.shortcuts = shortcuts;
+    resolvedAttrs.resolve = (action) => {
+      const v = scope[action];
+      return typeof v === "function" ? v : void 0;
+    };
+  }
+  try {
+    const cleanups = [];
+    const ctx = {
+      attrs: resolvedAttrs,
+      el: container,
+      cleanup: (fn) => cleanups.push(fn)
+    };
+    const contributed = hook.factory(ctx);
+    if (contributed !== void 0) {
+      const asAttr = decl.attrs.as;
+      if (asAttr && asAttr.kind === "literal") {
+        scope[asAttr.raw] = contributed;
+      }
+    }
+    for (const c of cleanups) registerCleanup(c);
+  } catch (err) {
+    console.error(`[ship-set-dom] <use-${decl.name}> factory threw:`, err);
+  }
 }
 function compileTopLevel(nodes) {
   if (nodes.length === 0) return [];

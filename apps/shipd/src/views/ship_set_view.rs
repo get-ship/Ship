@@ -55,11 +55,19 @@ const AGENTS_VIEW_CSS: &str = include_str!("../../../../views/agents/view.css");
 const AGENTS_VIEW_JS: &str =
     include_str!("../../assets/views/agents/view.js");
 
+const GIT_VIEW_HTML_SET: &str =
+    include_str!("../../../../views/git/view.html.set");
+const GIT_VIEW_CSS: &str = include_str!("../../../../views/git/view.css");
+const GIT_VIEW_JS: &str =
+    include_str!("../../assets/views/git/view.js");
+
 // ── Bundled framework modules ────────────────────────────────────────
 
 const SHIP_SET_DOM_JS: &str = include_str!("../../assets/ship-set-dom.js");
 const SHIP_SET_SDK_CLIENT_JS: &str =
     include_str!("../../assets/ship-set-sdk-client.js");
+const SHIP_SET_COMPONENTS_JS: &str =
+    include_str!("../../assets/ship-set-components.js");
 
 /// `GET /_ship-set/dom.js` — bundled `@ship-set/dom` ESM module.
 pub async fn serve_ship_set_dom() -> Response {
@@ -69,6 +77,13 @@ pub async fn serve_ship_set_dom() -> Response {
 /// `GET /_ship-set/sdk-client.js` — bundled `@ship-set/sdk-client` ESM module.
 pub async fn serve_ship_set_sdk_client() -> Response {
     js_response(SHIP_SET_SDK_CLIENT_JS)
+}
+
+/// `GET /_ship-set/components.js` — bundled `@ship-set/components` ESM module.
+/// Imported as a side-effect from the shell so every `<set-*>` custom
+/// element is registered before any view template renders.
+pub async fn serve_ship_set_components() -> Response {
+    js_response(SHIP_SET_COMPONENTS_JS)
 }
 
 /// `GET /set/{name}` — HTML shell that hydrates `views/{name}/`.
@@ -100,6 +115,7 @@ pub async fn serve_set_view_template(Path(name): Path<String>) -> Response {
     }
     let body = match name.as_str() {
         "agents" => AGENTS_VIEW_HTML_SET,
+        "git" => GIT_VIEW_HTML_SET,
         _ => return not_found(&format!("template not found: {name}")),
     };
     Response::builder()
@@ -117,6 +133,7 @@ pub async fn serve_set_view_setup(Path(name): Path<String>) -> Response {
     }
     let body = match name.as_str() {
         "agents" => AGENTS_VIEW_JS,
+        "git" => GIT_VIEW_JS,
         _ => return not_found(&format!("setup not found: {name}")),
     };
     js_response(body)
@@ -129,6 +146,7 @@ pub async fn serve_set_view_css(Path(name): Path<String>) -> Response {
     }
     let body = match name.as_str() {
         "agents" => AGENTS_VIEW_CSS,
+        "git" => GIT_VIEW_CSS,
         _ => return not_found(&format!("css not found: {name}")),
     };
     Response::builder()
@@ -163,12 +181,13 @@ fn is_valid_view_name(s: &str) -> bool {
 }
 
 fn view_exists(name: &str) -> bool {
-    matches!(name, "agents")
+    matches!(name, "agents" | "git")
 }
 
 fn title_for(name: &str) -> &'static str {
     match name {
         "agents" => "Agents",
+        "git" => "Git",
         _ => "Ship",
     }
 }
@@ -189,6 +208,7 @@ fn render_shell(name: &str, title: &str) -> String {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{safe_title}</title>
   <link rel="stylesheet" href="/api/assets/view-tokens.css">
+  <link rel="stylesheet" href="/_ship-set/views/{safe_name}/view.css">
   <script type="module" src="/api/assets/ship-elements.js"></script>
   <script type="importmap">
   {{
@@ -199,6 +219,9 @@ fn render_shell(name: &str, title: &str) -> String {
     }}
   }}
   </script>
+  <!-- Side-effect import: registers every `<set-*>` ported component
+       on page load, before any view template renders. -->
+  <script type="module" src="/_ship-set/components.js"></script>
 </head>
 <body>
   <div id="ship-set-root" data-view="{safe_name}">
