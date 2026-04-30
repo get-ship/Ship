@@ -126,6 +126,13 @@ pub async fn serve_set_render(
 
 fn wrap_document(name: &str, body_fragment: &str) -> String {
     let safe_name = escape_html(name);
+    let importmap = super::ship_set_attach_boot::importmap_script();
+    let components = super::ship_set_attach_boot::components_side_effect_script();
+    let boot = super::ship_set_attach_boot::attach_boot_script(
+        &safe_name,
+        "document.querySelector('[data-ssr-root]')",
+        "render",
+    );
     format!(
         r#"<!doctype html>
 <html lang="en">
@@ -134,38 +141,14 @@ fn wrap_document(name: &str, body_fragment: &str) -> String {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SSR debug: {safe_name}</title>
   <link rel="stylesheet" href="/_ship-set/views/{safe_name}/view.css">
-  <script type="importmap">
-  {{
-    "imports": {{
-      "@ship-set/runtime":     "/_ship-set/runtime.js",
-      "@ship-set/dom":         "/_ship-set/dom.js",
-      "@ship-set/sdk-client":  "/_ship-set/sdk-client.js"
-    }}
-  }}
-  </script>
-  <script type="module" src="/_ship-set/components.js"></script>
+  {importmap}
+  {components}
 </head>
 <body>
 <!-- BEGIN SSR walker output -->
 <div data-ssr-root>{body_fragment}</div>
 <!-- END SSR walker output -->
-<script type="module">
-  import * as viewModule from '/_ship-set/views/{safe_name}/view.js';
-  import {{ attach }} from '@ship-set/dom';
-  import {{ createClient }} from '@ship-set/sdk-client';
-
-  const navigate = (path) => {{ window.location.href = path; }};
-  const ship = createClient();
-  const route = {{ params: {{}}, query: {{}} }};
-
-  const root = document.querySelector('[data-ssr-root]');
-  try {{
-    const dispose = attach(root, {{ module: viewModule, ship, route, navigate, viewName: '{safe_name}' }});
-    window.__shipSetDispose = dispose;
-  }} catch (err) {{
-    console.error('[ship-set/render] attach failed:', err);
-  }}
-</script>
+{boot}
 </body>
 </html>
 "#

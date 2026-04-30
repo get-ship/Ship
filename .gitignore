@@ -140,3 +140,4 @@ apps/shell/public/vendor/
 # loop test results — local only
 tests/loops/results/
 views/*/view.js
+views/*/view.schema.json

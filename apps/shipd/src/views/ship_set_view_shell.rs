@@ -1,22 +1,28 @@
 //! HTML document wrapper for `/set/<view>` (production SSR + attach).
 //!
-//! Phase F extracted this from `ship_set_view::render_shell` so the
-//! handler module stays under the 300-LOC cap. The wrapper is
-//! deliberately the same shape as
-//! `ship_set_render.rs::wrap_document` — same importmap, same boot
-//! script — except this one preserves the legacy `id="ship-set-root"`
-//! and `data-view="{name}"` attributes plus the
-//! `<script type="module" src="/api/assets/ship-elements.js">`
-//! include so the production URL stays compatible with anything that
-//! grepped them.
-//!
-//! TODO(phase-G): merge with `ship_set_render::wrap_document` once the
-//! F-1 debug endpoint and this handler can share a single render path.
+//! Same boot-script shape as `ship_set_render.rs::wrap_document` —
+//! both call into `ship_set_attach_boot` for the importmap,
+//! components side-effect import, and attach() invocation. This
+//! handler differs only in the production-specific outer chrome:
+//! per-view `<title>`, `view-tokens.css`, `ship-elements.js`
+//! legacy include, `id="ship-set-root"` + `data-view="{name}"` for
+//! selector compatibility.
+
+use super::ship_set_attach_boot::{
+    attach_boot_script, components_side_effect_script, importmap_script,
+};
 
 /// Wrap the SSR walker fragment in the production document shell.
 pub fn render_shell(name: &str, title: &str, ssr_html: &str) -> String {
     let safe_name = escape_html(name);
     let safe_title = escape_html(title);
+    let importmap = importmap_script();
+    let components = components_side_effect_script();
+    let boot = attach_boot_script(
+        &safe_name,
+        "document.getElementById('ship-set-root')",
+        "view",
+    );
     format!(
         r#"<!doctype html>
 <html lang="en">
@@ -27,38 +33,12 @@ pub fn render_shell(name: &str, title: &str, ssr_html: &str) -> String {
   <link rel="stylesheet" href="/api/assets/view-tokens.css">
   <link rel="stylesheet" href="/_ship-set/views/{safe_name}/view.css">
   <script type="module" src="/api/assets/ship-elements.js"></script>
-  <script type="importmap">
-  {{
-    "imports": {{
-      "@ship-set/runtime":     "/_ship-set/runtime.js",
-      "@ship-set/dom":         "/_ship-set/dom.js",
-      "@ship-set/sdk-client":  "/_ship-set/sdk-client.js"
-    }}
-  }}
-  </script>
-  <!-- Side-effect import: registers every `<set-*>` ported component
-       on page load, before any view template renders. -->
-  <script type="module" src="/_ship-set/components.js"></script>
+  {importmap}
+  {components}
 </head>
 <body>
   <div id="ship-set-root" data-ssr-root data-view="{safe_name}">{ssr_html}</div>
-  <script type="module">
-    import * as viewModule from '/_ship-set/views/{safe_name}/view.js';
-    import {{ attach }} from '@ship-set/dom';
-    import {{ createClient }} from '@ship-set/sdk-client';
-
-    const navigate = (path) => {{ window.location.href = path; }};
-    const ship = createClient();
-    const route = {{ params: {{}}, query: {{}} }};
-
-    const root = document.getElementById('ship-set-root');
-    try {{
-      const dispose = attach(root, {{ module: viewModule, ship, route, navigate, viewName: '{safe_name}' }});
-      window.__shipSetDispose = dispose;
-    }} catch (err) {{
-      console.error('[ship-set/view] attach failed:', err);
-    }}
-  </script>
+  {boot}
 </body>
 </html>
 "#

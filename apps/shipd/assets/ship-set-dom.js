@@ -1,4 +1,4 @@
-// src/template/expr.ts
+// packages/ship-set-dom/src/template/expr.ts
 function compileExpr(expr, opts = {}) {
   const trimmed = expr.trim();
   if (!trimmed) {
@@ -120,7 +120,7 @@ function validate(expr, opts) {
   }
 }
 
-// src/preprocess.ts
+// packages/ship-set-dom/src/preprocess.ts
 var VOID_TAGS = /* @__PURE__ */ new Set([
   "area",
   "base",
@@ -273,7 +273,7 @@ function expandSelfClose(source) {
   return out;
 }
 
-// src/parse.ts
+// packages/ship-set-dom/src/parse.ts
 var TOP_LEVEL_TAGS = /* @__PURE__ */ new Set(["data", "state", "component"]);
 function parseSetSource(source) {
   const prepared = preprocess(source);
@@ -446,7 +446,7 @@ var trimEdges = (parent) => {
 };
 var isEmptyText = (n) => n.nodeType === 3 && (n.textContent ?? "").trim() === "";
 
-// src/bindings/attr-compile.ts
+// packages/ship-set-dom/src/bindings/attr-compile.ts
 var EXPR_RE = /^\{(.*)\}$/s;
 var isExprValue = (v) => EXPR_RE.test(v.trim());
 var stripBraces = (v) => {
@@ -594,7 +594,7 @@ var compileDynamicAttr = (name, value, loc) => {
   };
 };
 
-// src/template/tokenize.ts
+// packages/ship-set-dom/src/template/tokenize.ts
 function tokenizeChildren(parent) {
   const out = [];
   for (const node of Array.from(parent.childNodes)) {
@@ -688,7 +688,7 @@ function classifyBrace(inner, raw) {
   return { kind: "expr", src: inner, loc };
 }
 
-// src/template/compile-blocks.ts
+// packages/ship-set-dom/src/template/compile-blocks.ts
 var IF_TERMS = ["else-if", "else", "close-if"];
 var FOR_TERMS = ["else", "close-for"];
 var MATCH_TERMS = ["case", "default", "close-match"];
@@ -863,7 +863,7 @@ function parseMatch(tokens, start, scope) {
   return { instr, end: i };
 }
 
-// src/template/compile.ts
+// packages/ship-set-dom/src/template/compile.ts
 function compileChildren(parent) {
   const tokens = tokenizeChildren(parent);
   return parseTokens(tokens, 0).instrs;
@@ -971,10 +971,10 @@ var requiredAttr = (el, name, label) => {
   return v;
 };
 
-// src/template/render.ts
+// packages/ship-set-dom/src/template/render.ts
 import { bindText, effect as effect3 } from "@ship-set/runtime";
 
-// src/template/render-attrs.ts
+// packages/ship-set-dom/src/template/render-attrs.ts
 import {
   bindAttr,
   bindClass,
@@ -1064,7 +1064,7 @@ function applyAttr(el, a, scope, disposers) {
   }
 }
 
-// src/template/render-for.ts
+// packages/ship-set-dom/src/template/render-for.ts
 import {
   bindFor,
   effect as effect2
@@ -1140,7 +1140,7 @@ function mountFor(anchor, instr, scope, doc) {
   };
 }
 
-// src/template/render-while.ts
+// packages/ship-set-dom/src/template/render-while.ts
 import {
   bindWhileLoading,
   bindWhileError
@@ -1193,7 +1193,7 @@ function renderWhileError(decl, body, scope, doc) {
   };
 }
 
-// src/template/render.ts
+// packages/ship-set-dom/src/template/render.ts
 var extendScope = (parent, additions) => Object.assign(Object.create(parent), additions);
 var composeDisposers = (ds) => () => {
   for (const d of ds) {
@@ -1348,7 +1348,7 @@ function renderMatch(instr, scope, doc) {
   };
 }
 
-// src/directives/data.ts
+// packages/ship-set-dom/src/directives/data.ts
 import { live } from "@ship-set/runtime";
 function mountData(decl, ship, route, scope) {
   if (decl.live) {
@@ -1357,14 +1357,14 @@ function mountData(decl, ship, route, scope) {
   return decl.source(ship, route, scope);
 }
 
-// src/directives/state.ts
+// packages/ship-set-dom/src/directives/state.ts
 import { state } from "@ship-set/runtime";
 function mountState(decl, scope) {
   const initial = decl.value(scope);
   return state(initial);
 }
 
-// src/directives/component.ts
+// packages/ship-set-dom/src/directives/component.ts
 import { component, prop } from "@ship-set/runtime";
 var camelOf = (s) => s.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 var buildPropDef = (decl) => {
@@ -1434,7 +1434,7 @@ function registerComponent(decl, body, doc, userSetup) {
   });
 }
 
-// src/hydrate.ts
+// packages/ship-set-dom/src/hydrate.ts
 import { getTemplateHook } from "@ship-set/runtime";
 function hydrate(template, setup, opts) {
   if (!opts || !opts.container) {
@@ -1577,7 +1577,7 @@ function compileTopLevel(nodes) {
   return compileChildren(fragment);
 }
 
-// src/attach/island.ts
+// packages/ship-set-dom/src/attach/island.ts
 import { signal } from "@ship-set/runtime";
 var INIT_ID = "__set_init__";
 function readInitIsland(root) {
@@ -1626,7 +1626,7 @@ function isLiveStateEnvelope(v) {
   return k === "loading" || k === "ok" || k === "error";
 }
 
-// src/attach/manifest.ts
+// packages/ship-set-dom/src/attach/manifest.ts
 var ATTR_PREFIX = "data-set-";
 var TEXT_OPEN_PREFIX = "set:text:";
 var TEXT_CLOSE = "/set";
@@ -1680,10 +1680,10 @@ function isComment(n) {
   return n.nodeType === 8;
 }
 
-// src/attach/bindings/text.ts
+// packages/ship-set-dom/src/attach/bindings/text.ts
 import { effect as effect4 } from "@ship-set/runtime";
 
-// src/attach/eval.ts
+// packages/ship-set-dom/src/attach/eval.ts
 var cache = /* @__PURE__ */ new WeakMap();
 var MODULE_KEY = {};
 function compileExpr2(expr) {
@@ -1702,7 +1702,7 @@ function compileExpr2(expr) {
   return fn;
 }
 
-// src/attach/bindings/text.ts
+// packages/ship-set-dom/src/attach/bindings/text.ts
 function wireText(open, close, scope, expr) {
   const parent = open.parentNode;
   if (!parent) return () => {
@@ -1733,7 +1733,7 @@ function stringify(v) {
   return String(v);
 }
 
-// src/attach/bindings/event.ts
+// packages/ship-set-dom/src/attach/bindings/event.ts
 function wireOn(el, eventName, scope, expr) {
   const ev = compileExpr2(expr);
   const listener = (e) => {
@@ -1756,7 +1756,7 @@ function wireOn(el, eventName, scope, expr) {
   return () => el.removeEventListener(eventName, listener);
 }
 
-// src/attach/bindings/bind-value.ts
+// packages/ship-set-dom/src/attach/bindings/bind-value.ts
 import { effect as effect5 } from "@ship-set/runtime";
 function wireBindValue(el, scope, expr) {
   const sig = scope[expr];
@@ -1789,7 +1789,7 @@ function isWritableSignal(v) {
   return typeof v === "function" && "set" in v && typeof v.set === "function";
 }
 
-// src/attach/bindings/bind-checked.ts
+// packages/ship-set-dom/src/attach/bindings/bind-checked.ts
 import { effect as effect6 } from "@ship-set/runtime";
 function wireBindChecked(el, scope, expr) {
   const sig = scope[expr];
@@ -1819,7 +1819,7 @@ function isWritableSignal2(v) {
   return typeof v === "function" && "set" in v && typeof v.set === "function";
 }
 
-// src/attach/bindings/attr.ts
+// packages/ship-set-dom/src/attach/bindings/attr.ts
 import { effect as effect7 } from "@ship-set/runtime";
 function wireAttr(el, name, scope, expr) {
   const ev = compileExpr2(expr);
@@ -1839,7 +1839,7 @@ function wireAttr(el, name, scope, expr) {
   });
 }
 
-// src/attach/bindings/class.ts
+// packages/ship-set-dom/src/attach/bindings/class.ts
 import { effect as effect8 } from "@ship-set/runtime";
 function wireClass(el, name, scope, expr) {
   const ev = compileExpr2(expr);
@@ -1855,7 +1855,7 @@ function wireClass(el, name, scope, expr) {
   });
 }
 
-// src/attach/bindings/style.ts
+// packages/ship-set-dom/src/attach/bindings/style.ts
 import { effect as effect9 } from "@ship-set/runtime";
 function wireStyle(el, propName, scope, expr) {
   const ev = compileExpr2(expr);
@@ -1875,7 +1875,7 @@ function wireStyle(el, propName, scope, expr) {
   });
 }
 
-// src/attach/bindings/attr-dynamic.ts
+// packages/ship-set-dom/src/attach/bindings/attr-dynamic.ts
 import { effect as effect10 } from "@ship-set/runtime";
 function wireAttrDynamic(el, scope, expr) {
   const ev = compileExpr2(expr);
@@ -1894,7 +1894,7 @@ function wireAttrDynamic(el, scope, expr) {
   });
 }
 
-// src/attach/boundaries.ts
+// packages/ship-set-dom/src/attach/boundaries.ts
 import { effect as effect11 } from "@ship-set/runtime";
 function wireBoundary(el, binding, ctx) {
   let current = el;
@@ -2005,7 +2005,7 @@ function buildReplacement(prior, binding, html) {
   return div;
 }
 
-// src/attach/wire.ts
+// packages/ship-set-dom/src/attach/wire.ts
 function wireMarker(hit, ctx) {
   if (hit.kind === "text") {
     return wireText(hit.open, hit.close, ctx.scope, hit.binding.expr);
@@ -2090,7 +2090,7 @@ function pull(scope, k, out) {
   }
 }
 
-// src/attach.ts
+// packages/ship-set-dom/src/attach.ts
 var LIFECYCLE_KEY = "__shipSetLifecycle";
 function attach(root, opts) {
   if (!root) {
@@ -2168,7 +2168,7 @@ function extractLifecycle(ret) {
   return void 0;
 }
 
-// src/setup-loader.ts
+// packages/ship-set-dom/src/setup-loader.ts
 async function loadSetup(setUrl, loader = (p) => import(
   /* @vite-ignore */
   p
