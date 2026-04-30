@@ -1,10 +1,17 @@
 ---
 name: ship-component-packs
 stable-id: ship-component-packs
-description: "Authoring reusable web-component packs for Ship — for pack vendors and internal teams outgrowing view primitives. NOT for happy-path view authoring; see ship-sdk first."
-tags: [ship, packs, web-components, components, authoring, distribution]
+description: "Authoring reusable web-component packs for Ship — for pack vendors and internal teams outgrowing view primitives. NOT for happy-path view authoring; see ship-sdk first. PARTIALLY PHASING OUT — the pack distribution mechanics survive, but the `.ship` SFC format inside packs is dead; new packs ship `.html.set` components per the ship-set-framework skill."
+tags: [ship, packs, web-components, components, authoring, distribution, phasing-out]
 authors: [ship]
 ---
+
+> **⚠ Partially phasing out.** Pack distribution (`pack.toml`, lockfile,
+> registry, install flow) survives unchanged. The **format of components
+> inside packs** is being replaced — `.ship` SFC files are dead; the target
+> is `.html.set` per the **`ship-set-framework`** skill. Existing packs of
+> `.ship` components remain installable until ported. See
+> `docs/ship-set-framework/references/docs/status.md` for the migration map.
 
 # Ship Component Packs
 

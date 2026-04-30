@@ -1,0 +1,202 @@
+<data name="overview" source="ship.git.overview()" live />
+<state name="tab" value="'changes'" />
+
+<use-kbd>
+  <on key="1" action="showChanges" />
+  <on key="2" action="showHistory" />
+  <on key="3" action="showBranches" />
+</use-kbd>
+
+<div class="ship-view git-view">
+  <while-loading bind="overview">
+    <p class="git-loading" data-test="loading">Loading repo overview&hellip;</p>
+  </while-loading>
+
+  <while-error bind="overview" let:err>
+    <p class="git-error" data-test="error">Failed to load: {err.message}</p>
+  </while-error>
+
+  {#if overview().kind === 'ok'}
+    <header class="git-head">
+      <div class="git-head-titles">
+        <h1 class="git-title">Git</h1>
+        <p class="git-sub">
+          <span class="git-mono">{branch()}</span>
+          {ahead() > 0 ? ' ↑' + ahead() : ''}
+          {behind() > 0 ? ' ↓' + behind() : ''}
+          &middot;
+          <span class="git-mono">{headShort()}</span>
+        </p>
+      </div>
+      <div class="git-head-actions">
+        <set-chip tone={clean() ? 'success' : 'warning'} variant="soft" size="sm">
+          {clean() ? 'clean' : totalChanged() + ' changed'}
+        </set-chip>
+      </div>
+    </header>
+
+    <div class="git-tabs-row">
+      <set-tabs variant="underline">
+        <set-tab name="changes"  active={tab() === 'changes'}  count={totalChanged() + ''}
+                 on:click={() => tab.set('changes')}>Changes</set-tab>
+        <set-tab name="history"  active={tab() === 'history'}  count={commitsCount() + ''}
+                 on:click={() => tab.set('history')}>History</set-tab>
+        <set-tab name="branches" active={tab() === 'branches'} count={branchesCount() + ''}
+                 on:click={() => tab.set('branches')}>Branches</set-tab>
+      </set-tabs>
+    </div>
+
+    <div class="git-body">
+      {#if tab() === 'changes'}
+        {#if clean()}
+          <div class="git-clean">
+            <div class="git-hero">
+              <div class="git-halo">
+                <ship-icon name="check" size="md"></ship-icon>
+              </div>
+              <div>
+                <h2 class="git-hero-title">Working tree is clean.</h2>
+                <p class="git-hero-sub">
+                  Nothing to commit on <span class="git-mono">{branch()}</span>.
+                  {ahead() === 0 && behind() === 0 ? "You're up to date with the upstream." : ''}
+                  {ahead() > 0 ? ahead() + ' commit' + (ahead() === 1 ? '' : 's') + ' ahead of upstream.' : ''}
+                  {behind() > 0 ? ' ' + behind() + ' commit' + (behind() === 1 ? '' : 's') + ' behind upstream.' : ''}
+                </p>
+              </div>
+            </div>
+
+            <div class="git-two-col">
+              <section class="git-sec">
+                <h3>Recent on this branch</h3>
+                {#if recentCommits().length === 0}
+                  <p class="git-empty">No commits yet.</p>
+                {:else}
+                  {#for c of recentCommits() key={c.sha}}
+                    <div class="git-row">
+                      <set-avatar size="sm" shape="round" name={c.author}></set-avatar>
+                      <div class="git-row-body">
+                        <div class="git-row-title">{c.subject}</div>
+                        <div class="git-row-sub">{c.short_sha} &middot; {c.author} &middot; {c.date}</div>
+                      </div>
+                      <div class="git-deltas">
+                        <span class="git-add">+{c.additions}</span>
+                        <span class="git-del">&minus;{c.deletions}</span>
+                      </div>
+                    </div>
+                  {/for}
+                {/if}
+              </section>
+
+              <section class="git-sec">
+                <h3>Branches</h3>
+                {#if recentBranches().length === 0}
+                  <p class="git-empty">No branches.</p>
+                {:else}
+                  {#for b of recentBranches() key={b.name}}
+                    <div class="git-row">
+                      <ship-icon name="git-branch" size="xs" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></ship-icon>
+                      <div class="git-row-body">
+                        <div class="git-row-title git-mono">{b.name}</div>
+                        <div class="git-row-sub">{b.upstream ? b.upstream : 'local only'}</div>
+                      </div>
+                      <div class="git-deltas">
+                        {b.ahead > 0 ? '↑' + b.ahead : ''}
+                        {b.behind > 0 ? ' ↓' + b.behind : ''}
+                      </div>
+                    </div>
+                  {/for}
+                {/if}
+              </section>
+            </div>
+          </div>
+        {:else}
+          <div class="git-changes">
+            {#if staged().length > 0}
+              <section class="git-filegroup">
+                <h3>Staged ({staged().length})</h3>
+                {#for f of staged() key={f.path}}
+                  <div class="git-fileline git-mono">{f.path}</div>
+                {/for}
+              </section>
+            {/if}
+            {#if modified().length > 0}
+              <section class="git-filegroup">
+                <h3>Modified ({modified().length})</h3>
+                {#for f of modified() key={f.path}}
+                  <div class="git-fileline git-mono">{f.path}</div>
+                {/for}
+              </section>
+            {/if}
+            {#if untracked().length > 0}
+              <section class="git-filegroup">
+                <h3>Untracked ({untracked().length})</h3>
+                {#for f of untracked() key={f.path}}
+                  <div class="git-fileline git-mono">{f.path}</div>
+                {/for}
+              </section>
+            {/if}
+          </div>
+        {/if}
+      {/if}
+
+      {#if tab() === 'history'}
+        <div class="git-history">
+          <div class="git-history-search">
+            <input
+              class="git-search"
+              placeholder="Filter by subject, sha, or author"
+              bind:value={commitFilter.query} />
+            <span class="git-history-count">{commitFilter.filtered().length} of {commitsCount()}</span>
+          </div>
+          {#if commitFilter.filtered().length === 0}
+            <set-empty-state tone="muted" size="md">
+              <span slot="title">{commitsCount() === 0 ? 'No commits' : 'No matching commits'}</span>
+            </set-empty-state>
+          {:else}
+            <div class="git-history-rows">
+              {#for c of commitFilter.filtered() key={c.sha}}
+                <div class="git-history-row">
+                  <set-avatar size="sm" shape="round" name={c.author}></set-avatar>
+                  <div class="git-row-body">
+                    <div class="git-row-title">{c.subject}</div>
+                    <div class="git-row-sub git-mono">{c.short_sha} &middot; {c.author} &middot; {c.date}</div>
+                  </div>
+                  <div class="git-deltas">
+                    <span class="git-add">+{c.additions}</span>
+                    <span class="git-del">&minus;{c.deletions}</span>
+                  </div>
+                </div>
+              {/for}
+            </div>
+          {/if}
+        </div>
+      {/if}
+
+      {#if tab() === 'branches'}
+        <div class="git-branches">
+          {#if branches().length === 0}
+            <set-empty-state tone="muted" size="md">
+              <span slot="title">No branches</span>
+            </set-empty-state>
+          {:else}
+            <div class="git-history-rows">
+              {#for b of branches() key={b.name}}
+                <div class="git-history-row">
+                  <ship-icon name="git-branch" size="sm" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></ship-icon>
+                  <div class="git-row-body">
+                    <div class="git-row-title git-mono">{b.name}{b.active ? ' (HEAD)' : ''}</div>
+                    <div class="git-row-sub">{b.upstream ? b.upstream : 'local only'}</div>
+                  </div>
+                  <div class="git-deltas">
+                    {b.ahead > 0 ? '↑' + b.ahead : ''}
+                    {b.behind > 0 ? ' ↓' + b.behind : ''}
+                  </div>
+                </div>
+              {/for}
+            </div>
+          {/if}
+        </div>
+      {/if}
+    </div>
+  {/if}
+</div>

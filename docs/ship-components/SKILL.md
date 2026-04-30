@@ -1,10 +1,19 @@
 ---
 name: ship-components
 stable-id: ship-components
-description: Author custom web components for Ship as `.ship` single-file components. Use when building a new `<my-tag>` element to compose into views — props, signals, lifecycle, scoped styles, all in one file. NOT the publishing/distribution layer; that's ship-component-packs.
-tags: [ship, components, sfc, web-components, datastar, jinja]
+description: Author custom web components for Ship as `.ship` single-file components. Use when building a new `<my-tag>` element to compose into views — props, signals, lifecycle, scoped styles, all in one file. NOT the publishing/distribution layer; that's ship-component-packs. PHASING OUT — the `.ship` SFC three-block format is dead; new components are authored as `.html.set` files via the ship-set-framework skill.
+tags: [ship, components, sfc, web-components, datastar, jinja, phasing-out]
 authors: [ship]
 ---
+
+> **⚠ Phasing out.** This skill documents the **`.ship` single-file component
+> format** (three optional blocks: template / `<script>` / `<style>`). The
+> SFC shape is **dead**. **New component authoring** uses the
+> **`ship-set-framework`** skill — components are `.html.set` files with
+> `<component name="..."><prop name="..."/></component>` directives at the
+> top, an optional sibling `.ts` controller, and an optional sibling `.css`.
+> Components ported off `.ship` one at a time; see
+> `docs/ship-set-framework/references/docs/status.md`.
 
 # Ship Components
 

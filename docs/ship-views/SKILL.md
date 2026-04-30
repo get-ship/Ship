@@ -1,10 +1,17 @@
 ---
 name: ship-views
 stable-id: ship-views-docs
-description: Reference docs for Ship views — the extension mechanism for user-facing, daemon-rendered HTML surfaces. Covers manifest format, SDK surface, and runtime internals.
-tags: [ship, views, extension, reference]
+description: Reference docs for Ship views — the extension mechanism for user-facing, daemon-rendered HTML surfaces. Covers manifest format, SDK surface, and runtime internals. PHASING OUT — describes the j2 + Datastar prod stack; new view authoring uses the ship-set-framework skill.
+tags: [ship, views, extension, reference, phasing-out]
 authors: [ship]
 ---
+
+> **⚠ Phasing out.** This skill documents the **current production view stack**
+> — j2 (jinja) templates + Datastar signals. It remains accurate for shipping
+> work. **New view authoring** uses the **`ship-set-framework`** skill
+> (`.html.set` files, signals, AOT-compiled, server-rendered first). Views
+> port from this stack to ship-set one at a time; see
+> `docs/ship-set-framework/references/docs/status.md` for the migration map.
 
 # Ship Views
 

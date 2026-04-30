@@ -1,32 +1,23 @@
-// Agents list view — pulls live `ship.agents.summaries()` from the daemon
-// and exposes the items + total to the template.
+// Agents list view — controller for `view.html.set`.
 //
-// Pure declarative: no local state, no callbacks beyond the navigate
-// passed in by the host. The whole grid (loading boundary, empty state,
-// cards) walks off the `agents` LiveSignal.
+// Server data comes from the template's `<data name="agents" live />`
+// declaration. The controller derives `items` and `total` from it and
+// owns the navigation handler used by the "New agent" buttons.
 
-import { derived, live, view, type LiveSignal } from '@ship-set/runtime'
-import type { ShipSDK, AgentsSummariesResponse, AgentSummary } from '@ship-set/sdk-client'
+import { controller, unwrap } from '@ship-set/runtime'
+import type { LiveSignal } from '@ship-set/runtime'
+import type { AgentsSummariesResponse } from '@ship-set/sdk-client'
 
-interface Bindings {
-  agents: LiveSignal<AgentsSummariesResponse>
-  items: () => AgentSummary[]
-  total: () => number
-  navigate: (path: string) => void
-}
+/** Template scope — what `view.html.set` declares + framework injects. */
+type Scope = { agents: LiveSignal<AgentsSummariesResponse> }
 
-export default view<Bindings>((ctx) => {
-  const ship = ctx.ship as ShipSDK
-  const agents = live(() => ship.agents.summaries())
-  const items = derived<AgentSummary[]>(() => {
-    const s = agents()
-    return s.kind === 'ok' ? s.value.items : []
-  })
-  const total = derived<number>(() => items().length)
-  return {
-    agents,
-    items,
-    total,
-    navigate: ctx.navigate,
-  }
+export default controller<Scope>({
+  derived: {
+    items: ({ agents }) => unwrap(agents)?.items ?? [],
+    total: ({ items }) => (items as () => unknown[])().length,
+  },
+  on: {
+    newAgent: ({ navigate }: { navigate: (path: string) => void }) =>
+      navigate('/agents/create'),
+  },
 })

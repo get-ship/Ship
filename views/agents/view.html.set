@@ -1,5 +1,6 @@
+<data name="agents" source="ship.agents.summaries()" live />
+
 <div class="ship-view agents-view">
-  <link rel="stylesheet" href="/_ship-set/views/agents/view.css">
   <div class="agents-wrap">
 
     <header class="agents-head">
@@ -7,8 +8,7 @@
         <h1 class="agents-title">Agents</h1>
         <p class="agents-sub">{total()} agent{total() === 1 ? '' : 's'}</p>
       </div>
-      <ship-button tone="primary" variant="solid"
-                   on:click={() => navigate('/agents/create')}>
+      <ship-button tone="primary" variant="solid" on:click={newAgent}>
         <ship-icon slot="leading" name="plus"></ship-icon>
         New agent
       </ship-button>
@@ -29,8 +29,7 @@
           Drop a JSONC file under
           <code class="agents-empty-code">.ship/agents/</code>
           or create one from the Studio.
-          <ship-button slot="action" tone="primary" variant="solid"
-                       on:click={() => navigate('/agents/create')}>
+          <ship-button slot="action" tone="primary" variant="solid" on:click={newAgent}>
             <ship-icon slot="leading" name="plus"></ship-icon>
             New agent
           </ship-button>
@@ -71,7 +70,7 @@
                   <ship-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{a.source}</ship-badge>
                   {#if a.active}
                     <ship-chip tone="primary" variant="soft" size="sm">
-                      <ship-status-dot slot="leading" tone="primary" size="sm" pulse></ship-status-dot>
+                      <set-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></set-status-dot>
                       active session
                     </ship-chip>
                   {/if}
