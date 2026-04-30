@@ -14,10 +14,9 @@ type Scope = { agents: LiveSignal<AgentsSummariesResponse> }
 export default controller<Scope>({
   derived: {
     items: ({ agents }) => unwrap(agents)?.items ?? [],
-    total: ({ items }) => (items as () => unknown[])().length,
+    total: ({ agents }) => unwrap(agents)?.items.length ?? 0,
   },
   on: {
-    newAgent: ({ navigate }: { navigate: (path: string) => void }) =>
-      navigate('/agents/create'),
+    newAgent: ({ navigate }) => navigate('/agents/create'),
   },
 })

@@ -53,7 +53,7 @@ pub fn render_shell(name: &str, title: &str, ssr_html: &str) -> String {
 
     const root = document.getElementById('ship-set-root');
     try {{
-      const dispose = attach(root, {{ module: viewModule, ship, route, navigate }});
+      const dispose = attach(root, {{ module: viewModule, ship, route, navigate, viewName: '{safe_name}' }});
       window.__shipSetDispose = dispose;
     }} catch (err) {{
       console.error('[ship-set/view] attach failed:', err);
@@ -97,6 +97,9 @@ mod tests {
         assert!(html.contains("/_ship-set/views/agents/view.js"));
         assert!(html.contains("data-set-bind=\"b0\""));
         assert!(html.contains("import { attach } from '@ship-set/dom'"));
+        // viewName must be threaded through so attach() can call the
+        // /_ship-set/render-fragment/<view> endpoint on control-flow swaps.
+        assert!(html.contains("viewName: 'agents'"), "missing viewName in attach() opts: {html}");
         // Old parse-and-build path is gone.
         assert!(!html.contains("hydrate(template"));
         assert!(!html.contains("fetch('/_ship-set/views/agents/view.html.set')"));

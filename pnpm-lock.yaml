@@ -474,6 +474,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ship-set-sdk-client
 
+  views/counter:
+    dependencies:
+      '@ship-set/runtime':
+        specifier: workspace:*
+        version: link:../../packages/ship-set-runtime
+      '@ship-set/sdk-client':
+        specifier: workspace:*
+        version: link:../../packages/ship-set-sdk-client
+
   views/git:
     dependencies:
       '@ship-set/runtime':
