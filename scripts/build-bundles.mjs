@@ -154,6 +154,22 @@ async function buildOne(t) {
   mkdirSync(cacheDir, { recursive: true });
   writeFileSync(cacheFile, JSON.stringify({ hash, inputs }, null, 2));
 
+  // Regression guard: views go through the Rust compiler, so the
+  // bundle MUST export both `bindings` (manifest attach() reads) and
+  // a `default` (the view setup). Catches the foundation-level bug
+  // where view.ts was bundled directly without ship-set-compiler.
+  if (t.htmlSet) {
+    const out = readFileSync(outfile, 'utf8');
+    const hasBindings = /export\s*\{[^}]*\bbindings\b/.test(out)
+      || /\bbindings\s*,/.test(out);
+    const hasDefault = /\bdefault\b/.test(out);
+    if (!hasBindings || !hasDefault) {
+      throw new Error(
+        `[bundles] ${t.name}.js missing required exports — bindings:${hasBindings} default:${hasDefault}. View bundles must be compiled via ship-set-compiler before esbuild.`,
+      );
+    }
+  }
+
   const bytes = statSync(outfile).size;
   console.log(`[bundles] build  ${t.name}.js  (${(bytes / 1024).toFixed(1)} KiB, ${inputs.length} inputs)`);
 }
