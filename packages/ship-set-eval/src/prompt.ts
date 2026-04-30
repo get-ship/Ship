@@ -38,18 +38,41 @@ Template grammar:
   <while-error bind="name" let:err> ... </while-error> — render when a <data> errors.
 
 Reactive values are read by calling them: \`count()\` reads, \`count.set(n)\` writes.
-A \`<data live>\` declaration exposes a Result-shaped signal; check \`x().kind === 'ok'\` then read \`x().value\`.
+A \`<data live>\` declaration exposes a Result-shaped signal whose kind is \`'loading' | 'ok' | 'error'\`; check \`x().kind === 'ok'\` then read \`x().value\`.
 
-Setup file (optional, paired .ts):
-  export default function setup({ ship, route, navigate }) {
-    return { /* extras merged into template scope */ }
-  }
+Controller (optional, paired .ts) — five named sections, no escape hatches:
+  import { controller } from '@ship-set/runtime'
+  export default controller({
+    derived: { /* memos; ({ x }) => x() * 2 */ },
+    on:      { /* handlers; ONLY section that mutates: (s, ...args) => { s.x = ... } */ },
+    use:     { /* controller hooks composed by namespace key */ },
+    mount:   (s, el) => { /* once after render */ },
+    unmount: (s) => { /* once on dispose */ },
+  })
+
+  Local state always lives in the template via <state name="X" value="..." />.
+  Controllers read state through scope (the destructured first arg of derived/on
+  receives \`X\` as a callable signal). Computed-initial values move to mount:
+  declare <state name="id" value="''" /> and assign state.id = crypto.randomUUID()
+  inside mount.
+
+Available controller hooks (compose via \`use:\`):
+  useFilteredList(source, (item, query) => boolean)  — { state.query, derived.filtered, on.setQuery, on.clear }
+  useSelection(source, (item) => key)                — { state.selectedId, derived.selected, on.select, on.clear, on.toggle }
+  useForm({ initial, validate?, submit? })           — per-field signals + { derived.errors/valid/dirty/values, on.submit, on.reset }
+
+Available template hooks (use as elements):
+  <use-shell as="shell" />                           — exposes host context (theme, currentUser, app)
+  <use-kbd> <on key="..." action="onName" /> ... </use-kbd>   — document keyboard shortcuts → controller on.* names
+  <use-click-outside bind:target={ref} bind:action={onName} /> — fires action on click outside target
 
 Hard rules — violating any of these fails the eval:
   - No raw <script> tags. No eval. No new Function(). No document.write.
   - No customElements.define — that's primitive territory, not view territory.
   - Use <ship-*> primitives from the catalog rather than reinventing buttons or inputs.
-  - Output exactly one fenced \`\`\`html.set\`\`\` block. If a setup file is needed, append one fenced \`\`\`ts\`\`\` block. No prose outside the blocks.`
+  - Mutation lives only in \`on.*\` handlers. Never \`s.x = v\` in derived or templates.
+  - Subscriptions live in <data> elements, never in controller code. Don't call ship.* outside <data>.
+  - Output exactly one fenced \`\`\`html.set\`\`\` block. If a controller is needed, append one fenced \`\`\`ts\`\`\` block. No prose outside the blocks.`
 
 const FEW_SHOT_STATIC = {
   description: 'A static info card listing the three Ship core values.',
@@ -72,6 +95,41 @@ const FEW_SHOT_COUNTER = {
   <ship-button data-test="inc" on:click={() => count.set(count() + 1)}>increment</ship-button>
   <ship-button data-test="reset" tone="neutral" on:click={() => count.set(0)}>reset</ship-button>
 </div>`,
+}
+
+const FEW_SHOT_CONTROLLER = {
+  description: 'A select-an-agent view: a controller exposes derived values + a handler; the template wires them. selectedId is template-declared <state>.',
+  template: `<data name="agents" source="ship.agents.summaries()" live />
+<state name="selectedId" value="null" />
+
+<p>{total()} agent{total() === 1 ? '' : 's'}</p>
+<ul>
+  {#if agents().kind === 'ok'}
+    {#for a of items() key={a.id}}
+      <li>
+        <ship-button data-test="row" tone={isSelected(a.id) ? 'primary' : 'default'}
+                     on:click={() => select(a.id)}>{a.name}</ship-button>
+      </li>
+    {/for}
+  {/if}
+</ul>`,
+  setup: `import { controller } from '@ship-set/runtime'
+import type { LiveSignal } from '@ship-set/runtime'
+
+export default controller({
+  derived: {
+    items:      ({ agents }: { agents: LiveSignal<{ items: { id: string; name: string }[] }> }) => {
+      const s = agents()
+      return s.kind === 'ok' ? s.value.items : []
+    },
+    total:      ({ items }: { items: () => unknown[] }) => items().length,
+    isSelected: ({ selectedId }: { selectedId: () => string | null }) =>
+                  (id: string) => selectedId() === id,
+  },
+  on: {
+    select: (s: { selectedId: string | null }, id: string) => { s.selectedId = id },
+  },
+})`,
 }
 
 /** Render a primitive catalog as a compact, model-readable summary. */
@@ -108,14 +166,25 @@ function renderPrimitive(p: PrimitiveDef): string {
   return lines.join('\n')
 }
 
-function renderFewShot(ex: { description: string; template: string }): string {
-  return `Example feature: ${ex.description}\n\nExample output:\n\n\`\`\`html.set\n${ex.template}\n\`\`\``
+function renderFewShot(ex: {
+  description: string
+  template: string
+  setup?: string
+}): string {
+  const out = [`Example feature: ${ex.description}`, '', 'Example output:', '']
+  out.push('```html.set', ex.template, '```')
+  if (ex.setup) out.push('', '```ts', ex.setup, '```')
+  return out.join('\n')
 }
 
 /** Assemble the system + user messages for one task. */
 export function buildPrompt(input: PromptInputs): PromptParts {
   const catalogBlock = renderCatalog(input.catalog)
-  const fewShot = [renderFewShot(FEW_SHOT_STATIC), renderFewShot(FEW_SHOT_COUNTER)].join(
+  const fewShot = [
+    renderFewShot(FEW_SHOT_STATIC),
+    renderFewShot(FEW_SHOT_COUNTER),
+    renderFewShot(FEW_SHOT_CONTROLLER),
+  ].join(
     '\n\n---\n\n',
   )
 

@@ -1,0 +1,52 @@
+<component name="set-stat" shadow>
+  <prop name="value" type="string" default="" />
+  <prop name="label" type="string" default="" />
+  <prop name="hint"  type="string" default="" />
+  <prop name="tone"  values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+  <prop name="size"  values="sm|md|lg" default="md" reflect />
+
+  <style>
+    :host { display: inline-flex; vertical-align: top; --tone-fg: var(--foreground); }
+    :host([tone='primary']) { --tone-fg: var(--primary); }
+    :host([tone='info'])    { --tone-fg: var(--info); }
+    :host([tone='success']) { --tone-fg: var(--success); }
+    :host([tone='warning']) { --tone-fg: var(--warning); }
+    :host([tone='destructive']) { --tone-fg: var(--destructive); }
+    :host([tone='accent'])  { --tone-fg: var(--accent); }
+    :host([tone='muted'])   { --tone-fg: var(--muted-foreground); }
+
+    .root {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .label {
+      font-size: 11px;
+      font-weight: var(--font-weight-medium, 500);
+      color: var(--muted-foreground);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .value {
+      font-family: var(--font-display, var(--font-body));
+      font-weight: var(--font-weight-semibold, 600);
+      font-variant-numeric: tabular-nums;
+      color: var(--tone-fg);
+      line-height: 1.1;
+    }
+    :host([size='sm']) .value { font-size: 18px; }
+    :host([size='md']) .value { font-size: 24px; }
+    :host([size='lg']) .value { font-size: 36px; }
+    .hint { font-size: 11px; color: var(--muted-foreground); }
+  </style>
+</component>
+
+<div class="root" part="root">
+  {#if label() !== ''}
+    <span class="label" part="label">{label()}</span>
+  {/if}
+  <span class="value" part="value">{value()}<slot></slot></span>
+  {#if hint() !== ''}
+    <span class="hint" part="hint">{hint()}</span>
+  {/if}
+</div>

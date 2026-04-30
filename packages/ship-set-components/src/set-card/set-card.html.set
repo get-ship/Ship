@@ -1,0 +1,49 @@
+<component name="set-card" shadow>
+  <prop name="padding" values="none|sm|md|lg" default="md" reflect />
+  <prop name="variant" values="surface|outline|ghost" default="surface" reflect />
+  <prop name="interactive" type="bool" default="false" reflect />
+
+  <style>
+    :host { display: block; }
+    :host([hidden]) { display: none; }
+
+    .root {
+      display: flex;
+      flex-direction: column;
+      border-radius: var(--radius-lg);
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--foreground);
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
+    }
+
+    :host([variant='outline'])  .root { background: transparent; }
+    :host([variant='ghost'])    .root { background: transparent; border-color: transparent; }
+
+    :host([padding='none']) .root { padding: 0; }
+    :host([padding='sm'])   .root { padding: 12px; }
+    :host([padding='md'])   .root { padding: 16px 18px; }
+    :host([padding='lg'])   .root { padding: 24px 28px; }
+
+    :host([interactive]) .root { cursor: pointer; }
+    :host([interactive]) .root:hover {
+      border-color: color-mix(in oklch, var(--border) 160%, transparent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header { display: contents; }
+    .footer { display: contents; }
+
+    ::slotted([slot='header']) { display: block; }
+    ::slotted([slot='footer']) { display: block; margin-top: 12px; }
+  </style>
+</component>
+
+<div class="root" part="root">
+  <slot name="header"></slot>
+  <slot></slot>
+  <slot name="footer"></slot>
+</div>

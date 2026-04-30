@@ -89,7 +89,7 @@ export type { DataOpts, DataHandle } from './data'
 export { state, debounce } from './state'
 export type { State } from './state'
 
-export { live } from './live'
+export { live, unwrap, unwrapOr } from './live'
 export type { LiveState, LiveSignal, LiveSource, LiveOpts } from './live'
 
 export { bindWhileLoading, bindWhileError } from './while'
@@ -98,8 +98,48 @@ export type {
   BindWhileErrorOptions,
 } from './while'
 
-export { view } from './view'
-export type { ViewContext, ViewSetup, ViewDef } from './view'
+export type { ShipSDK } from './ship'
 
 export { component, prop } from './component'
 export type { PropDef, ComponentDef, ComponentSetupContext } from './component'
+
+export type {
+  ControllerDef,
+  ControllerShape,
+  ControllerHook,
+  TemplateHook,
+  TemplateHookAttrKind,
+  TemplateHookContext,
+  ViewScope,
+  ReadonlyState,
+  ReadonlyView,
+  MutableState,
+  SectionInit,
+  DerivedSection,
+  OnSection,
+  UseSection,
+  MountSection,
+  UnmountSection,
+} from './controller'
+
+export { controller, resolveController, LIFECYCLE_KEY } from './controller-resolver'
+export type {
+  ControllerExport,
+  ControllerLifecycle,
+  ResolverContext,
+  ResolvedBindings,
+} from './controller-resolver'
+
+export { useFilteredList, useSelection, useForm } from './hooks'
+export type { FilteredListSource, UseFormOptions } from './hooks'
+
+export {
+  registerTemplateHook,
+  getTemplateHook,
+  clearRegistry,
+  listRegisteredHooks,
+} from './template-hooks'
+export type { KbdShortcut, ShellContext } from './template-hooks'
+// Importing the index ensures the three built-in hooks are registered
+// at module load.
+import './template-hooks'

@@ -30,7 +30,9 @@ const targets = [
   { name: 'ship-set-runtime',     entry: 'packages/ship-set-runtime/src/index.ts' },
   { name: 'ship-set-dom',         entry: 'packages/ship-set-dom/src/index.ts',         external: ['@ship-set/runtime'] },
   { name: 'ship-set-sdk-client',  entry: 'packages/ship-set-sdk-client/src/index.ts',  external: ['@ship-set/runtime'] },
+  { name: 'ship-set-components',  entry: 'packages/ship-set-components/src/index.ts',  external: ['@ship-set/runtime', '@ship-set/dom'], loaders: { '.set': 'text' } },
   { name: 'views/agents/view',    entry: 'views/agents/view.ts',                       external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
+  { name: 'views/git/view',       entry: 'views/git/view.ts',                          external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
 ];
 
 const args = new Set(process.argv.slice(2));
@@ -94,6 +96,7 @@ async function buildOne(t) {
     outfile,
     metafile: true,
     ...(t.external ? { external: t.external } : {}),
+    ...(t.loaders ? { loader: { ...baseOpts.loader, ...t.loaders } } : {}),
   });
 
   const inputs = Object.keys(result.metafile.inputs).map((p) =>

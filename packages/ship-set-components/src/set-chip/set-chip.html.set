@@ -1,0 +1,55 @@
+<component name="set-chip" shadow>
+  <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+  <prop name="variant" values="solid|soft|outline|ghost" default="soft" reflect />
+  <prop name="size" values="sm|md" default="sm" reflect />
+
+  <style>
+    :host {
+      display: inline-flex;
+      vertical-align: middle;
+      --tone: var(--foreground);
+      --tone-fg: var(--foreground);
+      --tone-contrast: var(--background);
+    }
+    :host([tone='primary']) { --tone: var(--primary); --tone-fg: var(--primary); --tone-contrast: var(--primary-foreground); }
+    :host([tone='info'])    { --tone: var(--info); --tone-fg: var(--info); --tone-contrast: var(--info-foreground); }
+    :host([tone='success']) { --tone: var(--success); --tone-fg: var(--success); --tone-contrast: var(--success-foreground); }
+    :host([tone='warning']) { --tone: var(--warning); --tone-fg: var(--warning); --tone-contrast: var(--warning-foreground); }
+    :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); --tone-contrast: var(--destructive-foreground); }
+    :host([tone='accent'])  { --tone: var(--accent); --tone-fg: var(--accent); --tone-contrast: var(--accent-foreground); }
+    :host([tone='muted'])   { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); }
+
+    .root {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 10px;
+      font-family: var(--font-body);
+      font-weight: var(--font-weight-medium, 500);
+      font-size: 12px;
+      line-height: 1.4;
+      border-radius: var(--radius-full);
+      border: 1px solid transparent;
+      white-space: nowrap;
+    }
+    :host([size='md']) .root { font-size: 13px; padding: 5px 12px; }
+
+    :host([variant='solid']) .root { background: var(--tone); color: var(--tone-contrast); border-color: color-mix(in oklch, var(--tone) 100%, black 6%); }
+    :host([variant='soft'])  .root { background: color-mix(in oklch, var(--tone) 14%, transparent); color: var(--tone-fg); border-color: color-mix(in oklch, var(--tone) 22%, transparent); }
+    :host([variant='outline']) .root { background: transparent; color: var(--tone-fg); border-color: color-mix(in oklch, var(--tone) 50%, transparent); }
+    :host([variant='ghost']) .root { background: transparent; color: var(--tone-fg); border-color: transparent; }
+
+    ::slotted([slot='leading']),
+    ::slotted([slot='trailing']) {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
+    }
+  </style>
+</component>
+
+<span class="root" part="root">
+  <slot name="leading"></slot>
+  <slot></slot>
+  <slot name="trailing"></slot>
+</span>

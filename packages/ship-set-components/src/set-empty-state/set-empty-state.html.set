@@ -1,0 +1,65 @@
+<component name="set-empty-state" shadow>
+  <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="muted" reflect />
+  <prop name="size" values="sm|md|lg" default="md" reflect />
+  <prop name="variant" values="default|inset" default="default" reflect />
+
+  <style>
+    :host {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      padding: 32px 24px;
+      text-align: center;
+      color: var(--muted-foreground);
+      --tone-fg: var(--muted-foreground);
+    }
+    :host([tone='default'])     { --tone-fg: var(--foreground); }
+    :host([tone='primary'])     { --tone-fg: var(--primary); }
+    :host([tone='info'])        { --tone-fg: var(--info); }
+    :host([tone='success'])     { --tone-fg: var(--success); }
+    :host([tone='warning'])     { --tone-fg: var(--warning); }
+    :host([tone='destructive']) { --tone-fg: var(--destructive); }
+    :host([tone='accent'])      { --tone-fg: var(--accent); }
+    :host([tone='muted'])       { --tone-fg: var(--muted-foreground); }
+
+    :host([variant='inset']) {
+      background: var(--card);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius-lg);
+    }
+
+    :host([size='sm']) { padding: 16px; gap: 8px; }
+    :host([size='md']) { padding: 32px 24px; gap: 12px; }
+    :host([size='lg']) { padding: 56px 32px; gap: 16px; }
+
+    .icon-slot { color: var(--tone-fg); }
+    ::slotted([slot='icon']) {
+      color: var(--tone-fg);
+    }
+
+    .title {
+      color: var(--foreground);
+      font-family: var(--font-display, var(--font-body));
+      font-weight: var(--font-weight-semibold, 600);
+      font-size: 16px;
+      margin: 0;
+    }
+    :host([size='sm']) .title { font-size: 14px; }
+    :host([size='lg']) .title { font-size: 20px; }
+
+    .body {
+      max-width: 40ch;
+      font-size: 13px;
+      color: var(--muted-foreground);
+    }
+
+    .action-slot { display: inline-flex; gap: 8px; margin-top: 8px; }
+  </style>
+</component>
+
+<div class="icon-slot" part="icon"><slot name="icon"></slot></div>
+<h3 class="title" part="title"><slot name="title"></slot></h3>
+<div class="body" part="body"><slot></slot></div>
+<div class="action-slot" part="action"><slot name="action"></slot></div>

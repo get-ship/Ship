@@ -1,0 +1,322 @@
+// Resolver behavior tests — exercises `resolveController` end-to-end
+// without going through `hydrate()`. Each test drives the resolver
+// directly with a synthetic `ResolverContext` and asserts on the
+// returned bindings.
+//
+// Per the "state is declarative-only" ADR, controllers no longer have
+// a `state:` section. State signals enter the resolver via
+// `ctx.scope` (the merged template scope) and are identified as
+// writable by `ctx.stateKeys`. The harness below seeds them directly.
+
+import { describe, expect, it, vi } from 'vitest'
+import {
+  controller,
+  resolveController,
+  signal,
+  type ControllerHook,
+  type ResolvedBindings,
+  type Signal,
+} from '../src/index'
+
+const noShip = { ship: undefined }
+
+/** Build a `ResolverContext` with template-state signals seeded. */
+function withState(
+  state: Record<string, unknown>,
+  extra: Record<string, unknown> = {},
+): {
+  ship: undefined
+  scope: Record<string, unknown>
+  stateKeys: Set<string>
+  stateSignals: Record<string, Signal<unknown>>
+} {
+  const stateSignals: Record<string, Signal<unknown>> = {}
+  for (const [k, v] of Object.entries(state)) {
+    stateSignals[k] = signal(v) as Signal<unknown>
+  }
+  return {
+    ship: undefined,
+    scope: { ...stateSignals, ...extra },
+    stateKeys: new Set(Object.keys(state)),
+    stateSignals,
+  }
+}
+
+describe('state — signals seeded by the template flow into scope', () => {
+  it('exposes template state via scope (resolver does not own signal construction)', () => {
+    const ctx = withState({ count: 0, label: 'hi' })
+    resolveController({}, ctx)
+    expect((ctx.stateSignals.count as () => unknown)()).toBe(0)
+    expect((ctx.stateSignals.label as () => unknown)()).toBe('hi')
+  })
+
+  it('handlers can read seeded state via the writable proxy', () => {
+    const ctx = withState({ count: 5 })
+    const seen = vi.fn()
+    const b = resolveController(
+      { on: { probe: (s: { count: number }) => seen(s.count) } },
+      ctx,
+    ) as Record<string, () => void>
+    b.probe!()
+    expect(seen).toHaveBeenCalledWith(5)
+  })
+})
+
+describe('on — handlers receive a writable proxy', () => {
+  it('handler mutations propagate to the underlying signal', () => {
+    const ctx = withState({ count: 0 })
+    const b = resolveController(
+      { on: { incr: (s: { count: number }) => { s.count++ } } },
+      ctx,
+    ) as Record<string, ((...a: unknown[]) => void)>
+    expect((ctx.stateSignals.count as () => number)()).toBe(0)
+    b.incr!()
+    expect((ctx.stateSignals.count as () => number)()).toBe(1)
+    b.incr!()
+    b.incr!()
+    expect((ctx.stateSignals.count as () => number)()).toBe(3)
+  })
+
+  it('handler accepts extra args alongside the proxy', () => {
+    const ctx = withState({ selectedId: null as string | null })
+    const b = resolveController(
+      {
+        on: {
+          select: (s: { selectedId: string | null }, id: string) => {
+            s.selectedId = id
+          },
+        },
+      },
+      ctx,
+    ) as Record<string, (id: string) => void>
+    b.select!('a-42')
+    expect((ctx.stateSignals.selectedId as () => string | null)()).toBe('a-42')
+  })
+
+  it('handler can read scope (ship) via the proxy fallthrough', () => {
+    const refresh = vi.fn()
+    const ship = { agents: { refresh } }
+    const b = resolveController(
+      {
+        on: {
+          refresh: ({ ship: s }: { ship: typeof ship }) => s.agents.refresh(),
+        },
+      },
+      { ship },
+    ) as Record<string, () => void>
+    b.refresh!()
+    expect(refresh).toHaveBeenCalledOnce()
+  })
+
+  it('writes to a non-state key warn and are ignored', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const ctx = withState({ count: 0 })
+    const b = resolveController(
+      {
+        on: {
+          // typo — `total` is not declared as <state>
+          bogus: (s: Record<string, unknown>) => {
+            s.total = 99
+          },
+        },
+      },
+      ctx,
+    ) as Record<string, () => void>
+    b.bogus!()
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining(`<state name="total">`),
+    )
+    warnSpy.mockRestore()
+  })
+})
+
+describe('derived — memoized over scope', () => {
+  it('derived recomputes on dep change', () => {
+    const ctx = withState({ count: 1 })
+    const b = resolveController(
+      {
+        derived: { doubled: ({ count }: { count: () => number }) => count() * 2 },
+        on: { incr: (s: { count: number }) => { s.count++ } },
+      },
+      ctx,
+    ) as Record<string, () => number>
+    expect(b.doubled!()).toBe(2)
+    ;(b.incr as unknown as () => void)()
+    expect(b.doubled!()).toBe(4)
+    ;(b.incr as unknown as () => void)()
+    ;(b.incr as unknown as () => void)()
+    expect(b.doubled!()).toBe(8)
+  })
+
+  it('derived can read template-scope signals exposed via ctx.scope', () => {
+    const agents: Signal<string[]> = signal(['a', 'b', 'c'])
+    const ctx = withState({ query: 'b' }, { agents })
+    const b = resolveController(
+      {
+        derived: {
+          filtered: ({ agents, query }: { agents: () => string[]; query: () => string }) =>
+            agents().filter((a) => a.includes(query())),
+        },
+      },
+      ctx,
+    ) as Record<string, () => string[]>
+    expect(b.filtered!()).toEqual(['b'])
+    agents.set(['ba', 'cb', 'd'])
+    expect(b.filtered!()).toEqual(['ba', 'cb'])
+  })
+})
+
+describe('use — hooks compose under namespaced keys', () => {
+  const useFilteredList = <T>(
+    source: Signal<T[]>,
+    pred: (item: T, q: string) => boolean,
+  ): ControllerHook<{ query: string }> => ({
+    state: { query: '' },
+    derived: {
+      filtered: ({ query }: { query: () => string }) =>
+        source().filter((i) => pred(i, query())),
+    },
+    on: {
+      setQuery: (s: { query: string }, q: string) => {
+        s.query = q
+      },
+    },
+  })
+
+  it('hook bindings appear under the namespace key', () => {
+    const items: Signal<string[]> = signal(['apple', 'banana', 'cherry'])
+    const b = resolveController(
+      {
+        use: { list: useFilteredList(items, (s, q) => s.includes(q)) },
+      },
+      noShip,
+    ) as Record<string, Record<string, unknown>>
+
+    expect(b.list).toBeDefined()
+    expect(typeof (b.list!.query as () => string)).toBe('function')
+    expect(typeof (b.list!.filtered as () => string[])).toBe('function')
+    expect(typeof (b.list!.setQuery as (...a: unknown[]) => void)).toBe('function')
+  })
+
+  it('hook handlers mutate hook state, derived recomputes', () => {
+    const items: Signal<string[]> = signal(['apple', 'banana', 'cherry'])
+    const b = resolveController(
+      {
+        use: { list: useFilteredList(items, (s, q) => s.includes(q)) },
+      },
+      noShip,
+    ) as Record<string, Record<string, unknown>>
+
+    expect((b.list!.filtered as () => string[])()).toEqual([
+      'apple',
+      'banana',
+      'cherry',
+    ])
+    ;(b.list!.setQuery as (q: string) => void)('an')
+    expect((b.list!.query as () => string)()).toBe('an')
+    expect((b.list!.filtered as () => string[])()).toEqual(['banana'])
+  })
+
+  it('two hooks of the same shape namespace cleanly without collision', () => {
+    const items: Signal<string[]> = signal(['apple', 'banana'])
+    const b = resolveController(
+      {
+        use: {
+          a: useFilteredList(items, (s, q) => s.startsWith(q)),
+          b: useFilteredList(items, (s, q) => s.endsWith(q)),
+        },
+      },
+      noShip,
+    ) as Record<string, Record<string, unknown>>
+
+    ;(b.a!.setQuery as (q: string) => void)('a')
+    ;(b.b!.setQuery as (q: string) => void)('a')
+    expect((b.a!.filtered as () => string[])()).toEqual(['apple'])
+    expect((b.b!.filtered as () => string[])()).toEqual(['banana'])
+  })
+})
+
+describe('mount / unmount lifecycle — attached as non-enumerable LIFECYCLE_KEY', () => {
+  const lifecycleOf = (b: ResolvedBindings) =>
+    (b as Record<string, unknown>)[
+      '__shipSetLifecycle'
+    ] as
+      | { state: unknown; mount?: (s: unknown, el: HTMLElement) => void; unmount?: (s: unknown) => void }
+      | undefined
+
+  it('attaches lifecycle when mount or unmount is declared', () => {
+    const ctx = withState({ count: 0 })
+    const b = resolveController(
+      {
+        mount: (s) => {
+          ;(s as { count: number }).count = 5
+        },
+        unmount: () => {},
+      },
+      ctx,
+    )
+    const lc = lifecycleOf(b)
+    expect(lc).toBeDefined()
+    expect(typeof lc!.mount).toBe('function')
+    expect(typeof lc!.unmount).toBe('function')
+  })
+
+  it('omits lifecycle when neither hook is declared', () => {
+    const ctx = withState({ count: 0 })
+    const b = resolveController({}, ctx)
+    expect(lifecycleOf(b)).toBeUndefined()
+  })
+
+  it('lifecycle.state is the writable proxy — mount can mutate template state', () => {
+    let captured: unknown
+    const ctx = withState({ count: 0 })
+    const b = resolveController(
+      {
+        mount: (s) => {
+          ;(s as { count: number }).count = 7
+          captured = s
+        },
+      },
+      ctx,
+    )
+    const lc = lifecycleOf(b)!
+    lc.mount!(lc.state, document.createElement('div'))
+    expect(captured).toBe(lc.state)
+    expect((ctx.stateSignals.count as () => number)()).toBe(7)
+  })
+
+  it('LIFECYCLE_KEY is non-enumerable (does not appear in Object.keys / spread)', () => {
+    const ctx = withState({ x: 1 })
+    const b = resolveController({ mount: () => {} }, ctx)
+    expect(Object.keys(b)).not.toContain('__shipSetLifecycle')
+    const spread = { ...b }
+    expect((spread as Record<string, unknown>).__shipSetLifecycle).toBeUndefined()
+  })
+})
+
+describe('controller() — drop-in compatibility with view() shape', () => {
+  it('returns a {setup, __def} that hydrate can call', () => {
+    const def = {
+      on: { incr: (s: { count: number }) => { s.count++ } },
+    }
+    const out = controller(def)
+    expect(typeof out.setup).toBe('function')
+    expect(out.__def).toBe(def)
+
+    const ctx = withState({ count: 0 })
+    const b = out.setup(ctx)
+    expect(typeof (b as Record<string, unknown>).incr).toBe('function')
+    ;((b as Record<string, () => void>).incr)()
+    expect((ctx.stateSignals.count as () => number)()).toBe(1)
+  })
+
+  it('function-form def works through the wrap', () => {
+    const ship = { hello: () => 'world' }
+    const def = ({ ship: s }: { ship: typeof ship }) => ({
+      derived: { greeting: () => s.hello() },
+    })
+    const out = controller(def)
+    const b = out.setup({ ship }) as Record<string, () => string>
+    expect(b.greeting!()).toBe('world')
+  })
+})

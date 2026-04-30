@@ -61,21 +61,6 @@ export function analyzeSetup(setupPath: string, source: string): SetupInfo {
   const def = findDefaultExport(sf);
   if (!def) return result;
 
-  // Form A: export default view<Bindings>(fn) — extract from generic arg.
-  if (ts.isCallExpression(def) && def.typeArguments && def.typeArguments.length > 0) {
-    const typeArg = def.typeArguments[0]!;
-    const members = membersFromTypeNode(sf, typeArg);
-    if (members.length > 0) {
-      result.members = members;
-      const fnArg = def.arguments[0];
-      if (fnArg && (ts.isArrowFunction(fnArg) || ts.isFunctionExpression(fnArg))) {
-        const ret = findFinalReturn(fnArg);
-        if (ret) result.returnRange = { start: ret.getStart(sf), end: ret.getEnd() };
-      }
-      return result;
-    }
-  }
-
   // Form B: extract from the function's return statement.
   let fn: ts.Node | undefined;
   if (ts.isCallExpression(def)) fn = def.arguments[0];
@@ -89,7 +74,88 @@ export function analyzeSetup(setupPath: string, source: string): SetupInfo {
       }
     }
   }
+
+  // Form C: `controller(def)` from `@ship-set/runtime`. The wrapped
+  // `def` is either an object literal (tier 2) or an arrow returning
+  // one (tier 3). Walk its `state` / `derived` / `on` / `use` sections
+  // and emit the section keys as scope members. Override Form B's
+  // result if it found anything — controller's section-walk is more
+  // accurate than a generic return-object extraction would be.
+  if (
+    ts.isCallExpression(def) &&
+    ts.isIdentifier(def.expression) &&
+    def.expression.text === 'controller' &&
+    def.arguments.length > 0
+  ) {
+    const arg = def.arguments[0]!;
+    const obj = unwrapToObjectLiteral(arg)
+    if (obj) {
+      const members = membersFromControllerDef(obj)
+      if (members.length > 0) {
+        result.members = members
+        result.returnRange = { start: obj.getStart(sf), end: obj.getEnd() }
+      }
+    }
+  }
   return result;
+}
+
+/** Walk `expr` until we land on an object literal:
+ * - `{...}` → the literal itself
+ * - `(...) => ({...})` → the arrow's expression body
+ * - `(...) => { ... return {...} }` → the final return statement
+ * - anything else → null
+ */
+function unwrapToObjectLiteral(expr: ts.Node): ts.ObjectLiteralExpression | null {
+  if (ts.isObjectLiteralExpression(expr)) return expr
+  if (ts.isParenthesizedExpression(expr)) return unwrapToObjectLiteral(expr.expression)
+  if (ts.isArrowFunction(expr) || ts.isFunctionExpression(expr)) {
+    if (!ts.isBlock(expr.body)) {
+      // arrow-expression body
+      return unwrapToObjectLiteral(expr.body)
+    }
+    const ret = findFinalReturn(expr)
+    if (ret && ret.expression) return unwrapToObjectLiteral(ret.expression)
+  }
+  return null
+}
+
+/** Walk a `controller(def)` argument object literal. The relevant
+ * sections each contribute identifiers to the view scope:
+ *
+ *   - `derived`: keys are callable memos
+ *   - `on`:      keys are handler functions
+ *   - `use`:     keys are hook namespace objects
+ *
+ * Per the "state is declarative-only" ADR, `state:` is no longer a
+ * controller section — local writable signals are declared in the
+ * template via `<state name="..." />` and reach scope through that
+ * route. The LSP picks them up via `parsed.state` from the template
+ * parser, not from the controller def.
+ *
+ * Each section may itself be an object literal OR a factory `(scope) => ({...})`.
+ * Both are unwrapped via `unwrapToObjectLiteral`.
+ */
+function membersFromControllerDef(obj: ts.ObjectLiteralExpression): SetupMember[] {
+  const out: SetupMember[] = []
+  for (const sectionName of ['derived', 'on', 'use'] as const) {
+    const prop = obj.properties.find(
+      (p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === sectionName,
+    )
+    if (!prop || !ts.isPropertyAssignment(prop)) continue
+    const innerObj = unwrapToObjectLiteral(prop.initializer)
+    if (!innerObj) continue
+    for (const member of innerObj.properties) {
+      if (
+        (ts.isPropertyAssignment(member) || ts.isShorthandPropertyAssignment(member) || ts.isMethodDeclaration(member)) &&
+        member.name &&
+        ts.isIdentifier(member.name)
+      ) {
+        out.push({ name: member.name.text, type: 'unknown' })
+      }
+    }
+  }
+  return out
 }
 
 function findDefaultExport(sf: ts.SourceFile): ts.Expression | ts.FunctionDeclaration | null {
@@ -125,49 +191,6 @@ function findFinalReturn(
     if (ts.isReturnStatement(s)) return s;
   }
   return null;
-}
-
-function membersFromTypeNode(sf: ts.SourceFile, t: ts.TypeNode): SetupMember[] {
-  if (ts.isTypeLiteralNode(t)) return membersFromTypeLiteral(t);
-  if (ts.isTypeReferenceNode(t) && ts.isIdentifier(t.typeName)) {
-    const name = t.typeName.text;
-    const decl = findInterfaceOrAlias(sf, name);
-    if (!decl) return [];
-    if (ts.isInterfaceDeclaration(decl)) {
-      return decl.members.flatMap(m => memberFromSignatureMember(m));
-    }
-    if (ts.isTypeAliasDeclaration(decl) && ts.isTypeLiteralNode(decl.type)) {
-      return membersFromTypeLiteral(decl.type);
-    }
-  }
-  return [];
-}
-
-function findInterfaceOrAlias(
-  sf: ts.SourceFile, name: string,
-): ts.InterfaceDeclaration | ts.TypeAliasDeclaration | null {
-  for (const s of sf.statements) {
-    if (ts.isInterfaceDeclaration(s) && s.name.text === name) return s;
-    if (ts.isTypeAliasDeclaration(s) && s.name.text === name) return s;
-  }
-  return null;
-}
-
-function membersFromTypeLiteral(t: ts.TypeLiteralNode): SetupMember[] {
-  return t.members.flatMap(m => memberFromSignatureMember(m));
-}
-
-function memberFromSignatureMember(m: ts.TypeElement): SetupMember[] {
-  if (ts.isPropertySignature(m) && m.name && ts.isIdentifier(m.name)) {
-    const t = m.type ? m.type.getText() : 'unknown';
-    return [{ name: m.name.text, type: t }];
-  }
-  if (ts.isMethodSignature(m) && m.name && ts.isIdentifier(m.name)) {
-    const params = m.parameters.map(p => p.getText()).join(', ');
-    const ret = m.type ? m.type.getText() : 'void';
-    return [{ name: m.name.text, type: `(${params}) => ${ret}` }];
-  }
-  return [];
 }
 
 function membersFromObjectLiteral(o: ts.ObjectLiteralExpression): SetupMember[] {

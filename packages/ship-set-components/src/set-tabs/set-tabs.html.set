@@ -1,0 +1,34 @@
+<component name="set-tabs" shadow>
+  <prop name="variant" values="underline|pill|enclosed" default="underline" reflect />
+
+  <style>
+    :host { display: block; }
+    .strip {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      border-bottom: 1px solid var(--border);
+    }
+    :host([variant='pill']) .strip {
+      gap: 6px;
+      border-bottom: 0;
+      padding: 4px;
+      background: var(--muted);
+      border-radius: var(--radius-md);
+    }
+    :host([variant='enclosed']) .strip {
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    ::slotted(set-tab),
+    ::slotted([slot='tab']) {
+      flex: 0 0 auto;
+    }
+  </style>
+</component>
+
+<div class="strip" part="strip" role="tablist">
+  <slot></slot>
+</div>

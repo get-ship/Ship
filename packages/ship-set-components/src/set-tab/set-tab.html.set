@@ -1,0 +1,69 @@
+<component name="set-tab" shadow>
+  <prop name="name" type="string" default="" reflect />
+  <prop name="active" type="bool" default="false" reflect />
+  <prop name="count" type="string" default="" />
+  <prop name="disabled" type="bool" default="false" reflect />
+
+  <style>
+    :host { display: inline-flex; }
+    button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font: inherit;
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: var(--font-weight-medium, 500);
+      color: var(--muted-foreground);
+      background: transparent;
+      border: 0;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      border-radius: 0;
+      transition:
+        color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out),
+        background-color var(--duration-fast) var(--ease-out);
+    }
+    button:hover:not(:disabled) {
+      color: var(--foreground);
+    }
+    :host([active]) button {
+      color: var(--foreground);
+      border-bottom-color: var(--primary);
+    }
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+    .count {
+      font-size: 11px;
+      font-weight: var(--font-weight-medium, 500);
+      color: var(--muted-foreground);
+      padding: 0 6px;
+      border-radius: var(--radius-full);
+      background: color-mix(in oklch, var(--muted) 80%, transparent);
+    }
+    :host([active]) .count { color: var(--primary); background: color-mix(in oklch, var(--primary) 12%, transparent); }
+    button:focus-visible {
+      outline: 2px solid color-mix(in oklch, var(--primary) 55%, transparent);
+      outline-offset: -2px;
+    }
+  </style>
+</component>
+
+<button
+  part="button"
+  type="button"
+  role="tab"
+  data-name={name()}
+  aria-selected={active() ? 'true' : 'false'}
+  aria-disabled={disabled() ? 'true' : 'false'}
+  disabled={disabled()}
+>
+  <slot></slot>
+  {#if count() !== ''}
+    <span class="count" aria-hidden="true">{count()}</span>
+  {/if}
+</button>

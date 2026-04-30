@@ -148,3 +148,47 @@ export function live<T>(
 
   return sig
 }
+
+// ---------------------------------------------------------------------------
+// Envelope unwrap helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Read a `LiveSignal<T>` and return its value or `undefined`.
+ *
+ * The full discriminated form is `sig().kind === 'ok' ? sig().value : ...`.
+ * `unwrap(sig)` collapses that to a single call when the caller only
+ * cares about "is the value here?" — typical for derived bodies that
+ * pass through optional chains anyway:
+ *
+ * ```ts
+ * derived: {
+ *   total: ({ agents }) => unwrap(agents)?.items.length ?? 0,
+ * }
+ * ```
+ *
+ * Tracks signal reads — calling `unwrap` inside a `derived` or `effect`
+ * subscribes the surrounding scope to the signal, just like calling
+ * the signal directly.
+ */
+export function unwrap<T>(sig: LiveSignal<T>): T | undefined {
+  const s = sig()
+  return s.kind === 'ok' ? s.value : undefined
+}
+
+/**
+ * Read a `LiveSignal<T>` and return its value or `fallback`. The
+ * fallback applies for both `loading` and `error` states — callers
+ * that need to discriminate should keep using the explicit `kind`
+ * check or `<while-loading>`/`<while-error>` boundaries.
+ *
+ * ```ts
+ * derived: {
+ *   items: ({ agents }) => unwrapOr(agents, { items: [] }).items,
+ * }
+ * ```
+ */
+export function unwrapOr<T>(sig: LiveSignal<T>, fallback: T): T {
+  const s = sig()
+  return s.kind === 'ok' ? s.value : fallback
+}

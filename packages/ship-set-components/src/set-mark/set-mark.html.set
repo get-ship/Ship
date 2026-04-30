@@ -1,0 +1,24 @@
+<component name="set-mark" shadow>
+  <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="warning" reflect />
+
+  <style>
+    :host { display: inline; --tone: var(--warning); --tone-fg: var(--warning); }
+    :host([tone='default'])     { --tone: var(--foreground); --tone-fg: var(--foreground); }
+    :host([tone='primary'])     { --tone: var(--primary); --tone-fg: var(--primary); }
+    :host([tone='info'])        { --tone: var(--info); --tone-fg: var(--info); }
+    :host([tone='success'])     { --tone: var(--success); --tone-fg: var(--success); }
+    :host([tone='warning'])     { --tone: var(--warning); --tone-fg: var(--warning); }
+    :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); }
+    :host([tone='accent'])      { --tone: var(--accent); --tone-fg: var(--accent); }
+    :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+
+    mark {
+      background: color-mix(in oklch, var(--tone) 20%, transparent);
+      color: var(--tone-fg);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+  </style>
+</component>
+
+<mark part="mark"><slot></slot></mark>

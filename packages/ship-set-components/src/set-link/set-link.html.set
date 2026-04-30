@@ -1,0 +1,37 @@
+<component name="set-link" shadow>
+  <prop name="href" type="string" default="" reflect />
+  <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+  <prop name="variant" values="default|underline|subtle" default="default" reflect />
+  <prop name="target" type="string" default="" reflect />
+  <prop name="rel" type="string" default="" reflect />
+
+  <style>
+    :host { display: inline; --tone-fg: currentColor; }
+    :host([tone='primary']) { --tone-fg: var(--primary); }
+    :host([tone='info'])    { --tone-fg: var(--info); }
+    :host([tone='success']) { --tone-fg: var(--success); }
+    :host([tone='warning']) { --tone-fg: var(--warning); }
+    :host([tone='destructive']) { --tone-fg: var(--destructive); }
+    :host([tone='accent'])  { --tone-fg: var(--accent); }
+    :host([tone='muted'])   { --tone-fg: var(--muted-foreground); }
+
+    a {
+      color: var(--tone-fg);
+      text-decoration: none;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: color var(--duration-fast) var(--ease-out), text-decoration-color var(--duration-fast) var(--ease-out);
+    }
+    a:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; }
+    :host([variant='underline']) a { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 2px; text-decoration-color: color-mix(in oklch, var(--tone-fg) 40%, transparent); }
+    :host([variant='subtle']) a:hover { color: color-mix(in oklch, var(--tone-fg) 80%, var(--foreground)); }
+    a:focus-visible { outline: 2px solid var(--ring-color, currentColor); outline-offset: 2px; }
+  </style>
+</component>
+
+<a part="link"
+   href={href()}
+   target={target()}
+   rel={rel()}>
+  <slot></slot>
+</a>

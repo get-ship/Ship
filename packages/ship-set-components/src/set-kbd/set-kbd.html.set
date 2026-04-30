@@ -1,0 +1,30 @@
+<component name="set-kbd" shadow>
+  <prop name="size" values="sm|md" default="md" reflect />
+
+  <style>
+    :host { display: inline-flex; vertical-align: baseline; }
+
+    kbd {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 5px;
+      font-family: var(--font-mono);
+      font-weight: var(--font-weight-medium, 500);
+      font-size: 11px;
+      line-height: 1.2;
+      color: var(--foreground);
+      background: var(--muted);
+      border: 1px solid var(--border);
+      border-bottom-width: 2px;
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow-xs);
+      white-space: nowrap;
+    }
+
+    :host([size='sm']) kbd { font-size: 10px; padding: 1px 4px; }
+    :host([size='md']) kbd { font-size: 11px; padding: 2px 5px; }
+  </style>
+</component>
+
+<kbd part="kbd"><slot></slot></kbd>

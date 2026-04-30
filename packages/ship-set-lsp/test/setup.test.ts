@@ -11,13 +11,15 @@ describe('setup', () => {
     expect(pairedSetupPath('/x/y/foo.unrelated')).toBeNull();
   });
 
-  it('extracts members via type argument', () => {
+  it('extracts members from controller() fixture', () => {
     const info = loadSetup(path.join(FIXTURES, 'profile.html.set'));
     expect(info).not.toBeNull();
     const names = info!.members.map(m => m.name).sort();
-    expect(names).toEqual(['age', 'filter', 'name', 'save']);
-    const filter = info!.members.find(m => m.name === 'filter');
-    expect(filter!.type).toBe('() => string');
+    // Per the "state is declarative-only" ADR, `state:` is no longer
+    // a controller section — `name` and `age` come from the template's
+    // <state> directives, not the controller def. Setup analysis
+    // surfaces only the controller's derived/on/use keys.
+    expect(names).toEqual(['filter', 'save']);
   });
 
   it('falls back to return-statement object literal', () => {
@@ -28,5 +30,63 @@ describe('setup', () => {
     `;
     const info = analyzeSetup('/tmp/x.ts', src);
     expect(info.members.map(m => m.name).sort()).toEqual(['a', 'b', 'c']);
+  });
+
+  describe('controller(def) — Form C', () => {
+    it('extracts derived / on / use keys from object form', () => {
+      // Per the "state is declarative-only" ADR, controllers have
+      // five sections — derived / on / use / mount / unmount — and
+      // state lives in the template. Setup analysis only surfaces
+      // section-derived identifiers (derived / on / use).
+      const src = `
+        import { controller } from '@ship-set/runtime'
+        export default controller({
+          derived: { doubled: ({ count }) => count() * 2 },
+          on: { incr: (s) => { s.count++ }, toggle: (s) => { s.open = !s.open } },
+          use: { list: someHook() },
+        })
+      `;
+      const info = analyzeSetup('/tmp/x.ts', src);
+      const names = info.members.map((m) => m.name).sort();
+      expect(names).toEqual(['doubled', 'incr', 'list', 'toggle']);
+    });
+
+    it('extracts keys from function form (arrow returning object)', () => {
+      const src = `
+        import { controller } from '@ship-set/runtime'
+        export default controller(({ ship }) => ({
+          on: { refresh: () => ship.agents.refresh() },
+        }))
+      `;
+      const info = analyzeSetup('/tmp/x.ts', src);
+      expect(info.members.map((m) => m.name).sort()).toEqual(['refresh']);
+    });
+
+    it('extracts keys from function form (block body with return)', () => {
+      const src = `
+        import { controller } from '@ship-set/runtime'
+        export default controller(({ ship }) => {
+          const stableId = 'x'
+          return {
+            on: { toggle: (s) => { s.open = !s.open } },
+          }
+        })
+      `;
+      const info = analyzeSetup('/tmp/x.ts', src);
+      expect(info.members.map((m) => m.name).sort()).toEqual(['toggle']);
+    });
+
+    it('handles per-section factory form (derived as function)', () => {
+      const src = `
+        import { controller } from '@ship-set/runtime'
+        export default controller({
+          derived: ({ agents, query }) => ({
+            filtered: ({ agents, query }) => agents().filter(a => a.includes(query())),
+          }),
+        })
+      `;
+      const info = analyzeSetup('/tmp/x.ts', src);
+      expect(info.members.map((m) => m.name).sort()).toEqual(['filtered']);
+    });
   });
 });

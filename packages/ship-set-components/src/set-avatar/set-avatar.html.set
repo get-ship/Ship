@@ -1,0 +1,55 @@
+<component name="set-avatar" shadow>
+  <prop name="size" values="xs|sm|md|lg|xl" default="md" reflect />
+  <prop name="shape" values="round|square" default="round" reflect />
+  <prop name="src" type="string" default="" />
+  <prop name="name" type="string" default="" />
+  <prop name="alt" type="string" default="" />
+
+  <style>
+    :host {
+      display: inline-flex;
+      vertical-align: middle;
+      --sz: 32px;
+      --fs: 13px;
+    }
+    :host([size='xs']) { --sz: 20px; --fs: 10px; }
+    :host([size='sm']) { --sz: 26px; --fs: 11px; }
+    :host([size='md']) { --sz: 32px; --fs: 13px; }
+    :host([size='lg']) { --sz: 40px; --fs: 15px; }
+    :host([size='xl']) { --sz: 56px; --fs: 22px; }
+
+    .root {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--sz);
+      height: var(--sz);
+      flex: none;
+      background: color-mix(in oklch, var(--accent) 30%, var(--muted));
+      color: var(--accent-foreground, var(--foreground));
+      font-family: var(--font-body);
+      font-weight: var(--font-weight-semibold, 600);
+      font-size: var(--fs);
+      letter-spacing: -0.01em;
+      overflow: hidden;
+      user-select: none;
+    }
+    :host([shape='round']) .root  { border-radius: 50%; }
+    :host([shape='square']) .root { border-radius: var(--radius-sm); }
+
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+  </style>
+</component>
+
+<span class="root" part="root" aria-label={alt() || name()}>
+  {#if src() !== ''}
+    <img part="image" src={src()} alt={alt() || name()} />
+  {:else}
+    {name() ? name().slice(0, 1).toUpperCase() : '?'}
+  {/if}
+</span>

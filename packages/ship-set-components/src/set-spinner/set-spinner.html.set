@@ -1,0 +1,38 @@
+<component name="set-spinner" shadow>
+  <prop name="size" values="xs|sm|md|lg" default="md" reflect />
+  <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+  <prop name="label" type="string" default="" />
+
+  <style>
+    :host { display: inline-flex; vertical-align: middle; --tone-fg: currentColor; --sz: 16px; --bw: 2px; }
+    :host([tone='default']) { --tone-fg: var(--muted-foreground); }
+    :host([tone='primary']) { --tone-fg: var(--primary); }
+    :host([tone='info'])    { --tone-fg: var(--info); }
+    :host([tone='success']) { --tone-fg: var(--success); }
+    :host([tone='warning']) { --tone-fg: var(--warning); }
+    :host([tone='destructive']) { --tone-fg: var(--destructive); }
+    :host([tone='accent'])  { --tone-fg: var(--accent); }
+    :host([tone='muted'])   { --tone-fg: var(--muted-foreground); }
+    :host([size='xs']) { --sz: 10px; --bw: 1.5px; }
+    :host([size='sm']) { --sz: 12px; --bw: 1.5px; }
+    :host([size='md']) { --sz: 16px; --bw: 2px; }
+    :host([size='lg']) { --sz: 24px; --bw: 2.5px; }
+    .ring {
+      width: var(--sz); height: var(--sz);
+      border: var(--bw) solid currentColor;
+      border-color: var(--tone-fg);
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: set-spinner-spin 0.7s linear infinite;
+      display: inline-block;
+    }
+    @keyframes set-spinner-spin { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { .ring { animation-duration: 1.5s; } }
+  </style>
+</component>
+
+<span class="ring"
+      part="ring"
+      role={label() ? 'status' : ''}
+      aria-label={label()}
+      aria-hidden={label() ? '' : 'true'}></span>

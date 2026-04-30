@@ -77,6 +77,30 @@ describe('createClient', () => {
     expect(v.kind).toBe('error')
   })
 
+  it('git.diff serializes args as a JSON object literal in the URL', () => {
+    FakeEventSource.instances = []
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    const sig = live(() => ship.git.diff({ commit: 'abc1234' }))
+    expect(sig().kind).toBe('loading')
+    const url = FakeEventSource.instances[0]!.url
+    expect(url).toContain('/_ship-set/data?expr=')
+    // Args round-trip through encodeURIComponent — assert against the
+    // decoded form for legibility.
+    expect(decodeURIComponent(url.split('expr=')[1]!)).toBe(
+      'ship.git.diff({"commit":"abc1234"})',
+    )
+  })
+
+  it('git.diff includes optional workspace_id when provided', () => {
+    FakeEventSource.instances = []
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    live(() => ship.git.diff({ commit: 'WORKING', workspace_id: 'ws-1' }))
+    const url = FakeEventSource.instances[0]!.url
+    expect(decodeURIComponent(url.split('expr=')[1]!)).toBe(
+      'ship.git.diff({"commit":"WORKING","workspace_id":"ws-1"})',
+    )
+  })
+
   it('disposer closes the EventSource', () => {
     FakeEventSource.instances = []
     const source = makeSseSource('http://test', FakeEventSource as any)

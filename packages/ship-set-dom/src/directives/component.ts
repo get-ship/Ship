@@ -63,6 +63,8 @@ export function registerComponent(
 
   component(decl.tag, {
     props,
+    ...(decl.shadow ? { shadow: true as const } : {}),
+    ...(decl.styles ? { styles: decl.styles } : {}),
     setup: ({ props: propSignals, host, cleanups }) => {
       const scope: Scope = {}
       for (const [attr, sig] of Object.entries(propSignals)) {
@@ -79,7 +81,12 @@ export function registerComponent(
       }
       const finalScope = extras ? extendScope(scope, extras) : scope
       const r = render(body, finalScope, doc)
-      for (const n of r.nodes) host.appendChild(n)
+      // Shadow components render into the attached shadow root; light
+      // components render into the host itself. The factory attaches
+      // the shadow root before `setup()` runs, so checking for it
+      // here is the simple discriminator.
+      const target: ParentNode = host.shadowRoot ?? host
+      for (const n of r.nodes) target.appendChild(n)
       const cleanup = r.mount()
       cleanups.push(() => {
         for (const n of r.nodes) {

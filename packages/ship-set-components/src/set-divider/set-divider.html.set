@@ -1,0 +1,25 @@
+<component name="set-divider" shadow>
+  <prop name="orientation" values="horizontal|vertical" default="horizontal" reflect />
+  <prop name="tone" values="default|muted|primary|destructive" default="default" reflect />
+
+  <style>
+    :host { display: block; --tone-bg: var(--border); }
+    :host([tone='muted'])       { --tone-bg: var(--border-subtle, color-mix(in oklch, var(--border) 50%, transparent)); }
+    :host([tone='primary'])     { --tone-bg: color-mix(in oklch, var(--primary) 50%, var(--border)); }
+    :host([tone='destructive']) { --tone-bg: color-mix(in oklch, var(--destructive) 50%, var(--border)); }
+
+    .line {
+      background: var(--tone-bg);
+      border: 0;
+    }
+    :host([orientation='horizontal']) .line { width: 100%; height: 1px; margin: var(--space-2) 0; }
+    :host([orientation='vertical']) {
+      display: inline-block;
+      vertical-align: middle;
+      align-self: stretch;
+    }
+    :host([orientation='vertical']) .line { width: 1px; height: 1em; margin: 0 var(--space-2); display: inline-block; }
+  </style>
+</component>
+
+<hr class="line" part="line" role="separator" aria-orientation={orientation()}>

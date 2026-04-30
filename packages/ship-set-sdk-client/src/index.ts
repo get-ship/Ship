@@ -24,11 +24,79 @@ export interface ShipSDK {
      */
     summaries(): LiveSource<AgentsSummariesResponse>
   }
+  git: {
+    /**
+     * Repo overview — branch + head + clean/staged/modified/untracked
+     * file lists + recent commits + branches + ahead/behind. Fetched
+     * once on subscribe and re-fetched whenever the daemon emits a
+     * relevant change event.
+     */
+    overview(): LiveSource<GitOverview>
+    /**
+     * Unified diff for a specific commit (or the special `'WORKING'`
+     * value for the working-tree diff). Args are required.
+     */
+    diff(args: GitDiffArgs): LiveSource<GitDiff>
+  }
+}
+
+export interface GitDiffArgs {
+  /** Commit SHA, or `'WORKING'` for the working-tree diff. */
+  commit: string
+  /** Optional workspace scope (defaults to the daemon's project root). */
+  workspace_id?: string
+}
+
+export interface GitDiff {
+  sha: string
+  short_sha: string
+  is_working: boolean
+  diff_text: string
+  parsed: unknown
 }
 
 /** Shape of `agents.summaries()` payload — matches the daemon registry. */
 export interface AgentsSummariesResponse {
   items: AgentSummary[]
+}
+
+/** Repo-overview payload. Mirrors `services::registry::"git.overview"`. */
+export interface GitOverview {
+  workspace_id: string | null
+  branch: string
+  head_short: string
+  clean: boolean
+  total_changed: number
+  staged: GitFileEntry[]
+  modified: GitFileEntry[]
+  untracked: GitFileEntry[]
+  commits: GitCommit[]
+  branches: GitBranch[]
+  ahead: number
+  behind: number
+}
+
+export interface GitFileEntry {
+  path: string
+  status?: string
+}
+
+export interface GitCommit {
+  sha: string
+  short_sha: string
+  subject: string
+  author: string
+  date: string
+  additions: number
+  deletions: number
+}
+
+export interface GitBranch {
+  name: string
+  active: boolean
+  upstream?: string
+  ahead: number
+  behind: number
 }
 
 /** One agent card's worth of data. Mirrors `services::agents::view_state::AgentSummary`. */
@@ -80,6 +148,16 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     agents: {
       summaries: () => makeSseSource<AgentsSummariesResponse>(
         `${baseUrl}/_ship-set/data?expr=${encodeURIComponent('ship.agents.summaries()')}`,
+        ESCtor,
+      ),
+    },
+    git: {
+      overview: () => makeSseSource<GitOverview>(
+        `${baseUrl}/_ship-set/data?expr=${encodeURIComponent('ship.git.overview()')}`,
+        ESCtor,
+      ),
+      diff: (args) => makeSseSource<GitDiff>(
+        `${baseUrl}/_ship-set/data?expr=${encodeURIComponent(`ship.git.diff(${JSON.stringify(args)})`)}`,
         ESCtor,
       ),
     },

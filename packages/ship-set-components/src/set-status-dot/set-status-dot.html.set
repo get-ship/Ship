@@ -1,0 +1,55 @@
+<component name="set-status-dot" shadow>
+  <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="success" reflect />
+  <prop name="pulse" type="bool" default="false" reflect />
+  <prop name="size" values="sm|md" default="md" reflect />
+  <prop name="label" type="string" default="" />
+
+  <style>
+    :host {
+      display: inline-flex;
+      vertical-align: middle;
+      /* Per-host tone channel — `:host([tone=...])` rules below override
+       * --tone-fg so the dot color tracks the prop. Same pattern the Lit
+       * primitives use. */
+      --tone-fg: var(--success);
+    }
+    :host([tone='default']) { --tone-fg: var(--foreground); }
+    :host([tone='primary']) { --tone-fg: var(--primary); }
+    :host([tone='info'])    { --tone-fg: var(--info); }
+    :host([tone='success']) { --tone-fg: var(--success); }
+    :host([tone='warning']) { --tone-fg: var(--warning); }
+    :host([tone='destructive']) { --tone-fg: var(--destructive); }
+    :host([tone='accent'])  { --tone-fg: var(--accent); }
+    :host([tone='muted'])   { --tone-fg: var(--muted-foreground); }
+
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--tone-fg);
+      box-shadow: 0 0 0 4px color-mix(in oklch, var(--tone-fg) 20%, transparent);
+    }
+    :host([size='sm']) .dot {
+      width: 6px;
+      height: 6px;
+      box-shadow: 0 0 0 3px color-mix(in oklch, var(--tone-fg) 20%, transparent);
+    }
+
+    :host([pulse]) .dot { animation: set-status-dot-pulse 2.5s infinite; }
+    @keyframes set-status-dot-pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.75; transform: scale(0.9); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      :host([pulse]) .dot { animation: none; }
+    }
+  </style>
+</component>
+
+<span class="dot"
+      part="dot"
+      role={label() ? 'img' : ''}
+      aria-label={label()}
+      aria-hidden={label() ? '' : 'true'}></span>
