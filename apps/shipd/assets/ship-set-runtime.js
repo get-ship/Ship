@@ -2,7 +2,7 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
-// src/signal.ts
+// packages/ship-set-runtime/src/signal.ts
 var CURRENT_OBSERVER = null;
 var BATCH_DEPTH = 0;
 var PENDING = /* @__PURE__ */ new Set();
@@ -126,7 +126,7 @@ function untrack(fn) {
   }
 }
 
-// src/bind.ts
+// packages/ship-set-runtime/src/bind.ts
 function bindText(node, get) {
   return effect(() => {
     const v = get();
@@ -198,7 +198,7 @@ function bindChecked(el, sig) {
   };
 }
 
-// src/on.ts
+// packages/ship-set-runtime/src/on.ts
 function on(el, event, handler, opts = {}) {
   const modifiers = opts.modifiers ?? [];
   let timer;
@@ -277,7 +277,7 @@ function matchesKey(e, spec) {
   return e.key.toLowerCase() === key;
 }
 
-// src/patch.ts
+// packages/ship-set-runtime/src/patch.ts
 function applyPatch(sig, patch) {
   const next = applyOp(sig.__peek(), patch);
   sig.set(next);
@@ -420,7 +420,7 @@ function rebuild(root, path, mut) {
   }
 }
 
-// src/for.ts
+// packages/ship-set-runtime/src/for.ts
 function bindFor(opts) {
   const { anchor, items, key, render } = opts;
   let prev = [];
@@ -502,7 +502,7 @@ function bindForSignal(anchor, sig, key, render) {
   return bindFor({ anchor, items: () => sig(), key, render });
 }
 
-// src/if.ts
+// packages/ship-set-runtime/src/if.ts
 function bindIf(opts) {
   const { anchor, cond, then_, else_ } = opts;
   let active = null;
@@ -543,7 +543,7 @@ function bindIf(opts) {
   };
 }
 
-// src/await.ts
+// packages/ship-set-runtime/src/await.ts
 function bindAwait(opts) {
   const { anchor, promise, loading, then_, catch_ } = opts;
   let active = null;
@@ -594,7 +594,7 @@ function bindAwait(opts) {
   };
 }
 
-// src/raw-html.ts
+// packages/ship-set-runtime/src/raw-html.ts
 function bindRawHtml(el, get, deps = []) {
   return effect(() => {
     for (const d of deps) d();
@@ -602,7 +602,7 @@ function bindRawHtml(el, get, deps = []) {
   });
 }
 
-// src/morph.ts
+// packages/ship-set-runtime/src/morph.ts
 function morph(target, source, opts = {}) {
   morphElement(target, source, opts);
 }
@@ -668,7 +668,7 @@ function morphNode(t, s, parent, opts) {
   }
 }
 
-// src/slot.ts
+// packages/ship-set-runtime/src/slot.ts
 function resolveSlots(host, slots, originalChildren) {
   const fills = /* @__PURE__ */ new Map();
   for (const child of originalChildren) {
@@ -716,7 +716,7 @@ function snapshotChildren(host) {
   return Array.from(host.childNodes);
 }
 
-// src/decode.ts
+// packages/ship-set-runtime/src/decode.ts
 var decodeString = (raw) => raw ?? "";
 var decodeNumber = (raw) => {
   if (raw === null || raw === "") return NaN;
@@ -743,7 +743,7 @@ function decodeEnum(allowed, fallback) {
   return (raw) => raw !== null && set.has(raw) ? raw : fallback;
 }
 
-// src/component-factory.ts
+// packages/ship-set-runtime/src/component-factory.ts
 var prop = {
   /** String-valued prop. Default `''`. */
   string(opts = {}) {
@@ -890,7 +890,7 @@ function component(tag, def) {
   });
 }
 
-// src/component.ts
+// packages/ship-set-runtime/src/component.ts
 function defineComponent(tag, schema, factory) {
   if (customElements.get(tag)) return;
   if (schema.formAssociated) {
@@ -979,7 +979,7 @@ function camelOf2(attr) {
   return attr.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 
-// src/data.ts
+// packages/ship-set-runtime/src/data.ts
 function data(opts) {
   const sig = signal(opts.initial);
   const ESCtor = opts.EventSource ?? globalThis.EventSource;
@@ -1016,7 +1016,7 @@ function data(opts) {
   };
 }
 
-// src/state.ts
+// packages/ship-set-runtime/src/state.ts
 function debounce(input, ms) {
   const out = signal(untrack(() => input()));
   let timer = null;
@@ -1037,7 +1037,7 @@ function debounce(input, ms) {
   return out;
 }
 
-// src/live.ts
+// packages/ship-set-runtime/src/live.ts
 var toError = (err) => err instanceof Error ? err : new Error(String(err));
 var isLiveSource = (v) => typeof v === "object" && v !== null && typeof v.subscribe === "function";
 function live(source, opts) {
@@ -1094,7 +1094,7 @@ function unwrapOr(sig, fallback) {
   return s.kind === "ok" ? s.value : fallback;
 }
 
-// src/while.ts
+// packages/ship-set-runtime/src/while.ts
 var tearDownBranch = (active) => {
   if (!active) return null;
   for (const n of active.nodes) {
@@ -1153,7 +1153,7 @@ function bindWhileError(opts) {
   };
 }
 
-// src/controller-hook-resolver.ts
+// packages/ship-set-runtime/src/controller-hook-resolver.ts
 function resolveHook(hook, ctx, outerScope) {
   const hookState = resolveHookState(hook.state, { ship: ctx.ship, ...outerScope });
   const stateSignals = {};
@@ -1229,7 +1229,7 @@ function buildHookWritableProxy(stateSignals, baseScope) {
   });
 }
 
-// src/controller-resolver.ts
+// packages/ship-set-runtime/src/controller-resolver.ts
 var LIFECYCLE_KEY = "__shipSetLifecycle";
 function resolveController(def, ctx) {
   const shape = normalize(def, ctx);
@@ -1355,7 +1355,7 @@ function controller(def) {
   };
 }
 
-// src/hooks/filtered-list.ts
+// packages/ship-set-runtime/src/hooks/filtered-list.ts
 function readItems(source) {
   const v = source();
   if (Array.isArray(v)) return v;
@@ -1388,7 +1388,7 @@ function useFilteredList(source, predicate) {
   };
 }
 
-// src/hooks/selection.ts
+// packages/ship-set-runtime/src/hooks/selection.ts
 function readItems2(source) {
   const v = source();
   if (Array.isArray(v)) return v;
@@ -1425,7 +1425,7 @@ function useSelection(source, keyOf) {
   };
 }
 
-// src/hooks/form.ts
+// packages/ship-set-runtime/src/hooks/form.ts
 function resolveInitial(init) {
   return typeof init === "function" ? init() : init;
 }
@@ -1513,7 +1513,7 @@ function useForm(opts) {
   };
 }
 
-// src/template-hooks/registry.ts
+// packages/ship-set-runtime/src/template-hooks/registry.ts
 var registry = /* @__PURE__ */ new Map();
 function registerTemplateHook(hook) {
   registry.set(
@@ -1531,7 +1531,7 @@ function listRegisteredHooks() {
   return Array.from(registry.keys()).sort();
 }
 
-// src/template-hooks/kbd.ts
+// packages/ship-set-runtime/src/template-hooks/kbd.ts
 var useKbdHook = {
   name: "kbd",
   attrs: { shortcuts: "literal", resolve: "literal" },
@@ -1553,7 +1553,7 @@ var useKbdHook = {
   }
 };
 
-// src/template-hooks/click-outside.ts
+// packages/ship-set-runtime/src/template-hooks/click-outside.ts
 var useClickOutsideHook = {
   name: "click-outside",
   attrs: { target: "binding", action: "binding" },
@@ -1570,7 +1570,7 @@ var useClickOutsideHook = {
   }
 };
 
-// src/template-hooks/shell.ts
+// packages/ship-set-runtime/src/template-hooks/shell.ts
 var useShellHook = {
   name: "shell",
   attrs: { as: "literal" },
@@ -1579,7 +1579,7 @@ var useShellHook = {
   }
 };
 
-// src/template-hooks/index.ts
+// packages/ship-set-runtime/src/template-hooks/index.ts
 registerTemplateHook(useKbdHook);
 registerTemplateHook(useClickOutsideHook);
 registerTemplateHook(useShellHook);

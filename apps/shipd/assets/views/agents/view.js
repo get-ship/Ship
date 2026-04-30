@@ -1,4 +1,4 @@
-// view.ts
+// views/agents/view.ts
 import { controller, unwrap } from "@ship-set/runtime";
 var view_default = controller({
   derived: {

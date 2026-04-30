@@ -1457,20 +1457,28 @@ function hydrate(template, setup, opts) {
     } };
   }
   let scope = { ship, route, navigate };
+  const stateKeys = /* @__PURE__ */ new Set();
   for (const decl of parsed.state) {
     scope[decl.name] = mountState(decl, scope);
+    stateKeys.add(decl.name);
   }
   for (const decl of parsed.data) {
     scope[decl.name] = mountData(decl, ship, route, scope);
   }
-  const LIFECYCLE_KEY = "__shipSetLifecycle";
+  const LIFECYCLE_KEY2 = "__shipSetLifecycle";
   let lifecycle;
   if (setup) {
-    const ctx = { ship, route, navigate, scope: { ...scope } };
+    const ctx = {
+      ship,
+      route,
+      navigate,
+      scope: { ...scope },
+      stateKeys
+    };
     const ret = setup(ctx);
     if (ret && typeof ret === "object") {
       scope = extendScope(scope, ret);
-      const lc = ret[LIFECYCLE_KEY];
+      const lc = ret[LIFECYCLE_KEY2];
       if (lc && typeof lc === "object") {
         lifecycle = lc;
       }
@@ -1569,6 +1577,477 @@ function compileTopLevel(nodes) {
   return compileChildren(fragment);
 }
 
+// packages/ship-set-dom/src/attach/island.ts
+import { signal } from "@ship-set/runtime";
+var INIT_ID = "__set_init__";
+function readInitIsland(root) {
+  const owner = root.ownerDocument ?? document;
+  let node = null;
+  if (typeof root.querySelector === "function") {
+    node = root.querySelector(`script#${INIT_ID}`);
+  }
+  if (!node) {
+    node = owner.getElementById(INIT_ID);
+  }
+  if (!node) {
+    throw new Error(
+      "attach() requires the SSR walker's __set_init__ JSON island; got an empty shell or stale HTML."
+    );
+  }
+  const raw = node.textContent ?? "{}";
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    throw new Error(
+      "[ship-set/attach] failed to parse __set_init__ JSON: " + err.message
+    );
+  }
+  const scope = {};
+  const stateKeys = /* @__PURE__ */ new Set();
+  const liveKeys = /* @__PURE__ */ new Set();
+  const envelopes = {};
+  for (const [k, v] of Object.entries(parsed)) {
+    if (isLiveStateEnvelope(v)) {
+      const sig = signal(v);
+      scope[k] = sig;
+      liveKeys.add(k);
+      envelopes[k] = v;
+    } else {
+      scope[k] = signal(v);
+      stateKeys.add(k);
+    }
+  }
+  return { scope, stateKeys, liveKeys, envelopes };
+}
+function isLiveStateEnvelope(v) {
+  if (!v || typeof v !== "object") return false;
+  const k = v.kind;
+  return k === "loading" || k === "ok" || k === "error";
+}
+
+// packages/ship-set-dom/src/attach/manifest.ts
+var ATTR_PREFIX = "data-set-";
+var TEXT_OPEN_PREFIX = "set:text:";
+var TEXT_CLOSE = "/set";
+function indexBindings(bindings) {
+  const map = /* @__PURE__ */ new Map();
+  for (const b of bindings) map.set(b.key, b);
+  return map;
+}
+function* walkMarkers(root, byKey) {
+  const owner = root.ownerDocument ?? document;
+  const elWalker = owner.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  let el = elWalker.currentNode;
+  while (el !== null) {
+    for (const attr of Array.from(el.attributes)) {
+      if (!attr.name.startsWith(ATTR_PREFIX)) continue;
+      if (attr.name === "data-set-key") continue;
+      const binding = byKey.get(attr.value);
+      if (!binding) continue;
+      yield { kind: "element", binding, el, rawAttr: attr.name };
+    }
+    el = elWalker.nextNode();
+  }
+  const cWalker = owner.createTreeWalker(root, NodeFilter.SHOW_COMMENT);
+  const opens = [];
+  let n = cWalker.currentNode;
+  while (n = cWalker.nextNode()) {
+    if (!isComment(n)) continue;
+    if (n.data.startsWith(TEXT_OPEN_PREFIX)) opens.push(n);
+  }
+  for (const open of opens) {
+    const key = open.data.slice(TEXT_OPEN_PREFIX.length);
+    const binding = byKey.get(key);
+    if (!binding) continue;
+    let close = null;
+    for (let s = open.nextSibling; s; s = s.nextSibling) {
+      if (isComment(s) && s.data === TEXT_CLOSE) {
+        close = s;
+        break;
+      }
+    }
+    if (!close) continue;
+    const parent = open.parentElement;
+    if (!parent) continue;
+    yield { kind: "text", binding, open, close, parent };
+  }
+}
+function isComment(n) {
+  return n.nodeType === 8;
+}
+
+// packages/ship-set-dom/src/attach/bindings/text.ts
+import { effect as effect4 } from "@ship-set/runtime";
+
+// packages/ship-set-dom/src/attach/eval.ts
+var cache = /* @__PURE__ */ new WeakMap();
+var MODULE_KEY = {};
+function compileExpr2(expr) {
+  let perModule = cache.get(MODULE_KEY);
+  if (!perModule) {
+    perModule = /* @__PURE__ */ new Map();
+    cache.set(MODULE_KEY, perModule);
+  }
+  const hit = perModule.get(expr);
+  if (hit) return hit;
+  const fn = new Function(
+    "$scope",
+    "with ($scope) { return (" + expr + "); }"
+  );
+  perModule.set(expr, fn);
+  return fn;
+}
+
+// packages/ship-set-dom/src/attach/bindings/text.ts
+function wireText(open, close, scope, expr) {
+  const parent = open.parentNode;
+  if (!parent) return () => {
+  };
+  let s = open.nextSibling;
+  while (s && s !== close) {
+    const next = s.nextSibling;
+    parent.removeChild(s);
+    s = next;
+  }
+  const text = (parent.ownerDocument ?? document).createTextNode("");
+  parent.insertBefore(text, close);
+  const ev = compileExpr2(expr);
+  const dispose = effect4(() => {
+    let v;
+    try {
+      v = ev(scope);
+    } catch (err) {
+      console.error("[ship-set/attach] text expr threw:", err, "\nexpr:", expr);
+      v = "";
+    }
+    text.data = stringify(v);
+  });
+  return dispose;
+}
+function stringify(v) {
+  if (v === null || v === void 0) return "";
+  return String(v);
+}
+
+// packages/ship-set-dom/src/attach/bindings/event.ts
+function wireOn(el, eventName, scope, expr) {
+  const ev = compileExpr2(expr);
+  const listener = (e) => {
+    let handler;
+    try {
+      handler = ev(scope);
+    } catch (err) {
+      console.error("[ship-set/attach] on:" + eventName + " expr threw:", err, "\nexpr:", expr);
+      return;
+    }
+    if (typeof handler !== "function") return;
+    try {
+      ;
+      handler(e);
+    } catch (err) {
+      console.error("[ship-set/attach] on:" + eventName + " handler threw:", err);
+    }
+  };
+  el.addEventListener(eventName, listener);
+  return () => el.removeEventListener(eventName, listener);
+}
+
+// packages/ship-set-dom/src/attach/bindings/bind-value.ts
+import { effect as effect5 } from "@ship-set/runtime";
+function wireBindValue(el, scope, expr) {
+  const sig = scope[expr];
+  if (!isWritableSignal(sig)) {
+    console.warn(
+      "[ship-set/attach] bind:value expects scope." + expr + " to be a writable signal."
+    );
+    return () => {
+    };
+  }
+  const writable = sig;
+  const onInput = () => {
+    writable.set(el.value);
+  };
+  el.addEventListener("input", onInput);
+  const dispose = effect5(() => {
+    const v = writable();
+    const next = v === null || v === void 0 ? "" : String(v);
+    if (el.value !== next) {
+      ;
+      el.value = next;
+    }
+  });
+  return () => {
+    el.removeEventListener("input", onInput);
+    dispose();
+  };
+}
+function isWritableSignal(v) {
+  return typeof v === "function" && "set" in v && typeof v.set === "function";
+}
+
+// packages/ship-set-dom/src/attach/bindings/bind-checked.ts
+import { effect as effect6 } from "@ship-set/runtime";
+function wireBindChecked(el, scope, expr) {
+  const sig = scope[expr];
+  if (!isWritableSignal2(sig)) {
+    console.warn(
+      "[ship-set/attach] bind:checked expects scope." + expr + " to be a writable signal."
+    );
+    return () => {
+    };
+  }
+  const writable = sig;
+  const onChange = () => {
+    writable.set(el.checked);
+  };
+  el.addEventListener("change", onChange);
+  const dispose = effect6(() => {
+    const v = writable();
+    const next = !!v;
+    if (el.checked !== next) el.checked = next;
+  });
+  return () => {
+    el.removeEventListener("change", onChange);
+    dispose();
+  };
+}
+function isWritableSignal2(v) {
+  return typeof v === "function" && "set" in v && typeof v.set === "function";
+}
+
+// packages/ship-set-dom/src/attach/bindings/attr.ts
+import { effect as effect7 } from "@ship-set/runtime";
+function wireAttr(el, name, scope, expr) {
+  const ev = compileExpr2(expr);
+  return effect7(() => {
+    let v;
+    try {
+      v = ev(scope);
+    } catch (err) {
+      console.error("[ship-set/attach] attr:" + name + " expr threw:", err);
+      return;
+    }
+    if (v === null || v === void 0 || v === false) {
+      el.removeAttribute(name);
+      return;
+    }
+    el.setAttribute(name, String(v));
+  });
+}
+
+// packages/ship-set-dom/src/attach/bindings/class.ts
+import { effect as effect8 } from "@ship-set/runtime";
+function wireClass(el, name, scope, expr) {
+  const ev = compileExpr2(expr);
+  return effect8(() => {
+    let v;
+    try {
+      v = ev(scope);
+    } catch (err) {
+      console.error("[ship-set/attach] class:" + name + " expr threw:", err);
+      return;
+    }
+    el.classList.toggle(name, !!v);
+  });
+}
+
+// packages/ship-set-dom/src/attach/bindings/style.ts
+import { effect as effect9 } from "@ship-set/runtime";
+function wireStyle(el, propName, scope, expr) {
+  const ev = compileExpr2(expr);
+  return effect9(() => {
+    let v;
+    try {
+      v = ev(scope);
+    } catch (err) {
+      console.error("[ship-set/attach] style:" + propName + " expr threw:", err);
+      return;
+    }
+    if (v === null || v === void 0 || v === false || v === "") {
+      el.style.removeProperty(propName);
+      return;
+    }
+    el.style.setProperty(propName, String(v));
+  });
+}
+
+// packages/ship-set-dom/src/attach/bindings/attr-dynamic.ts
+import { effect as effect10 } from "@ship-set/runtime";
+function wireAttrDynamic(el, scope, expr) {
+  const ev = compileExpr2(expr);
+  let warned = false;
+  return effect10(() => {
+    try {
+      ev(scope);
+    } catch {
+    }
+    if (!warned) {
+      warned = true;
+      console.warn(
+        "[ship-set/attach] attr-dynamic on <" + el.tagName.toLowerCase() + "> recognised but not yet wired (Phase E-2). The SSR-rendered attribute is preserved."
+      );
+    }
+  });
+}
+
+// packages/ship-set-dom/src/attach/boundaries.ts
+import { effect as effect11 } from "@ship-set/runtime";
+function wireBoundary(el, binding, scope, recurse) {
+  const cleanups = [];
+  const isActive = el.tagName.toLowerCase() === "div";
+  if (binding.expr.length > 0) {
+    const ev = compileExpr2(binding.expr);
+    let firstRun = true;
+    const dispose = effect11(() => {
+      try {
+        ev(scope);
+      } catch {
+      }
+      if (firstRun) {
+        firstRun = false;
+        return;
+      }
+      console.warn(
+        "[ship-set/attach] control-flow signal changed for binding " + binding.key + " (kind=" + binding.kind + "). Re-rendering active control-flow boundaries is Phase E-2; for now reload the page to see the new branch. (expr: " + binding.expr + ")"
+      );
+    });
+    cleanups.push(dispose);
+  }
+  if (isActive) {
+    cleanups.push(recurse(el));
+  }
+  return () => {
+    for (const c of cleanups) {
+      try {
+        c();
+      } catch (err) {
+        console.error("[ship-set/attach] boundary cleanup threw:", err);
+      }
+    }
+  };
+}
+
+// packages/ship-set-dom/src/attach.ts
+var LIFECYCLE_KEY = "__shipSetLifecycle";
+function attach(root, opts) {
+  if (!root) {
+    throw new Error("[ship-set/attach] attach() requires a root element");
+  }
+  const { module: mod } = opts;
+  if (!mod || !mod.default || typeof mod.default.setup !== "function") {
+    throw new Error(
+      "[ship-set/attach] attach() requires a compiled module with default.setup()"
+    );
+  }
+  const init = readInitIsland(root);
+  const baseScope = {
+    ship: opts.ship,
+    route: opts.route ?? { params: {}, query: {} },
+    navigate: opts.navigate ?? ((_p) => {
+    })
+  };
+  const scope = { ...baseScope, ...init.scope };
+  const setupCtx = {
+    ship: opts.ship,
+    route: opts.route ?? { params: {}, query: {} },
+    navigate: opts.navigate ?? ((_p) => {
+    }),
+    scope: { ...scope },
+    stateKeys: init.stateKeys
+  };
+  const setupRet = mod.default.setup(setupCtx);
+  if (setupRet && typeof setupRet === "object") {
+    Object.assign(scope, setupRet);
+  }
+  const lifecycle = extractLifecycle(setupRet);
+  const byKey = indexBindings(mod.bindings);
+  const cleanups = [];
+  for (const hit of walkMarkers(root, byKey)) {
+    const c = wireMarker(hit, scope);
+    if (c) cleanups.push(c);
+  }
+  if (lifecycle?.mount) {
+    try {
+      lifecycle.mount(lifecycle.state, root);
+    } catch (err) {
+      console.error("[ship-set/attach] controller mount() threw:", err);
+    }
+  }
+  let disposed = false;
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    if (lifecycle?.unmount) {
+      try {
+        lifecycle.unmount(lifecycle.state);
+      } catch (err) {
+        console.error("[ship-set/attach] controller unmount() threw:", err);
+      }
+    }
+    for (const fn of cleanups) {
+      try {
+        fn();
+      } catch (err) {
+        console.error("[ship-set/attach] cleanup threw:", err);
+      }
+    }
+  };
+}
+function extractLifecycle(ret) {
+  if (!ret || typeof ret !== "object") return void 0;
+  const lc = ret[LIFECYCLE_KEY];
+  if (lc && typeof lc === "object") return lc;
+  return void 0;
+}
+function wireMarker(hit, scope) {
+  if (hit.kind === "text") {
+    return wireText(hit.open, hit.close, scope, hit.binding.expr);
+  }
+  const { binding, el } = hit;
+  const kind = binding.kind;
+  if (kind === "text") {
+    return void 0;
+  }
+  if (kind === "bind:value") {
+    return wireBindValue(
+      el,
+      scope,
+      binding.expr
+    );
+  }
+  if (kind === "bind:checked") {
+    return wireBindChecked(el, scope, binding.expr);
+  }
+  if (kind === "attr-dynamic") {
+    return wireAttrDynamic(el, scope, binding.expr);
+  }
+  if (kind === "if" || kind === "for" || kind === "match" || kind === "await") {
+    return wireBoundary(el, binding, scope, (active) => recurseLeaves(active, scope));
+  }
+  if (kind.startsWith("on:")) {
+    const eventName = kind.slice(3);
+    return wireOn(el, eventName, scope, binding.expr);
+  }
+  if (kind.startsWith("attr:")) {
+    return wireAttr(el, kind.slice(5), scope, binding.expr);
+  }
+  if (kind.startsWith("class:")) {
+    return wireClass(el, kind.slice(6), scope, binding.expr);
+  }
+  if (kind.startsWith("style:")) {
+    return wireStyle(el, kind.slice(6), scope, binding.expr);
+  }
+  console.warn("[ship-set/attach] unknown binding kind:", kind);
+  return void 0;
+}
+function recurseLeaves(el, scope) {
+  void el;
+  void scope;
+  return () => {
+  };
+}
+
 // packages/ship-set-dom/src/setup-loader.ts
 async function loadSetup(setUrl, loader = (p) => import(
   /* @vite-ignore */
@@ -1599,6 +2078,7 @@ function pairedTsPath(setUrl) {
   return setUrl + ".ts";
 }
 export {
+  attach,
   hydrate,
   loadSetup,
   pairedTsPath,

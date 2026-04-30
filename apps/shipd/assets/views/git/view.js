@@ -1,4 +1,4 @@
-// view.ts
+// views/git/view.ts
 import { controller, unwrapOr, useFilteredList } from "@ship-set/runtime";
 var EMPTY_OVERVIEW = {
   workspace_id: null,
