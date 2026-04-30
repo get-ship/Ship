@@ -32,6 +32,7 @@ pub mod emit;
 pub mod ir;
 pub mod lower;
 pub mod parse;
+pub mod render;
 
 pub use diagnostics::{CompileError, Span};
 
