@@ -177,6 +177,15 @@ pub fn build_router(
             "/_ship-set/render/{name}",
             axum::routing::get(views::ship_set_render::serve_set_render),
         )
+        // E-2 control-flow swap: the attach runtime POSTs the current
+        // scope + a boundary key, the daemon walks the IR with that
+        // scope and returns the boundary's body HTML.
+        .route(
+            "/_ship-set/render-fragment/{name}",
+            axum::routing::post(
+                views::ship_set_render_fragment::serve_set_render_fragment,
+            ),
+        )
         .route(
             "/set/{name}",
             axum::routing::get(views::ship_set_view::serve_set_view),

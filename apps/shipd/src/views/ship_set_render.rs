@@ -1,4 +1,12 @@
 //! `GET /_ship-set/render/{view}` — SSR walker debug endpoint.
+//! `POST /_ship-set/render-fragment/{view}` — Phase E-2 swap-on-change.
+//!
+//! Two ship-set rendering endpoints share `views::ship_set_render_helpers`
+//! for view-name validation and source lookup. The GET handler lives
+//! here; the POST handler lives in `ship_set_render_fragment.rs` (file
+//! cap).
+//!
+//! ## GET — debug surface
 //!
 //! Phase F-1: an inspection surface that returns the
 //! `ship_set_compiler::render::render` walker's output for a compiled
@@ -13,6 +21,30 @@
 //! Compile errors render through `CompileError::render(source)` and
 //! surface as 500 text. Unknown views surface as 404 with the path
 //! that was looked up.
+//!
+//! ## POST — control-flow fragment render (Phase E-2)
+//!
+//! Path: `POST /_ship-set/render-fragment/{view}`
+//! Body: `{ "init": { <state/data overrides> }, "key": "b<N>" }`
+//!  - `init` is a JSON object whose keys are `<state>` / `<data>`
+//!    declaration names; values replace the IR's first-paint defaults
+//!    so the renderer evaluates expressions against the runtime's
+//!    current scope. Unknown keys (e.g. `route`) are merged in too.
+//!  - `key` is the `b<N>` boundary key the runtime is asking the
+//!    daemon to re-render. Must be a control-flow binding (`If` /
+//!    `For` / `Match` / `Await`); leaf bindings return 400.
+//! Response: `200 application/json` with `{ "html": "...", "init": {...} }`
+//!  - `html` is the body of the boundary — *not* surrounded by the
+//!    `<div data-set-…>` / `<template data-set-…>` wrapper. The
+//!    runtime swaps the wrapper's children, not the wrapper itself.
+//!  - `init` is the merged scope used by the renderer (defaults +
+//!    overrides), mirrored back so the client can confirm what was
+//!    rendered against.
+//! Errors:
+//!  - 400: malformed body / `key` not in registry / `key` is a leaf
+//!    (non-control-flow) binding.
+//!  - 404: unknown `view`.
+//!  - 500: compile / parse error in the embedded view source.
 
 use axum::{
     body::Body,
@@ -23,16 +55,9 @@ use axum::{
 use serde::Deserialize;
 use ship_set_compiler::{parse, render};
 
-// View source — embedded the same way `ship_set_view.rs` embeds its
-// templates so the daemon binary is self-contained and the test
-// harness (which spawns shipd in a tempdir) sees a real fixture
-// without needing an on-disk `views/` tree.
-const AGENTS_VIEW_HTML_SET: &str =
-    include_str!("../../../../views/agents/view.html.set");
-const GIT_VIEW_HTML_SET: &str =
-    include_str!("../../../../views/git/view.html.set");
-const COUNTER_VIEW_HTML_SET: &str =
-    include_str!("../../../../views/counter/view.html.set");
+use super::ship_set_render_helpers::{
+    is_valid_view_name, not_found, render_error, view_source,
+};
 
 #[derive(Debug, Deserialize, Default)]
 pub struct RenderQuery {
@@ -99,23 +124,6 @@ pub async fn serve_set_render(
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
-fn view_source(name: &str) -> Option<&'static str> {
-    match name {
-        "agents" => Some(AGENTS_VIEW_HTML_SET),
-        "git" => Some(GIT_VIEW_HTML_SET),
-        "counter" => Some(COUNTER_VIEW_HTML_SET),
-        _ => None,
-    }
-}
-
-/// Lowercase ASCII + hyphens only. Mirrors `ship_set_view::is_valid_view_name`
-/// so the path segment can't escape the embedded view set.
-fn is_valid_view_name(s: &str) -> bool {
-    !s.is_empty()
-        && s.len() <= 64
-        && s.chars().all(|c| c.is_ascii_lowercase() || c == '-')
-}
-
 fn wrap_document(name: &str, body_fragment: &str) -> String {
     let safe_name = escape_html(name);
     format!(
@@ -152,7 +160,7 @@ fn wrap_document(name: &str, body_fragment: &str) -> String {
 
   const root = document.querySelector('[data-ssr-root]');
   try {{
-    const dispose = attach(root, {{ module: viewModule, ship, route, navigate }});
+    const dispose = attach(root, {{ module: viewModule, ship, route, navigate, viewName: '{safe_name}' }});
     window.__shipSetDispose = dispose;
   }} catch (err) {{
     console.error('[ship-set/render] attach failed:', err);
@@ -177,22 +185,6 @@ fn escape_html(s: &str) -> String {
         }
     }
     out
-}
-
-fn not_found(msg: &str) -> Response {
-    Response::builder()
-        .status(StatusCode::NOT_FOUND)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .body(Body::from(msg.to_string()))
-        .unwrap_or_else(|_| Response::new(Body::from("not found")))
-}
-
-fn render_error(message: String) -> Response {
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .body(Body::from(message))
-        .unwrap_or_else(|_| Response::new(Body::from("compile error")))
 }
 
 #[cfg(test)]

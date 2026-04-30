@@ -27,8 +27,12 @@ pub(super) fn render_for(walker: &mut Walker<'_>, instr: &ForInstr) {
         _ => None,
     };
 
+    let is_target = walker.enter_target_if_match(&key);
+
     if let Some(array) = array {
-        open_active(walker, "for", &key);
+        if !is_target {
+            open_active(walker, "for", &key);
+        }
         let body_start = walker.keys.snapshot();
         let body_start_idx = walker.reg_idx;
         let mut body_end = body_start;
@@ -64,10 +68,15 @@ pub(super) fn render_for(walker: &mut Walker<'_>, instr: &ForInstr) {
 
         walker.keys.restore(body_end);
         walker.reg_idx = body_end_idx;
-        close_active(walker);
+        if !is_target {
+            close_active(walker);
+        }
 
         if let Some(else_body) = &instr.else_body {
             walker.walk_block_silent(else_body);
+        }
+        if is_target {
+            walker.exit_target();
         }
         return;
     }
@@ -79,14 +88,24 @@ pub(super) fn render_for(walker: &mut Walker<'_>, instr: &ForInstr) {
 
     if render_else {
         let else_body = instr.else_body.as_ref().expect("else body checked above");
-        open_active(walker, "for", &key);
+        if !is_target {
+            open_active(walker, "for", &key);
+        }
         walker.walk_block(else_body);
-        close_active(walker);
+        if !is_target {
+            close_active(walker);
+        }
     } else {
         if let Some(else_body) = &instr.else_body {
             walker.walk_block_silent(else_body);
         }
-        empty_template(walker, "for", &key);
+        if !is_target {
+            empty_template(walker, "for", &key);
+        }
+    }
+
+    if is_target {
+        walker.exit_target();
     }
 }
 
