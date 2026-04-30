@@ -64,7 +64,7 @@ pub async fn serve_set_render(
     };
 
     let opts = render::RenderOpts { view_name: name.clone() };
-    let rendered = match render::render(&program, &opts) {
+    let rendered = match render::render_default(&program, &opts) {
         Ok(r) => r,
         Err(err) => return render_error(err.render(source)),
     };
