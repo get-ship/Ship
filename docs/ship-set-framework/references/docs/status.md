@@ -77,11 +77,8 @@ Updated as the implementation moves. If you find a drift between this page and r
 
 ## Open questions
 
-1. **`<data>` reactive `source=`.** Can the `source` attribute reference signals (`source="ship.agents.get(route.params.id)"` where `route.params.id` is reactive)? If yes, the subscription needs to re-fetch on parameter change. Behavior is unspecified.
-2. **Controller hook composition helper.** The `use: { ... }` section IS the composition mechanism — record of hook factories, each entry namespaced by its key. Open question is narrower: is there ALSO an imperative combinator (`compose(useForm, useValidation)`) for stacking hooks? Leaning toward "no, the record is enough" — but the API hasn't been ruled out.
-3. **Custom-element shadow DOM opt-in syntax.** `<component name="ship-foo" shadow>` attribute, or a flag in the `<component>` declaration's metadata? Pending.
-4. **`event NAME: T` typed CustomEvent declarations.** Documented in earlier ledgers; not yet in the implemented directive set. Open whether this lands in the template or the controller.
-5. **Effect lifecycle.** `mount` runs once; `unmount` runs once; what about effects that run when a derived signal changes? Open question on whether to add `effect` (a seventh section) or rely on `derived` alone (deriveds run on dep change; if you want a side effect tied to a change, an effect is what you want, not a derived). Leaning toward deferring: `mount` + closures over signals can express most cases; if a real gap appears, revisit then.
+1. **`<data>` reactive `source=`.** Can the `source` attribute reference signals (`source="ship.agents.get(route.params.id)"` where `route.params.id` is reactive)? If yes, the subscription needs to re-fetch on parameter change. Tracked as Arc C-3.
+2. **Custom-element shadow DOM opt-in syntax.** `<component name="ship-foo" shadow>` attribute, or a flag in the `<component>` declaration's metadata? Tracked as Arc E-1.
 
 ## Phased-out adjacent skills
 
