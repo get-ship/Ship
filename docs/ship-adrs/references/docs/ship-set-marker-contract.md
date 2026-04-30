@@ -116,6 +116,21 @@ Rejected for naming. Datastar uses `data-on-click`, `data-text`, `data-show`. We
 
 The Phase D-1 walker landed with two attribute kinds not in the original table: `data-set-style:<name>="<key>"` for `style:` directives (the inline-style analog of `class:`) and `data-set-attr-dynamic="<key>"` for attributes whose name is itself reactive (`<a {hrefAttr}={url}>`). Both follow the same family naming convention and the same `<key>` resolution rule as the original table — they are extensions, not divergences. Folded into the canonical attribute family above so the contract stays a single source of truth.
 
+### 2026-04-30 — Control-flow boundary shape: active vs placeholder
+
+The original table had a single shape for `data-set-{if|for|match|await}` boundaries: the marker on the rendered branch root. Phase D-3's first cut emitted everything as `<template data-set-{kind}="b<N>">…body…</template>`, which **broke SSR**: HTML inside `<template>` lives in a `DocumentFragment` (`template.content`) and the browser doesn't render it. Server-rendered active branches were invisible on first paint.
+
+The corrected shape splits the boundary into two cases:
+
+| Case | Shape | Why |
+|---|---|---|
+| **Active** (server rendered this branch) | `<div data-set-{kind}="b<N>" style="display:contents">…body…</div>` | The body must render. `display:contents` makes the wrapper transparent to layout (children flow as if directly in the parent), so the author's HTML lays out exactly as written. |
+| **Placeholder** (server skipped — client takes over) | `<template data-set-{kind}="b<N>"></template>` | The branch hasn't been rendered. `<template>` is intentionally invisible; the runtime swaps it for a populated `<div>` when the condition activates. |
+
+`{#for}` iteration wrappers follow the same rule. When an iteration body has a single element root, the `data-set-key` attribute attaches directly to that element (no wrapper). When it has mixed children, the iteration is wrapped in `<div data-set-key="…" style="display:contents">…</div>` — same `display:contents` transparency.
+
+The runtime can distinguish active from placeholder by tag name (`div` vs `template`) and use the same `data-set-{kind}="b<N>"` attribute to look the binding up in the manifest either way.
+
 ## References
 
 - [SSR and the attach runtime](../../../ship-set-framework/references/docs/ssr-hydration.md) — the doc this ADR concretizes.

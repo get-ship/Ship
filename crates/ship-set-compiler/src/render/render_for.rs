@@ -13,7 +13,9 @@ use crate::ir::{ForInstr, Instr};
 
 use super::escape::escape_attr_value;
 use super::eval::{eval, stringify};
-use super::template_helpers::{close_template, empty_template, open_template};
+use super::template_helpers::{
+    close_active, close_for_item, empty_template, open_active, open_for_item,
+};
 use super::walker::Walker;
 
 pub(super) fn render_for(walker: &mut Walker<'_>, instr: &ForInstr) {
@@ -26,7 +28,7 @@ pub(super) fn render_for(walker: &mut Walker<'_>, instr: &ForInstr) {
     };
 
     if let Some(array) = array {
-        open_template(walker, "for", &key);
+        open_active(walker, "for", &key);
         let body_start = walker.keys.snapshot();
         let body_start_idx = walker.reg_idx;
         let mut body_end = body_start;
@@ -62,7 +64,7 @@ pub(super) fn render_for(walker: &mut Walker<'_>, instr: &ForInstr) {
 
         walker.keys.restore(body_end);
         walker.reg_idx = body_end_idx;
-        close_template(walker);
+        close_active(walker);
 
         if let Some(else_body) = &instr.else_body {
             walker.walk_block_silent(else_body);
@@ -77,9 +79,9 @@ pub(super) fn render_for(walker: &mut Walker<'_>, instr: &ForInstr) {
 
     if render_else {
         let else_body = instr.else_body.as_ref().expect("else body checked above");
-        open_template(walker, "for", &key);
+        open_active(walker, "for", &key);
         walker.walk_block(else_body);
-        close_template(walker);
+        close_active(walker);
     } else {
         if let Some(else_body) = &instr.else_body {
             walker.walk_block_silent(else_body);
@@ -117,8 +119,10 @@ fn restore_scope(
 /// Render a `{#for}` iteration body, optionally injecting the
 /// `data-set-key` marker. When the body has a single element root, the
 /// attribute attaches to that element; otherwise we wrap the iteration
-/// in a `<template data-set-key="…">` so reconciliation still has a
-/// per-iteration anchor.
+/// in a `<div data-set-key="…" style="display:contents">` so
+/// reconciliation has a per-iteration anchor (and the body still
+/// renders — see `template_helpers.rs` for why `<template>` is wrong
+/// for active branches).
 fn walk_iteration_body(walker: &mut Walker<'_>, body: &[Instr], key_attr_value: Option<&str>) {
     let Some(key_val) = key_attr_value else {
         walker.walk_block(body);
@@ -146,12 +150,9 @@ fn walk_iteration_body(walker: &mut Walker<'_>, body: &[Instr], key_attr_value: 
         return;
     }
 
-    walker.push_raw(&format!(
-        "<template data-set-key=\"{}\">",
-        escape_attr_value(key_val)
-    ));
+    open_for_item(walker, &escape_attr_value(key_val));
     walker.walk_block(body);
-    walker.push_raw("</template>");
+    close_for_item(walker);
 }
 
 /// Stringify a value for use as a `data-set-key` attribute. JSON

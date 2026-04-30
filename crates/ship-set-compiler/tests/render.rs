@@ -311,8 +311,8 @@ fn if_truthy_branch_renders_body() {
     let src = "<state name=\"show\" value=\"true\" />\n{#if show}<p>yes</p>{/if}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-if="b0"><p>yes</p></template>"#),
-        "expected truthy branch body inside template; got: {html:?}"
+        html.contains(r#"<div data-set-if="b0" style="display:contents"><p>yes</p></div>"#),
+        "expected truthy branch body in active wrapper; got: {html:?}"
     );
 }
 
@@ -332,7 +332,7 @@ fn if_else_branch_renders_when_falsy() {
     let src = "<state name=\"x\" value=\"false\" />\n{#if x}<p>a</p>{:else}<p>b</p>{/if}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-if="b0"><p>b</p></template>"#),
+        html.contains(r#"<div data-set-if="b0" style="display:contents"><p>b</p></div>"#),
         "expected else body; got: {html:?}"
     );
     assert!(!html.contains("<p>a</p>"));
@@ -359,13 +359,12 @@ fn for_renders_each_iteration() {
     let html = render_source(src);
     // Body has one dynamic-text key allocated once and shared across iterations.
     assert!(
-        html.contains(r#"<template data-set-for="b0">"#),
-        "expected for template open; got: {html:?}"
+        html.contains(r#"<div data-set-for="b0" style="display:contents">"#),
+        "expected for active wrapper open; got: {html:?}"
     );
     assert!(html.contains("<li><!--set:text:b1-->1<!--/set--></li>"));
     assert!(html.contains("<li><!--set:text:b1-->2<!--/set--></li>"));
     assert!(html.contains("<li><!--set:text:b1-->3<!--/set--></li>"));
-    assert!(html.contains("</template>"));
 }
 
 #[test]
@@ -395,8 +394,8 @@ fn for_empty_renders_else_body() {
         "<state name=\"items\" value=\"[]\" />\n{#for n of items}<li>{n}</li>{:else}<p>none</p>{/for}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-for="b0"><p>none</p></template>"#),
-        "expected else body inside for template; got: {html:?}"
+        html.contains(r#"<div data-set-for="b0" style="display:contents"><p>none</p></div>"#),
+        "expected else body inside for active wrapper; got: {html:?}"
     );
 }
 
@@ -416,7 +415,7 @@ fn match_evaluates_discriminant() {
     let src = "<state name=\"kind\" value=\"'a'\" />\n{#match kind}{:case 'a'}<p>A</p>{:case 'b'}<p>B</p>{/match}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-match="b0"><p>A</p></template>"#),
+        html.contains(r#"<div data-set-match="b0" style="display:contents"><p>A</p></div>"#),
         "expected case A rendered; got: {html:?}"
     );
     assert!(!html.contains("<p>B</p>"));
@@ -439,8 +438,8 @@ fn nested_control_flow_round_trip() {
     let src = "<state name=\"x\" value=\"true\" />\n<state name=\"xs\" value=\"[1,2]\" />\n{#if x}{#for n of xs}<li>{n}</li>{/for}{/if}";
     let html = render_source(src);
     // Outer if takes b0; inner for takes b1; inner dynamic text takes b2.
-    assert!(html.contains(r#"<template data-set-if="b0">"#));
-    assert!(html.contains(r#"<template data-set-for="b1">"#));
+    assert!(html.contains(r#"<div data-set-if="b0" style="display:contents">"#));
+    assert!(html.contains(r#"<div data-set-for="b1" style="display:contents">"#));
     assert!(html.contains("<li><!--set:text:b2-->1<!--/set--></li>"));
     assert!(html.contains("<li><!--set:text:b2-->2<!--/set--></li>"));
     // for body closes inside if body which closes outside.

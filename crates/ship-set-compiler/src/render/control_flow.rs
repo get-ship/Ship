@@ -24,7 +24,7 @@ use crate::ir::{IfInstr, MatchInstr};
 
 use super::eval::{eval, strict_eq, truthy};
 use super::render_for;
-use super::template_helpers::{close_template, empty_template, open_template};
+use super::template_helpers::{close_active, empty_template, open_active};
 use super::walker::Walker;
 
 pub(super) use render_for::render_for;
@@ -58,9 +58,9 @@ pub(super) fn render_if(walker: &mut Walker<'_>, instr: &IfInstr) {
     if let Some(t) = taken {
         for (i, branch) in instr.branches.iter().enumerate() {
             if i == t {
-                open_template(walker, "if", &key);
+                open_active(walker, "if", &key);
                 walker.walk_block(&branch.body);
-                close_template(walker);
+                close_active(walker);
             } else {
                 walker.walk_block_silent(&branch.body);
             }
@@ -75,9 +75,9 @@ pub(super) fn render_if(walker: &mut Walker<'_>, instr: &IfInstr) {
         walker.walk_block_silent(&branch.body);
     }
     if let Some(else_body) = &instr.else_body {
-        open_template(walker, "if", &key);
+        open_active(walker, "if", &key);
         walker.walk_block(else_body);
-        close_template(walker);
+        close_active(walker);
     } else {
         empty_template(walker, "if", &key);
     }
@@ -133,9 +133,9 @@ pub(super) fn render_match(walker: &mut Walker<'_>, instr: &MatchInstr) {
     if let Some(t) = taken {
         for (i, case) in instr.cases.iter().enumerate() {
             if i == t {
-                open_template(walker, "match", &key);
+                open_active(walker, "match", &key);
                 walker.walk_block(&case.body);
-                close_template(walker);
+                close_active(walker);
             } else {
                 walker.walk_block_silent(&case.body);
             }
@@ -150,9 +150,9 @@ pub(super) fn render_match(walker: &mut Walker<'_>, instr: &MatchInstr) {
         walker.walk_block_silent(&case.body);
     }
     if let Some(default) = &instr.default {
-        open_template(walker, "match", &key);
+        open_active(walker, "match", &key);
         walker.walk_block(default);
-        close_template(walker);
+        close_active(walker);
     } else {
         empty_template(walker, "match", &key);
     }
