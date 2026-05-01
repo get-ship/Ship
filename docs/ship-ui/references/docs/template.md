@@ -71,6 +71,38 @@ The build pipeline reads this file and passes `--component-name` / `--component-
 
 Prop kinds: `string` (default), `bool`, `number`, `values="a|b|c"` (union). `reflect` mirrors the prop to the host element's attributes.
 
+### `<form mutation>` — write operation
+
+```html
+<form mutation="ship.agents.create">
+  <input name="name" placeholder="Agent name" />
+  <button type="submit" disabled={$mutation().kind === 'loading'}>
+    {$mutation().kind === 'loading' ? 'Creating…' : 'Create'}
+  </button>
+</form>
+{#if $mutation().kind === 'error'}
+  <p>{$mutation().error.message}</p>
+{/if}
+```
+
+The `mutation` attribute is a `ship.*` SDK chain. `<form mutation>` is the write-side complement to `<data>`. The compiler wires it at compile time: on submit, the form is serialized as `FormData` and the SDK chain is called. `$mutation` is injected into view scope as a `Signal<LiveState<unknown>>` — the same `{ kind: 'loading' | 'ok' | 'error' }` envelope as `<data live>`.
+
+Progressive enhancement: when JS is absent the SSR walker injects `action="/_sui/mutation/{view}?form=bN"` and `method="post"` on the form. The daemon handles the POST and redirects back to `Referer`. See [data-subscriptions.md](data-subscriptions.md#mutations) for the full envelope shape and PE flow.
+
+**Threshold rule.** A template with no paired `.ts` (tier-1) may not have multi-statement `on:event` handler bodies. The compiler enforces this at build time:
+
+```html
+<!-- fails without view.ts -->
+<button on:click={() => { x.set(1); y.set(2) }}>Save</button>
+```
+
+```
+view.sui: line 1 col 30: [on:click handler]
+multi-statement handler — paired `<view>.ts` controller required for tier-2 work
+```
+
+Single-expression handlers and single-statement blocks are fine at tier 1. Add a paired `.ts` to lift the restriction. See [controller.md](controller.md#tier-1--tier-2-threshold-rule).
+
 ## Control flow
 
 Mustache-style, directly in the template body:
