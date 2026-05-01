@@ -191,7 +191,7 @@ mod tests {
         // The fragment must NOT include the outer wrapper for the
         // boundary itself — the runtime already has it in place.
         assert!(
-            !html.contains(&format!(r#"data-set-if="{key}""#)),
+            !html.contains(&format!(r#"<sui-if key="{key}""#)),
             "fragment must not include the boundary wrapper; got: {html}"
         );
     }

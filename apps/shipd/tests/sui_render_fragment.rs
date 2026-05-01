@@ -79,7 +79,7 @@ async fn agents_render_fragment_for_ok_branch() {
         "expected empty-state markers in fragment HTML: {html}"
     );
     assert!(
-        !html.contains(&format!(r#"data-set-if="{key}""#)),
+        !html.contains(&format!(r#"<sui-if key="{key}""#)),
         "fragment must not include boundary wrapper: {html}"
     );
 }

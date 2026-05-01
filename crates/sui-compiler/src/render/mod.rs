@@ -1,20 +1,15 @@
 //! SSR render walker — Phase D-1 (scaffold + static rendering).
 //!
-//! Walks the lowered IR and emits HTML with `data-set-*` markers per
+//! Walks the lowered IR and emits HTML with author-syntax markers per
 //! the marker contract ADR (`docs/ship-adrs/.../sui-marker-contract.md`).
 //!
-//! D-1 scope:
-//! * Static text + comments + elements with static attributes render
-//!   verbatim.
-//! * Every dynamic attribute kind emits a `data-set-*` marker whose
-//!   value is an opaque counter-allocated key (`b0`, `b1`, …). The real
-//!   expression source is **not** emitted here; that lives in the JSON
-//!   island / IR-side resolver added in D-2.
-//! * Dynamic text (`{expr}`) emits the comment-marker shape from the
-//!   ADR: `<!--set:text:bN--><!--/set-->`.
-//! * Control flow (`{#if}`, `{#for}`, `{#match}`) emits a single empty
-//!   `<template data-set-…="bN"></template>` placeholder; the body is
-//!   filled in by D-3.
+//! Marker shapes:
+//! * Dynamic attribute kinds emit the author attribute name directly,
+//!   e.g. `on:click="bN"`, `bind:value="bN"`, `class:active="bN"`.
+//! * Dynamic text (`{expr}`) emits `<!--sui:text:bN-->value<!--/sui-->`.
+//! * Control flow (`{#if}`, `{#for}`, `{#match}`) emits a custom-element
+//!   wrapper: `<sui-if key="bN">…</sui-if>` (active) or
+//!   `<sui-if key="bN" hidden></sui-if>` (placeholder).
 //!
 //! No expression evaluation happens in this phase; every dynamic value
 //! is a marker.
@@ -61,7 +56,7 @@ pub struct RenderOutput {
     pub init: serde_json::Value,
 }
 
-/// Render a parsed program to HTML with `data-set-*` markers.
+/// Render a parsed program to HTML with author-syntax markers.
 ///
 /// D-2 evaluates the renderable subset against the program's initial
 /// scope and inlines the result into text/attribute output (markers
@@ -123,29 +118,27 @@ pub(crate) fn decide_element(el: &ElementInstr) -> EmitDecision {
     EmitDecision::Normal
 }
 
-/// Map an attribute-instruction variant onto the `data-set-*` marker
-/// name to emit. Returns `None` for `Static` (which is rendered
-/// verbatim without a marker). The walker no longer routes through
-/// this helper directly — each variant has its own emit branch — but
-/// it's kept as the single source of truth for marker names that the
-/// render-helper unit tests exercise.
+/// Map an attribute-instruction variant onto the marker attribute name to
+/// emit. Returns `None` for `Static`. The walker no longer routes through
+/// this helper directly — each variant has its own emit branch — but it's
+/// kept as the single source of truth exercised by the render-helper unit
+/// tests.
 #[allow(dead_code)]
 pub(crate) fn marker_attr_name(attr: &AttrInstr) -> Option<String> {
     match attr {
         AttrInstr::Static { .. } => None,
-        AttrInstr::Expr { name, .. } => Some(format!("data-set-attr:{name}")),
-        AttrInstr::DynamicAttr { .. } => Some("data-set-attr-dynamic".to_string()),
-        AttrInstr::BindValue { .. } => Some("data-set-bind:value".to_string()),
-        AttrInstr::BindChecked { .. } => Some("data-set-bind:checked".to_string()),
-        AttrInstr::On { event, .. } => Some(format!("data-set-on:{event}")),
-        AttrInstr::Class { name, .. } => Some(format!("data-set-class:{name}")),
-        // Style is not in the ADR table; emit as a deliberate extension.
-        AttrInstr::Style { name, .. } => Some(format!("data-set-style:{name}")),
+        AttrInstr::Expr { name, .. } => Some(format!("attr:{name}")),
+        AttrInstr::DynamicAttr { .. } => Some("attr-dynamic".to_string()),
+        AttrInstr::BindValue { .. } => Some("bind:value".to_string()),
+        AttrInstr::BindChecked { .. } => Some("bind:checked".to_string()),
+        AttrInstr::On { event, .. } => Some(format!("on:{event}")),
+        AttrInstr::Class { name, .. } => Some(format!("class:{name}")),
+        AttrInstr::Style { name, .. } => Some(format!("style:{name}")),
     }
 }
 
-/// Marker name for control-flow instructions. Used for the
-/// `<template data-set-…>` placeholder.
+/// Marker kind for control-flow instructions — matches the `<sui-{kind}>`
+/// custom-element tag suffix.
 #[allow(dead_code)]
 pub(crate) fn control_flow_kind(instr: &Instr) -> Option<&'static str> {
     match instr {

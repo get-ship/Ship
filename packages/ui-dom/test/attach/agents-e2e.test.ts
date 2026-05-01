@@ -23,7 +23,7 @@ describe('attach/agents end-to-end (Phase E-2)', () => {
   it('flips loading → ok, swaps to empty-state, and the button works', async () => {
     // Loading-state SSR shape: outer if has no taken branch (kind ===
     // 'loading'), no else, so it's a placeholder template.
-    const loadingHtml = `<div class="agents-view"><template data-set-if="b0"></template></div>`
+    const loadingHtml = `<div class="agents-view"><sui-if key="b0" hidden></sui-if></div>`
     const root = mountSsr(loadingHtml, {
       agents: { kind: 'loading' },
     })
@@ -64,7 +64,7 @@ describe('attach/agents end-to-end (Phase E-2)', () => {
     // with its on:click marker.
     const okFragment =
       '<ship-empty-state data-test="empty"><span slot="title">No agents yet</span></ship-empty-state>' +
-      '<button data-test="new-agent" data-set-on:click="b1">New agent</button>'
+      '<button data-test="new-agent" on:click="b1">New agent</button>'
 
     const fetchMock = vi.fn().mockResolvedValueOnce({
       ok: true,

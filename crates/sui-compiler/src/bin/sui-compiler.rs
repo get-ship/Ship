@@ -91,7 +91,7 @@ fn build(
     } else if input
         .file_name()
         .and_then(|f| f.to_str())
-        .map_or(false, is_sui_source)
+        .is_some_and(is_sui_source)
     {
         targets.push(input.clone());
     } else {
@@ -128,7 +128,7 @@ fn collect_targets(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
         } else if p
             .file_name()
             .and_then(|f| f.to_str())
-            .map_or(false, is_sui_source)
+            .is_some_and(is_sui_source)
         {
             out.push(p);
         }

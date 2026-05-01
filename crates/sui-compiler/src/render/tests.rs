@@ -25,15 +25,15 @@ fn marker_attr_name_covers_dynamic_kinds() {
             span,
         })
         .as_deref(),
-        Some("data-set-attr:href")
+        Some("attr:href")
     );
     assert_eq!(
         marker_attr_name(&AttrInstr::BindValue { expr: expr(), span }).as_deref(),
-        Some("data-set-bind:value")
+        Some("bind:value")
     );
     assert_eq!(
         marker_attr_name(&AttrInstr::BindChecked { expr: expr(), span }).as_deref(),
-        Some("data-set-bind:checked")
+        Some("bind:checked")
     );
     assert_eq!(
         marker_attr_name(&AttrInstr::On {
@@ -43,7 +43,7 @@ fn marker_attr_name_covers_dynamic_kinds() {
             span,
         })
         .as_deref(),
-        Some("data-set-on:click")
+        Some("on:click")
     );
     assert_eq!(
         marker_attr_name(&AttrInstr::Class {
@@ -52,7 +52,7 @@ fn marker_attr_name_covers_dynamic_kinds() {
             span,
         })
         .as_deref(),
-        Some("data-set-class:active")
+        Some("class:active")
     );
     assert_eq!(
         marker_attr_name(&AttrInstr::Style {
@@ -61,7 +61,7 @@ fn marker_attr_name_covers_dynamic_kinds() {
             span,
         })
         .as_deref(),
-        Some("data-set-style:--c")
+        Some("style:--c")
     );
     assert_eq!(
         marker_attr_name(&AttrInstr::DynamicAttr {
@@ -70,7 +70,7 @@ fn marker_attr_name_covers_dynamic_kinds() {
             span,
         })
         .as_deref(),
-        Some("data-set-attr-dynamic")
+        Some("attr-dynamic")
     );
 }
 

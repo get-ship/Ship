@@ -7,7 +7,7 @@ afterEach(clearContainers)
 
 describe('attach/attr', () => {
   it('updates attribute value when the expression signal changes', () => {
-    const html = '<a data-set-attr:href="b0" href="/initial">go</a>'
+    const html = '<a attr:href="b0" href="/initial">go</a>'
     const root = mountSsr(html, { href: '/initial' })
     let h: Signal<string> | undefined
     const mod = makeModule(
@@ -30,7 +30,7 @@ describe('attach/attr', () => {
 
 describe('attach/style', () => {
   it('sets and clears an inline style property', () => {
-    const html = '<div data-set-style:color="b0">x</div>'
+    const html = '<div style:color="b0">x</div>'
     const root = mountSsr(html, { c: 'red' })
     let c: Signal<string> | undefined
     const mod = makeModule(

@@ -14,9 +14,9 @@ afterEach(clearContainers)
 
 const COUNTER_HTML = `
 <div class="counter">
-  <p>count: <span data-test="value"><!--set:text:b0-->0<!--/set--></span></p>
-  <button data-test="inc" data-set-on:click="b1">increment</button>
-  <button data-test="reset" data-set-on:click="b2">reset</button>
+  <p>count: <span data-test="value"><!--sui:text:b0-->0<!--/sui--></span></p>
+  <button data-test="inc" on:click="b1">increment</button>
+  <button data-test="reset" on:click="b2">reset</button>
 </div>`.trim()
 
 describe('attach — counter e2e', () => {

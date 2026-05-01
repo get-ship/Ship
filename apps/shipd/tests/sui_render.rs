@@ -30,7 +30,7 @@ async fn agents_view_renders() {
     let body = res.text().await.unwrap();
     assert!(body.contains("<!-- BEGIN SSR walker output -->"));
     assert!(body.contains("<!-- END SSR walker output -->"));
-    assert!(body.contains("data-set-"));
+    assert!(body.contains("<!--sui:text:") || body.contains("<sui-if key=") || body.contains("on:click="));
     assert!(body.contains("__set_init__"));
 }
 
@@ -64,13 +64,13 @@ async fn counter_view_renders() {
         "count display missing in body: {body}"
     );
     assert!(
-        body.contains("<!--set:text:") && body.contains("-->0<!--/set-->"),
+        body.contains("<!--sui:text:") && body.contains("-->0<!--/sui-->"),
         "expected text-marker comments wrapping initial count `0`: {body}"
     );
-    let clicks = body.matches(r#"data-set-on:click=""#).count();
+    let clicks = body.matches(r#"on:click=""#).count();
     assert!(
         clicks >= 3,
-        "expected at least 3 data-set-on:click markers (inc/dec/reset), got {clicks}: {body}"
+        "expected at least 3 on:click markers (inc/dec/reset), got {clicks}: {body}"
     );
     assert!(
         body.contains(r#"<script type="application/json" id="__set_init__">"#),

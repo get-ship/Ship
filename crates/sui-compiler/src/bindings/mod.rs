@@ -7,7 +7,7 @@
 //! Two consumers downstream:
 //! 1. `emit::js` writes the manifest into the compiled ESM as
 //!    `export const bindings = [...]`. Phase E's attach-only client
-//!    runtime imports it and resolves `data-set-…="b<N>"` markers by
+//!    runtime imports it and resolves author-syntax markers by
 //!    indexing into the array.
 //! 2. The render walker (`render::walker`) shares the same allocator —
 //!    its emitted marker keys are exactly the registry's keys, so the

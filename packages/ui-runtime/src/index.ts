@@ -146,3 +146,5 @@ export type { KbdShortcut, ShellContext } from './template-hooks'
 // Importing the index ensures the three built-in hooks are registered
 // at module load.
 import './template-hooks'
+// Register <sui-if>, <sui-for>, <sui-match> custom elements.
+import './boundary-elements'

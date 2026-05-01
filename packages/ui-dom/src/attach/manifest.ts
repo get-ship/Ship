@@ -1,18 +1,21 @@
 // Marker walker.
 //
-// Walks SSR'd DOM under `root` and yields one `MarkerHit` per
-// `data-set-*` attribute or `<!--set:text:bN-->` comment pair. Each
-// hit carries the resolved Binding from the manifest and the host
-// (Element for attribute markers, comment-pair + parent for text).
+// Walks SSR'd DOM under `root` and yields one `MarkerHit` per marker.
+// Three marker shapes (post SSR re-cutover):
 //
-// `data-set-key` (the {#for} iteration key) is intentionally skipped —
-// it's data-bearing, not a binding marker.
+//   1. Author-syntax attribute markers: `on:click="bN"`, `bind:value="bN"`,
+//      `class:active="bN"`, `style:color="bN"`, `attr:href="bN"`,
+//      `attr-dynamic="bN"` — on the author's own element.
+//   2. Control-flow boundary elements: `<sui-if key="bN">`,
+//      `<sui-for key="bN">`, `<sui-match key="bN">` — read the `key` attr.
+//   3. Text comment markers: `<!--sui:text:bN-->value<!--/sui-->`.
 
 import type { Binding } from '../attach'
 
-const ATTR_PREFIX = 'data-set-'
-const TEXT_OPEN_PREFIX = 'set:text:'
-const TEXT_CLOSE = '/set'
+const TEXT_OPEN_PREFIX = 'sui:text:'
+const TEXT_CLOSE = '/sui'
+
+const BOUNDARY_TAGS = new Set(['sui-if', 'sui-for', 'sui-match'])
 
 /** A resolved marker. */
 export type MarkerHit =
@@ -20,7 +23,7 @@ export type MarkerHit =
       kind: 'element'
       binding: Binding
       el: Element
-      /** Raw attribute name (e.g. `data-set-on:click`). */
+      /** Raw attribute name (e.g. `on:click`, `bind:value`, or `key` for boundaries). */
       rawAttr: string
     }
   | {
@@ -51,15 +54,17 @@ export interface WalkMarkersOptions {
  *
  * Two passes:
  *   1. SHOW_ELEMENT — every element including `root` (unless
- *      `opts.skipRoot` is set). For each `data-set-*` attribute (other
- *      than `data-set-key`), look up the binding by attribute value and
- *      yield an `element` hit.
- *   2. SHOW_COMMENT — every `<!--set:text:bN-->` opener gets paired
- *      with its sibling `<!--/set-->` closer; yields a `text` hit.
+ *      `opts.skipRoot` is set). For each element:
+ *      - If tag is `sui-if`, `sui-for`, or `sui-match`: read `key` attr,
+ *        look up in manifest, yield an `element` hit.
+ *      - Otherwise: scan attributes for author-syntax binding names
+ *        (`on:*`, `bind:*`, `class:*`, `style:*`, `attr:*`, `attr-dynamic`),
+ *        look up the attribute value in the manifest, yield an `element` hit.
+ *   2. SHOW_COMMENT — every `<!--sui:text:bN-->` opener gets paired
+ *      with its sibling `<!--/sui-->` closer; yields a `text` hit.
  *
  * Bindings whose key isn't in the manifest are silently skipped —
- * the runtime is tolerant of stale HTML, and lookups fail loudly
- * elsewhere.
+ * the runtime is tolerant of stale HTML.
  */
 export function* walkMarkers(
   root: HTMLElement,
@@ -67,30 +72,37 @@ export function* walkMarkers(
   opts: WalkMarkersOptions = {},
 ): Generator<MarkerHit> {
   const owner = root.ownerDocument ?? document
-  // SHOW_ELEMENT: include root unless skipRoot is set.
   const elWalker = owner.createTreeWalker(root, NodeFilter.SHOW_ELEMENT)
   let el: Element | null = elWalker.currentNode as Element
   if (opts.skipRoot && el === root) {
     el = elWalker.nextNode() as Element | null
   }
   while (el !== null) {
-    for (const attr of Array.from(el.attributes)) {
-      if (!attr.name.startsWith(ATTR_PREFIX)) continue
-      if (attr.name === 'data-set-key') continue
-      const binding = byKey.get(attr.value)
-      if (!binding) continue
-      yield { kind: 'element', binding, el, rawAttr: attr.name }
+    const tag = el.tagName.toLowerCase()
+    if (BOUNDARY_TAGS.has(tag)) {
+      const keyVal = el.getAttribute('key')
+      if (keyVal) {
+        const binding = byKey.get(keyVal)
+        if (binding) {
+          yield { kind: 'element', binding, el, rawAttr: 'key' }
+        }
+      }
+    } else {
+      for (const attr of Array.from(el.attributes)) {
+        if (!isBindingAttr(attr.name)) continue
+        const binding = byKey.get(attr.value)
+        if (!binding) continue
+        yield { kind: 'element', binding, el, rawAttr: attr.name }
+      }
     }
     el = elWalker.nextNode() as Element | null
   }
 
   // SHOW_COMMENT: snapshot the opens first so DOM mutations during
-  // wiring (none today, but future-proof) don't perturb the walk.
+  // wiring don't perturb the walk.
   const cWalker = owner.createTreeWalker(root, NodeFilter.SHOW_COMMENT)
   const opens: Comment[] = []
   let n: Node | null = cWalker.currentNode
-  // currentNode at the start is `root`, which is an element, so
-  // SHOW_COMMENT skips it on the first call to nextNode(). Use that.
   while ((n = cWalker.nextNode())) {
     if (!isComment(n)) continue
     if (n.data.startsWith(TEXT_OPEN_PREFIX)) opens.push(n)
@@ -116,4 +128,16 @@ export function* walkMarkers(
 
 function isComment(n: Node): n is Comment {
   return n.nodeType === 8 /* COMMENT_NODE */
+}
+
+/** True for attribute names that the SSR walker uses as binding markers. */
+function isBindingAttr(name: string): boolean {
+  return (
+    name.startsWith('on:') ||
+    name.startsWith('bind:') ||
+    name.startsWith('class:') ||
+    name.startsWith('style:') ||
+    name.startsWith('attr:') ||
+    name === 'attr-dynamic'
+  )
 }

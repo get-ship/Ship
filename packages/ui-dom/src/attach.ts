@@ -1,7 +1,7 @@
 // attach() — the SSR-side client runtime.
 //
 // Walks DOM rendered by the Rust SSR walker (Phase D-1/D-2/D-3),
-// finds `data-set-*` markers, looks each up in the compiled module's
+// finds author-syntax markers, looks each up in the compiled module's
 // `bindings` manifest, seeds signals from the `__set_init__` JSON
 // island, and wires reactivity for **leaf bindings** (text, attr,
 // class, style, bind:, on:). Runs the controller's `mount` after
@@ -23,7 +23,7 @@ import { readInitIsland } from './attach/island'
 import { indexBindings, walkMarkers } from './attach/manifest'
 import { wireMarker, type WireContext } from './attach/wire'
 
-/** Marker `kind` portion of the `data-set-<kind>` attribute family. */
+/** Marker `kind` for each binding (matches the author-syntax attribute prefix). */
 export type BindingKind =
   | 'text'
   | `on:${string}`
@@ -40,7 +40,7 @@ export type BindingKind =
 
 /** One entry in the compiled module's `bindings` manifest. */
 export interface Binding {
-  /** `"b0"`, `"b1"`, … — same shape as the `data-set-*` attribute value. */
+  /** `"b0"`, `"b1"`, … — the opaque counter-allocated binding key. */
   key: string
   /** Marker kind. See {@link BindingKind}. */
   kind: BindingKind

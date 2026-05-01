@@ -308,7 +308,7 @@ async fn set_agents_serves_ssr_html() {
     assert!(body.contains("/_sui/sdk-client.js"));
     // SSR walker output is inlined.
     assert!(body.contains("data-ssr-root"));
-    assert!(body.contains("data-set-"));
+    assert!(body.contains("<sui-if key=") || body.contains("<!--sui:text:") || body.contains("on:click="));
     assert!(body.contains("__set_init__"));
     // Boot script attaches reactivity in place — no parse-and-build.
     assert!(body.contains("import { attach } from '@ship/ui-dom'"));
@@ -344,7 +344,7 @@ async fn set_counter_serves_interactive_ssr() {
     assert_eq!(res.status(), 200);
     let body = res.text().await.unwrap();
     assert!(body.contains(r#"data-view="counter""#));
-    assert!(body.contains("data-set-"));
+    assert!(body.contains("<!--sui:text:") || body.contains("on:click="));
     assert!(body.contains("__set_init__"));
     assert!(body.contains("import { attach } from '@ship/ui-dom'"));
 }

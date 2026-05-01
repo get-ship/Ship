@@ -6,7 +6,7 @@
 //! initial scope. When the discriminating expression evaluates inside
 //! the renderable subset and produces a usable value, the matching
 //! branch / case is rendered inline. Otherwise we fall back to D-1's
-//! empty `<template data-set-{kind}="bN"></template>` placeholder so
+//! `<sui-{kind} key="bN" hidden></sui-{kind}>` placeholder so
 //! the attach-only client runtime takes over.
 //!
 //! `{#await}` is intentionally absent — the IR does not yet model an
@@ -35,7 +35,7 @@ use crate::ir::{IfInstr, MatchInstr};
 
 use super::eval::{eval, strict_eq, truthy};
 use super::render_for;
-use super::template_helpers::{close_active, empty_template, open_active};
+use super::template_helpers::{close_active, empty_template, open_active, open_active_with_branch};
 use super::walker::Walker;
 
 pub(super) use render_for::render_for;
@@ -75,7 +75,7 @@ pub(super) fn render_if(walker: &mut Walker<'_>, instr: &IfInstr) {
                 }
                 walker.walk_block(&branch.body);
                 if !is_target {
-                    close_active(walker);
+                    close_active(walker, "if");
                 }
             } else {
                 walker.walk_block_silent(&branch.body);
@@ -94,7 +94,7 @@ pub(super) fn render_if(walker: &mut Walker<'_>, instr: &IfInstr) {
             }
             walker.walk_block(else_body);
             if !is_target {
-                close_active(walker);
+                close_active(walker, "if");
             }
         } else if !is_target {
             empty_template(walker, "if", &key);
@@ -158,11 +158,11 @@ pub(super) fn render_match(walker: &mut Walker<'_>, instr: &MatchInstr) {
         for (i, case) in instr.cases.iter().enumerate() {
             if i == t {
                 if !is_target {
-                    open_active(walker, "match", &key);
+                    open_active_with_branch(walker, "match", &key, &format!("when_{i}"));
                 }
                 walker.walk_block(&case.body);
                 if !is_target {
-                    close_active(walker);
+                    close_active(walker, "match");
                 }
             } else {
                 walker.walk_block_silent(&case.body);
@@ -177,11 +177,11 @@ pub(super) fn render_match(walker: &mut Walker<'_>, instr: &MatchInstr) {
         }
         if let Some(default) = &instr.default {
             if !is_target {
-                open_active(walker, "match", &key);
+                open_active_with_branch(walker, "match", &key, "when_default");
             }
             walker.walk_block(default);
             if !is_target {
-                close_active(walker);
+                close_active(walker, "match");
             }
         } else if !is_target {
             empty_template(walker, "match", &key);

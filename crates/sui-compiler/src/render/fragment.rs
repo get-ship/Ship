@@ -5,9 +5,8 @@
 //! boundary key (`b<N>`) to the daemon's `/_ship-set/render-fragment/
 //! <view>` endpoint when a control-flow signal flips. The daemon calls
 //! this function. The returned HTML is the new body for the boundary
-//! — no surrounding `<div data-set-…>` / `<template data-set-…>`
-//! wrapper, because the runtime is swapping the wrapper's children, not
-//! the wrapper itself.
+//! — no surrounding `<sui-{kind} key="bN">` wrapper, because the
+//! runtime is swapping the wrapper's children, not the wrapper itself.
 //!
 //! ## How it works
 //!
@@ -123,7 +122,7 @@ mod tests {
         );
         // No outer wrapper in the fragment output.
         assert!(
-            !out.html.contains(r#"data-set-if=""#),
+            !out.html.contains("<sui-if key="),
             "fragment must not include the boundary wrapper: {}",
             out.html
         );
@@ -195,6 +194,6 @@ mod tests {
         // Three <li> bodies.
         assert_eq!(out.html.matches("<li>").count(), 3, "got: {}", out.html);
         // No outer for-wrapper.
-        assert!(!out.html.contains(r#"data-set-for=""#));
+        assert!(!out.html.contains("<sui-for key="));
     }
 }

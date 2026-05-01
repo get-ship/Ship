@@ -35,7 +35,7 @@
 //!    `For` / `Match` / `Await`); leaf bindings return 400.
 //! Response: `200 application/json` with `{ "html": "...", "init": {...} }`
 //!  - `html` is the body of the boundary — *not* surrounded by the
-//!    `<div data-set-…>` / `<template data-set-…>` wrapper. The
+//!    `<sui-{kind} key="bN">` wrapper. The
 //!    runtime swaps the wrapper's children, not the wrapper itself.
 //!  - `init` is the merged scope used by the renderer (defaults +
 //!    overrides), mirrored back so the client can confirm what was
@@ -196,7 +196,7 @@ mod tests {
         let body = std::str::from_utf8(&bytes).unwrap();
         assert!(body.contains("<!-- BEGIN SSR walker output -->"));
         assert!(body.contains("<!-- END SSR walker output -->"));
-        assert!(body.contains("data-set-"));
+        assert!(body.contains("<!--sui:text:") || body.contains("<sui-if") || body.contains("on:click="));
         assert!(body.contains("__set_init__"));
     }
 

@@ -21,8 +21,8 @@
 //! mode for `render::render_fragment`. The walker walks the entire IR
 //! (so the registry counter stays in lockstep) but emits HTML only for
 //! the body of the boundary whose `b<N>` key matches the requested
-//! target. The wrapper itself (`<div data-set-…>` / `<template
-//! data-set-…>`) is suppressed because the runtime already has the
+//! target. The wrapper itself (`<sui-if>` / `<sui-for>` / `<sui-match>`
+//! element) is suppressed because the runtime already has the
 //! wrapper in place — it's swapping the wrapper's children, not the
 //! wrapper itself. See `render::render_fragment` for the entry point.
 //!
@@ -139,7 +139,7 @@ impl<'r> Walker<'r> {
                 let inner = eval(&expr.source, &self.scope)
                     .map(|v| escape_text_value(&stringify(&v)))
                     .unwrap_or_default();
-                self.out.push_str(&format!("<!--set:text:{key}-->{inner}<!--/set-->"));
+                self.out.push_str(&format!("<!--sui:text:{key}-->{inner}<!--/sui-->"));
             }
             Instr::Element(el) => self.walk_element(el),
             Instr::If(if_instr) => control_flow::render_if(self, if_instr),

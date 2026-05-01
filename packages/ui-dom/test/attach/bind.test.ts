@@ -7,7 +7,7 @@ afterEach(clearContainers)
 
 describe('attach/bind:value', () => {
   it('round-trips DOM ↔ signal both ways', () => {
-    const html = '<input data-set-bind:value="b0" value="seed">'
+    const html = '<input bind:value="b0" value="seed">'
     const root = mountSsr(html, { query: 'seed' })
     let q: Signal<string> | undefined
     const mod = makeModule(
@@ -37,7 +37,7 @@ describe('attach/bind:value', () => {
 
 describe('attach/bind:checked', () => {
   it('round-trips checkbox state', () => {
-    const html = '<input type="checkbox" data-set-bind:checked="b0">'
+    const html = '<input type="checkbox" bind:checked="b0">'
     const root = mountSsr(html, { on: false })
     let on: Signal<boolean> | undefined
     const mod = makeModule(
