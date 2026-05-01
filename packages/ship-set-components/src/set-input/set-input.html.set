@@ -1,4 +1,3 @@
-<component name="set-input" shadow>
   <prop name="value" type="string" default="" />
   <prop name="placeholder" type="string" default="" />
   <prop name="type" values="text|search|email|url|tel|password|number" default="text" reflect />
@@ -76,7 +75,6 @@
       color: var(--muted-foreground);
     }
   </style>
-</component>
 
 <label class="wrap" part="wrap">
   <slot name="leading"></slot>

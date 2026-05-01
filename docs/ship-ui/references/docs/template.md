@@ -51,19 +51,23 @@ The `source` expression is plain JS that runs inside `live()`'s tracked reactive
 
 `<data>` is the **canonical** way to bring server data into a view. See [data-subscriptions.md](data-subscriptions.md).
 
-### `<component>` and `<prop>` — component declaration
+### `<prop>` — component prop declaration
 
 ```html
-<component name="ship-button">
-  <prop name="tone" values="default|primary" default="default" reflect />
-  <prop name="disabled" type="bool" default="false" reflect />
-  <prop name="label" type="string" default="" />
-</component>
+<prop name="tone" values="default|primary" default="default" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="label" type="string" default="" />
 
 <button disabled={disabled() || loading()}>{label()}</button>
 ```
 
-Used in component-shaped `.sui` files (the file *defines* a custom element). The `<component>` block names the tag and lists props; everything after is the template that will render inside the element. Views (top-level page surfaces) do not have `<component>` blocks.
+The file IS the component. `<prop>` appears at the top of a component `.sui` file alongside `<data>` and `<state>` — no wrapper element needed. The tag name and shadow flag come from the per-component metadata file (`<tag>.sui.json`):
+
+```json
+{ "component": "ship-button", "shadow": true }
+```
+
+The build pipeline reads this file and passes `--component-name` / `--component-shadow` to the compiler. If no metadata file is present the directory name is used as the tag name. Views (top-level page surfaces) do not use `<prop>`.
 
 Prop kinds: `string` (default), `bool`, `number`, `values="a|b|c"` (union). `reflect` mirrors the prop to the host element's attributes.
 

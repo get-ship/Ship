@@ -1,4 +1,3 @@
-<component name="set-tab" shadow>
   <prop name="name" type="string" default="" reflect />
   <prop name="active" type="bool" default="false" reflect />
   <prop name="count" type="string" default="" />
@@ -51,7 +50,6 @@
       outline-offset: -2px;
     }
   </style>
-</component>
 
 <button
   part="button"

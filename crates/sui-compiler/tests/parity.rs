@@ -13,13 +13,22 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use sui_compiler::{compile, CompileMode, CompileOpts};
+use sui_compiler::{compile, CompileMode, ComponentMeta, CompileOpts};
 
 fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
 }
 
+fn ship_button_meta() -> ComponentMeta {
+    ComponentMeta { name: "ship-button-test".into(), shadow: false }
+}
+
 fn compile_fixture(name: &str, mode: CompileMode, setup: Option<&str>) -> String {
+    let component_meta = if mode == CompileMode::Component {
+        Some(ship_button_meta())
+    } else {
+        None
+    };
     let path = fixtures_dir().join(format!("{name}.sui"));
     let source = fs::read_to_string(&path).unwrap();
     let out = compile(
@@ -29,6 +38,7 @@ fn compile_fixture(name: &str, mode: CompileMode, setup: Option<&str>) -> String
             mode,
             source_path: Some(path),
             styles: None,
+            component_meta,
         },
     )
     .expect("compile");

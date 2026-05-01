@@ -1,4 +1,3 @@
-<component name="set-stat" shadow>
   <prop name="value" type="string" default="" />
   <prop name="label" type="string" default="" />
   <prop name="hint"  type="string" default="" />
@@ -39,7 +38,6 @@
     :host([size='lg']) .value { font-size: 36px; }
     .hint { font-size: 11px; color: var(--muted-foreground); }
   </style>
-</component>
 
 <div class="root" part="root">
   {#if label() !== ''}

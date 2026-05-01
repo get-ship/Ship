@@ -1,4 +1,4 @@
-//! Directive declarations — `<data>`, `<state>`, `<component>`, `<prop>`.
+//! Directive declarations — `<data>`, `<state>`, `<prop>`.
 //!
 //! These are lifted out of the template tree by the parser. The
 //! emitter expands each one into the matching runtime call.
@@ -28,7 +28,7 @@ pub struct StateDecl {
     pub span: Span,
 }
 
-/// One `<prop>` inside `<component>`.
+/// Top-level `<prop>` directive in a component file.
 #[derive(Debug, Clone)]
 pub struct PropDecl {
     pub name: String,
@@ -50,16 +50,3 @@ pub enum PropKind {
     Union(Vec<String>),
 }
 
-/// `<component name="ship-button">` declaration.
-#[derive(Debug, Clone)]
-pub struct ComponentDecl {
-    pub tag: String,
-    pub props: Vec<PropDecl>,
-    /// `<component shadow>` — attach a shadow root and scope styles to it.
-    pub shadow: bool,
-    /// Concatenated text of every `<style>` child of `<component>`,
-    /// joined in source order with `\n`. Empty string when the
-    /// component declared no `<style>`.
-    pub styles: String,
-    pub span: Span,
-}

@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 
-use sui_compiler::{compile, CompileMode, CompileOpts};
+use sui_compiler::{compile, CompileMode, ComponentMeta, CompileOpts};
 
 #[derive(Parser)]
 #[command(name = "sui-compiler", about = "AOT compiler for .sui files")]
@@ -27,22 +27,25 @@ enum Command {
         /// Output directory.
         #[arg(long)]
         out: PathBuf,
-        /// Override mode (otherwise auto-detected).
+        /// Override mode (otherwise auto-detected from --component-name).
         #[arg(long)]
         mode: Option<ModeArg>,
         /// Skip writing the paired `.ts` setup import even if a
         /// sibling file exists.
         #[arg(long)]
         no_setup: bool,
-        /// Path to a CSS file to merge into the source's `<component>`
-        /// block before parsing. The compiler splices
-        /// `<style>$css</style>` immediately before `</component>` —
-        /// the same shape the runtime `defineComponent(template, { styles })`
-        /// helper uses. Only valid for component sources; errors when
-        /// the input has no `<component>` directive. Requires `input`
-        /// to be a single file (not a directory).
+        /// Path to a CSS file whose contents are prepended as a `<style>`
+        /// block. Only valid for component sources (requires --component-name).
+        /// Requires `input` to be a single file (not a directory).
         #[arg(long)]
         styles: Option<PathBuf>,
+        /// Custom element tag name for this component file. Setting this flag
+        /// implies component mode — no `--mode component` needed.
+        #[arg(long)]
+        component_name: Option<String>,
+        /// Attach a shadow root for this component (pairs with --component-name).
+        #[arg(long)]
+        component_shadow: bool,
     },
 }
 
@@ -66,8 +69,8 @@ impl From<ModeArg> for CompileMode {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
-        Command::Build { input, out, mode, no_setup, styles } => {
-            build(input, out, mode, no_setup, styles)
+        Command::Build { input, out, mode, no_setup, styles, component_name, component_shadow } => {
+            build(input, out, mode, no_setup, styles, component_name, component_shadow)
         }
     }
 }
@@ -78,6 +81,8 @@ fn build(
     mode: Option<ModeArg>,
     no_setup: bool,
     styles: Option<PathBuf>,
+    component_name: Option<String>,
+    component_shadow: bool,
 ) -> Result<()> {
     fs::create_dir_all(&out).with_context(|| format!("create out dir {}", out.display()))?;
     let mut targets = Vec::new();
@@ -107,9 +112,13 @@ fn build(
         ),
         None => None,
     };
+    let component_meta = component_name.map(|name| ComponentMeta {
+        name,
+        shadow: component_shadow,
+    });
     let count = targets.len();
     for path in targets {
-        compile_one(&path, &out, mode.clone(), no_setup, styles_text.as_deref())?;
+        compile_one(&path, &out, mode.clone(), no_setup, styles_text.as_deref(), component_meta.clone())?;
     }
     println!("compiled {count} file(s)");
     Ok(())
@@ -142,6 +151,7 @@ fn compile_one(
     mode: Option<ModeArg>,
     no_setup: bool,
     styles: Option<&str>,
+    component_meta: Option<ComponentMeta>,
 ) -> Result<()> {
     let source = fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
@@ -156,6 +166,7 @@ fn compile_one(
         mode,
         source_path: Some(path.to_path_buf()),
         styles: styles.map(|s| s.to_string()),
+        component_meta,
     };
     let result = compile(&source, opts).map_err(|e| {
         let rendered = e.render(&source);
@@ -189,7 +200,6 @@ fn compile_one(
 }
 
 fn paired_setup(path: &Path) -> Option<String> {
-    // For `foo/view.sui` or `foo/view.html.set` look for `foo/view.ts`.
     let file_name = path.file_name()?.to_str()?;
     let stem = file_name
         .strip_suffix(".html.set")

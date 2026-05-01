@@ -5,21 +5,23 @@ use crate::ir::*;
 use crate::CompileOpts;
 use serde_json::{json, Value};
 
-pub fn emit_cem(component: &ComponentDecl, opts: &CompileOpts) -> Value {
+pub fn emit_cem(program: &Program, opts: &CompileOpts) -> Value {
+    let meta = opts.component_meta.as_ref().expect("component_meta required for CEM");
+    let tag = &meta.name;
     let path = opts
         .source_path
         .as_ref()
         .and_then(|p| p.file_name())
         .map(|f| f.to_string_lossy().to_string())
-        .unwrap_or_else(|| format!("{}.sui", component.tag));
+        .unwrap_or_else(|| format!("{tag}.sui"));
 
-    let attributes: Vec<Value> = component.props.iter().map(attr_entry).collect();
-    let members: Vec<Value> = component.props.iter().map(member_entry).collect();
+    let attributes: Vec<Value> = program.props.iter().map(attr_entry).collect();
+    let members: Vec<Value> = program.props.iter().map(member_entry).collect();
 
     let declaration = json!({
         "kind": "class",
-        "name": class_name_for(&component.tag),
-        "tagName": component.tag,
+        "name": class_name_for(tag),
+        "tagName": tag,
         "customElement": true,
         "superclass": { "name": "HTMLElement", "package": "global" },
         "attributes": attributes,
@@ -32,8 +34,8 @@ pub fn emit_cem(component: &ComponentDecl, opts: &CompileOpts) -> Value {
         "declarations": [declaration],
         "exports": [{
             "kind": "custom-element-definition",
-            "name": component.tag,
-            "declaration": { "name": class_name_for(&component.tag), "module": path },
+            "name": tag,
+            "declaration": { "name": class_name_for(tag), "module": path },
         }],
     });
 

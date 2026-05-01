@@ -1,4 +1,3 @@
-<component name="set-chip" shadow>
   <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
   <prop name="variant" values="solid|soft|outline|ghost" default="soft" reflect />
   <prop name="size" values="sm|md" default="sm" reflect />
@@ -46,7 +45,6 @@
       flex: 0 0 auto;
     }
   </style>
-</component>
 
 <span class="root" part="root">
   <slot name="leading"></slot>

@@ -1,9 +1,7 @@
-<component name="ship-button-test">
-  <prop name="tone" values="default|primary" default="default" reflect />
-  <prop name="disabled" type="bool" default="false" reflect />
-  <prop name="loading" type="bool" default="false" reflect />
-  <prop name="label" type="string" default="" />
-</component>
+<prop name="tone" values="default|primary" default="default" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="loading" type="bool" default="false" reflect />
+<prop name="label" type="string" default="" />
 
 <button
   part="button"

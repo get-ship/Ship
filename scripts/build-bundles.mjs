@@ -13,7 +13,7 @@
 import { build, context } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync, renameSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(fileURLToPath(import.meta.url), '..', '..');
@@ -88,35 +88,51 @@ function hashTree(entryAbs) {
 }
 
 /**
+ * Read the component metadata from a `<stem>.sui.json` file next to the
+ * `.html.set` source. Falls back to the directory name if the file is absent.
+ */
+function readComponentMeta(suiPath) {
+  const inputAbs = join(repoRoot, suiPath);
+  const dir = dirname(inputAbs);
+  const stem = basename(inputAbs).replace(/\.html\.set$/, '').replace(/\.sui$/, '');
+  const metaPath = join(dir, `${stem}.sui.json`);
+  try {
+    const raw = readFileSync(metaPath, 'utf8');
+    const meta = JSON.parse(raw);
+    return { name: meta.component ?? stem, shadow: meta.shadow ?? false };
+  } catch {
+    return { name: stem, shadow: false };
+  }
+}
+
+/**
  * Run the Rust sui-compiler against a single `.sui` source.
  *
  * Views: emitted `<stem>.js` carries the `bindings` manifest + the
  * default-export setup that re-imports the paired controller `.ts`.
  * esbuild then bundles the compiled file, inlining the controller.
  *
- * Components: passing `mode: 'component'` emits a self-contained
- * module with no setup pairing — just the `component(...)` call that
- * registers the custom element on import. The build script renames
- * the output to `<stem>.compiled.js` so the .ts side-effect import
- * (`import './<stem>.compiled.js'`) is unambiguous in the source
- * tree. When `cssPath` is supplied, the compiler splices that file's
- * contents into the source's `<component>` block before parsing —
- * the same shape the legacy runtime helper used.
+ * Components: reads `<stem>.sui.json` for the tag name and shadow flag,
+ * then passes `--component-name` / `--component-shadow` to the compiler.
+ * The build script renames the output to `<stem>.compiled.js` so the .ts
+ * side-effect import (`import './<stem>.compiled.js'`) is unambiguous.
+ * When `cssPath` is supplied, the CSS is prepended as a `<style>` block.
  */
 async function compileSui(suiPath, opts = {}) {
   const { mode = 'view', cssPath = null } = opts;
   const { spawnSync } = await import('node:child_process');
   const inputAbs = join(repoRoot, suiPath);
   const outDir = dirname(inputAbs);
-  const stem = suiPath.split('/').pop().replace(/\.html\.set$/, '').replace(/\.sui$/, '');
+  const stem = basename(inputAbs).replace(/\.html\.set$/, '').replace(/\.sui$/, '');
   const args = [
     'run', '--quiet', '-p', 'sui-compiler', '--',
     'build', inputAbs, '--out', outDir,
   ];
   if (mode === 'component') {
-    // No paired setup — components are declarative; the .ts file is
-    // just a side-effect import of the compiled output.
-    args.push('--mode', 'component', '--no-setup');
+    const meta = readComponentMeta(suiPath);
+    args.push('--component-name', meta.name);
+    if (meta.shadow) args.push('--component-shadow');
+    args.push('--no-setup');
   }
   if (cssPath) {
     args.push('--styles', join(repoRoot, cssPath));

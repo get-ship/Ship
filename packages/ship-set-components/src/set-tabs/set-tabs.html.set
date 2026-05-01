@@ -1,4 +1,3 @@
-<component name="set-tabs" shadow>
   <prop name="variant" values="underline|pill|enclosed" default="underline" reflect />
 
   <style>
@@ -27,7 +26,6 @@
       flex: 0 0 auto;
     }
   </style>
-</component>
 
 <div class="strip" part="strip" role="tablist">
   <slot></slot>

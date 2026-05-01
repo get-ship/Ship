@@ -1,4 +1,3 @@
-<component name="set-spinner" shadow>
   <prop name="size" values="xs|sm|md|lg" default="md" reflect />
   <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
   <prop name="label" type="string" default="" />
@@ -29,7 +28,6 @@
     @keyframes set-spinner-spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .ring { animation-duration: 1.5s; } }
   </style>
-</component>
 
 <span class="ring"
       part="ring"
