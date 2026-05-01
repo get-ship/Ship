@@ -32,26 +32,26 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use sui_compiler::{parse, render};
+use sui_compiler::{CompileOpts, compile, parse, render};
 
+use super::sui_resolver::{ResolvedView, resolve};
 use super::sui_view_shell::render_shell;
 
 // ── Compile-time embedded view assets ────────────────────────────────
 
-const AGENTS_VIEW_HTML_SET: &str =
-    include_str!("../../../../views/agents/view.sui");
+// Bake-list templates are sourced from `sui_render_helpers::view_source`
+// via the resolver. Bundled JS + CSS for the three baked views still
+// ride directly off `include_str!` here — on-disk views go through
+// `sui_compiler::compile` at request time and re-read sibling
+// `view.css`.
 const AGENTS_VIEW_CSS: &str = include_str!("../../../../views/agents/view.css");
 const AGENTS_VIEW_JS: &str =
     include_str!("../../assets/views/agents/view.js");
 
-const GIT_VIEW_HTML_SET: &str =
-    include_str!("../../../../views/git/view.sui");
 const GIT_VIEW_CSS: &str = include_str!("../../../../views/git/view.css");
 const GIT_VIEW_JS: &str =
     include_str!("../../assets/views/git/view.js");
 
-const COUNTER_VIEW_HTML_SET: &str =
-    include_str!("../../../../views/counter/view.sui");
 const COUNTER_VIEW_CSS: &str =
     include_str!("../../../../views/counter/view.css");
 const COUNTER_VIEW_JS: &str =
@@ -94,11 +94,11 @@ pub async fn serve_sui_view(Path(name): Path<String>) -> Response {
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
-    let source = match view_source(&name) {
-        Some(s) => s,
-        None => return not_found(&format!("sui view not found: {name}")),
+    let resolved = match resolve(&name, None) {
+        Ok(r) => r,
+        Err(e) => return not_found(&e.message),
     };
-
+    let source = resolved.source.as_str();
     let program = match parse::parse(source) {
         Ok(p) => p,
         Err(err) => return render_error(err.render(source)),
@@ -125,11 +125,9 @@ pub async fn serve_sui_view_template(Path(name): Path<String>) -> Response {
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
-    let body = match name.as_str() {
-        "agents" => AGENTS_VIEW_HTML_SET,
-        "git" => GIT_VIEW_HTML_SET,
-        "counter" => COUNTER_VIEW_HTML_SET,
-        _ => return not_found(&format!("template not found: {name}")),
+    let body = match resolve(&name, None) {
+        Ok(r) => r.source,
+        Err(e) => return not_found(&e.message),
     };
     Response::builder()
         .status(StatusCode::OK)
@@ -144,13 +142,42 @@ pub async fn serve_sui_view_setup(Path(name): Path<String>) -> Response {
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
-    let body = match name.as_str() {
-        "agents" => AGENTS_VIEW_JS,
-        "git" => GIT_VIEW_JS,
-        "counter" => COUNTER_VIEW_JS,
-        _ => return not_found(&format!("setup not found: {name}")),
+    // Bake-list views ship a precompiled bundle (esbuild-flattened paired
+    // setup); on-disk views go through `sui_compiler::compile` at request
+    // time. The latter only emits the template-side module — author
+    // <script> blocks aren't bundled — but that's enough for the
+    // declarative views the resolver enables.
+    match name.as_str() {
+        "agents" => js_response(AGENTS_VIEW_JS),
+        "git" => js_response(GIT_VIEW_JS),
+        "counter" => js_response(COUNTER_VIEW_JS),
+        _ => match resolve(&name, None) {
+            Ok(r) => compile_view_js(&name, &r),
+            Err(e) => not_found(&e.message),
+        },
+    }
+}
+
+fn compile_view_js(name: &str, resolved: &ResolvedView) -> Response {
+    let opts = CompileOpts {
+        source_path: resolved.source_path.clone(),
+        emit_dts: false,
+        ..CompileOpts::default()
     };
-    js_response(body)
+    let out = match compile(&resolved.source, opts) {
+        Ok(o) => o,
+        Err(err) => return render_error(err.render(&resolved.source)),
+    };
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .header(header::CACHE_CONTROL, "no-cache")
+        .header(
+            "X-Sui-View",
+            name.chars().filter(|c| c.is_ascii()).collect::<String>(),
+        )
+        .body(Body::from(out.js))
+        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
 /// `GET /_sui/views/{name}/view.css` — the view's style sheet.
@@ -158,11 +185,17 @@ pub async fn serve_sui_view_css(Path(name): Path<String>) -> Response {
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
-    let body = match name.as_str() {
-        "agents" => AGENTS_VIEW_CSS,
-        "git" => GIT_VIEW_CSS,
-        "counter" => COUNTER_VIEW_CSS,
-        _ => return not_found(&format!("css not found: {name}")),
+    let body: String = match name.as_str() {
+        "agents" => AGENTS_VIEW_CSS.to_string(),
+        "git" => GIT_VIEW_CSS.to_string(),
+        "counter" => COUNTER_VIEW_CSS.to_string(),
+        _ => match resolve(&name, None) {
+            Ok(r) => match r.source_path.as_ref().and_then(|p| p.parent()) {
+                Some(dir) => std::fs::read_to_string(dir.join("view.css")).unwrap_or_default(),
+                None => String::new(),
+            },
+            Err(e) => return not_found(&e.message),
+        },
     };
     Response::builder()
         .status(StatusCode::OK)
@@ -193,15 +226,6 @@ fn is_valid_view_name(s: &str) -> bool {
     !s.is_empty()
         && s.len() <= 64
         && s.chars().all(|c| c.is_ascii_lowercase() || c == '-')
-}
-
-fn view_source(name: &str) -> Option<&'static str> {
-    match name {
-        "agents" => Some(AGENTS_VIEW_HTML_SET),
-        "git" => Some(GIT_VIEW_HTML_SET),
-        "counter" => Some(COUNTER_VIEW_HTML_SET),
-        _ => None,
-    }
 }
 
 fn render_error(message: String) -> Response {

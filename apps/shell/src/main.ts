@@ -713,6 +713,31 @@ router.on("/pipelines/run/:slug", ({ data }) => {
   void mount(`/api/v1/v/pipelines/run/${encodeURIComponent(data!.slug)}`);
 });
 
+// Dev-only embed probe — proves mountSuiView() can render a SUI view in
+// place inside the shell, without any full-page navigation. Targeted by
+// the Playwright probe at .artifacts/sui-embed-probe.mjs.
+if (import.meta.env.DEV) {
+  router.on("/dev/sui/:name", async ({ data }) => {
+    const name = data!.name;
+    updateNav("");
+    const old = document.getElementById("ship-view-root");
+    const parent = old?.parentElement ?? document.body;
+    const slot = document.createElement("main");
+    slot.id = "ship-view-root";
+    slot.className = "ship-content";
+    slot.dataset.devSuiSlot = name;
+    if (old) old.replaceWith(slot);
+    else parent.appendChild(slot);
+    view = slot;
+    try {
+      const { mountSuiView } = await import("./mount-sui");
+      await mountSuiView(slot, name);
+    } catch (err) {
+      slot.innerHTML = `<div class="mount-error">Failed to mount /dev/sui/${name}\n${(err as Error).message}</div>`;
+    }
+  });
+}
+
 // 404
 router.notFound(() => {
   updateNav("");

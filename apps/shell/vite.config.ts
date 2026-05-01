@@ -176,10 +176,12 @@ export default defineConfig(({ mode }) => {
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/daemon/, ""),
         },
-        // ship-set framework — daemon serves the runtime/dom/sdk-client
-        // bundles, view templates, and the SDK-data SSE endpoint under
-        // /_ship-set/*. Listed before /_ship so the more-specific prefix wins.
-        "/_ship-set": {
+        // SUI framework — daemon serves the runtime/dom/sdk-client
+        // bundles, view templates, the embeddable fragment endpoint
+        // (`/_sui/fragment/<name>`), the JSON island data feed, and
+        // mutations under /_sui/*. Listed before /_ship so the more-
+        // specific prefix wins.
+        "/_sui": {
           target: daemon,
           changeOrigin: true,
           configure: (proxy) => {
@@ -189,9 +191,8 @@ export default defineConfig(({ mode }) => {
             });
           },
         },
-        // ship-set views — file-system routed at /set/<name>, served by
-        // shipd's ship_set_view handler.
-        "/set": {
+        // SUI full-page views — file-system routed at /sui/<name>.
+        "/sui": {
           target: daemon,
           changeOrigin: true,
           configure: (proxy) => {
