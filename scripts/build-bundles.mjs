@@ -13,6 +13,7 @@
 import { build, context } from 'esbuild';
 import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync, renameSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -272,6 +273,32 @@ async function buildOne(t) {
         );
       }
     }
+  }
+
+  // Bundle-size CI gate for sui-dom.js (budget: ≤ 9 KB gzip).
+  // The parser was moved to @ship/ui-dom/legacy in job/dom-legacy-subpath;
+  // the default surface exports attach() only. Assert zero parse-path
+  // symbols to catch any regression that drags the parser back in.
+  if (t.name === 'sui-dom') {
+    const out = readFileSync(outfile, 'utf8');
+    if (/['"@]ship\/ui-dom\/legacy/.test(out) || /from\s*["'][^"']*\/legacy/.test(out)) {
+      throw new Error(
+        `[bundles] sui-dom.js contains a reference to the legacy subpath — parser leaked into the default surface`,
+      );
+    }
+    if (/\bparseSetSource\b/.test(out)) {
+      throw new Error(
+        `[bundles] sui-dom.js contains parseSetSource — parser leaked into the default surface`,
+      );
+    }
+    const gzBytes = gzipSync(Buffer.from(out)).length;
+    const GZ_BUDGET_KB = 9;
+    if (gzBytes > GZ_BUDGET_KB * 1024) {
+      throw new Error(
+        `[bundles] sui-dom.js gzip size ${(gzBytes / 1024).toFixed(1)} KiB exceeds ${GZ_BUDGET_KB} KiB budget`,
+      );
+    }
+    console.log(`[bundles]        sui-dom.js gzip ${(gzBytes / 1024).toFixed(1)} KiB (budget: ${GZ_BUDGET_KB} KiB)`);
   }
 
   const bytes = statSync(outfile).size;

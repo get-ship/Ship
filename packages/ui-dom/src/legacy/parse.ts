@@ -8,8 +8,8 @@
 // etc. — survives parsing as text-node content; the compiler walks
 // the resulting DOM and processes those text-segment markers.
 
-import { compileExpr, compileSource, type CompiledExpr } from './template/expr'
-import { preprocess } from './preprocess'
+import { compileExpr, compileSource, type CompiledExpr } from '../template/expr'
+import { preprocess } from '../preprocess'
 
 /** Declaration extracted from a top-level `<data>` element. */
 export interface DataDecl {

@@ -6,8 +6,8 @@
 // DOM node added by the call.
 
 import { parseSetSource, type UseDecl } from './parse'
-import { compileChildren } from './template/compile'
-import { extendScope, render, type Scope } from './template/render'
+import { compileChildren } from '../template/compile'
+import { extendScope, render, type Scope } from '../template/render'
 import { mountData } from './directives/data'
 import { mountState } from './directives/state'
 import { registerComponent } from './directives/component'
@@ -62,7 +62,7 @@ export interface HydrateHandle {
  *
  * @example
  * ```ts
- * import { hydrate } from '@ship/ui-dom'
+ * import { hydrate } from '@ship/ui-dom/legacy'
  *
  * const handle = hydrate(
  *   '<state name="count" value="0" /><button on:click={() => count.set(count() + 1)}>{count()}</button>',

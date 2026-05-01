@@ -2,7 +2,7 @@
 // `<use-kbd>`, `<use-click-outside>`, `<use-shell>`.
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { hydrate } from '../src'
+import { hydrate } from '../src/legacy'
 import { controller } from '@ship/ui-runtime'
 
 const containers: HTMLElement[] = []

@@ -9,7 +9,7 @@
 // in the template via `<state name="..." value="..." />`.
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { hydrate } from '../src'
+import { hydrate } from '../src/legacy'
 import {
   controller,
   signal,
