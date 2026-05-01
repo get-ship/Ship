@@ -7,7 +7,7 @@
 use ship_set_compiler::{compile, CompileMode, CompileOpts};
 
 fn opts() -> CompileOpts {
-    CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None }
+    CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None, styles: None }
 }
 
 fn compile_view(src: &str) -> ship_set_compiler::CompileError {

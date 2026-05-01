@@ -1,11 +1,23 @@
 // Conditional render. The ship-set compiler turns
-// `{#if cond}then{:else}else{/if}` into a call to bindIf.
+// `{#if cond}then{:elif …}{:else}else{/if}` (and `{#match}`) into a
+// call to bindIf.
 //
 // Anchor-based: a Comment placeholder marks the insertion point;
-// branches are rendered lazily and swapped on cond change. Then- and
-// else-branches each get their own dispose to tear down their bindings
-// when swapped out (avoiding leaks from the inactive branch's
-// effects).
+// branches are rendered lazily and swapped on selector change. Each
+// branch gets its own dispose to tear down its bindings when swapped
+// out (avoiding leaks from inactive branches' effects).
+//
+// Two input shapes are accepted, both ending in the same swap engine:
+//
+//   - Two-branch (the original API): `{ anchor, cond, then_, else_ }`.
+//     `cond()` returns a boolean. Lives on for hand-rolled callers.
+//
+//   - Multi-branch (compiler emit): `{ anchor, test, branches }`.
+//     `test()` returns the integer index of the branch to render
+//     (`-1` selects nothing). The compiler emits this for `{#if}` —
+//     including elif chains — and for `{#match}`. The else-branch (or
+//     match's `default`) is appended to `branches` so the test
+//     function can return its index instead of a sentinel.
 //
 // See docs/ship-set/03-runtime-architecture.md § Conditional render.
 
@@ -14,7 +26,7 @@ import type { Disposer } from './bind'
 
 /**
  * One branch's rendered nodes plus an optional teardown. Returned by
- * the `then_` / `else_` / `loading` / etc. callbacks of every
+ * the `then_` / `else_` / `loading` / branch-render callbacks of every
  * branching binding (`bindIf`, `bindAwait`).
  */
 export interface BranchRender {
@@ -24,30 +36,41 @@ export interface BranchRender {
   cleanup?: () => void
 }
 
-/** Inputs to `bindIf`. */
-export interface BindIfOptions {
-  /** Anchor placeholder — the active branch's nodes go BEFORE it. */
+/** Two-branch input shape — the original hand-author API. */
+export interface BindIfTwoBranchOptions {
   anchor: Comment
-  /** Reactive predicate. */
   cond: () => boolean
-  /** Render the then-branch on demand. */
   then_: () => BranchRender
-  /** Render the else-branch on demand (omit for then-only). */
   else_?: () => BranchRender
 }
 
 /**
- * Conditionally render a then-branch (and optional else-branch) at
- * `opts.anchor`. Branches are rendered lazily — `then_()` / `else_()`
- * are called only when their branch becomes active. The previous
- * branch's `cleanup` runs on swap, freeing its bindings.
+ * Multi-branch input shape — the compiler emit for `{#if}` /
+ * `{#match}`. `test()` returns the index of the branch in `branches`
+ * to render, or `-1` for "render nothing".
+ */
+export interface BindIfMultiBranchOptions {
+  anchor: Comment
+  test: () => number
+  branches: Array<() => BranchRender>
+}
+
+/** Public union — `bindIf` accepts either shape. */
+export type BindIfOptions = BindIfTwoBranchOptions | BindIfMultiBranchOptions
+
+/**
+ * Conditionally render one of N branches at `opts.anchor`. Branches
+ * are rendered lazily — only the selected branch's renderer is
+ * invoked. The previous branch's `cleanup` runs on swap, freeing its
+ * bindings.
  *
- * Compiler target: `{#if cond}then{:else}else{/if}`.
+ * Compiler target: `{#if cond}then{:elif …}{:else}else{/if}` and
+ * `{#match}`. The compiler always passes the multi-branch shape; the
+ * two-branch shape is preserved for hand-rolled callers.
  *
- * @param opts Anchor, predicate, and branch renderers.
  * @returns Disposer that tears down the active branch and stops the effect.
  *
- * @example
+ * @example two-branch (hand-rolled):
  * ```ts
  * const open = signal(false)
  * bindIf({
@@ -58,13 +81,30 @@ export interface BindIfOptions {
  * })
  * ```
  *
+ * @example multi-branch (compiler emit):
+ * ```ts
+ * bindIf({
+ *   anchor,
+ *   test: () => kind() === 'ok' ? 0 : kind() === 'loading' ? 1 : -1,
+ *   branches: [() => renderOk(), () => renderLoading()],
+ * })
+ * ```
+ *
  * @see bindShow when the element should remain mounted (just hidden);
  *   bindAwait for promise-driven branching.
  */
 export function bindIf(opts: BindIfOptions): Disposer {
-  const { anchor, cond, then_, else_ } = opts
+  const { anchor } = opts
+  // Normalize both shapes into a single (test, branches) pair so the
+  // swap engine has one path. The two-branch shape collapses to
+  // branches: [then_, else_?]; cond() → 0 picks then, 1 (when else_
+  // exists) picks else, otherwise -1.
+  const { test, branches } = isMulti(opts)
+    ? { test: opts.test, branches: opts.branches }
+    : twoBranchToMulti(opts)
+
   let active: BranchRender | null = null
-  let lastBranch: 'then' | 'else' | null = null
+  let lastIdx = -2 // sentinel: not -1 (which is a real "no match")
 
   const tearDown = () => {
     if (!active) return
@@ -80,18 +120,15 @@ export function bindIf(opts: BindIfOptions): Disposer {
   }
 
   const dispose = effect(() => {
-    const want: 'then' | 'else' = cond() ? 'then' : 'else'
-    if (want === lastBranch) return
+    const idx = test()
+    if (idx === lastIdx) return
     tearDown()
-    lastBranch = want
-    if (want === 'then') {
-      active = then_()
-    } else if (else_) {
-      active = else_()
-    } else {
+    lastIdx = idx
+    if (idx < 0 || idx >= branches.length) {
       active = null
       return
     }
+    active = branches[idx]!()
     const parent = anchor.parentNode
     if (!parent) return
     for (const n of active.nodes) {
@@ -102,5 +139,20 @@ export function bindIf(opts: BindIfOptions): Disposer {
   return () => {
     dispose()
     tearDown()
+  }
+}
+
+function isMulti(o: BindIfOptions): o is BindIfMultiBranchOptions {
+  return typeof (o as BindIfMultiBranchOptions).test === 'function'
+}
+
+function twoBranchToMulti(
+  o: BindIfTwoBranchOptions,
+): { test: () => number; branches: Array<() => BranchRender> } {
+  const { cond, then_, else_ } = o
+  const branches: Array<() => BranchRender> = else_ ? [then_, else_] : [then_]
+  return {
+    test: () => (cond() ? 0 : else_ ? 1 : -1),
+    branches,
   }
 }

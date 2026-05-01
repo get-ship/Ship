@@ -1,0 +1,5 @@
+<component name="ship-styled-test" shadow>
+  <prop name="tone" values="default|primary" default="default" reflect />
+</component>
+
+<button part="button">styled</button>

@@ -504,9 +504,10 @@ function bindForSignal(anchor, sig, key, render) {
 
 // packages/ship-set-runtime/src/if.ts
 function bindIf(opts) {
-  const { anchor, cond, then_, else_ } = opts;
+  const { anchor } = opts;
+  const { test, branches } = isMulti(opts) ? { test: opts.test, branches: opts.branches } : twoBranchToMulti(opts);
   let active = null;
-  let lastBranch = null;
+  let lastIdx = -2;
   const tearDown = () => {
     if (!active) return;
     for (const n of active.nodes) {
@@ -519,18 +520,15 @@ function bindIf(opts) {
     active = null;
   };
   const dispose = effect(() => {
-    const want = cond() ? "then" : "else";
-    if (want === lastBranch) return;
+    const idx = test();
+    if (idx === lastIdx) return;
     tearDown();
-    lastBranch = want;
-    if (want === "then") {
-      active = then_();
-    } else if (else_) {
-      active = else_();
-    } else {
+    lastIdx = idx;
+    if (idx < 0 || idx >= branches.length) {
       active = null;
       return;
     }
+    active = branches[idx]();
     const parent = anchor.parentNode;
     if (!parent) return;
     for (const n of active.nodes) {
@@ -540,6 +538,17 @@ function bindIf(opts) {
   return () => {
     dispose();
     tearDown();
+  };
+}
+function isMulti(o) {
+  return typeof o.test === "function";
+}
+function twoBranchToMulti(o) {
+  const { cond, then_, else_ } = o;
+  const branches = else_ ? [then_, else_] : [then_];
+  return {
+    test: () => cond() ? 0 : else_ ? 1 : -1,
+    branches
   };
 }
 

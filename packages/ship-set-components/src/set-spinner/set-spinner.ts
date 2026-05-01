@@ -1,7 +1,2 @@
-import { defineComponent } from '../define'
-import template from './set-spinner.html.set'
-
-/** Register `<set-spinner>`. Idempotent. */
-export function registerSetSpinner(): void {
-  defineComponent(template)
-}
+// AOT-compiled at build time — see scripts/build-bundles.mjs.
+import './set-spinner.compiled.js'

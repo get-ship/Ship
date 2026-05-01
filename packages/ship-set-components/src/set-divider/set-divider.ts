@@ -1,7 +1,2 @@
-import { defineComponent } from '../define'
-import template from './set-divider.html.set'
-
-/** Register `<set-divider>`. Idempotent. */
-export function registerSetDivider(): void {
-  defineComponent(template)
-}
+// AOT-compiled at build time — see scripts/build-bundles.mjs.
+import './set-divider.compiled.js'

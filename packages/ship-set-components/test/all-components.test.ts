@@ -12,18 +12,15 @@
 // existence; this file is the regression net for "did we break a
 // port."
 
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { registerAll } from '../src/index'
+import { afterEach, describe, expect, it } from 'vitest'
+// Side-effect import — index.ts pulls in every `<tag>.ts`, each of
+// which side-effect imports its AOT-compiled module. By the time
+// the test body runs, every <set-*> custom element is registered.
+import '../src/index'
 import { createContainerRegistry, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
 afterEach(() => reg.cleanup())
-
-beforeAll(() => {
-  // `registerAll` is idempotent; calling here ensures the test file
-  // doesn't depend on the index.ts side-effect import order.
-  registerAll()
-})
 
 interface PortCase {
   /** Tag suffix; the test mounts `<set-<name>>`. */

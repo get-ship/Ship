@@ -34,6 +34,15 @@ enum Command {
         /// sibling file exists.
         #[arg(long)]
         no_setup: bool,
+        /// Path to a CSS file to merge into the source's `<component>`
+        /// block before parsing. The compiler splices
+        /// `<style>$css</style>` immediately before `</component>` —
+        /// the same shape the runtime `defineComponent(template, { styles })`
+        /// helper uses. Only valid for component sources; errors when
+        /// the input has no `<component>` directive. Requires `input`
+        /// to be a single file (not a directory).
+        #[arg(long)]
+        styles: Option<PathBuf>,
     },
 }
 
@@ -57,14 +66,27 @@ impl From<ModeArg> for CompileMode {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
-        Command::Build { input, out, mode, no_setup } => build(input, out, mode, no_setup),
+        Command::Build { input, out, mode, no_setup, styles } => {
+            build(input, out, mode, no_setup, styles)
+        }
     }
 }
 
-fn build(input: PathBuf, out: PathBuf, mode: Option<ModeArg>, no_setup: bool) -> Result<()> {
+fn build(
+    input: PathBuf,
+    out: PathBuf,
+    mode: Option<ModeArg>,
+    no_setup: bool,
+    styles: Option<PathBuf>,
+) -> Result<()> {
     fs::create_dir_all(&out).with_context(|| format!("create out dir {}", out.display()))?;
     let mut targets = Vec::new();
     if input.is_dir() {
+        if styles.is_some() {
+            return Err(anyhow!(
+                "--styles requires a single .html.set input, not a directory"
+            ));
+        }
         collect_targets(&input, &mut targets)?;
     } else if input
         .file_name()
@@ -78,9 +100,16 @@ fn build(input: PathBuf, out: PathBuf, mode: Option<ModeArg>, no_setup: bool) ->
     if targets.is_empty() {
         return Err(anyhow!("no .html.set files found under {}", input.display()));
     }
+    let styles_text = match styles.as_deref() {
+        Some(p) => Some(
+            fs::read_to_string(p)
+                .with_context(|| format!("read --styles {}", p.display()))?,
+        ),
+        None => None,
+    };
     let count = targets.len();
     for path in targets {
-        compile_one(&path, &out, mode.clone(), no_setup)?;
+        compile_one(&path, &out, mode.clone(), no_setup, styles_text.as_deref())?;
     }
     println!("compiled {count} file(s)");
     Ok(())
@@ -103,7 +132,13 @@ fn collect_targets(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-fn compile_one(path: &Path, out_dir: &Path, mode: Option<ModeArg>, no_setup: bool) -> Result<()> {
+fn compile_one(
+    path: &Path,
+    out_dir: &Path,
+    mode: Option<ModeArg>,
+    no_setup: bool,
+    styles: Option<&str>,
+) -> Result<()> {
     let source = fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
     let mode = mode.map(|m| m.into()).unwrap_or(CompileMode::Auto);
@@ -116,6 +151,7 @@ fn compile_one(path: &Path, out_dir: &Path, mode: Option<ModeArg>, no_setup: boo
         setup_url,
         mode,
         source_path: Some(path.to_path_buf()),
+        styles: styles.map(|s| s.to_string()),
     };
     let result = compile(&source, opts).map_err(|e| {
         let rendered = e.render(&source);

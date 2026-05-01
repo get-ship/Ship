@@ -25,6 +25,7 @@ fn compile_fixture(name: &str, setup_url: Option<&str>, mode: CompileMode) -> St
         setup_url: setup_url.map(|s| s.to_string()),
         mode,
         source_path: Some(path),
+        styles: None,
     };
     let out = compile(&source, opts).expect("compile");
     out.js
@@ -92,6 +93,7 @@ fn ship_button_emits_cem() {
         setup_url: None,
         mode: CompileMode::Component,
         source_path: Some(path),
+        styles: None,
     };
     let out = compile(&source, opts).expect("compile");
     let cem = out.cem.expect("CEM emitted for component-mode");
@@ -109,6 +111,7 @@ fn schema_emitted_for_each_fixture() {
             setup_url: None,
             mode: *mode,
             source_path: Some(path),
+            styles: None,
         };
         let out = compile(&source, opts).expect("compile");
         let schema = out.schema.expect("schema emitted");

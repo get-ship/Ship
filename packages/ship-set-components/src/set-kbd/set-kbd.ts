@@ -1,7 +1,2 @@
-import { defineComponent } from '../define'
-import template from './set-kbd.html.set'
-
-/** Register `<set-kbd>`. Idempotent. */
-export function registerSetKbd(): void {
-  defineComponent(template)
-}
+// AOT-compiled at build time — see scripts/build-bundles.mjs.
+import './set-kbd.compiled.js'

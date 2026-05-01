@@ -102,15 +102,28 @@ fn parse_state(el: &html::Element) -> Result<StateDecl, CompileError> {
 
 fn parse_component(el: &html::Element) -> Result<ComponentDecl, CompileError> {
     let tag = required_attr(el, "name", "<component>")?;
+    let shadow = el.has_attribute("shadow");
     let mut props = Vec::new();
+    let mut style_parts: Vec<String> = Vec::new();
     for child in &el.children {
         if let Node::Element(child_el) = child {
-            if child_el.tag == "prop" {
-                props.push(parse_prop(child_el)?);
+            match child_el.tag.as_str() {
+                "prop" => props.push(parse_prop(child_el)?),
+                "style" => {
+                    // `<style>` is a raw-text tag; the parser collapses
+                    // its body into a single Text node.
+                    for sub in &child_el.children {
+                        if let Node::Text(t) = sub {
+                            style_parts.push(t.data.clone());
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
-    Ok(ComponentDecl { tag, props, span: el.span })
+    let styles = style_parts.join("\n");
+    Ok(ComponentDecl { tag, props, shadow, styles, span: el.span })
 }
 
 fn parse_prop(el: &html::Element) -> Result<PropDecl, CompileError> {

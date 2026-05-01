@@ -5,3 +5,10 @@ declare module '*.html.set' {
   const source: string
   export default source
 }
+
+// `<tag>.compiled.js` files are emitted by `ship-set-compiler` at
+// build time (gitignored). Components import them for side effects:
+// the compiled module's top-level `component(...)` call registers
+// the custom element. The shape is "no exports, no contract" — only
+// the side effect matters.
+declare module '*.compiled.js'

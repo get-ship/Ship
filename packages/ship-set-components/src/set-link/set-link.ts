@@ -1,7 +1,2 @@
-import { defineComponent } from '../define'
-import template from './set-link.html.set'
-
-/** Register `<set-link>`. Idempotent. */
-export function registerSetLink(): void {
-  defineComponent(template)
-}
+// AOT-compiled at build time — see scripts/build-bundles.mjs.
+import './set-link.compiled.js'

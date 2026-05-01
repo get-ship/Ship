@@ -55,5 +55,11 @@ pub enum PropKind {
 pub struct ComponentDecl {
     pub tag: String,
     pub props: Vec<PropDecl>,
+    /// `<component shadow>` — attach a shadow root and scope styles to it.
+    pub shadow: bool,
+    /// Concatenated text of every `<style>` child of `<component>`,
+    /// joined in source order with `\n`. Empty string when the
+    /// component declared no `<style>`.
+    pub styles: String,
     pub span: Span,
 }

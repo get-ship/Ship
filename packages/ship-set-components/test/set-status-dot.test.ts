@@ -2,8 +2,12 @@
 // authored in `.html.set` register, instantiate, observe attrs, and
 // reactively update their DOM.
 
-import { afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { registerSetStatusDot } from '../src/set-status-dot/set-status-dot'
+import { afterEach, describe, expect, it } from 'vitest'
+// AOT registration: importing the .ts file pulls in the side-effect
+// `import './set-status-dot.compiled.js'`, which calls
+// `customElements.define()` at module load. No `register*` function
+// to call — the import IS the registration.
+import '../src/set-status-dot/set-status-dot'
 
 const containers: HTMLElement[] = []
 const mkContainer = (): HTMLElement => {
@@ -14,11 +18,6 @@ const mkContainer = (): HTMLElement => {
 }
 afterEach(() => {
   for (const c of containers.splice(0)) c.remove()
-})
-
-beforeAll(() => {
-  // Idempotent — defineComponent skips re-registration.
-  registerSetStatusDot()
 })
 
 describe('<set-status-dot>', () => {

@@ -58,7 +58,15 @@ pub fn emit_module(
         CompileMode::Component => emit_component_export(&mut w, program, body),
         _ => emit_view_export(&mut w, body),
     }
-    emit_bindings(&mut w, bindings);
+    // The `bindings` manifest is read by the view runtime's
+    // `attach()` to re-wire DOM bindings on hydration. Components
+    // register via `customElements.define()` and re-bind themselves
+    // through the lifecycle, so the manifest is dead weight in the
+    // component bundle — skip it. Trimming this saves ~9 KB
+    // ungzipped across the 18 ported primitives.
+    if !matches!(mode, CompileMode::Component) {
+        emit_bindings(&mut w, bindings);
+    }
     w.into_string()
 }
 
@@ -134,6 +142,12 @@ fn emit_component_export(w: &mut Writer, program: &Program, body: Writer) {
     w.line(&format!("export default component({}, {{", js_string(&comp.tag)));
     w.enter();
     emit_props_object(w, comp);
+    if comp.shadow {
+        w.line("shadow: true,");
+    }
+    if !comp.styles.is_empty() {
+        w.line(&format!("styles: {},", js_string(&comp.styles)));
+    }
     w.line("setup(ctx) {");
     w.push_str(&body.into_string());
     w.line("},");
@@ -222,7 +236,11 @@ fn emit_setup_body(
 
     let mut emitter = TemplateEmitter::new(bank);
     if is_component {
-        w.line("const __root = host;");
+        // Shadow components render into the attached shadow root (the
+        // factory attaches it before setup runs); light components
+        // render into the host. `host.shadowRoot ?? host` is the same
+        // discriminator the runtime hydrate path uses.
+        w.line("const __root = host.shadowRoot ?? host;");
         emitter.emit_top_level(w, &program.template, "__root", "__cleanups");
         w.line("return $scope;");
     } else {

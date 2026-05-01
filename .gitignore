@@ -141,3 +141,12 @@ apps/shell/public/vendor/
 tests/loops/results/
 views/*/view.js
 views/*/view.schema.json
+
+# Arc B-1: ship-set-components AOT artifacts. ship-set-compiler emits
+# <tag>.compiled.js + <tag>.schema.json next to each .html.set source;
+# the .ts files side-effect-import the .compiled.js. esbuild inlines
+# them into apps/shipd/assets/ship-set-components.js so only the
+# bundle ships.
+packages/ship-set-components/src/*/*.compiled.js
+packages/ship-set-components/src/*/*.schema.json
+packages/ship-set-components/src/*/*.custom-elements.json

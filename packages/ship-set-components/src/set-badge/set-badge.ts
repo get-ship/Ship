@@ -1,7 +1,2 @@
-import { defineComponent } from '../define'
-import template from './set-badge.html.set'
-
-/** Register `<set-badge>`. Idempotent. */
-export function registerSetBadge(): void {
-  defineComponent(template)
-}
+// AOT-compiled at build time — see scripts/build-bundles.mjs.
+import './set-badge.compiled.js'

@@ -8,7 +8,7 @@ use ship_set_compiler::{compile, CompileMode, CompileOpts};
 fn compile_view(source: &str) -> ship_set_compiler::CompileError {
     compile(
         source,
-        CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None },
+        CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None, styles: None },
     )
     .expect_err("expected error")
 }
@@ -41,7 +41,7 @@ fn arrow_in_on_handler_is_allowed() {
     let src = r#"<button on:click={() => x()}></button>"#;
     compile(
         src,
-        CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None },
+        CompileOpts { setup_url: None, mode: CompileMode::View, source_path: None, styles: None },
     )
     .expect("on: handlers allow arrows");
 }
@@ -82,7 +82,7 @@ fn duplicate_component_decl_is_rejected() {
     let src = r#"<component name="a"></component><component name="b"></component>"#;
     let err = compile(
         src,
-        CompileOpts { setup_url: None, mode: CompileMode::Auto, source_path: None },
+        CompileOpts { setup_url: None, mode: CompileMode::Auto, source_path: None, styles: None },
     )
     .expect_err("dup component");
     assert!(err.message.contains("only one"));

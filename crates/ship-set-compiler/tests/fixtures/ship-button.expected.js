@@ -26,7 +26,7 @@ export default component("ship-button-test", {
   $scope.disabled = props.disabled;
   $scope.loading = props.loading;
   $scope.label = props.label;
-  const __root = host;
+  const __root = host.shadowRoot ?? host;
   const __t0 = document.createTextNode("\n\n");
   __root.appendChild(__t0);
   const __e1 = document.createElement("button");
@@ -79,11 +79,3 @@ export default component("ship-button-test", {
   return $scope;
   },
 });
-
-export const bindings = [
-  { key: "b0", kind: "attr:disabled", expr: "disabled() || loading()", deps: ["disabled", "loading"] },
-  { key: "b1", kind: "attr:aria-busy", expr: "loading() ? 'true' : 'false'", deps: ["loading"] },
-  { key: "b2", kind: "attr:aria-label", expr: "label()", deps: ["label"] },
-  { key: "b3", kind: "text", expr: "label()", deps: ["label"] },
-  { key: "b4", kind: "if", expr: "loading()", deps: ["loading"] },
-];

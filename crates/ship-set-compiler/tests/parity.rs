@@ -28,6 +28,7 @@ fn compile_fixture(name: &str, mode: CompileMode, setup: Option<&str>) -> String
             setup_url: setup.map(String::from),
             mode,
             source_path: Some(path),
+            styles: None,
         },
     )
     .expect("compile");
