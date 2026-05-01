@@ -751,3 +751,64 @@ into the daemon at compile time — they never drift from the template.
 - `.artifacts/specs/view-sdk-design.md` — SDK architecture decisions
 - `apps/shipd/templates/_ship.html.j2` — the canonical macro source
 - `.ship/views/data/` — reference implementation of the patterns above
+
+---
+
+## SUI views
+
+SUI is the successor stack for Ship views: AOT-compiled `.sui` templates, optional paired `.ts` controllers, attach()-on-SSR. New views go here. The j2/Datastar stack above is fix-only for existing `.ship/views/` content.
+
+### File conventions
+
+**Project views** (extension points in `.ship/views/<name>/`):
+```
+.ship/views/<name>/
+  index.sui          # template (mirrors j2's index.html.j2)
+  manifest.yaml      # type: sui — see below
+  partials/          # fragment templates
+```
+
+Sub-routes use `[param]` segments: `.ship/views/<name>/[id]/index.sui`.
+
+**First-party views** (baked into `shipd`):
+```
+views/<name>/
+  view.sui    # template
+  view.ts     # controller (optional)
+  view.css    # styles (daemon auto-links)
+```
+
+`views/counter/`, `views/agents/`, and `views/git/` are the reference implementations.
+
+### manifest.yaml
+
+Same shape as j2, but `type: sui`. Add `rail:` to expose the view in the shell rail:
+
+```yaml
+name: my-view
+type: sui
+rail:
+  label: My View
+  icon: sparkles
+events:
+  - config.changed
+```
+
+Available `events:` prefixes: `config.`, `workspace.`, `job.`, `collection.`, etc.
+
+### Daemon route shapes
+
+| Route | Purpose |
+|---|---|
+| `GET /sui/<name>` | Full-page SSR — complete HTML document with attach() boot script |
+| `GET /_sui/fragment/<name>[/<sub>]` | Shell-embeddable SSR fragment |
+| `GET /_sui/views/<name>/view.js` | Compiled ESM module for the view |
+| `GET /_sui/render/<name>` | Debug: SSR HTML + importmap for browser inspection |
+
+### Embedding in the shell
+
+The shell calls `mountSuiView(slot, name, subPath?)` to embed a SUI view into a panel. No wrapper custom element is needed. Shell views declared in `manifest.yaml` with a `rail:` key are auto-registered in the navigation rail.
+
+### Authoring
+
+Template syntax, controller, bindings, live data — see the `sui-authoring` skill. j2 SDK macros (`{{ signal(...) }}`, `{{ live(...) }}`) do not apply to SUI views.
