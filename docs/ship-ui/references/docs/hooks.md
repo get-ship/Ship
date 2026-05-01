@@ -9,12 +9,10 @@ description: Two categories of hook with different jobs and different syntax. Te
 
 SUI has **two** categories of hook with different jobs and different syntax. They are not interchangeable.
 
-| Category | Job | Where it lives | v1 hooks |
+| Category | Job | Where it lives | hooks |
 |---|---|---|---|
-| **Template hook** | Element-scoped lifecycle / side effect, may contribute read-only scope identifiers | Template, as `<use-*>` element | `<use-kbd>` (document keyboard shortcuts), `<use-click-outside>` (dismiss-on-outside for modals / dropdowns / popovers), `<use-shell>` (host context) |
+| **Template hook** | Element-scoped lifecycle / side effect, may contribute read-only scope identifiers | Template, as `<use-*>` element | `<use-kbd>`, `<use-click-outside>`, `<use-shell>`, `<use-focus-trap>`, `<use-clipboard>`, `<use-title>`, `<use-scroll-anchor>`, `<use-intersection>` |
 | **Controller hook** | Bundle of state + derived + handlers as a reusable UI pattern slice | Controller, in the `use:` section | `useFilteredList`, `useSelection`, `useForm` |
-
-The v1 lists are deliberately small. New hooks land when a real view needs them — `usePagination` / `useSort` / `<use-focus-trap>` / `<use-clipboard>` and friends are not pre-emptively shipped.
 
 ## When to reach for which
 
@@ -83,6 +81,89 @@ Template hooks are TypeScript modules registered with the framework's hook regis
 - A factory that runs at mount and may register a `cleanup` for unmount
 
 Implementation contract is in active development. See [status.md](status.md).
+
+### `<use-focus-trap>`
+
+Traps keyboard focus within a target container element until the hook is unmounted. Intercepts Tab and Shift+Tab to cycle through focusable descendants, preventing focus from escaping the container (useful for modals, dialogs, and drawers). Focuses the first focusable descendant on mount and restores the previously focused element on unmount.
+
+```html
+<dialog bind:ref={dialogEl}>
+  <use-focus-trap bind:target={dialogEl} />
+  <input placeholder="Name" />
+  <button on:click={save}>Save</button>
+  <button on:click={close}>Cancel</button>
+</dialog>
+```
+
+The `bind:target` attribute receives an element reference from controller or template scope. If the target has no focusable descendants, Tab presses are suppressed.
+
+### `<use-clipboard>`
+
+Copies text to the clipboard when the host element is clicked. The `bind:text` binding accepts a plain string or a signal accessor — the value is read at click time, so dynamic text works naturally. The optional `bind:onCopy` callback fires after a successful clipboard write, making it easy to toggle a "Copied!" label.
+
+```html
+<button>
+  <use-clipboard bind:text={agentUrl} bind:onCopy={markCopied} />
+  {copied() ? 'Copied!' : 'Copy link'}
+</button>
+```
+
+`<use-clipboard>` attaches a click listener to its host element (`ctx.el`). Place it inside or alongside the element that should trigger the copy action.
+
+### `<use-title>`
+
+Binds `document.title` to a signal. Reads the `bind:text` binding inside a reactive effect, so the title updates automatically whenever the underlying signal changes. Restores the previous `document.title` value on unmount.
+
+```html
+<use-title bind:text={pageTitle} />
+```
+
+`pageTitle` can be a plain string (set once) or a signal accessor (updated on every change). Typical usage combines it with a derived value:
+
+```ts
+// controller
+derived: {
+  pageTitle: ({ agents }) => `${agents().length} agents — Ship`,
+}
+```
+
+```html
+<use-title bind:text={pageTitle} />
+```
+
+### `<use-scroll-anchor>`
+
+Declares the host element as a named scroll target. On mount — and on every `hashchange` event — it checks whether `window.location.hash` equals `#<id>`. When it matches, it calls `el.scrollIntoView({ behavior: 'smooth' })`. This allows SPA navigation to `#section-name` URLs to land at the correct element without full-page reload.
+
+```html
+<section id="features">
+  <use-scroll-anchor id="features" />
+  <h2>Features</h2>
+  ...
+</section>
+```
+
+The `id` attribute is a static string (no signal binding). Assign it the same value as the parent element's `id` attribute so in-page links (`<a href="#features">`) work correctly.
+
+### `<use-intersection>`
+
+Fires a callback when the host element enters the visible viewport, powered by `IntersectionObserver`. Useful for lazy-loading content, triggering entry animations, or logging impressions. The observer is disconnected on unmount.
+
+```html
+<div>
+  <use-intersection bind:on={reveal} />
+  <img src={imgSrc} class={visible() ? 'visible' : 'hidden'} />
+</div>
+```
+
+```ts
+// controller
+on: {
+  reveal: (state) => { state.visible = true },
+},
+```
+
+The `bind:on` callback receives the `IntersectionObserverEntry`. In environments without `IntersectionObserver` support (jsdom, very old browsers), the hook silently skips setup.
 
 ## Controller hooks
 
