@@ -55,23 +55,23 @@ Read it directly in templates:
 {/if}
 ```
 
-Or use the convenience boundary directives:
+Or use the convenience boundary blocks:
 
 ```html
-<while-loading bind="agents">
+{#while-loading of agents}
   <p>loading…</p>
-</while-loading>
+{/while-loading}
 
-<while-error bind="agents" let:err>
+{#while-error err of agents}
   <p>Failed: {err.message}</p>
-</while-error>
+{/while-error}
 
 {#if agents().kind === 'ok'}
   <!-- happy path -->
 {/if}
 ```
 
-`<while-loading>` and `<while-error>` are syntactic sugar over the kind check. They render their children only while the bound signal is in the matching state and clean up automatically.
+`{#while-loading}` and `{#while-error err}` are syntactic sugar over the kind check. They render their children only while the bound signal is in the matching state and clean up automatically. The error variant binds the error value to the local name preceding `of`.
 
 ## Static `<data>` (no `live`)
 
@@ -83,7 +83,7 @@ Without `live`, the SDK call runs once at mount; the result is exposed as a plai
 <p>Defined fields: {schema().fields.map(f => f.name).join(', ')}</p>
 ```
 
-If the call is async, the runtime exposes the signal once it resolves; pre-resolution reads return `undefined`. For a loading state, add `live` to the `<data>` element and use `<while-loading>` or discriminate by `kind`.
+If the call is async, the runtime exposes the signal once it resolves; pre-resolution reads return `undefined`. For a loading state, add `live` to the `<data>` element and use `{#while-loading}` or discriminate by `kind`.
 
 ## Why subscriptions don't go in hooks
 

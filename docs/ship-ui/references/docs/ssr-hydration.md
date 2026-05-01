@@ -46,8 +46,9 @@ The IR is the single source of truth. Both the server render walker (Rust, in `s
 | `{#if cond}` | Server evaluates `cond`; only the matching branch is emitted, with markers identifying which branch is live. Client swaps on signal change. |
 | `{#for x of xs}` | Server expands `xs` against initial value; emits all items with `key` markers. Client adds/removes by key. |
 | `{#match expr}` | Server evaluates `expr`; only the matching case is emitted. |
+| `{#while-loading of X}` | Server emits the body if `X.kind === 'loading'`, otherwise emits a hidden placeholder. Client swaps on envelope flips. |
+| `{#while-error err of X}` | Server emits the body if `X.kind === 'error'` (with `err` bound to `X.error`), otherwise emits a hidden placeholder. Client swaps on envelope flips. |
 | `<data live />` | Server emits the initial value inline (with envelope `kind: 'ok'`); client opens the SSE channel for patches. |
-| `<while-loading bind="X">` | Server already has the value — emits children if `X` is `ok`, suppresses otherwise. |
 | `on:click={fn}` | Marker emitted; no listener attached server-side. |
 | `bind:value={sig}` | Marker emitted; client wires both directions. |
 | `<use-* />` | Marker emitted; client invokes the hook factory at mount. |
@@ -80,9 +81,11 @@ The serialization shape between the server-emitted HTML and the client attach ru
 | `attr:href={expr}` | `attr:href="bN"` attribute preserved |
 | `{#if}` / `{#for}` / `{#match}` — active branch | `<sui-if key="bN">…</sui-if>` (or `<sui-for>`, `<sui-match>`) |
 | `{#if}` / `{#for}` / `{#match}` — inactive branch | `<sui-if key="bN" hidden></sui-if>` |
+| `{#while-loading}` / `{#while-error err}` — active branch | `<sui-while-loading key="bN">…</sui-while-loading>` (or `<sui-while-error>`) |
+| `{#while-loading}` / `{#while-error err}` — inactive branch | `<sui-while-loading key="bN" hidden></sui-while-loading>` |
 | Initial signal values | `<script type="application/json" id="__set_init__">…</script>` |
 
-`b<N>` keys are allocated by a counter in source order; the sidecar binding manifest (exported as `bindings` from the compiled ESM) maps each key to its kind, expression, and dependency list. The attach runtime queries `[on:*]`, `[bind:*]`, `[class:*]`, `[style:*]`, `[attr:*]` to find leaf bindings and walks `<sui-if>/<sui-for>/<sui-match>` elements for control-flow boundaries. Net `data-*` attributes in framework-emitted HTML: zero.
+`b<N>` keys are allocated by a counter in source order; the sidecar binding manifest (exported as `bindings` from the compiled ESM) maps each key to its kind, expression, and dependency list. Boundary entries (`if`, `for`, `match`, `while-loading`, `while-error`) carry a `renderKey` pointing at the body's render callback exported alongside `default` on the compiled module — `attach()` invokes that callback through `bindWhileLoading` / `bindWhileError` (or the parallel `bindIf`/`bindFor`/`bindMatch`) when the deps change. The attach runtime queries `[on:*]`, `[bind:*]`, `[class:*]`, `[style:*]`, `[attr:*]` to find leaf bindings and walks `<sui-if>/<sui-for>/<sui-match>/<sui-while-loading>/<sui-while-error>` elements for control-flow boundaries. Net `data-*` attributes in framework-emitted HTML: zero.
 
 ## Client attach runtime
 

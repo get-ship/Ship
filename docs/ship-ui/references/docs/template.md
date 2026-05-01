@@ -140,6 +140,28 @@ Mustache-style, directly in the template body:
 {/match}
 ```
 
+### `{#while-loading}` / `{/while-loading}` and `{#while-error err}` / `{/while-error}`
+
+Convenience boundaries for `<data live>` envelopes. Renders the body only when the bound signal is in the matching `LiveState` kind, swaps automatically as the envelope flips. The error variant binds the error value to a local name preceding `of` (mirrors `{#for x of xs}`).
+
+```html
+<data name="agents" source="ship.agents.summaries()" live />
+
+{#while-loading of agents}
+  <p>Loading…</p>
+{/while-loading}
+
+{#while-error err of agents}
+  <p>Failed: {err.message}</p>
+{/while-error}
+
+{#if agents().kind === 'ok'}
+  {#for a of agents().value.items key={a.id}}…{/for}
+{/if}
+```
+
+The element forms (`<while-loading bind="X">`, `<while-error bind="X" let:err>`) are gone — block syntax only.
+
 ## Expressions
 
 Any `{ ... }` opens an expression. Resolved against the [shared view scope](index.md#the-shared-view-scope).

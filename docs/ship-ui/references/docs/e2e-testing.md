@@ -52,7 +52,7 @@ The daemon URL is auto-detected from `~/.ship/machine/daemons/<hash>/port` (devx
 | Test | What it gates |
 |------|---------------|
 | SSR returns 200 HTML | Daemon serves the view |
-| Loading branch rendered server-side | `<while-loading>` compiles to `<sui-if>` with display:contents |
+| Loading branch rendered server-side | `{#while-loading}` block compiles to `<sui-while-loading key>` boundary; non-loading state hidden. |
 | `__set_init__` seeds `{kind: "loading"}` | Data envelope initialized correctly |
 | Page loads without JS errors | Boot script + attach pipeline healthy |
 | SSE resolves → grid or empty state | Full SSE → boundary-swap chain works |
@@ -63,7 +63,7 @@ The daemon URL is auto-detected from `~/.ship/machine/daemons/<hash>/port` (devx
 | Test | What it gates |
 |------|---------------|
 | SSR returns 200 HTML | Daemon serves the view |
-| Loading branch rendered | `<while-loading>` correct |
+| Loading branch rendered | `{#while-loading}` block compiles to `<sui-while-loading key>` boundary correctly |
 | View wrapper and view name | Shell template correct |
 | `__set_init__` seeds `tab: "changes"` | State declaration serialized |
 | Page loads without JS errors | No attach errors |

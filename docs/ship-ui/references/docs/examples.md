@@ -44,13 +44,13 @@ The actual working view in the repo today (`views/agents/`). Server data via `<d
   <ship-button tone="primary" on:click={newAgent}>New agent</ship-button>
 </header>
 
-<while-loading bind="agents">
+{#while-loading of agents}
   <p>Loading agents…</p>
-</while-loading>
+{/while-loading}
 
-<while-error bind="agents" let:err>
+{#while-error err of agents}
   <p>Error loading agents: {err.message}</p>
-</while-error>
+{/while-error}
 
 {#if agents().kind === 'ok'}
   {#if items().length === 0}
@@ -92,7 +92,7 @@ What this exercises:
 - Object-form controller (no closure-scoped vars; `controller(def)` enough)
 - `derived` reading template-declared scope (`agents`, then `items`)
 - `on` handler reading framework-injected `navigate` via the proxy fallthrough
-- `<while-loading>` / `<while-error>` boundaries
+- `{#while-loading}` / `{#while-error err}` boundary blocks
 
 What this avoids: a `live:` section in the controller, a `view()` wrapper, calling `live()` from JS.
 

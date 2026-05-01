@@ -17,7 +17,7 @@ Updated as the implementation moves. If you find a drift between this page and r
 - **Control flow** — `{#if}`, `{#for key=}`, `{#match}`. Parsed and emitted; runtime support in `@SUI/runtime` and `@SUI/dom`. (Await blocks were considered and dropped — async flows go through `<data>` envelopes for server reads or a controller's `mount` for imperative work.)
 - **Bindings** — `on:event`, `bind:value`, attribute interpolation, text interpolation. Stable.
 - **Slots** — light-DOM resolution at mount. Stable.
-- **`<while-loading>` / `<while-error>`** — convenience boundaries. Stable.
+- **`{#while-loading}` / `{#while-error err}`** — convenience boundary blocks. Stable. (Element forms `<while-loading>` / `<while-error>` were removed; block syntax only — see `template.md` and `ssr-hydration.md`.)
 - **AOT compiler** — `crates/SUI-compiler/` emits ESM + CEM + JSON schema. Stable.
 - **Live envelope shape** — `LiveState<T> = { kind: 'loading' } | { kind: 'error', error: Error } | { kind: 'ok', value: T }`. Stable in `@SUI/runtime` (`live.ts`) and `@SUI/sdk-client`; consumed by views.
 - **Envelope unwrap helpers** — `unwrap(sig): T | undefined` and `unwrapOr(sig, fallback): T` exported from `@SUI/runtime`. Replaces the per-derived `s.kind === 'ok' ? s.value : DEFAULT` boilerplate.
