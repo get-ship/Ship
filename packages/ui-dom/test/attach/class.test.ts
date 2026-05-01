@@ -7,7 +7,7 @@ afterEach(clearContainers)
 
 describe('attach/class', () => {
   it('toggles a class based on a truthy expression', () => {
-    const html = '<button data-set-class:active="b0" class="btn active">x</button>'
+    const html = '<button class:active="b0" class="btn active">x</button>'
     const root = mountSsr(html, { active: true })
     let a: Signal<boolean> | undefined
     const mod = makeModule(

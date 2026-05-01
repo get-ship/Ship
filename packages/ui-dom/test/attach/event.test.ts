@@ -7,7 +7,7 @@ afterEach(clearContainers)
 
 describe('attach/event', () => {
   it('on:click invokes the bound handler resolved against scope', () => {
-    const html = '<button data-set-on:click="b0">+</button>'
+    const html = '<button on:click="b0">+</button>'
     const root = mountSsr(html, { count: 0 })
     let countSig: Signal<number> | undefined
     const mod = makeModule(
@@ -30,7 +30,7 @@ describe('attach/event', () => {
   })
 
   it('does not crash when expr resolves to a non-function', () => {
-    const html = '<button data-set-on:click="b0">x</button>'
+    const html = '<button on:click="b0">x</button>'
     const root = mountSsr(html, {})
     const mod = makeModule(() => ({ notAFn: 7 }), [
       { key: 'b0', kind: 'on:click', expr: 'notAFn', deps: ['notAFn'] },

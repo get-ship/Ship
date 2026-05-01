@@ -1,7 +1,7 @@
 // Text-interpolation binding.
 //
 // Marker shape (see SSR walker / marker-contract ADR):
-//   <!--set:text:bN-->INLINED VALUE<!--/set-->
+//   <!--sui:text:bN-->INLINED VALUE<!--/sui-->
 //
 // On wiring we collapse the existing inlined nodes between the open
 // and close comments into a single Text node we control, then run an

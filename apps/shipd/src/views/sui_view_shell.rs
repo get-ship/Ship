@@ -69,13 +69,13 @@ mod tests {
         let html = render_shell(
             "agents",
             "Agents",
-            "<div data-set-bind=\"b0\">walker</div>",
+            "<button bind:value=\"b0\">walker</button>",
         );
         assert!(html.contains(r#"data-view="agents""#));
         assert!(html.contains("data-ssr-root"));
         assert!(html.contains(r#"<title>Agents</title>"#));
         assert!(html.contains("/_sui/views/agents/view.js"));
-        assert!(html.contains("data-set-bind=\"b0\""));
+        assert!(html.contains("bind:value=\"b0\""));
         assert!(html.contains("import { attach } from '@ship/ui-dom'"));
         // viewName must be threaded through so attach() can call the
         // /_sui/render-fragment/<view> endpoint on control-flow swaps.

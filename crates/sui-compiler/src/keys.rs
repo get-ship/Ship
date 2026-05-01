@@ -39,11 +39,10 @@ impl KeyAllocator {
 }
 
 /// One entry in the binding manifest. Index in the registry === the
-/// numeric portion of the marker key (`bindings[3]` matches
-/// `data-set-…="b3"`).
+/// numeric portion of the marker key (`bindings[3]` matches `b3`).
 #[derive(Debug, Clone)]
 pub struct Binding {
-    /// `"b0"`, `"b1"`, … — same shape as the `data-set-*` attribute value.
+    /// `"b0"`, `"b1"`, … — the opaque counter-allocated binding key.
     pub key: String,
     pub kind: BindingKind,
     /// Raw expression source from the IR (or a discriminator like the
@@ -55,12 +54,11 @@ pub struct Binding {
     pub deps: Vec<String>,
 }
 
-/// Mirrors the marker `kind` portion of `data-set-<kind>`. The
-/// attach-only client runtime (Phase E) switches on this to decide how
-/// to wire the marker.
+/// Mirrors the marker `kind` used by the attach runtime (Phase E)
+/// to decide how to wire each binding.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BindingKind {
-    /// `<!--set:text:b<N>-->{value}<!--/set-->` interpolation.
+    /// `<!--sui:text:b<N>-->{value}<!--/sui-->` interpolation.
     Text,
     /// `on:event` handler. Carries the event name (`"click"`, …).
     On(String),
@@ -88,7 +86,7 @@ pub enum BindingKind {
 }
 
 impl BindingKind {
-    /// String form mirroring the `data-set-<kind>` marker attribute.
+    /// String form of the binding kind.
     /// Used to emit the `kind` field of each binding object literal.
     pub fn as_marker_str(&self) -> String {
         match self {

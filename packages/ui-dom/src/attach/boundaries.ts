@@ -8,8 +8,8 @@
 // `/_ship-set/render-fragment/<viewName>`. The daemon walks the IR
 // against that scope and returns the rendered body for the boundary —
 // no surrounding wrapper, just the children. The runtime swaps the
-// boundary's element in-place with a fresh `<div data-set-{kind}=…
-// style="display:contents">…response.html…</div>` and recursively
+// boundary's `<sui-{kind} key="bN">` element in-place with a fresh
+// active wrapper and recursively
 // wires every leaf marker the new HTML carries. The previous subtree's
 // wirers are disposed before the new ones attach.
 //
@@ -33,10 +33,10 @@ import { serializeScope, wireSubtree, type WireContext } from './wire'
  * Wire a control-flow boundary marker.
  *
  * `el` is the boundary element as found in the SSR'd DOM — either a
- * `<div data-set-{kind}=…>` (active branch) or `<template
- * data-set-{kind}=…>` (placeholder). After the first swap the closure-
- * scoped `current` reference advances to the freshly mounted active
- * `<div>`.
+ * `<sui-{kind} key="bN" style="display:contents">` (active branch) or
+ * `<sui-{kind} key="bN" hidden>` (placeholder). After the first swap the
+ * closure-scoped `current` reference advances to the freshly mounted active
+ * element.
  */
 export function wireBoundary(
   el: Element,
@@ -157,7 +157,7 @@ export function wireBoundary(
 }
 
 function isActive(el: Element): boolean {
-  return el.tagName.toLowerCase() === 'div'
+  return !el.hasAttribute('hidden')
 }
 
 /**
@@ -175,13 +175,13 @@ function buildReplacement(
   html: string,
 ): HTMLElement {
   const owner = prior.ownerDocument ?? document
-  const div = owner.createElement('div')
-  div.setAttribute('data-set-' + binding.kind, binding.key)
-  div.style.display = 'contents'
+  const wrapper = owner.createElement('sui-' + binding.kind) as HTMLElement
+  wrapper.setAttribute('key', binding.key)
+  wrapper.style.display = 'contents'
   if (html) {
     const tpl = owner.createElement('template')
     tpl.innerHTML = html
-    div.appendChild(tpl.content)
+    wrapper.appendChild(tpl.content)
   }
-  return div
+  return wrapper
 }

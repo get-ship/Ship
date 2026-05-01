@@ -5,7 +5,7 @@
 //! source, wraps the SSR fragment in a document shell, and ships a
 //! boot script that calls `attach(root, { module, ship, route,
 //! navigate })`. First paint is server-rendered; the client runtime
-//! re-binds the `data-set-*` markers in place. Replaces the Phase 3
+//! re-binds the author-syntax markers in place. Replaces the Phase 3
 //! empty-shell + `hydrate()` parse-on-the-client path.
 //!
 //! Each `views/<name>/` directory bundles three artifacts the daemon
@@ -261,7 +261,7 @@ mod tests {
         assert!(body.contains(r#"id="sui-root""#));
         assert!(body.contains(r#"data-view="agents""#));
         assert!(body.contains("data-ssr-root"));
-        assert!(body.contains("data-set-"));
+        assert!(body.contains("<sui-if key=") || body.contains("<!--sui:text:") || body.contains("on:click="));
         assert!(body.contains("__set_init__"));
         assert!(body.contains("import { attach } from '@ship/ui-dom'"));
         assert!(!body.contains("hydrate(template"));
@@ -276,7 +276,7 @@ mod tests {
             .unwrap();
         let body = std::str::from_utf8(&bytes).unwrap();
         assert!(body.contains(r#"data-view="counter""#));
-        assert!(body.contains("data-set-"));
+        assert!(body.contains("<!--sui:text:") || body.contains("on:click="));
         assert!(body.contains("__set_init__"));
     }
 

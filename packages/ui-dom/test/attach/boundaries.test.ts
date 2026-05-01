@@ -13,7 +13,7 @@ describe('attach/boundaries', () => {
     // Placeholder shape: server skipped this branch. Phase E-2 attempts
     // a swap on signal change; without `viewName` the runtime can't
     // build the fragment-render URL, so it logs an error instead.
-    const html = '<template data-set-if="b0"></template>'
+    const html = '<sui-if key="b0" hidden></sui-if>'
     const root = mountSsr(html, { ready: false })
     let ready: Signal<boolean> | undefined
     const mod = makeModule(
@@ -36,11 +36,11 @@ describe('attach/boundaries', () => {
   })
 
   it('wires leaf bindings inside an active branch wrapper', () => {
-    // Active branch: server rendered, wrapper is `<div display:contents>`.
+    // Active branch: server rendered, wrapper is `<sui-if display:contents>`.
     const html =
-      '<div data-set-if="b0" style="display:contents">' +
-      '<p><!--set:text:b1-->ada<!--/set--></p>' +
-      '</div>'
+      '<sui-if key="b0" style="display:contents">' +
+      '<p><!--sui:text:b1-->ada<!--/sui--></p>' +
+      '</sui-if>'
     const root = mountSsr(html, { ready: true, name: 'ada' })
     let nameSig: Signal<string> | undefined
     const mod = makeModule(
@@ -61,7 +61,7 @@ describe('attach/boundaries', () => {
   })
 
   it('boundary_swap_on_signal_change: POSTs scope + replaces children + wires new leaves', async () => {
-    const html = '<template data-set-if="b0"></template>'
+    const html = '<sui-if key="b0" hidden></sui-if>'
     const root = mountSsr(html, { ready: false, name: 'ada' })
     let ready: Signal<boolean> | undefined
     let nameSig: Signal<string> | undefined
@@ -81,7 +81,7 @@ describe('attach/boundaries', () => {
       ok: true,
       status: 200,
       json: async () => ({
-        html: '<p data-test="ok"><!--set:text:b1-->ada<!--/set--></p>',
+        html: '<p data-test="ok"><!--sui:text:b1-->ada<!--/sui--></p>',
       }),
     })
     vi.stubGlobal('fetch', fetchMock)
@@ -106,9 +106,9 @@ describe('attach/boundaries', () => {
     expect(body.init.name).toBe('ada')
 
     // The placeholder element has been replaced by an active wrapper.
-    const wrapper = root.querySelector('[data-set-if="b0"]')
+    const wrapper = root.querySelector('sui-if[key="b0"]')
     expect(wrapper).not.toBeNull()
-    expect(wrapper!.tagName.toLowerCase()).toBe('div')
+    expect(wrapper!.tagName.toLowerCase()).toBe('sui-if')
     const p = wrapper!.querySelector('p[data-test="ok"]')
     expect(p).not.toBeNull()
     expect(p!.textContent).toBe('ada')
@@ -121,7 +121,7 @@ describe('attach/boundaries', () => {
   })
 
   it('boundary_swap_disposes_previous_listeners: second swap tears down first', async () => {
-    const html = '<template data-set-if="b0"></template>'
+    const html = '<sui-if key="b0" hidden></sui-if>'
     const root = mountSsr(html, { ready: false, name: 'ada' })
     let ready: Signal<boolean> | undefined
     let nameSig: Signal<string> | undefined
@@ -143,7 +143,7 @@ describe('attach/boundaries', () => {
         ok: true,
         status: 200,
         json: async () => ({
-          html: '<p id="first"><!--set:text:b1-->ada<!--/set--></p>',
+          html: '<p id="first"><!--sui:text:b1-->ada<!--/sui--></p>',
         }),
       })
       .mockResolvedValueOnce({
@@ -183,9 +183,9 @@ describe('attach/boundaries', () => {
 
   it('boundary_swap_failure_logs_and_keeps_existing: 500 response leaves DOM in place', async () => {
     const html =
-      '<div data-set-if="b0" style="display:contents">' +
+      '<sui-if key="b0" style="display:contents">' +
       '<p data-test="initial">existing</p>' +
-      '</div>'
+      '</sui-if>'
     const root = mountSsr(html, { ready: true })
     let ready: Signal<boolean> | undefined
     const mod = makeModule(

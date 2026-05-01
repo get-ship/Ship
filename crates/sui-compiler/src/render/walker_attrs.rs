@@ -71,10 +71,10 @@ impl<'r> Walker<'r> {
                     }
                 }
                 AttrInstr::Class { name, expr, .. } => {
-                    if let Ok(v) = eval(&expr.source, &self.scope) {
-                        if truthy(&v) {
-                            classes.push(name.clone());
-                        }
+                    if let Ok(v) = eval(&expr.source, &self.scope)
+                        && truthy(&v)
+                    {
+                        classes.push(name.clone());
                     }
                 }
                 _ => {}
@@ -93,10 +93,10 @@ impl<'r> Walker<'r> {
                     }
                 }
                 AttrInstr::Style { name, expr, .. } => {
-                    if let Ok(v) = eval(&expr.source, &self.scope) {
-                        if truthy(&v) {
-                            styles.push(format!("{name}: {}", stringify(&v)));
-                        }
+                    if let Ok(v) = eval(&expr.source, &self.scope)
+                        && truthy(&v)
+                    {
+                        styles.push(format!("{name}: {}", stringify(&v)));
                     }
                 }
                 _ => {}
@@ -118,40 +118,40 @@ impl<'r> Walker<'r> {
                 if let Ok(v) = eval(&expr.source, &self.scope) {
                     self.push_attr(name, &stringify(&v));
                 }
-                self.push_marker(&format!("data-set-attr:{name}"), &key);
+                self.push_marker(&format!("attr:{name}"), &key);
             }
             AttrInstr::Class { name, .. } => {
                 let key = self.next_key();
-                self.push_marker(&format!("data-set-class:{name}"), &key);
+                self.push_marker(&format!("class:{name}"), &key);
             }
             AttrInstr::Style { name, .. } => {
                 let key = self.next_key();
-                self.push_marker(&format!("data-set-style:{name}"), &key);
+                self.push_marker(&format!("style:{name}"), &key);
             }
             AttrInstr::BindValue { expr, .. } => {
                 let key = self.next_key();
                 if let Ok(v) = eval(&expr.source, &self.scope) {
                     self.push_attr("value", &stringify(&v));
                 }
-                self.push_marker("data-set-bind:value", &key);
+                self.push_marker("bind:value", &key);
             }
             AttrInstr::BindChecked { expr, .. } => {
                 let key = self.next_key();
-                if let Ok(v) = eval(&expr.source, &self.scope) {
-                    if truthy(&v) {
-                        self.out.push(' ');
-                        self.out.push_str("checked");
-                    }
+                if let Ok(v) = eval(&expr.source, &self.scope)
+                    && truthy(&v)
+                {
+                    self.out.push(' ');
+                    self.out.push_str("checked");
                 }
-                self.push_marker("data-set-bind:checked", &key);
+                self.push_marker("bind:checked", &key);
             }
             AttrInstr::On { event, .. } => {
                 let key = self.next_key();
-                self.push_marker(&format!("data-set-on:{event}"), &key);
+                self.push_marker(&format!("on:{event}"), &key);
             }
             AttrInstr::DynamicAttr { .. } => {
                 let key = self.next_key();
-                self.push_marker("data-set-attr-dynamic", &key);
+                self.push_marker("attr-dynamic", &key);
             }
         }
     }

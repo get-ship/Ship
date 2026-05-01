@@ -35,7 +35,7 @@ pub fn escape_attr_value(s: &str) -> String {
 }
 
 /// Escape an evaluator-produced string for emission as text content
-/// (between `<!--set:text:bN-->` markers, or any element text). Quotes
+/// (between `<!--sui:text:bN-->` markers, or any element text). Quotes
 /// are left intact — only `&`, `<`, `>` need entity-escaping in PCDATA.
 pub fn escape_text_value(s: &str) -> String {
     let mut out = String::with_capacity(s.len());

@@ -38,29 +38,29 @@ fn dynamic_text_emits_comment_marker() {
     // Unbound identifier -> evaluator fails -> marker-only fallback.
     let html = render_source("<p>{count}</p>");
     assert!(
-        html.contains("<p><!--set:text:b0--><!--/set--></p>"),
+        html.contains("<p><!--sui:text:b0--><!--/sui--></p>"),
         "expected marker-only dynamic-text shape; got: {html:?}"
     );
 }
 
 #[test]
-fn event_handler_emits_data_set_on() {
+fn event_handler_emits_on_attr() {
     let src = "<state name=\"x\" value=\"0\" />\n<button on:click={() => x()}></button>";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<button data-set-on:click="b0">"#),
+        html.contains(r#"<button on:click="b0">"#),
         "expected on:click marker; got: {html:?}"
     );
     assert!(html.contains("</button>"));
 }
 
 #[test]
-fn bind_value_emits_data_set_bind() {
+fn bind_value_emits_bind_attr() {
     // <input> is a void element — no closing tag.
     let src = "<state name=\"q\" value=\"''\" />\n<input bind:value={q} />";
     let html = render_source(src);
     assert!(
-        html.contains(r#"data-set-bind:value="b0""#),
+        html.contains(r#"bind:value="b0""#),
         "expected bind:value marker; got: {html:?}"
     );
     assert!(
@@ -70,42 +70,42 @@ fn bind_value_emits_data_set_bind() {
 }
 
 #[test]
-fn bind_checked_emits_data_set_bind() {
+fn bind_checked_emits_bind_attr() {
     let src = "<state name=\"on\" value=\"false\" />\n<input type=\"checkbox\" bind:checked={on} />";
     let html = render_source(src);
     assert!(
-        html.contains(r#"data-set-bind:checked="b0""#),
+        html.contains(r#"bind:checked="b0""#),
         "expected bind:checked marker; got: {html:?}"
     );
 }
 
 #[test]
-fn class_directive_emits_data_set_class() {
+fn class_directive_emits_class_attr() {
     let src = "<state name=\"on\" value=\"false\" />\n<p class:active={on}>x</p>";
     let html = render_source(src);
     assert!(
-        html.contains(r#"data-set-class:active="b0""#),
+        html.contains(r#"class:active="b0""#),
         "expected class marker; got: {html:?}"
     );
 }
 
 #[test]
-fn expr_attribute_emits_data_set_attr() {
+fn expr_attribute_emits_attr_marker() {
     let src = "<state name=\"u\" value=\"'/'\" />\n<a href={u}>x</a>";
     let html = render_source(src);
     assert!(
-        html.contains(r#"data-set-attr:href="b0""#),
+        html.contains(r#"attr:href="b0""#),
         "expected attr:href marker; got: {html:?}"
     );
 }
 
 #[test]
-fn if_emits_template_placeholder() {
-    // Unbound condition → evaluator errors → D-1 placeholder fallback.
+fn if_emits_placeholder() {
+    // Unbound condition → evaluator errors → placeholder fallback.
     let src = "{#if missing}<p>x</p>{/if}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-if="b0"></template>"#),
+        html.contains(r#"<sui-if key="b0" hidden></sui-if>"#),
         "expected if placeholder; got: {html:?}"
     );
     assert!(
@@ -115,22 +115,22 @@ fn if_emits_template_placeholder() {
 }
 
 #[test]
-fn for_emits_template_placeholder() {
+fn for_emits_placeholder() {
     let src = "<state name=\"xs\" value=\"[]\" />\n{#for x of xs}<li>x</li>{/for}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-for="b0"></template>"#),
+        html.contains(r#"<sui-for key="b0" hidden></sui-for>"#),
         "expected for placeholder; got: {html:?}"
     );
 }
 
 #[test]
-fn match_emits_template_placeholder() {
-    // Unbound discriminant → evaluator errors → D-1 placeholder fallback.
+fn match_emits_placeholder() {
+    // Unbound discriminant → evaluator errors → placeholder fallback.
     let src = "{#match missing}{:case 'a'}A{:default}D{/match}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-match="b0"></template>"#),
+        html.contains(r#"<sui-match key="b0" hidden></sui-match>"#),
         "expected match placeholder; got: {html:?}"
     );
     assert!(
@@ -164,8 +164,8 @@ fn keys_increment_in_source_order() {
     // Two dynamic interpolations should get b0 and b1 in order.
     let src = "<state name=\"a\" value=\"0\" />\n<state name=\"b\" value=\"0\" />\n<p>{a}-{b}</p>";
     let html = render_source(src);
-    let i0 = html.find("set:text:b0").expect("first marker");
-    let i1 = html.find("set:text:b1").expect("second marker");
+    let i0 = html.find("sui:text:b0").expect("first marker");
+    let i1 = html.find("sui:text:b1").expect("second marker");
     assert!(i0 < i1, "keys must increment in source order: {html:?}");
 }
 
@@ -195,7 +195,7 @@ fn state_value_inlines_into_text() {
     let src = "<state name=\"n\" value=\"42\" />\n<p>{n}</p>";
     let html = render_source(src);
     assert!(
-        html.contains("<p><!--set:text:b0-->42<!--/set--></p>"),
+        html.contains("<p><!--sui:text:b0-->42<!--/sui--></p>"),
         "expected inlined value between markers; got: {html:?}"
     );
 }
@@ -208,7 +208,7 @@ fn state_string_value_html_escapes() {
     let src = "<state name=\"s\" value=\"'<a>&x'\" />\n<p>{s}</p>";
     let html = render_source(src);
     assert!(
-        html.contains("<p><!--set:text:b0-->&lt;a&gt;&amp;x<!--/set--></p>"),
+        html.contains("<p><!--sui:text:b0-->&lt;a&gt;&amp;x<!--/sui--></p>"),
         "expected escaped text content; got: {html:?}"
     );
 }
@@ -228,7 +228,7 @@ fn unevaluable_expr_emits_marker_only() {
     // `ship` not in scope -> Unbound -> marker-only fallback.
     let html = render_source("<p>{ship.foo()}</p>");
     assert!(
-        html.contains("<p><!--set:text:b0--><!--/set--></p>"),
+        html.contains("<p><!--sui:text:b0--><!--/sui--></p>"),
         "expected marker-only fallback; got: {html:?}"
     );
 }
@@ -238,7 +238,7 @@ fn attribute_interp_inlines_value() {
     let src = "<state name=\"id\" value=\"'42'\" />\n<a href={'/u/' + id}>x</a>";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<a href="/u/42" data-set-attr:href="b0">"#),
+        html.contains(r#"<a href="/u/42" attr:href="b0">"#),
         "expected inlined href and marker; got: {html:?}"
     );
 }
@@ -248,7 +248,7 @@ fn class_directive_renders_initial() {
     let src = "<div class:active={true}>x</div>";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<div class="active" data-set-class:active="b0">"#),
+        html.contains(r#"<div class="active" class:active="b0">"#),
         "expected merged class plus marker; got: {html:?}"
     );
 }
@@ -258,7 +258,7 @@ fn bind_value_renders_initial() {
     let src = "<state name=\"query\" value=\"'hi'\" />\n<input bind:value={query} />";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<input value="hi" data-set-bind:value="b0">"#),
+        html.contains(r#"<input value="hi" bind:value="b0">"#),
         "expected initial value plus marker; got: {html:?}"
     );
 }
@@ -270,7 +270,7 @@ fn json_island_present_after_body() {
     let count = html.matches(ISLAND_OPEN).count();
     assert_eq!(count, 1, "expected exactly one island; got {count}: {html:?}");
     let island_pos = html.find(ISLAND_OPEN).unwrap();
-    let body_marker = html.find("<!--/set-->").expect("body marker present");
+    let body_marker = html.find("<!--/sui-->").expect("body marker present");
     assert!(
         body_marker < island_pos,
         "island must follow body content; got: {html:?}"
@@ -311,7 +311,7 @@ fn if_truthy_branch_renders_body() {
     let src = "<state name=\"show\" value=\"true\" />\n{#if show}<p>yes</p>{/if}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<div data-set-if="b0" style="display:contents"><p>yes</p></div>"#),
+        html.contains(r#"<sui-if key="b0" style="display:contents"><p>yes</p></sui-if>"#),
         "expected truthy branch body in active wrapper; got: {html:?}"
     );
 }
@@ -321,8 +321,8 @@ fn if_falsy_branch_skipped() {
     let src = "<state name=\"show\" value=\"false\" />\n{#if show}<p>yes</p>{/if}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-if="b0"></template>"#),
-        "expected empty template for falsy branch with no else; got: {html:?}"
+        html.contains(r#"<sui-if key="b0" hidden></sui-if>"#),
+        "expected placeholder for falsy branch with no else; got: {html:?}"
     );
     assert!(!html.contains("<p>yes</p>"));
 }
@@ -332,7 +332,7 @@ fn if_else_branch_renders_when_falsy() {
     let src = "<state name=\"x\" value=\"false\" />\n{#if x}<p>a</p>{:else}<p>b</p>{/if}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<div data-set-if="b0" style="display:contents"><p>b</p></div>"#),
+        html.contains(r#"<sui-if key="b0" style="display:contents"><p>b</p></sui-if>"#),
         "expected else body; got: {html:?}"
     );
     assert!(!html.contains("<p>a</p>"));
@@ -347,8 +347,8 @@ fn if_unevaluable_falls_back_to_placeholder() {
     let src = "{#if missing.id === '42'}<p>x</p>{/if}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-if="b0"></template>"#),
-        "expected empty placeholder; got: {html:?}"
+        html.contains(r#"<sui-if key="b0" hidden></sui-if>"#),
+        "expected placeholder; got: {html:?}"
     );
     assert!(!html.contains("<p>x</p>"));
 }
@@ -359,28 +359,28 @@ fn for_renders_each_iteration() {
     let html = render_source(src);
     // Body has one dynamic-text key allocated once and shared across iterations.
     assert!(
-        html.contains(r#"<div data-set-for="b0" style="display:contents">"#),
+        html.contains(r#"<sui-for key="b0" style="display:contents">"#),
         "expected for active wrapper open; got: {html:?}"
     );
-    assert!(html.contains("<li><!--set:text:b1-->1<!--/set--></li>"));
-    assert!(html.contains("<li><!--set:text:b1-->2<!--/set--></li>"));
-    assert!(html.contains("<li><!--set:text:b1-->3<!--/set--></li>"));
+    assert!(html.contains("<li><!--sui:text:b1-->1<!--/sui--></li>"));
+    assert!(html.contains("<li><!--sui:text:b1-->2<!--/sui--></li>"));
+    assert!(html.contains("<li><!--sui:text:b1-->3<!--/sui--></li>"));
 }
 
 #[test]
 fn for_emits_data_set_key() {
     let src = "<state name=\"items\" value=\"[1,2,3]\" />\n{#for n of items key={n}}<li>{n}</li>{/for}";
     let html = render_source(src);
-    assert!(html.contains(r#"<li data-set-key="1">"#), "missing key=1: {html:?}");
-    assert!(html.contains(r#"<li data-set-key="2">"#), "missing key=2: {html:?}");
-    assert!(html.contains(r#"<li data-set-key="3">"#), "missing key=3: {html:?}");
+    assert!(html.contains(r#"<li key="1">"#), "missing key=1: {html:?}");
+    assert!(html.contains(r#"<li key="2">"#), "missing key=2: {html:?}");
+    assert!(html.contains(r#"<li key="3">"#), "missing key=3: {html:?}");
 }
 
 #[test]
 fn for_iterations_share_inner_keys() {
     let src = "<state name=\"items\" value=\"[1,2]\" />\n{#for n of items}<li>{n}</li>{/for}";
     let html = render_source(src);
-    let occurrences = html.matches("set:text:b1").count();
+    let occurrences = html.matches("sui:text:b1").count();
     // One open marker per iteration; `b1` reused across all iterations.
     assert_eq!(
         occurrences, 2,
@@ -394,7 +394,7 @@ fn for_empty_renders_else_body() {
         "<state name=\"items\" value=\"[]\" />\n{#for n of items}<li>{n}</li>{:else}<p>none</p>{/for}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<div data-set-for="b0" style="display:contents"><p>none</p></div>"#),
+        html.contains(r#"<sui-for key="b0" style="display:contents"><p>none</p></sui-for>"#),
         "expected else body inside for active wrapper; got: {html:?}"
     );
 }
@@ -404,8 +404,8 @@ fn for_unevaluable_iterable_falls_back() {
     let src = "{#for n of missing}<li>{n}</li>{/for}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-for="b0"></template>"#),
-        "expected empty placeholder for unevaluable iterable; got: {html:?}"
+        html.contains(r#"<sui-for key="b0" hidden></sui-for>"#),
+        "expected placeholder for unevaluable iterable; got: {html:?}"
     );
     assert!(!html.contains("<li>"));
 }
@@ -415,7 +415,7 @@ fn match_evaluates_discriminant() {
     let src = "<state name=\"kind\" value=\"'a'\" />\n{#match kind}{:case 'a'}<p>A</p>{:case 'b'}<p>B</p>{/match}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<div data-set-match="b0" style="display:contents"><p>A</p></div>"#),
+        html.contains(r#"<sui-match key="b0" branch="when_0" style="display:contents"><p>A</p></sui-match>"#),
         "expected case A rendered; got: {html:?}"
     );
     assert!(!html.contains("<p>B</p>"));
@@ -426,8 +426,8 @@ fn match_unevaluable_falls_back() {
     let src = "{#match missing}{:case 'a'}<p>A</p>{:default}<p>D</p>{/match}";
     let html = render_source(src);
     assert!(
-        html.contains(r#"<template data-set-match="b0"></template>"#),
-        "expected empty placeholder for unevaluable discriminant; got: {html:?}"
+        html.contains(r#"<sui-match key="b0" hidden></sui-match>"#),
+        "expected placeholder for unevaluable discriminant; got: {html:?}"
     );
     assert!(!html.contains("<p>A</p>"));
     assert!(!html.contains("<p>D</p>"));
@@ -438,13 +438,13 @@ fn nested_control_flow_round_trip() {
     let src = "<state name=\"x\" value=\"true\" />\n<state name=\"xs\" value=\"[1,2]\" />\n{#if x}{#for n of xs}<li>{n}</li>{/for}{/if}";
     let html = render_source(src);
     // Outer if takes b0; inner for takes b1; inner dynamic text takes b2.
-    assert!(html.contains(r#"<div data-set-if="b0" style="display:contents">"#));
-    assert!(html.contains(r#"<div data-set-for="b1" style="display:contents">"#));
-    assert!(html.contains("<li><!--set:text:b2-->1<!--/set--></li>"));
-    assert!(html.contains("<li><!--set:text:b2-->2<!--/set--></li>"));
+    assert!(html.contains(r#"<sui-if key="b0" style="display:contents">"#));
+    assert!(html.contains(r#"<sui-for key="b1" style="display:contents">"#));
+    assert!(html.contains("<li><!--sui:text:b2-->1<!--/sui--></li>"));
+    assert!(html.contains("<li><!--sui:text:b2-->2<!--/sui--></li>"));
     // for body closes inside if body which closes outside.
-    let if_open = html.find("data-set-if=\"b0\"").unwrap();
-    let for_open = html.find("data-set-for=\"b1\"").unwrap();
+    let if_open = html.find(r#"<sui-if key="b0""#).unwrap();
+    let for_open = html.find(r#"<sui-for key="b1""#).unwrap();
     assert!(if_open < for_open, "nesting order wrong: {html:?}");
 }
 
@@ -465,8 +465,8 @@ fn agents_view_round_trip_with_d3() {
     // Outer `{#if agents().kind === 'ok'}` evaluates against the loading
     // envelope at SSR time, so it falls into the placeholder branch.
     assert!(
-        out.html.contains("data-set-if="),
-        "expected at least one data-set-if marker: {}",
+        out.html.contains("<sui-if key="),
+        "expected at least one sui-if boundary: {}",
         &out.html[..200.min(out.html.len())]
     );
     // The agents view contains a `{#for}` somewhere; its outer guard
@@ -483,9 +483,10 @@ fn agents_view_round_trip_with_d3() {
 
 // ---------- Phase E-prep: walker / registry parity ----------
 
-/// For every `data-set-<kind>="b<N>"` marker (and every
-/// `<!--set:text:b<N>-->`) the walker emits, look up `bindings[N]` and
-/// confirm the registry entry's kind matches the marker family.
+/// For every marker the walker emits — `<!--sui:text:bN-->` comments,
+/// `<sui-{kind} key="bN">` boundary elements, and author-syntax binding
+/// attributes like `on:click="bN"` — look up `bindings[N]` and confirm
+/// the registry entry's kind matches.
 #[test]
 fn walker_keys_match_registry() {
     let src = std::fs::read_to_string(
@@ -532,40 +533,22 @@ fn walker_keys_match_registry() {
     }
 }
 
-/// Find every `data-set-<kind>="bN"` attribute and `<!--set:text:bN-->`
-/// comment marker in the rendered HTML, returning `(kind_str, key)`.
+/// Find every marker the SSR walker emits, returning `(kind_str, key)` pairs.
+///
+/// New marker shapes (post SSR re-cutover):
+///   - `<!--sui:text:bN-->` → `("text", "bN")`
+///   - `<sui-{kind} key="bN"` → `("{kind}", "bN")`
+///   - `on:{event}="bN"`, `bind:value="bN"`, `class:{name}="bN"`,
+///     `style:{name}="bN"`, `attr:{name}="bN"`, `attr-dynamic="bN"`
+///     → `("{kind}", "bN")`
 fn extract_marker_pairs(html: &str) -> Vec<(String, String)> {
     let mut out: Vec<(String, String)> = Vec::new();
-    let bytes = html.as_bytes();
-    let mut i = 0;
 
-    // data-set-<kind>="bN"
-    while i < bytes.len() {
-        if let Some(rest) = html[i..].strip_prefix("data-set-") {
-            // Read kind up to '='.
-            let eq_pos = rest.find('=');
-            let quote_pos = rest.find('"');
-            if let (Some(eq), Some(qs)) = (eq_pos, quote_pos) {
-                if qs == eq + 1 {
-                    let kind = &rest[..eq];
-                    if let Some(qe) = rest[qs + 1..].find('"') {
-                        let key = &rest[qs + 1..qs + 1 + qe];
-                        if key.starts_with('b') {
-                            out.push((kind.to_string(), key.to_string()));
-                        }
-                        i += "data-set-".len() + qs + 1 + qe + 1;
-                        continue;
-                    }
-                }
-            }
-        }
-        i += 1;
-    }
-
-    // <!--set:text:bN-->
+    // <!--sui:text:bN-->
+    let text_prefix = "<!--sui:text:";
     let mut j = 0;
-    while let Some(start) = html[j..].find("<!--set:text:") {
-        let abs = j + start + "<!--set:text:".len();
+    while let Some(start) = html[j..].find(text_prefix) {
+        let abs = j + start + text_prefix.len();
         if let Some(end_off) = html[abs..].find("-->") {
             let key = &html[abs..abs + end_off];
             if key.starts_with('b') {
@@ -577,7 +560,68 @@ fn extract_marker_pairs(html: &str) -> Vec<(String, String)> {
         }
     }
 
+    // <sui-{kind} key="bN"
+    for kind in ["if", "for", "match"] {
+        let open_pat = format!("<sui-{kind} key=\"");
+        let mut i = 0;
+        while let Some(pos) = html[i..].find(&open_pat) {
+            let val_start = i + pos + open_pat.len();
+            if let Some(qe) = html[val_start..].find('"') {
+                let key = &html[val_start..val_start + qe];
+                if key.starts_with('b') {
+                    out.push((kind.to_string(), key.to_string()));
+                }
+                i = val_start + qe + 1;
+            } else {
+                break;
+            }
+        }
+    }
+
+    // Author-syntax binding attribute markers: scan for ATTR_NAME="bN"
+    // where ATTR_NAME matches a known binding-attribute pattern.
+    // Strategy: find `="b` followed by digits followed by `"`, then
+    // look back for the attribute name after the preceding space.
+    let mut i = 0;
+    while i < html.len() {
+        if let Some(pos) = html[i..].find("=\"b") {
+            let eq_pos = i + pos;
+            let val_start = eq_pos + 2; // after ="
+            let val_rest = &html[val_start..];
+            // Collect the key: 'b' followed by ASCII digits
+            let digit_count = val_rest[1..].chars().take_while(|c| c.is_ascii_digit()).count();
+            let key_end = 1 + digit_count; // total length of bN
+            if digit_count > 0 && val_rest.as_bytes().get(key_end) == Some(&b'"') {
+                let key = &val_rest[..key_end];
+                // Find the attribute name by scanning backward from eq_pos
+                let prefix = &html[..eq_pos];
+                let name_start = prefix
+                    .rfind(|c: char| c.is_ascii_whitespace() || c == '<')
+                    .map(|p| p + 1)
+                    .unwrap_or(0);
+                let attr_name = &prefix[name_start..];
+                if is_binding_attr(attr_name) {
+                    out.push((attr_name.to_string(), key.to_string()));
+                }
+                i = val_start + key_end + 1;
+                continue;
+            }
+            i = eq_pos + 3;
+        } else {
+            break;
+        }
+    }
+
     out
+}
+
+fn is_binding_attr(name: &str) -> bool {
+    name.starts_with("on:")
+        || name.starts_with("bind:")
+        || name.starts_with("class:")
+        || name.starts_with("style:")
+        || name.starts_with("attr:")
+        || name == "attr-dynamic"
 }
 
 #[test]

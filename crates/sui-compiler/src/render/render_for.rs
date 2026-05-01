@@ -69,7 +69,7 @@ pub(super) fn render_for(walker: &mut Walker<'_>, instr: &ForInstr) {
         walker.keys.restore(body_end);
         walker.reg_idx = body_end_idx;
         if !is_target {
-            close_active(walker);
+            close_active(walker, "for");
         }
 
         if let Some(else_body) = &instr.else_body {
@@ -87,13 +87,15 @@ pub(super) fn render_for(walker: &mut Walker<'_>, instr: &ForInstr) {
         && instr.else_body.is_some();
 
     if render_else {
-        let else_body = instr.else_body.as_ref().expect("else body checked above");
+        let Some(else_body) = instr.else_body.as_ref() else {
+            return;
+        };
         if !is_target {
             open_active(walker, "for", &key);
         }
         walker.walk_block(else_body);
         if !is_target {
-            close_active(walker);
+            close_active(walker, "for");
         }
     } else {
         if let Some(else_body) = &instr.else_body {
@@ -136,9 +138,9 @@ fn restore_scope(
 }
 
 /// Render a `{#for}` iteration body, optionally injecting the
-/// `data-set-key` marker. When the body has a single element root, the
+/// `key` attribute. When the body has a single element root, the
 /// attribute attaches to that element; otherwise we wrap the iteration
-/// in a `<div data-set-key="…" style="display:contents">` so
+/// in a `<div key="…" style="display:contents">` so
 /// reconciliation has a per-iteration anchor (and the body still
 /// renders — see `template_helpers.rs` for why `<template>` is wrong
 /// for active branches).
@@ -160,7 +162,7 @@ fn walk_iteration_body(walker: &mut Walker<'_>, body: &[Instr], key_attr_value: 
         for (i, instr) in body.iter().enumerate() {
             if i == target {
                 if let Instr::Element(el) = instr {
-                    walker.walk_element_with_extra(el, &[("data-set-key", key_val)]);
+                    walker.walk_element_with_extra(el, &[("key", key_val)]);
                 }
             } else {
                 walker.walk_instr(instr);
@@ -174,7 +176,7 @@ fn walk_iteration_body(walker: &mut Walker<'_>, body: &[Instr], key_attr_value: 
     close_for_item(walker);
 }
 
-/// Stringify a value for use as a `data-set-key` attribute. JSON
+/// Stringify a value for use as a `key` attribute. JSON
 /// scalars use their evaluator-string form (`42` → `"42"`, `"alice"` →
 /// `"alice"`, `true` → `"true"`, `null` → `"null"`); objects/arrays
 /// fall back to a stable JSON dump so reconciliation has *something* to

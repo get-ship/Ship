@@ -8,7 +8,7 @@ afterEach(clearContainers)
 describe('attach/text', () => {
   it('updates inlined SSR text on signal change', () => {
     const html =
-      '<p>count: <span data-test="value"><!--set:text:b0-->0<!--/set--></span></p>'
+      '<p>count: <span data-test="value"><!--sui:text:b0-->0<!--/sui--></span></p>'
     const root = mountSsr(html, { count: 0 })
     let countSig: Signal<number> | undefined
     const mod = makeModule(
