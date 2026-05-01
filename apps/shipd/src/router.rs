@@ -84,7 +84,7 @@ pub fn build_router(
     let pair_status_reg = pairing_registry.clone();
     let attest_verifier = attestation_verifier.clone();
     let attest_sessions = session_registry.clone();
-    let ship_set_data_state = rt.clone();
+    let sui_data_state = rt.clone();
     let public_routes = Router::new()
         .route(
             "/auth/pair/init",
@@ -134,66 +134,66 @@ pub fn build_router(
             axum::routing::get(views::components::serve_component_js),
         )
         .route(
-            "/_ship-set/hmr",
-            axum::routing::get(views::ship_set_hmr::serve_hmr),
+            "/_sui/hmr",
+            axum::routing::get(views::sui_hmr::serve_hmr),
         )
         .route(
-            "/_ship-set/hmr-client.js",
-            axum::routing::get(views::ship_set_hmr::serve_hmr_client_js),
+            "/_sui/hmr-client.js",
+            axum::routing::get(views::sui_hmr::serve_hmr_client_js),
         )
         .route(
-            "/_ship-set/runtime.js",
-            axum::routing::get(views::ship_set::serve_ship_set_runtime),
+            "/_sui/runtime.js",
+            axum::routing::get(views::sui::serve_sui_runtime),
         )
         .route(
-            "/_ship-set/dom.js",
-            axum::routing::get(views::ship_set_view::serve_ship_set_dom),
+            "/_sui/dom.js",
+            axum::routing::get(views::sui_view::serve_sui_dom),
         )
         .route(
-            "/_ship-set/sdk-client.js",
-            axum::routing::get(views::ship_set_view::serve_ship_set_sdk_client),
+            "/_sui/sdk-client.js",
+            axum::routing::get(views::sui_view::serve_sui_sdk_client),
         )
         .route(
-            "/_ship-set/components.js",
-            axum::routing::get(views::ship_set_view::serve_ship_set_components),
+            "/_sui/components.js",
+            axum::routing::get(views::sui_view::serve_sui_components),
         )
         .route(
-            "/_ship-set/views/{name}/view.html.set",
-            axum::routing::get(views::ship_set_view::serve_set_view_template),
+            "/_sui/views/{name}/view.sui",
+            axum::routing::get(views::sui_view::serve_sui_view_template),
         )
         .route(
-            "/_ship-set/views/{name}/view.js",
-            axum::routing::get(views::ship_set_view::serve_set_view_setup),
+            "/_sui/views/{name}/view.js",
+            axum::routing::get(views::sui_view::serve_sui_view_setup),
         )
         .route(
-            "/_ship-set/views/{name}/view.css",
-            axum::routing::get(views::ship_set_view::serve_set_view_css),
+            "/_sui/views/{name}/view.css",
+            axum::routing::get(views::sui_view::serve_sui_view_css),
         )
         // F-1 SSR walker debug endpoint. Returns the render walker's
-        // output for a compiled `.html.set` view — wrapped HTML by
+        // output for a compiled `.sui` view — wrapped HTML by
         // default, `?format=json` for `{ html, init }`. Inspection
         // surface only; the production SSR cut-over is Phase F.
         .route(
-            "/_ship-set/render/{name}",
-            axum::routing::get(views::ship_set_render::serve_set_render),
+            "/_sui/render/{name}",
+            axum::routing::get(views::sui_render::serve_sui_render),
         )
         // E-2 control-flow swap: the attach runtime POSTs the current
         // scope + a boundary key, the daemon walks the IR with that
         // scope and returns the boundary's body HTML.
         .route(
-            "/_ship-set/render-fragment/{name}",
+            "/_sui/render-fragment/{name}",
             axum::routing::post(
-                views::ship_set_render_fragment::serve_set_render_fragment,
+                views::sui_render_fragment::serve_sui_render_fragment,
             ),
         )
         .route(
-            "/set/{name}",
-            axum::routing::get(views::ship_set_view::serve_set_view),
+            "/sui/{name}",
+            axum::routing::get(views::sui_view::serve_sui_view),
         )
         .route(
-            "/_ship-set/data",
-            axum::routing::get(move |q: axum::extract::Query<views::ship_set_data::DataQuery>| {
-                views::ship_set_data::serve_data(axum::extract::State(ship_set_data_state.clone()), q)
+            "/_sui/data",
+            axum::routing::get(move |q: axum::extract::Query<views::sui_data::DataQuery>| {
+                views::sui_data::serve_data(axum::extract::State(sui_data_state.clone()), q)
             }),
         );
 

@@ -1,8 +1,8 @@
 // views/agents/view.js
-import { bindAttr, bindFor, bindIf, bindText, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship-set/runtime";
+import { bindAttr, bindFor, bindIf, bindText, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship/ui-runtime";
 
 // views/agents/view.ts
-import { controller, unwrap } from "@ship-set/runtime";
+import { controller, unwrap } from "@ship/ui-runtime";
 var view_default = controller({
   derived: {
     items: ({ agents }) => unwrap(agents)?.items ?? [],

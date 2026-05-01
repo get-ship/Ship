@@ -13,9 +13,9 @@
 // a template hook (`<use-kbd>` for tab keyboard shortcuts), envelope
 // unwrap via `unwrapOr`, signal-passing into the hook factory.
 
-import { controller, unwrapOr, useFilteredList } from '@ship-set/runtime'
-import type { LiveSignal, Signal } from '@ship-set/runtime'
-import type { GitOverview, GitCommit } from '@ship-set/sdk-client'
+import { controller, unwrapOr, useFilteredList } from '@ship/ui-runtime'
+import type { LiveSignal, Signal } from '@ship/ui-runtime'
+import type { GitOverview, GitCommit } from '@ship/ui-sdk-client'
 
 const EMPTY_OVERVIEW: GitOverview = {
   workspace_id: null,
@@ -32,7 +32,7 @@ const EMPTY_OVERVIEW: GitOverview = {
   behind: 0,
 }
 
-/** Template scope — every identifier the .html.set file declares (via
+/** Template scope — every identifier the .sui file declares (via
  * `<data>`, `<state>`, `<use-* as=>`) that the controller wants to
  * read. Pass as the `controller<Scope>` generic and the sections'
  * destructure args type themselves; no per-section annotations

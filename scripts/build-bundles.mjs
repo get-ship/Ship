@@ -25,19 +25,19 @@ const targets = [
   { name: 'ship-code-editor',     entry: 'packages/ship-set/src/web-components/islands/ship-code-editor.ts' },
   { name: 'ship-markdown-editor', entry: 'packages/ship-set/src/web-components/islands/ship-markdown-editor.ts' },
   { name: 'ship-terminal',        entry: 'packages/ship-set/src/web-components/islands/ship-terminal.ts' },
-  // Phase 3 ship-set runtime + dom + sdk + per-view setups (committed
+  // SUI runtime + dom + sdk + per-view setups (committed
   // assets the daemon `include_str!`s from apps/shipd/assets/).
-  { name: 'ship-set-runtime',     entry: 'packages/ship-set-runtime/src/index.ts' },
-  { name: 'ship-set-dom',         entry: 'packages/ship-set-dom/src/index.ts',         external: ['@ship-set/runtime'] },
-  { name: 'ship-set-sdk-client',  entry: 'packages/ship-set-sdk-client/src/index.ts',  external: ['@ship-set/runtime'] },
-  // ship-set-components: each ported primitive's .html.set is
-  // AOT-compiled by ship-set-compiler before esbuild runs. The
+  { name: 'sui-runtime',          entry: 'packages/ui-runtime/src/index.ts' },
+  { name: 'sui-dom',              entry: 'packages/ui-dom/src/index.ts',          external: ['@ship/ui-runtime'] },
+  { name: 'sui-sdk-client',       entry: 'packages/ui-sdk-client/src/index.ts',   external: ['@ship/ui-runtime'] },
+  // ship-set-components: each ported primitive's .sui is
+  // AOT-compiled by sui-compiler before esbuild runs. The
   // compiler emits <tag>.compiled.js next to the source; the .ts
   // file is a side-effect import of that compiled module
   // (`import './<tag>.compiled.js'`), so esbuild inlines the
   // generated `customElements.define()` call. After Arc B-1 the
-  // bundle has no @ship-set/dom dep — `external` reflects that.
-  { name: 'ship-set-components',  entry: 'packages/ship-set-components/src/index.ts',  external: ['@ship-set/runtime'],
+  // bundle has no @ship/ui-dom dep — `external` reflects that.
+  { name: 'sui-components',       entry: 'packages/ship-set-components/src/index.ts',  external: ['@ship/ui-runtime'],
     componentSources: [
       { htmlSet: 'packages/ship-set-components/src/set-status-dot/set-status-dot.html.set' },
       { htmlSet: 'packages/ship-set-components/src/set-spinner/set-spinner.html.set' },
@@ -58,13 +58,13 @@ const targets = [
       { htmlSet: 'packages/ship-set-components/src/set-empty-state/set-empty-state.html.set' },
       { htmlSet: 'packages/ship-set-components/src/set-input/set-input.html.set' },
     ] },
-  // Each view: compile .html.set via the Rust compiler first (it
+  // Each view: compile .sui via the Rust compiler first (it
   // emits view.js next to view.ts, re-imports view.ts as setup, and
   // exports the `bindings` manifest attach() needs), then esbuild
   // bundles the compiled output, inlining the controller.
-  { name: 'views/agents/view',    entry: 'views/agents/view.js',  htmlSet: 'views/agents/view.html.set',  external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
-  { name: 'views/counter/view',   entry: 'views/counter/view.js', htmlSet: 'views/counter/view.html.set', external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
-  { name: 'views/git/view',       entry: 'views/git/view.js',     htmlSet: 'views/git/view.html.set',     external: ['@ship-set/runtime', '@ship-set/sdk-client'] },
+  { name: 'views/agents/view',    entry: 'views/agents/view.js',  htmlSet: 'views/agents/view.sui',  external: ['@ship/ui-runtime', '@ship/ui-sdk-client'] },
+  { name: 'views/counter/view',   entry: 'views/counter/view.js', htmlSet: 'views/counter/view.sui', external: ['@ship/ui-runtime', '@ship/ui-sdk-client'] },
+  { name: 'views/git/view',       entry: 'views/git/view.js',     htmlSet: 'views/git/view.sui',     external: ['@ship/ui-runtime', '@ship/ui-sdk-client'] },
 ];
 
 const args = new Set(process.argv.slice(2));
@@ -88,7 +88,7 @@ function hashTree(entryAbs) {
 }
 
 /**
- * Run the Rust ship-set-compiler against a single `.html.set` source.
+ * Run the Rust sui-compiler against a single `.sui` source.
  *
  * Views: emitted `<stem>.js` carries the `bindings` manifest + the
  * default-export setup that re-imports the paired controller `.ts`.
@@ -103,14 +103,14 @@ function hashTree(entryAbs) {
  * contents into the source's `<component>` block before parsing —
  * the same shape the legacy runtime helper used.
  */
-async function compileHtmlSet(htmlSetPath, opts = {}) {
+async function compileSui(suiPath, opts = {}) {
   const { mode = 'view', cssPath = null } = opts;
   const { spawnSync } = await import('node:child_process');
-  const inputAbs = join(repoRoot, htmlSetPath);
+  const inputAbs = join(repoRoot, suiPath);
   const outDir = dirname(inputAbs);
-  const stem = htmlSetPath.split('/').pop().replace(/\.html\.set$/, '');
+  const stem = suiPath.split('/').pop().replace(/\.html\.set$/, '').replace(/\.sui$/, '');
   const args = [
-    'run', '--quiet', '-p', 'ship-set-compiler', '--',
+    'run', '--quiet', '-p', 'sui-compiler', '--',
     'build', inputAbs, '--out', outDir,
   ];
   if (mode === 'component') {
@@ -126,7 +126,7 @@ async function compileHtmlSet(htmlSetPath, opts = {}) {
   });
   if (result.status !== 0) {
     throw new Error(
-      `ship-set-compiler failed for ${htmlSetPath}:\n${result.stderr || result.stdout}`,
+      `sui-compiler failed for ${suiPath}:\n${result.stderr || result.stdout}`,
     );
   }
   if (mode === 'component') {
@@ -155,12 +155,12 @@ function fileMtimeHash(paths) {
 }
 
 async function buildOne(t) {
-  // Views: compile the .html.set first; the emitted view.js carries
+  // Views: compile the .sui first; the emitted view.js carries
   // the `bindings` manifest attach() reads + a default export that
   // re-imports the controller view.ts. esbuild bundles the compiled
   // file, inlining the controller.
   if (t.htmlSet) {
-    await compileHtmlSet(t.htmlSet);
+    await compileSui(t.htmlSet);
   }
   // Components (Arc B-1): compile each ported primitive's .html.set
   // ahead-of-time. The compiler's `customElements.define()` call
@@ -169,7 +169,7 @@ async function buildOne(t) {
   // so the entire bundle is registration-by-import.
   if (t.componentSources) {
     for (const cs of t.componentSources) {
-      await compileHtmlSet(cs.htmlSet, { mode: 'component', cssPath: cs.cssPath });
+      await compileSui(cs.htmlSet, { mode: 'component', cssPath: cs.cssPath });
     }
   }
   const entryAbs = join(repoRoot, t.entry);
@@ -209,7 +209,7 @@ async function buildOne(t) {
   // Regression guard: views go through the Rust compiler, so the
   // bundle MUST export both `bindings` (manifest attach() reads) and
   // a `default` (the view setup). Catches the foundation-level bug
-  // where view.ts was bundled directly without ship-set-compiler.
+  // where view.ts was bundled directly without sui-compiler.
   if (t.htmlSet) {
     const out = readFileSync(outfile, 'utf8');
     const hasBindings = /export\s*\{[^}]*\bbindings\b/.test(out)
@@ -217,7 +217,7 @@ async function buildOne(t) {
     const hasDefault = /\bdefault\b/.test(out);
     if (!hasBindings || !hasDefault) {
       throw new Error(
-        `[bundles] ${t.name}.js missing required exports — bindings:${hasBindings} default:${hasDefault}. View bundles must be compiled via ship-set-compiler before esbuild.`,
+        `[bundles] ${t.name}.js missing required exports — bindings:${hasBindings} default:${hasDefault}. View bundles must be compiled via sui-compiler before esbuild.`,
       );
     }
   }
@@ -225,14 +225,14 @@ async function buildOne(t) {
   // Regression guard (Arc B-1): the components bundle is registration
   // by side-effect — `customElements.define()` calls only, no template
   // parsing. If any future change drags `hydrate` / `parse` /
-  // @ship-set/dom back in, this asserts and we don't ship the size
+  // @ship/ui-dom back in, this asserts and we don't ship the size
   // regression. Each ported tag must also appear in the bundle so a
   // missing source file can't quietly fall off the registration list.
   if (t.componentSources) {
     const out = readFileSync(outfile, 'utf8');
-    if (/from\s*["']@ship-set\/dom["']/.test(out)) {
+    if (/from\s*["']@ship\/ui-dom["']/.test(out)) {
       throw new Error(
-        `[bundles] ${t.name}.js still imports from @ship-set/dom — Arc B-1 broken`,
+        `[bundles] ${t.name}.js still imports from @ship/ui-dom — Arc B-1 broken`,
       );
     }
     if (/\bhydrate\s*\(/.test(out) || /\bimport\b[^;]*\bhydrate\b/.test(out)) {
@@ -240,13 +240,13 @@ async function buildOne(t) {
         `[bundles] ${t.name}.js still references hydrate — Arc B-1 broken`,
       );
     }
-    if (/\bimport\b[^;]*\bparse\b[^;]*from\s*["']@ship-set\/dom["']/.test(out)) {
+    if (/\bimport\b[^;]*\bparse\b[^;]*from\s*["']@ship\/ui-dom["']/.test(out)) {
       throw new Error(
-        `[bundles] ${t.name}.js still imports parse from @ship-set/dom — Arc B-1 broken`,
+        `[bundles] ${t.name}.js still imports parse from @ship/ui-dom — Arc B-1 broken`,
       );
     }
     for (const cs of t.componentSources) {
-      const tag = cs.htmlSet.split('/').pop().replace(/\.html\.set$/, '');
+      const tag = cs.htmlSet.split('/').pop().replace(/\.html\.set$/, '').replace(/\.sui$/, '');
       // The compiler emits `component("set-button", { … })` —
       // matching the literal tag string is the most direct way to
       // confirm every ported primitive made it into the bundle.

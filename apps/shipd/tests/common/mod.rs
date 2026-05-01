@@ -1,7 +1,7 @@
 //! Shared test daemon for the ship-set render integration suites.
 //!
 //! Spawns a real `shipd` process in a fresh tempdir. The endpoints under
-//! `/_ship-set/*` are unauthenticated, so we use a bare `reqwest::Client`.
+//! `/_sui/*` are unauthenticated, so we use a bare `reqwest::Client`.
 
 use std::process::Stdio;
 use std::time::Duration;

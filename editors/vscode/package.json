@@ -1,7 +1,7 @@
 {
-  "name": "ship-set",
-  "displayName": "ship-set (.set)",
-  "description": "Syntax highlighting and language server support for ship-set (.set) component files.",
+  "name": "ship-ui",
+  "displayName": "SUI (.sui)",
+  "description": "Syntax highlighting and language server support for SUI (.sui) template files.",
   "version": "0.1.0",
   "publisher": "ship",
   "engines": {
@@ -12,39 +12,38 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onLanguage:set"
+    "onLanguage:sui"
   ],
   "contributes": {
     "languages": [
       {
-        "id": "set",
+        "id": "sui",
         "aliases": [
-          "ship-set",
-          "set"
+          "SUI",
+          "sui"
         ],
         "extensions": [
-          ".set",
-          ".html.set"
+          ".sui"
         ],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "set",
-        "scopeName": "source.set",
-        "path": "./syntaxes/set.tmLanguage.json"
+        "language": "sui",
+        "scopeName": "source.sui",
+        "path": "./syntaxes/sui.tmLanguage.json"
       }
     ],
     "configuration": {
-      "title": "ship-set",
+      "title": "SUI",
       "properties": {
-        "ship-set.serverPath": {
+        "sui.serverPath": {
           "type": "string",
-          "default": "ship-set-lsp",
-          "description": "Path to the ship-set-lsp executable. Either an absolute path or a name resolved against PATH."
+          "default": "sui-lsp",
+          "description": "Path to the sui-lsp executable. Either an absolute path or a name resolved against PATH."
         },
-        "ship-set.trace.server": {
+        "sui.trace.server": {
           "type": "string",
           "enum": [
             "off",
@@ -52,7 +51,7 @@
             "verbose"
           ],
           "default": "off",
-          "description": "Trace LSP communication between VS Code and ship-set-lsp."
+          "description": "Trace LSP communication between VS Code and sui-lsp."
         }
       }
     }

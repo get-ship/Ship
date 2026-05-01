@@ -11,8 +11,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ship-set/dom": "workspace:*",
-    "@ship-set/runtime": "workspace:*"
+    "@ship/ui-dom": "workspace:*",
+    "@ship/ui-runtime": "workspace:*"
   },
   "devDependencies": {
     "vitest": "^3.0.0"

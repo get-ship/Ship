@@ -5,9 +5,9 @@ import { readFileSync } from 'node:fs'
 export default defineConfig({
   resolve: {
     alias: {
-      '@ship-set/runtime': resolve(__dirname, '../ship-set-runtime/src/index.ts'),
-      // @ship-set/dom is aliased for the test-only `*.compiled.js` shim below; it is not bundled into production.
-      '@ship-set/dom': resolve(__dirname, '../ship-set-dom/src/index.ts'),
+      '@ship/ui-runtime': resolve(__dirname, '../ui-runtime/src/index.ts'),
+      // @ship/ui-dom is aliased for the test-only `*.compiled.js` shim below; it is not bundled into production.
+      '@ship/ui-dom': resolve(__dirname, '../ui-dom/src/index.ts'),
     },
   },
   test: {
@@ -56,7 +56,7 @@ export default defineConfig({
         const base = id.slice(prefix.length)
         const htmlSet = `${base}.html.set`
         return [
-          `import { hydrate } from '@ship-set/dom'`,
+          `import { hydrate } from '@ship/ui-dom'`,
           `import template from ${JSON.stringify(htmlSet)}`,
           `if (typeof document !== 'undefined') {`,
           `  const __c = document.createElement('div')`,
