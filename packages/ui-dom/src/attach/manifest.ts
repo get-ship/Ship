@@ -15,7 +15,7 @@ import type { Binding } from '../attach'
 const TEXT_OPEN_PREFIX = 'sui:text:'
 const TEXT_CLOSE = '/sui'
 
-const BOUNDARY_TAGS = new Set(['sui-if', 'sui-for', 'sui-match'])
+const BOUNDARY_TAGS = new Set(['sui-if', 'sui-for', 'sui-match', 'sui-while-loading', 'sui-while-error'])
 
 /** A resolved marker. */
 export type MarkerHit =

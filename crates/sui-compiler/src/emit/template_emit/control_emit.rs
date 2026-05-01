@@ -1,7 +1,7 @@
-//! Control-flow emit: `{#if}`, `{#for}`, `{#match}`, and the
-//! `<while-loading>` / `<while-error>` boundaries.
+//! Control-flow emit: `{#if}`, `{#for}`, `{#match}`, `{#while-loading}`,
+//! and `{#while-error}`.
 
-use super::super::writer::Writer;
+use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
 use crate::ir::*;
 
@@ -164,14 +164,29 @@ impl<'a> TemplateEmitter<'a> {
         w.line("}));");
     }
 
-    pub(super) fn emit_while_loading(
+    /// Emit `{#while-loading of <bind>}…{/while-loading}`.
+    ///
+    /// Two outputs:
+    /// 1. Inside `__mount`: a `bindWhileLoading` call with an inline render
+    ///    lambda (for the legacy imperative-mount path).
+    /// 2. In `render_callbacks`: a named `__renderWhileLoading_<N>` property
+    ///    on the setup return object, for the `attach()` path.
+    pub(super) fn emit_while_loading_block(
         &mut self,
         w: &mut Writer,
-        el: &ElementInstr,
-        bind: &str,
+        instr: &WhileLoadingInstr,
         parent_var: &str,
         cleanups_var: &str,
     ) {
+        let idx = self.while_loading_idx;
+        self.while_loading_idx += 1;
+        let render_key = format!("__renderWhileLoading_{idx}");
+        let bind = &instr.bind;
+
+        // Emit named render callback into the side buffer (for attach()).
+        self.emit_wl_callback_to_side(&render_key, &instr.body);
+
+        // Emit the __mount inline call (legacy path).
         let anchor = self.fresh("wlAnchor");
         w.line(&format!(
             "const {anchor} = document.createComment(\"while-loading\");"
@@ -187,7 +202,7 @@ impl<'a> TemplateEmitter<'a> {
             "const {frag} = document.createDocumentFragment();"
         ));
         w.line(&format!("const {cl} = [];"));
-        self.emit_children(w, &el.children, &frag, &cl);
+        self.emit_children(w, &instr.body, &frag, &cl);
         w.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));
@@ -195,23 +210,31 @@ impl<'a> TemplateEmitter<'a> {
         w.line("} }));");
     }
 
-    pub(super) fn emit_while_error(
+    /// Emit `{#while-error <errVar> of <bind>}…{/while-error}`.
+    pub(super) fn emit_while_error_block(
         &mut self,
         w: &mut Writer,
-        el: &ElementInstr,
-        meta: &WhileErrorMeta,
+        instr: &WhileErrorInstr,
         parent_var: &str,
         cleanups_var: &str,
     ) {
+        let idx = self.while_error_idx;
+        self.while_error_idx += 1;
+        let render_key = format!("__renderWhileError_{idx}");
+        let bind = &instr.bind;
+        let var = &instr.error_var;
+
+        // Emit named render callback into the side buffer (for attach()).
+        self.emit_we_callback_to_side(&render_key, var, &instr.body);
+
+        // Emit the __mount inline call (legacy path).
         let anchor = self.fresh("weAnchor");
         w.line(&format!(
             "const {anchor} = document.createComment(\"while-error\");"
         ));
         w.line(&format!("{parent_var}.appendChild({anchor});"));
-        let var = &meta.error_var;
         w.line(&format!(
-            "{cleanups_var}.push(bindWhileError({{ anchor: {anchor}, signal: $scope.{b}, render: ({var}) => {{",
-            b = meta.bind
+            "{cleanups_var}.push(bindWhileError({{ anchor: {anchor}, signal: $scope.{bind}, render: ({var}) => {{"
         ));
         w.enter();
         let frag = self.fresh("frag");
@@ -224,11 +247,50 @@ impl<'a> TemplateEmitter<'a> {
         ));
         w.line(&format!("const {cl} = [];"));
         w.line(&format!("const $scope = {child};"));
-        self.emit_children(w, &el.children, &frag, &cl);
+        self.emit_children(w, &instr.body, &frag, &cl);
         w.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));
         w.leave();
         w.line("} }));");
+    }
+
+    fn emit_wl_callback_to_side(&mut self, render_key: &str, body: &[Instr]) {
+        let frag = self.fresh("frag");
+        let cl = self.fresh("c");
+        let mut cb = Writer::new();
+        cb.line(&format!("{}: () => {{", js_string(render_key)));
+        cb.enter();
+        cb.line(&format!("const {frag} = document.createDocumentFragment();"));
+        cb.line(&format!("const {cl} = [];"));
+        self.emit_children(&mut cb, body, &frag, &cl);
+        cb.line(&format!(
+            "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
+        ));
+        cb.leave();
+        cb.line("},");
+        self.render_callbacks.push_str(&cb.into_string());
+    }
+
+    fn emit_we_callback_to_side(&mut self, render_key: &str, error_var: &str, body: &[Instr]) {
+        let frag = self.fresh("frag");
+        let cl = self.fresh("c");
+        let child = self.fresh("childScope");
+        let var = error_var;
+        let mut cb = Writer::new();
+        cb.line(&format!("{}: ({var}) => {{", js_string(render_key)));
+        cb.enter();
+        cb.line(&format!("const {child} = Object.create($scope);"));
+        cb.line(&format!("{child}.{var} = {var};"));
+        cb.line(&format!("const {frag} = document.createDocumentFragment();"));
+        cb.line(&format!("const {cl} = [];"));
+        cb.line(&format!("const $scope = {child};"));
+        self.emit_children(&mut cb, body, &frag, &cl);
+        cb.line(&format!(
+            "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
+        ));
+        cb.leave();
+        cb.line("},");
+        self.render_callbacks.push_str(&cb.into_string());
     }
 }

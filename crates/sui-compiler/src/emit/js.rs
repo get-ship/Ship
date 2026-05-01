@@ -75,19 +75,33 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
     w.line("export const bindings = [");
     w.enter();
     for b in bindings.iter() {
+        if b.suppressed {
+            continue;
+        }
         let deps_js = b
             .deps
             .iter()
             .map(|d| js_string(d))
             .collect::<Vec<_>>()
             .join(", ");
-        w.line(&format!(
-            "{{ key: {}, kind: {}, expr: {}, deps: [{}] }},",
-            js_string(&b.key),
-            js_string(&b.kind.as_marker_str()),
-            js_string(&b.expr),
-            deps_js,
-        ));
+        if let Some(rk) = &b.render_key {
+            w.line(&format!(
+                "{{ key: {}, kind: {}, expr: {}, deps: [{}], renderKey: {} }},",
+                js_string(&b.key),
+                js_string(&b.kind.as_marker_str()),
+                js_string(&b.expr),
+                deps_js,
+                js_string(rk),
+            ));
+        } else {
+            w.line(&format!(
+                "{{ key: {}, kind: {}, expr: {}, deps: [{}] }},",
+                js_string(&b.key),
+                js_string(&b.kind.as_marker_str()),
+                js_string(&b.expr),
+                deps_js,
+            ));
+        }
     }
     w.leave();
     w.line("];");
@@ -256,6 +270,13 @@ fn emit_setup_body(
         w.line("return () => { for (const c of __cleanups) try { c(); } catch (e) {} };");
         w.leave();
         w.line("},");
+        // Emit while-loading / while-error render callbacks as named
+        // properties on the setup return so attach() can look them up
+        // by the `renderKey` from the bindings manifest.
+        let callbacks = emitter.take_render_callbacks();
+        if !callbacks.is_empty() {
+            w.push_str(&callbacks);
+        }
         w.leave();
         w.line("});");
     }

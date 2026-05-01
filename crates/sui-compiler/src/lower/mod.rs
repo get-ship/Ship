@@ -66,12 +66,14 @@ fn walk_instr(instr: &Instr, out: &mut Lowered) {
                 bindings::collect_attr_imports(a, out);
             }
             walk_instrs(&el.children, out);
-            if el.while_loading.is_some() {
-                out.runtime_imports.insert("bindWhileLoading");
-            }
-            if el.while_error.is_some() {
-                out.runtime_imports.insert("bindWhileError");
-            }
+        }
+        Instr::WhileLoading(wl) => {
+            out.runtime_imports.insert("bindWhileLoading");
+            walk_instrs(&wl.body, out);
+        }
+        Instr::WhileError(we) => {
+            out.runtime_imports.insert("bindWhileError");
+            walk_instrs(&we.body, out);
         }
         Instr::If(IfInstr { branches, else_body, .. }) => {
             out.runtime_imports.insert("bindIf");

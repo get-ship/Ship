@@ -5,21 +5,14 @@
 import { compileExpr, type CompiledExpr } from './expr'
 import { compileAttrs, type AttrInstr } from '../bindings/attr-compile'
 import { tokenizeChildren, type Token } from './tokenize'
-import { parseIf, parseFor, parseMatch, type ParseScope } from './compile-blocks'
+import { parseIf, parseFor, parseMatch, parseWhileLoading, parseWhileError, type ParseScope } from './compile-blocks'
 
 /** One unit of rendered output. */
 export type Instr =
   | { kind: 'static-text'; text: string }
   | { kind: 'dynamic-text'; expr: CompiledExpr }
   | { kind: 'comment'; data: string }
-  | {
-      kind: 'element'
-      tag: string
-      attrs: AttrInstr[]
-      children: Instr[]
-      isWhileLoading?: { bind: string }
-      isWhileError?: { bind: string; errorVar: string }
-    }
+  | { kind: 'element'; tag: string; attrs: AttrInstr[]; children: Instr[] }
   | {
       kind: 'if'
       branches: { cond: CompiledExpr; body: Instr[] }[]
@@ -40,6 +33,8 @@ export type Instr =
       cases: { test: CompiledExpr; body: Instr[] }[]
       default_?: Instr[]
     }
+  | { kind: 'while-loading'; bind: string; body: Instr[] }
+  | { kind: 'while-error'; bind: string; errorVar: string; body: Instr[] }
 
 /** Compile the children of `parent` into an instruction list. */
 export function compileChildren(parent: Node): Instr[] {
@@ -113,6 +108,18 @@ function parseTokens(
       i = end
       continue
     }
+    if (tok.kind === 'open-while-loading') {
+      const { instr, end } = parseWhileLoading(tokens, i, blockScope)
+      instrs.push(instr)
+      i = end
+      continue
+    }
+    if (tok.kind === 'open-while-error') {
+      const { instr, end } = parseWhileError(tokens, i, blockScope)
+      instrs.push(instr)
+      i = end
+      continue
+    }
     throw new Error(
       `[ship-set-dom] unexpected token: ${tok.kind} (at ${getLoc(tok)})`,
     )
@@ -125,46 +132,10 @@ const getLoc = (tok: Token): string =>
 
 function compileElement(el: Element): Instr {
   const tag = el.tagName.toLowerCase()
-  const locPrefix = `<${tag}>`
-  if (tag === 'while-loading') {
-    const bind = requiredAttr(el, 'bind', '<while-loading>')
-    return {
-      kind: 'element',
-      tag: 'while-loading',
-      attrs: [],
-      children: compileChildren(el),
-      isWhileLoading: { bind },
-    }
-  }
-  if (tag === 'while-error') {
-    const bind = requiredAttr(el, 'bind', '<while-error>')
-    let errorVar = 'error'
-    for (const attr of Array.from(el.attributes)) {
-      if (attr.name.startsWith('let:')) {
-        errorVar = attr.name.slice(4)
-        break
-      }
-    }
-    return {
-      kind: 'element',
-      tag: 'while-error',
-      attrs: [],
-      children: compileChildren(el),
-      isWhileError: { bind, errorVar },
-    }
-  }
   return {
     kind: 'element',
     tag: el.tagName, // preserve original casing for the renderer
-    attrs: compileAttrs(el, locPrefix),
+    attrs: compileAttrs(el, `<${tag}>`),
     children: compileChildren(el),
   }
-}
-
-const requiredAttr = (el: Element, name: string, label: string): string => {
-  const v = el.getAttribute(name)
-  if (v === null) {
-    throw new Error(`[ship-set-dom] ${label} missing required attribute: ${name}`)
-  }
-  return v
 }

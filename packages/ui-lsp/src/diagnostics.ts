@@ -52,10 +52,6 @@ function diagnoseDirective(
       requireAttr(n, 'name', out, 'directive.state');
       requireAttr(n, 'value', out, 'directive.state');
       break;
-    case 'while-loading':
-    case 'while-error':
-      requireAttr(n, 'bind', out, `directive.${n.tag}`);
-      break;
     case 'component':
       requireAttr(n, 'name', out, 'directive.component');
       break;

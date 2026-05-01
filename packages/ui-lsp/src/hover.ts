@@ -20,8 +20,8 @@ export interface Hover {
 const DIRECTIVE_DOCS: Record<string, string> = {
   data: 'directive `<data name="…" source={…}>` — declares a data binding from the SDK.',
   state: 'directive `<state name="…" value={…}>` — declares a local state signal.',
-  'while-loading': 'directive `<while-loading bind="…">` — fallback shown while a `<data>` binding is pending.',
-  'while-error': 'directive `<while-error bind="…" let:err>` — fallback shown when a `<data>` binding errors.',
+  'while-loading': 'block `{#while-loading of …}…{/while-loading}` — shown while a `<data>` binding is pending.',
+  'while-error': 'block `{#while-error err of …}…{/while-error}` — shown when a `<data>` binding errors.',
   component: 'directive `<component name="…">` — declares a sub-component contract.',
   prop: 'directive `<prop name="…" type="…">` — declares a component prop.',
   slot: 'directive `<slot name="…">` — opens a named slot.',

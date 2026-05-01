@@ -12,7 +12,7 @@
 import ts from 'typescript';
 import type { Attribute, Node, Range } from './parse-types';
 
-export type DeclSource = 'data' | 'state' | 'prop' | 'let' | 'for';
+export type DeclSource = 'data' | 'state' | 'prop' | 'let' | 'for' | 'while-error';
 
 export interface Declaration {
   name: string;
@@ -78,6 +78,9 @@ export function buildScope(nodes: Node[], source: string): Scope {
       forStack.push({ idents });
     } else if (n.kind === 'block-close' && n.block === 'for') {
       forStack.pop();
+    } else if (n.kind === 'block-open' && n.block === 'while-error' && n.errorVar) {
+      const extent = forBlockExtent(nodes, i, n.errorVar.range.end);
+      decls.push({ name: n.errorVar.text, source: 'while-error', range: n.errorVar.range, extent });
     }
     // Reference extraction
     collectExpressionsAt(n, refs);

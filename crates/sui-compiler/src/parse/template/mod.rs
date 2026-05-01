@@ -8,7 +8,7 @@
 //!     → element children recurse
 //!     → attribute classification (see `attrs::compile_attrs`)
 
-use crate::diagnostics::{CompileError, Span};
+use crate::diagnostics::CompileError;
 use crate::ir::*;
 use crate::parse::{expr, html, html::Node};
 
@@ -90,13 +90,27 @@ pub(crate) fn parse_tokens(
                 instrs.push(r.instr);
                 i = r.end;
             }
+            TokenKind::OpenWhileLoading { .. } => {
+                let scope = make_scope();
+                let r = blocks::parse_while_loading(tokens, i, &scope)?;
+                instrs.push(r.instr);
+                i = r.end;
+            }
+            TokenKind::OpenWhileError { .. } => {
+                let scope = make_scope();
+                let r = blocks::parse_while_error(tokens, i, &scope)?;
+                instrs.push(r.instr);
+                i = r.end;
+            }
             TokenKind::ElseIf { .. }
             | TokenKind::Else
             | TokenKind::Case { .. }
             | TokenKind::Default
             | TokenKind::CloseIf
             | TokenKind::CloseFor
-            | TokenKind::CloseMatch => {
+            | TokenKind::CloseMatch
+            | TokenKind::CloseWhileLoading
+            | TokenKind::CloseWhileError => {
                 return Err(CompileError::new(format!(
                     "unexpected token: {}",
                     tok.kind.label()
@@ -117,59 +131,13 @@ fn make_scope() -> ParseScope {
 fn compile_element(el: &html::Element) -> Result<ElementInstr, CompileError> {
     let tag_lower = el.tag.as_str();
     let loc_prefix = format!("<{tag_lower}>");
-
-    if tag_lower == "while-loading" {
-        let bind = required_attr(el, "bind", "<while-loading>")?;
-        return Ok(ElementInstr {
-            tag: el.tag.clone(),
-            attrs: Vec::new(),
-            children: compile_children(&el.children)?,
-            while_loading: Some(bind),
-            while_error: None,
-            span: el.span,
-        });
-    }
-    if tag_lower == "while-error" {
-        let bind = required_attr(el, "bind", "<while-error>")?;
-        let mut error_var = "error".to_string();
-        for a in &el.attributes {
-            if let Some(rest) = a.name.strip_prefix("let:") {
-                error_var = rest.to_string();
-                break;
-            }
-        }
-        return Ok(ElementInstr {
-            tag: el.tag.clone(),
-            attrs: Vec::new(),
-            children: compile_children(&el.children)?,
-            while_loading: None,
-            while_error: Some(WhileErrorMeta { bind, error_var }),
-            span: el.span,
-        });
-    }
     let attrs = compile_attrs(el, &loc_prefix)?;
     let children = compile_children(&el.children)?;
     Ok(ElementInstr {
         tag: el.tag.clone(),
         attrs,
         children,
-        while_loading: None,
-        while_error: None,
         span: el.span,
     })
 }
 
-fn required_attr(
-    el: &html::Element,
-    name: &str,
-    label: &str,
-) -> Result<String, CompileError> {
-    el.get_attribute(name).ok_or_else(|| {
-        CompileError::new(format!("{label} missing required attribute: {name}"))
-            .with_span(el.span)
-            .with_category(label.to_string())
-    })
-}
-
-#[allow(dead_code)]
-fn _force_use_span(_: Span) {}

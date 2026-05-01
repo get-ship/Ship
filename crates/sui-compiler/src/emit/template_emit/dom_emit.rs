@@ -12,14 +12,6 @@ impl<'a> TemplateEmitter<'a> {
         parent_var: &str,
         cleanups_var: &str,
     ) {
-        if let Some(bind) = &el.while_loading {
-            self.emit_while_loading(w, el, bind, parent_var, cleanups_var);
-            return;
-        }
-        if let Some(meta) = &el.while_error {
-            self.emit_while_error(w, el, meta, parent_var, cleanups_var);
-            return;
-        }
         let v = self.fresh("e");
         w.line(&format!(
             "const {v} = document.createElement({});",

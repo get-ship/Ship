@@ -34,7 +34,7 @@ export interface CompletionContext {
   primitiveTags?: string[];
 }
 
-const DIRECTIVE_TAGS = ['data', 'state', 'component', 'prop', 'while-loading', 'while-error', 'slot'];
+const DIRECTIVE_TAGS = ['data', 'state', 'component', 'prop', 'slot'];
 const HTML_TAGS = ['div', 'span', 'p', 'a', 'button', 'input', 'form', 'ul', 'li', 'ol', 'header', 'footer', 'main', 'section', 'article', 'h1', 'h2', 'h3', 'h4', 'img', 'br', 'hr', 'code', 'pre'];
 
 const BIND_LOCALS = ['value', 'checked', 'group', 'open', 'this', 'files'];

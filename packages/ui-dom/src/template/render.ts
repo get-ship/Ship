@@ -83,6 +83,15 @@ function renderOne(instr: Instr, scope: Scope, doc: Document): OneRender {
       return renderFor(instr, scope, doc)
     case 'match':
       return renderMatch(instr, scope, doc)
+    case 'while-loading':
+      return renderWhileLoading(instr.bind, instr.body, scope, doc)
+    case 'while-error':
+      return renderWhileError(
+        { bind: instr.bind, errorVar: instr.errorVar },
+        instr.body,
+        scope,
+        doc,
+      )
   }
 }
 
@@ -91,18 +100,6 @@ function renderElement(
   scope: Scope,
   doc: Document,
 ): OneRender {
-  if (instr.isWhileLoading) {
-    return renderWhileLoading(
-      instr.isWhileLoading.bind,
-      instr.children,
-      scope,
-      doc,
-    )
-  }
-  if (instr.isWhileError) {
-    return renderWhileError(instr.isWhileError, instr.children, scope, doc)
-  }
-
   const el = doc.createElement(instr.tag)
   const childRender = render(instr.children, scope, doc)
   for (const c of childRender.nodes) el.appendChild(c)

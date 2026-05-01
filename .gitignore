@@ -151,7 +151,9 @@ playwright-report/
 views/*/view.js
 views/*/view.schema.json
 # sui-compiler emits <file>.sui.d.ts alongside each .sui; regenerated artifact.
+# Same pattern for the legacy `.html.set` extension still used by ported components.
 **/*.sui.d.ts
+**/*.html.set.d.ts
 
 # Arc B-1: ship-set-components AOT artifacts. sui-compiler emits
 # <tag>.compiled.js + <tag>.schema.json next to each .sui source;

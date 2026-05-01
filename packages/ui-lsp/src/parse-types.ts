@@ -35,11 +35,15 @@ export interface Interpolation {
 }
 export interface BlockOpen {
   kind: 'block-open';
-  block: 'if' | 'for' | 'match';
+  block: 'if' | 'for' | 'match' | 'while-loading' | 'while-error';
   expr?: { text: string; range: Range };
   pattern?: { idents: string[]; range: Range };
   iter?: { text: string; range: Range };
   key?: { text: string; range: Range };
+  /** Signal name for while-loading / while-error. */
+  bind?: { text: string; range: Range };
+  /** Error variable name for while-error. */
+  errorVar?: { text: string; range: Range };
   outerRange: Range;
 }
 export interface BlockTag {
@@ -50,7 +54,7 @@ export interface BlockTag {
 }
 export interface BlockClose {
   kind: 'block-close';
-  block: 'if' | 'for' | 'match';
+  block: 'if' | 'for' | 'match' | 'while-loading' | 'while-error';
   outerRange: Range;
 }
 

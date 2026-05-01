@@ -1,10 +1,10 @@
-//! Block parsers for `{#if}`, `{#for}`, `{#match}`. Mirrors
-//! `packages/ui-dom/src/template/compile-blocks.ts`.
+//! Block parsers for `{#if}`, `{#for}`, `{#match}`, `{#while-loading}`,
+//! `{#while-error}`. Mirrors `packages/ui-dom/src/template/compile-blocks.ts`.
 //!
 //! `for_header.rs` owns the gnarly header tokenization
 //! (`X of items key={…}`) so this file stays under the line cap.
 
-use crate::diagnostics::CompileError;
+use crate::diagnostics::{CompileError, Span};
 use crate::ir::*;
 use crate::parse::expr;
 
@@ -24,6 +24,9 @@ pub(crate) struct InstrResult {
     pub instr: Instr,
     pub end: usize,
 }
+
+const WHILE_LOADING_TERMS: &[Discriminant] = &[Discriminant::CloseWhileLoading];
+const WHILE_ERROR_TERMS: &[Discriminant] = &[Discriminant::CloseWhileError];
 
 const IF_TERMS: &[Discriminant] = &[
     Discriminant::ElseIf,
@@ -134,6 +137,111 @@ pub(crate) fn parse_for(
         }),
         end: i,
     })
+}
+
+pub(crate) fn parse_while_loading(
+    tokens: &[Token],
+    start: usize,
+    scope: &ParseScope,
+) -> Result<InstrResult, CompileError> {
+    let head_span = tokens[start].span;
+    let head_src = match &tokens[start].kind {
+        TokenKind::OpenWhileLoading { src } => src.clone(),
+        _ => unreachable!(),
+    };
+    let bind = parse_of_binding(&head_src, head_span)?;
+    let mut i = start + 1;
+    let body = (scope.body)(tokens, i, WHILE_LOADING_TERMS)?;
+    i = body.end;
+    expect_close(tokens, i, TokenKind::CloseWhileLoading, "{/while-loading}", head_span)?;
+    i += 1;
+    Ok(InstrResult {
+        instr: Instr::WhileLoading(WhileLoadingInstr { bind, body: body.instrs, span: head_span }),
+        end: i,
+    })
+}
+
+pub(crate) fn parse_while_error(
+    tokens: &[Token],
+    start: usize,
+    scope: &ParseScope,
+) -> Result<InstrResult, CompileError> {
+    let head_span = tokens[start].span;
+    let head_src = match &tokens[start].kind {
+        TokenKind::OpenWhileError { src } => src.clone(),
+        _ => unreachable!(),
+    };
+    let (error_var, bind) = parse_error_of_binding(&head_src, head_span)?;
+    let mut i = start + 1;
+    let body = (scope.body)(tokens, i, WHILE_ERROR_TERMS)?;
+    i = body.end;
+    expect_close(tokens, i, TokenKind::CloseWhileError, "{/while-error}", head_span)?;
+    i += 1;
+    Ok(InstrResult {
+        instr: Instr::WhileError(WhileErrorInstr { bind, error_var, body: body.instrs, span: head_span }),
+        end: i,
+    })
+}
+
+/// Parse `of <name>` from the header of `{#while-loading of <name>}`.
+fn parse_of_binding(src: &str, span: Span) -> Result<String, CompileError> {
+    let s = src.trim();
+    let rest = s.strip_prefix("of").ok_or_else(|| {
+        CompileError::new("{#while-loading} requires `of <signal>` (e.g. `{#while-loading of overview}`)")
+            .with_span(span)
+    })?;
+    let name = rest.trim();
+    if name.is_empty() || !is_identifier(name) {
+        return Err(CompileError::new(
+            format!("{{#while-loading}}: expected signal name after `of`, got {:?}", name)
+        ).with_span(span));
+    }
+    Ok(name.to_string())
+}
+
+/// Parse `<err> of <name>` from the header of `{#while-error err of <name>}`.
+fn parse_error_of_binding(src: &str, span: Span) -> Result<(String, String), CompileError> {
+    let s = src.trim();
+    let err_msg = || CompileError::new(
+        "{#while-error} requires `<errVar> of <signal>` (e.g. `{#while-error err of overview}`)"
+    ).with_span(span);
+    let space = s.find(char::is_whitespace).ok_or_else(err_msg)?;
+    let error_var = s[..space].trim().to_string();
+    let rest = s[space..].trim();
+    let name_part = rest.strip_prefix("of").ok_or_else(err_msg)?;
+    let bind = name_part.trim();
+    if error_var.is_empty() || !is_identifier(&error_var) {
+        return Err(err_msg());
+    }
+    if bind.is_empty() || !is_identifier(bind) {
+        return Err(err_msg());
+    }
+    Ok((error_var, bind.to_string()))
+}
+
+fn is_identifier(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_alphabetic() || c == '_' || c == '$' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_alphanumeric() || c == '_' || c == '$')
+}
+
+fn expect_close(
+    tokens: &[Token],
+    i: usize,
+    expected: TokenKind,
+    label: &'static str,
+    head_span: Span,
+) -> Result<(), CompileError> {
+    let tok = tokens.get(i).ok_or_else(|| {
+        CompileError::new(format!("missing {label}")).with_span(head_span)
+    })?;
+    if tok.kind.discriminant() != expected.discriminant() {
+        return Err(CompileError::new(format!("missing {label}")).with_span(head_span));
+    }
+    Ok(())
 }
 
 pub(crate) fn parse_match(
