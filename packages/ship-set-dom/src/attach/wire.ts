@@ -97,7 +97,7 @@ export function wireSubtree(
   opts: { skipRoot?: boolean } = {},
 ): () => void {
   const cleanups: Array<() => void> = []
-  for (const hit of walkMarkers(root, ctx.byKey, { skipRoot: opts.skipRoot })) {
+  for (const hit of walkMarkers(root, ctx.byKey, opts.skipRoot !== undefined ? { skipRoot: opts.skipRoot } : {})) {
     const c = wireMarker(hit, ctx)
     if (c) cleanups.push(c)
   }

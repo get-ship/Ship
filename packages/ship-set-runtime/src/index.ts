@@ -100,6 +100,9 @@ export type {
 
 export type { ShipSDK } from './ship'
 
+export { route, navigate, defineRoutes } from './route'
+export type { RouteSignals, RouteShape } from './route'
+
 export { component, prop } from './component'
 export type { PropDef, ComponentDef, ComponentSetupContext } from './component'
 

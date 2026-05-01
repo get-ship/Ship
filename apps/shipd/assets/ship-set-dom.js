@@ -1435,13 +1435,16 @@ function registerComponent(decl, body, doc, userSetup) {
 }
 
 // packages/ship-set-dom/src/hydrate.ts
-import { getTemplateHook } from "@ship-set/runtime";
+import {
+  getTemplateHook,
+  route as makeRoute
+} from "@ship-set/runtime";
 function hydrate(template, setup, opts) {
   if (!opts || !opts.container) {
     throw new Error("[ship-set-dom] hydrate: opts.container is required");
   }
   const parsed = parseSetSource(template);
-  const route = opts.route ?? {};
+  const route = opts.route ?? makeRoute();
   const ship = opts.ship;
   const navigate = opts.navigate ?? (() => {
   });
@@ -1576,6 +1579,9 @@ function compileTopLevel(nodes) {
   for (const n of nodes) fragment.appendChild(n);
   return compileChildren(fragment);
 }
+
+// packages/ship-set-dom/src/attach.ts
+import { route as makeRoute2 } from "@ship-set/runtime";
 
 // packages/ship-set-dom/src/attach/island.ts
 import { signal } from "@ship-set/runtime";
@@ -2046,7 +2052,7 @@ function wireMarker(hit, ctx) {
 }
 function wireSubtree(root, ctx, opts = {}) {
   const cleanups = [];
-  for (const hit of walkMarkers(root, ctx.byKey, { skipRoot: opts.skipRoot })) {
+  for (const hit of walkMarkers(root, ctx.byKey, opts.skipRoot !== void 0 ? { skipRoot: opts.skipRoot } : {})) {
     const c = wireMarker(hit, ctx);
     if (c) cleanups.push(c);
   }
@@ -2103,16 +2109,17 @@ function attach(root, opts) {
     );
   }
   const init = readInitIsland(root);
+  const routeSignals = normalizeRoute(opts.route);
   const baseScope = {
     ship: opts.ship,
-    route: opts.route ?? { params: {}, query: {} },
+    route: routeSignals,
     navigate: opts.navigate ?? ((_p) => {
     })
   };
   const scope = { ...baseScope, ...init.scope };
   const setupCtx = {
     ship: opts.ship,
-    route: opts.route ?? { params: {}, query: {} },
+    route: routeSignals,
     navigate: opts.navigate ?? ((_p) => {
     }),
     scope: { ...scope },
@@ -2127,7 +2134,7 @@ function attach(root, opts) {
     byKey: indexBindings(mod.bindings),
     scope,
     initKeys: /* @__PURE__ */ new Set([...init.stateKeys, ...init.liveKeys]),
-    viewName: opts.viewName
+    ...opts.viewName !== void 0 ? { viewName: opts.viewName } : {}
   };
   const cleanups = [];
   for (const hit of walkMarkers(root, ctx.byKey)) {
@@ -2160,6 +2167,30 @@ function attach(root, opts) {
       }
     }
   };
+}
+var warnedLegacyRoute = false;
+function normalizeRoute(input) {
+  if (input === void 0) return makeRoute2();
+  if (isRouteSignals(input)) return input;
+  if (!warnedLegacyRoute) {
+    warnedLegacyRoute = true;
+    console.warn(
+      "[ship-set/attach] AttachOptions.route received the legacy { params, query } record shape; pass a RouteSignals (from runtime `route()`) instead. The record will be upgraded for now."
+    );
+  }
+  const r = makeRoute2();
+  for (const [k, v] of Object.entries(input.params ?? {})) {
+    if (typeof v === "string") r.params[k].set(v);
+  }
+  for (const [k, v] of Object.entries(input.query ?? {})) {
+    if (typeof v === "string") r.query[k].set(v);
+  }
+  return r;
+}
+function isRouteSignals(v) {
+  if (!v || typeof v !== "object") return false;
+  const o = v;
+  return typeof o.pathname === "function";
 }
 function extractLifecycle(ret) {
   if (!ret || typeof ret !== "object") return void 0;

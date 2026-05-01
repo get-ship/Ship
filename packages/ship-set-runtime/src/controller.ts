@@ -14,6 +14,7 @@
 
 import type { Signal } from './signal'
 import type { ShipSDK } from './ship'
+import type { RouteSignals } from './route'
 
 // ---------------------------------------------------------------------------
 // State-shape extraction over Scope
@@ -74,12 +75,19 @@ export type MutableState<Scope> = {
 /**
  * The shared view scope, as destructured by each controller section.
  *
- * Includes `ship`, the `<data>`-declared signals from the template,
- * the `<state>`-declared writable signals (read-only here), and the
- * controller-hook contributions.
+ * Includes `ship`, the reactive `route` proxy, the `<data>`-declared
+ * signals from the template, the `<state>`-declared writable signals
+ * (read-only here), and the controller-hook contributions.
+ *
+ * `route` is a `RouteSignals` whose `params.<name>` and
+ * `query.<name>` are themselves signals — reading them inside a
+ * `derived` body or a `<data live>` source thunk subscribes the
+ * surrounding scope, so URL changes re-fire the dependent
+ * computation.
  */
 export type ViewScope<Scope = object> = Scope & {
   ship: ShipSDK
+  route: RouteSignals
 }
 
 // ---------------------------------------------------------------------------

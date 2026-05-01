@@ -62,15 +62,15 @@ pub fn attach_boot_script(
         r#"<script type="module">
     import * as viewModule from '/_ship-set/views/{view_name_escaped}/view.js';
     import {{ attach }} from '@ship-set/dom';
+    import {{ route, navigate }} from '@ship-set/runtime';
     import {{ createClient }} from '@ship-set/sdk-client';
 
-    const navigate = (path) => {{ window.location.href = path; }};
     const ship = createClient();
-    const route = {{ params: {{}}, query: {{}} }};
+    const routeSignals = route();
 
     const root = {root_selector};
     try {{
-      const dispose = attach(root, {{ module: viewModule, ship, route, navigate, viewName: '{view_name_escaped}' }});
+      const dispose = attach(root, {{ module: viewModule, ship, route: routeSignals, navigate, viewName: '{view_name_escaped}' }});
       window.__shipSetDispose = dispose;
     }} catch (err) {{
       console.error('[ship-set/{error_label}] attach failed:', err);
@@ -92,6 +92,11 @@ mod tests {
         assert!(s.contains("viewName: 'agents'"));
         assert!(s.contains("[ship-set/view]"));
         assert!(s.contains("document.getElementById('ship-set-root')"));
+        // Reactive route plumbing: imports `route` + `navigate` from
+        // @ship-set/runtime and instantiates a RouteSignals via route().
+        assert!(s.contains("from '@ship-set/runtime'"));
+        assert!(s.contains("route()"));
+        assert!(s.contains("route: routeSignals"));
     }
 
     #[test]
