@@ -72,7 +72,7 @@ export class ShipToastHost extends LitElement {
     this.shell?.removeEventListener("ship:notify", this.onNotify);
   }
 
-  createRenderRoot(): Element {
+  createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
 

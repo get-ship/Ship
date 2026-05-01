@@ -661,7 +661,7 @@ export class ShipCommandBar extends LitElement {
     const meta = e.metaKey || e.ctrlKey;
     if (meta && e.key.toLowerCase() === "k") {
       e.preventDefault();
-      this.focus("find");
+      this.openBar("find");
       return;
     }
     if (e.key === "Escape" && this.open) {
@@ -687,7 +687,7 @@ export class ShipCommandBar extends LitElement {
       if (now - this._lastSpaceAt < 350) {
         this._lastSpaceAt = 0;
         e.preventDefault();
-        void this.focus("ai");
+        void this.openBar("ai");
       } else {
         this._lastSpaceAt = now;
       }
@@ -724,7 +724,7 @@ export class ShipCommandBar extends LitElement {
   }
 
   private _onCreateOpen = (): void => {
-    void this.focus("create");
+    void this.openBar("create");
   };
 
   private _onSessionChanged = (): void => {
@@ -734,13 +734,15 @@ export class ShipCommandBar extends LitElement {
   private _onBarOpen = (e: CustomEvent<{ mode?: BarMode; prefill?: string }>): void => {
     if (e.detail?.mode) this._mode = e.detail.mode;
     if (typeof e.detail?.prefill === "string") this._value = e.detail.prefill;
-    this.focus();
+    this.openBar();
   };
 
-  /** Focus the bar. Seeds the default mode when the input is empty —
-   *  ⌘K opens in `find` (nav/command palette), Space+Space opens in
-   *  `ai` (chat/spawn). Typing a prefix always overrides. */
-  async focus(mode: BarMode = "find"): Promise<void> {
+  /** Open the bar in a specific mode and focus its input. Seeds the
+   *  default mode when the input is empty — ⌘K opens in `find` (nav/
+   *  command palette), Space+Space opens in `ai` (chat/spawn). Typing
+   *  a prefix always overrides. Renamed from `focus()` to avoid shadowing
+   *  HTMLElement.focus's signature. */
+  async openBar(mode: BarMode = "find"): Promise<void> {
     this.open = true;
     if (this._value.trim().length === 0) {
       this._mode = mode;
@@ -1215,7 +1217,7 @@ export class ShipCommandBar extends LitElement {
         class="trigger"
         type="button"
         aria-label="Open command bar"
-        @click=${() => void this.focus()}
+        @click=${() => void this.openBar()}
       >
         <ship-icon name="search" size="sm"></ship-icon>
         <span class="label">${label}</span>

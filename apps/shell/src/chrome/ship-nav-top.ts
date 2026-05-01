@@ -89,7 +89,7 @@ export class ShipNavTop extends LitElement {
     this._dockObserver = null;
   }
 
-  createRenderRoot(): Element {
+  createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
 
