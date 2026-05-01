@@ -5,13 +5,20 @@
 // as `<use-name>` elements and the dom hydrate flow looks them up
 // in the registry.
 //
-// Three hooks ship in v1: `<use-kbd>`, `<use-click-outside>`,
-// `<use-shell>`. See docs/ship-set-framework/references/docs/hooks.md.
+// Eight hooks ship: `<use-kbd>`, `<use-click-outside>`, `<use-shell>`,
+// `<use-focus-trap>`, `<use-clipboard>`, `<use-title>`,
+// `<use-scroll-anchor>`, `<use-intersection>`.
+// See docs/ship-ui/references/docs/hooks.md.
 
 import { registerTemplateHook } from './registry'
 import { useKbdHook } from './kbd'
 import { useClickOutsideHook } from './click-outside'
 import { useShellHook } from './shell'
+import { useFocusTrapHook } from './focus-trap'
+import { useClipboardHook } from './clipboard'
+import { useTitleHook } from './title'
+import { useScrollAnchorHook } from './scroll-anchor'
+import { useIntersectionHook } from './intersection'
 
 export {
   registerTemplateHook,
@@ -27,3 +34,8 @@ export type { ShellContext } from './shell'
 registerTemplateHook(useKbdHook)
 registerTemplateHook(useClickOutsideHook)
 registerTemplateHook(useShellHook)
+registerTemplateHook(useFocusTrapHook)
+registerTemplateHook(useClipboardHook)
+registerTemplateHook(useTitleHook)
+registerTemplateHook(useScrollAnchorHook)
+registerTemplateHook(useIntersectionHook)
