@@ -85,6 +85,7 @@ pub fn build_router(
     let attest_verifier = attestation_verifier.clone();
     let attest_sessions = session_registry.clone();
     let sui_data_state = rt.clone();
+    let sui_mutation_state = rt.clone();
     let public_routes = Router::new()
         .route(
             "/auth/pair/init",
@@ -195,6 +196,23 @@ pub fn build_router(
             axum::routing::get(move |q: axum::extract::Query<views::sui_data::DataQuery>| {
                 views::sui_data::serve_data(axum::extract::State(sui_data_state.clone()), q)
             }),
+        )
+        // PE form submit — `<form mutation="ship.X.Y">` fallback when JS
+        // is not available. Parses form data, dispatches via service
+        // registry, 303-redirects on success or appends ?_sui_error on fail.
+        .route(
+            "/_sui/mutation/{name}",
+            axum::routing::post(
+                move |path, query, headers, body| {
+                    views::sui_mutation::serve_sui_mutation(
+                        path,
+                        query,
+                        axum::extract::State(sui_mutation_state.clone()),
+                        headers,
+                        body,
+                    )
+                }
+            ),
         );
 
     let auth_token = token;

@@ -43,6 +43,7 @@ pub mod sui_attach_boot;
 pub mod sui_view_shell;
 pub mod sui_render;
 pub mod sui_render_fragment;
+pub mod sui_mutation;
 mod sui_render_helpers;
 pub mod setup;
 pub mod templates;
