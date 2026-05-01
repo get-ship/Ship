@@ -9,7 +9,7 @@ description: The optional `.ts` paired with a template. Three tiers, five sectio
 
 A controller is an **optional** TypeScript file paired with a template by filename. `views/agents/view.html.set` ↔ `views/agents/view.ts`. No config, no import statement in the template, no manifest entry — convention is the wiring.
 
-The controller is the view's view-model: derived values, event handlers, lifecycle, and composable hook bundles. **State always lives in the template** via `<state name="X" value="..." />` directives — see the [declarative-state ADR](../../../ship-adrs/references/docs/ship-set-declarative-state.md). No subscriptions, no host-side side effects — those live in the template.
+The controller is the view's view-model: derived values, event handlers, lifecycle, and composable hook bundles. **State always lives in the template** via `<state name="X" value="..." />` directives. No subscriptions, no host-side side effects — those live in the template.
 
 ## Three tiers
 

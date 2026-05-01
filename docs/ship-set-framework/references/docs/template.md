@@ -20,7 +20,7 @@ These appear at the top of the file (before the rendered DOM). They declare reac
 <state name="open" value="{false}" />
 ```
 
-Declares a mutable signal in template scope. **`<state>` is the only state primitive** — controllers do not have a `state:` section (see the [declarative-state ADR](../../../ship-adrs/references/docs/ship-set-declarative-state.md)). Templates always declare; controllers always read and mutate via `on.*` handlers and lifecycle hooks.
+Declares a mutable signal in template scope. **`<state>` is the only state primitive** — controllers do not have a `state:` section. Templates always declare; controllers always read and mutate via `on.*` handlers and lifecycle hooks.
 
 Computed-initial values (`crypto.randomUUID()`, an SDK call, a derivation over `route`) declare a placeholder here and assign in `mount`:
 
@@ -102,18 +102,6 @@ Mustache-style, directly in the template body:
   {:case 'error'}   <p>Failed</p>
   {:default}        <p>Unknown</p>
 {/match}
-```
-
-### `{#await}` / `{:then x}` / `{:catch err}` / `{/await}`
-
-```html
-{#await fetchAgents()}
-  <p>loading…</p>
-{:then list}
-  {#for a of list}<p>{a.name}</p>{/for}
-{:catch err}
-  <p>Error: {err.message}</p>
-{/await}
 ```
 
 ## Expressions
@@ -210,7 +198,7 @@ Named slots, default slot, fallback content, scoped slots (`<slot name="x" item=
 
 For clarity — these go in the controller, never the template:
 
-- Imperative logic (`async`, `await`, `try/catch` outside `{#await}`)
+- Imperative logic (`async`, `await`, `try/catch`) — use a controller's `mount` and a state signal that updates when the work resolves
 - Coordinated state (multiple signals that interact)
 - Derived values used in more than one place
 - Effects that do something other than render

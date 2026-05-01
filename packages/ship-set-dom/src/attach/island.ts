@@ -1,6 +1,6 @@
 // Initial-state JSON island parser.
 //
-// Spec: docs/ship-adrs/references/docs/ship-set-marker-contract.md.
+// Spec: docs/ship-set-framework/references/docs/ssr-hydration.md.
 // Every SSR'd page emits a single `<script type="application/json"
 // id="__set_init__">{...}</script>` after the rendered body. Keys are
 // the names of `<state>` and `<data>` declarations: `<state>` values

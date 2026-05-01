@@ -140,7 +140,7 @@ The same view, scaled with the v1 hooks (`useFilteredList`, `useSelection`, `<us
 {/if}
 ```
 
-Add a `<state>` line to the template for the search-toggle (state lives in the template per the [declarative-state ADR](../../../ship-adrs/references/docs/ship-set-declarative-state.md)):
+Add a `<state>` line to the template for the search-toggle (state lives in the template, never on the controller):
 
 ```html
 <state name="searchOpen" value="false" />

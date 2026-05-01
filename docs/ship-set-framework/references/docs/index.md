@@ -41,7 +41,7 @@ Each view has a single scope. Both the template and the controller contribute id
 **Scope contributors**:
 
 - Template `<data name="agents" src="..." live />` → `agents` as a live signal
-- Template `<state name="count" value="0" />` → `count` as a local signal (the **only** site for state — see [the declarative-state ADR](../../../ship-adrs/references/docs/ship-set-declarative-state.md))
+- Template `<state name="count" value="0" />` → `count` as a local signal (the **only** site for state)
 - Controller `derived` section → declared keys as memos
 - Controller `on` section → declared keys as handlers
 - Controller `use:` section → declared keys as hook namespaces
