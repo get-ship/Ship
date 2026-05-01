@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { mountState } from '../src/directives/state'
-import { mountData } from '../src/directives/data'
+import { mountState } from '../src/legacy/directives/state'
+import { mountData } from '../src/legacy/directives/data'
 import type { Signal } from '@ship/ui-runtime'
 
 describe('mountState', () => {

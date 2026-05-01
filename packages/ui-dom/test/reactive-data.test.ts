@@ -6,7 +6,7 @@
 // behavior end-to-end through hydrate.
 
 import { afterEach, describe, expect, it } from 'vitest'
-import { hydrate } from '../src'
+import { hydrate } from '../src/legacy'
 import type { LiveSignal, LiveState } from '@ship/ui-runtime'
 
 const containers: HTMLElement[] = []

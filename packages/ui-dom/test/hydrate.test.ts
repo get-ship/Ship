@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { hydrate } from '../src'
+import { hydrate } from '../src/legacy'
 import { state, signal, type Signal } from '@ship/ui-runtime'
 
 const fixturePath = (name: string): string =>

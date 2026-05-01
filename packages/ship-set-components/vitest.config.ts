@@ -6,7 +6,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@ship/ui-runtime': resolve(__dirname, '../ui-runtime/src/index.ts'),
-      // @ship/ui-dom is aliased for the test-only `*.compiled.js` shim below; it is not bundled into production.
+      // @ship/ui-dom/legacy is aliased for the test-only `*.compiled.js` shim; not bundled into production.
+      '@ship/ui-dom/legacy': resolve(__dirname, '../ui-dom/src/legacy/index.ts'),
       '@ship/ui-dom': resolve(__dirname, '../ui-dom/src/index.ts'),
     },
   },
@@ -56,7 +57,7 @@ export default defineConfig({
         const base = id.slice(prefix.length)
         const htmlSet = `${base}.html.set`
         return [
-          `import { hydrate } from '@ship/ui-dom'`,
+          `import { hydrate } from '@ship/ui-dom/legacy'`,
           `import template from ${JSON.stringify(htmlSet)}`,
           `if (typeof document !== 'undefined') {`,
           `  const __c = document.createElement('div')`,

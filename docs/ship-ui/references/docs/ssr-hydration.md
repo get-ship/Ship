@@ -120,3 +120,16 @@ Two pieces of the previous (Phase 3) architecture are being deleted:
 - **The empty HTML shell** — `shipd` no longer serves an empty `<div id="root">` shell at `/sui/<view>`. It serves rendered HTML directly.
 
 Both deletions follow from the IR-as-source-of-truth move. Two parsers (Rust + JS) and two emit shapes (empty shell + client-rendered DOM) become one parser (Rust) and one emit shape (rendered HTML).
+
+## Import surface: default vs. legacy
+
+`@ship/ui-dom` exposes two import paths with distinct responsibilities:
+
+| Path | Exports | Who uses it |
+|---|---|---|
+| `from '@ship/ui-dom'` | `attach()`, `AttachOptions`, `loadSetup` | Production views, daemon asset bundles |
+| `from '@ship/ui-dom/legacy'` | `hydrate()`, `parseSetSource()`, `HydrateOptions` | Tests, eval harness |
+
+The parser (`hydrate`, `parseSetSource`, `directives/`) lives exclusively in the `legacy` subpath. The default `@ship/ui-dom` bundle (`sui-dom.js`) contains zero parser code; its gzip budget is ≤ 9 KB and is enforced by the build-bundles.mjs CI gate.
+
+**Never import `@ship/ui-dom/legacy` from a production view.** Doing so would pull the full parser (~5 KB gzip) into the view bundle and violate the size budget. The build-bundles.mjs audit asserts zero references to `parseSetSource` in `sui-dom.js`.

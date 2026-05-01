@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseSetSource } from '../src/parse'
+import { parseSetSource } from '../src/legacy/parse'
 
 describe('parseSetSource — directives', () => {
   it('extracts a <state> declaration and removes it from the body', () => {

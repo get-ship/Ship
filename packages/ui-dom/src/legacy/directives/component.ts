@@ -5,8 +5,8 @@
 
 import { component, prop, type PropDef } from '@ship/ui-runtime'
 import type { ComponentDecl } from '../parse'
-import type { Instr } from '../template/compile'
-import { extendScope, render, type Scope } from '../template/render'
+import type { Instr } from '../../template/compile'
+import { extendScope, render, type Scope } from '../../template/render'
 
 const camelOf = (s: string): string =>
   s.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
