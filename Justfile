@@ -72,6 +72,12 @@ lint:
 qa:
     node tests/loops/run.mjs
 
+# Playwright e2e suite for the three ported SUI views (counter, agents, git).
+# Requires: just dev (daemon running), npx playwright install chromium.
+[group('daily')]
+qa-e2e:
+    pnpm test:e2e
+
 # ── Occasional ───────────────────────────────────────────────────────────────
 
 # Set up a worktree for a branch. Drops .ship/.boundary so views/pipelines
