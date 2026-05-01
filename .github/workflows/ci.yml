@@ -44,5 +44,5 @@ jobs:
         run: cargo build --features unstable -p ship-cli -p mcp -p shipd
       - name: Test
         run: cargo test --workspace
-      - name: Bundle ship-set-runtime
-        run: pnpm -F @ship-set/runtime bundle
+      - name: Bundle sui-runtime
+        run: pnpm -F @ship/ui-runtime bundle

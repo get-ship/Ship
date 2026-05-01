@@ -5,10 +5,10 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "bundle": "esbuild view.ts --bundle --format=esm --target=es2020 --external:@ship-set/runtime --external:@ship-set/sdk-client --outfile=../../apps/shipd/assets/views/git/view.js --log-level=warning"
+    "bundle": "esbuild view.ts --bundle --format=esm --target=es2020 --external:@ship/ui-runtime --external:@ship/ui-sdk-client --outfile=../../apps/shipd/assets/views/git/view.js --log-level=warning"
   },
   "dependencies": {
-    "@ship-set/runtime": "workspace:*",
-    "@ship-set/sdk-client": "workspace:*"
+    "@ship/ui-runtime": "workspace:*",
+    "@ship/ui-sdk-client": "workspace:*"
   }
 }

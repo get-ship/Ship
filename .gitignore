@@ -132,6 +132,10 @@ apps/shipd/assets/ship-markdown-editor.js
 apps/shipd/assets/ship-terminal.js
 apps/shipd/assets/custom-elements.json
 apps/shipd/assets/ship-elements.md
+apps/shipd/assets/sui-runtime.js
+apps/shipd/assets/sui-dom.js
+apps/shipd/assets/sui-sdk-client.js
+apps/shipd/assets/sui-components.js
 apps/shipd/assets/.cache/
 
 # Legacy shell vendor dir — shell now loads bundles via /api/runtime/assets/*.
@@ -142,10 +146,10 @@ tests/loops/results/
 views/*/view.js
 views/*/view.schema.json
 
-# Arc B-1: ship-set-components AOT artifacts. ship-set-compiler emits
-# <tag>.compiled.js + <tag>.schema.json next to each .html.set source;
+# Arc B-1: ship-set-components AOT artifacts. sui-compiler emits
+# <tag>.compiled.js + <tag>.schema.json next to each .sui source;
 # the .ts files side-effect-import the .compiled.js. esbuild inlines
-# them into apps/shipd/assets/ship-set-components.js so only the
+# them into apps/shipd/assets/sui-components.js so only the
 # bundle ships.
 packages/ship-set-components/src/*/*.compiled.js
 packages/ship-set-components/src/*/*.schema.json

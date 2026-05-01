@@ -282,13 +282,13 @@ async fn fresh_daemon_writes_canonical_home_layout() {
 
 /// `/set/agents` is the production ship-set view — unauthenticated,
 /// returns SSR HTML wired up with `attach()`. The boot script imports
-/// the bundled `@ship-set/dom` runtime via the inline importmap and
-/// reuses the `id="ship-set-root"` / `data-view="agents"` selectors
+/// the bundled `@ship/ui-dom` runtime via the inline importmap and
+/// reuses the `id="sui-root"` / `data-view="agents"` selectors
 /// existing integrations (and tests) rely on.
 #[tokio::test]
 async fn set_agents_serves_ssr_html() {
     let d = TestDaemon::start().await;
-    let res = d.bare().get(d.url("/set/agents")).send().await.unwrap();
+    let res = d.bare().get(d.url("/sui/agents")).send().await.unwrap();
     assert_eq!(res.status(), 200);
     let ct = res
         .headers()
@@ -300,20 +300,20 @@ async fn set_agents_serves_ssr_html() {
     assert!(ct.contains("text/html"));
     let body = res.text().await.unwrap();
     // Existing selectors still work.
-    assert!(body.contains(r#"id="ship-set-root""#));
+    assert!(body.contains(r#"id="sui-root""#));
     assert!(body.contains(r#"data-view="agents""#));
     // Importmap entries the boot script resolves.
-    assert!(body.contains("/_ship-set/runtime.js"));
-    assert!(body.contains("/_ship-set/dom.js"));
-    assert!(body.contains("/_ship-set/sdk-client.js"));
+    assert!(body.contains("/_sui/runtime.js"));
+    assert!(body.contains("/_sui/dom.js"));
+    assert!(body.contains("/_sui/sdk-client.js"));
     // SSR walker output is inlined.
     assert!(body.contains("data-ssr-root"));
     assert!(body.contains("data-set-"));
     assert!(body.contains("__set_init__"));
     // Boot script attaches reactivity in place — no parse-and-build.
-    assert!(body.contains("import { attach } from '@ship-set/dom'"));
+    assert!(body.contains("import { attach } from '@ship/ui-dom'"));
     assert!(!body.contains("hydrate(template"));
-    assert!(!body.contains("fetch('/_ship-set/views/agents/view.html.set')"));
+    assert!(!body.contains("fetch('/_sui/views/agents/view.sui')"));
 }
 
 /// Until Phase E-2 lands the control-flow swap, `views/agents/`
@@ -322,7 +322,7 @@ async fn set_agents_serves_ssr_html() {
 #[tokio::test]
 async fn set_agents_first_paint_is_loading_branch() {
     let d = TestDaemon::start().await;
-    let res = d.bare().get(d.url("/set/agents")).send().await.unwrap();
+    let res = d.bare().get(d.url("/sui/agents")).send().await.unwrap();
     assert_eq!(res.status(), 200);
     let body = res.text().await.unwrap();
     assert!(
@@ -340,13 +340,13 @@ async fn set_agents_first_paint_is_loading_branch() {
 #[tokio::test]
 async fn set_counter_serves_interactive_ssr() {
     let d = TestDaemon::start().await;
-    let res = d.bare().get(d.url("/set/counter")).send().await.unwrap();
+    let res = d.bare().get(d.url("/sui/counter")).send().await.unwrap();
     assert_eq!(res.status(), 200);
     let body = res.text().await.unwrap();
     assert!(body.contains(r#"data-view="counter""#));
     assert!(body.contains("data-set-"));
     assert!(body.contains("__set_init__"));
-    assert!(body.contains("import { attach } from '@ship-set/dom'"));
+    assert!(body.contains("import { attach } from '@ship/ui-dom'"));
 }
 
 /// The view's framework asset endpoints must serve module JS so the
@@ -355,10 +355,10 @@ async fn set_counter_serves_interactive_ssr() {
 async fn set_agents_assets_served_as_module_js() {
     let d = TestDaemon::start().await;
     for path in [
-        "/_ship-set/runtime.js",
-        "/_ship-set/dom.js",
-        "/_ship-set/sdk-client.js",
-        "/_ship-set/views/agents/view.js",
+        "/_sui/runtime.js",
+        "/_sui/dom.js",
+        "/_sui/sdk-client.js",
+        "/_sui/views/agents/view.js",
     ] {
         let res = d.bare().get(d.url(path)).send().await.unwrap();
         assert_eq!(res.status(), 200, "GET {path} expected 200");
@@ -376,7 +376,7 @@ async fn set_agents_assets_served_as_module_js() {
     }
     let tpl_res = d
         .bare()
-        .get(d.url("/_ship-set/views/agents/view.html.set"))
+        .get(d.url("/_sui/views/agents/view.sui"))
         .send()
         .await
         .unwrap();
@@ -386,11 +386,11 @@ async fn set_agents_assets_served_as_module_js() {
     assert!(tpl.contains("while-loading"));
 }
 
-/// Path traversal / charset enforcement on `/set/{name}`.
+/// Path traversal / charset enforcement on `/sui/{name}`.
 #[tokio::test]
 async fn set_view_rejects_invalid_names() {
     let d = TestDaemon::start().await;
-    for path in ["/set/Agents", "/set/a%2F..%2Fb"] {
+    for path in ["/sui/Agents", "/sui/a%2F..%2Fb"] {
         let res = d.bare().get(d.url(path)).send().await.unwrap();
         assert_eq!(res.status(), 404, "expected 404 for {path}");
     }
@@ -403,7 +403,7 @@ async fn set_view_rejects_invalid_names() {
 async fn agents_summaries_sse_emits_initial_set_patch() {
     use std::time::Duration;
     let d = TestDaemon::start().await;
-    let url = d.url("/_ship-set/data?expr=ship.agents.summaries()");
+    let url = d.url("/_sui/data?expr=ship.agents.summaries()");
     let mut res = d
         .authed()
         .get(&url)

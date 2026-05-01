@@ -3694,18 +3694,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-set-compiler"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
-]
-
-[[package]]
 name = "ship-types"
 version = "0.1.0"
 dependencies = [
@@ -3754,7 +3742,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-jobs",
- "ship-set-compiler",
+ "sui-compiler",
  "syn",
  "tempfile",
  "thiserror 2.0.18",
@@ -4225,6 +4213,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
+name = "sui-compiler"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+]
+
+[[package]]
 name = "syn"
 version = "2.0.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4693,7 +4693,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "009994f150cc0cd50ff54917d5bc8bffe8cad10ca10d81c34da2ec421ae61782"
 
 [[package]]
-name = "tree-sitter-set"
+name = "tree-sitter-sui"
 version = "0.1.0"
 dependencies = [
  "cc",

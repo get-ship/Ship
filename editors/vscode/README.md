@@ -1,11 +1,11 @@
-# ship-set (.html.set / .set) — VS Code extension
+# SUI (.sui) — VS Code extension
 
-Syntax highlighting and language-server integration for ship-set
-template files (`.html.set`, `.set`).
+Syntax highlighting and language server support for SUI
+template files (`.sui`, `.set`).
 
 ## What's in the box
 
-- **Language registration**: files ending in `.set` or `.html.set`
+- **Language registration**: files ending in `.set` or `.sui`
   are recognized as the `set` language.
 - **Syntax highlighting**: a TextMate grammar covers
   - **Directive elements** — `<data>`, `<state>`, `<component>`,
@@ -22,7 +22,7 @@ template files (`.html.set`, `.set`).
   - **Control-flow blocks** — `{#if}` / `{#for}` / `{#match}` and
     their continuations (`{:else if}`, `{:else}`, `{:case}`,
     `{:default}`, `{/if}`, `{/for}`, `{/match}`).
-- **Language client**: launches the `ship-set-lsp` binary and wires
+- **Language client**: launches the `sui-lsp` binary and wires
   up push diagnostics, hover, and completion (with `<`, `{`, `.`,
   `:`, `=` as trigger characters).
 
@@ -32,33 +32,33 @@ once the LSP picks it up.
 
 ## Requirements
 
-You need a `ship-set-lsp` binary on your system. The extension does
+You need a `sui-lsp` binary on your system. The extension does
 not ship one — install it separately from the Ship monorepo.
 
-### Building `ship-set-lsp`
+### Building `sui-lsp`
 
 From the repository root:
 
 ```bash
-cargo build --release -p ship-set-lsp
+cargo build --release -p sui-lsp
 ```
 
-The binary lands at `target/release/ship-set-lsp` (or
-`target/debug/ship-set-lsp` for a debug build).
+The binary lands at `target/release/sui-lsp` (or
+`target/debug/sui-lsp` for a debug build).
 
 ## Configuration
 
 | Setting                 | Default        | Description                                                                                       |
 | ----------------------- | -------------- | ------------------------------------------------------------------------------------------------- |
-| `ship-set.serverPath`   | `ship-set-lsp` | Path to the `ship-set-lsp` executable. Use an absolute path, or a name resolved against `PATH`.   |
-| `ship-set.trace.server` | `off`          | Trace LSP traffic between VS Code and `ship-set-lsp`. Set to `messages` or `verbose` to debug.    |
+| `sui.serverPath`   | `sui-lsp` | Path to the `sui-lsp` executable. Use an absolute path, or a name resolved against `PATH`.   |
+| `sui.trace.server` | `off`          | Trace LSP traffic between VS Code and `sui-lsp`. Set to `messages` or `verbose` to debug.    |
 
-Add the binary to your PATH, or point `ship-set.serverPath` at it:
+Add the binary to your PATH, or point `sui.serverPath` at it:
 
 ```jsonc
 // .vscode/settings.json
 {
-  "ship-set.serverPath": "/abs/path/to/target/release/ship-set-lsp"
+  "sui.serverPath": "/abs/path/to/target/release/sui-lsp"
 }
 ```
 
@@ -71,7 +71,7 @@ cd editors/vscode
 pnpm install
 pnpm run compile
 npx vsce package
-code --install-extension ship-set-0.1.0.vsix
+code --install-extension ship-ui-0.1.0.vsix
 ```
 
 ### Development load
@@ -81,7 +81,7 @@ code --install-extension ship-set-0.1.0.vsix
    script during development).
 3. Press `F5` ("Run Extension") to launch an Extension Development
    Host with the extension loaded.
-4. Open any `.html.set` or `.set` file — highlighting and
+4. Open any `.sui` or `.set` file — highlighting and
    diagnostics should engage.
 
 ## Status / scope
@@ -93,4 +93,4 @@ code --install-extension ship-set-0.1.0.vsix
   `grammars/tree-sitter-set/queries/highlights.scm`.
 - The LSP server itself advertises `codeAction` and `definition`
   capabilities, but the handlers currently return empty results;
-  upstream those land in `crates/ship-set-lsp`.
+  upstream those land in `crates/sui-lsp`.

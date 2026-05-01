@@ -1,4 +1,4 @@
-// @ship-set/components — ported primitive registry.
+// @ship/ui-components — ported primitive registry.
 //
 // Each component lives under `src/<tag>/<tag>.html.set` (template +
 // `<component>` directive + scoped `<style>`) plus `<tag>.ts` (a

@@ -1,5 +1,5 @@
 // views/counter/view.js
-import { bindText, on, signal, view } from "@ship-set/runtime";
+import { bindText, on, signal, view } from "@ship/ui-runtime";
 
 // views/counter/view.ts
 var view_default = null;

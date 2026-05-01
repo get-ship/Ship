@@ -1,8 +1,8 @@
 // views/git/view.js
-import { bindAttr, bindFor, bindIf, bindText, bindValue, bindWhileError, bindWhileLoading, data, live, on, signal, view } from "@ship-set/runtime";
+import { bindAttr, bindFor, bindIf, bindText, bindValue, bindWhileError, bindWhileLoading, data, live, on, signal, view } from "@ship/ui-runtime";
 
 // views/git/view.ts
-import { controller, unwrapOr, useFilteredList } from "@ship-set/runtime";
+import { controller, unwrapOr, useFilteredList } from "@ship/ui-runtime";
 var EMPTY_OVERVIEW = {
   workspace_id: null,
   branch: "",

@@ -32,7 +32,7 @@ The stack exists to separate concerns that move at different speeds. A bug in th
 | Pipeline spec   | `crates/core/ship-jobs/`  | ship-workflow              |
 | SQL service     | (TBD — audit gap)         | ship-collections           |
 | Skill compile   | `runtime/agents/skill*`   | ship-skills                |
-| ship-set        | `packages/ui/`            | ship-studio                |
+| SUI             | `packages/ui/`            | ship-ui                    |
 | ship-sdk        | `packages/sdk/`           | (audit gap)                |
 | Primitives      | `packages/primitives/`    | (audit gap)                |
 | Schemas         | `schemas/`                | ship-schema-reference      |

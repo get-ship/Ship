@@ -21,9 +21,9 @@ path = "src/main.rs"
 runtime = { path = "../../crates/core/runtime" }
 lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
-# Ship-set compiler — used by the F-1 render endpoint to run the SSR
-# walker against compiled `.html.set` views for inspection.
-ship-set-compiler = { path = "../../crates/ship-set-compiler" }
+# SUI compiler — used by the render endpoint to run the SSR
+# walker against compiled `.sui` views for inspection.
+sui-compiler = { path = "../../crates/sui-compiler" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }
 build-info = { path = "../../crates/core/build-info" }
 chrono = { workspace = true }
