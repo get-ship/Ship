@@ -37,9 +37,6 @@ import './set-tab/set-tab'
 import './set-empty-state/set-empty-state'
 import './set-input/set-input'
 
-export { defineComponent } from './define'
-export type { DefineComponentOptions } from './define'
-
 /**
  * @deprecated Components are now AOT-compiled by `ship-set-compiler`
  * and register themselves as a side-effect of importing this module.

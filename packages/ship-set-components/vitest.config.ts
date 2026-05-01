@@ -6,6 +6,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@ship-set/runtime': resolve(__dirname, '../ship-set-runtime/src/index.ts'),
+      // @ship-set/dom is aliased for the test-only `*.compiled.js` shim below; it is not bundled into production.
       '@ship-set/dom': resolve(__dirname, '../ship-set-dom/src/index.ts'),
     },
   },
