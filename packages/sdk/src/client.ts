@@ -106,6 +106,7 @@ export class ShipClient {
   private streamUnsub: (() => void) | null = null
   private token: string | undefined
   private baseUrl: string
+  private timeout: number
 
   /** Active workspace branch id (surfaced to view authors). */
   public activeWorkspace: string | undefined
@@ -113,10 +114,11 @@ export class ShipClient {
   constructor(options?: ShipClientOptions) {
     this.baseUrl = options?.baseUrl ?? 'http://localhost:9315'
     this.token = options?.token
+    this.timeout = options?.timeout ?? 10000
     this.transport = options?.transport ?? new DirectTransport({
       baseUrl: this.baseUrl,
       token: this.token,
-      timeout: options?.timeout,
+      timeout: this.timeout,
     })
     this.capabilities = options?.capabilities ?? []
     this.staleTime = options?.staleTime ?? 5000
@@ -213,6 +215,10 @@ export class ShipClient {
   /** Register a callback for auth failures (401/403). Called at most once per failure. */
   setAuthFailureHandler(cb: (() => void) | null): void {
     this.onAuthFailure = cb
+  }
+
+  private headers(): Record<string, string> {
+    return this.token ? { Authorization: `Bearer ${this.token}` } : {}
   }
 
   async fetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {

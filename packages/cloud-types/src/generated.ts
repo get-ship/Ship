@@ -78,3 +78,5 @@ export const ARTIFACT_CREATED = "artifact.created" as const;
 export const ARTIFACT_UPDATED = "artifact.updated" as const;
 export const ARTIFACT_MOVED = "artifact.moved" as const;
 export const ARTIFACT_DELETED = "artifact.deleted" as const;
+export const STUDIO_CHAT_TURN = "studio.chat_turn" as const;
+export const STUDIO_REPLY = "studio.reply" as const;
