@@ -33,6 +33,10 @@ export interface Reference {
   exprRange: Range;
   // 'on' handlers permit arrow functions; other contexts don't.
   inEventHandler: boolean;
+  // When the bare identifier is the LHS of a property access — e.g.
+  // `list.filtered` — this captures the accessed member's name and
+  // source range. Drives `use:` namespace member validation (D-2).
+  member?: { name: string; range: Range };
 }
 
 export interface Scope {
@@ -207,12 +211,14 @@ function extractIdentifiers(
       if (!inScope) {
         const start = baseRange.start + node.getStart(sf) - 1;
         const end = baseRange.start + node.getEnd() - 1;
+        const member = memberAccessOf(node, baseRange.start);
         refs.push({
           name: node.text,
           range: { start, end },
           expr: text,
           exprRange: baseRange,
           inEventHandler: isEvent,
+          ...(member ? { member } : {}),
         });
       }
     }
@@ -230,6 +236,24 @@ function bindingNames(name: ts.BindingName): string[] {
     }
   }
   return out;
+}
+
+function memberAccessOf(
+  id: ts.Identifier, baseStart: number,
+): { name: string; range: Range } | null {
+  const p = id.parent;
+  if (!p || !ts.isPropertyAccessExpression(p)) return null;
+  if (p.expression !== id) return null;
+  const m = p.name;
+  if (!ts.isIdentifier(m)) return null;
+  const sf = id.getSourceFile();
+  return {
+    name: m.text,
+    range: {
+      start: baseStart + m.getStart(sf) - 1,
+      end: baseStart + m.getEnd() - 1,
+    },
+  };
 }
 
 function isPropertyAccessName(id: ts.Identifier): boolean {

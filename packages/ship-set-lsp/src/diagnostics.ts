@@ -173,13 +173,29 @@ function diagnoseReferences(
     if (!arr) { arr = []; declByName.set(d.name, arr); }
     arr.push(d);
   }
+  const namespaces = new Map<string, Set<string>>();
+  for (const ns of setup?.namespaces ?? []) {
+    namespaces.set(ns.alias, new Set(ns.members.map(m => m.name)));
+  }
   for (const ref of scope.references) {
-    if (resolves(ref, declByName, setupNames)) continue;
-    out.push({
-      range: ref.range,
-      message: `Unresolved identifier \`${ref.name}\``,
-      severity: 'error', source: 'ship-set-lsp', code: 'unbound',
-    });
+    if (!resolves(ref, declByName, setupNames)) {
+      out.push({
+        range: ref.range,
+        message: `Unresolved identifier \`${ref.name}\``,
+        severity: 'error', source: 'ship-set-lsp', code: 'unbound',
+      });
+      continue;
+    }
+    if (ref.member && namespaces.has(ref.name)) {
+      const members = namespaces.get(ref.name)!;
+      if (!members.has(ref.member.name)) {
+        out.push({
+          range: ref.member.range,
+          message: `\`${ref.name}\` has no contribution \`${ref.member.name}\``,
+          severity: 'error', source: 'ship-set-lsp', code: 'use.unknown-member',
+        });
+      }
+    }
   }
 }
 

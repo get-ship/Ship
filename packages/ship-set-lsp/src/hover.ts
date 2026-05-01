@@ -10,7 +10,7 @@
 
 import type { Node, Range } from './parse-types';
 import { buildScope, VIEW_GLOBALS } from './bindings';
-import type { SetupInfo, SetupMember } from './setup';
+import type { SetupInfo, SetupMember, UseNamespace, UseNamespaceMember } from './setup';
 
 export interface Hover {
   range: Range;
@@ -54,6 +54,17 @@ function identifierHover(
   const word = wordAt(source, offset);
   if (!word) return null;
   const scope = buildScope(nodes, source);
+  // Namespace member hover (D-2): cursor sits on `filtered` in
+  // `list.filtered`. Match the reference's `member` range, not the
+  // bare `name` range.
+  for (const r of scope.references) {
+    if (!r.member) continue;
+    if (offset < r.member.range.start || offset > r.member.range.end) continue;
+    if (r.member.name !== word.text) continue;
+    const ns = setup?.namespaces?.find(n => n.alias === r.name);
+    const m = ns?.members.find(mm => mm.name === r.member!.name);
+    if (ns && m) return { range: word.range, contents: formatNamespaceMember(ns, m) };
+  }
   for (const r of scope.references) {
     if (offset < r.range.start || offset > r.range.end) continue;
     if (r.name !== word.text) continue;
@@ -64,12 +75,39 @@ function identifierHover(
         contents: formatDecl(r.name, decl.source),
       };
     }
+    const handler = setup?.onHandlers?.find(h => h.name === r.name);
+    if (handler) {
+      return { range: word.range, contents: formatHandler(handler.name, handler.signature) };
+    }
+    const ns = setup?.namespaces?.find(n => n.alias === r.name);
+    if (ns) return { range: word.range, contents: formatNamespace(ns) };
     const member = setup?.members.find(m => m.name === r.name);
     if (member) return { range: word.range, contents: formatSetupMember(member) };
     if (VIEW_GLOBALS.has(r.name)) return { range: word.range, contents: `**${r.name}** — view global` };
     return { range: word.range, contents: `**${r.name}** — unresolved` };
   }
   return null;
+}
+
+function formatNamespaceMember(ns: UseNamespace, m: UseNamespaceMember): string {
+  const factory = ns.hookFactory ? ` (from \`${ns.hookFactory}\`)` : '';
+  return [
+    '```ts',
+    `${ns.alias}.${m.name}: ${m.signature}`,
+    '```',
+    '',
+    `*\`${m.kind}\` contribution${factory}*`,
+  ].join('\n');
+}
+
+function formatNamespace(ns: UseNamespace): string {
+  const list = ns.members.map(m => `- \`${m.name}\` — ${m.kind}`).join('\n');
+  const factory = ns.hookFactory ? ` (from \`${ns.hookFactory}\`)` : '';
+  return [`**${ns.alias}** — \`use:\` namespace${factory}`, '', list || '*(no contributions)*'].join('\n');
+}
+
+function formatHandler(name: string, sig: string): string {
+  return ['```ts', `${name}: ${sig}`, '```', '', '*from controller `on:` section*'].join('\n');
 }
 
 function formatSetupMember(m: SetupMember): string {
