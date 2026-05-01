@@ -18,7 +18,7 @@ import type { DataDecl } from '../parse'
 export function mountData(
   decl: DataDecl,
   ship: unknown,
-  route: Record<string, string>,
+  route: unknown,
   scope: Record<string, unknown>,
 ): unknown {
   if (decl.live) {

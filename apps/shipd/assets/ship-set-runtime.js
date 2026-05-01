@@ -1162,6 +1162,147 @@ function bindWhileError(opts) {
   };
 }
 
+// packages/ship-set-runtime/src/route.ts
+var SHAPES = [];
+var INSTANCES = /* @__PURE__ */ new Set();
+var popstateBound = false;
+var updaterInstalled = false;
+function defineRoutes(shapes) {
+  for (const s of shapes) SHAPES.push(compilePattern(s));
+  globalThis.__shipSetRouteUpdate?.();
+}
+function route(opts) {
+  if (opts?.routes) defineRoutes(opts.routes);
+  let currentUrl = opts?.url ?? readWindowUrl();
+  const pathname = signal(currentUrl.pathname);
+  const hash = signal(currentUrl.hash);
+  const paramSigs = /* @__PURE__ */ new Map();
+  const querySigs = /* @__PURE__ */ new Map();
+  const seedParam = (key) => matchPathname(currentUrl.pathname)[key];
+  const seedQuery = (key) => currentUrl.searchParams.get(key) ?? void 0;
+  const params = makeProxy(paramSigs, seedParam, "params");
+  const query = makeProxy(querySigs, seedQuery, "query");
+  const update = () => {
+    currentUrl = readWindowUrl();
+    pathname.set(currentUrl.pathname);
+    hash.set(currentUrl.hash);
+    const matched = matchPathname(currentUrl.pathname);
+    for (const [k, s] of paramSigs) s.set(matched[k]);
+    for (const [k, s] of querySigs) {
+      s.set(currentUrl.searchParams.get(k) ?? void 0);
+    }
+  };
+  const instance = { update };
+  INSTANCES.add(instance);
+  ensureGlobalUpdater();
+  ensurePopstateListener();
+  return { params, query, pathname, hash };
+}
+function navigate(path, opts = {}) {
+  if (typeof window === "undefined" || !window.history) return;
+  if (opts.replace) {
+    window.history.replaceState({}, "", path);
+  } else {
+    window.history.pushState({}, "", path);
+  }
+  globalThis.__shipSetRouteUpdate?.();
+}
+function readWindowUrl() {
+  if (typeof window !== "undefined" && window.location?.href) {
+    return new URL(window.location.href);
+  }
+  return new URL("http://localhost/");
+}
+function compilePattern(shape) {
+  const keys = [];
+  const segments = shape.pattern.split("/").map((seg) => {
+    if (seg.startsWith(":")) {
+      keys.push(seg.slice(1));
+      return "([^/]+)";
+    }
+    return escapeRegExp(seg);
+  });
+  return {
+    ...shape,
+    regex: new RegExp("^" + segments.join("/") + "/?$"),
+    keys
+  };
+}
+var escapeRegExp = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function matchPathname(pathname) {
+  for (const shape of SHAPES) {
+    const m = shape.regex.exec(pathname);
+    if (!m) continue;
+    const out = {};
+    shape.keys.forEach((k, i) => {
+      out[k] = m[i + 1];
+    });
+    return out;
+  }
+  return {};
+}
+function makeProxy(store, seed, label) {
+  const ensure = (key) => {
+    let s = store.get(key);
+    if (!s) {
+      s = signal(seed(key));
+      store.set(key, s);
+    }
+    return s;
+  };
+  const target = /* @__PURE__ */ Object.create(null);
+  return new Proxy(target, {
+    get(_t, key) {
+      if (typeof key !== "string") return void 0;
+      if (key === "toJSON") {
+        return () => {
+          const out = {};
+          for (const [k, s] of store) out[k] = s.__peek();
+          return out;
+        };
+      }
+      return ensure(key);
+    },
+    set(_t, key) {
+      throw new Error(
+        `[ship-set] route.${label}.${String(key)} is read-only \u2014 call navigate(path) to change the URL`
+      );
+    },
+    deleteProperty(_t, key) {
+      throw new Error(
+        `[ship-set] cannot delete route.${label}.${String(key)} \u2014 call navigate(path) to change the URL`
+      );
+    },
+    has(_t, key) {
+      return typeof key === "string" && store.has(key);
+    },
+    ownKeys() {
+      return [...store.keys()];
+    },
+    getOwnPropertyDescriptor(_t, key) {
+      if (typeof key !== "string") return void 0;
+      const s = store.get(key);
+      if (!s) return void 0;
+      return { configurable: true, enumerable: true, writable: false, value: s };
+    }
+  });
+}
+function ensureGlobalUpdater() {
+  if (updaterInstalled) return;
+  updaterInstalled = true;
+  globalThis.__shipSetRouteUpdate = () => {
+    for (const inst of INSTANCES) inst.update();
+  };
+}
+function ensurePopstateListener() {
+  if (popstateBound) return;
+  if (typeof window === "undefined" || !window.addEventListener) return;
+  popstateBound = true;
+  window.addEventListener("popstate", () => {
+    globalThis.__shipSetRouteUpdate?.();
+  });
+}
+
 // packages/ship-set-runtime/src/controller-hook-resolver.ts
 function resolveHook(hook, ctx, outerScope) {
   const hookState = resolveHookState(hook.state, { ship: ctx.ship, ...outerScope });
@@ -1623,6 +1764,7 @@ export {
   decodeNumber,
   decodeString,
   defineComponent,
+  defineRoutes,
   derived,
   effect,
   getTemplateHook,
@@ -1630,11 +1772,13 @@ export {
   live,
   matchesKey,
   morph,
+  navigate,
   on,
   prop,
   registerTemplateHook,
   resolveController,
   resolveSlots,
+  route,
   signal,
   slotFilled,
   snapshotChildren,

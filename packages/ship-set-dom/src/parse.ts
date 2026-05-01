@@ -29,7 +29,7 @@ export interface DataDecl {
    */
   source: (
     ship: unknown,
-    route: Record<string, string>,
+    route: unknown,
     $scope: Record<string, unknown>,
   ) => unknown
   live: boolean

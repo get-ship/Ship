@@ -11,14 +11,18 @@ import { extendScope, render, type Scope } from './template/render'
 import { mountData } from './directives/data'
 import { mountState } from './directives/state'
 import { registerComponent } from './directives/component'
-import { getTemplateHook } from '@ship-set/runtime'
+import {
+  getTemplateHook,
+  route as makeRoute,
+  type RouteSignals,
+} from '@ship-set/runtime'
 
 /** Options accepted by `hydrate`. */
 export interface HydrateOptions {
   /** Where to mount the rendered nodes. */
   container: HTMLElement
-  /** Route parameters captured by the surrounding navigator. */
-  route?: Record<string, string>
+  /** Reactive URL proxy. Defaults to a fresh `route()` from `window.location`. */
+  route?: RouteSignals
   /** Live SDK handle exposed to setup and `<data>` source expressions. */
   ship?: unknown
   /** Client-side navigator passed through to setup. */
@@ -78,7 +82,7 @@ export function hydrate(
     throw new Error('[ship-set-dom] hydrate: opts.container is required')
   }
   const parsed = parseSetSource(template)
-  const route = opts.route ?? {}
+  const route = opts.route ?? makeRoute()
   const ship = opts.ship
   const navigate = opts.navigate ?? (() => {})
 
@@ -131,7 +135,7 @@ export function hydrate(
     // ship/route/navigate are unaffected by the extra field.
     interface SetupCtx {
       ship: unknown
-      route: Record<string, string>
+      route: RouteSignals
       navigate: (path: string) => void
       scope: Record<string, unknown>
       stateKeys: ReadonlySet<string>

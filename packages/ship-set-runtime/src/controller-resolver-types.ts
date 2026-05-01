@@ -4,6 +4,7 @@
 // `controller-hook-resolver.ts` (which needs `ResolverContext`).
 
 import type { ShipSDK } from './ship'
+import type { RouteSignals } from './route'
 
 /**
  * Setup-time context passed to the resolver. Mirrors what `hydrate`
@@ -13,7 +14,13 @@ import type { ShipSDK } from './ship'
  */
 export interface ResolverContext {
   ship: ShipSDK
-  route?: Record<string, string>
+  /**
+   * Reactive URL proxy. Accepts `RouteSignals` (the new shape) or the
+   * legacy `Record<string,string>` shape; the latter is retained as a
+   * migration shim for callers that haven't moved over yet and emits a
+   * `console.warn` from the attach runtime when used.
+   */
+  route?: RouteSignals | Record<string, string>
   navigate?: (path: string) => void
   /**
    * Template-declared signals (and any other ambient bindings) that

@@ -18,6 +18,7 @@
 // Existing `hydrate` / parse-and-build path stays in place;
 // `attach` is a sibling capability targeting SSR'd DOM.
 
+import { route as makeRoute, type RouteSignals } from '@ship-set/runtime'
 import { readInitIsland } from './attach/island'
 import { indexBindings, walkMarkers } from './attach/manifest'
 import { wireMarker, type WireContext } from './attach/wire'
@@ -52,7 +53,13 @@ export interface Binding {
 /** Setup-context shape mirrored on `ResolverContext` from the runtime. */
 export interface SetupContext {
   ship?: unknown
-  route?: { params: Record<string, string>; query: Record<string, string> }
+  /**
+   * Reactive URL proxy. Always normalised to `RouteSignals` by
+   * `attach()`; if the caller passed the legacy `{params,query}`
+   * record shape, it is upgraded to a fresh `RouteSignals` whose
+   * params/query signals are seeded from those entries.
+   */
+  route?: RouteSignals
   navigate?: (path: string) => void
   /** Template-declared signals already in scope. */
   scope?: Record<string, unknown>
@@ -74,7 +81,19 @@ export interface SetCompiledModule {
 export interface AttachOptions {
   module: SetCompiledModule
   ship?: unknown
-  route?: { params: Record<string, string>; query: Record<string, string> }
+  /**
+   * Reactive URL proxy. Pass a `RouteSignals` (constructed via
+   * `route()` from `@ship-set/runtime`) when the caller wants the view
+   * to be route-reactive — typically the production boot script does
+   * this. The legacy `{params,query}` record shape is still accepted
+   * for backward compatibility with existing call sites and is
+   * upgraded internally; a one-time `console.warn` flags the migration.
+   * When omitted, `attach()` constructs a fresh `route()` from
+   * `window.location`.
+   */
+  route?:
+    | RouteSignals
+    | { params: Record<string, string>; query: Record<string, string> }
   navigate?: (path: string) => void
   /** Name of the view (the path segment under `views/`). Required for
    *  Phase E-2 control-flow swap; optional if the page has no boundaries
@@ -119,9 +138,11 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
   }
   const init = readInitIsland(root)
 
+  const routeSignals = normalizeRoute(opts.route)
+
   const baseScope: Record<string, unknown> = {
     ship: opts.ship,
-    route: opts.route ?? { params: {}, query: {} },
+    route: routeSignals,
     navigate: opts.navigate ?? ((_p: string) => {}),
   }
   // Merge state/data signals into the same scope the setup will read.
@@ -129,7 +150,7 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
 
   const setupCtx: SetupContext = {
     ship: opts.ship,
-    route: opts.route ?? { params: {}, query: {} },
+    route: routeSignals,
     navigate: opts.navigate ?? ((_p: string) => {}),
     scope: { ...scope },
     stateKeys: init.stateKeys,
@@ -144,7 +165,7 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
     byKey: indexBindings(mod.bindings),
     scope,
     initKeys: new Set([...init.stateKeys, ...init.liveKeys]),
-    viewName: opts.viewName,
+    ...(opts.viewName !== undefined ? { viewName: opts.viewName } : {}),
   }
 
   const cleanups: Array<() => void> = []
@@ -185,6 +206,47 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
       }
     }
   }
+}
+
+let warnedLegacyRoute = false
+
+/**
+ * Normalise an `AttachOptions['route']` to a `RouteSignals`.
+ *
+ *  - `undefined` → fresh `route()` from `window.location`.
+ *  - already-`RouteSignals` (detected by callable `pathname`) → pass through.
+ *  - legacy `{ params, query }` record → emit a one-time deprecation
+ *    warning and construct a `RouteSignals` whose params/query signals
+ *    are seeded from the record entries. Future `navigate()` /
+ *    popstate updates are still tracked because the constructed
+ *    instance registers with the global updater like any other.
+ */
+function normalizeRoute(
+  input: AttachOptions['route'],
+): RouteSignals {
+  if (input === undefined) return makeRoute()
+  if (isRouteSignals(input)) return input
+  if (!warnedLegacyRoute) {
+    warnedLegacyRoute = true
+    console.warn(
+      '[ship-set/attach] AttachOptions.route received the legacy { params, query } record shape; ' +
+        'pass a RouteSignals (from runtime `route()`) instead. The record will be upgraded for now.',
+    )
+  }
+  const r = makeRoute()
+  for (const [k, v] of Object.entries(input.params ?? {})) {
+    if (typeof v === 'string') r.params[k]!.set(v)
+  }
+  for (const [k, v] of Object.entries(input.query ?? {})) {
+    if (typeof v === 'string') r.query[k]!.set(v)
+  }
+  return r
+}
+
+function isRouteSignals(v: unknown): v is RouteSignals {
+  if (!v || typeof v !== 'object') return false
+  const o = v as { pathname?: unknown }
+  return typeof o.pathname === 'function'
 }
 
 function extractLifecycle(ret: unknown): Lifecycle | undefined {
