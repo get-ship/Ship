@@ -55,7 +55,7 @@ pub fn emit_module(
     emit_expr_bank(&mut w, &bank);
 
     match mode {
-        CompileMode::Component => emit_component_export(&mut w, program, body),
+        CompileMode::Component => emit_component_export(&mut w, program, body, opts),
         _ => emit_view_export(&mut w, body),
     }
     // The `bindings` manifest is read by the view runtime's
@@ -137,16 +137,16 @@ fn emit_view_export(w: &mut Writer, body: Writer) {
     w.line("});");
 }
 
-fn emit_component_export(w: &mut Writer, program: &Program, body: Writer) {
-    let comp = program.component.as_ref().expect("component mode requires <component>");
-    w.line(&format!("export default component({}, {{", js_string(&comp.tag)));
+fn emit_component_export(w: &mut Writer, program: &Program, body: Writer, opts: &CompileOpts) {
+    let meta = opts.component_meta.as_ref().expect("component_meta required for component mode");
+    w.line(&format!("export default component({}, {{", js_string(&meta.name)));
     w.enter();
-    emit_props_object(w, comp);
-    if comp.shadow {
+    emit_props_object(w, &program.props);
+    if meta.shadow {
         w.line("shadow: true,");
     }
-    if !comp.styles.is_empty() {
-        w.line(&format!("styles: {},", js_string(&comp.styles)));
+    if !program.styles.is_empty() {
+        w.line(&format!("styles: {},", js_string(&program.styles)));
     }
     w.line("setup(ctx) {");
     w.push_str(&body.into_string());
@@ -155,10 +155,13 @@ fn emit_component_export(w: &mut Writer, program: &Program, body: Writer) {
     w.line("});");
 }
 
-fn emit_props_object(w: &mut Writer, comp: &ComponentDecl) {
+fn emit_props_object(w: &mut Writer, props: &[PropDecl]) {
+    if props.is_empty() {
+        return;
+    }
     w.line("props: {");
     w.enter();
-    for p in &comp.props {
+    for p in props {
         w.line(&format!("{}: {},", js_string(&p.name), prop_call(p)));
     }
     w.leave();
@@ -259,13 +262,11 @@ fn emit_setup_body(
 }
 
 fn emit_component_scope_seed(w: &mut Writer, program: &Program) {
-    if let Some(comp) = &program.component {
-        for p in &comp.props {
-            w.line(&format!(
-                "$scope.{ident} = props.{ident};",
-                ident = js_ident(&camel_of(&p.name))
-            ));
-        }
+    for p in &program.props {
+        w.line(&format!(
+            "$scope.{ident} = props.{ident};",
+            ident = js_ident(&camel_of(&p.name))
+        ));
     }
 }
 

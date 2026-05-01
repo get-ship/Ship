@@ -1,4 +1,3 @@
-<component name="set-badge" shadow>
   <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
   <prop name="variant" values="solid|soft|outline" default="soft" reflect />
   <prop name="size" values="sm|md" default="md" reflect />
@@ -40,7 +39,6 @@
     :host([variant='soft'])  .root { background: color-mix(in oklch, var(--tone) 14%, transparent); color: var(--tone-fg); border-color: color-mix(in oklch, var(--tone) 22%, transparent); }
     :host([variant='outline']) .root { background: transparent; color: var(--tone-fg); border-color: color-mix(in oklch, var(--tone) 50%, transparent); }
   </style>
-</component>
 
 <span class="root" part="root">
   <slot></slot>

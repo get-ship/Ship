@@ -1,4 +1,3 @@
-<component name="set-link" shadow>
   <prop name="href" type="string" default="" reflect />
   <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
   <prop name="variant" values="default|underline|subtle" default="default" reflect />
@@ -27,7 +26,6 @@
     :host([variant='subtle']) a:hover { color: color-mix(in oklch, var(--tone-fg) 80%, var(--foreground)); }
     a:focus-visible { outline: 2px solid var(--ring-color, currentColor); outline-offset: 2px; }
   </style>
-</component>
 
 <a part="link"
    href={href()}

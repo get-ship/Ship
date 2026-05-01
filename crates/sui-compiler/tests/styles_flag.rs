@@ -11,7 +11,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
 
-use sui_compiler::{compile, CompileMode, CompileOpts};
+use sui_compiler::{compile, CompileMode, ComponentMeta, CompileOpts};
 
 fn fixtures_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
@@ -38,6 +38,7 @@ fn styles_opt_emits_styles_field_in_component_export() {
             mode: CompileMode::Component,
             source_path: Some(path),
             styles: Some(css.clone()),
+            component_meta: Some(ComponentMeta { name: "ship-styled-test".into(), shadow: true }),
         },
     )
     .expect("compile with styles");
@@ -68,6 +69,7 @@ fn styles_opt_rejects_non_component_source() {
             mode: CompileMode::Auto,
             source_path: None,
             styles: Some(":host { color: red }".into()),
+            component_meta: None,
         },
     )
     .expect_err("must reject styles on non-component source");
@@ -83,12 +85,10 @@ fn styles_opt_merges_with_existing_inline_style_block() {
     // Authors are free to keep an inline `<style>` block too — the
     // sibling .css just appends. Both should end up concatenated in
     // source order.
-    let src = r#"<component name="ship-mixed-test">
-  <prop name="x" type="string" default="" />
-  <style>
-    .inline { color: red; }
-  </style>
-</component>
+    let src = r#"<prop name="x" type="string" default="" />
+<style>
+  .inline { color: red; }
+</style>
 <span class="inline">hi</span>"#;
     let out = compile(
         src,
@@ -97,6 +97,7 @@ fn styles_opt_merges_with_existing_inline_style_block() {
             mode: CompileMode::Component,
             source_path: None,
             styles: Some(".external { color: blue; }".into()),
+            component_meta: Some(ComponentMeta { name: "ship-mixed-test".into(), shadow: false }),
         },
     )
     .expect("compile mixed inline + external styles");
@@ -120,6 +121,7 @@ fn cli_styles_flag_threads_css_into_emitted_module() {
         .arg(&input)
         .args(["--out"])
         .arg(&out)
+        .args(["--component-name", "ship-styled-test", "--component-shadow"])
         .args(["--styles"])
         .arg(&css)
         .status()

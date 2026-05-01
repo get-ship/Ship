@@ -1,4 +1,3 @@
-<component name="set-card" shadow>
   <prop name="padding" values="none|sm|md|lg" default="md" reflect />
   <prop name="variant" values="surface|outline|ghost" default="surface" reflect />
   <prop name="interactive" type="bool" default="false" reflect />
@@ -40,7 +39,6 @@
     ::slotted([slot='header']) { display: block; }
     ::slotted([slot='footer']) { display: block; margin-top: 12px; }
   </style>
-</component>
 
 <div class="root" part="root">
   <slot name="header"></slot>

@@ -9,12 +9,14 @@
 //! # Public API
 //!
 //! ```ignore
-//! use sui_compiler::{compile, CompileOpts, CompileMode};
+//! use sui_compiler::{compile, CompileOpts, CompileMode, ComponentMeta};
 //!
 //! let out = compile(source, CompileOpts {
 //!     setup_url: Some("./view.ts".into()),
 //!     mode: CompileMode::View,
 //!     source_path: None,
+//!     component_meta: None,
+//!     styles: None,
 //! })?;
 //! println!("{}", out.js);
 //! ```
@@ -38,15 +40,22 @@ pub mod render;
 
 pub use diagnostics::{CompileError, Span};
 
-/// Compile mode. View files have no `<component>` declaration; component
-/// files declare exactly one and emit `customElements.define`.
+/// Compile mode.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CompileMode {
-    /// Auto-detect by inspecting the parsed program. The compiler picks
-    /// `Component` when a `<component>` declaration is present.
+    /// Auto-detect: picks `Component` when `component_meta` is set, otherwise `View`.
     Auto,
     View,
     Component,
+}
+
+/// Tag name and shadow-root flag for a component file. Passed in from the
+/// build system (read from the per-component `.sui.json` metadata file) so
+/// the template source no longer needs a `<component>` wrapper element.
+#[derive(Debug, Clone)]
+pub struct ComponentMeta {
+    pub name: String,
+    pub shadow: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -57,11 +66,13 @@ pub struct CompileOpts {
     pub mode: CompileMode,
     /// For diagnostics. Optional.
     pub source_path: Option<PathBuf>,
-    /// External CSS to splice into the source's `<component>` block as
-    /// a `<style>` child before parsing. Mirrors the runtime
-    /// `defineComponent(template, { styles })` helper. Only valid when
-    /// the source declares a `<component>`; otherwise `compile()` errors.
+    /// External CSS to prepend as a `<style>` block before parsing. Only
+    /// valid for component sources (`component_meta` must be set or `mode`
+    /// must be `Component`); otherwise `compile()` errors.
     pub styles: Option<String>,
+    /// Component metadata (tag name + shadow flag). When set, `compile()`
+    /// treats the source as a component file regardless of `mode`.
+    pub component_meta: Option<ComponentMeta>,
 }
 
 impl Default for CompileOpts {
@@ -71,6 +82,7 @@ impl Default for CompileOpts {
             mode: CompileMode::Auto,
             source_path: None,
             styles: None,
+            component_meta: None,
         }
     }
 }
@@ -87,25 +99,22 @@ pub struct CompileOutput {
 pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, CompileError> {
     let merged_owned;
     let effective_source: &str = if let Some(css) = opts.styles.as_deref() {
-        if !source.contains("</component>") {
+        let is_component =
+            opts.component_meta.is_some() || opts.mode == CompileMode::Component;
+        if !is_component {
             return Err(CompileError::new(
-                "--styles is only valid for component sources \
-                 (no </component> closing tag found)",
+                "--styles is only valid for component sources",
             ));
         }
-        let injected = format!("<style>{css}</style></component>");
-        merged_owned = source.replacen("</component>", &injected, 1);
+        merged_owned = format!("<style>{css}</style>\n{source}");
         &merged_owned
     } else {
         source
     };
-    let program = parse::parse(effective_source).map_err(|e| attach_path(e, &opts))?;
-    check::run(&program).map_err(|e| attach_path(e, &opts))?;
-    let bindings = bindings::build(&program);
-    let lowered = lower::lower(&program);
+
     let mode = match opts.mode {
         CompileMode::Auto => {
-            if program.component.is_some() {
+            if opts.component_meta.is_some() {
                 CompileMode::Component
             } else {
                 CompileMode::View
@@ -113,23 +122,19 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
         }
         m => m,
     };
-    if mode == CompileMode::Component && program.component.is_none() {
-        return Err(CompileError::new(
-            "component mode requested but no <component> declaration found",
-        ));
-    }
-    if mode == CompileMode::View && program.component.is_some() {
-        return Err(CompileError::new(
-            "view mode requested but a <component> declaration is present",
-        ));
-    }
+
+    let program = parse::parse(effective_source).map_err(|e| attach_path(e, &opts))?;
+    check::run(&program).map_err(|e| attach_path(e, &opts))?;
+    let bindings = bindings::build(&program);
+    let lowered = lower::lower(&program, mode);
 
     let js = emit::js::emit_module(&program, &lowered, &bindings, &opts, mode);
-    let cem = match (mode, &program.component) {
-        (CompileMode::Component, Some(comp)) => Some(emit::cem::emit_cem(comp, &opts)),
-        _ => None,
+    let cem = if mode == CompileMode::Component {
+        Some(emit::cem::emit_cem(&program, &opts))
+    } else {
+        None
     };
-    let schema = Some(emit::schema::emit_schema(&program));
+    let schema = Some(emit::schema::emit_schema(&program, &opts));
     Ok(CompileOutput { js, css: None, cem, schema })
 }
 

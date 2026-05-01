@@ -1,4 +1,3 @@
-<component name="set-divider" shadow>
   <prop name="orientation" values="horizontal|vertical" default="horizontal" reflect />
   <prop name="tone" values="default|muted|primary|destructive" default="default" reflect />
 
@@ -20,6 +19,5 @@
     }
     :host([orientation='vertical']) .line { width: 1px; height: 1em; margin: 0 var(--space-2); display: inline-block; }
   </style>
-</component>
 
 <hr class="line" part="line" role="separator" aria-orientation={orientation()}>

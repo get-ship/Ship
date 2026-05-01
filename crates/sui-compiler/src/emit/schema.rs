@@ -1,12 +1,13 @@
 //! Emit a JSON-serializable description of a file's directive
-//! declarations: `<data>`, `<state>`, `<component>`/`<prop>`. Used by
-//! tooling (HMR, error overlay, devserver) that needs a quick
-//! semantic summary without the JS bundle.
+//! declarations: `<data>`, `<state>`, `<prop>`. Used by tooling
+//! (HMR, error overlay, devserver) that needs a quick semantic
+//! summary without the JS bundle.
 
 use crate::ir::*;
+use crate::CompileOpts;
 use serde_json::{json, Value};
 
-pub fn emit_schema(program: &Program) -> Value {
+pub fn emit_schema(program: &Program, opts: &CompileOpts) -> Value {
     let data: Vec<Value> = program
         .data
         .iter()
@@ -17,14 +18,14 @@ pub fn emit_schema(program: &Program) -> Value {
         .iter()
         .map(|s| json!({ "name": s.name, "value": s.value.source }))
         .collect();
-    let component = program.component.as_ref().map(component_value);
+    let component = opts.component_meta.as_ref().map(|m| component_value(&m.name, &program.props));
 
     json!({ "data": data, "state": state, "component": component })
 }
 
-fn component_value(c: &ComponentDecl) -> Value {
-    let props: Vec<Value> = c.props.iter().map(prop_value).collect();
-    json!({ "tag": c.tag, "props": props })
+fn component_value(tag: &str, props: &[PropDecl]) -> Value {
+    let props: Vec<Value> = props.iter().map(prop_value).collect();
+    json!({ "tag": tag, "props": props })
 }
 
 fn prop_value(p: &PropDecl) -> Value {

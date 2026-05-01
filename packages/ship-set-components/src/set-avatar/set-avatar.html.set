@@ -1,4 +1,3 @@
-<component name="set-avatar" shadow>
   <prop name="size" values="xs|sm|md|lg|xl" default="md" reflect />
   <prop name="shape" values="round|square" default="round" reflect />
   <prop name="src" type="string" default="" />
@@ -44,7 +43,6 @@
       display: block;
     }
   </style>
-</component>
 
 <span class="root" part="root" aria-label={alt() || name()}>
   {#if src() !== ''}

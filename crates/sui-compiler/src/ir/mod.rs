@@ -12,14 +12,15 @@ pub use template::*;
 
 use crate::diagnostics::Span;
 
-/// The full IR for a single `.sui` source file. Mirrors the
-/// shape produced by `packages/ui-dom/src/parse.ts` so the
-/// compiler accepts every shape the interpreter accepts.
+/// The full IR for a single `.sui` source file.
 #[derive(Debug, Clone)]
 pub struct Program {
     pub data: Vec<DataDecl>,
     pub state: Vec<StateDecl>,
-    pub component: Option<ComponentDecl>,
+    /// Props declared by top-level `<prop>` directives (component files only).
+    pub props: Vec<PropDecl>,
+    /// CSS lifted from top-level `<style>` elements (component files only).
+    pub styles: String,
     pub template: Vec<Instr>,
     /// Total source length — useful for serialization tools.
     pub source_len: usize,

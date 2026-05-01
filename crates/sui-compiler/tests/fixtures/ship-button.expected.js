@@ -27,55 +27,61 @@ export default component("ship-button-test", {
   $scope.loading = props.loading;
   $scope.label = props.label;
   const __root = host.shadowRoot ?? host;
-  const __t0 = document.createTextNode("\n\n");
+  const __t0 = document.createTextNode("\n");
   __root.appendChild(__t0);
-  const __e1 = document.createElement("button");
-  __e1.setAttribute("part", "button");
-  __e1.setAttribute("data-test", "root");
-  __cleanups.push(bindAttr(__e1, "disabled", () => __E[0]($scope)));
-  __cleanups.push(bindAttr(__e1, "aria-busy", () => __E[1]($scope)));
-  __cleanups.push(bindAttr(__e1, "aria-label", () => __E[2]($scope)));
-  __root.appendChild(__e1);
-  const __t2 = document.createTextNode("\n  ");
+  const __t1 = document.createTextNode("\n");
+  __root.appendChild(__t1);
+  const __t2 = document.createTextNode("\n");
   __root.appendChild(__t2);
-  const __e3 = document.createElement("span");
-  __e3.setAttribute("class", "content");
-  __e3.setAttribute("data-test", "label");
-  const __t4 = document.createTextNode("");
-  __e3.appendChild(__t4);
-  __cleanups.push(bindText(__t4, () => __E[2]($scope)));
-  __root.appendChild(__e3);
+  const __t3 = document.createTextNode("\n\n");
+  __root.appendChild(__t3);
+  const __e4 = document.createElement("button");
+  __e4.setAttribute("part", "button");
+  __e4.setAttribute("data-test", "root");
+  __cleanups.push(bindAttr(__e4, "disabled", () => __E[0]($scope)));
+  __cleanups.push(bindAttr(__e4, "aria-busy", () => __E[1]($scope)));
+  __cleanups.push(bindAttr(__e4, "aria-label", () => __E[2]($scope)));
+  __root.appendChild(__e4);
   const __t5 = document.createTextNode("\n  ");
   __root.appendChild(__t5);
-  const __ifAnchor6 = document.createComment("if");
-  __root.appendChild(__ifAnchor6);
+  const __e6 = document.createElement("span");
+  __e6.setAttribute("class", "content");
+  __e6.setAttribute("data-test", "label");
+  const __t7 = document.createTextNode("");
+  __e6.appendChild(__t7);
+  __cleanups.push(bindText(__t7, () => __E[2]($scope)));
+  __root.appendChild(__e6);
+  const __t8 = document.createTextNode("\n  ");
+  __root.appendChild(__t8);
+  const __ifAnchor9 = document.createComment("if");
+  __root.appendChild(__ifAnchor9);
   __cleanups.push(bindIf({
-    anchor: __ifAnchor6,
+    anchor: __ifAnchor9,
     test: () => {
       if (__E[3]($scope)) return 0;
       return -1;
     },
     branches: [
       () => {
-        const __frag7 = document.createDocumentFragment();
-        const __c8 = [];
-        const __t9 = document.createTextNode("\n    ");
-        __frag7.appendChild(__t9);
-        const __e10 = document.createElement("span");
-        __e10.setAttribute("class", "spinner");
-        __e10.setAttribute("data-test", "spinner");
-        __e10.setAttribute("aria-hidden", "true");
-        __frag7.appendChild(__e10);
-        const __t11 = document.createTextNode("\n  ");
-        __frag7.appendChild(__t11);
-        return { nodes: Array.from(__frag7.childNodes), cleanup: () => { for (const c of __c8) try { c(); } catch (e) {} } };
+        const __frag10 = document.createDocumentFragment();
+        const __c11 = [];
+        const __t12 = document.createTextNode("\n    ");
+        __frag10.appendChild(__t12);
+        const __e13 = document.createElement("span");
+        __e13.setAttribute("class", "spinner");
+        __e13.setAttribute("data-test", "spinner");
+        __e13.setAttribute("aria-hidden", "true");
+        __frag10.appendChild(__e13);
+        const __t14 = document.createTextNode("\n  ");
+        __frag10.appendChild(__t14);
+        return { nodes: Array.from(__frag10.childNodes), cleanup: () => { for (const c of __c11) try { c(); } catch (e) {} } };
       },
     ],
   }));
-  const __t12 = document.createTextNode("\n");
-  __root.appendChild(__t12);
-  const __t13 = document.createTextNode("\n");
-  __root.appendChild(__t13);
+  const __t15 = document.createTextNode("\n");
+  __root.appendChild(__t15);
+  const __t16 = document.createTextNode("\n");
+  __root.appendChild(__t16);
   return $scope;
   },
 });

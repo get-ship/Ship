@@ -4,8 +4,8 @@
 //!  1. Preprocess — same two transforms the interpreter does
 //!     (quote unquoted brace attrs, expand non-void self-closers).
 //!  2. HTML parse — produces a span-bearing DOM-ish tree.
-//!  3. Directive lift — pluck `<data>`, `<state>`, `<component>` out
-//!     of the top-level child list into the IR.
+//!  3. Directive lift — pluck `<data>`, `<state>`, `<prop>`, and
+//!     top-level `<style>` out of the top-level child list into the IR.
 //!  4. Template grammar scan — text-node `{...}` markers become
 //!     template instructions; element children recurse.
 //!  5. Expression validate — every brace expression goes through the
@@ -28,7 +28,8 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
 
     let mut data: Vec<DataDecl> = Vec::new();
     let mut state: Vec<StateDecl> = Vec::new();
-    let mut component: Option<ComponentDecl> = None;
+    let mut props: Vec<PropDecl> = Vec::new();
+    let mut style_parts: Vec<String> = Vec::new();
     let mut template_nodes: Vec<Node> = Vec::with_capacity(nodes.len());
 
     for node in nodes {
@@ -42,14 +43,16 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
                     state.push(parse_state(el)?);
                     continue;
                 }
-                "component" => {
-                    if component.is_some() {
-                        return Err(CompileError::new(
-                            "only one <component> declaration allowed per file",
-                        )
-                        .with_span(el.span));
+                "prop" => {
+                    props.push(parse_prop(el)?);
+                    continue;
+                }
+                "style" => {
+                    for child in &el.children {
+                        if let Node::Text(t) = child {
+                            style_parts.push(t.data.clone());
+                        }
                     }
-                    component = Some(parse_component(el)?);
                     continue;
                 }
                 _ => {}
@@ -58,12 +61,14 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
         template_nodes.push(node);
     }
 
+    let styles = style_parts.join("\n");
     let template = template::compile_children(&template_nodes)?;
 
     Ok(Program {
         data,
         state,
-        component,
+        props,
+        styles,
         template,
         source_len: source.len(),
         span: Span::new(0, source.len()),
@@ -100,37 +105,11 @@ fn parse_state(el: &html::Element) -> Result<StateDecl, CompileError> {
     })
 }
 
-fn parse_component(el: &html::Element) -> Result<ComponentDecl, CompileError> {
-    let tag = required_attr(el, "name", "<component>")?;
-    let shadow = el.has_attribute("shadow");
-    let mut props = Vec::new();
-    let mut style_parts: Vec<String> = Vec::new();
-    for child in &el.children {
-        if let Node::Element(child_el) = child {
-            match child_el.tag.as_str() {
-                "prop" => props.push(parse_prop(child_el)?),
-                "style" => {
-                    // `<style>` is a raw-text tag; the parser collapses
-                    // its body into a single Text node.
-                    for sub in &child_el.children {
-                        if let Node::Text(t) = sub {
-                            style_parts.push(t.data.clone());
-                        }
-                    }
-                }
-                _ => {}
-            }
-        }
-    }
-    let styles = style_parts.join("\n");
-    Ok(ComponentDecl { tag, props, shadow, styles, span: el.span })
-}
-
 fn parse_prop(el: &html::Element) -> Result<PropDecl, CompileError> {
     let name = required_attr(el, "name", "<prop>")?;
     let values_attr = el.get_attribute("values");
     let type_attr = el.get_attribute("type");
-    let default = el.get_attribute("default").map(String::from);
+    let default = el.get_attribute("default");
     let reflect = el.has_attribute("reflect");
     let bindable = el.has_attribute("bindable");
 
