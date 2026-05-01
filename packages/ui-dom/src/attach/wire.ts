@@ -23,6 +23,7 @@ import { wireAttr } from './bindings/attr'
 import { wireClass } from './bindings/class'
 import { wireStyle } from './bindings/style'
 import { wireAttrDynamic } from './bindings/attr-dynamic'
+import { wireFormMutation } from './bindings/form-mutation'
 import { wireBoundary } from './boundaries'
 import { indexBindings, walkMarkers, type MarkerHit } from './manifest'
 
@@ -75,6 +76,9 @@ export function wireMarker(
   }
   if (kind.startsWith('style:')) {
     return wireStyle(el as HTMLElement, kind.slice(6), ctx.scope, binding.expr)
+  }
+  if (kind === 'mutation') {
+    return wireFormMutation(el, binding.expr, ctx.scope)
   }
   console.warn('[ship-set/attach] unknown binding kind:', kind)
   return undefined
