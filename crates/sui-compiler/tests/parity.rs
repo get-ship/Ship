@@ -39,6 +39,7 @@ fn compile_fixture(name: &str, mode: CompileMode, setup: Option<&str>) -> String
             source_path: Some(path),
             styles: None,
             component_meta,
+            emit_dts: false,
         },
     )
     .expect("compile");

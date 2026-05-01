@@ -34,6 +34,9 @@ enum Command {
         /// sibling file exists.
         #[arg(long)]
         no_setup: bool,
+        /// Suppress emitting the `.sui.d.ts` declaration file.
+        #[arg(long)]
+        no_dts: bool,
         /// Path to a CSS file whose contents are prepended as a `<style>`
         /// block. Only valid for component sources (requires --component-name).
         /// Requires `input` to be a single file (not a directory).
@@ -69,8 +72,8 @@ impl From<ModeArg> for CompileMode {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
-        Command::Build { input, out, mode, no_setup, styles, component_name, component_shadow } => {
-            build(input, out, mode, no_setup, styles, component_name, component_shadow)
+        Command::Build { input, out, mode, no_setup, no_dts, styles, component_name, component_shadow } => {
+            build(input, out, mode, no_setup, no_dts, styles, component_name, component_shadow)
         }
     }
 }
@@ -80,6 +83,7 @@ fn build(
     out: PathBuf,
     mode: Option<ModeArg>,
     no_setup: bool,
+    no_dts: bool,
     styles: Option<PathBuf>,
     component_name: Option<String>,
     component_shadow: bool,
@@ -118,7 +122,7 @@ fn build(
     });
     let count = targets.len();
     for path in targets {
-        compile_one(&path, &out, mode.clone(), no_setup, styles_text.as_deref(), component_meta.clone())?;
+        compile_one(&path, &out, mode.clone(), no_setup, no_dts, styles_text.as_deref(), component_meta.clone())?;
     }
     println!("compiled {count} file(s)");
     Ok(())
@@ -150,6 +154,7 @@ fn compile_one(
     out_dir: &Path,
     mode: Option<ModeArg>,
     no_setup: bool,
+    no_dts: bool,
     styles: Option<&str>,
     component_meta: Option<ComponentMeta>,
 ) -> Result<()> {
@@ -167,6 +172,7 @@ fn compile_one(
         source_path: Some(path.to_path_buf()),
         styles: styles.map(|s| s.to_string()),
         component_meta,
+        emit_dts: !no_dts,
     };
     let result = compile(&source, opts).map_err(|e| {
         let rendered = e.render(&source);
@@ -195,6 +201,14 @@ fn compile_one(
         let pretty = serde_json::to_string_pretty(&schema)?;
         fs::write(&schema_path, pretty)
             .with_context(|| format!("write {}", schema_path.display()))?;
+    }
+    // Write the .d.ts next to the source file so `import type { Scope } from
+    // './view.sui'` resolves correctly regardless of --out placement.
+    if let Some(dts) = result.dts {
+        let src_dir = path.parent().unwrap_or(Path::new("."));
+        let dts_path = src_dir.join(format!("{stem}.d.ts"));
+        fs::write(&dts_path, dts)
+            .with_context(|| format!("write {}", dts_path.display()))?;
     }
     Ok(())
 }

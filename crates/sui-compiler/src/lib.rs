@@ -17,8 +17,10 @@
 //!     source_path: None,
 //!     component_meta: None,
 //!     styles: None,
+//!     emit_dts: true,
 //! })?;
 //! println!("{}", out.js);
+//! println!("{:?}", out.dts);
 //! ```
 //!
 //! See `crates/sui-compiler/src/parse/` for the parse pipeline,
@@ -73,6 +75,9 @@ pub struct CompileOpts {
     /// Component metadata (tag name + shadow flag). When set, `compile()`
     /// treats the source as a component file regardless of `mode`.
     pub component_meta: Option<ComponentMeta>,
+    /// Emit a `.sui.d.ts` declaration file alongside the JS module.
+    /// Defaults to `true`. Pass `false` (via `--no-dts`) to suppress.
+    pub emit_dts: bool,
 }
 
 impl Default for CompileOpts {
@@ -83,6 +88,7 @@ impl Default for CompileOpts {
             source_path: None,
             styles: None,
             component_meta: None,
+            emit_dts: true,
         }
     }
 }
@@ -93,6 +99,8 @@ pub struct CompileOutput {
     pub css: Option<String>,
     pub cem: Option<serde_json::Value>,
     pub schema: Option<serde_json::Value>,
+    /// Emitted `.sui.d.ts` text, present when `CompileOpts::emit_dts` is true.
+    pub dts: Option<String>,
 }
 
 /// Compile a `.sui` source string.
@@ -135,7 +143,12 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
         None
     };
     let schema = Some(emit::schema::emit_schema(&program, &opts));
-    Ok(CompileOutput { js, css: None, cem, schema })
+    let dts = if opts.emit_dts {
+        Some(emit::dts::emit_dts(&program))
+    } else {
+        None
+    };
+    Ok(CompileOutput { js, css: None, cem, schema, dts })
 }
 
 fn attach_path(err: CompileError, opts: &CompileOpts) -> CompileError {

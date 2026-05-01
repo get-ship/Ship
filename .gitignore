@@ -145,6 +145,8 @@ apps/shell/public/vendor/
 tests/loops/results/
 views/*/view.js
 views/*/view.schema.json
+# sui-compiler emits <file>.sui.d.ts alongside each .sui; regenerated artifact.
+**/*.sui.d.ts
 
 # Arc B-1: ship-set-components AOT artifacts. sui-compiler emits
 # <tag>.compiled.js + <tag>.schema.json next to each .sui source;
