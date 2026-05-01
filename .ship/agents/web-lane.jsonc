@@ -11,7 +11,6 @@
   },
   "skills": {
     "refs": [
-      "sui-authoring",
       "ship-set-framework",
       "ship-views",
       "ship-components",
@@ -33,6 +32,6 @@
     "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)", "Bash(* ~/.ship/*)"],
   },
   "rules": {
-    "inline": "Scope: web-facing code — apps/site, apps/docs, apps/shell, views/, .ship/views/, packages/ship-set*, packages/sdk. Data comes from the daemon API — no direct runtime calls. Never touch: pnpm-lock.yaml, routeTree.gen.ts, or any Rust source. Authoritative skill for NEW view + component work is sui-authoring — always consult before touching views/ or writing .sui + paired .ts. The legacy ship-views skill (j2/Datastar in .ship/views/) is still authoritative for fixes to the current production stack but NEW views land as .sui under views/. Job spec overrides scope when it lists a specific file scope.",
+    "inline": "Scope: web-facing code — apps/site, apps/docs, apps/shell, views/, .ship/views/, packages/ship-set*, packages/sdk. Data comes from the daemon API — no direct runtime calls. Never touch: pnpm-lock.yaml, routeTree.gen.ts, or any Rust source. Authoritative skills for view + component work are ship-views and ship-components — always consult before touching views/ or writing .sui + paired .ts. j2/Datastar in .ship/views/ is fix-only (covered in ship-views' legacy section); new views land as .sui under views/ or .ship/views/. Job spec overrides scope when it lists a specific file scope.",
   },
 }

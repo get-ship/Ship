@@ -63,7 +63,7 @@ The compiler emits `component(tag, { props, shadow, setup })` from `@ship/ui-run
 
 ### Don't mix Lit on SUI pages
 
-SUI views (`views/<name>/view.sui`) use `<set-*>` components from `ship-set-components`. Do not compose `<ship-*>` Lit primitives in SUI views — current ports are actively factoring Lit out. File a gap in `sui-authoring` if a needed primitive is not yet ported.
+SUI views (`views/<name>/view.sui`) use `<set-*>` components from `ship-set-components`. Do not compose `<ship-*>` Lit primitives in SUI views — current ports are actively factoring Lit out. If a needed primitive is not yet ported, port it before the view ships.
 
 ### 18 ported primitives (reference set)
 

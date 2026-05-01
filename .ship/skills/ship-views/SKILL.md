@@ -809,6 +809,56 @@ Available `events:` prefixes: `config.`, `workspace.`, `job.`, `collection.`, et
 
 The shell calls `mountSuiView(slot, name, subPath?)` to embed a SUI view into a panel. No wrapper custom element is needed. Shell views declared in `manifest.yaml` with a `rail:` key are auto-registered in the navigation rail.
 
-### Authoring
+### Authoring quick reference
 
-Template syntax, controller, bindings, live data — see the `sui-authoring` skill. j2 SDK macros (`{{ signal(...) }}`, `{{ live(...) }}`) do not apply to SUI views.
+The j2 SDK macros (`{{ signal(...) }}`, `{{ live(...) }}`, etc.) do not apply to SUI views. SUI is its own surface.
+
+```html
+<!-- live data subscription (server-driven, SSE-backed) -->
+<data name="agents" source="ship.agents.summaries()" live />
+
+<!-- local state -->
+<state name="tab" value="'changes'" />
+
+<!-- bindings — author-syntax preserved through SSR + attach -->
+<button on:click={() => count.set(count() + 1)}>+</button>
+<input bind:value={query} />
+<div class:active={isActive()} style:color={color()} attr:href={url()}>{count()} items</div>
+
+<!-- control flow (block syntax — there is no element form) -->
+{#if loading()}…{:else if error()}…{:else}…{/if}
+{#for a of items() key={a.id}}…{/for}
+{#match status()}{:case 'idle'}…{:default}…{/match}
+{#while-loading of agents}<p>Loading…</p>{/while-loading}
+{#while-error err of agents}<p>{err.message}</p>{/while-error}
+
+<!-- template hooks -->
+<use-kbd><on key="/" action="search" /></use-kbd>
+<use-click-outside bind:target={dialogEl} bind:action={close} />
+```
+
+Paired controller (optional, when handlers grow past one statement):
+
+```ts
+import { controller } from '@ship/ui-runtime'
+import type { Scope } from './view.sui'  // compiler-emitted .sui.d.ts
+
+export default controller<Scope>({
+  derived: { total: ({ agents }) => unwrap(agents)?.items.length ?? 0 },
+  on:      { newAgent: ({ navigate }) => navigate('/agents/create') },
+  use:     { list: useFilteredList(agents, (a, q) => a.name.includes(q)) },
+  mount:   ({ state }, el) => { /* runs after first DOM attach */ },
+  unmount: ({ state })     => { /* runs on dispose */ },
+})
+```
+
+Compile pipeline: `view.sui` → `sui-compiler` → ESM module with `default = view(setup)` plus a sibling `bindings` manifest. The daemon SSR-renders, the runtime `attach()` walks the SSR DOM and wires bindings against the manifest. Zero `data-*` attributes in framework HTML; markers are author-syntax (`on:click="bN"`, `<!--sui:text:bN-->`, `<sui-if key>` / `<sui-for key>` / `<sui-match key>` / `<sui-while-loading key>` / `<sui-while-error key>` boundary wrappers).
+
+Hard rules: subscriptions only inside `<data>` (never call `ship.*` outside); mutations only in `on.*` handlers (no assignment in derived/template expressions); no `<script>` blocks in templates (logic in paired `.ts`); no `customElements.define` in view code.
+
+**Full reference:**
+- `docs/ship-ui/references/docs/template.md` — full template syntax + renderable subset
+- `docs/ship-ui/references/docs/controller.md` — controller surface + tier rules
+- `docs/ship-ui/references/docs/data-subscriptions.md` — `<data>` + live + mutations
+- `docs/ship-ui/references/docs/ssr-hydration.md` — AOT + attach pipeline, marker contract
+- `docs/ship-ui/references/docs/status.md` — stable vs in-dev surfaces
