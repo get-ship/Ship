@@ -83,6 +83,8 @@ pub enum BindingKind {
     /// `{#await}` boundary. Reserved — IR does not yet model await.
     #[allow(dead_code)]
     Await,
+    /// `<form mutation="ship.X.Y">` — form mutation directive.
+    Mutation,
 }
 
 impl BindingKind {
@@ -102,6 +104,7 @@ impl BindingKind {
             BindingKind::For => "for".into(),
             BindingKind::Match => "match".into(),
             BindingKind::Await => "await".into(),
+            BindingKind::Mutation => "mutation".into(),
         }
     }
 }

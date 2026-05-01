@@ -56,6 +56,8 @@ pub enum AttrInstr {
     Class { name: String, expr: Expr, span: Span },
     /// `style:--var={value}` (or `style:color`).
     Style { name: String, expr: Expr, span: Span },
+    /// `mutation="ship.X.Y"` on a `<form>` — the SDK call chain.
+    Mutation { expr: Expr, span: Span },
 }
 
 #[derive(Debug, Clone)]

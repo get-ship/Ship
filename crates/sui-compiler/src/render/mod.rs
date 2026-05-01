@@ -72,10 +72,9 @@ pub fn render(
     registry: &BindingRegistry,
     opts: &RenderOpts,
 ) -> Result<RenderOutput, CompileError> {
-    let _ = opts; // reserved for view-name diagnostics in later phases.
     let initial = scope::build(program);
     let init_json = initial.init.clone();
-    let mut state = walker::Walker::new(initial.scope, registry);
+    let mut state = walker::Walker::new_named(initial.scope, registry, opts.view_name.clone());
     state.walk_block(&program.template);
     let mut html = state.into_html();
     html.push_str(&island::emit(&init_json));
@@ -134,6 +133,7 @@ pub(crate) fn marker_attr_name(attr: &AttrInstr) -> Option<String> {
         AttrInstr::On { event, .. } => Some(format!("on:{event}")),
         AttrInstr::Class { name, .. } => Some(format!("class:{name}")),
         AttrInstr::Style { name, .. } => Some(format!("style:{name}")),
+        AttrInstr::Mutation { .. } => Some("mutation".to_string()),
     }
 }
 

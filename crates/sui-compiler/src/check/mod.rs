@@ -24,7 +24,61 @@ pub fn run(program: &Program, source_path: Option<&Path>) -> Result<(), CompileE
         }
         expr_subset::check(e)
     })?;
+    check_mutations(program)?;
     handler_complexity::check(program, source_path)
+}
+
+/// Validate that every `mutation=` attribute contains a valid `ship.X.Y` chain.
+fn check_mutations(program: &Program) -> Result<(), CompileError> {
+    check_mutations_instrs(&program.template)
+}
+
+fn check_mutations_instrs(instrs: &[Instr]) -> Result<(), CompileError> {
+    for instr in instrs {
+        if let Instr::Element(el) = instr {
+            for attr in &el.attrs {
+                if let AttrInstr::Mutation { expr, .. } = attr {
+                    validate_mutation_expr(&expr.source, expr.span)?;
+                }
+            }
+            check_mutations_instrs(&el.children)?;
+        }
+        match instr {
+            Instr::If(i) => {
+                for b in &i.branches { check_mutations_instrs(&b.body)?; }
+                if let Some(e) = &i.else_body { check_mutations_instrs(e)?; }
+            }
+            Instr::For(f) => {
+                check_mutations_instrs(&f.body)?;
+                if let Some(e) = &f.else_body { check_mutations_instrs(e)?; }
+            }
+            Instr::Match(m) => {
+                for c in &m.cases { check_mutations_instrs(&c.body)?; }
+                if let Some(d) = &m.default { check_mutations_instrs(d)?; }
+            }
+            _ => {}
+        }
+    }
+    Ok(())
+}
+
+/// `ship.X.Y` — must have ≥3 dot-separated segments, first is `ship`,
+/// each segment is a non-empty ASCII identifier. No parens or args.
+fn validate_mutation_expr(expr: &str, span: crate::diagnostics::Span) -> Result<(), CompileError> {
+    let parts: Vec<&str> = expr.split('.').collect();
+    let valid = parts.len() >= 3
+        && parts[0] == "ship"
+        && parts.iter().all(|p| {
+            !p.is_empty()
+                && p.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+        });
+    if !valid {
+        return Err(CompileError::new(format!(
+            "mutation= must be ship.<namespace>.<method> (got `{expr}`)"
+        ))
+        .with_span(span));
+    }
+    Ok(())
 }
 
 /// Walk every `Expr` in the program and invoke `f` on each.
@@ -112,6 +166,7 @@ where
         AttrInstr::BindValue { expr, .. } | AttrInstr::BindChecked { expr, .. } => f(expr)?,
         AttrInstr::On { handler, .. } => f(handler)?,
         AttrInstr::Class { expr, .. } | AttrInstr::Style { expr, .. } => f(expr)?,
+        AttrInstr::Mutation { .. } => {}
     }
     Ok(())
 }
