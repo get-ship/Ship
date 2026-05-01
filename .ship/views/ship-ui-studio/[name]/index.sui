@@ -1,0 +1,69 @@
+<state name="allCatalog" value="[]" />
+<state name="loading"    value="true" />
+<state name="propValues" value="{}" />
+<state name="_dispose"   value="null" />
+
+<div class="detail-layout">
+  <header class="detail-header">
+    <a class="detail-back" on:click={() => window.ship?.navigate('/ship-ui-studio')}>
+      <ship-icon name="arrow-left" size="sm"></ship-icon>
+      <span>UI Studio</span>
+    </a>
+
+    {#if !loading()}
+      {#if entry()}
+        <div class="detail-header-meta">
+          <code class="detail-tag">{entry().tag}</code>
+          <ship-badge
+            tone={entry().kind === 'lit' ? 'primary' : entry().kind === 'sui' ? 'accent' : 'muted'}
+            variant="soft"
+            size="sm"
+          >{entry().kind}</ship-badge>
+        </div>
+        {#if entry().description}
+          <p class="detail-description">{entry().description}</p>
+        {/if}
+      {:else}
+        <p class="detail-not-found">Component not found.</p>
+      {/if}
+    {/if}
+  </header>
+
+  {#if loading()}
+    <div class="detail-loading">
+      <ship-spinner size="md"></ship-spinner>
+    </div>
+  {:else if entry()}
+    <div class="detail-body">
+      {#if hasProps()}
+        <aside class="detail-props" data-test="props-panel">
+          <h3 class="props-heading">Props</h3>
+          {#for prop of entry().props key={prop.name}}
+            <div class="prop-row" data-test="prop-row">
+              <div class="prop-meta">
+                <span class="prop-name">{prop.name}</span>
+                <span class="prop-type">{prop.type}</span>
+              </div>
+              {#if prop.type === 'boolean' || prop.type === 'Boolean'}
+                <ship-switch
+                  checked={propValues()[prop.name] === 'true'}
+                  on:ship-change={(e) => setProp(prop.name, e.detail.checked ? 'true' : 'false')}
+                ></ship-switch>
+              {:else}
+                <ship-input
+                  size="sm"
+                  value={String(propValues()[prop.name] ?? prop.default ?? '')}
+                  on:ship-input={(e) => setProp(prop.name, e.detail.value)}
+                ></ship-input>
+              {/if}
+            </div>
+          {/for}
+        </aside>
+      {/if}
+
+      <div class="detail-render-wrap">
+        <div class="detail-render" data-render-slot data-test="render-slot"></div>
+      </div>
+    </div>
+  {/if}
+</div>

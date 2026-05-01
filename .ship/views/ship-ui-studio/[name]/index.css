@@ -1,0 +1,169 @@
+/* Ship UI Studio — storybook detail page */
+
+.detail-layout {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--background);
+  overflow: hidden;
+}
+
+/* ── Header ───────────────────────────────────────────────── */
+
+.detail-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--muted);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  text-decoration: none;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.detail-back:hover {
+  color: var(--foreground);
+  background: var(--accent);
+}
+
+.detail-header-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.detail-tag {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.detail-description {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  margin: 0;
+  flex: 1;
+}
+
+.detail-not-found {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  margin: 0;
+}
+
+/* ── Loading ─────────────────────────────────────────────── */
+
+.detail-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+/* ── Body split ──────────────────────────────────────────── */
+
+.detail-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── Props panel ─────────────────────────────────────────── */
+
+.detail-props {
+  width: 260px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-right: 1px solid var(--border);
+  background: var(--muted);
+  overflow-y: auto;
+}
+
+.props-heading {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted-foreground);
+  margin: 0 0 var(--space-2);
+}
+
+.prop-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.prop-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.prop-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.prop-type {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+.prop-row ship-input {
+  width: 100%;
+}
+
+/* ── Render area ─────────────────────────────────────────── */
+
+.detail-render-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-render {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+  overflow: auto;
+  background: var(--background);
+}
+
+.detail-rendered-component {
+  display: block;
+}
+
+.detail-view-hint {
+  text-align: center;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+.detail-view-hint code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
