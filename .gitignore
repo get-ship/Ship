@@ -163,3 +163,6 @@ views/*/view.schema.json
 packages/ship-set-components/src/*/*.compiled.js
 packages/ship-set-components/src/*/*.schema.json
 packages/ship-set-components/src/*/*.custom-elements.json
+
+# Per-view compile cache emitted by ship-set-compiler / build-bundles.
+views/*/.compiled/
