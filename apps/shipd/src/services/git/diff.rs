@@ -107,11 +107,10 @@ pub fn parse_unified_diff(text: &str) -> ParsedDiff {
             continue;
         }
         if let Some(p) = line.strip_prefix("+++ b/") {
-            if let Some(f) = current_file.as_mut() {
-                if f.path == "unknown" {
+            if let Some(f) = current_file.as_mut()
+                && f.path == "unknown" {
                     f.path = p.to_string();
                 }
-            }
             continue;
         }
         if line.starts_with("+++") {

@@ -130,30 +130,22 @@ pub fn derive_segments(job: &JobRecord) -> Vec<&'static str> {
     let mut out: Vec<&'static str> = (0..completed).map(|_| "done").collect();
     match job.status {
         JobStatus::Completed | JobStatus::Merged => {
-            for _ in 0..remaining {
-                out.push("done");
-            }
+            out.resize(out.len() + remaining, "done");
         }
         JobStatus::Failed | JobStatus::Cancelled => {
             if remaining > 0 {
                 out.push("failed");
-                for _ in 1..remaining {
-                    out.push("pending");
-                }
+                out.resize(out.len() + remaining - 1, "pending");
             }
         }
         JobStatus::Dispatched | JobStatus::GatePending => {
             if remaining > 0 {
                 out.push("running");
-                for _ in 1..remaining {
-                    out.push("pending");
-                }
+                out.resize(out.len() + remaining - 1, "pending");
             }
         }
         JobStatus::Pending | JobStatus::Blocked => {
-            for _ in 0..remaining {
-                out.push("pending");
-            }
+            out.resize(out.len() + remaining, "pending");
         }
     }
     out

@@ -15,7 +15,6 @@ use axum::{
     http::{HeaderValue, Response, StatusCode, header},
     response::IntoResponse,
 };
-use serde_json::json;
 use std::time::{Duration, Instant};
 
 fn now_unix() -> i64 {
@@ -52,11 +51,10 @@ pub fn is_browser_session_id(id: &str) -> bool {
 pub fn parse_session_cookie(cookie_header: &str) -> Option<String> {
     for pair in cookie_header.split(';') {
         let pair = pair.trim();
-        if let Some(rest) = pair.strip_prefix(&format!("{COOKIE_NAME}=")) {
-            if !rest.is_empty() {
+        if let Some(rest) = pair.strip_prefix(&format!("{COOKIE_NAME}="))
+            && !rest.is_empty() {
                 return Some(rest.to_string());
             }
-        }
     }
     None
 }

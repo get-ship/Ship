@@ -17,6 +17,7 @@ use for_header::parse_for_header;
 /// Callback that re-enters the top-level parser. Avoids a circular
 /// module dependency between blocks and the recursive parse driver.
 pub(crate) struct ParseScope {
+    #[allow(clippy::type_complexity)]
     pub body: fn(&[Token], usize, &[Discriminant]) -> Result<ParseResult, CompileError>,
 }
 
@@ -110,14 +111,13 @@ pub(crate) fn parse_for(
     let body = (scope.body)(tokens, i, FOR_TERMS)?;
     i = body.end;
     let mut else_body: Option<Vec<Instr>> = None;
-    if let Some(t) = tokens.get(i) {
-        if matches!(t.kind, TokenKind::Else) {
+    if let Some(t) = tokens.get(i)
+        && matches!(t.kind, TokenKind::Else) {
             i += 1;
             let eb = (scope.body)(tokens, i, &[Discriminant::CloseFor])?;
             else_body = Some(eb.instrs);
             i = eb.end;
         }
-    }
     let closer = tokens
         .get(i)
         .ok_or_else(|| CompileError::new("missing {/for}").with_span(head_span))?;

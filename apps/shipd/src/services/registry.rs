@@ -178,7 +178,7 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             let mut docs = 0usize;
             let mut tag_set: std::collections::BTreeSet<String> = Default::default();
             for s in &all {
-                match serde_json::to_value(&s.kind).ok().and_then(|v| v.as_str().map(String::from)).as_deref() {
+                match serde_json::to_value(s.kind).ok().and_then(|v| v.as_str().map(String::from)).as_deref() {
                     Some("smart") => smart += 1,
                     Some("docs") => docs += 1,
                     _ => {}
@@ -186,7 +186,7 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
                 for t in &s.tags { tag_set.insert(t.clone()); }
             }
             let filtered: Vec<_> = all.iter().filter(|s| {
-                let k = serde_json::to_value(&s.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
+                let k = serde_json::to_value(s.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
                 let kind_ok = kind == "all" || kind == k;
                 let hay = format!("{} {}", s.name, s.description).to_lowercase();
                 let q_ok = needle.is_empty() || hay.contains(&needle);
@@ -623,8 +623,8 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
                         .find(|l| l.starts_with("PPid:"))
                         .and_then(|l| l.split_whitespace().nth(1))
                         .and_then(|s| s.parse().ok());
-                    if let Some(pp) = ppid {
-                        if pp > 1 {
+                    if let Some(pp) = ppid
+                        && pp > 1 {
                             processes.push(json!({
                                 "name": "ship daemon supervisor",
                                 "role": "supervisor",
@@ -632,7 +632,6 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
                                 "alive": pid_alive(pp),
                             }));
                         }
-                    }
                 }
             }
 

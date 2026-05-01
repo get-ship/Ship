@@ -336,7 +336,7 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
         transport: extras.transport.clone().or(Some("pty".to_string())),
         persistence: extras.persistence.clone().or(Some("long-lived".to_string())),
         system_prompt_hash: extras.system_prompt_hash.clone(),
-        pid: m.pid.map(|p| p as u32),
+        pid: m.pid,
         capabilities: extras.capabilities.clone(),
     };
     let actor_id = m.id.clone();
@@ -366,7 +366,7 @@ fn spawn_command(
     work_dir: PathBuf,
     log_dir: PathBuf,
     slug: &str,
-    extras: ActorSpawnExtras,
+    _extras: ActorSpawnExtras,
 ) -> Result<PtySession> {
     std::fs::create_dir_all(&log_dir)
         .with_context(|| format!("create log dir {}", log_dir.display()))?;
@@ -556,11 +556,10 @@ fn reader_loop(
                     while let Some(nl) = line_buf.find('\n') {
                         let line: String = line_buf.drain(..=nl).collect();
                         let trimmed = line.trim_end_matches(['\n', '\r']);
-                        if !trimmed.is_empty() {
-                            if let Some(ev) = adapter.parse_output(trimmed) {
+                        if !trimmed.is_empty()
+                            && let Some(ev) = adapter.parse_output(trimmed) {
                                 let _ = inner.event_tx.send(ev);
                             }
-                        }
                     }
                 }
                 {
@@ -632,8 +631,8 @@ pub fn sweep_idle(registry: &SessionRegistry) {
         if !matches!(meta.status, SessionStatus::Thinking) {
             continue;
         }
-        if (now - meta.last_activity).num_seconds() >= IDLE_AFTER_SECS {
-            if let Some(session) = registry.get(&meta.id) {
+        if (now - meta.last_activity).num_seconds() >= IDLE_AFTER_SECS
+            && let Some(session) = registry.get(&meta.id) {
                 let mut m = session.0.meta.lock().unwrap();
                 if matches!(m.status, SessionStatus::Thinking)
                     && (Utc::now() - m.last_activity).num_seconds() >= IDLE_AFTER_SECS
@@ -641,7 +640,6 @@ pub fn sweep_idle(registry: &SessionRegistry) {
                     m.status = SessionStatus::Idle;
                 }
             }
-        }
     }
 }
 

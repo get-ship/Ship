@@ -95,18 +95,15 @@ pub fn resolve_root(
     ship_dir: &Path,
     workspace_id: Option<&str>,
 ) -> Result<PathBuf, String> {
-    if let Some(id) = workspace_id.filter(|s| !s.is_empty() && *s != "project") {
-        if let Ok((root, _)) = runtime::workspace::resolve_project_root(ship_dir, id) {
-            if root.join(".git").exists() || runtime::ShipHome::project_ship_dir(&root).exists() {
+    if let Some(id) = workspace_id.filter(|s| !s.is_empty() && *s != "project")
+        && let Ok((root, _)) = runtime::workspace::resolve_project_root(ship_dir, id)
+            && (root.join(".git").exists() || runtime::ShipHome::project_ship_dir(&root).exists()) {
                 return Ok(root);
             }
-        }
-    }
-    if let Ok(project_ship) = runtime::project::get_project_dir(None) {
-        if let Some(root) = project_ship.parent() {
+    if let Ok(project_ship) = runtime::project::get_project_dir(None)
+        && let Some(root) = project_ship.parent() {
             return Ok(root.to_path_buf());
         }
-    }
     ship_dir
         .parent()
         .map(Path::to_path_buf)

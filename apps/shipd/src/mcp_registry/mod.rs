@@ -11,7 +11,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
@@ -153,6 +152,7 @@ struct UpstreamServer {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)] // deserialized from upstream registry JSON but only url is accessed
 struct UpstreamRepository {
     #[serde(default)]
     url: Option<String>,
@@ -426,15 +426,14 @@ pub async fn list_mcp_servers(
             .into_response();
     }
 
-    if let Some(q) = &params.query {
-        if q.len() > MAX_QUERY_LEN {
+    if let Some(q) = &params.query
+        && q.len() > MAX_QUERY_LEN {
             return (
                 StatusCode::BAD_REQUEST,
                 Json(serde_json::json!({ "error": "query too long (max 200 characters)" })),
             )
                 .into_response();
         }
-    }
 
     let vetted_only = params.vetted.as_deref() != Some("false");
     let limit = params

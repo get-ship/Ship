@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 //! Custom-elements-manifest entry. Conforms to
 //! <https://github.com/webcomponents/custom-elements-manifest>.
 

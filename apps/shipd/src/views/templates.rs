@@ -332,8 +332,8 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
         siblings_hash(&sibling_sources),
     );
     {
-        if let Ok(cache) = user_env_cache().read() {
-            if let Some(env) = cache.get(&cache_key) {
+        if let Ok(cache) = user_env_cache().read()
+            && let Some(env) = cache.get(&cache_key) {
                 let tpl = env.get_template(name)
                     .map_err(|e| format!("view '{name}' not found in cached env: {e}"))?;
                 let value = Value::from_serialize(ctx);
@@ -346,7 +346,6 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
                     }
                 };
             }
-        }
     }
 
     // Cache miss — build environment. ~400ms.

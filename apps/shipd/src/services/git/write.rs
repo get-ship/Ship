@@ -89,7 +89,7 @@ pub fn commit_staged(
         if p.tree_id() == tree_oid {
             return Err(GitError::NothingStaged);
         }
-    } else if tree.len() == 0 {
+    } else if tree.is_empty() {
         return Err(GitError::NothingStaged);
     }
 
@@ -135,13 +135,11 @@ fn remote_callbacks<'a>() -> RemoteCallbacks<'a> {
                 return Ok(c);
             }
         }
-        if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT) {
-            if let Ok(cfg) = git2::Config::open_default() {
-                if let Ok(c) = Cred::credential_helper(&cfg, _url, username_from_url) {
+        if allowed.contains(git2::CredentialType::USER_PASS_PLAINTEXT)
+            && let Ok(cfg) = git2::Config::open_default()
+                && let Ok(c) = Cred::credential_helper(&cfg, _url, username_from_url) {
                     return Ok(c);
                 }
-            }
-        }
         if allowed.contains(git2::CredentialType::DEFAULT) {
             return Cred::default();
         }

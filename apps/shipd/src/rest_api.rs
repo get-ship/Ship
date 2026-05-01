@@ -7,7 +7,6 @@ use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::
 use axum::response::sse::{Event, KeepAlive, Sse};
 use runtime::events::{CallerKind, EventEnvelope};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::sync::Arc;
 
 use crate::auth::{AuthContext, Scope, require_scope};

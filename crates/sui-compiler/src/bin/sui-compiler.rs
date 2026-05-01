@@ -78,6 +78,7 @@ fn main() -> Result<()> {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn build(
     input: PathBuf,
     out: PathBuf,

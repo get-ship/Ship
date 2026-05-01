@@ -145,7 +145,7 @@ pub async fn serve_view_routed(
     if roots.is_empty() {
         return (
             StatusCode::NOT_FOUND,
-            format!("no view roots available — create `.ship/views/` to start"),
+            "no view roots available — create `.ship/views/` to start".to_string(),
         )
             .into_response();
     }
@@ -192,7 +192,7 @@ pub async fn serve_view_routed(
     };
 
     // Build the minijinja Value for the ctx + inject ship namespace.
-    let mut ctx_value = Value::from_serialize(&ctx_json);
+    let ctx_value = Value::from_serialize(&ctx_json);
     if let Ok(ctx_map) = value_to_mutable_map(&ctx_value) {
         // The ship namespace is a live Object that composes request
         // context with the service registry. It accesses ApiState,
@@ -213,7 +213,7 @@ pub async fn serve_view_routed(
                 merged.insert(k.clone(), v.clone());
             }
         }
-        let mut ctx_with_ship = Value::from_serialize(&serde_json::Value::Object(merged));
+        let ctx_with_ship = Value::from_serialize(serde_json::Value::Object(merged));
         // minijinja doesn't let us trivially inject an Object into a
         // Value::from_serialize map, so we build the env as kwargs
         // using the template engine's state. Simpler: render via the
@@ -282,7 +282,7 @@ pub(crate) fn build_render_ctx(
             merged.insert(k.clone(), v.clone());
         }
     }
-    let base = Value::from_serialize(&serde_json::Value::Object(merged));
+    let base = Value::from_serialize(serde_json::Value::Object(merged));
     // Merge by putting `ship` into the flat context. The macro
     // spreads `base`'s keys, then our explicit `ship` key overrides
     // if a key collides.

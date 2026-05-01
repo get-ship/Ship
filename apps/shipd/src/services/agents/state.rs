@@ -292,11 +292,10 @@ pub fn move_scope(
 /// When renaming/duplicating we also update `agent.id` inside the doc so
 /// the id field tracks the filename. Non-destructive to other keys.
 fn with_agent_id(mut doc: serde_json::Value, new_id: &str) -> serde_json::Value {
-    if let Some(obj) = doc.as_object_mut() {
-        if let Some(agent) = obj.get_mut("agent").and_then(|v| v.as_object_mut()) {
+    if let Some(obj) = doc.as_object_mut()
+        && let Some(agent) = obj.get_mut("agent").and_then(|v| v.as_object_mut()) {
             agent.insert("id".into(), serde_json::Value::String(new_id.into()));
         }
-    }
     doc
 }
 

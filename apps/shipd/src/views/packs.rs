@@ -120,7 +120,7 @@ fn find_manifest_path(dir: &Path) -> Option<PathBuf> {
 /// the closed enum, and partial injection of "the known half" of a
 /// broken declaration would mask the author's mistake. The lint rule
 /// `pkg-stale-pack-declaration` is the author-time double-check.
-pub(crate) fn read_view_packs(dir: &PathBuf) -> Vec<String> {
+pub(crate) fn read_view_packs(dir: &std::path::Path) -> Vec<String> {
     let Some(raw) = super::resolve::read_raw_manifest(dir) else {
         return Vec::new();
     };
@@ -128,7 +128,7 @@ pub(crate) fn read_view_packs(dir: &PathBuf) -> Vec<String> {
     if packs.is_empty() {
         return Vec::new();
     }
-    let manifest_path = find_manifest_path(dir).unwrap_or_else(|| dir.clone());
+    let manifest_path = find_manifest_path(dir).unwrap_or_else(|| dir.to_path_buf());
     match validate_packs(&manifest_path, &packs) {
         Ok(v) => v,
         Err(err) => {

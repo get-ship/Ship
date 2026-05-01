@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used)]
 //! Emit a JSON-serializable description of a file's directive
 //! declarations: `<data>`, `<state>`, `<prop>`. Used by tooling
 //! (HMR, error overlay, devserver) that needs a quick semantic

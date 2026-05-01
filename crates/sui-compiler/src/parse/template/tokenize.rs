@@ -131,8 +131,8 @@ fn tokenize_text(text: &str, base_span: Span, out: &mut Vec<Token>) {
     let mut buf = String::new();
     let mut buf_start = 0usize;
     while i < bytes.len() {
-        if bytes[i] == b'{' {
-            if let Some(close) = find_matching_close(text, i) {
+        if bytes[i] == b'{'
+            && let Some(close) = find_matching_close(text, i) {
                 let inner = text[i + 1..close].trim().to_string();
                 if !buf.is_empty() {
                     let span = Span::new(base_span.start + buf_start, base_span.start + i);
@@ -144,7 +144,6 @@ fn tokenize_text(text: &str, base_span: Span, out: &mut Vec<Token>) {
                 buf_start = i;
                 continue;
             }
-        }
         // Append a single UTF-8 char.
         let mut j = i + 1;
         while j < bytes.len() && (bytes[j] & 0xC0) == 0x80 {

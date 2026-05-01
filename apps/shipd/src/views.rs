@@ -46,6 +46,7 @@ pub mod sui_render_fragment;
 pub mod sui_mutation;
 pub mod sui_resolver;
 pub mod sui_fragment;
+pub mod sui_bundle;
 mod sui_render_helpers;
 pub mod setup;
 pub mod templates;
@@ -81,7 +82,6 @@ pub use assets::{
 pub use handlers::{
     list_views, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };
-pub(crate) use packs::{inject_packs, read_view_packs};
 pub(crate) use resolve::{is_valid_view_name, read_raw_manifest, resolve_view_dir};
 
 #[derive(Serialize, Clone)]
@@ -128,7 +128,7 @@ pub(crate) fn mesh_ok(data: serde_json::Value) -> MeshResult {
 }
 
 pub(crate) fn mesh_err(status: StatusCode, msg: impl Into<String>) -> MeshResult {
-    (StatusCode::from(status), Json(MeshResponse { ok: false, data: serde_json::json!(msg.into()) }))
+    (status, Json(MeshResponse { ok: false, data: serde_json::json!(msg.into()) }))
 }
 
 #[cfg(test)]

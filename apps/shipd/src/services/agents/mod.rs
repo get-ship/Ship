@@ -70,6 +70,7 @@ fn parse_scope_required(s: &str) -> Result<Scope, Resp> {
 
 type Resp = (StatusCode, Json<serde_json::Value>);
 
+#[allow(dead_code)] // used by other handlers in this module tree
 fn ok(value: serde_json::Value) -> Resp {
     (StatusCode::OK, Json(value))
 }

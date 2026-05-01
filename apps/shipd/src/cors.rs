@@ -47,11 +47,10 @@ pub async fn cors_middleware(req: Request<Body>, next: Next) -> Response {
     if req.method() == Method::OPTIONS {
         let mut res = Response::new(Body::empty());
         let h = res.headers_mut();
-        if !origin_header.is_empty() {
-            if let Ok(val) = HeaderValue::from_str(&origin_header) {
+        if !origin_header.is_empty()
+            && let Ok(val) = HeaderValue::from_str(&origin_header) {
                 h.insert("access-control-allow-origin", val);
             }
-        }
         h.insert(
             "access-control-allow-methods",
             HeaderValue::from_static("GET, POST, PUT, DELETE, OPTIONS"),

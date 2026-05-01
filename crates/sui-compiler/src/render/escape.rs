@@ -12,7 +12,7 @@ const VOID_ELEMENTS: &[&str] = &[
 
 /// Returns `true` if the lowercased tag is an HTML5 void element.
 pub fn is_void_element(tag_lower: &str) -> bool {
-    VOID_ELEMENTS.iter().any(|&v| v == tag_lower)
+    VOID_ELEMENTS.contains(&tag_lower)
 }
 
 /// Escape an attribute value: `&`, `"`, `<`, `>` become entities.

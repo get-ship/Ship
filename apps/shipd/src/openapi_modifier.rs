@@ -56,11 +56,10 @@ impl Modify for SecurityAndServer {
 
         // Per-operation overrides: mark specific (method, path) pairs as public.
         for (method, path) in PUBLIC_PATHS {
-            if let Some(item) = openapi.paths.paths.get_mut(*path) {
-                if let Some(op) = operation_for_method(item, method) {
+            if let Some(item) = openapi.paths.paths.get_mut(*path)
+                && let Some(op) = operation_for_method(item, method) {
                     op.security = Some(Vec::new());
                 }
-            }
         }
     }
 }

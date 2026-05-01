@@ -6,7 +6,6 @@
 //! annotations don't have to repeat them.
 
 use serde::Serialize;
-use serde_json::json;
 use utoipa::ToSchema;
 
 /// Canonical error body returned by non-2xx responses.

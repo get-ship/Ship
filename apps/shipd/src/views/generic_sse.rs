@@ -71,7 +71,7 @@ fn render_partial(
 
     let ship = Value::from_object(ShipNs {
         state: state.clone(),
-        route: Value::from_serialize(&serde_json::json!({})),
+        route: Value::from_serialize(serde_json::json!({})),
         query: Value::from_serialize(query_params),
         signals: Value::from_serialize(ctx_json.get("signals").cloned().unwrap_or_default()),
         session: Value::from_serialize(ctx_json.get("session").cloned().unwrap_or_default()),
@@ -146,11 +146,10 @@ pub async fn serve_view_sse(
 
         // Initial render.
         let ctx = super::context::build_generic_context(&name, &signals, &manifest_data, &query_params);
-        if let Some(html) = render_partial(&state, &name, &view_dir, &ctx, &query_params) {
-            if vs.patch(&selector, html).await.is_err() {
+        if let Some(html) = render_partial(&state, &name, &view_dir, &ctx, &query_params)
+            && vs.patch(&selector, html).await.is_err() {
                 return;
             }
-        }
 
         // Spawn kernel actor for event subscription.
         let config = ActorConfig {

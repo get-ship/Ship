@@ -39,12 +39,11 @@ impl Parser {
     }
 
     fn eat_punct(&mut self, p: &str) -> bool {
-        if let Some(Tok::Punct(s)) = self.peek() {
-            if *s == p {
+        if let Some(Tok::Punct(s)) = self.peek()
+            && *s == p {
                 self.pos += 1;
                 return true;
             }
-        }
         false
     }
 

@@ -90,10 +90,13 @@ pub async fn stream_job_log(
 /// send entirely) or `size - INITIAL_TAIL_BYTES` (send only the tail).
 async fn seek_initial(path: &PathBuf) -> u64 {
     let size = tokio::fs::metadata(path).await.map(|m| m.len()).unwrap_or(0);
+    // Both branches return 0: seek-to-tail happens inside read_chunk via the
+    // from/to pair; this function just marks the start for subsequent reads.
+    #[allow(clippy::if_same_then_else)]
     if size > INITIAL_TAIL_BYTES {
-        0 // we'll seek to (size - INITIAL_TAIL_BYTES) inside read_chunk
+        0 // large file: read_chunk will seek to tail on first call
     } else {
-        0
+        0 // small file: send the whole thing
     }
     // NB: seek-to-tail logic happens inside the first read_chunk via
     // the from/to pair below. This function returns the starting pos
@@ -136,7 +139,7 @@ fn strip_ansi(input: &[u8]) -> String {
         if c == '\x1b' {
             if chars.peek() == Some(&'[') {
                 chars.next();
-                while let Some(nc) = chars.next() {
+                for nc in chars.by_ref() {
                     if matches!(nc, '\x40'..='\x7E') { break; }
                 }
                 continue;

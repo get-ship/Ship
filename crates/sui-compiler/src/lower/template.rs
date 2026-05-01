@@ -13,15 +13,15 @@ pub fn has_custom_element(instrs: &[Instr]) -> bool {
         Instr::Element(e) => element_or_descendant_is_custom(e),
         Instr::If(b) => {
             b.branches.iter().any(|br| has_custom_element(&br.body))
-                || b.else_body.as_ref().map_or(false, |e| has_custom_element(e))
+                || b.else_body.as_ref().is_some_and(|e| has_custom_element(e))
         }
         Instr::For(f) => {
             has_custom_element(&f.body)
-                || f.else_body.as_ref().map_or(false, |e| has_custom_element(e))
+                || f.else_body.as_ref().is_some_and(|e| has_custom_element(e))
         }
         Instr::Match(m) => {
             m.cases.iter().any(|c| has_custom_element(&c.body))
-                || m.default.as_ref().map_or(false, |d| has_custom_element(d))
+                || m.default.as_ref().is_some_and(|d| has_custom_element(d))
         }
         Instr::WhileLoading(wl) => has_custom_element(&wl.body),
         Instr::WhileError(we) => has_custom_element(&we.body),

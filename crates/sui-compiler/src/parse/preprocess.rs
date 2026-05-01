@@ -55,8 +55,7 @@ fn quote_brace_attrs(source: &str) -> String {
                 && ch == b'='
                 && i + 1 < bytes.len()
                 && bytes[i + 1] == b'{'
-            {
-                if let Some(end) = find_close(source, i + 1) {
+                && let Some(end) = find_close(source, i + 1) {
                     let expr = &source[i + 1..=end];
                     out.push('=');
                     out.push('"');
@@ -71,7 +70,6 @@ fn quote_brace_attrs(source: &str) -> String {
                     i = end + 1;
                     continue;
                 }
-            }
             // Not the start of a brace attr — copy verbatim.
             // Use char boundary safe append.
             let ch_start = i;

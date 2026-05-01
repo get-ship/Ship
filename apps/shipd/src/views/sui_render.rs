@@ -1,3 +1,4 @@
+#![allow(clippy::doc_lazy_continuation)]
 //! `GET /_sui/render/{view}` — SSR walker debug endpoint.
 //! `POST /_sui/render-fragment/{view}` — Phase E-2 swap-on-change.
 //!
