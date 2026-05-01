@@ -161,6 +161,8 @@ impl<'r> Walker<'r> {
             Instr::If(if_instr) => control_flow::render_if(self, if_instr),
             Instr::For(for_instr) => control_flow::render_for(self, for_instr),
             Instr::Match(match_instr) => control_flow::render_match(self, match_instr),
+            Instr::WhileLoading(wl) => control_flow::render_while_loading(self, wl),
+            Instr::WhileError(we) => control_flow::render_while_error(self, we),
         }
     }
 

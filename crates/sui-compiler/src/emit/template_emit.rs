@@ -11,7 +11,7 @@
 //! The emit logic is split across three modules:
 //!  * this file — orchestration, `ExprBank`, the `emit_one` dispatcher
 //!  * `dom_emit` — element + attribute emit
-//!  * `control_emit` — `{#if}`, `{#for}`, `{#match}`, `<while-*>`
+//!  * `control_emit` — `{#if}`, `{#for}`, `{#match}`, `{#while-*}`
 
 use super::writer::{js_string, Writer};
 use crate::ir::*;
@@ -43,11 +43,33 @@ impl ExprBank {
 pub struct TemplateEmitter<'a> {
     pub(super) bank: &'a mut ExprBank,
     next_id: usize,
+    /// Sequential counters for while-loading/while-error render-callback names.
+    /// Both the bindings pass and this emit pass walk the IR in the same source
+    /// order, so the N-th while-loading gets the same `__renderWhileLoading_<N>`
+    /// name in both.
+    pub(super) while_loading_idx: usize,
+    pub(super) while_error_idx: usize,
+    /// Render callbacks for `{#while-loading}` / `{#while-error}` blocks,
+    /// emitted as named properties on the setup return object (outside
+    /// `__mount`) so `attach()` can look them up by `renderKey`.
+    pub(super) render_callbacks: Writer,
 }
 
 impl<'a> TemplateEmitter<'a> {
     pub fn new(bank: &'a mut ExprBank) -> Self {
-        Self { bank, next_id: 0 }
+        Self {
+            bank,
+            next_id: 0,
+            while_loading_idx: 0,
+            while_error_idx: 0,
+            render_callbacks: Writer::new(),
+        }
+    }
+
+    /// Drain the render-callback buffer. Called by `emit_setup_body`
+    /// after `emit_top_level` finishes writing `__mount`.
+    pub fn take_render_callbacks(&mut self) -> String {
+        std::mem::replace(&mut self.render_callbacks, Writer::new()).into_string()
     }
 
     pub(super) fn fresh(&mut self, prefix: &str) -> String {
@@ -116,6 +138,15 @@ impl<'a> TemplateEmitter<'a> {
             Instr::For(for_instr) => self.emit_for(w, for_instr, parent_var, cleanups_var),
             Instr::Match(match_instr) => {
                 self.emit_match(w, match_instr, parent_var, cleanups_var)
+            }
+            // While-loading/while-error: the render callback is emitted as a
+            // named property on the setup return object (via `render_callbacks`
+            // buffer). `__mount` emits an inline call for the legacy path.
+            Instr::WhileLoading(wl) => {
+                self.emit_while_loading_block(w, wl, parent_var, cleanups_var)
+            }
+            Instr::WhileError(we) => {
+                self.emit_while_error_block(w, we, parent_var, cleanups_var)
             }
         }
     }

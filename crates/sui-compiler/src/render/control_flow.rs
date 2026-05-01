@@ -1,6 +1,5 @@
-//! Control-flow rendering for `{#if}` and `{#match}`. `{#for}` lives
-//! in `render_for.rs` (large enough body to push this file past the
-//! 300-line cap).
+//! Control-flow rendering for `{#if}`, `{#match}`, `{#while-loading}`,
+//! `{#while-error}`. `{#for}` lives in `render_for.rs`.
 //!
 //! Phase D-3 fills in the bodies of control-flow constructs against the
 //! initial scope. When the discriminating expression evaluates inside
@@ -9,29 +8,17 @@
 //! `<sui-{kind} key="bN" hidden></sui-{kind}>` placeholder so
 //! the attach-only client runtime takes over.
 //!
-//! `{#await}` is intentionally absent — the IR does not yet model an
-//! `Instr::Await` variant.
-//!
 //! ## Phase E-prep — registry parity
 //!
 //! The walker's `b<N>` keys must match the registry index-for-index.
-//! The registry pre-pass walks every branch (it has no SSR scope) and
-//! allocates one key per source-position-bearing-a-binding. To stay
-//! aligned, the walker also walks every branch — but suppresses HTML
-//! output for the un-rendered ones via `walk_block_silent`.
-//!
-//! ## Phase E-2 — fragment mode
-//!
-//! When the walker is rendering a fragment for a specific boundary key,
-//! `walker.enter_target_if_match(&key)` returns true at the matching
-//! `{#if}` / `{#for}` / `{#match}`. In that case the wrapper (active
-//! `<div>` or empty `<template>`) is suppressed: the runtime already
-//! has the wrapper in place and is swapping the wrapper's children, not
-//! the wrapper itself. The body is emitted with output forced visible
-//! by `enter_target_if_match`; `exit_target` restores silent mode so
-//! the rest of the IR walks without producing more HTML.
+//! For `{#while-loading}` / `{#while-error}`, the registry pre-pass walks
+//! the body under suppression (allocates keys but marks them suppressed).
+//! The render walker must also advance its counter by the same number of
+//! keys. We call `walk_block_silent` for the non-active case and
+//! `walk_block` for the active case (which emits the HTML body and also
+//! advances the counter).
 
-use crate::ir::{IfInstr, MatchInstr};
+use crate::ir::{IfInstr, MatchInstr, WhileErrorInstr, WhileLoadingInstr};
 
 use super::eval::{eval, strict_eq, truthy};
 use super::render_for;
@@ -39,6 +26,74 @@ use super::template_helpers::{close_active, empty_template, open_active, open_ac
 use super::walker::Walker;
 
 pub(super) use render_for::render_for;
+
+/// Evaluate whether a signal name refers to a loading-state envelope.
+fn is_loading(bind: &str, walker: &Walker<'_>) -> bool {
+    use super::eval::eval;
+    match eval(&format!("{bind}.kind"), &walker.scope) {
+        Ok(v) => matches!(v, serde_json::Value::String(s) if s == "loading"),
+        Err(_) => true, // default: assume loading when unevaluable
+    }
+}
+
+/// Evaluate whether a signal name is in error state.
+fn is_error(bind: &str, walker: &Walker<'_>) -> bool {
+    use super::eval::eval;
+    match eval(&format!("{bind}.kind"), &walker.scope) {
+        Ok(v) => matches!(v, serde_json::Value::String(s) if s == "error"),
+        Err(_) => false,
+    }
+}
+
+pub(super) fn render_while_loading(walker: &mut Walker<'_>, instr: &WhileLoadingInstr) {
+    let key = walker.next_key();
+    let active = is_loading(&instr.bind, walker);
+    let is_target = walker.enter_target_if_match(&key);
+
+    if active {
+        if !is_target {
+            open_active(walker, "while-loading", &key);
+        }
+        walker.walk_block(&instr.body);
+        if !is_target {
+            close_active(walker, "while-loading");
+        }
+    } else {
+        walker.walk_block_silent(&instr.body);
+        if !is_target {
+            empty_template(walker, "while-loading", &key);
+        }
+    }
+
+    if is_target {
+        walker.exit_target();
+    }
+}
+
+pub(super) fn render_while_error(walker: &mut Walker<'_>, instr: &WhileErrorInstr) {
+    let key = walker.next_key();
+    let active = is_error(&instr.bind, walker);
+    let is_target = walker.enter_target_if_match(&key);
+
+    if active {
+        if !is_target {
+            open_active(walker, "while-error", &key);
+        }
+        walker.walk_block(&instr.body);
+        if !is_target {
+            close_active(walker, "while-error");
+        }
+    } else {
+        walker.walk_block_silent(&instr.body);
+        if !is_target {
+            empty_template(walker, "while-error", &key);
+        }
+    }
+
+    if is_target {
+        walker.exit_target();
+    }
+}
 
 pub(super) fn render_if(walker: &mut Walker<'_>, instr: &IfInstr) {
     let key = walker.next_key();

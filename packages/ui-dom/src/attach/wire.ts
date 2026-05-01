@@ -25,6 +25,7 @@ import { wireStyle } from './bindings/style'
 import { wireAttrDynamic } from './bindings/attr-dynamic'
 import { wireFormMutation } from './bindings/form-mutation'
 import { wireBoundary } from './boundaries'
+import { wireWhileLoading, wireWhileError } from './while-boundaries'
 import { indexBindings, walkMarkers, type MarkerHit } from './manifest'
 
 /** Threaded through every wirer so boundaries can swap and re-attach. */
@@ -64,6 +65,12 @@ export function wireMarker(
   }
   if (kind === 'if' || kind === 'for' || kind === 'match' || kind === 'await') {
     return wireBoundary(el, binding, ctx)
+  }
+  if (kind === 'while-loading') {
+    return wireWhileLoading(el, binding, ctx)
+  }
+  if (kind === 'while-error') {
+    return wireWhileError(el, binding, ctx)
   }
   if (kind.startsWith('on:')) {
     return wireOn(el, kind.slice(3), ctx.scope, binding.expr)

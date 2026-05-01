@@ -14,13 +14,13 @@
       </ship-button>
     </header>
 
-    <while-loading bind="agents">
+    {#while-loading of agents}
       <p class="loading-copy" data-test="loading">Loading agents&hellip;</p>
-    </while-loading>
+    {/while-loading}
 
-    <while-error bind="agents" let:err>
+    {#while-error err of agents}
       <p class="loading-copy" data-test="error">Error loading agents: {err.message}</p>
-    </while-error>
+    {/while-error}
 
     {#if agents().kind === 'ok'}
       {#if items().length === 0}

@@ -37,6 +37,8 @@ export type BindingKind =
   | 'for'
   | 'match'
   | 'await'
+  | 'while-loading'
+  | 'while-error'
 
 /** One entry in the compiled module's `bindings` manifest. */
 export interface Binding {
@@ -48,6 +50,8 @@ export interface Binding {
   expr: string
   /** Root identifiers the expression reads (de-duplicated, source order). */
   deps: string[]
+  /** Name of the render callback on the setup return object, for while-loading / while-error. */
+  renderKey?: string
 }
 
 /** Setup-context shape mirrored on `ResolverContext` from the runtime. */

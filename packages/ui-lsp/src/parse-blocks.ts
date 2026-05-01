@@ -9,6 +9,8 @@ export function readBraceConstruct(
   if (s.startsWith('{#if', i)) return readSimpleBlockOpen(s, i, 'if', '{#if', nodes, errors);
   if (s.startsWith('{#match', i)) return readSimpleBlockOpen(s, i, 'match', '{#match', nodes, errors);
   if (s.startsWith('{#for', i)) return readForBlock(s, i, nodes, errors);
+  if (s.startsWith('{#while-loading', i)) return readWhileLoadingBlock(s, i, nodes, errors);
+  if (s.startsWith('{#while-error', i)) return readWhileErrorBlock(s, i, nodes, errors);
   if (s[i + 1] === ':' || s[i + 1] === '/') return readBlockTagOrClose(s, i, nodes, errors);
   const r = readBraceContent(s, i, errors);
   nodes.push({
@@ -94,7 +96,10 @@ function readBlockTagOrClose(s: string, i: number, nodes: Node[], errors: ParseE
     nodes.push({ kind: 'block-tag', tag: 'default', outerRange: { start: i, end } });
     return end;
   }
-  for (const [tok, b] of [['{/if}', 'if'], ['{/for}', 'for'], ['{/match}', 'match']] as const) {
+  for (const [tok, b] of [
+    ['{/if}', 'if'], ['{/for}', 'for'], ['{/match}', 'match'],
+    ['{/while-loading}', 'while-loading'], ['{/while-error}', 'while-error'],
+  ] as const) {
     if (s.startsWith(tok, i)) {
       const end = i + tok.length;
       nodes.push({ kind: 'block-close', block: b, outerRange: { start: i, end } });
@@ -117,4 +122,43 @@ function readClause(
   if (s[q] === '}') q++;
   nodes.push({ kind: 'block-tag', tag, expr, outerRange: { start, end: q } });
   return q;
+}
+
+const idRe = /^[a-zA-Z_$][a-zA-Z0-9_$]*/;
+
+function readWhileLoadingBlock(s: string, i: number, nodes: Node[], errors: ParseError[]): number {
+  const start = i;
+  let p = i + '{#while-loading'.length;
+  while (p < s.length && WS.test(s[p]!)) p++;
+  if (s.startsWith('of', p)) p += 2;
+  while (p < s.length && WS.test(s[p]!)) p++;
+  const bindStart = p;
+  const m = s.slice(p).match(idRe);
+  if (m) p += m[0].length;
+  const bind = { text: s.slice(bindStart, p), range: { start: bindStart, end: p } };
+  while (p < s.length && WS.test(s[p]!)) p++;
+  if (s[p] === '}') p++;
+  nodes.push({ kind: 'block-open', block: 'while-loading', bind, outerRange: { start, end: p } });
+  return p;
+}
+
+function readWhileErrorBlock(s: string, i: number, nodes: Node[], errors: ParseError[]): number {
+  const start = i;
+  let p = i + '{#while-error'.length;
+  while (p < s.length && WS.test(s[p]!)) p++;
+  const errStart = p;
+  const me = s.slice(p).match(idRe);
+  if (me) p += me[0].length;
+  const errorVar = { text: s.slice(errStart, p), range: { start: errStart, end: p } };
+  while (p < s.length && WS.test(s[p]!)) p++;
+  if (s.startsWith('of', p)) p += 2;
+  while (p < s.length && WS.test(s[p]!)) p++;
+  const bindStart = p;
+  const mb = s.slice(p).match(idRe);
+  if (mb) p += mb[0].length;
+  const bind = { text: s.slice(bindStart, p), range: { start: bindStart, end: p } };
+  while (p < s.length && WS.test(s[p]!)) p++;
+  if (s[p] === '}') p++;
+  nodes.push({ kind: 'block-open', block: 'while-error', bind, errorVar, outerRange: { start, end: p } });
+  return p;
 }

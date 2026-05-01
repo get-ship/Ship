@@ -16,6 +16,8 @@ pub enum Instr {
     If(IfInstr),
     For(ForInstr),
     Match(MatchInstr),
+    WhileLoading(WhileLoadingInstr),
+    WhileError(WhileErrorInstr),
 }
 
 #[derive(Debug, Clone)]
@@ -24,18 +26,25 @@ pub struct ElementInstr {
     pub tag: String,
     pub attrs: Vec<AttrInstr>,
     pub children: Vec<Instr>,
-    /// `<while-loading bind="X">` — the bind target, when this is a
-    /// while-loading element. Not both this and `while_error`.
-    pub while_loading: Option<String>,
-    /// `<while-error bind="X" let:err>` — bind target + error variable name.
-    pub while_error: Option<WhileErrorMeta>,
     pub span: Span,
 }
 
 #[derive(Debug, Clone)]
-pub struct WhileErrorMeta {
+pub struct WhileLoadingInstr {
+    /// Signal name bound to (e.g. `"agents"`).
     pub bind: String,
+    pub body: Vec<Instr>,
+    pub span: Span,
+}
+
+#[derive(Debug, Clone)]
+pub struct WhileErrorInstr {
+    /// Signal name bound to (e.g. `"agents"`).
+    pub bind: String,
+    /// Local name for the error value inside the block body.
     pub error_var: String,
+    pub body: Vec<Instr>,
+    pub span: Span,
 }
 
 #[derive(Debug, Clone)]

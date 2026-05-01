@@ -20,6 +20,10 @@ export type Token =
   | { kind: 'close-if'; loc: string }
   | { kind: 'close-for'; loc: string }
   | { kind: 'close-match'; loc: string }
+  | { kind: 'open-while-loading'; src: string; loc: string }
+  | { kind: 'open-while-error'; src: string; loc: string }
+  | { kind: 'close-while-loading'; loc: string }
+  | { kind: 'close-while-error'; loc: string }
 
 /** Walk `parent`'s children and produce the flat token stream. */
 export function tokenizeChildren(parent: Node): Token[] {
@@ -124,5 +128,13 @@ function classifyBrace(inner: string, raw: string): Token {
   if (inner === '/if') return { kind: 'close-if', loc }
   if (inner === '/for') return { kind: 'close-for', loc }
   if (inner === '/match') return { kind: 'close-match', loc }
+  if (inner.startsWith('#while-loading')) {
+    return { kind: 'open-while-loading', src: inner.slice(14).trim(), loc }
+  }
+  if (inner.startsWith('#while-error')) {
+    return { kind: 'open-while-error', src: inner.slice(12).trim(), loc }
+  }
+  if (inner === '/while-loading') return { kind: 'close-while-loading', loc }
+  if (inner === '/while-error') return { kind: 'close-while-error', loc }
   return { kind: 'expr', src: inner, loc }
 }

@@ -22,6 +22,8 @@ pub enum TokenKind {
     OpenIf { src: String },
     OpenFor { src: String },
     OpenMatch { src: String },
+    OpenWhileLoading { src: String },
+    OpenWhileError { src: String },
     ElseIf { src: String },
     Else,
     Case { src: String },
@@ -29,6 +31,8 @@ pub enum TokenKind {
     CloseIf,
     CloseFor,
     CloseMatch,
+    CloseWhileLoading,
+    CloseWhileError,
 }
 
 /// Lightweight discriminant used by the consumer's terminator list.
@@ -42,6 +46,8 @@ pub enum Discriminant {
     OpenIf,
     OpenFor,
     OpenMatch,
+    OpenWhileLoading,
+    OpenWhileError,
     ElseIf,
     Else,
     Case,
@@ -49,6 +55,8 @@ pub enum Discriminant {
     CloseIf,
     CloseFor,
     CloseMatch,
+    CloseWhileLoading,
+    CloseWhileError,
 }
 
 impl TokenKind {
@@ -61,6 +69,8 @@ impl TokenKind {
             TokenKind::OpenIf { .. } => Discriminant::OpenIf,
             TokenKind::OpenFor { .. } => Discriminant::OpenFor,
             TokenKind::OpenMatch { .. } => Discriminant::OpenMatch,
+            TokenKind::OpenWhileLoading { .. } => Discriminant::OpenWhileLoading,
+            TokenKind::OpenWhileError { .. } => Discriminant::OpenWhileError,
             TokenKind::ElseIf { .. } => Discriminant::ElseIf,
             TokenKind::Else => Discriminant::Else,
             TokenKind::Case { .. } => Discriminant::Case,
@@ -68,6 +78,8 @@ impl TokenKind {
             TokenKind::CloseIf => Discriminant::CloseIf,
             TokenKind::CloseFor => Discriminant::CloseFor,
             TokenKind::CloseMatch => Discriminant::CloseMatch,
+            TokenKind::CloseWhileLoading => Discriminant::CloseWhileLoading,
+            TokenKind::CloseWhileError => Discriminant::CloseWhileError,
         }
     }
 
@@ -80,6 +92,8 @@ impl TokenKind {
             Discriminant::OpenIf => "{#if}",
             Discriminant::OpenFor => "{#for}",
             Discriminant::OpenMatch => "{#match}",
+            Discriminant::OpenWhileLoading => "{#while-loading}",
+            Discriminant::OpenWhileError => "{#while-error}",
             Discriminant::ElseIf => "{:else if}",
             Discriminant::Else => "{:else}",
             Discriminant::Case => "{:case}",
@@ -87,6 +101,8 @@ impl TokenKind {
             Discriminant::CloseIf => "{/if}",
             Discriminant::CloseFor => "{/for}",
             Discriminant::CloseMatch => "{/match}",
+            Discriminant::CloseWhileLoading => "{/while-loading}",
+            Discriminant::CloseWhileError => "{/while-error}",
         }
     }
 }
@@ -189,6 +205,12 @@ fn classify_brace(inner: &str) -> TokenKind {
     if let Some(rest) = inner.strip_prefix("#match") {
         return TokenKind::OpenMatch { src: rest.trim().to_string() };
     }
+    if let Some(rest) = inner.strip_prefix("#while-loading") {
+        return TokenKind::OpenWhileLoading { src: rest.trim().to_string() };
+    }
+    if let Some(rest) = inner.strip_prefix("#while-error") {
+        return TokenKind::OpenWhileError { src: rest.trim().to_string() };
+    }
     if let Some(rest) = inner.strip_prefix(":else if") {
         return TokenKind::ElseIf { src: rest.trim().to_string() };
     }
@@ -209,6 +231,12 @@ fn classify_brace(inner: &str) -> TokenKind {
     }
     if inner == "/match" {
         return TokenKind::CloseMatch;
+    }
+    if inner == "/while-loading" {
+        return TokenKind::CloseWhileLoading;
+    }
+    if inner == "/while-error" {
+        return TokenKind::CloseWhileError;
     }
     TokenKind::Expr { src: inner.to_string() }
 }

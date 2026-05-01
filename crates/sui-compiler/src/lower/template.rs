@@ -1,8 +1,7 @@
 //! Template-level helpers consumed by the emitter.
 //!
-//! Walks the IR collecting which special HTML tags are used (e.g.
-//! `<while-loading>`) so the emitter can decide what runtime helpers
-//! to import. Beyond that, the emit step works directly off the IR.
+//! Walks the IR collecting which special HTML tags are used so the emitter
+//! can decide what runtime helpers to import.
 
 use crate::ir::{Instr, ElementInstr};
 
@@ -24,12 +23,14 @@ pub fn has_custom_element(instrs: &[Instr]) -> bool {
             m.cases.iter().any(|c| has_custom_element(&c.body))
                 || m.default.as_ref().map_or(false, |d| has_custom_element(d))
         }
+        Instr::WhileLoading(wl) => has_custom_element(&wl.body),
+        Instr::WhileError(we) => has_custom_element(&we.body),
         _ => false,
     })
 }
 
 fn element_or_descendant_is_custom(el: &ElementInstr) -> bool {
-    if el.tag.contains('-') && el.tag != "while-loading" && el.tag != "while-error" {
+    if el.tag.contains('-') {
         return true;
     }
     has_custom_element(&el.children)

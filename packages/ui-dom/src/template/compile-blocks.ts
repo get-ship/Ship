@@ -6,6 +6,9 @@ import { compileExpr, type CompiledExpr } from './expr'
 import type { Instr } from './compile'
 import type { Token } from './tokenize'
 
+const WHILE_LOADING_TERMS = ['close-while-loading'] as const
+const WHILE_ERROR_TERMS = ['close-while-error'] as const
+
 export interface ParseScope {
   /** Parse children up to one of the listed terminators. */
   body: (
@@ -226,4 +229,51 @@ export function parseMatch(
     ...(default_ !== undefined ? { default_ } : {}),
   }
   return { instr, end: i }
+}
+
+export function parseWhileLoading(
+  tokens: Token[],
+  start: number,
+  scope: ParseScope,
+): InstrResult {
+  const head = tokens[start] as Extract<Token, { kind: 'open-while-loading' }>
+  const m = head.src.match(/^of\s+([A-Za-z_$][\w$]*)$/)
+  if (!m) {
+    throw new Error(
+      `[ship-set-dom] {#while-loading} expects "of <signal>" (at ${head.loc})`,
+    )
+  }
+  const bind = m[1]!
+  let i = start + 1
+  const body = scope.body(tokens, i, WHILE_LOADING_TERMS)
+  i = body.end
+  const closer = tokens[i]
+  if (!closer || closer.kind !== 'close-while-loading') {
+    throw new Error(`[ship-set-dom] missing {/while-loading} (at ${head.loc})`)
+  }
+  return { instr: { kind: 'while-loading', bind, body: body.instrs }, end: i + 1 }
+}
+
+export function parseWhileError(
+  tokens: Token[],
+  start: number,
+  scope: ParseScope,
+): InstrResult {
+  const head = tokens[start] as Extract<Token, { kind: 'open-while-error' }>
+  const m = head.src.match(/^([A-Za-z_$][\w$]*)\s+of\s+([A-Za-z_$][\w$]*)$/)
+  if (!m) {
+    throw new Error(
+      `[ship-set-dom] {#while-error} expects "<var> of <signal>" (at ${head.loc})`,
+    )
+  }
+  const errorVar = m[1]!
+  const bind = m[2]!
+  let i = start + 1
+  const body = scope.body(tokens, i, WHILE_ERROR_TERMS)
+  i = body.end
+  const closer = tokens[i]
+  if (!closer || closer.kind !== 'close-while-error') {
+    throw new Error(`[ship-set-dom] missing {/while-error} (at ${head.loc})`)
+  }
+  return { instr: { kind: 'while-error', bind, errorVar, body: body.instrs }, end: i + 1 }
 }

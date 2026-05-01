@@ -135,6 +135,9 @@ export type {
   ResolvedBindings,
 } from './controller-resolver'
 
+export { view } from './view'
+export type { ViewContext, ViewSetup, ViewDef } from './view'
+
 export { useFilteredList, useSelection, useForm } from './hooks'
 export type { FilteredListSource, UseFormOptions } from './hooks'
 

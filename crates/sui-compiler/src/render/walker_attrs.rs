@@ -24,8 +24,6 @@ impl<'r> Walker<'r> {
             EmitDecision::Void => self.emit_open_tag(el, extra),
             EmitDecision::Normal => {
                 self.emit_open_tag(el, extra);
-                // Expose $mutation in child scope while walking the form's body.
-                // The while-loading/while-error boundaries inside the form bind to it.
                 self.walk_block(&el.children);
                 self.out.push_str(&format!("</{}>", el.tag));
             }

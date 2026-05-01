@@ -6,6 +6,10 @@ export default defineConfig({
     alias: {
       '@ship/ui-runtime': resolve(__dirname, '../ui-runtime/src/index.ts'),
     },
+    // sui-compiler emits `view.js` next to `view.sui` and the paired `view.ts`
+    // (see scripts/build-bundles.mjs::compileSui). Tests target the controller
+    // source — prefer `.ts` over the generated `.js` shadow.
+    extensions: ['.mts', '.ts', '.tsx', '.mjs', '.js', '.jsx', '.json'],
   },
   test: {
     include: ['test/**/*.test.ts'],

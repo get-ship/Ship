@@ -56,6 +56,8 @@ fn check_mutations_instrs(instrs: &[Instr]) -> Result<(), CompileError> {
                 for c in &m.cases { check_mutations_instrs(&c.body)?; }
                 if let Some(d) = &m.default { check_mutations_instrs(d)?; }
             }
+            Instr::WhileLoading(wl) => check_mutations_instrs(&wl.body)?,
+            Instr::WhileError(we) => check_mutations_instrs(&we.body)?,
             _ => {}
         }
     }
@@ -148,6 +150,8 @@ where
                 visit_instrs(d, f)?;
             }
         }
+        Instr::WhileLoading(wl) => visit_instrs(&wl.body, f)?,
+        Instr::WhileError(we) => visit_instrs(&we.body, f)?,
     }
     Ok(())
 }

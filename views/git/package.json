@@ -1,9 +1,11 @@
 {
   "name": "@views/git",
   "version": "0.1.0",
-  "description": "Git view — ship-set authoring shape, served at /set/git.",
+  "description": "Git view — SUI authoring shape, served at /sui/git.",
   "type": "module",
   "private": true,
+  "main": "./view.ts",
+  "exports": "./view.ts",
   "scripts": {
     "bundle": "esbuild view.ts --bundle --format=esm --target=es2020 --external:@ship/ui-runtime --external:@ship/ui-sdk-client --outfile=../../apps/shipd/assets/views/git/view.js --log-level=warning"
   },

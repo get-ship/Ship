@@ -8,13 +8,13 @@
 </use-kbd>
 
 <div class="ship-view git-view">
-  <while-loading bind="overview">
+  {#while-loading of overview}
     <p class="git-loading" data-test="loading">Loading repo overview&hellip;</p>
-  </while-loading>
+  {/while-loading}
 
-  <while-error bind="overview" let:err>
+  {#while-error err of overview}
     <p class="git-error" data-test="error">Failed to load: {err.message}</p>
-  </while-error>
+  {/while-error}
 
   {#if overview().kind === 'ok'}
     <header class="git-head">

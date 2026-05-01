@@ -16,7 +16,8 @@
 
 use crate::bindings;
 use crate::diagnostics::CompileError;
-use crate::ir::{AttrInstr, ElementInstr, ForInstr, IfInstr, Instr, MatchInstr, Program};
+use crate::ir::{AttrInstr, ElementInstr, ForInstr, IfInstr, Instr, MatchInstr, Program,
+    WhileLoadingInstr, WhileErrorInstr};
 use crate::keys::BindingRegistry;
 
 mod control_flow;
@@ -145,6 +146,8 @@ pub(crate) fn control_flow_kind(instr: &Instr) -> Option<&'static str> {
         Instr::If(IfInstr { .. }) => Some("if"),
         Instr::For(ForInstr { .. }) => Some("for"),
         Instr::Match(MatchInstr { .. }) => Some("match"),
+        Instr::WhileLoading(WhileLoadingInstr { .. }) => Some("while-loading"),
+        Instr::WhileError(WhileErrorInstr { .. }) => Some("while-error"),
         _ => None,
     }
 }
