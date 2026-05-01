@@ -83,7 +83,7 @@ Without `live`, the SDK call runs once at mount; the result is exposed as a plai
 <p>Defined fields: {schema().fields.map(f => f.name).join(', ')}</p>
 ```
 
-If the call is async, the runtime exposes the signal once it resolves; pre-resolution reads return `undefined`. Use `{#await}` if you need to render a loading state.
+If the call is async, the runtime exposes the signal once it resolves; pre-resolution reads return `undefined`. For a loading state, add `live` to the `<data>` element and use `<while-loading>` or discriminate by `kind`.
 
 ## Why subscriptions don't go in hooks
 
@@ -183,3 +183,40 @@ The `ship.*` SDK is the typed bridge to `shipd`. It is *not* a global; it's inje
 - Each controller hook's factory (when it accepts scope)
 
 Authors do not import `ship`. The runtime owns the binding.
+
+## Mutations
+
+`<data>` is the read surface. The symmetric write surface is `<form mutation="ship.X.Y">`.
+
+```html
+<form mutation="ship.agents.create">
+  <input name="name" placeholder="Agent name" />
+  <button type="submit">Create</button>
+</form>
+```
+
+The `mutation` attribute is a `ship.*` SDK chain. On submit the compiler-wired `wireFormMutation` helper:
+
+1. Prevents the default form submission.
+2. Sets `$mutation` to `{ kind: 'loading' }`.
+3. Serializes the form as `FormData` and calls the SDK chain.
+4. On success: sets `$mutation` to `{ kind: 'ok', value: result }` and dispatches a `success` CustomEvent.
+5. On error: sets `$mutation` to `{ kind: 'error', error }` and dispatches an `error` CustomEvent.
+
+`$mutation` is a `Signal<LiveState<unknown>>` injected into view scope by the compiler. Use it the same way you'd use a `<data live>` signal:
+
+```html
+<form mutation="ship.agents.create">
+  <input name="name" />
+  <button type="submit" disabled={$mutation().kind === 'loading'}>
+    {$mutation().kind === 'loading' ? 'Creating…' : 'Create'}
+  </button>
+</form>
+{#if $mutation().kind === 'error'}
+  <p class="error">{$mutation().error.message}</p>
+{/if}
+```
+
+**Progressive enhancement path.** When JS is absent, the SSR walker injects `action="/_sui/mutation/{view}?form=bN"` and `method="post"` onto the `<form>` element. The daemon's `POST /_sui/mutation/{view}` endpoint resolves the SDK chain from the binding manifest, dispatches the call, and responds with an HTTP 303 redirect to `Referer` (success) or `Referer?_sui_error=<msg>` (error). Only SDK operations registered in the service registry are reachable via PE.
+
+**One `$mutation` per form.** Each `<form mutation="…">` in a template gets its own `$mutation` signal. If a template has two forms, distinguish them via `on:success` / `on:error` handlers or by scoping the error display to the form's immediate context.

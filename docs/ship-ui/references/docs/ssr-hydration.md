@@ -46,7 +46,6 @@ The IR is the single source of truth. Both the server render walker (Rust, in `s
 | `{#if cond}` | Server evaluates `cond`; only the matching branch is emitted, with markers identifying which branch is live. Client swaps on signal change. |
 | `{#for x of xs}` | Server expands `xs` against initial value; emits all items with `key` markers. Client adds/removes by key. |
 | `{#match expr}` | Server evaluates `expr`; only the matching case is emitted. |
-| `{#await promise}` | If the promise is sync-resolvable from a `<data>` source, server emits the resolved branch. Otherwise emits the loading branch and the client takes over. |
 | `<data live />` | Server emits the initial value inline (with envelope `kind: 'ok'`); client opens the SSE channel for patches. |
 | `<while-loading bind="X">` | Server already has the value — emits children if `X` is `ok`, suppresses otherwise. |
 | `on:click={fn}` | Marker emitted; no listener attached server-side. |
@@ -67,15 +66,23 @@ Expressions inside `{ ... }` are SSR'd if they stay inside this subset:
 
 Expressions **outside** the subset (function invocations beyond signal reads, closures, `new`, `await`, `this`, arbitrary JS) become client-only. The compiler emits a placeholder marker; the client runtime evaluates on attach. The compiler also emits a warning so the author can decide whether to refactor toward the subset.
 
-## Markers (implementation in active dev)
+## Markers
 
-The serialization shape between server-emitted HTML and the client attach runtime is in active development. The contract is:
+The serialization shape between the server-emitted HTML and the client attach runtime:
 
-- Each reactive binding (text interp, attribute interp, event handler, two-way bind, control flow boundary, custom element instance) is emitted with a marker the client can find unambiguously.
-- The marker carries enough information to resolve the binding from the IR — typically a stable ID into a sidecar manifest, or an inline annotation that names the binding directly.
-- Markers do not pollute author-visible HTML semantics (no role-changing attributes, no `id` collisions).
+| Source construct | Emitted marker |
+|---|---|
+| `{expr}` text interpolation | `<!--sui:text:bN-->value<!--/sui-->` comment pair |
+| `on:click={fn}` | `on:click="bN"` attribute preserved on the element |
+| `bind:value={sig}` | `bind:value="bN"` attribute preserved on the element |
+| `class:active={expr}` | `class:active="bN"` attribute preserved |
+| `style:color={expr}` | `style:color="bN"` attribute preserved |
+| `attr:href={expr}` | `attr:href="bN"` attribute preserved |
+| `{#if}` / `{#for}` / `{#match}` — active branch | `<sui-if key="bN">…</sui-if>` (or `<sui-for>`, `<sui-match>`) |
+| `{#if}` / `{#for}` / `{#match}` — inactive branch | `<sui-if key="bN" hidden></sui-if>` |
+| Initial signal values | `<script type="application/json" id="__set_init__">…</script>` |
 
-We are not committing to Datastar's `data-*` attribute names. The shape is ours; the philosophy of "small client runtime + server-rendered HTML + SSE patches" is shared. See [status.md](status.md) for the open question.
+`b<N>` keys are allocated by a counter in source order; the sidecar binding manifest (exported as `bindings` from the compiled ESM) maps each key to its kind, expression, and dependency list. The attach runtime queries `[on:*]`, `[bind:*]`, `[class:*]`, `[style:*]`, `[attr:*]` to find leaf bindings and walks `<sui-if>/<sui-for>/<sui-match>` elements for control-flow boundaries. Net `data-*` attributes in framework-emitted HTML: zero.
 
 ## Client attach runtime
 
@@ -112,14 +119,14 @@ What's lost without JS:
 
 For the local-daemon case Ship targets, this matters less than for the public-web case — JS is essentially always available. But the architecture *enables* PE, and that's the discipline: the server renders meaningful HTML, the client enhances it.
 
-## The deleted middle
+## What replaced the Phase 3 architecture
 
-Two pieces of the previous (Phase 3) architecture are being deleted:
+Two pieces of the previous (Phase 3) architecture are gone:
 
-- **`@SUI/dom`** — the client-side template parser/interpreter. Once SSR ships, the client never parses `.sui` source. The package survives only to support the eval rig (jsdom probes) and tests.
-- **The empty HTML shell** — `shipd` no longer serves an empty `<div id="root">` shell at `/sui/<view>`. It serves rendered HTML directly.
+- **Client-side template parser** — the client never parses `.sui` source on the production path. The parser lives in `@ship/ui-dom/legacy` and is used only by tests and the eval rig. The default `@ship/ui-dom` entry exports only `attach` and has zero parser code.
+- **The empty HTML shell** — `shipd` no longer serves an empty `<div id="root">` shell at `/sui/<view>`. It serves server-rendered HTML directly.
 
-Both deletions follow from the IR-as-source-of-truth move. Two parsers (Rust + JS) and two emit shapes (empty shell + client-rendered DOM) become one parser (Rust) and one emit shape (rendered HTML).
+Both follow from the IR-as-source-of-truth move. Two parsers (Rust + JS) and two emit shapes (empty shell + client-rendered DOM) become one parser (Rust) and one emit shape (rendered HTML).
 
 ## Import surface: default vs. legacy
 

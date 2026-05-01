@@ -99,7 +99,7 @@ export default controller<Scope>({
 
 `MutableState<Scope>` is computed from `Scope`: it picks every key whose value is a `Signal<T>` and exposes that key as an assignable `T`. There's no separate state-shape generic to declare — the template's `<state>` directives are the single source of truth.
 
-Future: the compiler will emit a `.d.ts` next to each `.sui` so this declaration is auto-derived from the template's `<data>` / `<state>` / `<use-* as=>` elements. Until then, declare `Scope` by hand.
+The compiler emits a `<file>.sui.d.ts` declaration alongside each compiled template, exporting a `Scope` interface derived from the template's `<data>` / `<state>` / `<use-* as=>` elements. Import it as the controller generic to replace the manual `type Scope = { … }` declaration.
 
 ### Tier 3 — function controller
 
@@ -189,13 +189,15 @@ views/<name>/
   view.css         # styles (optional)
 ```
 
-Component files use the same convention but the file *defines* a custom element via `<component>`/`<prop>`:
+Component files use the same convention. The file IS the component; `<prop>` directives at the top declare the element's API; a `<tag>.sui.json` metadata file names the tag and shadow flag:
 
 ```
 packages/SUI-components/src/ship-button/
-  ship-button.sui
-  ship-button.ts      # only if the component needs a controller
+  ship-button.sui      # template + <prop> directives
+  ship-button.sui.d.ts # compiler-emitted Scope declaration
+  ship-button.ts       # controller (only if needed)
   ship-button.css
+  ship-button.sui.json # { "component": "ship-button", "shadow": true }
 ```
 
 The compiler pairs by filename; no manifest entry is needed. Adding a `view.ts` next to a `view.sui` is the only signal the framework requires.
