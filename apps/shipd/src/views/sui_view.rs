@@ -96,7 +96,7 @@ pub async fn serve_sui_view(Path(name): Path<String>) -> Response {
     }
     let source = match view_source(&name) {
         Some(s) => s,
-        None => return not_found(&format!("ship-set view not found: {name}")),
+        None => return not_found(&format!("sui view not found: {name}")),
     };
 
     let program = match parse::parse(source) {

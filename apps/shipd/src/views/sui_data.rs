@@ -70,7 +70,7 @@ fn resolved_stream(
     let initial = match resolve_value(&parsed, &state) {
         Ok(v) => v,
         Err(e) => {
-            tracing::warn!(error = %e, expr = %raw_expr, "ship-set-data resolve failed");
+            tracing::warn!(error = %e, expr = %raw_expr, "sui-data resolve failed");
             serde_json::Value::Null
         }
     };
@@ -82,7 +82,7 @@ fn resolved_stream(
     }
 
     let live = async_stream::stream! {
-        let actor_id = format!("ship-set-data-{}", gen_ulid());
+        let actor_id = format!("sui-data-{}", gen_ulid());
         let config = ActorConfig {
             namespace: actor_id.clone(),
             write_namespaces: vec![],
@@ -92,7 +92,7 @@ fn resolved_stream(
         let mailbox = match state.kernel().lock().await.spawn_actor(&actor_id, config) {
             Ok((_store, mb)) => Some(mb),
             Err(e) => {
-                tracing::error!(error = %e, actor = %actor_id, "ship-set-data spawn_actor failed");
+                tracing::error!(error = %e, actor = %actor_id, "sui-data spawn_actor failed");
                 None
             }
         };

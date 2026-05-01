@@ -56,7 +56,7 @@ fn spawn_watcher(tx: broadcast::Sender<ShipSetUpdate>) -> Option<RecommendedWatc
     ]
     .into_iter()
     .flatten()
-    .map(|d| d.join("ship-set"))
+    .map(|d| d.join("sui"))
     .filter(|p| p.is_dir())
     .collect();
     if dirs.is_empty() {
@@ -95,16 +95,16 @@ fn spawn_watcher(tx: broadcast::Sender<ShipSetUpdate>) -> Option<RecommendedWatc
     let mut watcher = match notify::recommended_watcher(cb) {
         Ok(w) => w,
         Err(e) => {
-            tracing::warn!("ship-set-hmr: watcher init failed: {e}");
+            tracing::warn!("sui-hmr: watcher init failed: {e}");
             return None;
         }
     };
     for dir in &dirs {
         if let Err(e) = watcher.watch(dir, RecursiveMode::NonRecursive) {
-            tracing::warn!("ship-set-hmr: watch {} failed: {e}", dir.display());
+            tracing::warn!("sui-hmr: watch {} failed: {e}", dir.display());
         }
     }
-    tracing::info!("ship-set-hmr: watching {} dir(s)", dirs.len());
+    tracing::info!("sui-hmr: watching {} dir(s)", dirs.len());
     Some(watcher)
 }
 
