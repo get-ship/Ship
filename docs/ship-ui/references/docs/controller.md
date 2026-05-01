@@ -199,3 +199,29 @@ packages/SUI-components/src/ship-button/
 ```
 
 The compiler pairs by filename; no manifest entry is needed. Adding a `view.ts` next to a `view.sui` is the only signal the framework requires.
+
+## Tier-1 / tier-2 threshold rule
+
+The compiler enforces condition (1) of the threshold rule statically. A **multi-statement** `on:event` handler body in a tier-1 template (no paired `.ts`) is a build-time error:
+
+```html
+<!-- ✗ fails without view.ts -->
+<button on:click={() => { x.set(1); y.set(2) }}>Save</button>
+```
+
+```
+view.sui: line 1 col 30: [on:click handler]
+multi-statement handler — paired `<view>.ts` controller required for tier-2 work
+```
+
+A single-expression or single-statement block is fine at tier 1:
+
+```html
+<!-- ✓ OK — single expression -->
+<button on:click={() => count.set(count() + 1)}>+</button>
+
+<!-- ✓ OK — single-statement block -->
+<button on:click={() => { count.set(count() + 1) }}>+</button>
+```
+
+Once you add a paired `view.ts` the check is skipped entirely — the controller owns complex handler logic. Conditions 2–5 of the threshold rule (multi-signal data thunks, `use:` compositions, lifecycle hooks, multi-statement `<state>` mutations) are not yet enforced statically but follow the same architectural boundary.
