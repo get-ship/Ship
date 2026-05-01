@@ -52,7 +52,18 @@ export function complete(ctx: CompletionContext): CompletionItem[] {
   const before = source.slice(0, offset);
   // Inside a brace expression?
   const braceCtx = innermostOpenBrace(before);
-  if (braceCtx) return identifierCompletions(ctx);
+  if (braceCtx) {
+    // `<alias>.` member-access completion (D-2).
+    const dotted = /([a-zA-Z_$][a-zA-Z0-9_$]*)\.([a-zA-Z_$][a-zA-Z0-9_$]*)?$/.exec(before);
+    if (dotted) {
+      const ns = ctx.setup?.namespaces?.find(n => n.alias === dotted[1]);
+      if (ns) return namespaceMemberCompletions(ns);
+    }
+    // Inside an `on:event={…}` brace — restrict to controller `on` keys (D-4).
+    const onCtx = onAttrBraceContext(before);
+    if (onCtx) return onHandlerCompletions(ctx);
+    return identifierCompletions(ctx);
+  }
 
   // Inside an open tag (cursor between `<tag` and `>`)?
   const openTag = openTagBeforeCursor(before);
@@ -63,6 +74,46 @@ export function complete(ctx: CompletionContext): CompletionItem[] {
   if (tagMatch) return tagCompletions(ctx);
 
   return [];
+}
+
+/** True if the cursor sits inside the `{…}` of an `on:event={…}` attr. */
+function onAttrBraceContext(before: string): boolean {
+  // Walk back to the opening `{` of the current brace expression.
+  let depth = 0;
+  let p = before.length - 1;
+  while (p >= 0) {
+    const c = before[p]!;
+    if (c === '"' || c === "'" || c === '`') { p = skipBackString(before, p); continue; }
+    if (c === '}' || c === ')' || c === ']') depth++;
+    else if (c === '(' || c === '[') depth--;
+    else if (c === '{') {
+      if (depth === 0) {
+        // The `{` is the brace start. Look at the chars right before it.
+        const pre = before.slice(0, p).trimEnd();
+        return /on:[a-zA-Z][a-zA-Z0-9-]*(?:\|[a-zA-Z][a-zA-Z0-9-]*(?::[0-9]+)?)*=$/.test(pre);
+      }
+      depth--;
+    }
+    p--;
+  }
+  return false;
+}
+
+function namespaceMemberCompletions(ns: import('./setup').UseNamespace): CompletionItem[] {
+  return ns.members.map(m => ({
+    label: m.name,
+    kind: 'identifier' as const,
+    detail: `${m.kind}: ${m.signature}`,
+  }));
+}
+
+function onHandlerCompletions(ctx: CompletionContext): CompletionItem[] {
+  const handlers = ctx.setup?.onHandlers ?? [];
+  return handlers.map(h => ({
+    label: h.name,
+    kind: 'identifier' as const,
+    detail: h.signature,
+  }));
 }
 
 function innermostOpenBrace(src: string): boolean {

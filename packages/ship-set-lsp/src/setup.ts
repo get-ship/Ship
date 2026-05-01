@@ -10,6 +10,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import ts from 'typescript';
+import { namespacesFromControllerDef, onHandlersFromControllerDef } from './setup-controller';
 
 export interface SetupMember {
   name: string;
@@ -20,6 +21,30 @@ export interface SetupMember {
   declarationOffset?: number;
 }
 
+/** A contribution exposed under a `use:` alias. */
+export interface UseNamespaceMember {
+  name: string;
+  kind: 'state' | 'derived' | 'on' | 'use';
+  /** Textual signature — e.g. `() => T[]`, `(s, q: string) => void`. */
+  signature: string;
+}
+
+/** A `use:` alias and the contributions it exposes. */
+export interface UseNamespace {
+  alias: string;
+  /** Identifier of the hook factory call (`useFilteredList`), or null
+   * if the alias was assigned an inline literal. */
+  hookFactory: string | null;
+  members: UseNamespaceMember[];
+}
+
+/** A handler key from the controller's `on:` section. */
+export interface OnHandler {
+  name: string;
+  /** Textual signature — `(s: MutableState<Scope>, e: MouseEvent) => void`. */
+  signature: string;
+}
+
 export interface SetupInfo {
   uri: string;
   source: string;
@@ -27,6 +52,10 @@ export interface SetupInfo {
   /** Positions in the setup file where the *return* object lives — used for
    * surfacing diagnostics that complain about missing keys. */
   returnRange?: { start: number; end: number };
+  /** Namespaces contributed via `use:` (D-2). */
+  namespaces?: UseNamespace[];
+  /** Handlers from the `on:` section (D-4). */
+  onHandlers?: OnHandler[];
 }
 
 export function pairedSetupPath(templateFsPath: string): string | null {
@@ -82,10 +111,7 @@ export function analyzeSetup(setupPath: string, source: string): SetupInfo {
   // result if it found anything — controller's section-walk is more
   // accurate than a generic return-object extraction would be.
   if (
-    ts.isCallExpression(def) &&
-    ts.isIdentifier(def.expression) &&
-    def.expression.text === 'controller' &&
-    def.arguments.length > 0
+    isControllerCall(def)
   ) {
     const arg = def.arguments[0]!;
     const obj = unwrapToObjectLiteral(arg)
@@ -95,9 +121,19 @@ export function analyzeSetup(setupPath: string, source: string): SetupInfo {
         result.members = members
         result.returnRange = { start: obj.getStart(sf), end: obj.getEnd() }
       }
+      result.namespaces = namespacesFromControllerDef(obj, sf)
+      result.onHandlers = onHandlersFromControllerDef(obj, sf)
     }
   }
   return result;
+}
+
+function isControllerCall(def: ts.Node): def is ts.CallExpression {
+  if (!ts.isCallExpression(def)) return false
+  if (def.arguments.length === 0) return false
+  // `controller(def)` or `controller<Scope>(def)`. Both have an
+  // `Identifier` callee named `controller`.
+  return ts.isIdentifier(def.expression) && def.expression.text === 'controller'
 }
 
 /** Walk `expr` until we land on an object literal:
