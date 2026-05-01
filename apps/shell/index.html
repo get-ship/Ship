@@ -949,6 +949,23 @@
     <app-agent-modal></app-agent-modal>
     </ship-shell>
 
+    <!-- SUI runtime resolution.
+         Importmap MUST come before the first module script — browsers
+         freeze it as soon as any <script type="module"> begins fetching.
+         Embedded SUI fragments (loaded via mountSuiView) import the
+         runtime through these bare specifiers; the daemon-served bundles
+         here are loaded once at boot so every fragment shares the same
+         module instances. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@ship/ui-runtime":    "/_sui/runtime.js",
+          "@ship/ui-dom":        "/_sui/dom.js",
+          "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+        }
+      }
+    </script>
+    <script type="module" src="/_sui/components.js"></script>
     <script type="module" src="/src/main.ts"></script>
     <!-- Agent UI single-file components. The auto-loader is future
          work in the SDK; until then each component used here lists

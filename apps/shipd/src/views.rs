@@ -44,6 +44,8 @@ pub mod sui_view_shell;
 pub mod sui_render;
 pub mod sui_render_fragment;
 pub mod sui_mutation;
+pub mod sui_resolver;
+pub mod sui_fragment;
 mod sui_render_helpers;
 pub mod setup;
 pub mod templates;

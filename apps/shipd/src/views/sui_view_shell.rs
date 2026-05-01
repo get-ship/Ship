@@ -23,6 +23,10 @@ pub fn render_shell(name: &str, title: &str, ssr_html: &str) -> String {
         "document.getElementById('sui-root')",
         "view",
     );
+    // Importmap MUST come before any module script. Browsers freeze
+    // the importmap as soon as the first module script begins fetching;
+    // ship-elements.js used to load first and that broke bare-specifier
+    // resolution for `@ship/ui-runtime` / `@ship/ui-dom`.
     format!(
         r#"<!doctype html>
 <html lang="en">
@@ -32,8 +36,8 @@ pub fn render_shell(name: &str, title: &str, ssr_html: &str) -> String {
   <title>{safe_title}</title>
   <link rel="stylesheet" href="/api/assets/view-tokens.css">
   <link rel="stylesheet" href="/_sui/views/{safe_name}/view.css">
-  <script type="module" src="/api/assets/ship-elements.js"></script>
   {importmap}
+  <script type="module" src="/api/assets/ship-elements.js"></script>
   {components}
 </head>
 <body>
@@ -83,6 +87,19 @@ mod tests {
         // Old parse-and-build path is gone.
         assert!(!html.contains("hydrate(template"));
         assert!(!html.contains("fetch('/_sui/views/agents/view.sui')"));
+    }
+
+    #[test]
+    fn importmap_precedes_ship_elements_script() {
+        let html = render_shell("counter", "Counter", "");
+        let imap = html.find(r#"<script type="importmap""#).expect("importmap present");
+        let elements = html
+            .find("/api/assets/ship-elements.js")
+            .expect("ship-elements present");
+        assert!(
+            imap < elements,
+            "importmap must come before ship-elements.js to avoid the bare-specifier freeze",
+        );
     }
 
     #[test]

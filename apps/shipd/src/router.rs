@@ -187,6 +187,20 @@ pub fn build_router(
                 views::sui_render_fragment::serve_sui_render_fragment,
             ),
         )
+        // Embeddable fragment endpoint — returns SSR markup + scoped
+        // __set_init__ island + an inline boot module that calls
+        // attach() against `[data-sui-root][data-view="<name>"]`. No
+        // document chrome — the shell already loads the importmap and
+        // runtime modules. Two-arg variant matches sub-paths through
+        // `[param]` directories under `<project>/.ship/views/<name>/`.
+        .route(
+            "/_sui/fragment/{name}",
+            axum::routing::get(views::sui_fragment::serve_sui_fragment),
+        )
+        .route(
+            "/_sui/fragment/{name}/{*sub_path}",
+            axum::routing::get(views::sui_fragment::serve_sui_fragment_subpath),
+        )
         .route(
             "/sui/{name}",
             axum::routing::get(views::sui_view::serve_sui_view),
