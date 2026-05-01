@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! Routed serving of `views/<name>/` ship-set views.
 //!
 //! Phase F design: the `/set/<name>` handler runs the
@@ -34,6 +35,7 @@ use axum::{
 };
 use sui_compiler::{CompileOpts, compile, parse, render};
 
+use super::sui_bundle::bundle_view;
 use super::sui_resolver::{ResolvedView, resolve};
 use super::sui_view_shell::render_shell;
 
@@ -159,15 +161,30 @@ pub async fn serve_sui_view_setup(Path(name): Path<String>) -> Response {
 }
 
 fn compile_view_js(name: &str, resolved: &ResolvedView) -> Response {
+    let ts_path = resolved.source_path.as_ref()
+        .and_then(|p| p.parent())
+        .map(|d| d.join("index.ts"))
+        .filter(|p| p.is_file());
+
     let opts = CompileOpts {
         source_path: resolved.source_path.clone(),
         emit_dts: false,
+        setup_url: ts_path.as_ref().map(|_| "./index.ts".to_string()),
         ..CompileOpts::default()
     };
     let out = match compile(&resolved.source, opts) {
         Ok(o) => o,
         Err(err) => return render_error(err.render(&resolved.source)),
     };
+
+    let final_js = match (ts_path, resolved.source_path.as_deref()) {
+        (Some(ts), Some(sui)) => match bundle_view(name, &out.js, sui, &ts) {
+            Ok(b) => b,
+            Err(e) => return render_error(e),
+        },
+        _ => out.js,
+    };
+
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
@@ -176,7 +193,7 @@ fn compile_view_js(name: &str, resolved: &ResolvedView) -> Response {
             "X-Sui-View",
             name.chars().filter(|c| c.is_ascii()).collect::<String>(),
         )
-        .body(Body::from(out.js))
+        .body(Body::from(final_js))
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 

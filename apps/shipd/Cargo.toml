@@ -78,12 +78,13 @@ portable-pty = "0.9"
 # splitting and signal-attribute rewriting. The patterns are small and
 # anchored — full PCRE features are not required.
 regex = { workspace = true }
+# Temporary directories for the esbuild bundling path in sui_bundle.rs.
+tempfile = { workspace = true }
 
 [features]
 unstable = ["runtime/unstable"]
 
 [dev-dependencies]
-tempfile = { workspace = true }
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
 chrono = { workspace = true }
