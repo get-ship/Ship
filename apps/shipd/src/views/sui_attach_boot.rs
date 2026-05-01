@@ -71,9 +71,9 @@ pub fn attach_boot_script(
     const root = {root_selector};
     try {{
       const dispose = attach(root, {{ module: viewModule, ship, route: routeSignals, navigate, viewName: '{view_name_escaped}' }});
-      window.__shipSetDispose = dispose;
+      window.__suiDispose = dispose;
     }} catch (err) {{
-      console.error('[ship-set/{error_label}] attach failed:', err);
+      console.error('[sui/{error_label}] attach failed:', err);
     }}
   </script>"#
     )
