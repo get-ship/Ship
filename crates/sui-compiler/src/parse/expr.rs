@@ -72,7 +72,10 @@ pub fn validate(expr: &str, allow_arrow: bool, location: &str) -> Result<(), Com
         if c == b')' {
             paren_depth -= 1;
         }
-        if c == b';' {
+        // Allow `;` inside block bodies (brace_depth > 0) so that
+        // `() => { x.set(1); y.set(2) }` survives parse and reaches
+        // the handler_complexity check pass with the right message.
+        if c == b';' && brace_depth == 0 {
             return Err(CompileError::new(format!(
                 "statements are not allowed in expressions: `{trimmed}`"
             ))

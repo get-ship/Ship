@@ -6,22 +6,25 @@
 //! expression in the program.
 
 pub mod expr_subset;
+pub mod handler_complexity;
+
+use std::path::Path;
 
 use crate::diagnostics::CompileError;
 use crate::ir::*;
 
-/// Run every post-lowering check. Returns the first error, or `Ok(())`
-/// if every expression passes.
+/// Run every post-parse check. Returns the first error, or `Ok(())`.
 ///
-/// Event handlers (where `allow_arrow == true`) are excluded — they
-/// are JavaScript callback bodies, not interpolations.
-pub fn run(program: &Program) -> Result<(), CompileError> {
+/// Event handlers (`allow_arrow == true`) are excluded from the renderable
+/// expr-subset check; they are checked separately by `handler_complexity`.
+pub fn run(program: &Program, source_path: Option<&Path>) -> Result<(), CompileError> {
     visit_program(program, &mut |e| {
         if e.allow_arrow {
             return Ok(());
         }
         expr_subset::check(e)
-    })
+    })?;
+    handler_complexity::check(program, source_path)
 }
 
 /// Walk every `Expr` in the program and invoke `f` on each.
