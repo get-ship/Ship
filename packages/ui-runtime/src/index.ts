@@ -92,6 +92,8 @@ export type { State } from './state'
 export { live, unwrap, unwrapOr } from './live'
 export type { LiveState, LiveSignal, LiveSource, LiveOpts } from './live'
 
+export { wireFormMutation } from './mutation'
+
 export { bindWhileLoading, bindWhileError } from './while'
 export type {
   BindWhileLoadingOptions,

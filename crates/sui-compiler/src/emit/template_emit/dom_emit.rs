@@ -91,6 +91,12 @@ impl<'a> TemplateEmitter<'a> {
                     "{cleanups_var}.push(effect(() => {{ const __v = __E[{idx}]($scope); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
                 ));
             }
+            AttrInstr::Mutation { expr, .. } => {
+                let chain = js_string(&expr.source);
+                w.line(&format!(
+                    "{cleanups_var}.push(wireFormMutation({el_var}, {chain}, $scope));"
+                ));
+            }
         }
     }
 

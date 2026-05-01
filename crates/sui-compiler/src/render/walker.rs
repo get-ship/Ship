@@ -63,10 +63,24 @@ pub(crate) struct Walker<'r> {
     /// the registry's `b<N>` matches.
     pub(super) reg_idx: usize,
     pub(super) frag: FragmentState,
+    /// View name — used to build `/_sui/mutation/<view>?form=<key>` for
+    /// `<form mutation>` elements. Empty string when not in SSR context.
+    pub(super) view_name: String,
+    /// Action/method attrs staged by `emit_attr_marker` for a mutation
+    /// form and drained at the end of `emit_open_tag`.
+    pub(super) pending_form_inject: Vec<(String, String)>,
 }
 
 impl<'r> Walker<'r> {
     pub(crate) fn new(scope: Scope, registry: &'r BindingRegistry) -> Self {
+        Self::new_named(scope, registry, String::new())
+    }
+
+    pub(crate) fn new_named(
+        scope: Scope,
+        registry: &'r BindingRegistry,
+        view_name: String,
+    ) -> Self {
         Self {
             out: Out::new(),
             keys: KeyAllocator::default(),
@@ -74,6 +88,8 @@ impl<'r> Walker<'r> {
             registry,
             reg_idx: 0,
             frag: FragmentState::Off,
+            view_name,
+            pending_form_inject: Vec::new(),
         }
     }
 

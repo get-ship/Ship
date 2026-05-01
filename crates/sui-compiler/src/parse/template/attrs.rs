@@ -23,6 +23,17 @@ fn compile_attr(
     value_span: Span,
     loc: &str,
 ) -> Result<AttrInstr, CompileError> {
+    if name == "mutation" {
+        if value.is_empty() {
+            return Err(CompileError::new("mutation= requires a value (e.g. \"ship.agents.create\")")
+                .with_span(value_span)
+                .with_category(loc.to_string()));
+        }
+        return Ok(AttrInstr::Mutation {
+            expr: Expr::new(value.to_string(), value_span, false),
+            span: value_span,
+        });
+    }
     if let Some(rest) = name.strip_prefix("on:") {
         return compile_on(rest, value, value_span, loc);
     }

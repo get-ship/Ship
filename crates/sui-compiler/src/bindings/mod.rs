@@ -114,6 +114,9 @@ impl Builder {
             AttrInstr::DynamicAttr { expr, .. } => {
                 self.push(BindingKind::AttrDynamic, &expr.source);
             }
+            AttrInstr::Mutation { expr, .. } => {
+                self.push(BindingKind::Mutation, &expr.source);
+            }
         }
     }
 

@@ -28,5 +28,8 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered) {
         AttrInstr::Style { .. } => {
             out.runtime_imports.insert("effect");
         }
+        AttrInstr::Mutation { .. } => {
+            out.runtime_imports.insert("wireFormMutation");
+        }
     }
 }

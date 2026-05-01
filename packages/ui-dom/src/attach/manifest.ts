@@ -138,6 +138,7 @@ function isBindingAttr(name: string): boolean {
     name.startsWith('class:') ||
     name.startsWith('style:') ||
     name.startsWith('attr:') ||
-    name === 'attr-dynamic'
+    name === 'attr-dynamic' ||
+    name === 'mutation'
   )
 }
