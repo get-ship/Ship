@@ -159,30 +159,49 @@ mod tests {
     use super::*;
 
     #[test]
-    fn builtin_themes_are_listed() {
-        let themes = list_themes();
-        let names: Vec<&str> = themes.iter().map(|t| t.name.as_str()).collect();
-        assert!(names.contains(&"gruvbox"), "missing gruvbox");
-        assert!(names.contains(&"nord"), "missing nord");
-        assert!(names.contains(&"catppuccin"), "missing catppuccin");
-        assert!(names.contains(&"tokyo-night"), "missing tokyo-night");
+    fn builtin_themes_are_empty_post_ship_set_migration() {
+        // The canonical theme catalog moved to packages/ship-set/src/themes.css
+        // (ship-light/-dark, paper, halo, console, contrast). The daemon-side
+        // registry is now an override hook for project + global CSS files only;
+        // no compile-time built-ins overlay the shell catalog.
+        assert!(BUILTIN_THEMES.is_empty());
     }
 
     #[test]
-    fn gruvbox_has_both_modes() {
-        let themes = list_themes();
-        let gruvbox = themes.iter().find(|t| t.name == "gruvbox").unwrap();
-        assert!(gruvbox.has_light);
-        assert!(gruvbox.has_dark);
+    fn collect_dir_themes_picks_up_css_files() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::write(tmp.path().join("alpha.css"), ":root {}").unwrap();
+        std::fs::write(tmp.path().join("beta.css"), ":root {}").unwrap();
+        std::fs::write(tmp.path().join("notes.txt"), "ignored").unwrap();
+        let mut out = Vec::new();
+        collect_dir_themes(tmp.path(), ThemeSource::Project, &mut out);
+        let mut names: Vec<&str> = out.iter().map(|t| t.name.as_str()).collect();
+        names.sort();
+        assert_eq!(names, vec!["alpha", "beta"]);
     }
 
     #[test]
-    fn tokyo_night_dark_only() {
-        let themes = list_themes();
-        let tn = themes.iter().find(|t| t.name == "tokyo-night").unwrap();
-        // tokyo-night has no :root block, only .dark
-        assert!(!tn.has_light);
-        assert!(tn.has_dark);
+    fn collect_dir_themes_detects_both_light_and_dark() {
+        let tmp = tempfile::tempdir().unwrap();
+        let css = ":root { --background: white; }\n.dark { --background: black; }";
+        std::fs::write(tmp.path().join("dual.css"), css).unwrap();
+        let mut out = Vec::new();
+        collect_dir_themes(tmp.path(), ThemeSource::Project, &mut out);
+        let dual = out.iter().find(|t| t.name == "dual").unwrap();
+        assert!(dual.has_light);
+        assert!(dual.has_dark);
+    }
+
+    #[test]
+    fn collect_dir_themes_detects_dark_only() {
+        let tmp = tempfile::tempdir().unwrap();
+        let css = ".dark { --background: black; }";
+        std::fs::write(tmp.path().join("midnight.css"), css).unwrap();
+        let mut out = Vec::new();
+        collect_dir_themes(tmp.path(), ThemeSource::Project, &mut out);
+        let midnight = out.iter().find(|t| t.name == "midnight").unwrap();
+        assert!(!midnight.has_light);
+        assert!(midnight.has_dark);
     }
 
     #[test]
@@ -190,13 +209,6 @@ mod tests {
         // Default is "ship" which returns empty.
         let css = resolve_theme_css();
         assert!(css.is_empty(), "default theme should return empty CSS");
-    }
-
-    #[test]
-    fn resolve_builtin_by_name() {
-        let css = resolve_css_by_name("gruvbox");
-        assert!(css.contains("--background"));
-        assert!(css.contains("--primary"));
     }
 
     #[test]
