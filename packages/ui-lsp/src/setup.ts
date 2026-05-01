@@ -56,6 +56,9 @@ export interface SetupInfo {
   namespaces?: UseNamespace[];
   /** Handlers from the `on:` section (D-4). */
   onHandlers?: OnHandler[];
+  /** Template-declared scope members resolved from the sibling `.sui.d.ts`,
+   * when the `.ts` imports Scope from a `.sui` path (D-1). */
+  scopeMembers?: SetupMember[];
 }
 
 export function pairedSetupPath(templateFsPath: string): string | null {
@@ -63,6 +66,62 @@ export function pairedSetupPath(templateFsPath: string): string | null {
     return templateFsPath.slice(0, -'.sui'.length) + '.ts';
   }
   return null;
+}
+
+/**
+ * Given a `.ts` setup file path, find the sibling `.sui.d.ts` file if present.
+ * Returns the path or null if not found.
+ */
+export function pairedDtsPath(setupFsPath: string): string | null {
+  const dir = path.dirname(setupFsPath);
+  const base = path.basename(setupFsPath);
+  const stem = base.endsWith('.ts') ? base.slice(0, -3) : base;
+  // stem is e.g. "view" — we look for "view.sui.d.ts" next to "view.ts"
+  const candidate = path.join(dir, `${stem}.sui.d.ts`);
+  try {
+    fs.accessSync(candidate);
+    return candidate;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Parse a `.sui.d.ts` file and return the members of its `Scope` interface.
+ * Returns an empty array if the file cannot be parsed or has no `Scope`.
+ */
+export function scopeMembersFromDts(dtsPath: string): SetupMember[] {
+  let source: string;
+  try {
+    source = fs.readFileSync(dtsPath, 'utf8');
+  } catch {
+    return [];
+  }
+  return scopeMembersFromDtsSource(dtsPath, source);
+}
+
+export function scopeMembersFromDtsSource(dtsPath: string, source: string): SetupMember[] {
+  const sf = ts.createSourceFile(
+    path.basename(dtsPath), source,
+    ts.ScriptTarget.ESNext, true, ts.ScriptKind.TS,
+  );
+  for (const stmt of sf.statements) {
+    if (
+      ts.isInterfaceDeclaration(stmt) &&
+      ts.isIdentifier(stmt.name) &&
+      stmt.name.text === 'Scope'
+    ) {
+      return stmt.members
+        .filter(ts.isPropertySignature)
+        .map((m): SetupMember | null => {
+          if (!ts.isIdentifier(m.name)) return null;
+          const typeTxt = m.type ? m.type.getText(sf) : 'unknown';
+          return { name: m.name.text, type: typeTxt };
+        })
+        .filter((m): m is SetupMember => m !== null);
+    }
+  }
+  return [];
 }
 
 export function loadSetup(templateFsPath: string): SetupInfo | null {
@@ -122,6 +181,31 @@ export function analyzeSetup(setupPath: string, source: string): SetupInfo {
       result.onHandlers = onHandlersFromControllerDef(obj, sf)
     }
   }
+
+  // D-1 enhancement: if the .ts file imports `Scope` from a `.sui` path,
+  // resolve the sibling `.sui.d.ts` and enrich `scopeMembers` with typed
+  // declarations. These are the template-declared bindings (state, data,
+  // props, use-* hooks) the controller may not expose in its own sections.
+  const dtsPath = pairedDtsPath(setupPath);
+  if (dtsPath) {
+    const dtsMembers = scopeMembersFromDts(dtsPath);
+    if (dtsMembers.length > 0) {
+      // Merge: prefer dts types for names already in members (they're more
+      // specific), and add dts-only names (state/data declared in template).
+      const byName = new Map(result.members.map((m) => [m.name, m]));
+      for (const dm of dtsMembers) {
+        const existing = byName.get(dm.name);
+        if (existing) {
+          existing.type = dm.type;
+        } else {
+          byName.set(dm.name, dm);
+        }
+      }
+      result.members = [...byName.values()];
+      result.scopeMembers = dtsMembers;
+    }
+  }
+
   return result;
 }
 

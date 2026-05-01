@@ -14,8 +14,8 @@
 // unwrap via `unwrapOr`, signal-passing into the hook factory.
 
 import { controller, unwrapOr, useFilteredList } from '@ship/ui-runtime'
-import type { LiveSignal, Signal } from '@ship/ui-runtime'
 import type { GitOverview, GitCommit } from '@ship/ui-sdk-client'
+import type { Scope } from './view.sui'
 
 const EMPTY_OVERVIEW: GitOverview = {
   workspace_id: null,
@@ -30,17 +30,6 @@ const EMPTY_OVERVIEW: GitOverview = {
   branches: [],
   ahead: 0,
   behind: 0,
-}
-
-/** Template scope — every identifier the .sui file declares (via
- * `<data>`, `<state>`, `<use-* as=>`) that the controller wants to
- * read. Pass as the `controller<Scope>` generic and the sections'
- * destructure args type themselves; no per-section annotations
- * needed. State (`tab`) lives in the template via `<state>` per the
- * declarative-state ADR. */
-type Scope = {
-  overview: LiveSignal<GitOverview>
-  tab: Signal<'changes' | 'history' | 'branches'>
 }
 
 /** Single read of the live envelope; reused by every overview-derived. */

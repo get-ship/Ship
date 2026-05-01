@@ -37,6 +37,7 @@ fn compile_fixture(f: &Fixture) -> String {
         source_path: Some(path),
         styles: None,
         component_meta: f.component_meta.clone(),
+        emit_dts: false,
     };
     let out = compile(&source, opts).expect("compile");
     out.js
@@ -105,6 +106,7 @@ fn ship_button_emits_cem() {
         source_path: Some(path),
         styles: None,
         component_meta: Some(ComponentMeta { name: "ship-button-test".into(), shadow: false }),
+        emit_dts: false,
     };
     let out = compile(&source, opts).expect("compile");
     let cem = out.cem.expect("CEM emitted for component-mode");
@@ -124,6 +126,7 @@ fn schema_emitted_for_each_fixture() {
             source_path: Some(path),
             styles: None,
             component_meta: fx.component_meta.clone(),
+            emit_dts: false,
         };
         let out = compile(&source, opts).expect("compile");
         let schema = out.schema.expect("schema emitted");
