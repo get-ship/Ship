@@ -13,7 +13,6 @@ use runtime::db::specs::{self, Spec};
 use runtime::events::EventEnvelope;
 use runtime::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
-use serde_json::json;
 use std::collections::HashMap;
 
 use crate::rest_api::{ApiState, MeshResponse};

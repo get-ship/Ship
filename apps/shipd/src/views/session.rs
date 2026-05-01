@@ -206,10 +206,7 @@ impl ViewSessionRegistry {
                 _ => {}
             }
         }
-        sessions.retain(|_, e| match e.last_disconnect_at {
-            Some(t) if now.duration_since(t) > cfg.gc_timeout => false,
-            _ => true,
-        });
+        sessions.retain(|_, e| !matches!(e.last_disconnect_at, Some(t) if now.duration_since(t) > cfg.gc_timeout));
     }
 
     async fn authorize(&self, id: &str, caller: &str) -> Result<(), SessionError> {

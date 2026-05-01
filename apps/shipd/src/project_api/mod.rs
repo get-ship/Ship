@@ -118,9 +118,8 @@ fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
                 found_branch = Some(b.trim().to_string());
             }
         }
-        if let (Some(p), Some(b)) = (path, found_branch) {
-            if b == branch { return Some(PathBuf::from(p)); }
-        }
+        if let (Some(p), Some(b)) = (path, found_branch)
+            && b == branch { return Some(PathBuf::from(p)); }
     }
     None
 }

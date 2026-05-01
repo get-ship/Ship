@@ -82,11 +82,10 @@ fn spawn_watcher(tx: broadcast::Sender<ShipSetUpdate>) -> Option<RecommendedWatc
             let tag = stem.to_string();
             // Debounce per-tag (notify often fires twice per save).
             let now = std::time::Instant::now();
-            if let Some(prev) = last_emit.get(&tag) {
-                if now.duration_since(*prev) < Duration::from_millis(150) {
+            if let Some(prev) = last_emit.get(&tag)
+                && now.duration_since(*prev) < Duration::from_millis(150) {
                     continue;
                 }
-            }
             last_emit.insert(tag.clone(), now);
             let _ = tx.send(ShipSetUpdate { tag });
         }

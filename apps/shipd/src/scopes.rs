@@ -61,6 +61,7 @@ fn pipeline_agent_artifact_scopes() -> Vec<Scope> {
 }
 
 /// Full artifact scopes for the session owner (human / CLI with daemon token).
+#[allow(dead_code)] // called from the session-scoping path that's currently feature-gated
 fn owner_artifact_scopes() -> Vec<Scope> {
     vec![
         Scope::ReadArtifactsRun,

@@ -5,7 +5,6 @@
 
 use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::ApiState;

@@ -1,7 +1,7 @@
 //! Resolver helpers — view dir lookup, manifest parsing, type detection.
 
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
@@ -68,6 +68,7 @@ fn humanize(id: &str) -> String {
 /// the `ship.*` SDK ignore this block. Only `collections` is read
 /// today — the other fields were loaders for pre-framework views that
 /// have since migrated; kept here so older manifests still parse.
+#[allow(dead_code)] // legacy fields parsed for forward compat but not acted on
 #[derive(Deserialize, Clone)]
 pub(crate) struct ManifestData {
     pub collections: Option<ManifestCollections>,
@@ -93,6 +94,7 @@ pub(crate) struct ManifestData {
     pub git: Option<bool>,
 }
 
+#[allow(dead_code)] // tuple variants parsed from manifest but not individually inspected
 #[derive(Deserialize, Clone)]
 #[serde(untagged)]
 pub(crate) enum ManifestCollections {
@@ -128,7 +130,7 @@ pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
 /// than silently hiding author mistakes. Authors see the diagnostic
 /// in daemon logs while the view still renders its index.html.j2
 /// (sans rail metadata, events, packs).
-pub(crate) fn read_raw_manifest(dir: &PathBuf) -> Option<ManifestFile> {
+pub(crate) fn read_raw_manifest(dir: &Path) -> Option<ManifestFile> {
     fn warn_parse(path: &std::path::Path, err: impl std::fmt::Display) {
         tracing::warn!(
             manifest = %path.display(),
@@ -174,7 +176,7 @@ pub(crate) fn read_raw_manifest(dir: &PathBuf) -> Option<ManifestFile> {
     }
 }
 
-pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManifest> {
+pub(super) fn read_manifest_file(dir: &Path, name: &str) -> Option<ViewManifest> {
     let raw: ManifestFile = read_raw_manifest(dir)?;
 
     let vtype = raw.view_type.unwrap_or_else(|| "html".into());
@@ -189,12 +191,10 @@ pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManife
 }
 
 fn detect_view_type(dir: &PathBuf) -> Option<String> {
-    if dir.join("manifest.yaml").exists()
+    if (dir.join("manifest.yaml").exists()
         || dir.join("manifest.jsonc").exists()
-        || dir.join("manifest.json").exists()
-    {
-        if let Some(m) = read_manifest_file(dir, "unknown") { return Some(m.view_type); }
-    }
+        || dir.join("manifest.json").exists())
+        && let Some(m) = read_manifest_file(dir, "unknown") { return Some(m.view_type); }
     if dir.join("index.html").exists() { return Some("html".into()); }
     if dir.join("index.js").exists() { return Some("component".into()); }
     None

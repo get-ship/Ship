@@ -168,11 +168,10 @@ pub async fn write_view_template(
             .into_response();
     }
 
-    if let Some(parent) = target.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
+    if let Some(parent) = target.parent()
+        && let Err(e) = std::fs::create_dir_all(parent) {
             return json_err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
         }
-    }
     if let Err(e) = std::fs::write(&target, &req.content) {
         return json_err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }

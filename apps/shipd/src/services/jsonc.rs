@@ -123,6 +123,7 @@ pub(crate) fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
 /// shapes Ship actually emits:
 ///   1. Flat: `"skills": ["a", "b"]` or `[{"id": "a"}, {"name": "b"}]`
 ///   2. Nested: `"skills": { "refs": [...] }` / `"mcp": { "servers": [...] }`
+///
 /// The `nested_keys` parameter lists candidate sub-keys to inspect when the
 /// top-level value is an object; the first one that contains an array wins.
 pub(crate) fn resolve_array_field(

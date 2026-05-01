@@ -23,11 +23,10 @@ impl<'a> Parser<'a> {
         while self.i < self.bytes.len() {
             if self.peek2() == Some((b'<', b'/')) {
                 let close = self.peek_close_tag()?;
-                if let Some(parent) = parent_tag {
-                    if close.eq_ignore_ascii_case(parent) {
+                if let Some(parent) = parent_tag
+                    && close.eq_ignore_ascii_case(parent) {
                         return Ok(out);
                     }
-                }
                 if parent_tag.is_none() {
                     self.skip_until(b'>');
                     continue;

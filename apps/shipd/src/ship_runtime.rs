@@ -205,13 +205,12 @@ impl ShipRuntime {
         if let Some(ws) = &workspace_dir {
             match runtime::config::get_config(Some(ws.clone())) {
                 Ok(proj) => {
-                    if let Some(art_cfg) = &proj.artifacts {
-                        if let Err(e) = art_cfg.validate() {
+                    if let Some(art_cfg) = &proj.artifacts
+                        && let Err(e) = art_cfg.validate() {
                             return Err(anyhow!(
                                 "invalid [artifacts] config in .ship/ship.jsonc: {e}"
                             ));
                         }
-                    }
                 }
                 Err(e) => tracing::warn!("could not read project config for artifacts validation: {e}"),
             }

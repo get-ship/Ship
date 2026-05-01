@@ -167,8 +167,8 @@ fn spawn_reader_middleware(
                         while let Some(nl) = line_buf.find('\n') {
                             let line: String = line_buf.drain(..=nl).collect();
                             let trimmed = line.trim_end_matches(['\n', '\r']);
-                            if !trimmed.is_empty() {
-                                if let Some(ev) = adapter.parse_output(trimmed) {
+                            if !trimmed.is_empty()
+                                && let Some(ev) = adapter.parse_output(trimmed) {
                                     // Studio.reply parity: long-lived
                                     // non-Claude providers (codex,
                                     // opencode, cursor, gemini via stdin
@@ -184,7 +184,6 @@ fn spawn_reader_middleware(
                                     }
                                     let _ = event_tx.send(ev);
                                 }
-                            }
                         }
                     }
 

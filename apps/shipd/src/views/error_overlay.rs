@@ -122,15 +122,15 @@ fn build_source_block(source: &str, error_line: Option<usize>) -> String {
     )
     .unwrap();
 
-    for idx in start..end {
-        let line_num = idx + 1;
-        let is_error = error_line.map_or(false, |el| el == line_num);
+    for (i, line_content) in lines[start..end].iter().enumerate() {
+        let line_num = start + i + 1;
+        let is_error = error_line == Some(line_num);
         let bg = if is_error {
             "background:var(--destructive,#7f1d1d);color:var(--destructive-foreground,#fef2f2);"
         } else {
             ""
         };
-        let escaped = html_escape(lines[idx]);
+        let escaped = html_escape(line_content);
         write!(
             block,
             r#"

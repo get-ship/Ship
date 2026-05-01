@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! `ship.*` op catalog — the single source of truth for what view
 //! templates (`ship.<domain>.<op>`), `window.ship.*` codegen, and MCP
 //! tool auto-registration all read.

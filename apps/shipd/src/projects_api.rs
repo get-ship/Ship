@@ -110,7 +110,7 @@ fn ensure_current(state: &ApiState, mut list: Vec<Project>) -> Vec<Project> {
     list
 }
 
-fn active_id(state: &ApiState) -> Option<String> {
+fn active_id(_state: &ApiState) -> Option<String> {
     runtime::get_setting("shell.project.active")
         .ok()
         .flatten()
@@ -164,11 +164,10 @@ pub async fn add_project(
     }
     // Require .ship dir OR create one quietly.
     let ship_dir = runtime::ShipHome::project_ship_dir(&path);
-    if !ship_dir.exists() {
-        if let Err(e) = std::fs::create_dir_all(&ship_dir) {
+    if !ship_dir.exists()
+        && let Err(e) = std::fs::create_dir_all(&ship_dir) {
             return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
         }
-    }
     let id = project_id_for(&path);
     let mut list = read_projects(&state);
     if let Some(existing) = list.iter_mut().find(|p| p.id == id) {

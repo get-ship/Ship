@@ -133,9 +133,9 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Response {
     // 1. Cookie check — browser sessions.
-    if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok()) {
-        if let Some(session_id) = crate::session::parse_session_cookie(cookie_header) {
-            if crate::session::is_browser_session_id(&session_id) {
+    if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok())
+        && let Some(session_id) = crate::session::parse_session_cookie(cookie_header)
+            && crate::session::is_browser_session_id(&session_id) {
                 match crate::session::lookup_browser_session(&session_registry, &session_id).await {
                     Some(session) => {
                         let auth = AuthContext {
@@ -154,8 +154,6 @@ pub async fn auth_middleware(
                     }
                 }
             }
-        }
-    }
 
     let header_token = req
         .headers()
@@ -274,7 +272,6 @@ pub fn is_daemon_token(token: &str) -> bool {
 // ---- Pairing endpoints ----
 
 use crate::pairing::{ClaimResult, ConfirmError, SharedPairingRegistry};
-use serde_json::json;
 
 #[derive(serde::Deserialize, Default, utoipa::ToSchema)]
 #[schema(example = json!({ "client_label": "studio-macbook" }))]
@@ -808,12 +805,11 @@ pub async fn revoke_sessions(
 
     let revoked = targets.len();
     for token in &targets {
-        if let Some(session) = reg.remove(token) {
-            if !session.ephemeral {
+        if let Some(session) = reg.remove(token)
+            && !session.ephemeral {
                 remove_persisted_session(token);
                 write_audit_log("pair_revoked", token, Some(&session.agent_id));
             }
-        }
     }
     drop(reg);
 

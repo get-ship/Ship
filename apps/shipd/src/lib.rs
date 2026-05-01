@@ -243,6 +243,7 @@ pub async fn run_network(
     let user_pinned = port.is_some();
     let max_retries = if user_pinned { 1 } else { 10 };
     let mut bound_port = desired_port;
+    #[allow(unused_assignments)] // None is the initial sentinel; Some(e) is assigned in the loop
     let mut last_err: Option<std::io::Error> = None;
     let listener = loop {
         let addr = format!("{host}:{bound_port}");

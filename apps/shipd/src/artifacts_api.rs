@@ -18,7 +18,6 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
-use serde_json::json;
 use std::collections::BTreeMap;
 
 use crate::auth::{AuthContext, Scope};

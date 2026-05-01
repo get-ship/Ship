@@ -1,3 +1,4 @@
+#![allow(clippy::if_same_then_else)]
 //! `.d.ts` declaration file emitter.
 //!
 //! Walks `<state>`, `<data>`, `<prop>`, and `<use-* as=>` declarations
@@ -115,15 +116,14 @@ fn collect_use_bindings(instrs: &[Instr], out: &mut Vec<(String, String)>) {
             if let Some(hook_name) = el.tag.strip_prefix("use-") {
                 // Look for an `as=` attribute that binds the hook under an alias.
                 for attr in &el.attrs {
-                    if let crate::ir::AttrInstr::Static { name, value, .. } = attr {
-                        if name == "as" && !value.is_empty() {
+                    if let crate::ir::AttrInstr::Static { name, value, .. } = attr
+                        && name == "as" && !value.is_empty() {
                             let camel = to_camel(hook_name);
                             out.push((
                                 value.clone(),
                                 format!("ReturnType<typeof use{camel}>"),
                             ));
                         }
-                    }
                 }
             }
             collect_use_bindings(&el.children, out);

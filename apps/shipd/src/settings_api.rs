@@ -2,7 +2,6 @@
 
 use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -53,11 +52,10 @@ fn cached_providers() -> Vec<ProviderStatus> {
             poisoned.into_inner()
         }
     };
-    if let Some((ts, ref cached)) = *guard {
-        if ts.elapsed() < PROVIDER_CACHE_TTL {
+    if let Some((ts, ref cached)) = *guard
+        && ts.elapsed() < PROVIDER_CACHE_TTL {
             return cached.clone();
         }
-    }
     let providers: Vec<ProviderStatus> = runtime::agent_export::PROVIDERS
         .iter()
         .map(|d| {

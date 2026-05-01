@@ -190,7 +190,7 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     let mut walker = std::env::current_dir().ok();
     let mut project_local = None;
     while let Some(d) = walker.as_ref() {
-        let cand = runtime::ShipHome::project_ship_dir(&d).join("pipelines");
+        let cand = runtime::ShipHome::project_ship_dir(d).join("pipelines");
         if cand.is_dir() {
             project_local = Some(cand);
             break;

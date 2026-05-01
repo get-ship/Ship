@@ -117,7 +117,7 @@ impl Object for Domain {
                 // Soft-fail mode wraps runtime conditions as an object
                 // templates can render. Author bugs always raise.
                 if self.soft && matches!(e.code, "not_found" | "service_error") {
-                    Ok(Value::from_serialize(&serde_json::json!({
+                    Ok(Value::from_serialize(serde_json::json!({
                         "error": true,
                         "code": e.code,
                         "message": e.message,
@@ -194,11 +194,10 @@ fn extract_args(args: &[Value]) -> Result<serde_json::Value, String> {
 }
 
 fn split_kwargs(args: &[Value]) -> (Vec<Value>, Option<Kwargs>) {
-    if let Some((last, rest)) = args.split_last() {
-        if let Ok(kw) = Kwargs::try_from(last.clone()) {
+    if let Some((last, rest)) = args.split_last()
+        && let Ok(kw) = Kwargs::try_from(last.clone()) {
             return (rest.to_vec(), Some(kw));
         }
-    }
     (args.to_vec(), None)
 }
 

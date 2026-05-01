@@ -17,7 +17,7 @@ use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
-use futures_util::stream::{self, Stream};
+use futures_util::stream::{self};
 use runtime::events::{types::event_types, EventEnvelope};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -29,7 +29,7 @@ use crate::auth::AuthContext;
 use crate::rest_api::ApiState;
 
 use super::lifecycle;
-use super::types::{SessionKind, SessionMeta, SpawnRequest};
+use super::types::{SessionKind, SessionMeta};
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct SpawnBody {
@@ -471,8 +471,8 @@ pub async fn spawn_session(
             // go through the supervisor primitive + ActorRegistry. The
             // push_mechanism (channel / stdin / respawn) is decided at
             // send-time; the spawn shape is identical regardless.
-            if let Ok(adapter) = runtime::services::provider_adapter::adapter_for(provider) {
-                if adapter.caps().persistent_session {
+            if let Ok(adapter) = runtime::services::provider_adapter::adapter_for(provider)
+                && adapter.caps().persistent_session {
                     let append = lifecycle::load_agent_rules(&work_dir, agent_id);
                     return match super::agent_actor::spawn_or_attach(
                         state.actor_sessions(),
@@ -493,7 +493,6 @@ pub async fn spawn_session(
                         Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
                     };
                 }
-            }
 
             match lifecycle::spawn_agent(
                 registry,

@@ -272,11 +272,10 @@ pub(crate) fn load_agent_with_scopes(
     scopes: &AgentScopes,
     id: &str,
 ) -> Option<AgentDetail> {
-    if let Some(dir) = scopes.project_dir.as_ref() {
-        if let Some(d) = load_from_dir(dir, id, SOURCE_PROJECT) {
+    if let Some(dir) = scopes.project_dir.as_ref()
+        && let Some(d) = load_from_dir(dir, id, SOURCE_PROJECT) {
             return Some(d);
         }
-    }
     load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
 }
 

@@ -13,7 +13,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use runtime::collections::builtin::{annotations_schema, ANNOTATIONS_ID};
+use runtime::collections::builtin::annotations_schema;
 use runtime::collections::service as collection_service;
 use runtime::events::EventEnvelope;
 use runtime::events::annotation::AnnotationEvent;
@@ -131,6 +131,7 @@ pub async fn post_annotation(
         }
     };
     let ctx = auth.to_daemon_emit_context();
+    #[allow(deprecated)] // route() preserved here; emit() migration tracked separately
     if let Err(e) = state.kernel().lock().await.route(envelope, &ctx).await {
         return err(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -160,6 +161,7 @@ fn annotation_kind_str(ev: &AnnotationEvent) -> &'static str {
     }
 }
 
+#[allow(clippy::result_large_err)]
 fn validate(ev: &AnnotationEvent) -> Result<(), Response> {
     use runtime::events::annotation::AnnotationKind;
     match ev.kind {

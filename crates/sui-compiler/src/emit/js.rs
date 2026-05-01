@@ -151,6 +151,7 @@ fn emit_view_export(w: &mut Writer, body: Writer) {
     w.line("});");
 }
 
+#[allow(clippy::expect_used)]
 fn emit_component_export(w: &mut Writer, program: &Program, body: Writer, opts: &CompileOpts) {
     let meta = opts.component_meta.as_ref().expect("component_meta required for component mode");
     w.line(&format!("export default component({}, {{", js_string(&meta.name)));
