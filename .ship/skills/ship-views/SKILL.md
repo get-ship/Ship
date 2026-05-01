@@ -754,111 +754,14 @@ into the daemon at compile time — they never drift from the template.
 
 ---
 
-## SUI views
+## SUI views (new stack)
 
-SUI is the successor stack for Ship views: AOT-compiled `.sui` templates, optional paired `.ts` controllers, attach()-on-SSR. New views go here. The j2/Datastar stack above is fix-only for existing `.ship/views/` content.
+AOT-compiled `.sui` templates, optional paired `.ts` controller, attach()-on-SSR runtime. New views land here; j2 sections above are fix-only.
 
-### File conventions
-
-**Project views** (extension points in `.ship/views/<name>/`):
-```
-.ship/views/<name>/
-  index.sui          # template (mirrors j2's index.html.j2)
-  manifest.yaml      # type: sui — see below
-  partials/          # fragment templates
-```
-
-Sub-routes use `[param]` segments: `.ship/views/<name>/[id]/index.sui`.
-
-**First-party views** (baked into `shipd`):
-```
-views/<name>/
-  view.sui    # template
-  view.ts     # controller (optional)
-  view.css    # styles (daemon auto-links)
-```
-
-`views/counter/`, `views/agents/`, and `views/git/` are the reference implementations.
-
-### manifest.yaml
-
-Same shape as j2, but `type: sui`. Add `rail:` to expose the view in the shell rail:
-
-```yaml
-name: my-view
-type: sui
-rail:
-  label: My View
-  icon: sparkles
-events:
-  - config.changed
-```
-
-Available `events:` prefixes: `config.`, `workspace.`, `job.`, `collection.`, etc.
-
-### Daemon route shapes
-
-| Route | Purpose |
-|---|---|
-| `GET /sui/<name>` | Full-page SSR — complete HTML document with attach() boot script |
-| `GET /_sui/fragment/<name>[/<sub>]` | Shell-embeddable SSR fragment |
-| `GET /_sui/views/<name>/view.js` | Compiled ESM module for the view |
-| `GET /_sui/render/<name>` | Debug: SSR HTML + importmap for browser inspection |
-
-### Embedding in the shell
-
-The shell calls `mountSuiView(slot, name, subPath?)` to embed a SUI view into a panel. No wrapper custom element is needed. Shell views declared in `manifest.yaml` with a `rail:` key are auto-registered in the navigation rail.
-
-### Authoring quick reference
-
-The j2 SDK macros (`{{ signal(...) }}`, `{{ live(...) }}`, etc.) do not apply to SUI views. SUI is its own surface.
-
-```html
-<!-- live data subscription (server-driven, SSE-backed) -->
-<data name="agents" source="ship.agents.summaries()" live />
-
-<!-- local state -->
-<state name="tab" value="'changes'" />
-
-<!-- bindings — author-syntax preserved through SSR + attach -->
-<button on:click={() => count.set(count() + 1)}>+</button>
-<input bind:value={query} />
-<div class:active={isActive()} style:color={color()} attr:href={url()}>{count()} items</div>
-
-<!-- control flow (block syntax — there is no element form) -->
-{#if loading()}…{:else if error()}…{:else}…{/if}
-{#for a of items() key={a.id}}…{/for}
-{#match status()}{:case 'idle'}…{:default}…{/match}
-{#while-loading of agents}<p>Loading…</p>{/while-loading}
-{#while-error err of agents}<p>{err.message}</p>{/while-error}
-
-<!-- template hooks -->
-<use-kbd><on key="/" action="search" /></use-kbd>
-<use-click-outside bind:target={dialogEl} bind:action={close} />
-```
-
-Paired controller (optional, when handlers grow past one statement):
-
-```ts
-import { controller } from '@ship/ui-runtime'
-import type { Scope } from './view.sui'  // compiler-emitted .sui.d.ts
-
-export default controller<Scope>({
-  derived: { total: ({ agents }) => unwrap(agents)?.items.length ?? 0 },
-  on:      { newAgent: ({ navigate }) => navigate('/agents/create') },
-  use:     { list: useFilteredList(agents, (a, q) => a.name.includes(q)) },
-  mount:   ({ state }, el) => { /* runs after first DOM attach */ },
-  unmount: ({ state })     => { /* runs on dispose */ },
-})
-```
-
-Compile pipeline: `view.sui` → `sui-compiler` → ESM module with `default = view(setup)` plus a sibling `bindings` manifest. The daemon SSR-renders, the runtime `attach()` walks the SSR DOM and wires bindings against the manifest. Zero `data-*` attributes in framework HTML; markers are author-syntax (`on:click="bN"`, `<!--sui:text:bN-->`, `<sui-if key>` / `<sui-for key>` / `<sui-match key>` / `<sui-while-loading key>` / `<sui-while-error key>` boundary wrappers).
-
-Hard rules: subscriptions only inside `<data>` (never call `ship.*` outside); mutations only in `on.*` handlers (no assignment in derived/template expressions); no `<script>` blocks in templates (logic in paired `.ts`); no `customElements.define` in view code.
-
-**Full reference:**
-- `docs/ship-ui/references/docs/template.md` — full template syntax + renderable subset
-- `docs/ship-ui/references/docs/controller.md` — controller surface + tier rules
-- `docs/ship-ui/references/docs/data-subscriptions.md` — `<data>` + live + mutations
-- `docs/ship-ui/references/docs/ssr-hydration.md` — AOT + attach pipeline, marker contract
-- `docs/ship-ui/references/docs/status.md` — stable vs in-dev surfaces
+- File layout, `manifest.yaml type: sui`, sub-route conventions, daemon route shapes (`/sui/<name>`, `/_sui/fragment/<name>`, `/_sui/views/<name>/view.js`), shell embedding via `mountSuiView`: `docs/ship-ui/references/docs/status.md`
+- Template syntax (directives, bindings, control-flow blocks `{#if}`/`{#for}`/`{#match}`/`{#while-loading}`/`{#while-error err}`, hooks): `docs/ship-ui/references/docs/template.md`
+- Controller (tiers, `derived`/`on`/`use`/`mount`/`unmount`): `docs/ship-ui/references/docs/controller.md`
+- `<data>` + live + mutations: `docs/ship-ui/references/docs/data-subscriptions.md`
+- AOT + attach pipeline, marker contract: `docs/ship-ui/references/docs/ssr-hydration.md`
+- Reference views: `views/counter/`, `views/agents/`, `views/git/`
+- Components used in SUI views: see `ship-components` skill

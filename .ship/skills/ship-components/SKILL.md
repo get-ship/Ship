@@ -17,57 +17,13 @@ follows it, without exception.
 
 ---
 
-## SUI components
+## SUI components (new stack)
 
-SUI components are defined in `packages/ship-set-components/src/<tag>/` and compiled AOT. They register as real custom elements via a side-effect import and are bundled at `apps/shipd/assets/sui-components.js`.
+`<set-*>` primitives in `packages/ship-set-components/src/<tag>/`. Compiled AOT, bundled into `apps/shipd/assets/sui-components.js`, registered as real custom elements via side-effect import.
 
-### Authoring a SUI component
-
-**The file is the component** — no `<component>` wrapper. Props declared at the top with `<prop>`:
-
-```html
-<!-- packages/ship-set-components/src/set-button/set-button.html.set -->
-<prop name="tone" values="default|primary|destructive" default="default" reflect />
-<prop name="disabled" type="bool" default="false" reflect />
-<prop name="size" values="sm|md|lg" default="md" reflect />
-
-<style>
-  :host { display: inline-flex; }
-</style>
-
-<button disabled={disabled()} class="btn btn-{tone()} btn-{size()}">
-  <slot name="leading"></slot>
-  <slot></slot>
-</button>
-```
-
-**Paired files per component:**
-```
-<tag>.html.set    # template + <prop> + <style>  (extension stays .html.set for ported components)
-<tag>.sui.json    # { "component": "<tag>", "shadow": true }
-<tag>.ts          # import './<tag>.compiled.js'  — side-effect only
-```
-
-The build pipeline reads `.sui.json` and passes `--component-name` / `--component-shadow` to `sui-compiler`. Importing the package's `index.ts` loads all `<tag>.ts` files and registers every element — no runtime parser is involved.
-
-### component() factory
-
-The compiler emits `component(tag, { props, shadow, setup })` from `@ship/ui-runtime` at the top level of the compiled ESM. Authors do not call `component()` directly — the compiler does.
-
-### Registering and bundling
-
-1. The compiled `<tag>.compiled.js` is produced by `scripts/build-bundles.mjs`.
-2. `<tag>.ts` side-effect-imports it, triggering `customElements.define()`.
-3. The `index.ts` in `packages/ship-set-components/src/` re-exports every `<tag>.ts`.
-4. The bundle at `apps/shipd/assets/sui-components.js` is the production asset; the shell loads it at boot.
-
-### Don't mix Lit on SUI pages
-
-SUI views (`views/<name>/view.sui`) use `<set-*>` components from `ship-set-components`. Do not compose `<ship-*>` Lit primitives in SUI views — current ports are actively factoring Lit out. If a needed primitive is not yet ported, port it before the view ships.
-
-### 18 ported primitives (reference set)
-
-`set-status-dot`, `set-spinner`, `set-badge`, `set-chip`, `set-card`, `set-link`, `set-divider`, `set-skeleton`, `set-stat`, `set-mark`, `set-kbd`, `set-avatar`, `set-progress`, `set-button`, `set-tabs`, `set-tab`, `set-empty-state`, `set-input`. Read any of these in `packages/ship-set-components/src/` for shape.
+- File-is-the-component, `<prop>` directive, `.html.set` + `.sui.json` + `.ts` triple, `component(tag, def)` factory: `docs/ship-ui/references/docs/template.md` + sample at `packages/ship-set-components/src/set-button/`
+- Ported set: `set-status-dot`, `set-spinner`, `set-badge`, `set-chip`, `set-card`, `set-link`, `set-divider`, `set-skeleton`, `set-stat`, `set-mark`, `set-kbd`, `set-avatar`, `set-progress`, `set-button`, `set-tabs`, `set-tab`, `set-empty-state`, `set-input`
+- Rule: SUI views compose `<set-*>` only. No `<ship-*>` Lit primitives on SUI pages. If a primitive is missing, port it before shipping the view.
 
 ---
 
