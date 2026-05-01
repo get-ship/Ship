@@ -1,5 +1,13 @@
 //! Ship dir discovery: walk ancestors, follow git worktree pointers, redirect
 //! linked worktrees back to the main checkout.
+//!
+//! Two entry points:
+//! - [`resolve_project_ship_dir`] — default; redirects linked worktrees so
+//!   project metadata (`.ship/` config, registries) is shared across worktrees
+//!   of the same repo.
+//! - [`resolve_project_ship_dir_no_redirect`] — for daemon-dir resolution and
+//!   any other caller that wants per-worktree isolation. The linked worktree's
+//!   own path is returned instead of the main checkout's.
 
 use std::env;
 use std::fs;
@@ -162,6 +170,7 @@ pub const BOUNDARY_FILE: &str = ".boundary";
 fn resolve_project_dir_from_start(
     start_dir: &Path,
     migrate_legacy: bool,
+    redirect_linked_worktrees: bool,
 ) -> Result<Option<PathBuf>> {
     // 1. Walk up from CWD looking for .ship/ — this finds the current
     //    worktree's own .ship/ before reaching any parent.
@@ -173,6 +182,13 @@ fn resolve_project_dir_from_start(
             // "this directory IS the project root, don't redirect to main."
             // Useful for worktrees that want isolated views / pipelines.
             if ship_path.join(BOUNDARY_FILE).exists() {
+                return Ok(Some(canonicalize_lossy(&ship_path)));
+            }
+
+            // Daemon-dir resolution path: callers that need per-worktree
+            // isolation pass `redirect_linked_worktrees=false` so that two
+            // worktrees of the same repo never share a daemon dir.
+            if !redirect_linked_worktrees {
                 return Ok(Some(canonicalize_lossy(&ship_path)));
             }
 
@@ -228,18 +244,35 @@ fn resolve_project_dir_from_start(
     }
 
     // 2. Fallback: if no .ship/ found in ancestors, try resolving via git
-    //    worktree pointer to the main checkout's .ship/.
-    if let Some(ship_path) = ship_dir_from_git_worktree_pointer(start_dir) {
+    //    worktree pointer to the main checkout's .ship/. Skipped for
+    //    no-redirect callers — they want the worktree's own root or nothing.
+    if redirect_linked_worktrees
+        && let Some(ship_path) = ship_dir_from_git_worktree_pointer(start_dir)
+    {
         return Ok(Some(ship_path));
     }
 
-    Ok(ship_dir_from_git_worktree(start_dir))
+    if redirect_linked_worktrees {
+        Ok(ship_dir_from_git_worktree(start_dir))
+    } else {
+        Ok(None)
+    }
 }
 
 /// Resolve the canonical `.ship` directory for a given path without using env
 /// overrides and without mutating legacy folders.
 pub fn resolve_project_ship_dir(start_dir: &Path) -> Option<PathBuf> {
-    resolve_project_dir_from_start(start_dir, false)
+    resolve_project_dir_from_start(start_dir, false, true)
+        .ok()
+        .flatten()
+}
+
+/// Resolve the `.ship` directory for `start_dir` without redirecting linked
+/// worktrees back to their main checkout. Daemon-dir resolution uses this so
+/// each worktree gets its own port/token/pid set under `machine/daemons/`
+/// (devx-04 per-worktree isolation).
+pub fn resolve_project_ship_dir_no_redirect(start_dir: &Path) -> Option<PathBuf> {
+    resolve_project_dir_from_start(start_dir, false, false)
         .ok()
         .flatten()
 }
@@ -259,7 +292,7 @@ pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
     // 2. Traversal logic — any directory containing a .ship folder is a project.
     // If none is found, attempt git-worktree resolution back to the main checkout.
     let start = start_dir.unwrap_or(env::current_dir()?);
-    if let Some(project_dir) = resolve_project_dir_from_start(&start, true)? {
+    if let Some(project_dir) = resolve_project_dir_from_start(&start, true, true)? {
         return Ok(project_dir);
     }
 

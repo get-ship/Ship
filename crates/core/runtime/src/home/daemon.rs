@@ -103,13 +103,14 @@ impl DaemonHandle {
 /// Discover the running daemon for `from`. Order:
 ///
 /// 1. If `from` resolves to a project root, look for a per-worktree daemon
-///    at `machine/daemons/<hash(project_root)>/`.
+///    at `machine/daemons/<hash(project_root)>/`. Linked worktrees do NOT
+///    redirect to their main checkout — each worktree gets its own daemon.
 /// 2. Fall back to the global `machine/daemon/`.
 ///
 /// Returns `None` when neither location holds a complete handshake.
 pub fn discover_running_daemon(from: &Path) -> Option<DaemonHandle> {
     let home = crate::ShipHome::from_env();
-    if let Some(root) = crate::home::ProjectRoot::discover(from) {
+    if let Some(root) = crate::home::ProjectRoot::discover_no_redirect(from) {
         let hash = path_hash(root.path());
         let dir = home.worktree_daemon_dir(&hash);
         if let Some(handle) = DaemonHandle::load(&dir) {
@@ -125,9 +126,13 @@ pub fn discover_running_daemon(from: &Path) -> Option<DaemonHandle> {
 /// project root, returns `machine/daemons/<hash(project_root)>/` (creating
 /// the dir is the caller's responsibility). Otherwise returns the singleton
 /// `machine/daemon/`.
+///
+/// `project_root` here is the worktree's own canonical path — linked
+/// worktrees are NOT redirected to the main checkout, so two worktrees of
+/// the same repo never collide on port/token/pid.
 pub fn daemon_dir_for(from: &Path) -> PathBuf {
     let home = crate::ShipHome::from_env();
-    match crate::home::ProjectRoot::discover(from) {
+    match crate::home::ProjectRoot::discover_no_redirect(from) {
         Some(root) => home.worktree_daemon_dir(&path_hash(root.path())),
         None => home.daemon_dir(),
     }
@@ -284,6 +289,73 @@ mod tests {
     fn derive_worktree_port_is_stable() {
         let h = "ab12cd34";
         assert_eq!(derive_worktree_port(h), derive_worktree_port(h));
+    }
+
+    /// devx-04 per-worktree isolation: `daemon_dir_for(<linked_worktree>)`
+    /// must hash the worktree's own canonical path, not the main checkout's.
+    /// Two worktrees of the same repo therefore land in different
+    /// `machine/daemons/<hash>/` dirs and never collide on port/token/pid.
+    #[test]
+    fn linked_worktree_gets_own_daemon_dir() {
+        let tmp = TempDir::new().unwrap();
+        let main_root = tmp.path().join("main");
+        let common_git = main_root.join(".git");
+        let worktree_git = common_git.join("worktrees").join("feat");
+        let wt_root = tmp.path().join("wt");
+
+        // .ship/ on both so the no-redirect resolver finds each as its own root.
+        std::fs::create_dir_all(main_root.join(".ship")).unwrap();
+        std::fs::create_dir_all(&worktree_git).unwrap();
+        std::fs::create_dir_all(wt_root.join(".ship")).unwrap();
+        std::fs::write(
+            wt_root.join(".git"),
+            format!("gitdir: {}\n", worktree_git.display()),
+        )
+        .unwrap();
+
+        let main_dir = daemon_dir_for(&main_root);
+        let wt_dir = daemon_dir_for(&wt_root);
+
+        assert_ne!(
+            main_dir, wt_dir,
+            "linked worktree must get a daemon dir distinct from main"
+        );
+        // Both should be under machine/daemons/, not the singleton machine/daemon/.
+        assert!(main_dir.parent().unwrap().ends_with("daemons"));
+        assert!(wt_dir.parent().unwrap().ends_with("daemons"));
+    }
+
+    /// `daemon_dir_for(<linked_worktree>)` hashes the worktree's canonical
+    /// path — not the main repo's. Verifies the input to `path_hash`.
+    #[test]
+    fn path_hash_uses_canonical_worktree_path() {
+        let tmp = TempDir::new().unwrap();
+        let main_root = tmp.path().join("main");
+        let common_git = main_root.join(".git");
+        let worktree_git = common_git.join("worktrees").join("feat");
+        let wt_root = tmp.path().join("wt");
+
+        std::fs::create_dir_all(main_root.join(".ship")).unwrap();
+        std::fs::create_dir_all(&worktree_git).unwrap();
+        std::fs::create_dir_all(wt_root.join(".ship")).unwrap();
+        std::fs::write(
+            wt_root.join(".git"),
+            format!("gitdir: {}\n", worktree_git.display()),
+        )
+        .unwrap();
+
+        let resolved = daemon_dir_for(&wt_root);
+        let suffix = resolved.file_name().unwrap().to_str().unwrap();
+        assert_eq!(
+            suffix,
+            path_hash(&wt_root),
+            "daemon dir must hash the worktree's own canonical path"
+        );
+        assert_ne!(
+            suffix,
+            path_hash(&main_root),
+            "daemon dir must NOT hash the main repo's path"
+        );
     }
 
     #[test]

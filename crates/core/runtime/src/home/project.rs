@@ -7,7 +7,7 @@
 
 use std::path::{Path, PathBuf};
 
-use crate::project::{BOUNDARY_FILE, resolve_project_ship_dir};
+use crate::project::{BOUNDARY_FILE, resolve_project_ship_dir, resolve_project_ship_dir_no_redirect};
 
 /// A discovered project root — the directory that contains `.ship/` (and
 /// usually `.git`).
@@ -22,6 +22,16 @@ impl ProjectRoot {
     /// implemented in `runtime::project::resolve_project_ship_dir`.
     pub fn discover(from: &Path) -> Option<Self> {
         let ship = resolve_project_ship_dir(from)?;
+        let root = ship.parent()?.to_path_buf();
+        Some(Self(root))
+    }
+
+    /// Like [`Self::discover`] but does NOT redirect linked worktrees to
+    /// their main checkout. Used by daemon-dir resolution so each worktree
+    /// hashes to its own `machine/daemons/<hash>/` slot — no shared port,
+    /// token, or pid across worktrees of the same repo.
+    pub fn discover_no_redirect(from: &Path) -> Option<Self> {
+        let ship = resolve_project_ship_dir_no_redirect(from)?;
         let root = ship.parent()?.to_path_buf();
         Some(Self(root))
     }
