@@ -53,7 +53,7 @@ const targets = [
       { htmlSet: 'packages/ship-set-components/src/set-kbd/set-kbd.html.set' },
       { htmlSet: 'packages/ship-set-components/src/set-avatar/set-avatar.html.set' },
       { htmlSet: 'packages/ship-set-components/src/set-progress/set-progress.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-button/set-button.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-button/set-button.sui' },
       { htmlSet: 'packages/ship-set-components/src/set-tabs/set-tabs.html.set' },
       { htmlSet: 'packages/ship-set-components/src/set-tab/set-tab.html.set' },
       { htmlSet: 'packages/ship-set-components/src/set-empty-state/set-empty-state.html.set' },
@@ -100,9 +100,13 @@ function readComponentMeta(suiPath) {
   try {
     const raw = readFileSync(metaPath, 'utf8');
     const meta = JSON.parse(raw);
-    return { name: meta.component ?? stem, shadow: meta.shadow ?? false };
+    return {
+      name: meta.component ?? stem,
+      shadow: meta.shadow ?? false,
+      setup: meta.setup === true,
+    };
   } catch {
-    return { name: stem, shadow: false };
+    return { name: stem, shadow: false, setup: false };
   }
 }
 
@@ -133,7 +137,13 @@ async function compileSui(suiPath, opts = {}) {
     const meta = readComponentMeta(suiPath);
     args.push('--component-name', meta.name);
     if (meta.shadow) args.push('--component-shadow');
-    args.push('--no-setup');
+    // Paired controller is opt-in via `"setup": true` in <stem>.sui.json.
+    // Most ported components have a side-effect `<stem>.ts` that just
+    // imports the compiled.js — those don't `export default` a setup
+    // function and the compiler must skip emitting the paired import.
+    if (!meta.setup) {
+      args.push('--no-setup');
+    }
   }
   if (cssPath) {
     args.push('--styles', join(repoRoot, cssPath));
