@@ -1030,19 +1030,9 @@ var set_input_compiled_default = component18("set-input", {
   }
 });
 
-// packages/ship-set-components/src/define.ts
-function defineComponent(_template, _opts = {}) {
-  if (typeof console !== "undefined") {
-    console.warn(
-      "[ship-set/components] defineComponent is deprecated; components are now AOT-compiled by ship-set-compiler."
-    );
-  }
-}
-
 // packages/ship-set-components/src/index.ts
 function registerAll() {
 }
 export {
-  defineComponent,
   registerAll
 };
