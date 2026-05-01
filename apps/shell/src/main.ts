@@ -755,6 +755,44 @@ if (import.meta.env.DEV) {
   });
 }
 
+// ── UI Studio (SUI view — catalog + storybook) ──────────────────────
+async function mountSuiSlot(name: string, subPath?: string): Promise<void> {
+  const old = document.getElementById("ship-view-root");
+  const parent = old?.parentElement ?? document.body;
+  const slot = document.createElement("main");
+  slot.id = "ship-view-root-next";
+  slot.className = "ship-content ship-content-entering";
+  slot.style.cssText = "position:absolute;inset:0;z-index:-1;pointer-events:none";
+  if (old) parent.insertBefore(slot, old.nextSibling);
+  else parent.appendChild(slot);
+  try {
+    const { mountSuiView } = await import("./mount-sui");
+    await mountSuiView(slot, name, subPath);
+  } catch (err) {
+    slot.innerHTML = `<div class="mount-error">Failed to mount ${name}${subPath ? "/" + subPath : ""}\n${(err as Error).message}</div>`;
+  }
+  if (old) old.id = "ship-view-root-leaving";
+  slot.id = "ship-view-root";
+  slot.style.cssText = "";
+  view = slot;
+  requestAnimationFrame(() => slot.classList.remove("ship-content-entering"));
+  if (old && old !== slot) {
+    old.classList.add("ship-content-leaving");
+    setTimeout(() => old.parentElement?.removeChild(old), 180);
+  }
+}
+
+router.on("/ship-ui-studio", () => {
+  updateNav("/ship-ui-studio");
+  void mountSuiSlot("ship-ui-studio");
+});
+
+router.on("/ship-ui-studio/:name", (match) => {
+  updateNav("/ship-ui-studio");
+  const name = (match as { data?: Record<string, string> }).data?.name ?? "";
+  void mountSuiSlot("ship-ui-studio", name);
+});
+
 // 404
 router.notFound(() => {
   updateNav("");

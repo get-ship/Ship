@@ -137,20 +137,16 @@ export class ShipNavTop extends LitElement {
       >
         <ship-icon slot="leading" name="menu"></ship-icon>
       </ship-button>
-      ${import.meta.env.DEV
-        ? html`<ship-button
-              variant="ghost"
-              size="sm"
-              id="dev-sui-agents"
-              title="Open /sui/agents (SUI view, dev only)"
-              aria-label="Open SUI agents view"
-              @click=${() => {
-                window.location.href = "/sui/agents";
-              }}
-            >
-              <ship-icon slot="leading" name="rocket"></ship-icon>
-            </ship-button>`
-        : ""}
+      <ship-button
+        variant="ghost"
+        size="sm"
+        id="open-ui-studio"
+        title="Open UI Studio"
+        aria-label="Open UI Studio"
+        @click=${() => window.ship?.navigate("/ship-ui-studio")}
+      >
+        <ship-icon slot="leading" name="columns"></ship-icon>
+      </ship-button>
       <ship-popover placement="bottom-end" id="theme-picker">
         <ship-button
           slot="trigger"

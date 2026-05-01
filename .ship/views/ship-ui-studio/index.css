@@ -1,0 +1,141 @@
+/* Ship UI Studio — catalog index */
+
+.studio {
+  display: flex;
+  height: 100%;
+  overflow: hidden;
+  background: var(--background);
+}
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+
+.studio-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-right: 1px solid var(--border);
+  background: var(--muted);
+  overflow-y: auto;
+}
+
+.studio-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+.studio-sidebar-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--foreground);
+  letter-spacing: 0.02em;
+}
+
+.studio-sidebar-search {
+  width: 100%;
+}
+
+.studio-sidebar-search ship-input {
+  width: 100%;
+}
+
+.studio-sidebar-filters {
+  display: flex;
+}
+
+.studio-sidebar-filters ship-segmented {
+  width: 100%;
+}
+
+.studio-sidebar-counts {
+  margin-top: auto;
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.studio-count-badge {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+
+/* ── Main content ─────────────────────────────────────────── */
+
+.studio-main {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-5);
+}
+
+/* ── Loading state ────────────────────────────────────────── */
+
+.studio-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  height: 300px;
+  color: var(--muted-foreground);
+}
+
+.studio-loading-text {
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
+/* ── Tile grid ────────────────────────────────────────────── */
+
+.tile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  padding: var(--space-3) var(--space-3-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card);
+  cursor: pointer;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.tile:hover {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.tile-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.tile-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--foreground);
+  word-break: break-all;
+  flex: 1;
+  min-width: 0;
+}
+
+.tile-desc {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  margin: 0;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}

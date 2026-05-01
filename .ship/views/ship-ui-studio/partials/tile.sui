@@ -1,0 +1,9 @@
+<!-- Catalog tile fragment — content is inlined in the {#for} loop in index.sui.
+     Kept here as a documentation artifact. -->
+<div class="tile">
+  <div class="tile-head">
+    <code class="tile-name">component-tag</code>
+    <ship-badge tone="primary" variant="soft" size="sm">lit</ship-badge>
+  </div>
+  <p class="tile-desc">Component description.</p>
+</div>
