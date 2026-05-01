@@ -13,6 +13,22 @@ understand, sensibly named, and compositionally consistent. This document
 is the rulebook. Every component in `packages/ship-set/src/web-components/`
 follows it, without exception.
 
+> **New components should be SUI** (see [SUI components](#sui-components) below) unless there is a specific Lit-only requirement (islands wrapping third-party engines, or components still consumed exclusively by j2 views). The Lit layer below is legacy; existing ports are actively factoring it out.
+
+---
+
+## SUI components (new stack)
+
+`<set-*>` primitives in `packages/ship-set-components/src/<tag>/`. Compiled AOT, bundled into `apps/shipd/assets/sui-components.js`, registered as real custom elements via side-effect import.
+
+- File-is-the-component, `<prop>` directive, `.html.set` + `.sui.json` + `.ts` triple, `component(tag, def)` factory: `docs/ship-ui/references/docs/template.md` + sample at `packages/ship-set-components/src/set-button/`
+- Ported set: `set-status-dot`, `set-spinner`, `set-badge`, `set-chip`, `set-card`, `set-link`, `set-divider`, `set-skeleton`, `set-stat`, `set-mark`, `set-kbd`, `set-avatar`, `set-progress`, `set-button`, `set-tabs`, `set-tab`, `set-empty-state`, `set-input`
+- Rule: SUI views compose `<set-*>` only. No `<ship-*>` Lit primitives on SUI pages. If a primitive is missing, port it before shipping the view.
+
+---
+
+## Lit components (legacy)
+
 ## Purpose
 
 Ship renders UI across three surfaces:

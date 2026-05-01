@@ -751,3 +751,58 @@ into the daemon at compile time — they never drift from the template.
 - `.artifacts/specs/view-sdk-design.md` — SDK architecture decisions
 - `apps/shipd/templates/_ship.html.j2` — the canonical macro source
 - `.ship/views/data/` — reference implementation of the patterns above
+
+---
+
+## SUI views (new stack)
+
+AOT-compiled `.sui` templates, optional paired `.ts` controller, attach()-on-SSR runtime. New views land here; j2 sections above are fix-only.
+
+- File layout, `manifest.yaml type: sui`, sub-route conventions, daemon route shapes (`/sui/<name>`, `/_sui/fragment/<name>`, `/_sui/views/<name>/view.js`), shell embedding via `mountSuiView`: `docs/ship-ui/references/docs/status.md`
+- Template syntax (directives, bindings, control-flow blocks `{#if}`/`{#for}`/`{#match}`/`{#while-loading}`/`{#while-error err}`, hooks): `docs/ship-ui/references/docs/template.md`
+- Controller (tiers, `derived`/`on`/`use`/`mount`/`unmount`): `docs/ship-ui/references/docs/controller.md`
+- `<data>` + live + mutations: `docs/ship-ui/references/docs/data-subscriptions.md`
+- AOT + attach pipeline, marker contract: `docs/ship-ui/references/docs/ssr-hydration.md`
+- Reference views: `views/counter/`, `views/agents/`, `views/git/`
+- Components used in SUI views: see `ship-components` skill
+
+### Working on the SUI framework codebase
+
+Read this before changing `crates/sui-compiler/`, `packages/ui-runtime/`, `packages/ui-dom/`, `packages/ui-lsp/`, or any `views/<name>/`.
+
+**Dev loop.** JS bundle changes only land in the daemon after three steps — Rust `include_str!`s the bundles at compile time:
+
+1. `node scripts/build-bundles.mjs --force` — rebuilds `apps/shipd/assets/sui-*.js` and per-view `.js` from TS sources.
+2. `cargo build -p shipd` — re-inlines the freshly-built bundles.
+3. `bash scripts/dev/restart.sh` — cycles the per-worktree daemon.
+
+Skipping any step ships stale bytes. The daemon's `include_str!` paths are in `apps/shipd/src/views/sui_view.rs` and `apps/shipd/src/views/sui.rs`.
+
+**Tests.** Run all four when changing the framework — they cover disjoint surfaces:
+
+| Surface | Command |
+|---|---|
+| Compiler | `cargo test -p sui-compiler` |
+| Runtime | `pnpm -F @ship/ui-runtime test` |
+| DOM / attach | `pnpm -F @ship/ui-dom test` |
+| LSP | `pnpm -F @ship/ui-lsp test` |
+| Browser smoke | `node .artifacts/sui-counter-probe.mjs` (Playwright probe against the running daemon) |
+
+**Generated artifacts (gitignored, sit next to source).** Don't commit, don't be surprised by them:
+
+- `views/<name>/view.js` — sui-compiler emit; the paired controller is `view.ts`. Vitest prefers `.ts` via `packages/ui-dom/vitest.config.ts::resolve.extensions`.
+- `packages/ship-set-components/src/<tag>/<tag>.compiled.js` — component emit; the paired `.ts` side-effect-imports it.
+- `**/*.sui.d.ts`, `**/*.html.set.d.ts` — type declarations the compiler emits alongside source.
+
+**Adding a runtime export to `@ship/ui-runtime`.** Each public symbol gets its own file in `packages/ui-runtime/src/<name>.ts` (mirrors `signal.ts`, `state.ts`, `controller.ts`, `view.ts`). Re-export from `index.ts`. Don't bolt onto unrelated files like `controller-resolver.ts` — that's how parallel implementations get created.
+
+**Compile shape contract — don't conflate.**
+- `view(setup)` from `@ship/ui-runtime`: the compiler emits `export default view((ctx) => {...})` for every `.sui` view module. Wraps a setup function as `{ setup }` so `attach()` can call `module.default.setup(ctx)`.
+- `controller(def)`: the paired `view.ts` exports `controller<Scope>({ derived, on, use, mount, unmount })` for tier-2/3 logic. Resolved by the compiled view's setup.
+- They coexist. View ≠ controller.
+
+**Fixture / test-corpus maintenance.** Adding a parser feature means updating `crates/sui-compiler/tests/fixtures/*.sui` and `*.expected.js` snapshots in the same change. The CLI smoke (`crates/sui-compiler/tests/cli.rs`) and snapshot tests (`tests/snapshot.rs`) gate the emit shape — keep them current.
+
+**Commit hygiene.** Commit at every passing test gate, not at end-of-session. A 56-minute uncommitted session is a dead session — if anything crashes, work is gone.
+
+**Discipline (CLAUDE.md reinforcement).** When a test fails, fix root cause, not config. When a config workaround feels necessary, ask: am I papering over a bug? If yes, the bug is the work. The vitest `resolve.extensions` reorder is an exception — it expresses real project layout (compiled `.js` next to source `.ts`), not a workaround.
