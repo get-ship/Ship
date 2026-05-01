@@ -13,12 +13,7 @@
     </div>
 
     <div class="studio-sidebar-search">
-      <ship-input
-        placeholder="Search components..."
-        size="sm"
-        value={filterText()}
-        on:ship-input={(e) => filterText.set(e.detail.value)}
-      ></ship-input>
+      <ship-input placeholder="Search components..." size="sm" value={filterText()} on:ship-input={(e) => filterText.set(e.detail.value)}></ship-input>
     </div>
 
     <div class="studio-sidebar-filters">
@@ -54,11 +49,7 @@
           <div class="tile" data-test="tile" on:click={() => window.ship?.navigate('/ship-ui-studio/' + item.id)}>
             <div class="tile-head">
               <code class="tile-name">{item.id}</code>
-              <ship-badge
-                tone={item.kind === 'lit' ? 'primary' : item.kind === 'sui' ? 'accent' : 'muted'}
-                variant="soft"
-                size="sm"
-              >{item.kind}</ship-badge>
+              <ship-badge tone={item.kind === 'lit' ? 'primary' : item.kind === 'sui' ? 'accent' : 'muted'} variant="soft" size="sm">{item.kind}</ship-badge>
             </div>
             {#if item.description}
               <p class="tile-desc">{item.description}</p>

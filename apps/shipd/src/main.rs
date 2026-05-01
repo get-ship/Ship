@@ -67,12 +67,17 @@ fn extract_str_arg(args: &[String], flag: &str) -> Option<String> {
 }
 
 /// Walk up from CWD looking for a `.ship/` directory. Returns the project
-/// root (the dir containing `.ship/`), not `.ship/` itself. Delegates to
-/// the runtime's canonical resolver so worktree handling, env overrides,
-/// and `~/.ship/` exclusion all behave consistently.
+/// root (the dir containing `.ship/`), not `.ship/` itself.
+///
+/// Uses the **no-redirect** resolver so each linked git worktree gets its
+/// own daemon dir (devx-04 per-worktree isolation). The redirecting
+/// resolver `resolve_project_ship_dir` exists for shared project
+/// metadata (.ship/agents, .ship/skills, registries) — it would route
+/// every worktree's daemon to the main checkout's hash and trigger the
+/// "another daemon already running" guard.
 fn discover_workspace() -> Option<std::path::PathBuf> {
     let cwd = std::env::current_dir().ok()?;
-    let ship_dir = runtime::project::resolve_project_ship_dir(&cwd)?;
+    let ship_dir = runtime::project::resolve_project_ship_dir_no_redirect(&cwd)?;
     // resolver returns the .ship dir; we want its parent (the project root).
     ship_dir.parent().map(std::path::Path::to_path_buf)
 }

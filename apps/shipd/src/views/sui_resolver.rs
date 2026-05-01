@@ -71,16 +71,42 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
     }
 
     // 2 + 3. On-disk lookup under `<project>/.ship/views/<name>/`.
-    let project = match runtime::project::get_project_dir(None) {
-        Ok(p) => p,
-        Err(_) => {
-            return Err(ResolveError {
-                message: format!(
-                    "view not found: {} — no project root; tried {}",
-                    join_request(name, sub_path),
-                    attempts.join(", ")
-                ),
-            });
+    //
+    // Views in `.ship/views/` are per-worktree by design (each linked
+    // worktree may carry its own SUI views in its own `.ship/views/`).
+    // Use the no-redirect resolver so the daemon serving Ship-feat-sail
+    // doesn't resolve views from Ship's main checkout. The dev-time
+    // SHIP_DEV_PROJECT_DIR env override is honored first so the resolver's
+    // own tests can pin a tempdir.
+    let project = if let Ok(dir) = std::env::var("SHIP_DEV_PROJECT_DIR") {
+        std::path::PathBuf::from(dir)
+    } else {
+        let cwd = match std::env::current_dir() {
+            Ok(c) => c,
+            Err(_) => {
+                return Err(ResolveError {
+                    message: format!(
+                        "view not found: {} — no cwd; tried {}",
+                        join_request(name, sub_path),
+                        attempts.join(", ")
+                    ),
+                });
+            }
+        };
+        match runtime::project::resolve_project_ship_dir_no_redirect(&cwd) {
+            Some(s) => s
+                .parent()
+                .map(std::path::Path::to_path_buf)
+                .unwrap_or(s),
+            None => {
+                return Err(ResolveError {
+                    message: format!(
+                        "view not found: {} — no project root; tried {}",
+                        join_request(name, sub_path),
+                        attempts.join(", ")
+                    ),
+                });
+            }
         }
     };
 

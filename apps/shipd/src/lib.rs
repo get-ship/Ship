@@ -137,9 +137,14 @@ pub async fn run_network(
     // `<root>/machine/daemons/<hash>/`; bare/global startup writes to the
     // singleton `<root>/machine/daemon/`.
     let project_probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+    // Per-worktree isolation (devx-04): use the no-redirect resolver so each
+    // linked git worktree gets its own daemon dir hash. The redirecting
+    // `discover` would route every worktree's daemon back to the main
+    // checkout's hash, triggering the cleanup_stale_daemon_files guard
+    // against the sibling worktree's already-running daemon.
     let project_root = project_probe
         .as_ref()
-        .and_then(|p| runtime::home::ProjectRoot::discover(p));
+        .and_then(|p| runtime::home::ProjectRoot::discover_no_redirect(p));
     let home = runtime::ShipHome::at(global_dir.clone());
     let daemon_dir = match project_root.as_ref() {
         Some(root) => home.worktree_daemon_dir(&runtime::home::path_hash(root.path())),
