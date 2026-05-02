@@ -36,7 +36,7 @@ interface PortCase {
 const ports: PortCase[] = [
   { tag: 'set-status-dot', attr: 'tone',  value: 'primary', shadowPart: '.dot' },
   { tag: 'set-spinner',    attr: 'size',  value: 'lg',      shadowPart: '.ring' },
-  { tag: 'set-badge',      attr: 'tone',  value: 'success', shadowPart: '.root' },
+  { tag: 'set-badge',      attr: 'tone',  value: 'success', shadowPart: '.badge' },
   { tag: 'set-chip',       attr: 'tone',  value: 'primary', shadowPart: '.root' },
   { tag: 'set-card',       attr: 'padding', value: 'lg',    shadowPart: '.root' },
   { tag: 'set-link',       attr: 'tone',  value: 'primary', shadowPart: 'a' },
