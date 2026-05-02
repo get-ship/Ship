@@ -27,4 +27,5 @@ import './sui-tabs/sui-tabs.compiled.js'
 import './sui-tab/sui-tab.compiled.js'
 import './sui-empty-state/sui-empty-state.compiled.js'
 import './sui-input/sui-input.compiled.js'
-import './sui-terminal/sui-terminal.compiled.js'
+// sui-terminal is an island bundle — loaded only by views that use it.
+// See packages/ui-components/src/islands/sui-terminal/.
