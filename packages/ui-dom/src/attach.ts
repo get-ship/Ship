@@ -18,7 +18,7 @@
 // Existing `hydrate` / parse-and-build path stays in place;
 // `attach` is a sibling capability targeting SSR'd DOM.
 
-import { route as makeRoute, type RouteSignals } from '@ship/ui-runtime'
+import { route as makeRoute, type LiveState, type RouteSignals, type Signal } from '@ship/ui-runtime'
 import { readInitIsland } from './attach/island'
 import { indexBindings, walkMarkers } from './attach/manifest'
 import { wireMarker, type WireContext } from './attach/wire'
@@ -164,13 +164,18 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
     Object.assign(scope, setupRet)
   }
   // The compiled view's setup creates its own `$scope.<state> = signal(...)`
-  // for every <state> declaration. Object.assign(scope, setupRet) above
-  // shadows init.scope's SSR-built signals with these duplicates. The
-  // controller's writable proxy targets init.scope (via setupCtx.scope),
-  // so controller mount writes go to init's signals — but bindings would
-  // read the duplicates and miss the updates. Restore init's state signals
-  // here so writes and reads agree.
+  // for every <state> declaration and `$scope.<data> = live(...)` for every
+  // <data> declaration. Object.assign(scope, setupRet) above shadows
+  // init.scope's SSR-built signals with these duplicates. The controller's
+  // writable proxy targets init.scope (via setupCtx.scope), so controller
+  // mount writes go to init's signals — but bindings would read the duplicates
+  // and miss the updates. Restore init's signals (both state AND live) here so
+  // all readers agree, and so the SSE patch-signals channel updates the same
+  // signal the boundary effects are watching.
   for (const k of init.stateKeys) {
+    if (init.scope[k]) scope[k] = init.scope[k]
+  }
+  for (const k of init.liveKeys) {
     if (init.scope[k]) scope[k] = init.scope[k]
   }
   const lifecycle = extractLifecycle(setupRet)
@@ -196,10 +201,13 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
     }
   }
 
-  // SSE channel opening for `<data live>` is Phase F's territory — the
-  // JSON island carries the initial envelope and Phase E-2 lets the
-  // runtime react to envelope flips, but the actual SSE-→ LiveSignal
-  // wiring lives outside attach.
+  // Open one SSE EventSource per view when the compiler emitted a subscribe
+  // URL (i.e. the view has at least one `<data live />` declaration).
+  // Route each `patch-signals` event by data name to the matching LiveSignal.
+  if (init.subscribe && init.liveKeys.size > 0) {
+    const es = openLiveChannel(init.subscribe, init.scope, init.liveKeys)
+    cleanups.push(() => es.close())
+  }
 
   let disposed = false
   return () => {
@@ -268,4 +276,43 @@ function extractLifecycle(ret: unknown): Lifecycle | undefined {
   const lc = (ret as Record<string, unknown>)[LIFECYCLE_KEY]
   if (lc && typeof lc === 'object') return lc as Lifecycle
   return undefined
+}
+
+/** Wire format of a `patch-signals` SSE event's data payload. */
+interface PatchSignalsPayload {
+  name: string
+  value: LiveState<unknown>
+}
+
+/**
+ * Open one EventSource on `url` and route `patch-signals` events to the
+ * matching LiveSignals in `scope`. Only names present in `liveKeys` are
+ * updated — unknown names are silently dropped. Returns the EventSource so
+ * the caller can close it on dispose.
+ */
+function openLiveChannel(
+  url: string,
+  scope: Record<string, Signal<unknown>>,
+  liveKeys: Set<string>,
+): EventSource {
+  const es = new EventSource(url)
+  es.addEventListener('patch-signals', (event: MessageEvent) => {
+    let payload: PatchSignalsPayload
+    try {
+      payload = JSON.parse(event.data as string) as PatchSignalsPayload
+    } catch {
+      console.warn('[ship-set/attach] patch-signals: failed to parse event data', event.data)
+      return
+    }
+    const { name, value } = payload
+    if (!liveKeys.has(name)) return
+    const sig = scope[name]
+    if (!sig) return
+    ;(sig as Signal<LiveState<unknown>>).set(value)
+  })
+  es.addEventListener('error', () => {
+    // EventSource has built-in reconnect; log only to aid debugging.
+    console.debug('[ship-set/attach] SSE channel error on', url, '— will auto-reconnect')
+  })
+  return es
 }

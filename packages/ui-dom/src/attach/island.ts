@@ -25,6 +25,13 @@ export interface InitIsland {
   liveKeys: Set<string>
   /** Original LiveState envelopes — Phase E-2 SSE wiring reads this. */
   envelopes: Record<string, LiveState<unknown>>
+  /**
+   * SSE channel URL emitted by the compiler when the view has at least one
+   * `<data live />` declaration. The runtime opens one EventSource on this
+   * URL and routes `patch-signals` events by data name to the matching
+   * LiveSignal. Absent when the view has no live data.
+   */
+  subscribe?: string
 }
 
 /**
@@ -60,8 +67,13 @@ export function readInitIsland(root: HTMLElement): InitIsland {
   const stateKeys = new Set<string>()
   const liveKeys = new Set<string>()
   const envelopes: Record<string, LiveState<unknown>> = {}
+  let subscribe: string | undefined
 
   for (const [k, v] of Object.entries(parsed)) {
+    if (k === '__subscribe__') {
+      if (typeof v === 'string') subscribe = v
+      continue
+    }
     if (isLiveStateEnvelope(v)) {
       const sig = signal<LiveState<unknown>>(v) as LiveSignal<unknown>
       scope[k] = sig as unknown as Signal<unknown>
@@ -72,7 +84,7 @@ export function readInitIsland(root: HTMLElement): InitIsland {
       stateKeys.add(k)
     }
   }
-  return { scope, stateKeys, liveKeys, envelopes }
+  return { scope, stateKeys, liveKeys, envelopes, subscribe }
 }
 
 function isLiveStateEnvelope(v: unknown): v is LiveState<unknown> {
