@@ -5,12 +5,6 @@ import { bindText, on, signal, view } from "@ship/ui-runtime";
 var view_default = null;
 
 // views/counter/view.js
-var __scopeEval = (src) => new Function("$scope", "with ($scope) { return (" + src + "); }");
-var __E = [];
-__E[0] = __scopeEval("count()");
-__E[1] = __scopeEval("() => count.set(count() - 1)");
-__E[2] = __scopeEval("() => count.set(count() + 1)");
-__E[3] = __scopeEval("() => count.set(0)");
 var view_default2 = view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = /* @__PURE__ */ Object.create(null);
@@ -44,7 +38,7 @@ var view_default2 = view((ctx) => {
       __e8.setAttribute("data-test", "value");
       const __t9 = document.createTextNode("");
       __e8.appendChild(__t9);
-      __cleanups.push(bindText(__t9, () => __E[0]($scope)));
+      __cleanups.push(bindText(__t9, () => $scope.count()));
       __e6.appendChild(__e8);
       __e1.appendChild(__e6);
       const __t10 = document.createTextNode("\n  ");
@@ -52,7 +46,7 @@ var view_default2 = view((ctx) => {
       const __e11 = document.createElement("button");
       __e11.setAttribute("data-test", "dec");
       __cleanups.push(on(__e11, "click", (function() {
-        const __h = __E[1]($scope);
+        const __h = (() => $scope.count.set($scope.count() - 1));
         return typeof __h === "function" ? __h.bind(void 0) : (() => {
         });
       })(), { modifiers: [] }));
@@ -64,7 +58,7 @@ var view_default2 = view((ctx) => {
       const __e14 = document.createElement("button");
       __e14.setAttribute("data-test", "inc");
       __cleanups.push(on(__e14, "click", (function() {
-        const __h = __E[2]($scope);
+        const __h = (() => $scope.count.set($scope.count() + 1));
         return typeof __h === "function" ? __h.bind(void 0) : (() => {
         });
       })(), { modifiers: [] }));
@@ -76,7 +70,7 @@ var view_default2 = view((ctx) => {
       const __e17 = document.createElement("button");
       __e17.setAttribute("data-test", "reset");
       __cleanups.push(on(__e17, "click", (function() {
-        const __h = __E[3]($scope);
+        const __h = (() => $scope.count.set(0));
         return typeof __h === "function" ? __h.bind(void 0) : (() => {
         });
       })(), { modifiers: [] }));

@@ -14,11 +14,12 @@
 //! shape — they're already client-side and don't go through the
 //! deleted `/_sui/render-fragment/` endpoint.
 
+use super::super::expr_rewrite::rewrite_for_scope;
 use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
 use crate::ir::*;
 
-impl<'a> TemplateEmitter<'a> {
+impl TemplateEmitter {
     pub(in crate::emit) fn emit_if(
         &mut self,
         w: &mut Writer,
@@ -49,8 +50,8 @@ impl<'a> TemplateEmitter<'a> {
         h.line("test: () => {");
         h.enter();
         for (i, b) in instr.branches.iter().enumerate() {
-            let idx = self.bank.add(&b.cond.source);
-            h.line(&format!("if (__E[{idx}]($scope)) return {i};"));
+            let rw = rewrite_for_scope(&b.cond.source, &[]);
+            h.line(&format!("if ({rw}) return {i};"));
         }
         let fallback = if instr.else_body.is_some() {
             instr.branches.len() as i32
@@ -98,7 +99,7 @@ impl<'a> TemplateEmitter<'a> {
             "{cleanups_var}.push(__wireBoundary_{key}({anchor}));"
         ));
 
-        let it_idx = self.bank.add(&instr.iterable.source);
+        let it_rw = rewrite_for_scope(&instr.iterable.source, &[]);
         let var = &instr.var_name;
         let idx_name = instr.index_name.as_deref().unwrap_or("__i");
 
@@ -108,11 +109,11 @@ impl<'a> TemplateEmitter<'a> {
         ));
         h.enter();
         h.line("anchor,");
-        h.line(&format!("items: () => __E[{it_idx}]($scope),"));
+        h.line(&format!("items: () => ({it_rw}),"));
         if let Some(k) = &instr.key {
-            let ki = self.bank.add(&k.source);
+            let k_rw = rewrite_for_scope(&k.source, &[var.as_str(), idx_name]);
             h.line(&format!(
-                "key: ({var}, {idx_name}) => {{ const __child = Object.create($scope); __child.{var} = {var}; __child.{idx_name} = {idx_name}; return __E[{ki}](__child); }},"
+                "key: ({var}, {idx_name}) => {{ const __child = Object.create($scope); __child.{var} = {var}; __child.{idx_name} = {idx_name}; const $scope = __child; return ({k_rw}); }},"
             ));
         }
         h.line(&format!("render: ({var}, {idx_name}) => {{"));
@@ -181,7 +182,7 @@ impl<'a> TemplateEmitter<'a> {
             "{cleanups_var}.push(__wireBoundary_{key}({anchor}));"
         ));
 
-        let disc_idx = self.bank.add(&instr.discriminant.source);
+        let disc_rw = rewrite_for_scope(&instr.discriminant.source, &[]);
         let mut h = Writer::new();
         h.line(&format!(
             "const __wireBoundary_{key} = (anchor) => bindIf({{"
@@ -190,11 +191,11 @@ impl<'a> TemplateEmitter<'a> {
         h.line("anchor,");
         h.line("test: () => {");
         h.enter();
-        h.line(&format!("const __d = __E[{disc_idx}]($scope);"));
+        h.line(&format!("const __d = ({disc_rw});"));
         for (i, c) in instr.cases.iter().enumerate() {
-            let cidx = self.bank.add(&c.test.source);
+            let c_rw = rewrite_for_scope(&c.test.source, &[]);
             h.line(&format!(
-                "if (__d === __E[{cidx}]($scope)) return {i};"
+                "if (__d === ({c_rw})) return {i};"
             ));
         }
         let fallback = if instr.default.is_some() {

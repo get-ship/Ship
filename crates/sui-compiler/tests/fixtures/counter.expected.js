@@ -2,14 +2,6 @@
 import { bindText, on, signal, view } from "@ship/ui-runtime";
 import setup from "./counter.ts";
 
-const __scopeEval = (src) =>
-  new Function("$scope", "with ($scope) { return (" + src + "); }");
-
-const __E = [];
-__E[0] = __scopeEval("count()");
-__E[1] = __scopeEval("() => count.set(count() + 1)");
-__E[2] = __scopeEval("() => count.set(0)");
-
 export default view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = Object.create(null);
@@ -37,14 +29,14 @@ const __e5 = document.createElement("span");
 __e5.setAttribute("data-test", "value");
 const __t6 = document.createTextNode("");
 __e5.appendChild(__t6);
-__cleanups.push(bindText(__t6, () => __E[0]($scope)));
+__cleanups.push(bindText(__t6, () => ($scope.count())));
 __e3.appendChild(__e5);
 __e1.appendChild(__e3);
 const __t7 = document.createTextNode("\n  ");
 __e1.appendChild(__t7);
 const __e8 = document.createElement("button");
 __e8.setAttribute("data-test", "inc");
-__cleanups.push(on(__e8, "click", (function () { const __h = __E[1]($scope); return (typeof __h === "function") ? __h.bind(undefined) : (() => {}); })(), { modifiers: [] }));
+__cleanups.push(on(__e8, "click", (function () { const __h = (() => $scope.count.set($scope.count() + 1)); return (typeof __h === "function") ? __h.bind(undefined) : (() => {}); })(), { modifiers: [] }));
 const __t9 = document.createTextNode("\n    increment\n  ");
 __e8.appendChild(__t9);
 __e1.appendChild(__e8);
@@ -52,7 +44,7 @@ const __t10 = document.createTextNode("\n  ");
 __e1.appendChild(__t10);
 const __e11 = document.createElement("button");
 __e11.setAttribute("data-test", "reset");
-__cleanups.push(on(__e11, "click", (function () { const __h = __E[2]($scope); return (typeof __h === "function") ? __h.bind(undefined) : (() => {}); })(), { modifiers: [] }));
+__cleanups.push(on(__e11, "click", (function () { const __h = (() => $scope.count.set(0)); return (typeof __h === "function") ? __h.bind(undefined) : (() => {}); })(), { modifiers: [] }));
 const __t12 = document.createTextNode("\n    reset\n  ");
 __e11.appendChild(__t12);
 __e1.appendChild(__e11);

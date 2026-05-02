@@ -2,17 +2,6 @@
 import { bindFor, bindIf, bindText, bindWhileError, bindWhileLoading, data, live, view } from "@ship/ui-runtime";
 import setup from "./agents.ts";
 
-const __scopeEval = (src) =>
-  new Function("$scope", "with ($scope) { return (" + src + "); }");
-
-const __E = [];
-__E[0] = __scopeEval("err.message");
-__E[1] = __scopeEval("agents().kind === 'ok'");
-__E[2] = __scopeEval("agents().value.items.length === 0");
-__E[3] = __scopeEval("agents().value.items");
-__E[4] = __scopeEval("agent.id");
-__E[5] = __scopeEval("agent.name");
-
 export default view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = Object.create(null);
@@ -52,7 +41,7 @@ const __renderWhileError_0 = (err) => {
   __e15.appendChild(__t16);
   const __t17 = document.createTextNode("");
   __e15.appendChild(__t17);
-  __c12.push(bindText(__t17, () => __E[0]($scope)));
+  __c12.push(bindText(__t17, () => ($scope.err.message)));
   __frag11.appendChild(__e15);
   const __t18 = document.createTextNode("\n  ");
   __frag11.appendChild(__t18);
@@ -60,8 +49,8 @@ const __renderWhileError_0 = (err) => {
 };
 const __wireBoundary_b5 = (anchor) => bindFor({
   anchor,
-  items: () => __E[3]($scope),
-  key: (agent, __i) => { const __child = Object.create($scope); __child.agent = agent; __child.__i = __i; return __E[4](__child); },
+  items: () => ($scope.agents().value.items),
+  key: (agent, __i) => { const __child = Object.create($scope); __child.agent = agent; __child.__i = __i; const $scope = __child; return (agent.id); },
   render: (agent, __i) => {
     const __childScope40 = Object.create($scope);
     __childScope40.agent = agent;
@@ -75,7 +64,7 @@ const __wireBoundary_b5 = (anchor) => bindFor({
     __e42.setAttribute("data-test", "agent");
     const __t43 = document.createTextNode("");
     __e42.appendChild(__t43);
-    __c39.push(bindText(__t43, () => __E[5]($scope)));
+    __c39.push(bindText(__t43, () => ($scope.agent.name)));
     __frag38.appendChild(__e42);
     const __t44 = document.createTextNode("\n        ");
     __frag38.appendChild(__t44);
@@ -85,7 +74,7 @@ const __wireBoundary_b5 = (anchor) => bindFor({
 const __wireBoundary_b4 = (anchor) => bindIf({
   anchor,
   test: () => {
-    if (__E[2]($scope)) return 0;
+    if ($scope.agents().value.items.length === 0) return 0;
     return 1;
   },
   branches: [
@@ -127,7 +116,7 @@ const __wireBoundary_b4 = (anchor) => bindIf({
 const __wireBoundary_b3 = (anchor) => bindIf({
   anchor,
   test: () => {
-    if (__E[1]($scope)) return 0;
+    if ($scope.agents().kind === 'ok') return 0;
     return -1;
   },
   branches: [

@@ -6,12 +6,6 @@
 //! import { signal, view, … } from "@ship/ui-runtime";
 //! import setup from "./view.ts";        // when paired
 //!
-//! const __scopeEval = (src) =>
-//!   new Function("$scope", "with ($scope) { return (" + src + "); }");
-//! const __E = [];                       // pre-compiled expression closures
-//! __E[0] = __scopeEval("count()");
-//! …
-//!
 //! export default view((ctx) => {
 //!   const $scope = Object.create(null);
 //!   $scope.ship = ctx.ship; …
@@ -20,15 +14,20 @@
 //!   const __wireBoundary_b3 = (anchor) => bindIf({ … });
 //!   …
 //!   return Object.assign({}, $scope, {
-//!     __mount(container) { … }
+//!     __mount(container) {
+//!       …
+//!       cleanups.push(bindText(t, () => $scope.count()));
+//!       …
+//!     },
 //!     __b3_attach: (target) => { … },
 //!   });
 //! });
 //! ```
 //!
-//! The expression-closure trick uses `new Function` so the emitted
-//! module is itself plain ESM (strict by spec) but each closure runs
-//! in a non-strict body where `with($scope)` is legal.
+//! Template expressions are rewritten at compile time so free
+//! identifiers are qualified with `$scope.` (see `expr_rewrite`) and
+//! pasted directly into emitted closures. No `with($scope)`, no
+//! shared expression bank, no `new Function` eval at module load.
 //!
 //! Phase 2 client-side control flow: each `{#if}` / `{#for}` / `{#match}`
 //! emits a hoisted `__wireBoundary_b<N>` (used by both `__mount` and
@@ -38,7 +37,7 @@
 //! boundaries by walking SSR'd `<sui-{kind} key="…">` elements and
 //! dispatching to the matching attach handler on the setup return.
 
-use super::template_emit::{ExprBank, TemplateEmitter};
+use super::template_emit::TemplateEmitter;
 use super::util::{camel_of, js_ident};
 use super::writer::{js_string, Writer};
 use crate::ir::*;
@@ -66,15 +65,11 @@ pub fn emit_module(
         w.nl();
     }
     emit_imports(&mut w, lowered, opts);
-    emit_helpers(&mut w);
 
-    let mut bank = ExprBank::new();
     let mut body = Writer::new();
     body.enter();
-    emit_setup_body(&mut body, program, bindings, &mut bank, mode, opts);
+    emit_setup_body(&mut body, program, bindings, mode, opts);
     body.leave();
-
-    emit_expr_bank(&mut w, &bank);
 
     match mode {
         CompileMode::Component => emit_component_export(&mut w, program, body, opts),
@@ -167,27 +162,6 @@ fn emit_imports(w: &mut Writer, lowered: &Lowered, opts: &CompileOpts) {
     w.nl();
 }
 
-fn emit_helpers(w: &mut Writer) {
-    w.line("const __scopeEval = (src) =>");
-    w.line("  new Function(\"$scope\", \"with ($scope) { return (\" + src + \"); }\");");
-    w.nl();
-}
-
-fn emit_expr_bank(w: &mut Writer, bank: &ExprBank) {
-    if bank.entries.is_empty() {
-        return;
-    }
-    w.line("const __E = [];");
-    for (i, src) in bank.entries.iter().enumerate() {
-        w.line(&format!(
-            "__E[{}] = __scopeEval({});",
-            i,
-            js_string(src)
-        ));
-    }
-    w.nl();
-}
-
 fn emit_view_export(w: &mut Writer, body: Writer) {
     w.line("export default view((ctx) => {");
     w.push_str(&body.into_string());
@@ -270,7 +244,6 @@ fn emit_setup_body(
     w: &mut Writer,
     program: &Program,
     bindings: &BindingRegistry,
-    bank: &mut ExprBank,
     mode: CompileMode,
     opts: &CompileOpts,
 ) {
@@ -307,7 +280,7 @@ fn emit_setup_body(
     // the emitter's boundary-hoist buffer fills up. Drain hoists into
     // `w` before writing the body — the `__wireBoundary_b<N>` consts
     // must be in scope at every bindIf/bindFor call site they wrap.
-    let mut emitter = TemplateEmitter::new(bank, bindings, !is_component);
+    let mut emitter = TemplateEmitter::new(bindings, !is_component);
     if is_component {
         let mut tpl_w = Writer::new();
         tpl_w.line("const __root = host.shadowRoot ?? host;");

@@ -4,9 +4,11 @@
 //! nodes, registers reactive bindings, and pushes their disposers
 //! onto a `__cleanups` array.
 //!
-//! Expressions are not pasted inline. They go through an `ExprBank`
-//! that pre-compiles each unique expression into a `new Function`
-//! at module load. The DOM-time call site is `__E[idx]($scope)`.
+//! Expressions are pasted inline. The compiler rewrites each
+//! template-expression source so free identifiers are qualified with
+//! `$scope.` (see `expr_rewrite`), then the rewritten string is
+//! emitted directly into a closure body — no `with($scope)`, no
+//! `new Function` eval, no shared expression bank.
 //!
 //! ## Phase 2 — client-side control flow
 //!
@@ -24,10 +26,11 @@
 //!      active branch synchronously, replacing the SSR'd content.
 //!
 //! The emit logic is split across three modules:
-//!  * this file — orchestration, `ExprBank`, the `emit_one` dispatcher
+//!  * this file — orchestration + the `emit_one` dispatcher
 //!  * `dom_emit` — element + attribute emit
 //!  * `control_emit` — `{#if}`, `{#for}`, `{#match}`, `{#while-*}`
 
+use super::expr_rewrite::rewrite_for_scope;
 use super::writer::{js_string, Writer};
 use crate::ir::*;
 use crate::keys::{BindingRegistry, KeyAllocator};
@@ -35,29 +38,7 @@ use crate::keys::{BindingRegistry, KeyAllocator};
 mod control_emit;
 mod dom_emit;
 
-/// Bank of unique expression strings. The emit step adds entries via
-/// `add(src)`; the JS module emitter pre-compiles each entry once.
-#[derive(Debug, Default)]
-pub struct ExprBank {
-    pub entries: Vec<String>,
-}
-
-impl ExprBank {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn add(&mut self, src: &str) -> usize {
-        if let Some(idx) = self.entries.iter().position(|e| e == src) {
-            return idx;
-        }
-        self.entries.push(src.to_string());
-        self.entries.len() - 1
-    }
-}
-
-pub struct TemplateEmitter<'a> {
-    pub(super) bank: &'a mut ExprBank,
+pub struct TemplateEmitter {
     next_id: usize,
     /// Sequential counters for while-loading/while-error render-callback names.
     /// Both the bindings pass and this emit pass walk the IR in the same source
@@ -88,10 +69,9 @@ pub struct TemplateEmitter<'a> {
     pub(super) is_view: bool,
 }
 
-impl<'a> TemplateEmitter<'a> {
-    pub fn new(bank: &'a mut ExprBank, _registry: &'a BindingRegistry, is_view: bool) -> Self {
+impl TemplateEmitter {
+    pub fn new(_registry: &BindingRegistry, is_view: bool) -> Self {
         Self {
-            bank,
             next_id: 0,
             while_loading_idx: 0,
             while_error_idx: 0,
@@ -183,11 +163,11 @@ impl<'a> TemplateEmitter<'a> {
                 // Registry parity: text bindings consume one b<N>.
                 let _ = self.next_key();
                 let v = self.fresh("t");
-                let idx = self.bank.add(&expr.source);
+                let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!("const {v} = document.createTextNode(\"\");"));
                 w.line(&format!("{parent_var}.appendChild({v});"));
                 w.line(&format!(
-                    "{cleanups_var}.push(bindText({v}, () => __E[{idx}]($scope)));"
+                    "{cleanups_var}.push(bindText({v}, () => ({rw})));"
                 ));
             }
             Instr::Element(el) => self.emit_element(w, el, parent_var, cleanups_var),
