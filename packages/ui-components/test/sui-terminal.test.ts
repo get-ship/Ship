@@ -15,7 +15,7 @@
  */
 
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-terminal/sui-terminal.compiled.js'
+import '../src/islands/sui-terminal/sui-terminal.compiled.js'
 
 const containers: HTMLElement[] = []
 function mkContainer(): HTMLElement {

@@ -31,6 +31,7 @@ use super::template_emit::{ExprBank, TemplateEmitter};
 use super::util::{camel_of, js_ident};
 use super::writer::{js_string, Writer};
 use crate::ir::*;
+use crate::islands::collect_islands;
 use crate::keys::BindingRegistry;
 use crate::lower::{directives::prop_default_literal, Lowered};
 use crate::{CompileMode, CompileOpts};
@@ -43,6 +44,16 @@ pub fn emit_module(
     mode: CompileMode,
 ) -> String {
     let mut w = Writer::new();
+    let islands = collect_islands(&program.template);
+    if !islands.is_empty() {
+        let list = islands
+            .iter()
+            .map(|s| format!("\"{}\"", s))
+            .collect::<Vec<_>>()
+            .join(", ");
+        w.line(&format!("export const ISLANDS = [{list}];"));
+        w.nl();
+    }
     emit_imports(&mut w, lowered, opts);
     emit_helpers(&mut w);
 

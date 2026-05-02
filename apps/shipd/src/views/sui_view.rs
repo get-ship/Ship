@@ -33,7 +33,7 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use sui_compiler::{CompileOpts, compile, parse, render};
+use sui_compiler::{CompileOpts, compile, islands::SUI_ISLANDS, parse, render};
 
 use super::sui_bundle::bundle_view;
 use super::sui_resolver::{ResolvedView, resolve};
@@ -82,6 +82,30 @@ pub async fn serve_sui_sdk_client() -> Response {
 /// element is registered before any view template renders.
 pub async fn serve_sui_components() -> Response {
     js_response(SUI_COMPONENTS_JS)
+}
+
+const SUI_TERMINAL_ISLAND_JS: &str =
+    include_str!("../../assets/sui-islands/sui-terminal.js");
+
+/// `GET /_sui/islands/{tag}.js` — per-island SUI component bundle.
+///
+/// Only serves tags listed in `sui_compiler::islands::SUI_ISLANDS`. Any
+/// other name returns 404 so malformed view output can't induce arbitrary
+/// path probing.
+pub async fn serve_sui_island(Path(tag): Path<String>) -> Response {
+    if !SUI_ISLANDS.contains(&tag.as_str()) {
+        return not_found("unknown island");
+    }
+    let body: &'static str = match tag.as_str() {
+        "sui-terminal" => SUI_TERMINAL_ISLAND_JS,
+        _ => return not_found("unknown island"),
+    };
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
+        .body(Body::from(body))
+        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
 /// `GET /sui/{name}` — server-rendered HTML for `views/{name}/` plus a
@@ -266,6 +290,30 @@ fn title_for(name: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn island_sui_terminal_returns_js_bundle() {
+        let resp = serve_sui_island(Path("sui-terminal".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let ct = resp.headers().get(header::CONTENT_TYPE).unwrap();
+        assert!(ct.to_str().unwrap().contains("application/javascript"));
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        assert!(bytes.len() > 1000, "island bundle unexpectedly small: {} bytes", bytes.len());
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn island_nonexistent_returns_404() {
+        let resp = serve_sui_island(Path("nonexistent".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn island_unknown_valid_name_returns_404() {
+        let resp = serve_sui_island(Path("sui-unknown-widget".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
 
     #[test]
     fn name_validation_rejects_traversal() {
