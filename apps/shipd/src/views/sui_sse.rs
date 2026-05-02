@@ -7,10 +7,13 @@
 //! 3. Spawns one task per live data source. Each task sends the initial
 //!    resolved value and then re-resolves whenever the underlying kernel
 //!    namespaces emit events.
-//! 4. Multiplexes all tasks onto a single SSE stream of `patch-signals`
-//!    events using an mpsc channel.
+//! 4. Subscribes to the per-view `patch_channel` broadcast so out-of-band
+//!    `patch-elements` frames pushed by `sui_agent_push` reach this client.
+//! 5. Multiplexes all sources onto a single SSE stream of `patch-signals`
+//!    + `patch-elements` events using an mpsc channel.
 //!
-//! Wire format: `event: patch-signals` with `data: {"name":"…","value":…}`.
+//! Wire format: `event: patch-signals` with `data: {"name":"…","value":…}`,
+//! and `event: patch-elements` with `data: {"selector":…,"mode":…,"html":…}`.
 //! See `sui_patches.rs` for the encoding spec.
 
 use axum::{
@@ -27,6 +30,7 @@ use tokio_stream::wrappers::ReceiverStream;
 
 use crate::rest_api::ApiState;
 use crate::views::sui_data_resolvers::{parse_expr, resolve as resolve_value, subscribe_namespaces};
+use crate::views::sui_patch_channel;
 use crate::views::sui_patches::format_patch_signals;
 use super::sui_render_helpers::{is_valid_view_name, render_view_source};
 
@@ -66,6 +70,31 @@ pub async fn serve_sui_sse(
         .collect();
 
     let (tx, rx) = mpsc::channel::<Result<String, std::io::Error>>(CHANNEL_BUFFER);
+
+    // Subscribe to the per-view broadcast so out-of-band frames pushed
+    // by `sui_agent_push` (patch-elements, etc.) reach this connection.
+    // Spawned BEFORE the live-data tasks so the subscription is in place
+    // when those tasks send their initial frames.
+    {
+        let mut bcast_rx = sui_patch_channel::subscribe(&name).await;
+        let tx_b = tx.clone();
+        tokio::spawn(async move {
+            loop {
+                match bcast_rx.recv().await {
+                    Ok(frame) => {
+                        if tx_b.send(Ok(frame)).await.is_err() {
+                            break;
+                        }
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(n)) => {
+                        tracing::warn!(view = %name, dropped = n, "sui_sse: broadcast lagged");
+                        continue;
+                    }
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => break,
+                }
+            }
+        });
+    }
 
     if live_data.is_empty() {
         // No live data — hold the connection open with keepalives only.
