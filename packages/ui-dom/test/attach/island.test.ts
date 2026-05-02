@@ -49,4 +49,25 @@ describe('attach/island', () => {
     expect(r.scope.profile!()).toEqual({ name: 'ada' })
     expect(r.scope.tags!()).toEqual(['a', 'b'])
   })
+
+  it('extracts __subscribe__ as metadata and does not create a signal for it', () => {
+    const root = mountSsr('<p></p>', {
+      overview: { kind: 'loading' },
+      __subscribe__: '/_sui/views/git/sse',
+    })
+    const r = readInitIsland(root)
+    expect(r.subscribe).toBe('/_sui/views/git/sse')
+    // __subscribe__ must NOT appear as a scope signal
+    expect(r.scope.__subscribe__).toBeUndefined()
+    expect(r.stateKeys.has('__subscribe__')).toBe(false)
+    expect(r.liveKeys.has('__subscribe__')).toBe(false)
+    // Other keys are unaffected
+    expect(r.liveKeys.has('overview')).toBe(true)
+  })
+
+  it('subscribe is undefined when __subscribe__ is absent', () => {
+    const root = mountSsr('<p></p>', { n: 0 })
+    const r = readInitIsland(root)
+    expect(r.subscribe).toBeUndefined()
+  })
 })
