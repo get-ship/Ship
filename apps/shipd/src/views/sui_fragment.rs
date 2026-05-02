@@ -36,6 +36,7 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
+use sui_compiler::{islands, parse};
 
 use super::sui_resolver::{render_resolved, resolve};
 
@@ -66,9 +67,10 @@ async fn serve(name: &str, sub_path: Option<&str>) -> Response {
         Err(msg) => return text(StatusCode::INTERNAL_SERVER_ERROR, &msg),
     };
 
+    let island_scripts = collect_island_scripts(&resolved.source);
     let safe_name = escape_html(name);
     let body = format!(
-        "<div data-sui-root data-view=\"{safe_name}\">{html}</div>\n{boot}\n",
+        "{island_scripts}<div data-sui-root data-view=\"{safe_name}\">{html}</div>\n{boot}\n",
         html = rendered.html,
         boot = boot_script(&safe_name),
     );
@@ -78,6 +80,27 @@ async fn serve(name: &str, sub_path: Option<&str>) -> Response {
         .header(header::CACHE_CONTROL, "no-cache")
         .body(Body::from(body))
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+}
+
+/// Parse `source` and return `<script type="module">` tags for each SUI island
+/// tag used in the template. Empty string when no islands are found or when
+/// parsing fails (the render pass will surface parse errors separately).
+fn collect_island_scripts(source: &str) -> String {
+    let Ok(program) = parse::parse(source) else {
+        return String::new();
+    };
+    let island_tags = islands::collect_islands(&program.template);
+    let mut out = String::new();
+    for tag in &island_tags {
+        // Re-validate against SUI_ISLANDS so a crafted source can't smuggle
+        // an arbitrary path into the script src.
+        if islands::SUI_ISLANDS.contains(&tag.as_str()) {
+            out.push_str(&format!(
+                r#"<script type="module" src="/_sui/islands/{tag}.js"></script>"#
+            ));
+        }
+    }
+    out
 }
 
 /// Inline boot module. Scoped to `[data-sui-root][data-view="<name>"]`
@@ -139,7 +162,70 @@ fn is_valid_view_name(s: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
     use super::*;
+
+    // Serialize resolver tests through a mutex since SHIP_DEV_PROJECT_DIR is
+    // shared process state. Each test sets + restores the var.
+    static RESOLVER_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    const VAR: &str = "SHIP_DEV_PROJECT_DIR";
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fragment_with_sui_terminal_injects_island_script() {
+        let _g = RESOLVER_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let view_dir = tmp.path().join(".ship/views/term-view");
+        fs::create_dir_all(&view_dir).unwrap();
+        fs::write(
+            view_dir.join("index.sui"),
+            r#"<state name="n" value="0" /><div><sui-terminal rows={24} cols={80}></sui-terminal></div>"#,
+        )
+        .unwrap();
+        let prev = std::env::var_os(VAR);
+        unsafe { std::env::set_var(VAR, tmp.path()); }
+
+        let resp = serve_sui_fragment(Path("term-view".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = std::str::from_utf8(&bytes).unwrap();
+        let script_tag = r#"<script type="module" src="/_sui/islands/sui-terminal.js"></script>"#;
+        assert!(body.contains(script_tag), "expected island script tag in:\n{body}");
+        let script_pos = body.find(script_tag).unwrap();
+        let root_pos = body.find("data-sui-root").unwrap();
+        assert!(script_pos < root_pos, "island script must precede view wrapper");
+        assert_eq!(body.matches(script_tag).count(), 1, "island script must appear exactly once");
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var(VAR, v) },
+            None => unsafe { std::env::remove_var(VAR) },
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn fragment_without_islands_has_no_island_scripts() {
+        let _g = RESOLVER_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let tmp = tempfile::tempdir().expect("tempdir");
+        let view_dir = tmp.path().join(".ship/views/no-island-view");
+        fs::create_dir_all(&view_dir).unwrap();
+        fs::write(
+            view_dir.join("index.sui"),
+            r#"<state name="count" value="0" /><div><p>{count()}</p></div>"#,
+        )
+        .unwrap();
+        let prev = std::env::var_os(VAR);
+        unsafe { std::env::set_var(VAR, tmp.path()); }
+
+        let resp = serve_sui_fragment(Path("no-island-view".to_string())).await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
+        let body = std::str::from_utf8(&bytes).unwrap();
+        assert!(!body.contains("/_sui/islands/"), "unexpected island script in:\n{body}");
+
+        match prev {
+            Some(v) => unsafe { std::env::set_var(VAR, v) },
+            None => unsafe { std::env::remove_var(VAR) },
+        }
+    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn counter_fragment_has_root_island_and_boot() {
