@@ -57,7 +57,7 @@ use serde::Deserialize;
 use sui_compiler::{parse, render};
 
 use super::sui_render_helpers::{
-    is_valid_view_name, not_found, render_error, view_source,
+    is_valid_view_name, not_found, render_error, render_view_source,
 };
 
 #[derive(Debug, Deserialize, Default)]
@@ -74,7 +74,7 @@ pub async fn serve_sui_render(
     if !is_valid_view_name(&name) {
         return not_found(&format!("invalid view name: {name}"));
     }
-    let source = match view_source(&name) {
+    let source = match render_view_source(&name) {
         Some(s) => s,
         None => {
             return not_found(&format!(
@@ -86,15 +86,15 @@ pub async fn serve_sui_render(
     // Parse first — surfaces the same diagnostic family `compile()`
     // would. `render()` only consumes a `Program`, so we don't need the
     // emitted JS module for an inspection endpoint.
-    let program = match parse::parse(source) {
+    let program = match parse::parse(&source) {
         Ok(p) => p,
-        Err(err) => return render_error(err.render(source)),
+        Err(err) => return render_error(err.render(&source)),
     };
 
     let opts = render::RenderOpts { view_name: name.clone() };
     let rendered = match render::render_default(&program, &opts) {
         Ok(r) => r,
-        Err(err) => return render_error(err.render(source)),
+        Err(err) => return render_error(err.render(&source)),
     };
 
     let want_json = query

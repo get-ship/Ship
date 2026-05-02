@@ -94,9 +94,14 @@ export function resolveController(
     }
     if (shape.mount) lifecycle.mount = shape.mount
     if (shape.unmount) lifecycle.unmount = shape.unmount
+    // Enumerable so the compiled view's `Object.assign($scope, __r)` carries
+    // the lifecycle through to the view module's setup return value, where
+    // attach.ts::extractLifecycle reads it. Non-enumerable swallowed mount
+    // entirely — confirmed by ship-ui-studio's async mount silently dropping
+    // catalog state. No code iterates bindings keys, so safe to expose.
     Object.defineProperty(bindings, LIFECYCLE_KEY, {
       value: lifecycle as unknown as ControllerLifecycle,
-      enumerable: false,
+      enumerable: true,
       configurable: true,
       writable: false,
     })

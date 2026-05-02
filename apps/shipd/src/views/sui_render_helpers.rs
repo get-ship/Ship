@@ -19,6 +19,9 @@ const GIT_VIEW_HTML_SET: &str =
 const COUNTER_VIEW_HTML_SET: &str =
     include_str!("../../../../views/counter/view.sui");
 
+/// Baked SUI view set — `include_str!`'d at compile time. Used by the
+/// resolver's "bake list" path (where Some(_) means: this is baked,
+/// don't look on disk for source_path).
 pub(super) fn view_source(name: &str) -> Option<&'static str> {
     match name {
         "agents" => Some(AGENTS_VIEW_HTML_SET),
@@ -26,6 +29,21 @@ pub(super) fn view_source(name: &str) -> Option<&'static str> {
         "counter" => Some(COUNTER_VIEW_HTML_SET),
         _ => None,
     }
+}
+
+/// Resolve a view's source for render endpoints (GET /_sui/render and
+/// POST /_sui/render-fragment). Tries the bake list first, then falls
+/// back to per-worktree `.ship/views/<name>/index.sui` so project-defined
+/// SUI views (e.g. ship-ui-studio) can be re-rendered by the control-flow
+/// boundary swap path.
+pub(super) fn render_view_source(name: &str) -> Option<String> {
+    if let Some(baked) = view_source(name) {
+        return Some(baked.to_string());
+    }
+    let cwd = std::env::current_dir().ok()?;
+    let ship_dir = runtime::project::resolve_project_ship_dir_no_redirect(&cwd)?;
+    let path = ship_dir.join("views").join(name).join("index.sui");
+    std::fs::read_to_string(&path).ok()
 }
 
 /// Lowercase ASCII + hyphens only. Mirrors `ship_set_view::is_valid_view_name`

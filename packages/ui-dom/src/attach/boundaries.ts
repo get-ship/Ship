@@ -86,7 +86,7 @@ export function wireBoundary(
     const myFetch = ++inflight
     const init = serializeScope(ctx.scope, ctx.initKeys)
     const url =
-      '/_ship-set/render-fragment/' + encodeURIComponent(ctx.viewName)
+      '/_sui/render-fragment/' + encodeURIComponent(ctx.viewName)
     return fetch(url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },

@@ -52,7 +52,7 @@ pub async fn serve_sui_mutation(
         None => return not_found(&format!("view not found: views/{name}/view.sui")),
     };
 
-    let chain = match resolve_mutation_chain(source, &q.form) {
+    let chain = match resolve_mutation_chain(&source, &q.form) {
         Some(c) => c,
         None => {
             return not_found(&format!(

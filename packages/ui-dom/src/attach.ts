@@ -163,6 +163,16 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
   if (setupRet && typeof setupRet === 'object') {
     Object.assign(scope, setupRet)
   }
+  // The compiled view's setup creates its own `$scope.<state> = signal(...)`
+  // for every <state> declaration. Object.assign(scope, setupRet) above
+  // shadows init.scope's SSR-built signals with these duplicates. The
+  // controller's writable proxy targets init.scope (via setupCtx.scope),
+  // so controller mount writes go to init's signals — but bindings would
+  // read the duplicates and miss the updates. Restore init's state signals
+  // here so writes and reads agree.
+  for (const k of init.stateKeys) {
+    if (init.scope[k]) scope[k] = init.scope[k]
+  }
   const lifecycle = extractLifecycle(setupRet)
 
   const ctx: WireContext = {

@@ -13,7 +13,7 @@ use serde::Deserialize;
 use sui_compiler::{bindings, parse, render};
 
 use super::sui_render_helpers::{
-    bad_request, is_valid_view_name, not_found, render_error, view_source,
+    bad_request, is_valid_view_name, not_found, render_error, render_view_source,
 };
 
 /// Body schema for `POST /_sui/render-fragment/{view}`. Parsed
@@ -39,7 +39,7 @@ pub async fn serve_sui_render_fragment(
     if !is_valid_view_name(&name) {
         return not_found(&format!("invalid view name: {name}"));
     }
-    let source = match view_source(&name) {
+    let source = match render_view_source(&name) {
         Some(s) => s,
         None => {
             return not_found(&format!(
@@ -67,9 +67,9 @@ pub async fn serve_sui_render_fragment(
         return bad_request("`key` must not be empty");
     }
 
-    let program = match parse::parse(source) {
+    let program = match parse::parse(&source) {
         Ok(p) => p,
-        Err(err) => return render_error(err.render(source)),
+        Err(err) => return render_error(err.render(&source)),
     };
     let registry = bindings::build(&program);
     let opts = render::RenderOpts { view_name: name.clone() };
@@ -88,7 +88,7 @@ pub async fn serve_sui_render_fragment(
                 {
                     return bad_request(&msg);
                 }
-                return render_error(err.render(source));
+                return render_error(err.render(&source));
             }
         };
 
