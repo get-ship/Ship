@@ -12,6 +12,12 @@ impl<'a> TemplateEmitter<'a> {
         parent_var: &str,
         cleanups_var: &str,
     ) {
+        let lower = el.tag.to_ascii_lowercase();
+        // Mirror `bindings::Builder::walk_element`: skip `<state>` /
+        // `<data>` entirely (no children walked, no keys allocated).
+        if lower == "state" || lower == "data" {
+            return;
+        }
         let v = self.fresh("e");
         w.line(&format!(
             "const {v} = document.createElement({});",
@@ -40,6 +46,7 @@ impl<'a> TemplateEmitter<'a> {
                 ));
             }
             AttrInstr::Expr { name, expr, .. } => {
+                let _ = self.next_key();
                 let idx = self.bank.add(&expr.source);
                 w.line(&format!(
                     "{cleanups_var}.push(bindAttr({el_var}, {n}, () => __E[{idx}]($scope)));",
@@ -47,21 +54,25 @@ impl<'a> TemplateEmitter<'a> {
                 ));
             }
             AttrInstr::DynamicAttr { name_expr, expr, .. } => {
+                let _ = self.next_key();
                 self.emit_dynamic_attr(w, name_expr, expr, el_var, cleanups_var);
             }
             AttrInstr::BindValue { expr, .. } => {
+                let _ = self.next_key();
                 let idx = self.bank.add(&expr.source);
                 w.line(&format!(
                     "{cleanups_var}.push(bindValue({el_var}, __E[{idx}]($scope)));"
                 ));
             }
             AttrInstr::BindChecked { expr, .. } => {
+                let _ = self.next_key();
                 let idx = self.bank.add(&expr.source);
                 w.line(&format!(
                     "{cleanups_var}.push(bindChecked({el_var}, __E[{idx}]($scope)));"
                 ));
             }
             AttrInstr::BindThis { var, .. } => {
+                let _ = self.next_key();
                 // Refs are write-once-from-runtime: create the signal
                 // pre-seeded with the freshly constructed element. The
                 // component author reads `<var>()` from the controller
@@ -75,6 +86,7 @@ impl<'a> TemplateEmitter<'a> {
                 ));
             }
             AttrInstr::On { event, handler, modifiers, .. } => {
+                let _ = self.next_key();
                 let idx = self.bank.add(&handler.source);
                 let mods_js = serialize_modifiers(modifiers);
                 w.line(&format!(
@@ -83,6 +95,7 @@ impl<'a> TemplateEmitter<'a> {
                 ));
             }
             AttrInstr::Class { name, expr, .. } => {
+                let _ = self.next_key();
                 let idx = self.bank.add(&expr.source);
                 w.line(&format!(
                     "{cleanups_var}.push(bindClass({el_var}, {n}, () => __E[{idx}]($scope)));",
@@ -90,6 +103,7 @@ impl<'a> TemplateEmitter<'a> {
                 ));
             }
             AttrInstr::Style { name, expr, .. } => {
+                let _ = self.next_key();
                 let idx = self.bank.add(&expr.source);
                 let prop = js_string(name);
                 w.line(&format!(
@@ -97,6 +111,7 @@ impl<'a> TemplateEmitter<'a> {
                 ));
             }
             AttrInstr::Mutation { expr, .. } => {
+                let _ = self.next_key();
                 let chain = js_string(&expr.source);
                 w.line(&format!(
                     "{cleanups_var}.push(wireFormMutation({el_var}, {chain}, $scope));"

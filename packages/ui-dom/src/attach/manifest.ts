@@ -15,7 +15,10 @@ import type { Binding } from '../attach'
 const TEXT_OPEN_PREFIX = 'sui:text:'
 const TEXT_CLOSE = '/sui'
 
-const BOUNDARY_TAGS = new Set(['sui-if', 'sui-for', 'sui-match', 'sui-while-loading', 'sui-while-error'])
+// Phase 2: `<sui-if>` / `<sui-for>` / `<sui-match>` / `<sui-await>`
+// are wired separately via `wireBoundaries` (they're not in the
+// manifest anymore). Only the while-* boundaries surface here.
+const BOUNDARY_TAGS = new Set(['sui-while-loading', 'sui-while-error'])
 
 /** A resolved marker. */
 export type MarkerHit =

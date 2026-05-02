@@ -26,62 +26,63 @@ export default component("ship-button-test", {
   $scope.disabled = props.disabled;
   $scope.loading = props.loading;
   $scope.label = props.label;
-  const __root = host.shadowRoot ?? host;
-  const __t0 = document.createTextNode("\n");
-  __root.appendChild(__t0);
-  const __t1 = document.createTextNode("\n");
-  __root.appendChild(__t1);
-  const __t2 = document.createTextNode("\n");
-  __root.appendChild(__t2);
-  const __t3 = document.createTextNode("\n\n");
-  __root.appendChild(__t3);
-  const __e4 = document.createElement("button");
-  __e4.setAttribute("part", "button");
-  __e4.setAttribute("data-test", "root");
-  __cleanups.push(bindAttr(__e4, "disabled", () => __E[0]($scope)));
-  __cleanups.push(bindAttr(__e4, "aria-busy", () => __E[1]($scope)));
-  __cleanups.push(bindAttr(__e4, "aria-label", () => __E[2]($scope)));
-  __root.appendChild(__e4);
-  const __t5 = document.createTextNode("\n  ");
-  __root.appendChild(__t5);
-  const __e6 = document.createElement("span");
-  __e6.setAttribute("class", "content");
-  __e6.setAttribute("data-test", "label");
-  const __t7 = document.createTextNode("");
-  __e6.appendChild(__t7);
-  __cleanups.push(bindText(__t7, () => __E[2]($scope)));
-  __root.appendChild(__e6);
-  const __t8 = document.createTextNode("\n  ");
-  __root.appendChild(__t8);
-  const __ifAnchor9 = document.createComment("if");
-  __root.appendChild(__ifAnchor9);
-  __cleanups.push(bindIf({
-    anchor: __ifAnchor9,
-    test: () => {
-      if (__E[3]($scope)) return 0;
-      return -1;
+const __wireBoundary_b4 = (anchor) => bindIf({
+  anchor,
+  test: () => {
+    if (__E[3]($scope)) return 0;
+    return -1;
+  },
+  branches: [
+    () => {
+      const __frag10 = document.createDocumentFragment();
+      const __c11 = [];
+      const __t12 = document.createTextNode("\n    ");
+      __frag10.appendChild(__t12);
+      const __e13 = document.createElement("span");
+      __e13.setAttribute("class", "spinner");
+      __e13.setAttribute("data-test", "spinner");
+      __e13.setAttribute("aria-hidden", "true");
+      __frag10.appendChild(__e13);
+      const __t14 = document.createTextNode("\n  ");
+      __frag10.appendChild(__t14);
+      return { nodes: Array.from(__frag10.childNodes), cleanup: () => { for (const c of __c11) try { c(); } catch (e) {} } };
     },
-    branches: [
-      () => {
-        const __frag10 = document.createDocumentFragment();
-        const __c11 = [];
-        const __t12 = document.createTextNode("\n    ");
-        __frag10.appendChild(__t12);
-        const __e13 = document.createElement("span");
-        __e13.setAttribute("class", "spinner");
-        __e13.setAttribute("data-test", "spinner");
-        __e13.setAttribute("aria-hidden", "true");
-        __frag10.appendChild(__e13);
-        const __t14 = document.createTextNode("\n  ");
-        __frag10.appendChild(__t14);
-        return { nodes: Array.from(__frag10.childNodes), cleanup: () => { for (const c of __c11) try { c(); } catch (e) {} } };
-      },
-    ],
-  }));
-  const __t15 = document.createTextNode("\n");
-  __root.appendChild(__t15);
-  const __t16 = document.createTextNode("\n");
-  __root.appendChild(__t16);
-  return $scope;
+  ],
+});
+const __root = host.shadowRoot ?? host;
+const __t0 = document.createTextNode("\n");
+__root.appendChild(__t0);
+const __t1 = document.createTextNode("\n");
+__root.appendChild(__t1);
+const __t2 = document.createTextNode("\n");
+__root.appendChild(__t2);
+const __t3 = document.createTextNode("\n\n");
+__root.appendChild(__t3);
+const __e4 = document.createElement("button");
+__e4.setAttribute("part", "button");
+__e4.setAttribute("data-test", "root");
+__cleanups.push(bindAttr(__e4, "disabled", () => __E[0]($scope)));
+__cleanups.push(bindAttr(__e4, "aria-busy", () => __E[1]($scope)));
+__cleanups.push(bindAttr(__e4, "aria-label", () => __E[2]($scope)));
+__root.appendChild(__e4);
+const __t5 = document.createTextNode("\n  ");
+__root.appendChild(__t5);
+const __e6 = document.createElement("span");
+__e6.setAttribute("class", "content");
+__e6.setAttribute("data-test", "label");
+const __t7 = document.createTextNode("");
+__e6.appendChild(__t7);
+__cleanups.push(bindText(__t7, () => __E[2]($scope)));
+__root.appendChild(__e6);
+const __t8 = document.createTextNode("\n  ");
+__root.appendChild(__t8);
+const __ifAnchor9 = document.createComment("if");
+__root.appendChild(__ifAnchor9);
+__cleanups.push(__wireBoundary_b4(__ifAnchor9));
+const __t15 = document.createTextNode("\n");
+__root.appendChild(__t15);
+const __t16 = document.createTextNode("\n");
+__root.appendChild(__t16);
+return $scope;
   },
 });

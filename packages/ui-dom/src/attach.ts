@@ -1,24 +1,19 @@
 // attach() — the SSR-side client runtime.
 //
-// Walks DOM rendered by the Rust SSR walker (Phase D-1/D-2/D-3),
-// finds author-syntax markers, looks each up in the compiled module's
-// `bindings` manifest, seeds signals from the `__set_init__` JSON
-// island, and wires reactivity for **leaf bindings** (text, attr,
-// class, style, bind:, on:). Runs the controller's `mount` after
-// attach. See `.artifacts/job-spec.md` (Phase E v1) and
-// `docs/ship-adrs/.../ship-set-marker-contract.md` for the contract.
+// Walks DOM rendered by the Rust SSR walker, wires every reactive
+// binding listed in `opts.module.bindings`, and runs the controller's
+// `mount`. See `docs/ship-adrs/.../sui-marker-contract.md` for the
+// marker contract.
 //
-// Phase E-2 — control-flow boundaries (if / for / match / await) now
-// swap-on-signal-change via a server round-trip. See
-// `attach/boundaries.ts` for the swap mechanics; the runtime needs a
-// `viewName` option so it knows which fragment-render endpoint to POST
-// to. When `viewName` is omitted, boundaries still register reactive
-// deps but log an error instead of swapping.
-//
-// Existing `hydrate` / parse-and-build path stays in place;
-// `attach` is a sibling capability targeting SSR'd DOM.
+// Phase 2 — control-flow boundaries (`if` / `for` / `match` / `await`)
+// are wired client-side without server round-trip. The compiler emits
+// per-boundary `__b<N>_attach` named handlers on the setup return; we
+// dispatch SSR'd `<sui-{kind} key="b<N>">` wrappers to those handlers
+// before walking leaf markers, so SSR'd content inside replaced
+// boundaries doesn't get pointlessly re-wired.
 
 import { route as makeRoute, type RouteSignals } from '@ship/ui-runtime'
+import { wireBoundaries } from './attach/boundaries'
 import { readInitIsland } from './attach/island'
 import { openLiveChannel } from './attach/live-channel'
 import { indexBindings, walkMarkers } from './attach/manifest'
@@ -34,12 +29,10 @@ export type BindingKind =
   | 'attr-dynamic'
   | `class:${string}`
   | `style:${string}`
-  | 'if'
-  | 'for'
-  | 'match'
-  | 'await'
   | 'while-loading'
   | 'while-error'
+  | 'mutation'
+  | 'bind:this'
 
 /** One entry in the compiled module's `bindings` manifest. */
 export interface Binding {
@@ -100,9 +93,9 @@ export interface AttachOptions {
     | RouteSignals
     | { params: Record<string, string>; query: Record<string, string> }
   navigate?: (path: string) => void
-  /** Name of the view (the path segment under `views/`). Required for
-   *  Phase E-2 control-flow swap; optional if the page has no boundaries
-   *  whose deps can change. */
+  /** Name of the view (the path segment under `views/`). Retained for
+   *  diagnostic output and live-channel routing; no longer used for
+   *  control-flow swap (Phase 2 went client-side). */
   viewName?: string
 }
 
@@ -126,8 +119,11 @@ interface Lifecycle {
  *   1. Read the `__set_init__` JSON island.
  *   2. Wrap each entry in a `Signal` (or `LiveSignal` for envelopes).
  *   3. Build the setup context and call `module.default.setup(ctx)`.
- *   4. Walk markers and dispatch to per-kind wirers.
- *   5. Run `lifecycle.mount(state, root)`.
+ *   4. Wire control-flow boundaries — `__b<N>_attach` handlers
+ *      replace each SSR'd `<sui-{kind}>` wrapper with client-rendered
+ *      content driven by the signal layer.
+ *   5. Walk surviving manifest markers and dispatch to per-kind wirers.
+ *   6. Run `lifecycle.mount(state, root)`.
  *
  * The disposer is idempotent.
  */
@@ -184,11 +180,20 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
   const ctx: WireContext = {
     byKey: indexBindings(mod.bindings),
     scope,
-    initKeys: new Set([...init.stateKeys, ...init.liveKeys]),
-    ...(opts.viewName !== undefined ? { viewName: opts.viewName } : {}),
   }
 
   const cleanups: Array<() => void> = []
+
+  // Wire control-flow boundaries first. Each handler replaces the
+  // SSR'd `<sui-{kind}>` wrapper with client-rendered content; nested
+  // SSR'd boundaries inside become detached and the snapshot walker
+  // skips them (`isConnected === false`).
+  cleanups.push(wireBoundaries(root, setupRet as Record<string, unknown>))
+
+  // Now walk surviving leaf markers (text / attr / on / etc) outside
+  // any control-flow boundary. Markers that lived inside boundary
+  // subtrees are gone — replaced by client-rendered content with
+  // inline reactive bindings the compiler emitted.
   for (const hit of walkMarkers(root, ctx.byKey)) {
     const c = wireMarker(hit, ctx)
     if (c) cleanups.push(c)
@@ -280,4 +285,3 @@ function extractLifecycle(ret: unknown): Lifecycle | undefined {
   if (lc && typeof lc === 'object') return lc as Lifecycle
   return undefined
 }
-

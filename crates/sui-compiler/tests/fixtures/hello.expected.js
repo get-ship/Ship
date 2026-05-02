@@ -12,20 +12,20 @@ export default view((ctx) => {
   $scope.navigate = navigate;
   return Object.assign({}, $scope, {
     __mount(container) {
-      const __cleanups = [];
-      const __e0 = document.createElement("h1");
-      const __t1 = document.createTextNode("Hello, world.");
-      __e0.appendChild(__t1);
-      container.appendChild(__e0);
-      const __t2 = document.createTextNode("\n");
-      container.appendChild(__t2);
-      const __e3 = document.createElement("p");
-      const __t4 = document.createTextNode("The interpreter renders static markup verbatim.");
-      __e3.appendChild(__t4);
-      container.appendChild(__e3);
-      const __t5 = document.createTextNode("\n");
-      container.appendChild(__t5);
-      return () => { for (const c of __cleanups) try { c(); } catch (e) {} };
+const __cleanups = [];
+const __e0 = document.createElement("h1");
+const __t1 = document.createTextNode("Hello, world.");
+__e0.appendChild(__t1);
+container.appendChild(__e0);
+const __t2 = document.createTextNode("\n");
+container.appendChild(__t2);
+const __e3 = document.createElement("p");
+const __t4 = document.createTextNode("The interpreter renders static markup verbatim.");
+__e3.appendChild(__t4);
+container.appendChild(__e3);
+const __t5 = document.createTextNode("\n");
+container.appendChild(__t5);
+return () => { for (const c of __cleanups) try { c(); } catch (e) {} };
     },
   });
 });

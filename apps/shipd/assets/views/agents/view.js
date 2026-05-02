@@ -55,6 +55,547 @@ var view_default2 = view((ctx) => {
     const __r = view_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
   }
+  const __renderWhileLoading_0 = () => {
+    const __frag24 = document.createDocumentFragment();
+    const __c25 = [];
+    const __t26 = document.createTextNode("\n      ");
+    __frag24.appendChild(__t26);
+    const __e27 = document.createElement("p");
+    __e27.setAttribute("class", "loading-copy");
+    __e27.setAttribute("data-test", "loading");
+    const __t28 = document.createTextNode("Loading agents&hellip;");
+    __e27.appendChild(__t28);
+    __frag24.appendChild(__e27);
+    const __t29 = document.createTextNode("\n    ");
+    __frag24.appendChild(__t29);
+    return { nodes: Array.from(__frag24.childNodes), cleanup: () => {
+      for (const c of __c25) try {
+        c();
+      } catch (e) {
+      }
+    } };
+  };
+  const __renderWhileError_0 = (err) => {
+    const __childScope34 = Object.create($scope2);
+    __childScope34.err = err;
+    const __frag32 = document.createDocumentFragment();
+    const __c33 = [];
+    const $scope2 = __childScope34;
+    const __t35 = document.createTextNode("\n      ");
+    __frag32.appendChild(__t35);
+    const __e36 = document.createElement("p");
+    __e36.setAttribute("class", "loading-copy");
+    __e36.setAttribute("data-test", "error");
+    const __t37 = document.createTextNode("Error loading agents: ");
+    __e36.appendChild(__t37);
+    const __t38 = document.createTextNode("");
+    __e36.appendChild(__t38);
+    __c33.push(bindText(__t38, () => __E[3]($scope2)));
+    __frag32.appendChild(__e36);
+    const __t39 = document.createTextNode("\n    ");
+    __frag32.appendChild(__t39);
+    return { nodes: Array.from(__frag32.childNodes), cleanup: () => {
+      for (const c of __c33) try {
+        c();
+      } catch (e) {
+      }
+    } };
+  };
+  const __wireBoundary_b20 = (anchor) => bindFor({
+    anchor,
+    items: () => __E[18]($scope),
+    render: (p, __i) => {
+      const __childScope125 = Object.create($scope2);
+      __childScope125.p = p;
+      __childScope125.__i = __i;
+      const __frag123 = document.createDocumentFragment();
+      const __c124 = [];
+      const $scope2 = __childScope125;
+      const __t126 = document.createTextNode("\n                      ");
+      __frag123.appendChild(__t126);
+      const __e127 = document.createElement("ship-provider-blob");
+      __c124.push(bindAttr(__e127, "provider", () => __E[19]($scope2)));
+      __e127.setAttribute("size", "sm");
+      __e127.setAttribute("variant", "glyph");
+      __c124.push(bindAttr(__e127, "title", () => __E[19]($scope2)));
+      __frag123.appendChild(__e127);
+      const __t128 = document.createTextNode("\n                    ");
+      __frag123.appendChild(__t128);
+      return { nodes: Array.from(__frag123.childNodes), cleanup: () => {
+        for (const c of __c124) try {
+          c();
+        } catch (e) {
+        }
+      } };
+    }
+  });
+  const __wireBoundary_b23 = (anchor) => bindIf({
+    anchor,
+    test: () => {
+      if (__E[20]($scope)) return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag131 = document.createDocumentFragment();
+        const __c132 = [];
+        const __t133 = document.createTextNode("\n                      ");
+        __frag131.appendChild(__t133);
+        const __e134 = document.createElement("ship-chip");
+        __e134.setAttribute("tone", "muted");
+        __e134.setAttribute("variant", "outline");
+        __e134.setAttribute("size", "sm");
+        const __t135 = document.createTextNode("+");
+        __e134.appendChild(__t135);
+        const __t136 = document.createTextNode("");
+        __e134.appendChild(__t136);
+        __c132.push(bindText(__t136, () => __E[21]($scope)));
+        __frag131.appendChild(__e134);
+        const __t137 = document.createTextNode("\n                    ");
+        __frag131.appendChild(__t137);
+        return { nodes: Array.from(__frag131.childNodes), cleanup: () => {
+          for (const c of __c132) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b19 = (anchor) => bindIf({
+    anchor,
+    test: () => {
+      if (__E[17]($scope)) return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag117 = document.createDocumentFragment();
+        const __c118 = [];
+        const __t119 = document.createTextNode("\n                  ");
+        __frag117.appendChild(__t119);
+        const __e120 = document.createElement("div");
+        __e120.setAttribute("class", "agents-card-providers");
+        __e120.setAttribute("aria-label", "Compiles to");
+        const __t121 = document.createTextNode("\n                    ");
+        __e120.appendChild(__t121);
+        const __forAnchor122 = document.createComment("for");
+        __e120.appendChild(__forAnchor122);
+        __c118.push(__wireBoundary_b20(__forAnchor122));
+        const __t129 = document.createTextNode("\n                    ");
+        __e120.appendChild(__t129);
+        const __ifAnchor130 = document.createComment("if");
+        __e120.appendChild(__ifAnchor130);
+        __c118.push(__wireBoundary_b23(__ifAnchor130));
+        const __t138 = document.createTextNode("\n                  ");
+        __e120.appendChild(__t138);
+        __frag117.appendChild(__e120);
+        const __t139 = document.createTextNode("\n                ");
+        __frag117.appendChild(__t139);
+        return { nodes: Array.from(__frag117.childNodes), cleanup: () => {
+          for (const c of __c118) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b26 = (anchor) => bindIf({
+    anchor,
+    test: () => {
+      if (__E[23]($scope)) return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag147 = document.createDocumentFragment();
+        const __c148 = [];
+        const __t149 = document.createTextNode("\n                    ");
+        __frag147.appendChild(__t149);
+        const __e150 = document.createElement("ship-chip");
+        __e150.setAttribute("tone", "primary");
+        __e150.setAttribute("variant", "soft");
+        __e150.setAttribute("size", "sm");
+        const __t151 = document.createTextNode("\n                      ");
+        __e150.appendChild(__t151);
+        const __e152 = document.createElement("sui-status-dot");
+        __e152.setAttribute("slot", "leading");
+        __e152.setAttribute("tone", "primary");
+        __e152.setAttribute("size", "sm");
+        __e152.setAttribute("pulse", "");
+        __e152.setAttribute("label", "Active session");
+        __e150.appendChild(__e152);
+        const __t153 = document.createTextNode("\n                      active session\n                    ");
+        __e150.appendChild(__t153);
+        __frag147.appendChild(__e150);
+        const __t154 = document.createTextNode("\n                  ");
+        __frag147.appendChild(__t154);
+        return { nodes: Array.from(__frag147.childNodes), cleanup: () => {
+          for (const c of __c148) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b27 = (anchor) => bindFor({
+    anchor,
+    items: () => __E[24]($scope),
+    render: (t, __i) => {
+      const __childScope159 = Object.create($scope2);
+      __childScope159.t = t;
+      __childScope159.__i = __i;
+      const __frag157 = document.createDocumentFragment();
+      const __c158 = [];
+      const $scope2 = __childScope159;
+      const __t160 = document.createTextNode("\n                    ");
+      __frag157.appendChild(__t160);
+      const __e161 = document.createElement("ship-chip");
+      __e161.setAttribute("tone", "muted");
+      __e161.setAttribute("variant", "soft");
+      __e161.setAttribute("size", "sm");
+      const __t162 = document.createTextNode("");
+      __e161.appendChild(__t162);
+      __c158.push(bindText(__t162, () => __E[25]($scope2)));
+      __frag157.appendChild(__e161);
+      const __t163 = document.createTextNode("\n                  ");
+      __frag157.appendChild(__t163);
+      return { nodes: Array.from(__frag157.childNodes), cleanup: () => {
+        for (const c of __c158) try {
+          c();
+        } catch (e) {
+        }
+      } };
+    }
+  });
+  const __wireBoundary_b29 = (anchor) => bindIf({
+    anchor,
+    test: () => {
+      if (__E[26]($scope)) return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag166 = document.createDocumentFragment();
+        const __c167 = [];
+        const __t168 = document.createTextNode("\n                    ");
+        __frag166.appendChild(__t168);
+        const __e169 = document.createElement("ship-chip");
+        __e169.setAttribute("tone", "muted");
+        __e169.setAttribute("variant", "outline");
+        __e169.setAttribute("size", "sm");
+        const __t170 = document.createTextNode("+");
+        __e169.appendChild(__t170);
+        const __t171 = document.createTextNode("");
+        __e169.appendChild(__t171);
+        __c167.push(bindText(__t171, () => __E[27]($scope)));
+        __frag166.appendChild(__e169);
+        const __t172 = document.createTextNode("\n                  ");
+        __frag166.appendChild(__t172);
+        return { nodes: Array.from(__frag166.childNodes), cleanup: () => {
+          for (const c of __c167) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b9 = (anchor) => bindFor({
+    anchor,
+    items: () => __E[6]($scope),
+    key: (a, __i) => {
+      const __child = Object.create($scope);
+      __child.a = a;
+      __child.__i = __i;
+      return __E[7](__child);
+    },
+    render: (a, __i) => {
+      const __childScope72 = Object.create($scope2);
+      __childScope72.a = a;
+      __childScope72.__i = __i;
+      const __frag70 = document.createDocumentFragment();
+      const __c71 = [];
+      const $scope2 = __childScope72;
+      const __t73 = document.createTextNode("\n            ");
+      __frag70.appendChild(__t73);
+      const __e74 = document.createElement("ship-list-tile");
+      __e74.setAttribute("variant", "card");
+      __e74.setAttribute("density", "normal");
+      __e74.setAttribute("interactive", "");
+      __c71.push(bindAttr(__e74, "navigable", () => __E[8]($scope2)));
+      __e74.setAttribute("class", "agents-card-tile");
+      __e74.setAttribute("data-test", "agent");
+      const __t75 = document.createTextNode("\n              ");
+      __e74.appendChild(__t75);
+      const __e76 = document.createElement("div");
+      __e76.setAttribute("class", "agents-card-icon-tile");
+      __e76.setAttribute("slot", "leading");
+      const __t77 = document.createTextNode("\n                ");
+      __e76.appendChild(__t77);
+      const __e78 = document.createElement("span");
+      __e78.setAttribute("class", "agents-card-letter");
+      const __t79 = document.createTextNode("");
+      __e78.appendChild(__t79);
+      __c71.push(bindText(__t79, () => __E[9]($scope2)));
+      __e76.appendChild(__e78);
+      const __t80 = document.createTextNode("\n              ");
+      __e76.appendChild(__t80);
+      __e74.appendChild(__e76);
+      const __t81 = document.createTextNode("\n              ");
+      __e74.appendChild(__t81);
+      const __e82 = document.createElement("div");
+      __e82.setAttribute("class", "agents-card-body");
+      const __t83 = document.createTextNode("\n                ");
+      __e82.appendChild(__t83);
+      const __e84 = document.createElement("div");
+      __e84.setAttribute("class", "agents-card-head");
+      const __t85 = document.createTextNode("\n                  ");
+      __e84.appendChild(__t85);
+      const __e86 = document.createElement("div");
+      __e86.setAttribute("class", "agents-card-title");
+      const __t87 = document.createTextNode("");
+      __e86.appendChild(__t87);
+      __c71.push(bindText(__t87, () => __E[10]($scope2)));
+      __e84.appendChild(__e86);
+      const __t88 = document.createTextNode("\n                  ");
+      __e84.appendChild(__t88);
+      const __e89 = document.createElement("p");
+      __e89.setAttribute("class", "agents-card-desc");
+      const __t90 = document.createTextNode("");
+      __e89.appendChild(__t90);
+      __c71.push(bindText(__t90, () => __E[11]($scope2)));
+      __e84.appendChild(__e89);
+      const __t91 = document.createTextNode("\n                ");
+      __e84.appendChild(__t91);
+      __e82.appendChild(__e84);
+      const __t92 = document.createTextNode("\n                ");
+      __e82.appendChild(__t92);
+      const __e93 = document.createElement("div");
+      __e93.setAttribute("class", "agents-card-stats");
+      const __t94 = document.createTextNode("\n                  ");
+      __e93.appendChild(__t94);
+      const __e95 = document.createElement("span");
+      const __t96 = document.createTextNode("");
+      __e95.appendChild(__t96);
+      __c71.push(bindText(__t96, () => __E[12]($scope2)));
+      const __t97 = document.createTextNode(" skill");
+      __e95.appendChild(__t97);
+      const __t98 = document.createTextNode("");
+      __e95.appendChild(__t98);
+      __c71.push(bindText(__t98, () => __E[13]($scope2)));
+      __e93.appendChild(__e95);
+      const __t99 = document.createTextNode("\n                  ");
+      __e93.appendChild(__t99);
+      const __e100 = document.createElement("span");
+      __e100.setAttribute("class", "agents-card-sep");
+      const __t101 = document.createTextNode("&middot;");
+      __e100.appendChild(__t101);
+      __e93.appendChild(__e100);
+      const __t102 = document.createTextNode("\n                  ");
+      __e93.appendChild(__t102);
+      const __e103 = document.createElement("span");
+      const __t104 = document.createTextNode("");
+      __e103.appendChild(__t104);
+      __c71.push(bindText(__t104, () => __E[14]($scope2)));
+      const __t105 = document.createTextNode(" MCP");
+      __e103.appendChild(__t105);
+      __e93.appendChild(__e103);
+      const __t106 = document.createTextNode("\n                  ");
+      __e93.appendChild(__t106);
+      const __e107 = document.createElement("span");
+      __e107.setAttribute("class", "agents-card-sep");
+      const __t108 = document.createTextNode("&middot;");
+      __e107.appendChild(__t108);
+      __e93.appendChild(__e107);
+      const __t109 = document.createTextNode("\n                  ");
+      __e93.appendChild(__t109);
+      const __e110 = document.createElement("span");
+      const __t111 = document.createTextNode("");
+      __e110.appendChild(__t111);
+      __c71.push(bindText(__t111, () => __E[15]($scope2)));
+      const __t112 = document.createTextNode(" rule");
+      __e110.appendChild(__t112);
+      const __t113 = document.createTextNode("");
+      __e110.appendChild(__t113);
+      __c71.push(bindText(__t113, () => __E[16]($scope2)));
+      __e93.appendChild(__e110);
+      const __t114 = document.createTextNode("\n                ");
+      __e93.appendChild(__t114);
+      __e82.appendChild(__e93);
+      const __t115 = document.createTextNode("\n                ");
+      __e82.appendChild(__t115);
+      const __ifAnchor116 = document.createComment("if");
+      __e82.appendChild(__ifAnchor116);
+      __c71.push(__wireBoundary_b19(__ifAnchor116));
+      const __t140 = document.createTextNode("\n                ");
+      __e82.appendChild(__t140);
+      const __e141 = document.createElement("div");
+      __e141.setAttribute("class", "agents-card-badges");
+      const __t142 = document.createTextNode("\n                  ");
+      __e141.appendChild(__t142);
+      const __e143 = document.createElement("ship-badge");
+      __e143.setAttribute("tone", "muted");
+      __e143.setAttribute("variant", "outline");
+      __e143.setAttribute("size", "sm");
+      __e143.setAttribute("class", "agents-card-badge-source");
+      const __t144 = document.createTextNode("");
+      __e143.appendChild(__t144);
+      __c71.push(bindText(__t144, () => __E[22]($scope2)));
+      __e141.appendChild(__e143);
+      const __t145 = document.createTextNode("\n                  ");
+      __e141.appendChild(__t145);
+      const __ifAnchor146 = document.createComment("if");
+      __e141.appendChild(__ifAnchor146);
+      __c71.push(__wireBoundary_b26(__ifAnchor146));
+      const __t155 = document.createTextNode("\n                  ");
+      __e141.appendChild(__t155);
+      const __forAnchor156 = document.createComment("for");
+      __e141.appendChild(__forAnchor156);
+      __c71.push(__wireBoundary_b27(__forAnchor156));
+      const __t164 = document.createTextNode("\n                  ");
+      __e141.appendChild(__t164);
+      const __ifAnchor165 = document.createComment("if");
+      __e141.appendChild(__ifAnchor165);
+      __c71.push(__wireBoundary_b29(__ifAnchor165));
+      const __t173 = document.createTextNode("\n                ");
+      __e141.appendChild(__t173);
+      __e82.appendChild(__e141);
+      const __t174 = document.createTextNode("\n              ");
+      __e82.appendChild(__t174);
+      __e74.appendChild(__e82);
+      const __t175 = document.createTextNode("\n            ");
+      __e74.appendChild(__t175);
+      __frag70.appendChild(__e74);
+      const __t176 = document.createTextNode("\n          ");
+      __frag70.appendChild(__t176);
+      return { nodes: Array.from(__frag70.childNodes), cleanup: () => {
+        for (const c of __c71) try {
+          c();
+        } catch (e) {
+        }
+      } };
+    }
+  });
+  const __wireBoundary_b7 = (anchor) => bindIf({
+    anchor,
+    test: () => {
+      if (__E[5]($scope)) return 0;
+      return 1;
+    },
+    branches: [
+      () => {
+        const __frag47 = document.createDocumentFragment();
+        const __c48 = [];
+        const __t49 = document.createTextNode("\n        ");
+        __frag47.appendChild(__t49);
+        const __e50 = document.createElement("ship-empty-state");
+        __e50.setAttribute("icon", "sparkles");
+        __e50.setAttribute("variant", "default");
+        __e50.setAttribute("size", "lg");
+        __e50.setAttribute("data-test", "empty");
+        const __t51 = document.createTextNode("\n          ");
+        __e50.appendChild(__t51);
+        const __e52 = document.createElement("span");
+        __e52.setAttribute("slot", "title");
+        const __t53 = document.createTextNode("No agents yet");
+        __e52.appendChild(__t53);
+        __e50.appendChild(__e52);
+        const __t54 = document.createTextNode("\n          Drop a JSONC file under\n          ");
+        __e50.appendChild(__t54);
+        const __e55 = document.createElement("code");
+        __e55.setAttribute("class", "agents-empty-code");
+        const __t56 = document.createTextNode(".ship/agents/");
+        __e55.appendChild(__t56);
+        __e50.appendChild(__e55);
+        const __t57 = document.createTextNode("\n          or create one from the Studio.\n          ");
+        __e50.appendChild(__t57);
+        const __e58 = document.createElement("ship-button");
+        __e58.setAttribute("slot", "action");
+        __e58.setAttribute("tone", "primary");
+        __e58.setAttribute("variant", "solid");
+        __c48.push(on(__e58, "click", (function() {
+          const __h = __E[2]($scope);
+          return typeof __h === "function" ? __h.bind(void 0) : (() => {
+          });
+        })(), { modifiers: [] }));
+        const __t59 = document.createTextNode("\n            ");
+        __e58.appendChild(__t59);
+        const __e60 = document.createElement("ship-icon");
+        __e60.setAttribute("slot", "leading");
+        __e60.setAttribute("name", "plus");
+        __e58.appendChild(__e60);
+        const __t61 = document.createTextNode("\n            New agent\n          ");
+        __e58.appendChild(__t61);
+        __e50.appendChild(__e58);
+        const __t62 = document.createTextNode("\n        ");
+        __e50.appendChild(__t62);
+        __frag47.appendChild(__e50);
+        const __t63 = document.createTextNode("\n      ");
+        __frag47.appendChild(__t63);
+        return { nodes: Array.from(__frag47.childNodes), cleanup: () => {
+          for (const c of __c48) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      },
+      () => {
+        const __frag64 = document.createDocumentFragment();
+        const __c65 = [];
+        const __t66 = document.createTextNode("\n        ");
+        __frag64.appendChild(__t66);
+        const __e67 = document.createElement("div");
+        __e67.setAttribute("class", "agents-grid");
+        __e67.setAttribute("data-view-enter", "");
+        __e67.setAttribute("data-test", "grid");
+        const __t68 = document.createTextNode("\n          ");
+        __e67.appendChild(__t68);
+        const __forAnchor69 = document.createComment("for");
+        __e67.appendChild(__forAnchor69);
+        __c65.push(__wireBoundary_b9(__forAnchor69));
+        const __t177 = document.createTextNode("\n        ");
+        __e67.appendChild(__t177);
+        __frag64.appendChild(__e67);
+        const __t178 = document.createTextNode("\n      ");
+        __frag64.appendChild(__t178);
+        return { nodes: Array.from(__frag64.childNodes), cleanup: () => {
+          for (const c of __c65) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      }
+    ]
+  });
+  const __wireBoundary_b6 = (anchor) => bindIf({
+    anchor,
+    test: () => {
+      if (__E[4]($scope)) return 0;
+      return -1;
+    },
+    branches: [
+      () => {
+        const __frag43 = document.createDocumentFragment();
+        const __c44 = [];
+        const __t45 = document.createTextNode("\n      ");
+        __frag43.appendChild(__t45);
+        const __ifAnchor46 = document.createComment("if");
+        __frag43.appendChild(__ifAnchor46);
+        __c44.push(__wireBoundary_b7(__ifAnchor46));
+        const __t179 = document.createTextNode("\n    ");
+        __frag43.appendChild(__t179);
+        return { nodes: Array.from(__frag43.childNodes), cleanup: () => {
+          for (const c of __c44) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      }
+    ]
+  });
   return Object.assign({}, $scope, {
     __mount(container) {
       const __cleanups = [];
@@ -123,555 +664,25 @@ var view_default2 = view((ctx) => {
       __e3.appendChild(__t23);
       const __wlAnchor30 = document.createComment("while-loading");
       __e3.appendChild(__wlAnchor30);
-      __cleanups.push(bindWhileLoading({ anchor: __wlAnchor30, signal: $scope.agents, render: () => {
-        const __frag31 = document.createDocumentFragment();
-        const __c32 = [];
-        const __t33 = document.createTextNode("\n      ");
-        __frag31.appendChild(__t33);
-        const __e34 = document.createElement("p");
-        __e34.setAttribute("class", "loading-copy");
-        __e34.setAttribute("data-test", "loading");
-        const __t35 = document.createTextNode("Loading agents&hellip;");
-        __e34.appendChild(__t35);
-        __frag31.appendChild(__e34);
-        const __t36 = document.createTextNode("\n    ");
-        __frag31.appendChild(__t36);
-        return { nodes: Array.from(__frag31.childNodes), cleanup: () => {
-          for (const c of __c32) try {
-            c();
-          } catch (e) {
-          }
-        } };
-      } }));
-      const __t37 = document.createTextNode("\n\n    ");
-      __e3.appendChild(__t37);
-      const __weAnchor46 = document.createComment("while-error");
-      __e3.appendChild(__weAnchor46);
-      __cleanups.push(bindWhileError({ anchor: __weAnchor46, signal: $scope.agents, render: (err) => {
-        const __childScope49 = Object.create($scope2);
-        __childScope49.err = err;
-        const __frag47 = document.createDocumentFragment();
-        const __c48 = [];
-        const $scope2 = __childScope49;
-        const __t50 = document.createTextNode("\n      ");
-        __frag47.appendChild(__t50);
-        const __e51 = document.createElement("p");
-        __e51.setAttribute("class", "loading-copy");
-        __e51.setAttribute("data-test", "error");
-        const __t52 = document.createTextNode("Error loading agents: ");
-        __e51.appendChild(__t52);
-        const __t53 = document.createTextNode("");
-        __e51.appendChild(__t53);
-        __c48.push(bindText(__t53, () => __E[3]($scope2)));
-        __frag47.appendChild(__e51);
-        const __t54 = document.createTextNode("\n    ");
-        __frag47.appendChild(__t54);
-        return { nodes: Array.from(__frag47.childNodes), cleanup: () => {
-          for (const c of __c48) try {
-            c();
-          } catch (e) {
-          }
-        } };
-      } }));
-      const __t55 = document.createTextNode("\n\n    ");
-      __e3.appendChild(__t55);
-      const __ifAnchor56 = document.createComment("if");
-      __e3.appendChild(__ifAnchor56);
-      __cleanups.push(bindIf({
-        anchor: __ifAnchor56,
-        test: () => {
-          if (__E[4]($scope)) return 0;
-          return -1;
-        },
-        branches: [
-          () => {
-            const __frag57 = document.createDocumentFragment();
-            const __c58 = [];
-            const __t59 = document.createTextNode("\n      ");
-            __frag57.appendChild(__t59);
-            const __ifAnchor60 = document.createComment("if");
-            __frag57.appendChild(__ifAnchor60);
-            __c58.push(bindIf({
-              anchor: __ifAnchor60,
-              test: () => {
-                if (__E[5]($scope)) return 0;
-                return 1;
-              },
-              branches: [
-                () => {
-                  const __frag61 = document.createDocumentFragment();
-                  const __c62 = [];
-                  const __t63 = document.createTextNode("\n        ");
-                  __frag61.appendChild(__t63);
-                  const __e64 = document.createElement("ship-empty-state");
-                  __e64.setAttribute("icon", "sparkles");
-                  __e64.setAttribute("variant", "default");
-                  __e64.setAttribute("size", "lg");
-                  __e64.setAttribute("data-test", "empty");
-                  const __t65 = document.createTextNode("\n          ");
-                  __e64.appendChild(__t65);
-                  const __e66 = document.createElement("span");
-                  __e66.setAttribute("slot", "title");
-                  const __t67 = document.createTextNode("No agents yet");
-                  __e66.appendChild(__t67);
-                  __e64.appendChild(__e66);
-                  const __t68 = document.createTextNode("\n          Drop a JSONC file under\n          ");
-                  __e64.appendChild(__t68);
-                  const __e69 = document.createElement("code");
-                  __e69.setAttribute("class", "agents-empty-code");
-                  const __t70 = document.createTextNode(".ship/agents/");
-                  __e69.appendChild(__t70);
-                  __e64.appendChild(__e69);
-                  const __t71 = document.createTextNode("\n          or create one from the Studio.\n          ");
-                  __e64.appendChild(__t71);
-                  const __e72 = document.createElement("ship-button");
-                  __e72.setAttribute("slot", "action");
-                  __e72.setAttribute("tone", "primary");
-                  __e72.setAttribute("variant", "solid");
-                  __c62.push(on(__e72, "click", (function() {
-                    const __h = __E[2]($scope);
-                    return typeof __h === "function" ? __h.bind(void 0) : (() => {
-                    });
-                  })(), { modifiers: [] }));
-                  const __t73 = document.createTextNode("\n            ");
-                  __e72.appendChild(__t73);
-                  const __e74 = document.createElement("ship-icon");
-                  __e74.setAttribute("slot", "leading");
-                  __e74.setAttribute("name", "plus");
-                  __e72.appendChild(__e74);
-                  const __t75 = document.createTextNode("\n            New agent\n          ");
-                  __e72.appendChild(__t75);
-                  __e64.appendChild(__e72);
-                  const __t76 = document.createTextNode("\n        ");
-                  __e64.appendChild(__t76);
-                  __frag61.appendChild(__e64);
-                  const __t77 = document.createTextNode("\n      ");
-                  __frag61.appendChild(__t77);
-                  return { nodes: Array.from(__frag61.childNodes), cleanup: () => {
-                    for (const c of __c62) try {
-                      c();
-                    } catch (e) {
-                    }
-                  } };
-                },
-                () => {
-                  const __frag78 = document.createDocumentFragment();
-                  const __c79 = [];
-                  const __t80 = document.createTextNode("\n        ");
-                  __frag78.appendChild(__t80);
-                  const __e81 = document.createElement("div");
-                  __e81.setAttribute("class", "agents-grid");
-                  __e81.setAttribute("data-view-enter", "");
-                  __e81.setAttribute("data-test", "grid");
-                  const __t82 = document.createTextNode("\n          ");
-                  __e81.appendChild(__t82);
-                  const __forAnchor83 = document.createComment("for");
-                  __e81.appendChild(__forAnchor83);
-                  __c79.push(bindFor({
-                    anchor: __forAnchor83,
-                    source: () => __E[6]($scope),
-                    key: (a, __i) => {
-                      const __child = Object.create($scope);
-                      __child.a = a;
-                      __child.__i = __i;
-                      return __E[7](__child);
-                    },
-                    render: (a, __i) => {
-                      const __childScope86 = Object.create($scope2);
-                      __childScope86.a = a;
-                      __childScope86.__i = __i;
-                      const __frag84 = document.createDocumentFragment();
-                      const __c85 = [];
-                      const $scope2 = __childScope86;
-                      const __t87 = document.createTextNode("\n            ");
-                      __frag84.appendChild(__t87);
-                      const __e88 = document.createElement("ship-list-tile");
-                      __e88.setAttribute("variant", "card");
-                      __e88.setAttribute("density", "normal");
-                      __e88.setAttribute("interactive", "");
-                      __c85.push(bindAttr(__e88, "navigable", () => __E[8]($scope2)));
-                      __e88.setAttribute("class", "agents-card-tile");
-                      __e88.setAttribute("data-test", "agent");
-                      const __t89 = document.createTextNode("\n              ");
-                      __e88.appendChild(__t89);
-                      const __e90 = document.createElement("div");
-                      __e90.setAttribute("class", "agents-card-icon-tile");
-                      __e90.setAttribute("slot", "leading");
-                      const __t91 = document.createTextNode("\n                ");
-                      __e90.appendChild(__t91);
-                      const __e92 = document.createElement("span");
-                      __e92.setAttribute("class", "agents-card-letter");
-                      const __t93 = document.createTextNode("");
-                      __e92.appendChild(__t93);
-                      __c85.push(bindText(__t93, () => __E[9]($scope2)));
-                      __e90.appendChild(__e92);
-                      const __t94 = document.createTextNode("\n              ");
-                      __e90.appendChild(__t94);
-                      __e88.appendChild(__e90);
-                      const __t95 = document.createTextNode("\n              ");
-                      __e88.appendChild(__t95);
-                      const __e96 = document.createElement("div");
-                      __e96.setAttribute("class", "agents-card-body");
-                      const __t97 = document.createTextNode("\n                ");
-                      __e96.appendChild(__t97);
-                      const __e98 = document.createElement("div");
-                      __e98.setAttribute("class", "agents-card-head");
-                      const __t99 = document.createTextNode("\n                  ");
-                      __e98.appendChild(__t99);
-                      const __e100 = document.createElement("div");
-                      __e100.setAttribute("class", "agents-card-title");
-                      const __t101 = document.createTextNode("");
-                      __e100.appendChild(__t101);
-                      __c85.push(bindText(__t101, () => __E[10]($scope2)));
-                      __e98.appendChild(__e100);
-                      const __t102 = document.createTextNode("\n                  ");
-                      __e98.appendChild(__t102);
-                      const __e103 = document.createElement("p");
-                      __e103.setAttribute("class", "agents-card-desc");
-                      const __t104 = document.createTextNode("");
-                      __e103.appendChild(__t104);
-                      __c85.push(bindText(__t104, () => __E[11]($scope2)));
-                      __e98.appendChild(__e103);
-                      const __t105 = document.createTextNode("\n                ");
-                      __e98.appendChild(__t105);
-                      __e96.appendChild(__e98);
-                      const __t106 = document.createTextNode("\n                ");
-                      __e96.appendChild(__t106);
-                      const __e107 = document.createElement("div");
-                      __e107.setAttribute("class", "agents-card-stats");
-                      const __t108 = document.createTextNode("\n                  ");
-                      __e107.appendChild(__t108);
-                      const __e109 = document.createElement("span");
-                      const __t110 = document.createTextNode("");
-                      __e109.appendChild(__t110);
-                      __c85.push(bindText(__t110, () => __E[12]($scope2)));
-                      const __t111 = document.createTextNode(" skill");
-                      __e109.appendChild(__t111);
-                      const __t112 = document.createTextNode("");
-                      __e109.appendChild(__t112);
-                      __c85.push(bindText(__t112, () => __E[13]($scope2)));
-                      __e107.appendChild(__e109);
-                      const __t113 = document.createTextNode("\n                  ");
-                      __e107.appendChild(__t113);
-                      const __e114 = document.createElement("span");
-                      __e114.setAttribute("class", "agents-card-sep");
-                      const __t115 = document.createTextNode("&middot;");
-                      __e114.appendChild(__t115);
-                      __e107.appendChild(__e114);
-                      const __t116 = document.createTextNode("\n                  ");
-                      __e107.appendChild(__t116);
-                      const __e117 = document.createElement("span");
-                      const __t118 = document.createTextNode("");
-                      __e117.appendChild(__t118);
-                      __c85.push(bindText(__t118, () => __E[14]($scope2)));
-                      const __t119 = document.createTextNode(" MCP");
-                      __e117.appendChild(__t119);
-                      __e107.appendChild(__e117);
-                      const __t120 = document.createTextNode("\n                  ");
-                      __e107.appendChild(__t120);
-                      const __e121 = document.createElement("span");
-                      __e121.setAttribute("class", "agents-card-sep");
-                      const __t122 = document.createTextNode("&middot;");
-                      __e121.appendChild(__t122);
-                      __e107.appendChild(__e121);
-                      const __t123 = document.createTextNode("\n                  ");
-                      __e107.appendChild(__t123);
-                      const __e124 = document.createElement("span");
-                      const __t125 = document.createTextNode("");
-                      __e124.appendChild(__t125);
-                      __c85.push(bindText(__t125, () => __E[15]($scope2)));
-                      const __t126 = document.createTextNode(" rule");
-                      __e124.appendChild(__t126);
-                      const __t127 = document.createTextNode("");
-                      __e124.appendChild(__t127);
-                      __c85.push(bindText(__t127, () => __E[16]($scope2)));
-                      __e107.appendChild(__e124);
-                      const __t128 = document.createTextNode("\n                ");
-                      __e107.appendChild(__t128);
-                      __e96.appendChild(__e107);
-                      const __t129 = document.createTextNode("\n                ");
-                      __e96.appendChild(__t129);
-                      const __ifAnchor130 = document.createComment("if");
-                      __e96.appendChild(__ifAnchor130);
-                      __c85.push(bindIf({
-                        anchor: __ifAnchor130,
-                        test: () => {
-                          if (__E[17]($scope2)) return 0;
-                          return -1;
-                        },
-                        branches: [
-                          () => {
-                            const __frag131 = document.createDocumentFragment();
-                            const __c132 = [];
-                            const __t133 = document.createTextNode("\n                  ");
-                            __frag131.appendChild(__t133);
-                            const __e134 = document.createElement("div");
-                            __e134.setAttribute("class", "agents-card-providers");
-                            __e134.setAttribute("aria-label", "Compiles to");
-                            const __t135 = document.createTextNode("\n                    ");
-                            __e134.appendChild(__t135);
-                            const __forAnchor136 = document.createComment("for");
-                            __e134.appendChild(__forAnchor136);
-                            __c132.push(bindFor({
-                              anchor: __forAnchor136,
-                              source: () => __E[18]($scope2),
-                              render: (p, __i2) => {
-                                const __childScope139 = Object.create($scope3);
-                                __childScope139.p = p;
-                                __childScope139.__i = __i2;
-                                const __frag137 = document.createDocumentFragment();
-                                const __c138 = [];
-                                const $scope3 = __childScope139;
-                                const __t140 = document.createTextNode("\n                      ");
-                                __frag137.appendChild(__t140);
-                                const __e141 = document.createElement("ship-provider-blob");
-                                __c138.push(bindAttr(__e141, "provider", () => __E[19]($scope3)));
-                                __e141.setAttribute("size", "sm");
-                                __e141.setAttribute("variant", "glyph");
-                                __c138.push(bindAttr(__e141, "title", () => __E[19]($scope3)));
-                                __frag137.appendChild(__e141);
-                                const __t142 = document.createTextNode("\n                    ");
-                                __frag137.appendChild(__t142);
-                                return { nodes: Array.from(__frag137.childNodes), cleanup: () => {
-                                  for (const c of __c138) try {
-                                    c();
-                                  } catch (e) {
-                                  }
-                                } };
-                              }
-                            }));
-                            const __t143 = document.createTextNode("\n                    ");
-                            __e134.appendChild(__t143);
-                            const __ifAnchor144 = document.createComment("if");
-                            __e134.appendChild(__ifAnchor144);
-                            __c132.push(bindIf({
-                              anchor: __ifAnchor144,
-                              test: () => {
-                                if (__E[20]($scope2)) return 0;
-                                return -1;
-                              },
-                              branches: [
-                                () => {
-                                  const __frag145 = document.createDocumentFragment();
-                                  const __c146 = [];
-                                  const __t147 = document.createTextNode("\n                      ");
-                                  __frag145.appendChild(__t147);
-                                  const __e148 = document.createElement("ship-chip");
-                                  __e148.setAttribute("tone", "muted");
-                                  __e148.setAttribute("variant", "outline");
-                                  __e148.setAttribute("size", "sm");
-                                  const __t149 = document.createTextNode("+");
-                                  __e148.appendChild(__t149);
-                                  const __t150 = document.createTextNode("");
-                                  __e148.appendChild(__t150);
-                                  __c146.push(bindText(__t150, () => __E[21]($scope2)));
-                                  __frag145.appendChild(__e148);
-                                  const __t151 = document.createTextNode("\n                    ");
-                                  __frag145.appendChild(__t151);
-                                  return { nodes: Array.from(__frag145.childNodes), cleanup: () => {
-                                    for (const c of __c146) try {
-                                      c();
-                                    } catch (e) {
-                                    }
-                                  } };
-                                }
-                              ]
-                            }));
-                            const __t152 = document.createTextNode("\n                  ");
-                            __e134.appendChild(__t152);
-                            __frag131.appendChild(__e134);
-                            const __t153 = document.createTextNode("\n                ");
-                            __frag131.appendChild(__t153);
-                            return { nodes: Array.from(__frag131.childNodes), cleanup: () => {
-                              for (const c of __c132) try {
-                                c();
-                              } catch (e) {
-                              }
-                            } };
-                          }
-                        ]
-                      }));
-                      const __t154 = document.createTextNode("\n                ");
-                      __e96.appendChild(__t154);
-                      const __e155 = document.createElement("div");
-                      __e155.setAttribute("class", "agents-card-badges");
-                      const __t156 = document.createTextNode("\n                  ");
-                      __e155.appendChild(__t156);
-                      const __e157 = document.createElement("ship-badge");
-                      __e157.setAttribute("tone", "muted");
-                      __e157.setAttribute("variant", "outline");
-                      __e157.setAttribute("size", "sm");
-                      __e157.setAttribute("class", "agents-card-badge-source");
-                      const __t158 = document.createTextNode("");
-                      __e157.appendChild(__t158);
-                      __c85.push(bindText(__t158, () => __E[22]($scope2)));
-                      __e155.appendChild(__e157);
-                      const __t159 = document.createTextNode("\n                  ");
-                      __e155.appendChild(__t159);
-                      const __ifAnchor160 = document.createComment("if");
-                      __e155.appendChild(__ifAnchor160);
-                      __c85.push(bindIf({
-                        anchor: __ifAnchor160,
-                        test: () => {
-                          if (__E[23]($scope2)) return 0;
-                          return -1;
-                        },
-                        branches: [
-                          () => {
-                            const __frag161 = document.createDocumentFragment();
-                            const __c162 = [];
-                            const __t163 = document.createTextNode("\n                    ");
-                            __frag161.appendChild(__t163);
-                            const __e164 = document.createElement("ship-chip");
-                            __e164.setAttribute("tone", "primary");
-                            __e164.setAttribute("variant", "soft");
-                            __e164.setAttribute("size", "sm");
-                            const __t165 = document.createTextNode("\n                      ");
-                            __e164.appendChild(__t165);
-                            const __e166 = document.createElement("sui-status-dot");
-                            __e166.setAttribute("slot", "leading");
-                            __e166.setAttribute("tone", "primary");
-                            __e166.setAttribute("size", "sm");
-                            __e166.setAttribute("pulse", "");
-                            __e166.setAttribute("label", "Active session");
-                            __e164.appendChild(__e166);
-                            const __t167 = document.createTextNode("\n                      active session\n                    ");
-                            __e164.appendChild(__t167);
-                            __frag161.appendChild(__e164);
-                            const __t168 = document.createTextNode("\n                  ");
-                            __frag161.appendChild(__t168);
-                            return { nodes: Array.from(__frag161.childNodes), cleanup: () => {
-                              for (const c of __c162) try {
-                                c();
-                              } catch (e) {
-                              }
-                            } };
-                          }
-                        ]
-                      }));
-                      const __t169 = document.createTextNode("\n                  ");
-                      __e155.appendChild(__t169);
-                      const __forAnchor170 = document.createComment("for");
-                      __e155.appendChild(__forAnchor170);
-                      __c85.push(bindFor({
-                        anchor: __forAnchor170,
-                        source: () => __E[24]($scope2),
-                        render: (t, __i2) => {
-                          const __childScope173 = Object.create($scope3);
-                          __childScope173.t = t;
-                          __childScope173.__i = __i2;
-                          const __frag171 = document.createDocumentFragment();
-                          const __c172 = [];
-                          const $scope3 = __childScope173;
-                          const __t174 = document.createTextNode("\n                    ");
-                          __frag171.appendChild(__t174);
-                          const __e175 = document.createElement("ship-chip");
-                          __e175.setAttribute("tone", "muted");
-                          __e175.setAttribute("variant", "soft");
-                          __e175.setAttribute("size", "sm");
-                          const __t176 = document.createTextNode("");
-                          __e175.appendChild(__t176);
-                          __c172.push(bindText(__t176, () => __E[25]($scope3)));
-                          __frag171.appendChild(__e175);
-                          const __t177 = document.createTextNode("\n                  ");
-                          __frag171.appendChild(__t177);
-                          return { nodes: Array.from(__frag171.childNodes), cleanup: () => {
-                            for (const c of __c172) try {
-                              c();
-                            } catch (e) {
-                            }
-                          } };
-                        }
-                      }));
-                      const __t178 = document.createTextNode("\n                  ");
-                      __e155.appendChild(__t178);
-                      const __ifAnchor179 = document.createComment("if");
-                      __e155.appendChild(__ifAnchor179);
-                      __c85.push(bindIf({
-                        anchor: __ifAnchor179,
-                        test: () => {
-                          if (__E[26]($scope2)) return 0;
-                          return -1;
-                        },
-                        branches: [
-                          () => {
-                            const __frag180 = document.createDocumentFragment();
-                            const __c181 = [];
-                            const __t182 = document.createTextNode("\n                    ");
-                            __frag180.appendChild(__t182);
-                            const __e183 = document.createElement("ship-chip");
-                            __e183.setAttribute("tone", "muted");
-                            __e183.setAttribute("variant", "outline");
-                            __e183.setAttribute("size", "sm");
-                            const __t184 = document.createTextNode("+");
-                            __e183.appendChild(__t184);
-                            const __t185 = document.createTextNode("");
-                            __e183.appendChild(__t185);
-                            __c181.push(bindText(__t185, () => __E[27]($scope2)));
-                            __frag180.appendChild(__e183);
-                            const __t186 = document.createTextNode("\n                  ");
-                            __frag180.appendChild(__t186);
-                            return { nodes: Array.from(__frag180.childNodes), cleanup: () => {
-                              for (const c of __c181) try {
-                                c();
-                              } catch (e) {
-                              }
-                            } };
-                          }
-                        ]
-                      }));
-                      const __t187 = document.createTextNode("\n                ");
-                      __e155.appendChild(__t187);
-                      __e96.appendChild(__e155);
-                      const __t188 = document.createTextNode("\n              ");
-                      __e96.appendChild(__t188);
-                      __e88.appendChild(__e96);
-                      const __t189 = document.createTextNode("\n            ");
-                      __e88.appendChild(__t189);
-                      __frag84.appendChild(__e88);
-                      const __t190 = document.createTextNode("\n          ");
-                      __frag84.appendChild(__t190);
-                      return { nodes: Array.from(__frag84.childNodes), cleanup: () => {
-                        for (const c of __c85) try {
-                          c();
-                        } catch (e) {
-                        }
-                      } };
-                    }
-                  }));
-                  const __t191 = document.createTextNode("\n        ");
-                  __e81.appendChild(__t191);
-                  __frag78.appendChild(__e81);
-                  const __t192 = document.createTextNode("\n      ");
-                  __frag78.appendChild(__t192);
-                  return { nodes: Array.from(__frag78.childNodes), cleanup: () => {
-                    for (const c of __c79) try {
-                      c();
-                    } catch (e) {
-                    }
-                  } };
-                }
-              ]
-            }));
-            const __t193 = document.createTextNode("\n    ");
-            __frag57.appendChild(__t193);
-            return { nodes: Array.from(__frag57.childNodes), cleanup: () => {
-              for (const c of __c58) try {
-                c();
-              } catch (e) {
-              }
-            } };
-          }
-        ]
-      }));
-      const __t194 = document.createTextNode("\n\n  ");
-      __e3.appendChild(__t194);
+      __cleanups.push(bindWhileLoading({ anchor: __wlAnchor30, signal: $scope.agents, render: __renderWhileLoading_0 }));
+      const __t31 = document.createTextNode("\n\n    ");
+      __e3.appendChild(__t31);
+      const __weAnchor40 = document.createComment("while-error");
+      __e3.appendChild(__weAnchor40);
+      __cleanups.push(bindWhileError({ anchor: __weAnchor40, signal: $scope.agents, render: __renderWhileError_0 }));
+      const __t41 = document.createTextNode("\n\n    ");
+      __e3.appendChild(__t41);
+      const __ifAnchor42 = document.createComment("if");
+      __e3.appendChild(__ifAnchor42);
+      __cleanups.push(__wireBoundary_b6(__ifAnchor42));
+      const __t180 = document.createTextNode("\n\n  ");
+      __e3.appendChild(__t180);
       __e1.appendChild(__e3);
-      const __t195 = document.createTextNode("\n");
-      __e1.appendChild(__t195);
+      const __t181 = document.createTextNode("\n");
+      __e1.appendChild(__t181);
       container.appendChild(__e1);
-      const __t196 = document.createTextNode("\n");
-      container.appendChild(__t196);
+      const __t182 = document.createTextNode("\n");
+      container.appendChild(__t182);
       return () => {
         for (const c of __cleanups) try {
           c();
@@ -679,51 +690,61 @@ var view_default2 = view((ctx) => {
         }
       };
     },
-    "__renderWhileLoading_0": () => {
-      const __frag24 = document.createDocumentFragment();
-      const __c25 = [];
-      const __t26 = document.createTextNode("\n      ");
-      __frag24.appendChild(__t26);
-      const __e27 = document.createElement("p");
-      __e27.setAttribute("class", "loading-copy");
-      __e27.setAttribute("data-test", "loading");
-      const __t28 = document.createTextNode("Loading agents&hellip;");
-      __e27.appendChild(__t28);
-      __frag24.appendChild(__e27);
-      const __t29 = document.createTextNode("\n    ");
-      __frag24.appendChild(__t29);
-      return { nodes: Array.from(__frag24.childNodes), cleanup: () => {
-        for (const c of __c25) try {
-          c();
-        } catch (e) {
-        }
-      } };
+    "__renderWhileLoading_0": __renderWhileLoading_0,
+    "__renderWhileError_0": __renderWhileError_0,
+    __b20_attach: (target) => {
+      const __doc = target.ownerDocument ?? document;
+      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
+      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
+      return __wireBoundary_b20(__anchor);
     },
-    "__renderWhileError_0": (err) => {
-      const __childScope40 = Object.create($scope2);
-      __childScope40.err = err;
-      const __frag38 = document.createDocumentFragment();
-      const __c39 = [];
-      const $scope2 = __childScope40;
-      const __t41 = document.createTextNode("\n      ");
-      __frag38.appendChild(__t41);
-      const __e42 = document.createElement("p");
-      __e42.setAttribute("class", "loading-copy");
-      __e42.setAttribute("data-test", "error");
-      const __t43 = document.createTextNode("Error loading agents: ");
-      __e42.appendChild(__t43);
-      const __t44 = document.createTextNode("");
-      __e42.appendChild(__t44);
-      __c39.push(bindText(__t44, () => __E[3]($scope2)));
-      __frag38.appendChild(__e42);
-      const __t45 = document.createTextNode("\n    ");
-      __frag38.appendChild(__t45);
-      return { nodes: Array.from(__frag38.childNodes), cleanup: () => {
-        for (const c of __c39) try {
-          c();
-        } catch (e) {
-        }
-      } };
+    __b23_attach: (target) => {
+      const __doc = target.ownerDocument ?? document;
+      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
+      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
+      return __wireBoundary_b23(__anchor);
+    },
+    __b19_attach: (target) => {
+      const __doc = target.ownerDocument ?? document;
+      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
+      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
+      return __wireBoundary_b19(__anchor);
+    },
+    __b26_attach: (target) => {
+      const __doc = target.ownerDocument ?? document;
+      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
+      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
+      return __wireBoundary_b26(__anchor);
+    },
+    __b27_attach: (target) => {
+      const __doc = target.ownerDocument ?? document;
+      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
+      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
+      return __wireBoundary_b27(__anchor);
+    },
+    __b29_attach: (target) => {
+      const __doc = target.ownerDocument ?? document;
+      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
+      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
+      return __wireBoundary_b29(__anchor);
+    },
+    __b9_attach: (target) => {
+      const __doc = target.ownerDocument ?? document;
+      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
+      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
+      return __wireBoundary_b9(__anchor);
+    },
+    __b7_attach: (target) => {
+      const __doc = target.ownerDocument ?? document;
+      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
+      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
+      return __wireBoundary_b7(__anchor);
+    },
+    __b6_attach: (target) => {
+      const __doc = target.ownerDocument ?? document;
+      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
+      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
+      return __wireBoundary_b6(__anchor);
     }
   });
 });
@@ -733,10 +754,7 @@ var bindings = [
   { key: "b2", kind: "on:click", expr: "newAgent", deps: ["newAgent"] },
   { key: "b3", kind: "while-loading", expr: "agents", deps: ["agents"], renderKey: "__renderWhileLoading_0" },
   { key: "b4", kind: "while-error", expr: "agents", deps: ["agents"], renderKey: "__renderWhileError_0" },
-  { key: "b6", kind: "if", expr: "agents().kind === 'ok'", deps: ["agents"] },
-  { key: "b7", kind: "if", expr: "items().length === 0", deps: ["items"] },
   { key: "b8", kind: "on:click", expr: "newAgent", deps: ["newAgent"] },
-  { key: "b9", kind: "for", expr: "items()", deps: ["items"] },
   { key: "b10", kind: "attr:navigable", expr: "'/agents/' + a.id", deps: ["a"] },
   { key: "b11", kind: "text", expr: "a.letter", deps: ["a"] },
   { key: "b12", kind: "text", expr: "a.name", deps: ["a"] },
@@ -746,17 +764,11 @@ var bindings = [
   { key: "b16", kind: "text", expr: "a.mcp_count", deps: ["a"] },
   { key: "b17", kind: "text", expr: "a.rules_count", deps: ["a"] },
   { key: "b18", kind: "text", expr: "a.rules_count === 1 ? '' : 's'", deps: ["a"] },
-  { key: "b19", kind: "if", expr: "a.providers && a.providers.length > 0", deps: ["a"] },
-  { key: "b20", kind: "for", expr: "a.providers.slice(0, 4)", deps: ["a"] },
   { key: "b21", kind: "attr:provider", expr: "p", deps: ["p"] },
   { key: "b22", kind: "attr:title", expr: "p", deps: ["p"] },
-  { key: "b23", kind: "if", expr: "a.providers.length > 4", deps: ["a"] },
   { key: "b24", kind: "text", expr: "a.providers.length - 4", deps: ["a"] },
   { key: "b25", kind: "text", expr: "a.source", deps: ["a"] },
-  { key: "b26", kind: "if", expr: "a.active", deps: ["a"] },
-  { key: "b27", kind: "for", expr: "(a.tags || []).slice(0, 2)", deps: ["a"] },
   { key: "b28", kind: "text", expr: "t", deps: ["t"] },
-  { key: "b29", kind: "if", expr: "(a.tags || []).length > 2", deps: ["a"] },
   { key: "b30", kind: "text", expr: "(a.tags || []).length - 2", deps: ["a"] }
 ];
 export {

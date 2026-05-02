@@ -1,5 +1,18 @@
 //! Control-flow emit: `{#if}`, `{#for}`, `{#match}`, `{#while-loading}`,
 //! and `{#while-error}`.
+//!
+//! Phase 2 design: each `{#if}` / `{#for}` / `{#match}` boundary emits
+//! a hoisted `__wireBoundary_b<N>` const inside `setup(ctx)` plus a
+//! `__b<N>_attach` named property on the view's setup return. The
+//! __mount path (legacy hand-mount) and `attach()` (SSR re-hydration)
+//! both call into the same hoisted helper, with `attach()` first
+//! swapping the SSR'd `<sui-{kind} key="b<N>">` wrapper for a Comment
+//! anchor. `bindIf` / `bindFor`'s effect mounts the active branch
+//! synchronously, replacing the SSR'd content client-side.
+//!
+//! `{#while-loading}` / `{#while-error}` keep their existing renderKey
+//! shape — they're already client-side and don't go through the
+//! deleted `/_sui/render-fragment/` endpoint.
 
 use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
@@ -13,40 +26,57 @@ impl<'a> TemplateEmitter<'a> {
         parent_var: &str,
         cleanups_var: &str,
     ) {
+        let key = self.next_key();
         let anchor = self.fresh("ifAnchor");
+
+        // __mount-side: anchor + invoke hoisted handler.
         w.line(&format!(
             "const {anchor} = document.createComment(\"if\");"
         ));
         w.line(&format!("{parent_var}.appendChild({anchor});"));
-        w.line(&format!("{cleanups_var}.push(bindIf({{"));
-        w.enter();
-        w.line(&format!("anchor: {anchor},"));
-        w.line("test: () => {");
-        w.enter();
+        w.line(&format!(
+            "{cleanups_var}.push(__wireBoundary_{key}({anchor}));"
+        ));
+
+        // Hoisted handler — emitted into `boundary_hoists`, drained
+        // into the setup body before the `return`.
+        let mut h = Writer::new();
+        h.line(&format!(
+            "const __wireBoundary_{key} = (anchor) => bindIf({{"
+        ));
+        h.enter();
+        h.line("anchor,");
+        h.line("test: () => {");
+        h.enter();
         for (i, b) in instr.branches.iter().enumerate() {
             let idx = self.bank.add(&b.cond.source);
-            w.line(&format!("if (__E[{idx}]($scope)) return {i};"));
+            h.line(&format!("if (__E[{idx}]($scope)) return {i};"));
         }
         let fallback = if instr.else_body.is_some() {
             instr.branches.len() as i32
         } else {
             -1
         };
-        w.line(&format!("return {fallback};"));
-        w.leave();
-        w.line("},");
-        w.line("branches: [");
-        w.enter();
+        h.line(&format!("return {fallback};"));
+        h.leave();
+        h.line("},");
+        h.line("branches: [");
+        h.enter();
         for b in &instr.branches {
-            self.emit_branch(w, &b.body);
+            self.emit_branch(&mut h, &b.body);
         }
         if let Some(eb) = &instr.else_body {
-            self.emit_branch(w, eb);
+            self.emit_branch(&mut h, eb);
         }
-        w.leave();
-        w.line("],");
-        w.leave();
-        w.line("}));");
+        h.leave();
+        h.line("],");
+        h.leave();
+        h.line("});");
+        self.boundary_hoists.push_str(&h.into_string());
+
+        if self.is_view {
+            self.emit_attach_handler(&key, "if");
+        }
     }
 
     pub(in crate::emit) fn emit_for(
@@ -56,65 +86,81 @@ impl<'a> TemplateEmitter<'a> {
         parent_var: &str,
         cleanups_var: &str,
     ) {
+        let key = self.next_key();
         let anchor = self.fresh("forAnchor");
+
+        // __mount-side: anchor + invoke hoisted handler.
         w.line(&format!(
             "const {anchor} = document.createComment(\"for\");"
         ));
         w.line(&format!("{parent_var}.appendChild({anchor});"));
+        w.line(&format!(
+            "{cleanups_var}.push(__wireBoundary_{key}({anchor}));"
+        ));
+
         let it_idx = self.bank.add(&instr.iterable.source);
-        w.line(&format!("{cleanups_var}.push(bindFor({{"));
-        w.enter();
-        w.line(&format!("anchor: {anchor},"));
-        w.line(&format!("source: () => __E[{it_idx}]($scope),"));
-        if let Some(k) = &instr.key {
-            let ki = self.bank.add(&k.source);
-            let var = &instr.var_name;
-            let idx = instr.index_name.as_deref().unwrap_or("__i");
-            w.line(&format!(
-                "key: ({var}, {idx}) => {{ const __child = Object.create($scope); __child.{var} = {var}; __child.{idx} = {idx}; return __E[{ki}](__child); }},"
-            ));
-        }
         let var = &instr.var_name;
         let idx_name = instr.index_name.as_deref().unwrap_or("__i");
-        w.line(&format!("render: ({var}, {idx_name}) => {{"));
-        w.enter();
+
+        let mut h = Writer::new();
+        h.line(&format!(
+            "const __wireBoundary_{key} = (anchor) => bindFor({{"
+        ));
+        h.enter();
+        h.line("anchor,");
+        h.line(&format!("items: () => __E[{it_idx}]($scope),"));
+        if let Some(k) = &instr.key {
+            let ki = self.bank.add(&k.source);
+            h.line(&format!(
+                "key: ({var}, {idx_name}) => {{ const __child = Object.create($scope); __child.{var} = {var}; __child.{idx_name} = {idx_name}; return __E[{ki}](__child); }},"
+            ));
+        }
+        h.line(&format!("render: ({var}, {idx_name}) => {{"));
+        h.enter();
         let frag = self.fresh("frag");
         let cl = self.fresh("c");
         let child_scope = self.fresh("childScope");
-        w.line(&format!("const {child_scope} = Object.create($scope);"));
-        w.line(&format!("{child_scope}.{var} = {var};"));
-        w.line(&format!("{child_scope}.{idx_name} = {idx_name};"));
-        w.line(&format!(
+        h.line(&format!("const {child_scope} = Object.create($scope);"));
+        h.line(&format!("{child_scope}.{var} = {var};"));
+        h.line(&format!("{child_scope}.{idx_name} = {idx_name};"));
+        h.line(&format!(
             "const {frag} = document.createDocumentFragment();"
         ));
-        w.line(&format!("const {cl} = [];"));
-        // Render with $scope shadowed for nested expressions — we
-        // implement that by emitting a lexical const named $scope here.
-        w.line(&format!("const $scope = {child_scope};"));
-        self.emit_children(w, &instr.body, &frag, &cl);
-        w.line(&format!(
+        h.line(&format!("const {cl} = [];"));
+        // Per-iteration scope shadowing — nested expressions resolve
+        // `item` against the iteration's child scope.
+        h.line(&format!("const $scope = {child_scope};"));
+        // Walk body once. Body keys are allocated inside this walk and
+        // contribute to the registry's single-iteration key range.
+        self.emit_children(&mut h, &instr.body, &frag, &cl);
+        h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));
-        w.leave();
-        w.line("},");
+        h.leave();
+        h.line("},");
         if let Some(eb) = &instr.else_body {
-            w.line("emptyRender: () => {");
-            w.enter();
+            h.line("emptyRender: () => {");
+            h.enter();
             let frag = self.fresh("frag");
             let cl = self.fresh("c");
-            w.line(&format!(
+            h.line(&format!(
                 "const {frag} = document.createDocumentFragment();"
             ));
-            w.line(&format!("const {cl} = [];"));
-            self.emit_children(w, eb, &frag, &cl);
-            w.line(&format!(
+            h.line(&format!("const {cl} = [];"));
+            self.emit_children(&mut h, eb, &frag, &cl);
+            h.line(&format!(
                 "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
             ));
-            w.leave();
-            w.line("},");
+            h.leave();
+            h.line("},");
         }
-        w.leave();
-        w.line("}));");
+        h.leave();
+        h.line("});");
+        self.boundary_hoists.push_str(&h.into_string());
+
+        if self.is_view {
+            self.emit_attach_handler(&key, "for");
+        }
     }
 
     pub(in crate::emit) fn emit_match(
@@ -124,21 +170,30 @@ impl<'a> TemplateEmitter<'a> {
         parent_var: &str,
         cleanups_var: &str,
     ) {
+        let key = self.next_key();
         let anchor = self.fresh("matchAnchor");
+
         w.line(&format!(
             "const {anchor} = document.createComment(\"match\");"
         ));
         w.line(&format!("{parent_var}.appendChild({anchor});"));
+        w.line(&format!(
+            "{cleanups_var}.push(__wireBoundary_{key}({anchor}));"
+        ));
+
         let disc_idx = self.bank.add(&instr.discriminant.source);
-        w.line(&format!("{cleanups_var}.push(bindIf({{"));
-        w.enter();
-        w.line(&format!("anchor: {anchor},"));
-        w.line("test: () => {");
-        w.enter();
-        w.line(&format!("const __d = __E[{disc_idx}]($scope);"));
+        let mut h = Writer::new();
+        h.line(&format!(
+            "const __wireBoundary_{key} = (anchor) => bindIf({{"
+        ));
+        h.enter();
+        h.line("anchor,");
+        h.line("test: () => {");
+        h.enter();
+        h.line(&format!("const __d = __E[{disc_idx}]($scope);"));
         for (i, c) in instr.cases.iter().enumerate() {
             let cidx = self.bank.add(&c.test.source);
-            w.line(&format!(
+            h.line(&format!(
                 "if (__d === __E[{cidx}]($scope)) return {i};"
             ));
         }
@@ -147,30 +202,58 @@ impl<'a> TemplateEmitter<'a> {
         } else {
             -1
         };
-        w.line(&format!("return {fallback};"));
-        w.leave();
-        w.line("},");
-        w.line("branches: [");
-        w.enter();
+        h.line(&format!("return {fallback};"));
+        h.leave();
+        h.line("},");
+        h.line("branches: [");
+        h.enter();
         for c in &instr.cases {
-            self.emit_branch(w, &c.body);
+            self.emit_branch(&mut h, &c.body);
         }
         if let Some(d) = &instr.default {
-            self.emit_branch(w, d);
+            self.emit_branch(&mut h, d);
         }
-        w.leave();
-        w.line("],");
-        w.leave();
-        w.line("}));");
+        h.leave();
+        h.line("],");
+        h.leave();
+        h.line("});");
+        self.boundary_hoists.push_str(&h.into_string());
+
+        if self.is_view {
+            self.emit_attach_handler(&key, "match");
+        }
+    }
+
+    /// Emit a `__b<N>_attach: (target) => …` named property on the
+    /// view's setup return. `attach()` looks this up by walking SSR'd
+    /// `<sui-{kind} key="b<N>">` elements, then calls the handler with
+    /// the boundary element. The handler swaps the wrapper for a
+    /// Comment anchor and invokes the hoisted helper, whose first
+    /// effect-run mounts the active branch synchronously.
+    fn emit_attach_handler(&mut self, key: &str, kind: &str) {
+        let mut a = Writer::new();
+        a.line(&format!("__{key}_attach: (target) => {{"));
+        a.enter();
+        a.line("const __doc = target.ownerDocument ?? document;");
+        a.line(&format!(
+            "const __anchor = (target.nodeType === 1) ? __doc.createComment({}) : target;",
+            js_string(kind)
+        ));
+        a.line(
+            "if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);",
+        );
+        a.line(&format!("return __wireBoundary_{key}(__anchor);"));
+        a.leave();
+        a.line("},");
+        self.attach_handlers.push_str(&a.into_string());
     }
 
     /// Emit `{#while-loading of <bind>}…{/while-loading}`.
     ///
-    /// Two outputs:
-    /// 1. Inside `__mount`: a `bindWhileLoading` call with an inline render
-    ///    lambda (for the legacy imperative-mount path).
-    /// 2. In `render_callbacks`: a named `__renderWhileLoading_<N>` property
-    ///    on the setup return object, for the `attach()` path.
+    /// Hoists `const __renderWhileLoading_<N> = () => …` inside
+    /// `setup(ctx)` so the body is walked exactly once. Both `__mount`
+    /// (legacy) and `attach()` paths reference the same hoisted const.
+    /// Single walk = single registry-key consumption per body.
     pub(super) fn emit_while_loading_block(
         &mut self,
         w: &mut Writer,
@@ -178,36 +261,34 @@ impl<'a> TemplateEmitter<'a> {
         parent_var: &str,
         cleanups_var: &str,
     ) {
+        // Registry parity: while-loading consumes one b<N> for the
+        // boundary itself. Body keys are consumed during the (single)
+        // emit walk below.
+        let _ = self.next_key();
         let idx = self.while_loading_idx;
         self.while_loading_idx += 1;
         let render_key = format!("__renderWhileLoading_{idx}");
         let bind = &instr.bind;
 
-        // Emit named render callback into the side buffer (for attach()).
-        self.emit_wl_callback_to_side(&render_key, &instr.body);
+        // Hoist the render fn so it's a single-source-of-truth.
+        self.emit_wl_render_hoist(&render_key, &instr.body);
 
-        // Emit the __mount inline call (legacy path).
+        // __mount inline call references the hoisted const.
         let anchor = self.fresh("wlAnchor");
         w.line(&format!(
             "const {anchor} = document.createComment(\"while-loading\");"
         ));
         w.line(&format!("{parent_var}.appendChild({anchor});"));
         w.line(&format!(
-            "{cleanups_var}.push(bindWhileLoading({{ anchor: {anchor}, signal: $scope.{bind}, render: () => {{"
+            "{cleanups_var}.push(bindWhileLoading({{ anchor: {anchor}, signal: $scope.{bind}, render: {render_key} }}));"
         ));
-        w.enter();
-        let frag = self.fresh("frag");
-        let cl = self.fresh("c");
-        w.line(&format!(
-            "const {frag} = document.createDocumentFragment();"
+
+        // Re-export the hoisted const as a named property so
+        // `attach()` can find the render fn through `binding.renderKey`.
+        self.attach_handlers.push_str(&format!(
+            "{}: {render_key},\n",
+            js_string(&render_key)
         ));
-        w.line(&format!("const {cl} = [];"));
-        self.emit_children(w, &instr.body, &frag, &cl);
-        w.line(&format!(
-            "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
-        ));
-        w.leave();
-        w.line("} }));");
     }
 
     /// Emit `{#while-error <errVar> of <bind>}…{/while-error}`.
@@ -218,79 +299,66 @@ impl<'a> TemplateEmitter<'a> {
         parent_var: &str,
         cleanups_var: &str,
     ) {
+        let _ = self.next_key();
         let idx = self.while_error_idx;
         self.while_error_idx += 1;
         let render_key = format!("__renderWhileError_{idx}");
         let bind = &instr.bind;
         let var = &instr.error_var;
 
-        // Emit named render callback into the side buffer (for attach()).
-        self.emit_we_callback_to_side(&render_key, var, &instr.body);
+        self.emit_we_render_hoist(&render_key, var, &instr.body);
 
-        // Emit the __mount inline call (legacy path).
         let anchor = self.fresh("weAnchor");
         w.line(&format!(
             "const {anchor} = document.createComment(\"while-error\");"
         ));
         w.line(&format!("{parent_var}.appendChild({anchor});"));
         w.line(&format!(
-            "{cleanups_var}.push(bindWhileError({{ anchor: {anchor}, signal: $scope.{bind}, render: ({var}) => {{"
+            "{cleanups_var}.push(bindWhileError({{ anchor: {anchor}, signal: $scope.{bind}, render: {render_key} }}));"
         ));
-        w.enter();
-        let frag = self.fresh("frag");
-        let cl = self.fresh("c");
-        let child = self.fresh("childScope");
-        w.line(&format!("const {child} = Object.create($scope);"));
-        w.line(&format!("{child}.{var} = {var};"));
-        w.line(&format!(
-            "const {frag} = document.createDocumentFragment();"
+
+        self.attach_handlers.push_str(&format!(
+            "{}: {render_key},\n",
+            js_string(&render_key)
         ));
-        w.line(&format!("const {cl} = [];"));
-        w.line(&format!("const $scope = {child};"));
-        self.emit_children(w, &instr.body, &frag, &cl);
-        w.line(&format!(
-            "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
-        ));
-        w.leave();
-        w.line("} }));");
     }
 
-    fn emit_wl_callback_to_side(&mut self, render_key: &str, body: &[Instr]) {
+    fn emit_wl_render_hoist(&mut self, render_key: &str, body: &[Instr]) {
         let frag = self.fresh("frag");
         let cl = self.fresh("c");
-        let mut cb = Writer::new();
-        cb.line(&format!("{}: () => {{", js_string(render_key)));
-        cb.enter();
-        cb.line(&format!("const {frag} = document.createDocumentFragment();"));
-        cb.line(&format!("const {cl} = [];"));
-        self.emit_children(&mut cb, body, &frag, &cl);
-        cb.line(&format!(
+        let mut h = Writer::new();
+        h.line(&format!("const {render_key} = () => {{"));
+        h.enter();
+        h.line(&format!("const {frag} = document.createDocumentFragment();"));
+        h.line(&format!("const {cl} = [];"));
+        self.emit_children(&mut h, body, &frag, &cl);
+        h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));
-        cb.leave();
-        cb.line("},");
-        self.render_callbacks.push_str(&cb.into_string());
+        h.leave();
+        h.line("};");
+        self.boundary_hoists.push_str(&h.into_string());
     }
 
-    fn emit_we_callback_to_side(&mut self, render_key: &str, error_var: &str, body: &[Instr]) {
+    fn emit_we_render_hoist(&mut self, render_key: &str, error_var: &str, body: &[Instr]) {
         let frag = self.fresh("frag");
         let cl = self.fresh("c");
         let child = self.fresh("childScope");
         let var = error_var;
-        let mut cb = Writer::new();
-        cb.line(&format!("{}: ({var}) => {{", js_string(render_key)));
-        cb.enter();
-        cb.line(&format!("const {child} = Object.create($scope);"));
-        cb.line(&format!("{child}.{var} = {var};"));
-        cb.line(&format!("const {frag} = document.createDocumentFragment();"));
-        cb.line(&format!("const {cl} = [];"));
-        cb.line(&format!("const $scope = {child};"));
-        self.emit_children(&mut cb, body, &frag, &cl);
-        cb.line(&format!(
+        let mut h = Writer::new();
+        h.line(&format!("const {render_key} = ({var}) => {{"));
+        h.enter();
+        h.line(&format!("const {child} = Object.create($scope);"));
+        h.line(&format!("{child}.{var} = {var};"));
+        h.line(&format!("const {frag} = document.createDocumentFragment();"));
+        h.line(&format!("const {cl} = [];"));
+        h.line(&format!("const $scope = {child};"));
+        self.emit_children(&mut h, body, &frag, &cl);
+        h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));
-        cb.leave();
-        cb.line("},");
-        self.render_callbacks.push_str(&cb.into_string());
+        h.leave();
+        h.line("};");
+        self.boundary_hoists.push_str(&h.into_string());
     }
 }

@@ -1,187 +1,81 @@
 // Control-flow boundaries — `if` / `for` / `match` / `await`.
 //
-// **Phase E-2** — server round-trip swap-on-signal-change.
-//
-// When the boundary's discriminating expression changes (e.g.
-// `agents().kind` flips from `loading` to `ok`), the runtime POSTs the
-// current scope state plus the boundary's `b<N>` key to
-// `/_ship-set/render-fragment/<viewName>`. The daemon walks the IR
-// against that scope and returns the rendered body for the boundary —
-// no surrounding wrapper, just the children. The runtime swaps the
-// boundary's `<sui-{kind} key="bN">` element in-place with a fresh
-// active wrapper and recursively
-// wires every leaf marker the new HTML carries. The previous subtree's
-// wirers are disposed before the new ones attach.
-//
-// Always-active swap shape: at runtime we have full control over the
-// HTML being mounted, so we never use the `<template>` placeholder
-// shape that the SSR walker emits for un-rendered branches. An empty
-// active wrapper (`<div style="display:contents"></div>`) renders the
-// same as the placeholder for the user (nothing) and gives the marker
-// walker a single, unconditional shape to wire.
-//
-// Failures (4xx / 5xx / network error) log via `console.error` and
-// leave the existing DOM in place — the runtime degrades to whatever
-// the SSR rendered.
+// **Phase 2** — pure client-side swap. The compiler emits a hoisted
+// `__wireBoundary_b<N>` helper inside `setup(ctx)` per boundary plus a
+// `__b<N>_attach: (target) => disposer` named property on the view's
+// setup return. This module wires SSR'd `<sui-{kind} key="b<N>">`
+// elements by dispatching to the matching handler — no server
+// round-trip, no scope serialization. The handler swaps the SSR'd
+// wrapper for a Comment anchor and runs `bindIf` / `bindFor` against
+// the live signal layer; the first effect-run mounts the active branch
+// synchronously, replacing the SSR'd content client-side.
 
-import { effect } from '@ship/ui-runtime'
-import type { Binding } from '../attach'
-import { compileExpr } from './eval'
-import { serializeScope, wireSubtree, type WireContext } from './wire'
+const BOUNDARY_TAGS = new Set(['sui-if', 'sui-for', 'sui-match', 'sui-await'])
 
 /**
- * Wire a control-flow boundary marker.
+ * Wire every `<sui-{if|for|match|await}>` boundary under `root` by
+ * looking up `__b<N>_attach` on the setup return. Returns a single
+ * disposer that tears down every wired boundary in reverse order.
  *
- * `el` is the boundary element as found in the SSR'd DOM — either a
- * `<sui-{kind} key="bN" style="display:contents">` (active branch) or
- * `<sui-{kind} key="bN" hidden>` (placeholder). After the first swap the
- * closure-scoped `current` reference advances to the freshly mounted active
- * element.
+ * Order: outer→inner in document order. After wiring an outer
+ * boundary, its inner SSR'd `<sui-{kind}>` children are detached
+ * (replaced by client-rendered content with their own freshly-wired
+ * inner boundaries via the hoisted helpers). The snapshot list still
+ * holds references to detached elements; we skip those by checking
+ * `Node.isConnected` before dispatching.
  */
-export function wireBoundary(
-  el: Element,
-  binding: Binding,
-  ctx: WireContext,
+export function wireBoundaries(
+  root: Element,
+  setupRet: Record<string, unknown>,
 ): () => void {
-  let current: Element = el
-  let branchDispose: (() => void) | null = null
-
-  // Wire any leaf bindings that already live inside the SSR'd active
-  // branch (the placeholder has none). Tracked separately from the
-  // condition's effect-disposer so a swap can replace just the body.
-  if (isActive(current)) {
-    branchDispose = wireSubtree(current as HTMLElement, ctx, { skipRoot: true })
+  const owner = root.ownerDocument ?? document
+  const all: Element[] = []
+  // Include the root itself if it's a boundary; querySelectorAll
+  // omits the root by spec.
+  if (BOUNDARY_TAGS.has(root.tagName.toLowerCase())) {
+    all.push(root)
   }
+  const list = root.querySelectorAll('sui-if, sui-for, sui-match, sui-await')
+  for (const el of Array.from(list)) all.push(el)
 
-  const ev = binding.expr ? compileExpr(binding.expr) : null
-  let firstRun = true
-  let inflight = 0
-
-  const condDispose = effect(() => {
-    if (ev) {
-      try {
-        ev(ctx.scope)
-      } catch {
-        // Expression may not evaluate cleanly on first run; deps still
-        // register via the read attempt. Subsequent firings still trigger
-        // the swap (the daemon evaluates against the merged init).
-      }
-    }
-    if (firstRun) {
-      firstRun = false
-      return
-    }
-    void runSwap()
-  })
-
-  function runSwap(): Promise<void> {
-    if (!ctx.viewName) {
+  const cleanups: Array<() => void> = []
+  for (const el of all) {
+    if (!el.isConnected) continue
+    const key = el.getAttribute('key')
+    if (!key) continue
+    const handlerName = '__' + key + '_attach'
+    const handler = setupRet[handlerName] as
+      | ((target: Element) => () => void)
+      | undefined
+    if (typeof handler !== 'function') {
       console.error(
-        '[ship-set/attach] cannot swap control-flow boundary ' +
-          binding.key +
-          ': attach() was called without a viewName option.',
+        '[ship-set/attach] no boundary handler for ' +
+          handlerName +
+          ' on view; SSR\'d boundary left in place',
       )
-      return Promise.resolve()
+      continue
     }
-    const myFetch = ++inflight
-    const init = serializeScope(ctx.scope, ctx.initKeys)
-    const url =
-      '/_sui/render-fragment/' + encodeURIComponent(ctx.viewName)
-    return fetch(url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ init, key: binding.key }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const body = await res.text().catch(() => '<no body>')
-          throw new Error(
-            'fragment-render ' + res.status + ': ' + body.slice(0, 200),
-          )
-        }
-        return (await res.json()) as { html: string }
-      })
-      .then((body) => {
-        // A newer swap may have started while this one was in flight;
-        // drop stale responses.
-        if (myFetch !== inflight) return
-        applySwap(body.html)
-      })
-      .catch((err) => {
-        console.error(
-          '[ship-set/attach] fragment render failed:',
-          err,
-          '\nbinding:',
-          binding.key,
-        )
-      })
+    try {
+      const dispose = handler(el)
+      if (typeof dispose === 'function') cleanups.push(dispose)
+    } catch (err) {
+      console.error(
+        '[ship-set/attach] boundary handler threw for',
+        key,
+        err,
+      )
+    }
   }
 
-  function applySwap(html: string): void {
-    if (branchDispose) {
-      try {
-        branchDispose()
-      } catch (err) {
-        console.error('[ship-set/attach] branch dispose threw:', err)
-      }
-      branchDispose = null
-    }
-    const replacement = buildReplacement(current, binding, html)
-    const parent = current.parentNode
-    if (!parent) {
-      console.error(
-        '[ship-set/attach] boundary element detached from DOM; cannot swap',
-      )
-      return
-    }
-    parent.replaceChild(replacement, current)
-    current = replacement
-    branchDispose = wireSubtree(replacement, ctx, { skipRoot: true })
-  }
+  void owner
 
   return () => {
-    try {
-      condDispose()
-    } catch (err) {
-      console.error('[ship-set/attach] boundary cond dispose threw:', err)
-    }
-    if (branchDispose) {
+    for (let i = cleanups.length - 1; i >= 0; i--) {
       try {
-        branchDispose()
+        cleanups[i]!()
       } catch (err) {
-        console.error('[ship-set/attach] branch dispose threw:', err)
+        console.error('[ship-set/attach] boundary dispose threw:', err)
       }
-      branchDispose = null
     }
   }
-}
-
-function isActive(el: Element): boolean {
-  return !el.hasAttribute('hidden')
-}
-
-/**
- * Build a fresh active wrapper carrying the rendered body. Parses the
- * fragment HTML through a `<template>` element — per the HTML spec
- * `<script>` inside `<template>.content` is inert, so we don't have to
- * worry about embedded scripts re-executing on swap. The
- * `Range.createContextualFragment` alternative requires the range's
- * context node to be in a document; we'd rather build the new wrapper
- * out-of-document and then substitute it in atomically.
- */
-function buildReplacement(
-  prior: Element,
-  binding: Binding,
-  html: string,
-): HTMLElement {
-  const owner = prior.ownerDocument ?? document
-  const wrapper = owner.createElement('sui-' + binding.kind) as HTMLElement
-  wrapper.setAttribute('key', binding.key)
-  wrapper.style.display = 'contents'
-  if (html) {
-    const tpl = owner.createElement('template')
-    tpl.innerHTML = html
-    wrapper.appendChild(tpl.content)
-  }
-  return wrapper
 }

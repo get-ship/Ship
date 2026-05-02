@@ -1,226 +1,271 @@
+// Phase 2 — client-side control-flow boundaries.
+//
+// The compiler emits `__b<N>_attach: (target) => disposer` named
+// handlers on the setup return for every `{#if}` / `{#for}` /
+// `{#match}` boundary. `attach()` walks SSR'd `<sui-{kind}>` wrappers
+// and dispatches to the matching handler, which swaps the wrapper for
+// a Comment anchor and runs `bindIf` / `bindFor` against the live
+// signal layer. No server round-trip; reactivity is single-source via
+// signals. These tests build hand-written compiled-module shapes that
+// mirror what the compiler would emit and verify the swap behavior.
+
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import type { Signal } from '@ship/ui-runtime'
+import { bindFor, bindIf, signal, type Signal } from '@ship/ui-runtime'
 import { attach } from '../../src/attach'
-import { clearContainers, flush, makeModule, mountSsr } from './helpers'
+import type { SetupContext } from '../../src/attach'
+import { clearContainers, makeModule, mountSsr } from './helpers'
 
 afterEach(() => {
   clearContainers()
   vi.restoreAllMocks()
 })
 
-describe('attach/boundaries', () => {
-  it('does not crash on placeholder boundary; logs error on flip without viewName', () => {
-    // Placeholder shape: server skipped this branch. Phase E-2 attempts
-    // a swap on signal change; without `viewName` the runtime can't
-    // build the fragment-render URL, so it logs an error instead.
-    const html = '<sui-if key="b0" hidden></sui-if>'
-    const root = mountSsr(html, { ready: false })
-    let ready: Signal<boolean> | undefined
-    const mod = makeModule(
-      (ctx) => {
-        ready = ctx.scope!.ready as unknown as Signal<boolean>
-        return {}
-      },
-      [{ key: 'b0', kind: 'if', expr: 'ready()', deps: ['ready'] }],
-    )
-    const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-    const dispose = attach(root, { module: mod })
-    expect(errSpy).not.toHaveBeenCalled()
-    ready!.set(true)
-    expect(
-      errSpy.mock.calls.some((c) =>
-        (c[0] as string).includes('cannot swap control-flow boundary'),
-      ),
-    ).toBe(true)
-    dispose()
-  })
-
-  it('wires leaf bindings inside an active branch wrapper', () => {
-    // Active branch: server rendered, wrapper is `<sui-if display:contents>`.
+describe('attach/boundaries (client-side)', () => {
+  it('replaces SSR\'d {#if} active wrapper with client-rendered branch', () => {
     const html =
       '<sui-if key="b0" style="display:contents">' +
-      '<p><!--sui:text:b1-->ada<!--/sui--></p>' +
+      '<p data-test="ssr">stale-from-ssr</p>' +
       '</sui-if>'
     const root = mountSsr(html, { ready: true, name: 'ada' })
+
     let nameSig: Signal<string> | undefined
     const mod = makeModule(
-      (ctx) => {
+      (ctx: SetupContext) => {
+        const ready = ctx.scope!.ready as () => boolean
         nameSig = ctx.scope!.name as unknown as Signal<string>
-        return {}
+        return {
+          __b0_attach: (target: Element) => {
+            const anchor = document.createComment('if')
+            target.parentNode!.replaceChild(anchor, target)
+            return bindIf({
+              anchor,
+              test: () => (ready() ? 0 : -1),
+              branches: [
+                () => {
+                  const p = document.createElement('p')
+                  p.setAttribute('data-test', 'csr')
+                  const t = document.createTextNode('')
+                  p.appendChild(t)
+                  // Inline reactivity: signal subscription via effect
+                  // would be in a real bindText; for the test, assign
+                  // synchronously since we won't change the signal
+                  // before checking.
+                  t.nodeValue = nameSig!()
+                  return { nodes: [p] }
+                },
+              ],
+            })
+          },
+        }
       },
-      [
-        { key: 'b0', kind: 'if', expr: 'ready()', deps: ['ready'] },
-        { key: 'b1', kind: 'text', expr: 'name()', deps: ['name'] },
-      ],
+      [],
     )
+
     const dispose = attach(root, { module: mod })
-    expect(root.querySelector('p')!.textContent).toBe('ada')
-    nameSig!.set('grace')
-    expect(root.querySelector('p')!.textContent).toBe('grace')
+    // SSR'd `<p data-test="ssr">` is gone; client-rendered tree is in.
+    expect(root.querySelector('[data-test="ssr"]')).toBeNull()
+    const csr = root.querySelector('[data-test="csr"]')
+    expect(csr).not.toBeNull()
+    expect(csr!.textContent).toBe('ada')
     dispose()
   })
 
-  it('boundary_swap_on_signal_change: POSTs scope + replaces children + wires new leaves', async () => {
-    const html = '<sui-if key="b0" hidden></sui-if>'
-    const root = mountSsr(html, { ready: false, name: 'ada' })
-    let ready: Signal<boolean> | undefined
-    let nameSig: Signal<string> | undefined
-    const mod = makeModule(
-      (ctx) => {
-        ready = ctx.scope!.ready as unknown as Signal<boolean>
-        nameSig = ctx.scope!.name as unknown as Signal<string>
-        return {}
-      },
-      [
-        { key: 'b0', kind: 'if', expr: 'ready()', deps: ['ready'] },
-        { key: 'b1', kind: 'text', expr: 'name()', deps: ['name'] },
-      ],
-    )
-
-    const fetchMock = vi.fn().mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        html: '<p data-test="ok"><!--sui:text:b1-->ada<!--/sui--></p>',
-      }),
-    })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const dispose = attach(root, { module: mod, viewName: 'fixture' })
-    expect(fetchMock).not.toHaveBeenCalled()
-
-    ready!.set(true)
-    await flush()
-    await flush()
-
-    expect(fetchMock).toHaveBeenCalledTimes(1)
-    const [url, init] = fetchMock.mock.calls[0]!
-    expect(url).toBe('/_sui/render-fragment/fixture')
-    expect((init as RequestInit).method).toBe('POST')
-    const body = JSON.parse((init as RequestInit).body as string) as {
-      init: Record<string, unknown>
-      key: string
-    }
-    expect(body.key).toBe('b0')
-    expect(body.init.ready).toBe(true)
-    expect(body.init.name).toBe('ada')
-
-    // The placeholder element has been replaced by an active wrapper.
-    const wrapper = root.querySelector('sui-if[key="b0"]')
-    expect(wrapper).not.toBeNull()
-    expect(wrapper!.tagName.toLowerCase()).toBe('sui-if')
-    const p = wrapper!.querySelector('p[data-test="ok"]')
-    expect(p).not.toBeNull()
-    expect(p!.textContent).toBe('ada')
-
-    // Leaf binding inside the freshly mounted subtree is wired.
-    nameSig!.set('grace')
-    expect(p!.textContent).toBe('grace')
-
-    dispose()
-  })
-
-  it('boundary_swap_disposes_previous_listeners: second swap tears down first', async () => {
-    const html = '<sui-if key="b0" hidden></sui-if>'
-    const root = mountSsr(html, { ready: false, name: 'ada' })
-    let ready: Signal<boolean> | undefined
-    let nameSig: Signal<string> | undefined
-    const mod = makeModule(
-      (ctx) => {
-        ready = ctx.scope!.ready as unknown as Signal<boolean>
-        nameSig = ctx.scope!.name as unknown as Signal<string>
-        return {}
-      },
-      [
-        { key: 'b0', kind: 'if', expr: 'ready()', deps: ['ready'] },
-        { key: 'b1', kind: 'text', expr: 'name()', deps: ['name'] },
-      ],
-    )
-
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          html: '<p id="first"><!--sui:text:b1-->ada<!--/sui--></p>',
-        }),
-      })
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({ html: '' }),
-      })
-    vi.stubGlobal('fetch', fetchMock)
-
-    const dispose = attach(root, { module: mod, viewName: 'fixture' })
-
-    ready!.set(true)
-    await flush()
-    await flush()
-
-    const firstP = root.querySelector('#first') as HTMLElement | null
-    expect(firstP).not.toBeNull()
-    expect(firstP!.textContent).toBe('ada')
-
-    // Second flip: empty body → wrapper becomes empty active div, the
-    // text-binding effect for `name` from the first swap is disposed.
-    ready!.set(false)
-    await flush()
-    await flush()
-
-    expect(fetchMock).toHaveBeenCalledTimes(2)
-    // Old <p> is gone after second swap.
-    expect(root.querySelector('#first')).toBeNull()
-    // First-swap's text effect must not throw / write to the detached
-    // node when its dep changes after disposal.
-    nameSig!.set('grace')
-    // No assertion needed beyond "doesn't crash" — the detached node
-    // was removed and its effect should have been torn down.
-
-    dispose()
-  })
-
-  it('boundary_swap_failure_logs_and_keeps_existing: 500 response leaves DOM in place', async () => {
+  it('skips inner SSR\'d boundaries detached by outer handler', () => {
+    // Outer if active in SSR, with inner if-branch nested. After the
+    // outer attach, inner SSR'd `<sui-if>` is detached — its
+    // `__b1_attach` should NOT be called.
     const html =
       '<sui-if key="b0" style="display:contents">' +
-      '<p data-test="initial">existing</p>' +
+      '<sui-if key="b1" style="display:contents"><p>inner-ssr</p></sui-if>' +
       '</sui-if>'
-    const root = mountSsr(html, { ready: true })
-    let ready: Signal<boolean> | undefined
+    const root = mountSsr(html, { outer: true })
+
+    const innerCalls: number[] = []
     const mod = makeModule(
-      (ctx) => {
-        ready = ctx.scope!.ready as unknown as Signal<boolean>
-        return {}
-      },
-      [{ key: 'b0', kind: 'if', expr: 'ready()', deps: ['ready'] }],
+      () => ({
+        __b0_attach: (target: Element) => {
+          const anchor = document.createComment('if')
+          target.parentNode!.replaceChild(anchor, target)
+          return bindIf({
+            anchor,
+            test: () => 0,
+            branches: [
+              () => {
+                const p = document.createElement('p')
+                p.textContent = 'outer-csr'
+                return { nodes: [p] }
+              },
+            ],
+          })
+        },
+        __b1_attach: () => {
+          innerCalls.push(1)
+          return () => {}
+        },
+      }),
+      [],
     )
 
-    const fetchMock = vi.fn().mockResolvedValueOnce({
-      ok: false,
-      status: 500,
-      text: async () => 'kaboom',
+    attach(root, { module: mod })
+    expect(innerCalls.length).toBe(0)
+    expect(root.querySelector('p')?.textContent).toBe('outer-csr')
+  })
+
+  it('bindFor with per-iteration scope renders correct text per item', () => {
+    // The studio empty-tile bug: per-iteration `item` scope must
+    // propagate to inner `bindText`. Build a compiled-module shape
+    // mirroring what the compiler emits for {#for item of items}.
+    const html =
+      '<div data-test="grid">' +
+      '<sui-for key="b0" style="display:contents">' +
+      '<div class="tile"><code>stale</code></div>' +
+      '</sui-for>' +
+      '</div>'
+    const root = mountSsr(html, {
+      items: [
+        { id: 'one', kind: 'lit' },
+        { id: 'two', kind: 'sui' },
+        { id: 'three', kind: 'view' },
+      ],
     })
-    vi.stubGlobal('fetch', fetchMock)
+
+    const mod = makeModule(
+      (ctx: SetupContext) => {
+        const items = ctx.scope!.items as () => readonly { id: string; kind: string }[]
+        return {
+          __b0_attach: (target: Element) => {
+            const anchor = document.createComment('for')
+            target.parentNode!.replaceChild(anchor, target)
+            return bindFor<{ id: string; kind: string }>({
+              anchor,
+              items: () => items(),
+              key: (it) => it.id,
+              render: (item) => {
+                // Mirror what the compiler emits per iteration:
+                // childScope captures `item`; bindings inside resolve
+                // against that childScope.
+                const tile = document.createElement('div')
+                tile.className = 'tile'
+                tile.setAttribute('data-test', 'tile')
+                const code = document.createElement('code')
+                code.textContent = item.id
+                tile.appendChild(code)
+                return { nodes: [tile] }
+              },
+            })
+          },
+        }
+      },
+      [],
+    )
+
+    attach(root, { module: mod })
+
+    const tiles = root.querySelectorAll('[data-test="tile"]')
+    expect(tiles.length).toBe(3)
+    expect(tiles[0]!.textContent).toBe('one')
+    expect(tiles[1]!.textContent).toBe('two')
+    expect(tiles[2]!.textContent).toBe('three')
+  })
+
+  it('disposes boundaries on attach disposer', () => {
+    const html = '<sui-if key="b0" style="display:contents"><p>x</p></sui-if>'
+    const root = mountSsr(html, {})
+    const disposed = vi.fn()
+    const mod = makeModule(
+      () => ({
+        __b0_attach: (target: Element) => {
+          const anchor = document.createComment('if')
+          target.parentNode!.replaceChild(anchor, target)
+          // Synchronous bindIf-shaped disposer (no real effect).
+          return disposed
+        },
+      }),
+      [],
+    )
+
+    const dispose = attach(root, { module: mod })
+    expect(disposed).not.toHaveBeenCalled()
+    dispose()
+    expect(disposed).toHaveBeenCalledTimes(1)
+  })
+
+  it('logs error if SSR\'d boundary has no matching handler', () => {
+    const html = '<sui-if key="b9" style="display:contents"></sui-if>'
+    const root = mountSsr(html, {})
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-    const dispose = attach(root, { module: mod, viewName: 'fixture' })
-
-    ready!.set(false)
-    await flush()
-    await flush()
-
-    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const mod = makeModule(() => ({}), [])
+    attach(root, { module: mod })
     expect(
       errSpy.mock.calls.some((c) =>
-        (c[0] as string).includes('fragment render failed'),
+        (c[0] as string).includes('no boundary handler for __b9_attach'),
       ),
     ).toBe(true)
-    // Existing DOM unchanged.
-    const p = root.querySelector('p[data-test="initial"]')
-    expect(p).not.toBeNull()
-    expect(p!.textContent).toBe('existing')
+  })
 
-    dispose()
+  it('flips {#if} branch when signal changes (bindIf reactivity)', async () => {
+    const html = '<sui-if key="b0" style="display:contents"><p>ssr</p></sui-if>'
+    const root = mountSsr(html, { tab: 'a' })
+
+    let tabSig: Signal<string> | undefined
+    const mod = makeModule(
+      (ctx: SetupContext) => {
+        tabSig = ctx.scope!.tab as unknown as Signal<string>
+        const tab = tabSig
+        return {
+          __b0_attach: (target: Element) => {
+            const anchor = document.createComment('if')
+            target.parentNode!.replaceChild(anchor, target)
+            return bindIf({
+              anchor,
+              test: () => (tab!() === 'a' ? 0 : 1),
+              branches: [
+                () => {
+                  const p = document.createElement('p')
+                  p.textContent = 'A'
+                  return { nodes: [p] }
+                },
+                () => {
+                  const p = document.createElement('p')
+                  p.textContent = 'B'
+                  return { nodes: [p] }
+                },
+              ],
+            })
+          },
+        }
+      },
+      [],
+    )
+
+    attach(root, { module: mod })
+    expect(root.querySelector('p')?.textContent).toBe('A')
+    tabSig!.set('b')
+    expect(root.querySelector('p')?.textContent).toBe('B')
   })
 })
+
+describe('attach/boundaries — manifest decoupling', () => {
+  it('does not require {#if|for|match|await} entries in the manifest', () => {
+    // The compiler drops these kinds from the manifest. attach() must
+    // dispatch via setup-return handlers, not via manifest lookup.
+    const html = '<sui-if key="b0" style="display:contents"><p>x</p></sui-if>'
+    const root = mountSsr(html, {})
+    let calls = 0
+    const mod = makeModule(
+      () => ({
+        __b0_attach: (target: Element) => {
+          calls++
+          const anchor = document.createComment('if')
+          target.parentNode!.replaceChild(anchor, target)
+          return () => {}
+        },
+      }),
+      [], // empty manifest!
+    )
+    attach(root, { module: mod })
+    expect(calls).toBe(1)
+  })
+})
+
+void signal
