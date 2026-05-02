@@ -21,7 +21,10 @@ print_row() {
     sha=$(  [ -f "$d/sha" ]      && cat "$d/sha"       || echo "" )
     workspace=$( [ -f "$d/workspace" ] && cat "$d/workspace" || echo "" )
 
-    if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
+    # Workspace recorded but directory gone → orphan daemon, reapable.
+    if [ -n "$workspace" ] && [ ! -d "$workspace" ]; then
+        state="REAPABLE"
+    elif [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
         state="RUNNING"
     elif [ -n "$pid" ]; then
         state="STALE"
