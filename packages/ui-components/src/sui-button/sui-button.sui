@@ -23,15 +23,6 @@
     }
     :host([hidden]) { display: none; }
 
-    /* Tone matrix */
-    :host([tone='primary'])     { --tone: var(--primary); --tone-fg: var(--primary); --tone-contrast: var(--primary-foreground); }
-    :host([tone='info'])        { --tone: var(--info); --tone-fg: var(--info); --tone-contrast: var(--info-foreground); }
-    :host([tone='success'])     { --tone: var(--success); --tone-fg: var(--success); --tone-contrast: var(--success-foreground); }
-    :host([tone='warning'])     { --tone: var(--warning); --tone-fg: var(--warning); --tone-contrast: var(--warning-foreground); }
-    :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); --tone-contrast: var(--destructive-foreground); }
-    :host([tone='accent'])      { --tone: var(--accent); --tone-fg: var(--accent); --tone-contrast: var(--accent-foreground); }
-    :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); }
-
     /* Size matrix */
     :host([size='sm']) { --btn-h: 28px; --btn-fs: 12px; --btn-px: 10px; --btn-gap: 6px; }
     :host([size='md']) { --btn-h: 34px; --btn-fs: 13px; --btn-px: 12px; --btn-gap: 8px; }

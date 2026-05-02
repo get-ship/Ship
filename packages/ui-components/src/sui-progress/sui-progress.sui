@@ -50,14 +50,6 @@
   }
   :host([hidden]) { display: none; }
 
-  :host([tone='default'])     { --tone: var(--foreground); }
-  :host([tone='primary'])     { --tone: var(--primary); }
-  :host([tone='info'])        { --tone: var(--info); }
-  :host([tone='success'])     { --tone: var(--success); }
-  :host([tone='warning'])     { --tone: var(--warning); }
-  :host([tone='destructive']) { --tone: var(--destructive); }
-  :host([tone='accent'])      { --tone: var(--accent); }
-
   :host([size='sm']) { --h: 4px; }
   :host([size='md']) { --h: 6px; }
   :host([size='lg']) { --h: 10px; }
