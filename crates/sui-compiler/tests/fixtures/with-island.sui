@@ -1,0 +1,4 @@
+<state name="ready" value="false" />
+<div class="wrap">
+  <sui-terminal rows={24} cols={80}></sui-terminal>
+</div>

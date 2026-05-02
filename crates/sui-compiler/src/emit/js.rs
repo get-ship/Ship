@@ -27,10 +27,13 @@
 //! module is itself plain ESM (strict by spec) but each closure runs
 //! in a non-strict body where `with($scope)` is legal.
 
+use std::collections::BTreeSet;
+
 use super::template_emit::{ExprBank, TemplateEmitter};
 use super::util::{camel_of, js_ident};
 use super::writer::{js_string, Writer};
 use crate::ir::*;
+use crate::islands::SUI_ISLANDS;
 use crate::keys::BindingRegistry;
 use crate::lower::{directives::prop_default_literal, Lowered};
 use crate::{CompileMode, CompileOpts};
@@ -43,6 +46,16 @@ pub fn emit_module(
     mode: CompileMode,
 ) -> String {
     let mut w = Writer::new();
+    let islands = collect_islands(&program.template);
+    if !islands.is_empty() {
+        let list = islands
+            .iter()
+            .map(|s| format!("\"{}\"", s))
+            .collect::<Vec<_>>()
+            .join(", ");
+        w.line(&format!("export const ISLANDS = [{list}];"));
+        w.nl();
+    }
     emit_imports(&mut w, lowered, opts);
     emit_helpers(&mut w);
 
@@ -392,3 +405,46 @@ fn emit_component_lifecycle_wiring(w: &mut Writer) {
     w.line("}");
 }
 
+fn collect_islands(template: &[Instr]) -> BTreeSet<String> {
+    let mut found = BTreeSet::new();
+    visit_instrs(template, &mut found);
+    found
+}
+
+fn visit_instrs(instrs: &[Instr], found: &mut BTreeSet<String>) {
+    for instr in instrs {
+        match instr {
+            Instr::Element(el) => {
+                if SUI_ISLANDS.contains(&el.tag.as_str()) {
+                    found.insert(el.tag.clone());
+                }
+                visit_instrs(&el.children, found);
+            }
+            Instr::If(if_instr) => {
+                for branch in &if_instr.branches {
+                    visit_instrs(&branch.body, found);
+                }
+                if let Some(else_body) = &if_instr.else_body {
+                    visit_instrs(else_body, found);
+                }
+            }
+            Instr::For(for_instr) => {
+                visit_instrs(&for_instr.body, found);
+                if let Some(else_body) = &for_instr.else_body {
+                    visit_instrs(else_body, found);
+                }
+            }
+            Instr::Match(match_instr) => {
+                for case in &match_instr.cases {
+                    visit_instrs(&case.body, found);
+                }
+                if let Some(default) = &match_instr.default {
+                    visit_instrs(default, found);
+                }
+            }
+            Instr::WhileLoading(wl) => visit_instrs(&wl.body, found),
+            Instr::WhileError(we) => visit_instrs(&we.body, found),
+            Instr::StaticText { .. } | Instr::DynamicText { .. } | Instr::Comment { .. } => {}
+        }
+    }
+}

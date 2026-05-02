@@ -193,6 +193,58 @@ fn ship_button_emits_cem() {
 }
 
 #[test]
+fn with_island_emits_islands_export() {
+    let path = fixtures_dir().join("with-island.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+    };
+    let out = compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains("export const ISLANDS"),
+        "expected ISLANDS export, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("\"sui-terminal\""),
+        "expected sui-terminal in ISLANDS, got:\n{}",
+        out.js
+    );
+    // ISLANDS must appear before the import statements
+    let islands_pos = out.js.find("export const ISLANDS").unwrap();
+    let import_pos = out.js.find("import {").or_else(|| out.js.find("import \"")).unwrap();
+    assert!(
+        islands_pos < import_pos,
+        "ISLANDS export must precede imports"
+    );
+}
+
+#[test]
+fn without_island_omits_islands_export() {
+    let path = fixtures_dir().join("without-island.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+    };
+    let out = compile(&source, opts).expect("compile");
+    assert!(
+        !out.js.contains("ISLANDS"),
+        "expected no ISLANDS export for view without island tags, got:\n{}",
+        out.js
+    );
+}
+
+#[test]
 fn schema_emitted_for_each_fixture() {
     for fx in &fixtures() {
         let path = fixtures_dir().join(format!("{}.sui", fx.name));
