@@ -1,55 +1,145 @@
-  <prop name="name" type="string" default="" reflect />
-  <prop name="active" type="bool" default="false" reflect />
-  <prop name="count" type="string" default="" />
-  <prop name="disabled" type="bool" default="false" reflect />
+<!--
+  <sui-tab> — SUI port of <ship-tab>.
+  Individual tab button. Renders its own interactive button; orchestrated
+  by the parent <sui-tabs> controller which sets the `active` attribute.
 
-  <style>
-    :host { display: inline-flex; }
-    button {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 8px 14px;
-      font: inherit;
-      font-family: var(--font-body);
-      font-size: 13px;
-      font-weight: var(--font-weight-medium, 500);
-      color: var(--muted-foreground);
-      background: transparent;
-      border: 0;
-      border-bottom: 2px solid transparent;
-      cursor: pointer;
-      border-radius: 0;
-      transition:
-        color var(--duration-fast) var(--ease-out),
-        border-color var(--duration-fast) var(--ease-out),
-        background-color var(--duration-fast) var(--ease-out);
-    }
-    button:hover:not(:disabled) {
-      color: var(--foreground);
-    }
-    :host([active]) button {
-      color: var(--foreground);
-      border-bottom-color: var(--primary);
-    }
-    button:disabled {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-    .count {
-      font-size: 11px;
-      font-weight: var(--font-weight-medium, 500);
-      color: var(--muted-foreground);
-      padding: 0 6px;
-      border-radius: var(--radius-full);
-      background: color-mix(in oklch, var(--muted) 80%, transparent);
-    }
-    :host([active]) .count { color: var(--primary); background: color-mix(in oklch, var(--primary) 12%, transparent); }
-    button:focus-visible {
-      outline: 2px solid color-mix(in oklch, var(--primary) 55%, transparent);
-      outline-offset: -2px;
-    }
-  </style>
+  Architecture diverges from Lit:
+  In <ship-tabs>, the parent renders all tab buttons in its own shadow
+  DOM and <ship-tab> is a data-holder (display:none). In SUI, <sui-tab>
+  renders its own button, and <sui-tabs> coordinates via attribute-setting
+  and slotchange. This keeps the interactive surface inside sui-tab for
+  encapsulation while delegating keyboard/focus management to sui-tabs.
+
+  Prop / event / method parity vs <ship-tab>
+  ──────────────────────────────────────────────────────────────────────────────
+  Lit                              SUI                       Notes
+  ──────────────────────────────────────────────────────────────────────────────
+  name (String, '', reflect)       name (string, '',         ✓
+                                     reflect)
+  label (String, '', reflect)      label (string, '',        ✓ fallback text if
+                                     reflect)                  slot is empty; in
+                                                               SUI the slot is
+                                                               primary content
+  count (Number|null, null,        count (string, '',        ✓ empty string →
+    reflect)                         reflect)                  no badge (SUI string
+                                                               prop; '' hides badge)
+  disabled (Boolean, false,        disabled (bool, false,    ✓
+    reflect)                         reflect)
+  ──────────────────────────────────────────────────────────────────────────────
+  active (n/a — parent-rendered    active (bool, false,      SUI addition: set by
+    button, no host prop)            reflect)                  sui-tabs controller to
+                                                               drive aria-selected
+                                                               and tabIndex
+  ──────────────────────────────────────────────────────────────────────────────
+  Rendered by parent               button[part="button"]     test table expects
+    (no shadow button in Lit)        rendered by sui-tab      shadowPart: 'button'
+  ──────────────────────────────────────────────────────────────────────────────
+  role=tab / aria-selected         ✓ button has role=tab;    ✓
+    managed by parent                aria-selected driven by
+                                     `active` prop; tabIndex
+                                     managed by sui-tab.ts
+  ──────────────────────────────────────────────────────────────────────────────
+  Slots: (none — data holder)      (default) + leading       SUI slot for label
+                                                               content; leading for
+                                                               icon-before-label
+  ──────────────────────────────────────────────────────────────────────────────
+  Parts: (none)                    button                    ✓
+  ──────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="name" type="string" default="" reflect />
+<prop name="label" type="string" default="" reflect />
+<prop name="count" type="string" default="" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="active" type="bool" default="false" reflect />
+
+<style>
+  :host { display: inline-flex; }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    font: inherit;
+    font-family: var(--font-body);
+    font-size: 13px;
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--muted-foreground);
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    border-radius: 0;
+    white-space: nowrap;
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out);
+  }
+
+  button:hover:not(:disabled) { color: var(--foreground); }
+
+  :host([active]) button {
+    color: var(--foreground);
+    border-bottom-color: var(--tone, var(--primary));
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .leading {
+    display: none;
+    align-items: center;
+    flex: 0 0 auto;
+    color: currentColor;
+  }
+  .leading:has(::slotted(*)) { display: inline-flex; }
+
+  .count {
+    font-size: 11px;
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--muted-foreground);
+    padding: 0 6px;
+    border-radius: var(--radius-full);
+    background: color-mix(in oklch, var(--muted) 80%, transparent);
+  }
+  :host([active]) .count {
+    color: var(--tone, var(--primary));
+    background: color-mix(in oklch, var(--tone, var(--primary)) 12%, transparent);
+  }
+
+  button:focus-visible {
+    outline: 2px solid color-mix(in oklch, var(--tone, var(--primary)) 55%, transparent);
+    outline-offset: -2px;
+  }
+
+  :host([variant='pill']) button {
+    border-bottom: 0;
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+  }
+  :host([variant='pill'][active]) button {
+    background: var(--background);
+    box-shadow: var(--shadow-sm, 0 1px 2px 0 rgb(0 0 0 / 0.05));
+    color: var(--foreground);
+  }
+
+  :host([variant='enclosed']) button {
+    border-bottom: 0;
+    border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+    border: 1px solid transparent;
+  }
+  :host([variant='enclosed'][active]) button {
+    background: var(--background);
+    border-color: var(--border) var(--border) transparent;
+    color: var(--foreground);
+    position: relative;
+    bottom: -1px;
+  }
+</style>
 
 <button
   part="button"
@@ -59,7 +149,9 @@
   aria-selected={active() ? 'true' : 'false'}
   aria-disabled={disabled() ? 'true' : 'false'}
   disabled={disabled()}
+  bind:this={btn}
 >
+  <span class="leading" part="leading"><slot name="leading"></slot></span>
   <slot></slot>
   {#if count() !== ''}
     <span class="count" aria-hidden="true">{count()}</span>
