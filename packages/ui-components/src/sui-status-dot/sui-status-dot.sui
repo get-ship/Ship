@@ -31,15 +31,6 @@
     vertical-align: middle;
     --tone-fg: var(--success);
   }
-  :host([tone='default'])     { --tone-fg: var(--foreground); }
-  :host([tone='primary'])     { --tone-fg: var(--primary); }
-  :host([tone='info'])        { --tone-fg: var(--info); }
-  :host([tone='success'])     { --tone-fg: var(--success); }
-  :host([tone='warning'])     { --tone-fg: var(--warning); }
-  :host([tone='destructive']) { --tone-fg: var(--destructive); }
-  :host([tone='accent'])      { --tone-fg: var(--accent); }
-  :host([tone='muted'])       { --tone-fg: var(--muted-foreground); }
-
   .dot {
     display: inline-block;
     width: 8px;

@@ -54,13 +54,6 @@
   }
   :host([hidden]) { display: none; }
 
-  :host([tone='primary'])     { --tone-fg: var(--primary); }
-  :host([tone='info'])        { --tone-fg: var(--info); }
-  :host([tone='success'])     { --tone-fg: var(--success); }
-  :host([tone='destructive']) { --tone-fg: var(--destructive); }
-  :host([tone='warning'])     { --tone-fg: var(--warning); }
-  :host([tone='accent'])      { --tone-fg: var(--accent); }
-
   :host([interactive]) { cursor: pointer; }
   :host([interactive]:hover) {
     border-color: color-mix(in oklch, var(--border) 180%, transparent);

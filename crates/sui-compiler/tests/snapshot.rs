@@ -24,6 +24,8 @@ fn fixtures() -> Vec<Fixture> {
         Fixture { name: "bind-this-button", setup_url: None,           mode: CompileMode::View,      component_meta: None },
         Fixture { name: "reflect-empty-slot", setup_url: None,         mode: CompileMode::Component,
             component_meta: Some(ComponentMeta { name: "reflect-empty-slot-test".into(), shadow: true }) },
+        Fixture { name: "shadow-tones", setup_url: None,               mode: CompileMode::Component,
+            component_meta: Some(ComponentMeta { name: "shadow-tones-test".into(), shadow: true }) },
     ]
 }
 
@@ -141,6 +143,63 @@ fn reflect_empty_slot_snapshot() {
     let js = compile_fixture(fx);
     let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
     assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn shadow_tones_snapshot() {
+    let fx = &fixtures()[6];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn shadow_tones_emits_adopted_style_sheets_call() {
+    let path = fixtures_dir().join("shadow-tones.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::Component,
+        source_path: Some(path),
+        styles: None,
+        component_meta: Some(ComponentMeta {
+            name: "shadow-tones-test".into(),
+            shadow: true,
+        }),
+        emit_dts: false,
+    };
+    let out = compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains("suiTonesSheet"),
+        "expected suiTonesSheet import:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("adoptedStyleSheets"),
+        "expected adoptedStyleSheets call:\n{}",
+        out.js
+    );
+    // Light-DOM (shadow: false) components must NOT get the tone sheet.
+    let light_opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::Component,
+        source_path: None,
+        styles: None,
+        component_meta: Some(ComponentMeta {
+            name: "shadow-tones-test".into(),
+            shadow: false,
+        }),
+        emit_dts: false,
+    };
+    let light_out = compile(
+        &std::fs::read_to_string(fixtures_dir().join("shadow-tones.sui")).unwrap(),
+        light_opts,
+    ).expect("compile light");
+    assert!(
+        !light_out.js.contains("suiTonesSheet"),
+        "light-DOM component must not import suiTonesSheet:\n{}",
+        light_out.js
+    );
 }
 
 #[test]
