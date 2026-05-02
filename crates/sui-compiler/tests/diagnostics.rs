@@ -64,6 +64,73 @@ fn assignment_diagnostic_has_a_span() {
 }
 
 #[test]
+fn bind_this_with_non_identifier_is_rejected() {
+    let src = r#"<button bind:this={a.b}>x</button>"#;
+    let err = compile_view(src);
+    assert!(
+        err.message.contains("identifier") || err.message.contains("bare"),
+        "msg: {}",
+        err.message
+    );
+    assert!(err.span.is_some());
+}
+
+#[test]
+fn bind_this_with_call_expression_is_rejected() {
+    let src = r#"<button bind:this={getRef()}>x</button>"#;
+    let err = compile_view(src);
+    assert!(
+        err.message.contains("identifier") || err.message.contains("bare"),
+        "msg: {}",
+        err.message
+    );
+}
+
+#[test]
+fn reflect_empty_on_non_slot_is_rejected() {
+    let src = r#"<div reflect-empty="data-x">x</div>"#;
+    let err = compile_view(src);
+    assert!(
+        err.message.contains("slot"),
+        "msg: {}",
+        err.message
+    );
+}
+
+#[test]
+fn reflect_empty_with_invalid_attr_name_is_rejected() {
+    let src = r#"<slot reflect-empty="DataIconOnly"></slot>"#;
+    let err = compile_view(src);
+    assert!(
+        err.message.contains("[a-z]") || err.message.contains("must match"),
+        "msg: {}",
+        err.message
+    );
+}
+
+#[test]
+fn reflect_empty_with_expression_is_rejected() {
+    let src = r#"<slot reflect-empty={attr}></slot>"#;
+    let err = compile_view(src);
+    assert!(
+        err.message.contains("static") || err.message.contains("expression"),
+        "msg: {}",
+        err.message
+    );
+}
+
+#[test]
+fn reflect_empty_with_empty_value_is_rejected() {
+    let src = r#"<slot reflect-empty=""></slot>"#;
+    let err = compile_view(src);
+    assert!(
+        err.message.contains("attribute name") || err.message.contains("requires"),
+        "msg: {}",
+        err.message
+    );
+}
+
+#[test]
 fn unknown_modifier_is_rejected() {
     let src = r#"<button on:click|wat={() => x()}></button>"#;
     let err = compile_view(src);

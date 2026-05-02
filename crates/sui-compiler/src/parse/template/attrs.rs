@@ -11,8 +11,15 @@ pub fn compile_attrs(
     loc_prefix: &str,
 ) -> Result<Vec<AttrInstr>, CompileError> {
     let mut out = Vec::new();
+    let is_slot = el.tag.eq_ignore_ascii_case("slot");
     for a in &el.attributes {
-        out.push(compile_attr(&a.name, &a.value, a.value_span, &format!("{loc_prefix} {}", a.name))?);
+        out.push(compile_attr(
+            &a.name,
+            &a.value,
+            a.value_span,
+            &format!("{loc_prefix} {}", a.name),
+            is_slot,
+        )?);
     }
     Ok(out)
 }
@@ -22,7 +29,11 @@ fn compile_attr(
     value: &str,
     value_span: Span,
     loc: &str,
+    on_slot: bool,
 ) -> Result<AttrInstr, CompileError> {
+    if name == "reflect-empty" {
+        return compile_reflect_empty(value, value_span, loc, on_slot);
+    }
     if name == "mutation" {
         if value.is_empty() {
             return Err(CompileError::new("mutation= requires a value (e.g. \"ship.agents.create\")")
@@ -149,6 +160,16 @@ fn compile_bind(
             .with_category(loc.to_string()));
     }
     let inner = strip_braces(value).to_string();
+    if target == "this" {
+        if !is_bare_identifier(&inner) {
+            return Err(CompileError::new(
+                "bind:this={var} expects a bare identifier (refs are write-once, not derivable)",
+            )
+            .with_span(value_span)
+            .with_category(loc.to_string()));
+        }
+        return Ok(AttrInstr::BindThis { var: inner, span: value_span });
+    }
     expr::validate_at(&inner, false, loc, value_span)?;
     let expr = Expr::new(inner, value_span, false);
     match target {
@@ -158,6 +179,65 @@ fn compile_bind(
             .with_span(value_span)
             .with_category(loc.to_string())),
     }
+}
+
+fn compile_reflect_empty(
+    value: &str,
+    value_span: Span,
+    loc: &str,
+    on_slot: bool,
+) -> Result<AttrInstr, CompileError> {
+    if !on_slot {
+        return Err(CompileError::new(
+            "reflect-empty=\"...\" is only valid on <slot> elements",
+        )
+        .with_span(value_span)
+        .with_category(loc.to_string()));
+    }
+    if is_expr_value(value) {
+        return Err(CompileError::new(
+            "reflect-empty must be a static attribute name (e.g. \"data-icon-only\"), not an expression",
+        )
+        .with_span(value_span)
+        .with_category(loc.to_string()));
+    }
+    if value.is_empty() {
+        return Err(CompileError::new(
+            "reflect-empty=\"<attr>\" requires a target attribute name",
+        )
+        .with_span(value_span)
+        .with_category(loc.to_string()));
+    }
+    if !is_valid_attr_name(value) {
+        return Err(CompileError::new(format!(
+            "reflect-empty target \"{value}\" must match [a-z][a-z0-9-]*"
+        ))
+        .with_span(value_span)
+        .with_category(loc.to_string()));
+    }
+    Ok(AttrInstr::SlotReflectEmpty {
+        attr: value.to_string(),
+        span: value_span,
+    })
+}
+
+fn is_bare_identifier(s: &str) -> bool {
+    let s = s.trim();
+    let mut chars = s.chars();
+    let Some(first) = chars.next() else { return false };
+    if !(first.is_ascii_alphabetic() || first == '_' || first == '$') {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '$')
+}
+
+fn is_valid_attr_name(s: &str) -> bool {
+    let mut chars = s.chars();
+    let Some(first) = chars.next() else { return false };
+    if !first.is_ascii_lowercase() {
+        return false;
+    }
+    chars.all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
 fn compile_class(

@@ -209,7 +209,7 @@
 >
   <span class="content">
     <slot name="leading"></slot>
-    <slot></slot>
+    <slot reflect-empty="data-icon-only"></slot>
     <slot name="trailing"></slot>
   </span>
   {#if loading()}

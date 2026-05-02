@@ -168,6 +168,7 @@ where
             f(expr)?;
         }
         AttrInstr::BindValue { expr, .. } | AttrInstr::BindChecked { expr, .. } => f(expr)?,
+        AttrInstr::BindThis { .. } | AttrInstr::SlotReflectEmpty { .. } => {}
         AttrInstr::On { handler, .. } => f(handler)?,
         AttrInstr::Class { expr, .. } | AttrInstr::Style { expr, .. } => f(expr)?,
         AttrInstr::Mutation { .. } => {}

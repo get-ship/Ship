@@ -131,6 +131,8 @@ pub(crate) fn marker_attr_name(attr: &AttrInstr) -> Option<String> {
         AttrInstr::DynamicAttr { .. } => Some("attr-dynamic".to_string()),
         AttrInstr::BindValue { .. } => Some("bind:value".to_string()),
         AttrInstr::BindChecked { .. } => Some("bind:checked".to_string()),
+        AttrInstr::BindThis { .. } => Some("bind:this".to_string()),
+        AttrInstr::SlotReflectEmpty { .. } => None,
         AttrInstr::On { event, .. } => Some(format!("on:{event}")),
         AttrInstr::Class { name, .. } => Some(format!("class:{name}")),
         AttrInstr::Style { name, .. } => Some(format!("style:{name}")),

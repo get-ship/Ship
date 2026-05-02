@@ -19,6 +19,7 @@ import { wireText } from './bindings/text'
 import { wireOn } from './bindings/event'
 import { wireBindValue } from './bindings/bind-value'
 import { wireBindChecked } from './bindings/bind-checked'
+import { wireRef } from './bindings/ref'
 import { wireAttr } from './bindings/attr'
 import { wireClass } from './bindings/class'
 import { wireStyle } from './bindings/style'
@@ -59,6 +60,9 @@ export function wireMarker(
   }
   if (kind === 'bind:checked') {
     return wireBindChecked(el as HTMLInputElement, ctx.scope, binding.expr)
+  }
+  if (kind === 'bind:this') {
+    return wireRef(el, ctx.scope, binding.expr)
   }
   if (kind === 'attr-dynamic') {
     return wireAttrDynamic(el, ctx.scope, binding.expr)

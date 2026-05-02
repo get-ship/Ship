@@ -61,6 +61,19 @@ impl<'a> TemplateEmitter<'a> {
                     "{cleanups_var}.push(bindChecked({el_var}, __E[{idx}]($scope)));"
                 ));
             }
+            AttrInstr::BindThis { var, .. } => {
+                // Refs are write-once-from-runtime: create the signal
+                // pre-seeded with the freshly constructed element. The
+                // component author reads `<var>()` from the controller
+                // — same shape as React's `ref.current`, but signal-typed.
+                w.line(&format!("$scope.{var} = signal({el_var});"));
+            }
+            AttrInstr::SlotReflectEmpty { attr, .. } => {
+                w.line(&format!(
+                    "{cleanups_var}.push(bindSlotEmpty({el_var}, host, {a}));",
+                    a = js_string(attr)
+                ));
+            }
             AttrInstr::On { event, handler, modifiers, .. } => {
                 let idx = self.bank.add(&handler.source);
                 let mods_js = serialize_modifiers(modifiers);

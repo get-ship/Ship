@@ -31,8 +31,6 @@ import './set-mark/set-mark'
 import './set-kbd/set-kbd'
 import './set-avatar/set-avatar'
 import './set-progress/set-progress'
-// set-button has a paired controller (set-button.ts is the controller,
-// not a side-effect entry); import the compiled.js directly to register.
 import './set-button/set-button.compiled.js'
 import './set-tabs/set-tabs'
 import './set-tab/set-tab'
