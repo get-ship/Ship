@@ -19,6 +19,7 @@ path = "src/main.rs"
 
 [dependencies]
 runtime = { path = "../../crates/core/runtime" }
+sui-signals = { path = "../../crates/sui-signals" }
 lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
 # SUI compiler — used by the render endpoint to run the SSR

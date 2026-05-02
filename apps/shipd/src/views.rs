@@ -48,6 +48,7 @@ pub mod sui_resolver;
 pub mod sui_fragment;
 pub mod sui_bundle;
 pub mod sui_sse;
+pub mod git_signal;
 pub mod sui_patches;
 pub mod sui_patch_channel;
 pub mod sui_agent_push;
