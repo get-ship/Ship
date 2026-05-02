@@ -70,15 +70,9 @@ fn multi_stmt_passes_with_sibling_ts() {
     let dir = tempfile::tempdir().expect("create tempdir");
     std::fs::write(dir.path().join("view.ts"), "export default {}").unwrap();
     let sui_path = dir.path().join("view.sui");
-    std::fs::write(
-        &sui_path,
-        r#"<button on:click={() => { x.set(1); y.set(2) }}>+</button>"#,
-    )
-    .unwrap();
+    let src = r#"<state name="x" value="0" /><state name="y" value="0" /><button on:click={() => { x.set(1); y.set(2) }}>+</button>"#;
+    std::fs::write(&sui_path, src).unwrap();
 
-    compile(
-        r#"<button on:click={() => { x.set(1); y.set(2) }}>+</button>"#,
-        view_opts(Some(sui_path)),
-    )
-    .expect("multi-statement handler with paired .ts must pass");
+    compile(src, view_opts(Some(sui_path)))
+        .expect("multi-statement handler with paired .ts must pass");
 }

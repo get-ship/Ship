@@ -5,8 +5,18 @@
 //! renderable-expression subset enforced on every interpolation
 //! expression in the program.
 
+pub mod closed_sections;
+pub mod controller_parse;
+#[cfg(test)]
+mod controller_parse_tests;
 pub mod expr_subset;
 pub mod handler_complexity;
+pub(crate) mod js_scan;
+pub mod pure_derived;
+#[cfg(test)]
+mod pure_derived_tests;
+pub mod scope_bound;
+mod scope_bound_expr;
 
 use std::path::Path;
 
@@ -25,7 +35,21 @@ pub fn run(program: &Program, source_path: Option<&Path>) -> Result<(), CompileE
         expr_subset::check(e)
     })?;
     check_mutations(program)?;
-    handler_complexity::check(program, source_path)
+    handler_complexity::check(program, source_path)?;
+    let controller = controller_parse::read_paired_controller(source_path);
+    if let Some(c) = controller.as_ref() {
+        closed_sections::check(c)?;
+        pure_derived::check(c)?;
+    }
+    // The scope-bound check needs to know about controller-declared
+    // names (`derived` / `use`) — and we can only locate the paired
+    // controller via `source_path`. When the caller hasn't supplied
+    // one (synthetic fragments in unit tests), skip the check rather
+    // than reject every reference as undeclared.
+    if source_path.is_some() {
+        scope_bound::check(program, controller.as_ref())?;
+    }
+    Ok(())
 }
 
 /// Validate that every `mutation=` attribute contains a valid `ship.X.Y` chain.
