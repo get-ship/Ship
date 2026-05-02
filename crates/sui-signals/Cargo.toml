@@ -1,0 +1,12 @@
+[package]
+name = "sui-signals"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Fine-grained reactive signals with Send+Sync semantics for the tokio daemon"
+
+[lints]
+workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
