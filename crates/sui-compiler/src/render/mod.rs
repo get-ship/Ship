@@ -75,14 +75,13 @@ pub fn render(
     let mut init_json = initial.init.clone();
     // If any <data live /> declarations exist, embed the SSE subscribe URL so
     // the runtime can open one EventSource per view without knowing the URL.
-    if program.data.iter().any(|d| d.live) {
-        if let Some(obj) = init_json.as_object_mut() {
+    if program.data.iter().any(|d| d.live)
+        && let Some(obj) = init_json.as_object_mut() {
             obj.insert(
                 "__subscribe__".to_string(),
                 serde_json::Value::String(format!("/_sui/views/{}/sse", opts.view_name)),
             );
         }
-    }
     let mut state = walker::Walker::new_named(initial.scope, registry, opts.view_name.clone());
     state.walk_block(&program.template);
     let mut html = state.into_html();
