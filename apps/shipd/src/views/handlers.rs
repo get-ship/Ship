@@ -20,7 +20,14 @@ use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 )]
 pub async fn list_views() -> impl IntoResponse {
     let mut views: HashMap<String, ViewListEntry> = HashMap::new();
-    if let Ok(d) = runtime::project::get_project_dir(None) { scan_views_dir(&d.join("views"), "project", &mut views); }
+    // Per-worktree first: each linked worktree may carry its own `.ship/views/`
+    // (e.g. ship-ui-studio in feat-sail). `get_project_dir` redirects to the
+    // main checkout — that's wrong for views. Use the no-redirect resolver.
+    if let Ok(cwd) = std::env::current_dir()
+        && let Some(ship_dir) = runtime::project::resolve_project_ship_dir_no_redirect(&cwd)
+    {
+        scan_views_dir(&ship_dir.join("views"), "project", &mut views);
+    }
     if let Ok(d) = runtime::project::get_global_dir() { scan_views_dir(&d.join("views"), "global", &mut views); }
     let mut list: Vec<ViewListEntry> = views.into_values().collect();
     list.sort_by(|a, b| a.name.cmp(&b.name));
