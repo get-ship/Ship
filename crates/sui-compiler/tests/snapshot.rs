@@ -21,6 +21,9 @@ fn fixtures() -> Vec<Fixture> {
         Fixture { name: "agents",      setup_url: Some("./agents.ts"),  mode: CompileMode::View,     component_meta: None },
         Fixture { name: "ship-button", setup_url: None,               mode: CompileMode::Component,
             component_meta: Some(ComponentMeta { name: "ship-button-test".into(), shadow: false }) },
+        Fixture { name: "bind-this-button", setup_url: None,           mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "reflect-empty-slot", setup_url: None,         mode: CompileMode::Component,
+            component_meta: Some(ComponentMeta { name: "reflect-empty-slot-test".into(), shadow: true }) },
     ]
 }
 
@@ -94,6 +97,80 @@ fn ship_button_snapshot() {
     let js = compile_fixture(fx);
     let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
     assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn bind_this_button_snapshot() {
+    let fx = &fixtures()[4];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn bind_this_button_manifest_carries_ref_kind() {
+    use sui_compiler::compile;
+    let path = fixtures_dir().join("bind-this-button.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+    };
+    let out = compile(&source, opts).expect("compile");
+    // The view bundle exports `bindings` — the bind:this entry must
+    // surface as kind "bind:this" with the bare scope variable name.
+    assert!(
+        out.js.contains("kind: \"bind:this\""),
+        "expected bind:this kind in manifest, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("expr: \"btnEl\""),
+        "expected btnEl scope-var in manifest, got:\n{}",
+        out.js
+    );
+}
+
+#[test]
+fn reflect_empty_slot_snapshot() {
+    let fx = &fixtures()[5];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn reflect_empty_slot_emits_bind_slot_empty_call() {
+    use sui_compiler::compile;
+    let path = fixtures_dir().join("reflect-empty-slot.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::Component,
+        source_path: Some(path),
+        styles: None,
+        component_meta: Some(ComponentMeta {
+            name: "reflect-empty-slot-test".into(),
+            shadow: true,
+        }),
+        emit_dts: false,
+    };
+    let out = compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains("bindSlotEmpty(") && out.js.contains("\"data-icon-only\""),
+        "expected bindSlotEmpty(...) call referencing data-icon-only:\n{}",
+        out.js
+    );
+    // Imports must include bindSlotEmpty.
+    assert!(
+        out.js.contains("bindSlotEmpty"),
+        "expected bindSlotEmpty import, got:\n{}",
+        out.js
+    );
 }
 
 #[test]

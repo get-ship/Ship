@@ -37,6 +37,10 @@
 export { signal, derived, effect, batch, untrack } from './signal'
 export type { Signal, Derived } from './signal'
 
+export type { Ref } from './ref'
+
+export { bindSlotEmpty } from './slot-empty'
+
 export {
   bindText,
   bindShow,

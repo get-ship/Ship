@@ -155,6 +155,15 @@ impl<'r> Walker<'r> {
                 }
                 self.push_marker("bind:checked", &key);
             }
+            AttrInstr::BindThis { .. } => {
+                let key = self.next_key();
+                self.push_marker("bind:this", &key);
+            }
+            AttrInstr::SlotReflectEmpty { .. } => {
+                // No SSR marker — the compiled component setup body
+                // wires this declaratively at attach time. Slots have no
+                // SSR side-effect on the host attribute set.
+            }
             AttrInstr::On { event, .. } => {
                 let key = self.next_key();
                 self.push_marker(&format!("on:{event}"), &key);

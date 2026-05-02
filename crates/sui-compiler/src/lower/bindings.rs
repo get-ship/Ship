@@ -19,6 +19,15 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered) {
         AttrInstr::BindChecked { .. } => {
             out.runtime_imports.insert("bindChecked");
         }
+        AttrInstr::BindThis { .. } => {
+            // The component setup body emits `signal(...)` inline.
+            // Views resolve the ref via the attach manifest with no
+            // runtime helper needed.
+            out.runtime_imports.insert("signal");
+        }
+        AttrInstr::SlotReflectEmpty { .. } => {
+            out.runtime_imports.insert("bindSlotEmpty");
+        }
         AttrInstr::On { .. } => {
             out.runtime_imports.insert("on");
         }
