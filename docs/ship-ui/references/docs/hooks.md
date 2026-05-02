@@ -174,8 +174,8 @@ Bundles of `state` / `derived` / `on` / `mount` returned from a factory function
 A controller hook is a function that returns the controller shape:
 
 ```ts
-// packages/SUI-runtime/src/hooks/filtered-list.ts
-import type { ControllerHook } from '@SUI/runtime'
+// packages/ui-runtime/src/hooks/filtered-list.ts
+import type { ControllerHook } from '@ship/ui-runtime'
 
 export const useFilteredList = <T>(
   source: () => T[],
@@ -191,7 +191,7 @@ The hook's return shape matches the controller's six-section shape exactly. Use 
 
 ```ts
 // view.ts
-import { useFilteredList } from '@SUI/runtime'
+import { useFilteredList } from '@ship/ui-runtime'
 
 export default ({ ship }) => ({
   use: {

@@ -32,7 +32,7 @@ The runtime exposes `<name>` as a signal in [view scope](index.md#the-shared-vie
 `live` signals always wrap the daemon's payload in a uniform envelope. The shape is contractual; hooks rely on it.
 
 ```ts
-// from @SUI/runtime — `live.ts`
+// from @ship/ui-runtime — `live.ts`
 type LiveState<T> =
   | { kind: 'loading' }
   | { kind: 'error'; error: Error }
@@ -145,7 +145,7 @@ Concrete pattern — a `/agents/<id>` view:
 
 ```ts
 // view.ts
-import { defineRoutes, controller } from '@SUI/runtime'
+import { defineRoutes, controller } from '@ship/ui-runtime'
 
 defineRoutes([{ pattern: '/agents/:id' }])
 

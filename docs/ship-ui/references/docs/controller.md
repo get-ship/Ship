@@ -42,7 +42,7 @@ For views that need named handlers and derived values, but no instantiation-time
 
 ```ts
 // views/settings/view.ts
-import { controller } from '@SUI/runtime'
+import { controller } from '@ship/ui-runtime'
 
 export default controller({
   on: {
@@ -74,8 +74,8 @@ Per-section functions are how the controller pulls from the [shared view scope](
 The cheapest way to avoid annotating every section's destructure: declare the template-side identifiers once and pass them as the `controller<Scope>` generic. Sections inherit the type:
 
 ```ts
-import type { LiveSignal, Signal } from '@SUI/runtime'
-import type { GitOverview } from '@SUI/sdk-client'
+import type { LiveSignal, Signal } from '@ship/ui-runtime'
+import type { GitOverview } from '@ship/ui-sdk-client'
 
 /** Everything the .sui declares — `<data>`, `<state>`,
  *  `<use-* as=>` identifiers — that this controller reads.
@@ -112,7 +112,7 @@ For views that need to close over instantiation-time variables, share computed r
 
 ```ts
 // views/agents/view.ts
-import { controller, useFilteredList, useSelection } from '@SUI/runtime'
+import { controller, useFilteredList, useSelection } from '@ship/ui-runtime'
 
 export default controller(({ ship }) => ({
   use: {
@@ -192,7 +192,7 @@ views/<name>/
 Component files use the same convention. The file IS the component; `<prop>` directives at the top declare the element's API; a `<tag>.sui.json` metadata file names the tag and shadow flag:
 
 ```
-packages/SUI-components/src/ship-button/
+packages/ship-set-components/src/ship-button/
   ship-button.sui      # template + <prop> directives
   ship-button.sui.d.ts # compiler-emitted Scope declaration
   ship-button.ts       # controller (only if needed)

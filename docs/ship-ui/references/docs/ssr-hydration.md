@@ -17,7 +17,7 @@ This is progressive enhancement, not hydration of an empty shell. The framework'
 .sui source
     │
     ▼
-SUI-compiler  (Rust, AOT)
+sui-compiler  (Rust, AOT)
     │
     ▼
 IR (lowered, span-tracked)         ─── consumed by both sides ───

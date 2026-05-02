@@ -67,9 +67,9 @@ The actual working view in the repo today (`views/agents/`). Server data via `<d
 
 ```ts
 // views/agents/view.ts
-import { controller } from '@SUI/runtime'
-import type { LiveSignal } from '@SUI/runtime'
-import type { AgentsSummariesResponse, AgentSummary } from '@SUI/sdk-client'
+import { controller } from '@ship/ui-runtime'
+import type { LiveSignal } from '@ship/ui-runtime'
+import type { AgentsSummariesResponse, AgentSummary } from '@ship/ui-sdk-client'
 
 export default controller({
   derived: {
@@ -148,7 +148,7 @@ Add a `<state>` line to the template for the search-toggle (state lives in the t
 
 ```ts
 // views/agents/view.ts
-import { controller, useFilteredList, useSelection } from '@SUI/runtime'
+import { controller, useFilteredList, useSelection } from '@ship/ui-runtime'
 
 export default controller({
   use: ({ agents }) => ({
@@ -208,7 +208,7 @@ Forms exercise two-way binding, validation, and the `useForm` controller hook. L
 
 ```ts
 // views/settings/view.ts
-import { controller, useForm } from '@SUI/runtime'
+import { controller, useForm } from '@ship/ui-runtime'
 
 export default controller({
   use: ({ ship, settings }) => ({
