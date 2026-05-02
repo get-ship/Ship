@@ -141,9 +141,10 @@ export type UseSection<Scope> = Record<string, ControllerHook>
 /**
  * `mount` lifecycle. Runs once after the rendered DOM is attached and
  * all signals/handlers/hooks are wired. Receives a writable state
- * mutator and the owning element.
+ * mutator and the owning element. May return a cleanup function that
+ * is called on disconnect (equivalent to pushing to cleanups).
  */
-export type MountSection<Scope> = (state: MutableState<Scope>, el: HTMLElement) => void
+export type MountSection<Scope> = (state: MutableState<Scope>, el: HTMLElement) => (() => void) | void
 
 /**
  * `unmount` lifecycle. Runs once on disconnect; tear down whatever

@@ -42,8 +42,8 @@ export const LIFECYCLE_KEY = '__shipSetLifecycle'
 export interface ControllerLifecycle {
   /** Writable state mutator the lifecycle hooks receive as their first arg. */
   state: Record<string, unknown>
-  /** Optional `mount(state, el)` from the controller def. */
-  mount?: (state: Record<string, unknown>, el: HTMLElement) => void
+  /** Optional `mount(state, el)` from the controller def. May return a cleanup. */
+  mount?: (state: Record<string, unknown>, el: HTMLElement) => (() => void) | void
   /** Optional `unmount(state)` from the controller def. */
   unmount?: (state: Record<string, unknown>) => void
 }
