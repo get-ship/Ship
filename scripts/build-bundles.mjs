@@ -31,34 +31,32 @@ const targets = [
   { name: 'sui-runtime',          entry: 'packages/ui-runtime/src/index.ts' },
   { name: 'sui-dom',              entry: 'packages/ui-dom/src/index.ts',          external: ['@ship/ui-runtime'] },
   { name: 'sui-sdk-client',       entry: 'packages/ui-sdk-client/src/index.ts',   external: ['@ship/ui-runtime'] },
-  // ship-set-components: each ported primitive's .sui is
-  // AOT-compiled by sui-compiler before esbuild runs. The
-  // compiler emits <tag>.compiled.js next to the source; the .ts
-  // file is a side-effect import of that compiled module
-  // (`import './<tag>.compiled.js'`), so esbuild inlines the
-  // generated `customElements.define()` call. After Arc B-1 the
-  // bundle has no @ship/ui-dom dep — `external` reflects that.
-  { name: 'sui-components',       entry: 'packages/ship-set-components/src/index.ts',  external: ['@ship/ui-runtime'],
+  // ui-components: each SUI primitive's .sui is AOT-compiled by
+  // sui-compiler before esbuild runs. The compiler emits
+  // <tag>.compiled.js next to the source; index.ts side-effect
+  // imports each one, so esbuild inlines the generated
+  // `customElements.define()` calls.
+  { name: 'sui-components',       entry: 'packages/ui-components/src/index.ts',  external: ['@ship/ui-runtime'],
     componentSources: [
-      { htmlSet: 'packages/ship-set-components/src/set-status-dot/set-status-dot.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-spinner/set-spinner.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-badge/set-badge.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-chip/set-chip.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-card/set-card.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-link/set-link.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-divider/set-divider.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-skeleton/set-skeleton.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-stat/set-stat.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-mark/set-mark.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-kbd/set-kbd.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-avatar/set-avatar.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-progress/set-progress.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-button/set-button.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-tabs/set-tabs.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-tab/set-tab.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-empty-state/set-empty-state.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-input/set-input.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-terminal/set-terminal.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-status-dot/sui-status-dot.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-spinner/sui-spinner.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-badge/sui-badge.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-chip/sui-chip.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-card/sui-card.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-link/sui-link.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-divider/sui-divider.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-skeleton/sui-skeleton.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-stat/sui-stat.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-mark/sui-mark.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-kbd/sui-kbd.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-avatar/sui-avatar.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-progress/sui-progress.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-button/sui-button.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-tabs/sui-tabs.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-tab/sui-tab.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-empty-state/sui-empty-state.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-input/sui-input.sui' },
+      { htmlSet: 'packages/ui-components/src/sui-terminal/sui-terminal.sui' },
     ] },
   // Each view: compile .sui via the Rust compiler first (it
   // emits view.js next to view.ts, re-imports view.ts as setup, and
@@ -93,7 +91,7 @@ function hashTree(entryAbs) {
  * Run the Rust sui-compiler against a single `.sui` source.
  *
  * The directory IS the component:
- *   - tag name = filename stem (e.g. `set-button.sui` → `<set-button>`)
+ *   - tag name = filename stem (e.g. `sui-button.sui` → `<sui-button>`)
  *   - shadow = always on
  *   - paired controller = `<stem>.ts` next to source, auto-detected by the compiler
  *
@@ -248,7 +246,7 @@ async function buildOne(t) {
     }
     for (const cs of t.componentSources) {
       const tag = cs.htmlSet.split('/').pop().replace(/\.html\.set$/, '').replace(/\.sui$/, '');
-      // The compiler emits `component("set-button", { … })` —
+      // The compiler emits `component("sui-button", { … })` —
       // matching the literal tag string is the most direct way to
       // confirm every ported primitive made it into the bundle.
       if (!out.includes(`"${tag}"`)) {

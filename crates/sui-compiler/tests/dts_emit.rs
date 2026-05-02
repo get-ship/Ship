@@ -141,7 +141,7 @@ fn bind_this_on_input_emits_html_input_element_ref() {
 
 #[test]
 fn bind_this_on_custom_element_falls_back_to_html_element() {
-    let dts = compile_dts(r#"<set-button bind:this={el}>x</set-button>"#);
+    let dts = compile_dts(r#"<sui-button bind:this={el}>x</sui-button>"#);
     assert!(
         dts.contains("el: Signal<HTMLElement | null>"),
         "got: {dts}"

@@ -19,10 +19,10 @@ export interface PropEntry {
 // All 18 ported set-* components (kept as a static list since
 // CustomElementRegistry has no standard enumeration API).
 const SET_TAGS: string[] = [
-  'set-status-dot', 'set-spinner', 'set-badge', 'set-chip', 'set-card',
-  'set-link', 'set-divider', 'set-skeleton', 'set-stat', 'set-mark',
-  'set-kbd', 'set-avatar', 'set-progress', 'set-button', 'set-tabs',
-  'set-tab', 'set-empty-state', 'set-input',
+  'sui-status-dot', 'sui-spinner', 'sui-badge', 'sui-chip', 'sui-card',
+  'sui-link', 'sui-divider', 'sui-skeleton', 'sui-stat', 'sui-mark',
+  'sui-kbd', 'sui-avatar', 'sui-progress', 'sui-button', 'sui-tabs',
+  'sui-tab', 'sui-empty-state', 'sui-input',
 ]
 
 // Baked SUI views not surfaced by /api/v1/views.

@@ -19,6 +19,6 @@
     "preset": "ship-standard"
   },
   "rules": {
-    "inline": "UI specialist for ship-set framework views + components. Default scope for NEW work: `views/<name>/` (`.html.set` + `.ts` + `.css`) and `packages/ship-set-components/` (when it lands). The legacy stack — `packages/ship-set/src/web-components/` (Lit) and `.ship/views/` (j2/Datastar) — is fix-only; don't add new files there. Hand off service/data work to rust-lane, orchestration to commander, new-primitive tests to test-writer."
+    "inline": "UI specialist for SUI framework views + components. Default scope for NEW work: `views/<name>/` (`.sui` + `.ts` + `.css`) and `packages/ui-components/src/<tag>/` (`.sui` + optional `.ts`). The legacy stack — `packages/ship-set/src/web-components/` (Lit) and `.ship/views/` (j2/Datastar) — is fix-only; don't add new files there. Hand off service/data work to rust-lane, orchestration to commander, new-primitive tests to test-writer."
   }
 }

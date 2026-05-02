@@ -1,107 +1,107 @@
 #!/usr/bin/env node
 /**
- * Scaffold a new SUI ported primitive.
+ * Scaffold a new SUI primitive.
  *
  * Usage:
- *   node scripts/scaffold-sui-component.mjs <tag>
+ *   node scripts/scaffold-sui-component.mjs <tag> [--controller]
  *
- *   <tag> must start with `set-` (the migration prefix; see
- *   docs/ship-adrs/references/docs/ship-set-prefix-during-migration.md).
+ *   <tag> must start with `sui-` and match /^sui-[a-z][a-z0-9-]*$/.
+ *   `--controller` also writes a paired `<tag>.ts` with controller(def).
  *
  * Creates:
- *   - packages/ship-set-components/src/<tag>/<tag>.html.set
- *   - packages/ship-set-components/src/<tag>/<tag>.ts
+ *   - packages/ui-components/src/<tag>/<tag>.sui
+ *   - packages/ui-components/src/<tag>/<tag>.ts (only with --controller)
  *
- * The template + .ts are minimal placeholders; replace the prop list,
- * the `<style>` block, and the body template with the real port.
+ * Convention is the contract: directory IS the component, file extension
+ * `.sui` is the contract, paired `.ts` is auto-detected by the compiler.
+ * No `<tag>.sui.json` config file. No 1-line side-effect entry.
  *
- * Also reminds you to:
- *   - Add the import + register* call to packages/ship-set-components/src/index.ts
- *   - Add the new port to test/all-components.test.ts
- *   - Run `node scripts/build-bundles.mjs --force` to rebuild
+ * After scaffolding:
+ *   1. Edit <tag>.sui — replace the placeholder prop list, styles, body
+ *   2. Add to packages/ui-components/src/index.ts:
+ *        import './<tag>/<tag>.compiled.js'
+ *   3. Add to scripts/build-bundles.mjs componentSources:
+ *        { htmlSet: 'packages/ui-components/src/<tag>/<tag>.sui' }
+ *   4. node scripts/build-bundles.mjs --force
  */
 
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const repoRoot = resolve(fileURLToPath(import.meta.url), '..', '..')
 
-const tag = process.argv[2]?.trim() ?? ''
+const args = process.argv.slice(2)
+const tag = args.find((a) => !a.startsWith('--'))?.trim() ?? ''
+const wantController = args.includes('--controller')
+
 if (!tag) {
-  console.error('usage: node scripts/scaffold-sui-component.mjs <tag>')
+  console.error('usage: node scripts/scaffold-sui-component.mjs <tag> [--controller]')
   process.exit(2)
 }
 
-if (!/^set-[a-z][a-z0-9-]*$/.test(tag)) {
-  console.error(
-    `[scaffold] tag must match /^set-[a-z][a-z0-9-]*$/ — got "${tag}"`,
-  )
-  console.error(
-    `[scaffold] the migration prefix is enforced; see ship-set-prefix-during-migration.md`,
-  )
+if (!/^sui-[a-z][a-z0-9-]*$/.test(tag)) {
+  console.error(`[scaffold] tag must match /^sui-[a-z][a-z0-9-]*$/ — got "${tag}"`)
   process.exit(2)
 }
 
-const baseDir = join(
-  repoRoot,
-  'packages',
-  'ship-set-components',
-  'src',
-  tag,
-)
+const baseDir = join(repoRoot, 'packages', 'ui-components', 'src', tag)
 if (existsSync(baseDir)) {
   console.error(`[scaffold] directory already exists: ${baseDir}`)
   process.exit(1)
 }
 mkdirSync(baseDir, { recursive: true })
 
-const camel = tag.replace(/-([a-z])/g, (_, c) => c.toUpperCase())
-const Pascal = camel.charAt(0).toUpperCase() + camel.slice(1)
-// `setStatusDot` → `SetStatusDot` for the `register*` function name.
+const sui = `<!--
+  ${tag} — SUI primitive.
 
-const htmlSet = `<component name="${tag}" shadow>
-  <prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+  Parity vs Lit <ship-${tag.replace(/^sui-/, '')}>:
+    Props:    (list)
+    Slots:    (list)
+    Events:   (list)
+    Methods:  (list)
+    ARIA:     (list)
+-->
 
-  <style>
-    :host { display: inline-flex; vertical-align: middle; --tone-fg: var(--foreground); }
-    :host([tone='primary'])     { --tone-fg: var(--primary); }
-    :host([tone='info'])        { --tone-fg: var(--info); }
-    :host([tone='success'])     { --tone-fg: var(--success); }
-    :host([tone='warning'])     { --tone-fg: var(--warning); }
-    :host([tone='destructive']) { --tone-fg: var(--destructive); }
-    :host([tone='accent'])      { --tone-fg: var(--accent); }
-    :host([tone='muted'])       { --tone-fg: var(--muted-foreground); }
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
 
-    .root {
-      /* TODO(${tag}): replace with the real component's styles. */
-      color: var(--tone-fg);
-    }
-  </style>
-</component>
+<style>
+  :host { display: inline-flex; vertical-align: middle; --tone-fg: var(--foreground); }
+  :host([tone='primary'])     { --tone-fg: var(--primary); }
+  :host([tone='info'])        { --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone-fg: var(--accent); }
+  :host([tone='muted'])       { --tone-fg: var(--muted-foreground); }
+
+  .root { color: var(--tone-fg); }
+</style>
 
 <span class="root" part="root"><slot></slot></span>
 `
 
-const ts = `import { defineComponent } from '../define'
-import template from './${tag}.html.set'
+writeFileSync(join(baseDir, `${tag}.sui`), sui)
 
-/** Register \`<${tag}>\`. Idempotent. */
-export function register${Pascal}(): void {
-  defineComponent(template)
-}
+if (wantController) {
+  const ts = `import { controller } from '@ship/ui-runtime'
+import type { Scope } from './${tag}.sui'
+
+export default controller<Scope>({
+  mount: (_state, _host) => {
+    return () => {}
+  },
+})
 `
+  writeFileSync(join(baseDir, `${tag}.ts`), ts)
+}
 
-writeFileSync(join(baseDir, `${tag}.html.set`), htmlSet)
-writeFileSync(join(baseDir, `${tag}.ts`), ts)
-
-console.log(`[scaffold] created packages/ship-set-components/src/${tag}/`)
+console.log(`[scaffold] created packages/ui-components/src/${tag}/`)
 console.log(`[scaffold] next steps:`)
-console.log(`  1. Edit ${tag}.html.set — props, styles, template body`)
-console.log(`  2. Edit packages/ship-set-components/src/index.ts:`)
-console.log(`       import { register${Pascal} } from './${tag}/${tag}'`)
-console.log(`       export { register${Pascal} }`)
-console.log(`       // also call register${Pascal}() inside registerAll()`)
-console.log(`  3. Add a row to packages/ship-set-components/test/all-components.test.ts`)
-console.log(`  4. Run: node scripts/build-bundles.mjs --force`)
-console.log(`  5. Run: pnpm --filter @ship-set/components test`)
+console.log(`  1. Edit ${tag}.sui — props, styles, template body, parity comment`)
+console.log(`  2. Add to packages/ui-components/src/index.ts:`)
+console.log(`       import './${tag}/${tag}.compiled.js'`)
+console.log(`  3. Add to scripts/build-bundles.mjs componentSources:`)
+console.log(`       { htmlSet: 'packages/ui-components/src/${tag}/${tag}.sui' }`)
+console.log(`  4. node scripts/build-bundles.mjs --force`)
+console.log(`  5. cargo build -p shipd && bash scripts/dev/restart.sh`)

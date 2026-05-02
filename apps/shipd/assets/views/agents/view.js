@@ -528,7 +528,7 @@ var view_default2 = view((ctx) => {
                             __e164.setAttribute("size", "sm");
                             const __t165 = document.createTextNode("\n                      ");
                             __e164.appendChild(__t165);
-                            const __e166 = document.createElement("set-status-dot");
+                            const __e166 = document.createElement("sui-status-dot");
                             __e166.setAttribute("slot", "leading");
                             __e166.setAttribute("tone", "primary");
                             __e166.setAttribute("size", "sm");

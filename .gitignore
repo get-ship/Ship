@@ -153,14 +153,14 @@ views/*/view.schema.json
 # sui-compiler emits <file>.sui.d.ts alongside each .sui; regenerated artifact.
 **/*.sui.d.ts
 
-# Arc B-1: ship-set-components AOT artifacts. sui-compiler emits
+# SUI components AOT artifacts. sui-compiler emits
 # <tag>.compiled.js + <tag>.schema.json next to each .sui source;
-# the .ts files side-effect-import the .compiled.js. esbuild inlines
+# index.ts side-effect-imports each .compiled.js. esbuild inlines
 # them into apps/shipd/assets/sui-components.js so only the
 # bundle ships.
-packages/ship-set-components/src/*/*.compiled.js
-packages/ship-set-components/src/*/*.schema.json
-packages/ship-set-components/src/*/*.custom-elements.json
+packages/ui-components/src/*/*.compiled.js
+packages/ui-components/src/*/*.schema.json
+packages/ui-components/src/*/*.custom-elements.json
 
-# Per-view compile cache emitted by ship-set-compiler / build-bundles.
+# Per-view compile cache emitted by sui-compiler / build-bundles.
 views/*/.compiled/

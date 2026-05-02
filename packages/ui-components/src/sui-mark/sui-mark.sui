@@ -1,0 +1,56 @@
+<!--
+  <sui-mark> — semantic text highlight primitive.
+  Wraps content in a <mark> element with tone-tinted background.
+  Search-result style inline highlight.
+
+  Prop / event / method parity vs <ship-mark>
+  ─────────────────────────────────────────────────────────────────────────────
+  NOTE: <ship-mark> in the Lit library is the SHIP brand logo SVG component.
+  <sui-mark> is a distinct primitive — a semantic text-highlight using the
+  HTML <mark> element. No prop parity is applicable; they serve different
+  purposes. The name reuse is intentional in the SUI catalog where "mark"
+  maps to the typographic highlight concept, not the brand asset.
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit ship-mark                   SUI sui-mark            Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  size ('sm'|'md'|'lg')           OMITTED                 brand logo — n/a for
+                                                          text highlight
+  SVG brand asset                 <mark> HTML element     different component
+                                                          scope; no SVG
+  ─────────────────────────────────────────────────────────────────────────────
+  tone prop (not in Lit)          tone (union, reflect)   SUI-only — semantic
+                                                          color for the
+                                                          highlight background
+  ─────────────────────────────────────────────────────────────────────────────
+  (no slots in Lit ship-mark)     default slot            content to highlight
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: svg                      part="mark"             different element
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="warning" reflect />
+
+<style>
+  :host {
+    display: inline;
+    --tone: var(--warning);
+    --tone-fg: var(--warning);
+  }
+  :host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground); }
+  :host([tone='primary'])     { --tone: var(--primary);          --tone-fg: var(--primary); }
+  :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone: var(--success);          --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning);          --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive);      --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent);           --tone-fg: var(--accent); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+
+  mark {
+    background: color-mix(in oklch, var(--tone) 20%, transparent);
+    color: var(--tone-fg);
+    padding: 0 2px;
+    border-radius: 2px;
+  }
+</style>
+
+<mark part="mark"><slot></slot></mark>

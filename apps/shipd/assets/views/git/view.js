@@ -286,7 +286,7 @@ var view_default2 = view((ctx) => {
             __e70.setAttribute("class", "git-head-actions");
             const __t71 = document.createTextNode("\n        ");
             __e70.appendChild(__t71);
-            const __e72 = document.createElement("set-chip");
+            const __e72 = document.createElement("sui-chip");
             __c47.push(bindAttr(__e72, "tone", () => __E[6]($scope)));
             __e72.setAttribute("variant", "soft");
             __e72.setAttribute("size", "sm");
@@ -310,11 +310,11 @@ var view_default2 = view((ctx) => {
             __e79.setAttribute("class", "git-tabs-row");
             const __t80 = document.createTextNode("\n      ");
             __e79.appendChild(__t80);
-            const __e81 = document.createElement("set-tabs");
+            const __e81 = document.createElement("sui-tabs");
             __e81.setAttribute("variant", "underline");
             const __t82 = document.createTextNode("\n        ");
             __e81.appendChild(__t82);
-            const __e83 = document.createElement("set-tab");
+            const __e83 = document.createElement("sui-tab");
             __e83.setAttribute("name", "changes");
             __c47.push(bindAttr(__e83, "active", () => __E[8]($scope)));
             __c47.push(bindAttr(__e83, "count", () => __E[9]($scope)));
@@ -328,7 +328,7 @@ var view_default2 = view((ctx) => {
             __e81.appendChild(__e83);
             const __t85 = document.createTextNode("\n        ");
             __e81.appendChild(__t85);
-            const __e86 = document.createElement("set-tab");
+            const __e86 = document.createElement("sui-tab");
             __e86.setAttribute("name", "history");
             __c47.push(bindAttr(__e86, "active", () => __E[11]($scope)));
             __c47.push(bindAttr(__e86, "count", () => __E[12]($scope)));
@@ -342,7 +342,7 @@ var view_default2 = view((ctx) => {
             __e81.appendChild(__e86);
             const __t88 = document.createTextNode("\n        ");
             __e81.appendChild(__t88);
-            const __e89 = document.createElement("set-tab");
+            const __e89 = document.createElement("sui-tab");
             __e89.setAttribute("name", "branches");
             __c47.push(bindAttr(__e89, "active", () => __E[14]($scope)));
             __c47.push(bindAttr(__e89, "count", () => __E[15]($scope)));
@@ -532,7 +532,7 @@ var view_default2 = view((ctx) => {
                                   __e154.setAttribute("class", "git-row");
                                   const __t155 = document.createTextNode("\n                      ");
                                   __e154.appendChild(__t155);
-                                  const __e156 = document.createElement("set-avatar");
+                                  const __e156 = document.createElement("sui-avatar");
                                   __e156.setAttribute("size", "sm");
                                   __e156.setAttribute("shape", "round");
                                   __c151.push(bindAttr(__e156, "name", () => __E[24]($scope2)));
@@ -1116,7 +1116,7 @@ var view_default2 = view((ctx) => {
                         const __c324 = [];
                         const __t325 = document.createTextNode("\n            ");
                         __frag323.appendChild(__t325);
-                        const __e326 = document.createElement("set-empty-state");
+                        const __e326 = document.createElement("sui-empty-state");
                         __e326.setAttribute("tone", "muted");
                         __e326.setAttribute("size", "md");
                         const __t327 = document.createTextNode("\n              ");
@@ -1172,7 +1172,7 @@ var view_default2 = view((ctx) => {
                             __e342.setAttribute("class", "git-history-row");
                             const __t343 = document.createTextNode("\n                  ");
                             __e342.appendChild(__t343);
-                            const __e344 = document.createElement("set-avatar");
+                            const __e344 = document.createElement("sui-avatar");
                             __e344.setAttribute("size", "sm");
                             __e344.setAttribute("shape", "round");
                             __c339.push(bindAttr(__e344, "name", () => __E[24]($scope2)));
@@ -1312,7 +1312,7 @@ var view_default2 = view((ctx) => {
                         const __c384 = [];
                         const __t385 = document.createTextNode("\n            ");
                         __frag383.appendChild(__t385);
-                        const __e386 = document.createElement("set-empty-state");
+                        const __e386 = document.createElement("sui-empty-state");
                         __e386.setAttribute("tone", "muted");
                         __e386.setAttribute("size", "md");
                         const __t387 = document.createTextNode("\n              ");

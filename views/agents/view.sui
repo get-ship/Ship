@@ -70,7 +70,7 @@
                   <ship-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{a.source}</ship-badge>
                   {#if a.active}
                     <ship-chip tone="primary" variant="soft" size="sm">
-                      <set-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></set-status-dot>
+                      <sui-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></sui-status-dot>
                       active session
                     </ship-chip>
                   {/if}

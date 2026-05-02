@@ -35,7 +35,7 @@ Reference views: `views/counter/` (tier-1, no controller), `views/agents/` (tier
 <!-- local state -->
 <state name="count" value="0" />
 
-<!-- props (component .sui files only; tag name from .sui.json) -->
+<!-- props (component .sui files only; tag = directory/filename stem) -->
 <prop name="tone" values="default|primary" default="default" reflect />
 <prop name="disabled" type="bool" default="false" reflect />
 
@@ -204,7 +204,7 @@ The shell owns topbar, breadcrumb, status bar. Views contribute metadata + slott
 
 ## Components
 
-SUI views compose Lit `<ship-*>` (current production) and SUI `<set-*>` (in-flight) — both are real custom elements. Mixing is allowed during the SUI port: use `<ship-*>` until a `<set-*>` parity exists. See the `ship-components` skill for the component charter.
+SUI views compose Lit `<ship-*>` (current production) and SUI `<sui-*>` (in-flight) — both are real custom elements. Mixing is allowed during the SUI port: use `<ship-*>` until a `<sui-*>` parity exists. See the `ship-components` skill for the component charter.
 
 ## What's phased out
 

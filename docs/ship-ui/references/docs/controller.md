@@ -189,18 +189,17 @@ views/<name>/
   view.css         # styles (optional)
 ```
 
-Component files use the same convention. The file IS the component; `<prop>` directives at the top declare the element's API; a `<tag>.sui.json` metadata file names the tag and shadow flag:
+Component files use the same convention. The file IS the component; the directory name IS the tag; shadow is always on; `<prop>` directives at the top declare the element's API:
 
 ```
-packages/ship-set-components/src/ship-button/
-  ship-button.sui      # template + <prop> directives
-  ship-button.sui.d.ts # compiler-emitted Scope declaration
-  ship-button.ts       # controller (only if needed)
-  ship-button.css
-  ship-button.sui.json # { "component": "ship-button", "shadow": true }
+packages/ui-components/src/sui-button/
+  sui-button.sui      # template + <prop> directives
+  sui-button.sui.d.ts # compiler-emitted Scope declaration
+  sui-button.ts       # controller(def) (only if needed)
+  sui-button.css      # extracted styles (optional)
 ```
 
-The compiler pairs by filename; no manifest entry is needed. Adding a `view.ts` next to a `view.sui` is the only signal the framework requires.
+The compiler pairs by filename; no manifest, no metadata file. Adding a `<tag>.ts` next to a `<tag>.sui` is the only signal the framework requires.
 
 ## Tier-1 / tier-2 threshold rule
 
