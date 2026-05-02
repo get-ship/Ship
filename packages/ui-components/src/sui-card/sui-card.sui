@@ -1,47 +1,174 @@
-  <prop name="padding" values="none|sm|md|lg" default="md" reflect />
-  <prop name="variant" values="surface|outline|ghost" default="surface" reflect />
-  <prop name="interactive" type="bool" default="false" reflect />
+<!--
+  <sui-card> — SUI port of <ship-card>.
+  Generic container surface with header/content/footer slots, interactive
+  hover lift, tone-tinted borders, status rail, and accent bar.
 
-  <style>
-    :host { display: block; }
-    :host([hidden]) { display: none; }
+  Prop / event / method parity vs <ship-card>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  tone (Tone, undefined)       tone (union, reflect)    ✓ tints border,
+                                                         status-rail, fill wash
+  variant ('default'|         variant (default|         ✓ SUI aligns to Lit
+    'outline', 'default')       outline, 'default',      values; drops ghost
+                                reflect)                 (use outline instead)
+  padding ('none'|'sm'|'md'|  padding (none|sm|md|lg,  ✓
+    'lg', 'md')                 'md', reflect)
+  interactive (Boolean, false) interactive (bool,       ✓ CSS hover lift +
+                                false, reflect)          cursor. role=button /
+                                                         tabindex=0 omitted —
+                                                         callers add manually.
+  accent-bar (Boolean, false)  accent-bar (bool,        ✓ gradient top-bar
+                                false, reflect)          that fades in on hover
+  status-rail (Boolean, false) status-rail (bool,       ✓ 3px left border
+                                false, reflect)          tinted by tone
+  fill (Boolean, false)        fill (bool, false,       ✓ tone-tinted bg wash
+                                reflect)
+  ─────────────────────────────────────────────────────────────────────────────
+  Keyboard: Enter/Space click  OMITTED                  Template-only port.
+    on host when interactive                             Callers add tabindex=0
+                                                         + role=button + keydown
+                                                         when needed.
+  ─────────────────────────────────────────────────────────────────────────────
+  syncFilled (slotchange →     reflect-empty=           ✓ SUI reflect-empty
+    data-filled on wrapper)     "data-no-header",        sets host attr when
+                                "data-no-footer"         slot is empty; CSS
+                                                         hides separator +
+                                                         wrapper accordingly.
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: header, default,      slots: header, default,  ✓
+    footer                       footer
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: header, content,      parts: header, content,  ✓
+    footer                       footer
+  ─────────────────────────────────────────────────────────────────────────────
+-->
 
-    .root {
-      display: flex;
-      flex-direction: column;
-      border-radius: var(--radius-lg);
-      background: var(--card);
-      border: 1px solid var(--border);
-      color: var(--foreground);
-      transition:
-        background-color var(--duration-fast) var(--ease-out),
-        border-color var(--duration-fast) var(--ease-out),
-        box-shadow var(--duration-fast) var(--ease-out);
-    }
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+<prop name="variant" values="default|outline" default="default" reflect />
+<prop name="padding" values="none|sm|md|lg" default="md" reflect />
+<prop name="interactive" type="bool" default="false" reflect />
+<prop name="accent-bar" type="bool" default="false" reflect />
+<prop name="status-rail" type="bool" default="false" reflect />
+<prop name="fill" type="bool" default="false" reflect />
 
-    :host([variant='outline'])  .root { background: transparent; }
-    :host([variant='ghost'])    .root { background: transparent; border-color: transparent; }
+<style>
+  :host {
+    display: block;
+    position: relative;
+    background: var(--card);
+    color: var(--card-foreground, var(--foreground));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card-rest, var(--shadow-xs));
+    --card-px: 20px;
+    --card-py: 16px;
+    --card-gap: var(--space-3, 12px);
+    --tone-fg: var(--foreground);
+    --tone-border: var(--border);
+    --tone-bg: transparent;
+    padding: var(--card-py) var(--card-px);
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+  :host([hidden]) { display: none; }
 
-    :host([padding='none']) .root { padding: 0; }
-    :host([padding='sm'])   .root { padding: 12px; }
-    :host([padding='md'])   .root { padding: 16px 18px; }
-    :host([padding='lg'])   .root { padding: 24px 28px; }
+  :host([tone='primary'])     { --tone-fg: var(--primary);     --tone-border: color-mix(in oklch, var(--primary) 40%, var(--border));     --tone-bg: color-mix(in oklch, var(--primary) 8%, var(--card)); }
+  :host([tone='info'])        { --tone-fg: var(--info);        --tone-border: color-mix(in oklch, var(--info) 40%, var(--border));        --tone-bg: color-mix(in oklch, var(--info) 8%, var(--card)); }
+  :host([tone='success'])     { --tone-fg: var(--success);     --tone-border: color-mix(in oklch, var(--success) 40%, var(--border));     --tone-bg: color-mix(in oklch, var(--success) 8%, var(--card)); }
+  :host([tone='warning'])     { --tone-fg: var(--warning);     --tone-border: color-mix(in oklch, var(--warning) 40%, var(--border));     --tone-bg: color-mix(in oklch, var(--warning) 8%, var(--card)); }
+  :host([tone='destructive']) { --tone-fg: var(--destructive); --tone-border: color-mix(in oklch, var(--destructive) 40%, var(--border)); --tone-bg: color-mix(in oklch, var(--destructive) 8%, var(--card)); }
+  :host([tone='accent'])      { --tone-fg: var(--accent);      --tone-border: color-mix(in oklch, var(--accent) 40%, var(--border));      --tone-bg: color-mix(in oklch, var(--accent) 8%, var(--card)); }
+  :host([tone='muted'])       { --tone-fg: var(--muted-foreground); --tone-border: var(--border); --tone-bg: var(--muted); }
 
-    :host([interactive]) .root { cursor: pointer; }
-    :host([interactive]) .root:hover {
-      border-color: color-mix(in oklch, var(--border) 160%, transparent);
-      box-shadow: var(--shadow-sm);
-    }
+  :host([tone]:not([tone='default'])) { border-color: var(--tone-border); }
+  :host([fill]) { background: var(--tone-bg); border-color: var(--tone-border); }
 
-    .header { display: contents; }
-    .footer { display: contents; }
+  :host([padding='none']) { --card-px: 0px; --card-py: 0px; --card-gap: 0px; padding: 0; }
+  :host([padding='sm'])   { --card-px: 12px; --card-py: 10px; --card-gap: 8px; padding: 10px 12px; }
+  :host([padding='md'])   { --card-px: 20px; --card-py: 16px; padding: 16px 20px; }
+  :host([padding='lg'])   { --card-px: 28px; --card-py: 24px; --card-gap: 16px; padding: 24px 28px; }
 
-    ::slotted([slot='header']) { display: block; }
-    ::slotted([slot='footer']) { display: block; margin-top: 12px; }
-  </style>
+  :host([variant='outline']) { background: transparent; box-shadow: none; }
 
-<div class="root" part="root">
-  <slot name="header"></slot>
+  :host([status-rail]) {
+    border-left: 3px solid var(--tone-fg);
+    padding-left: calc(var(--card-px) - 3px);
+  }
+
+  :host([accent-bar])::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    opacity: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transition: opacity var(--duration-medium) var(--ease-out);
+    pointer-events: none;
+  }
+  :host([accent-bar]:hover)::before { opacity: 1; }
+
+  :host([interactive]) { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+  :host([interactive]:hover) {
+    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    box-shadow: var(--shadow-hover, var(--shadow-sm));
+    transform: translateY(-1px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :host([interactive]:hover) { transform: none; }
+  }
+  :host([interactive]:active) {
+    box-shadow: var(--shadow-card-rest, var(--shadow-xs));
+    transform: translateY(0);
+    transition-duration: 60ms;
+  }
+  :host([interactive]:focus-visible) {
+    outline: none;
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+  }
+
+  .header, .footer { display: block; }
+
+  /* Separator — show only when slot has projected content */
+  :host(:not([data-no-header])) .header {
+    margin: calc(var(--card-py) * -1) calc(var(--card-px) * -1) var(--card-gap);
+    padding: var(--card-py) var(--card-px);
+    border-bottom: 1px solid var(--border);
+    font-family: var(--heading-font);
+    font-weight: var(--heading-weight, 600);
+  }
+  :host(:not([data-no-footer])) .footer {
+    margin: var(--card-gap) calc(var(--card-px) * -1) calc(var(--card-py) * -1);
+    padding: var(--card-py) var(--card-px);
+    border-top: 1px solid var(--border);
+  }
+  :host([padding='none']:not([data-no-header])) .header {
+    margin: 0 0 var(--space-3, 12px);
+    padding: 0 0 var(--space-3, 12px);
+  }
+  :host([padding='none']:not([data-no-footer])) .footer {
+    margin: var(--space-3, 12px) 0 0;
+    padding: var(--space-3, 12px) 0 0;
+  }
+
+  @media (forced-colors: active) {
+    :host([interactive]:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; }
+  }
+</style>
+
+<div class="header" part="header">
+  <slot name="header" reflect-empty="data-no-header"></slot>
+</div>
+<div class="content" part="content">
   <slot></slot>
-  <slot name="footer"></slot>
+</div>
+<div class="footer" part="footer">
+  <slot name="footer" reflect-empty="data-no-footer"></slot>
 </div>
