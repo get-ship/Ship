@@ -85,6 +85,7 @@ pub fn build_router(
     let attest_verifier = attestation_verifier.clone();
     let attest_sessions = session_registry.clone();
     let sui_data_state = rt.clone();
+    let sui_sse_state = rt.clone();
     let sui_mutation_state = rt.clone();
     let public_routes = Router::new()
         .route(
@@ -173,6 +174,12 @@ pub fn build_router(
         .route(
             "/_sui/views/{name}/view.css",
             axum::routing::get(views::sui_view::serve_sui_view_css),
+        )
+        .route(
+            "/_sui/views/{name}/sse",
+            axum::routing::get(move |path: axum::extract::Path<String>| {
+                views::sui_sse::serve_sui_sse(path, axum::extract::State(sui_sse_state.clone()))
+            }),
         )
         // F-1 SSR walker debug endpoint. Returns the render walker's
         // output for a compiled `.sui` view — wrapped HTML by
