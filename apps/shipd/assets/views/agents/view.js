@@ -14,36 +14,6 @@ var view_default = controller({
 });
 
 // views/agents/view.js
-var __scopeEval = (src) => new Function("$scope", "with ($scope) { return (" + src + "); }");
-var __E = [];
-__E[0] = __scopeEval("total()");
-__E[1] = __scopeEval("total() === 1 ? '' : 's'");
-__E[2] = __scopeEval("newAgent");
-__E[3] = __scopeEval("err.message");
-__E[4] = __scopeEval("agents().kind === 'ok'");
-__E[5] = __scopeEval("items().length === 0");
-__E[6] = __scopeEval("items()");
-__E[7] = __scopeEval("a.id");
-__E[8] = __scopeEval("'/agents/' + a.id");
-__E[9] = __scopeEval("a.letter");
-__E[10] = __scopeEval("a.name");
-__E[11] = __scopeEval("a.description || 'No description'");
-__E[12] = __scopeEval("a.skills_count");
-__E[13] = __scopeEval("a.skills_count === 1 ? '' : 's'");
-__E[14] = __scopeEval("a.mcp_count");
-__E[15] = __scopeEval("a.rules_count");
-__E[16] = __scopeEval("a.rules_count === 1 ? '' : 's'");
-__E[17] = __scopeEval("a.providers && a.providers.length > 0");
-__E[18] = __scopeEval("a.providers.slice(0, 4)");
-__E[19] = __scopeEval("p");
-__E[20] = __scopeEval("a.providers.length > 4");
-__E[21] = __scopeEval("a.providers.length - 4");
-__E[22] = __scopeEval("a.source");
-__E[23] = __scopeEval("a.active");
-__E[24] = __scopeEval("(a.tags || []).slice(0, 2)");
-__E[25] = __scopeEval("t");
-__E[26] = __scopeEval("(a.tags || []).length > 2");
-__E[27] = __scopeEval("(a.tags || []).length - 2");
 var view_default2 = view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = /* @__PURE__ */ Object.create(null);
@@ -90,7 +60,7 @@ var view_default2 = view((ctx) => {
     __e36.appendChild(__t37);
     const __t38 = document.createTextNode("");
     __e36.appendChild(__t38);
-    __c33.push(bindText(__t38, () => __E[3]($scope2)));
+    __c33.push(bindText(__t38, () => $scope2.err.message));
     __frag32.appendChild(__e36);
     const __t39 = document.createTextNode("\n    ");
     __frag32.appendChild(__t39);
@@ -103,7 +73,7 @@ var view_default2 = view((ctx) => {
   };
   const __wireBoundary_b20 = (anchor) => bindFor({
     anchor,
-    items: () => __E[18]($scope),
+    items: () => $scope.a.providers.slice(0, 4),
     render: (p, __i) => {
       const __childScope125 = Object.create($scope2);
       __childScope125.p = p;
@@ -114,10 +84,10 @@ var view_default2 = view((ctx) => {
       const __t126 = document.createTextNode("\n                      ");
       __frag123.appendChild(__t126);
       const __e127 = document.createElement("ship-provider-blob");
-      __c124.push(bindAttr(__e127, "provider", () => __E[19]($scope2)));
+      __c124.push(bindAttr(__e127, "provider", () => $scope2.p));
       __e127.setAttribute("size", "sm");
       __e127.setAttribute("variant", "glyph");
-      __c124.push(bindAttr(__e127, "title", () => __E[19]($scope2)));
+      __c124.push(bindAttr(__e127, "title", () => $scope2.p));
       __frag123.appendChild(__e127);
       const __t128 = document.createTextNode("\n                    ");
       __frag123.appendChild(__t128);
@@ -132,7 +102,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b23 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[20]($scope)) return 0;
+      if ($scope.a.providers.length > 4) return 0;
       return -1;
     },
     branches: [
@@ -149,7 +119,7 @@ var view_default2 = view((ctx) => {
         __e134.appendChild(__t135);
         const __t136 = document.createTextNode("");
         __e134.appendChild(__t136);
-        __c132.push(bindText(__t136, () => __E[21]($scope)));
+        __c132.push(bindText(__t136, () => $scope.a.providers.length - 4));
         __frag131.appendChild(__e134);
         const __t137 = document.createTextNode("\n                    ");
         __frag131.appendChild(__t137);
@@ -165,7 +135,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b19 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[17]($scope)) return 0;
+      if ($scope.a.providers && $scope.a.providers.length > 0) return 0;
       return -1;
     },
     branches: [
@@ -204,7 +174,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b26 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[23]($scope)) return 0;
+      if ($scope.a.active) return 0;
       return -1;
     },
     branches: [
@@ -242,7 +212,7 @@ var view_default2 = view((ctx) => {
   });
   const __wireBoundary_b27 = (anchor) => bindFor({
     anchor,
-    items: () => __E[24]($scope),
+    items: () => ($scope.a.tags || []).slice(0, 2),
     render: (t, __i) => {
       const __childScope159 = Object.create($scope2);
       __childScope159.t = t;
@@ -258,7 +228,7 @@ var view_default2 = view((ctx) => {
       __e161.setAttribute("size", "sm");
       const __t162 = document.createTextNode("");
       __e161.appendChild(__t162);
-      __c158.push(bindText(__t162, () => __E[25]($scope2)));
+      __c158.push(bindText(__t162, () => $scope2.t));
       __frag157.appendChild(__e161);
       const __t163 = document.createTextNode("\n                  ");
       __frag157.appendChild(__t163);
@@ -273,7 +243,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b29 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[26]($scope)) return 0;
+      if (($scope.a.tags || []).length > 2) return 0;
       return -1;
     },
     branches: [
@@ -290,7 +260,7 @@ var view_default2 = view((ctx) => {
         __e169.appendChild(__t170);
         const __t171 = document.createTextNode("");
         __e169.appendChild(__t171);
-        __c167.push(bindText(__t171, () => __E[27]($scope)));
+        __c167.push(bindText(__t171, () => ($scope.a.tags || []).length - 2));
         __frag166.appendChild(__e169);
         const __t172 = document.createTextNode("\n                  ");
         __frag166.appendChild(__t172);
@@ -305,12 +275,13 @@ var view_default2 = view((ctx) => {
   });
   const __wireBoundary_b9 = (anchor) => bindFor({
     anchor,
-    items: () => __E[6]($scope),
+    items: () => $scope.items(),
     key: (a, __i) => {
-      const __child = Object.create($scope);
+      const __child = Object.create($scope2);
       __child.a = a;
       __child.__i = __i;
-      return __E[7](__child);
+      const $scope2 = __child;
+      return a.id;
     },
     render: (a, __i) => {
       const __childScope72 = Object.create($scope2);
@@ -325,7 +296,7 @@ var view_default2 = view((ctx) => {
       __e74.setAttribute("variant", "card");
       __e74.setAttribute("density", "normal");
       __e74.setAttribute("interactive", "");
-      __c71.push(bindAttr(__e74, "navigable", () => __E[8]($scope2)));
+      __c71.push(bindAttr(__e74, "navigable", () => "/agents/" + $scope2.a.id));
       __e74.setAttribute("class", "agents-card-tile");
       __e74.setAttribute("data-test", "agent");
       const __t75 = document.createTextNode("\n              ");
@@ -339,7 +310,7 @@ var view_default2 = view((ctx) => {
       __e78.setAttribute("class", "agents-card-letter");
       const __t79 = document.createTextNode("");
       __e78.appendChild(__t79);
-      __c71.push(bindText(__t79, () => __E[9]($scope2)));
+      __c71.push(bindText(__t79, () => $scope2.a.letter));
       __e76.appendChild(__e78);
       const __t80 = document.createTextNode("\n              ");
       __e76.appendChild(__t80);
@@ -358,7 +329,7 @@ var view_default2 = view((ctx) => {
       __e86.setAttribute("class", "agents-card-title");
       const __t87 = document.createTextNode("");
       __e86.appendChild(__t87);
-      __c71.push(bindText(__t87, () => __E[10]($scope2)));
+      __c71.push(bindText(__t87, () => $scope2.a.name));
       __e84.appendChild(__e86);
       const __t88 = document.createTextNode("\n                  ");
       __e84.appendChild(__t88);
@@ -366,7 +337,7 @@ var view_default2 = view((ctx) => {
       __e89.setAttribute("class", "agents-card-desc");
       const __t90 = document.createTextNode("");
       __e89.appendChild(__t90);
-      __c71.push(bindText(__t90, () => __E[11]($scope2)));
+      __c71.push(bindText(__t90, () => $scope2.a.description || "No description"));
       __e84.appendChild(__e89);
       const __t91 = document.createTextNode("\n                ");
       __e84.appendChild(__t91);
@@ -380,12 +351,12 @@ var view_default2 = view((ctx) => {
       const __e95 = document.createElement("span");
       const __t96 = document.createTextNode("");
       __e95.appendChild(__t96);
-      __c71.push(bindText(__t96, () => __E[12]($scope2)));
+      __c71.push(bindText(__t96, () => $scope2.a.skills_count));
       const __t97 = document.createTextNode(" skill");
       __e95.appendChild(__t97);
       const __t98 = document.createTextNode("");
       __e95.appendChild(__t98);
-      __c71.push(bindText(__t98, () => __E[13]($scope2)));
+      __c71.push(bindText(__t98, () => $scope2.a.skills_count === 1 ? "" : "s"));
       __e93.appendChild(__e95);
       const __t99 = document.createTextNode("\n                  ");
       __e93.appendChild(__t99);
@@ -399,7 +370,7 @@ var view_default2 = view((ctx) => {
       const __e103 = document.createElement("span");
       const __t104 = document.createTextNode("");
       __e103.appendChild(__t104);
-      __c71.push(bindText(__t104, () => __E[14]($scope2)));
+      __c71.push(bindText(__t104, () => $scope2.a.mcp_count));
       const __t105 = document.createTextNode(" MCP");
       __e103.appendChild(__t105);
       __e93.appendChild(__e103);
@@ -415,12 +386,12 @@ var view_default2 = view((ctx) => {
       const __e110 = document.createElement("span");
       const __t111 = document.createTextNode("");
       __e110.appendChild(__t111);
-      __c71.push(bindText(__t111, () => __E[15]($scope2)));
+      __c71.push(bindText(__t111, () => $scope2.a.rules_count));
       const __t112 = document.createTextNode(" rule");
       __e110.appendChild(__t112);
       const __t113 = document.createTextNode("");
       __e110.appendChild(__t113);
-      __c71.push(bindText(__t113, () => __E[16]($scope2)));
+      __c71.push(bindText(__t113, () => $scope2.a.rules_count === 1 ? "" : "s"));
       __e93.appendChild(__e110);
       const __t114 = document.createTextNode("\n                ");
       __e93.appendChild(__t114);
@@ -443,7 +414,7 @@ var view_default2 = view((ctx) => {
       __e143.setAttribute("class", "agents-card-badge-source");
       const __t144 = document.createTextNode("");
       __e143.appendChild(__t144);
-      __c71.push(bindText(__t144, () => __E[22]($scope2)));
+      __c71.push(bindText(__t144, () => $scope2.a.source));
       __e141.appendChild(__e143);
       const __t145 = document.createTextNode("\n                  ");
       __e141.appendChild(__t145);
@@ -482,7 +453,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b7 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[5]($scope)) return 0;
+      if ($scope.items().length === 0) return 0;
       return 1;
     },
     branches: [
@@ -517,7 +488,7 @@ var view_default2 = view((ctx) => {
         __e58.setAttribute("tone", "primary");
         __e58.setAttribute("variant", "solid");
         __c48.push(on(__e58, "click", (function() {
-          const __h = __E[2]($scope);
+          const __h = $scope.newAgent;
           return typeof __h === "function" ? __h.bind(void 0) : (() => {
           });
         })(), { modifiers: [] }));
@@ -573,7 +544,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b6 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[4]($scope)) return 0;
+      if ($scope.agents().kind === "ok") return 0;
       return -1;
     },
     branches: [
@@ -628,12 +599,12 @@ var view_default2 = view((ctx) => {
       __e12.setAttribute("class", "agents-sub");
       const __t13 = document.createTextNode("");
       __e12.appendChild(__t13);
-      __cleanups.push(bindText(__t13, () => __E[0]($scope)));
+      __cleanups.push(bindText(__t13, () => $scope.total()));
       const __t14 = document.createTextNode(" agent");
       __e12.appendChild(__t14);
       const __t15 = document.createTextNode("");
       __e12.appendChild(__t15);
-      __cleanups.push(bindText(__t15, () => __E[1]($scope)));
+      __cleanups.push(bindText(__t15, () => $scope.total() === 1 ? "" : "s"));
       __e7.appendChild(__e12);
       const __t16 = document.createTextNode("\n      ");
       __e7.appendChild(__t16);
@@ -644,7 +615,7 @@ var view_default2 = view((ctx) => {
       __e18.setAttribute("tone", "primary");
       __e18.setAttribute("variant", "solid");
       __cleanups.push(on(__e18, "click", (function() {
-        const __h = __E[2]($scope);
+        const __h = $scope.newAgent;
         return typeof __h === "function" ? __h.bind(void 0) : (() => {
         });
       })(), { modifiers: [] }));

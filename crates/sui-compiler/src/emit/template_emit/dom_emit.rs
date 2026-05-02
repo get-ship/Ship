@@ -1,10 +1,11 @@
 //! Element + attribute DOM-construction emit.
 
+use super::super::expr_rewrite::rewrite_for_scope;
 use super::super::writer::{js_string, Writer};
 use super::TemplateEmitter;
 use crate::ir::*;
 
-impl<'a> TemplateEmitter<'a> {
+impl TemplateEmitter {
     pub(in crate::emit) fn emit_element(
         &mut self,
         w: &mut Writer,
@@ -47,9 +48,9 @@ impl<'a> TemplateEmitter<'a> {
             }
             AttrInstr::Expr { name, expr, .. } => {
                 let _ = self.next_key();
-                let idx = self.bank.add(&expr.source);
+                let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
-                    "{cleanups_var}.push(bindAttr({el_var}, {n}, () => __E[{idx}]($scope)));",
+                    "{cleanups_var}.push(bindAttr({el_var}, {n}, () => ({rw})));",
                     n = js_string(name)
                 ));
             }
@@ -59,16 +60,16 @@ impl<'a> TemplateEmitter<'a> {
             }
             AttrInstr::BindValue { expr, .. } => {
                 let _ = self.next_key();
-                let idx = self.bank.add(&expr.source);
+                let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
-                    "{cleanups_var}.push(bindValue({el_var}, __E[{idx}]($scope)));"
+                    "{cleanups_var}.push(bindValue({el_var}, ({rw})));"
                 ));
             }
             AttrInstr::BindChecked { expr, .. } => {
                 let _ = self.next_key();
-                let idx = self.bank.add(&expr.source);
+                let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
-                    "{cleanups_var}.push(bindChecked({el_var}, __E[{idx}]($scope)));"
+                    "{cleanups_var}.push(bindChecked({el_var}, ({rw})));"
                 ));
             }
             AttrInstr::BindThis { var, .. } => {
@@ -87,27 +88,27 @@ impl<'a> TemplateEmitter<'a> {
             }
             AttrInstr::On { event, handler, modifiers, .. } => {
                 let _ = self.next_key();
-                let idx = self.bank.add(&handler.source);
+                let rw = rewrite_for_scope(&handler.source, &[]);
                 let mods_js = serialize_modifiers(modifiers);
                 w.line(&format!(
-                    "{cleanups_var}.push(on({el_var}, {ev}, (function () {{ const __h = __E[{idx}]($scope); return (typeof __h === \"function\") ? __h.bind(undefined) : (() => {{}}); }})(), {{ modifiers: {mods_js} }}));",
+                    "{cleanups_var}.push(on({el_var}, {ev}, (function () {{ const __h = ({rw}); return (typeof __h === \"function\") ? __h.bind(undefined) : (() => {{}}); }})(), {{ modifiers: {mods_js} }}));",
                     ev = js_string(event)
                 ));
             }
             AttrInstr::Class { name, expr, .. } => {
                 let _ = self.next_key();
-                let idx = self.bank.add(&expr.source);
+                let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
-                    "{cleanups_var}.push(bindClass({el_var}, {n}, () => __E[{idx}]($scope)));",
+                    "{cleanups_var}.push(bindClass({el_var}, {n}, () => ({rw})));",
                     n = js_string(name)
                 ));
             }
             AttrInstr::Style { name, expr, .. } => {
                 let _ = self.next_key();
-                let idx = self.bank.add(&expr.source);
+                let rw = rewrite_for_scope(&expr.source, &[]);
                 let prop = js_string(name);
                 w.line(&format!(
-                    "{cleanups_var}.push(effect(() => {{ const __v = __E[{idx}]($scope); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
+                    "{cleanups_var}.push(effect(() => {{ const __v = ({rw}); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
                 ));
             }
             AttrInstr::Mutation { expr, .. } => {
@@ -128,13 +129,13 @@ impl<'a> TemplateEmitter<'a> {
         el_var: &str,
         cleanups_var: &str,
     ) {
-        let n_idx = self.bank.add(&name_expr.source);
-        let v_idx = self.bank.add(&value_expr.source);
+        let n_rw = rewrite_for_scope(&name_expr.source, &[]);
+        let v_rw = rewrite_for_scope(&value_expr.source, &[]);
         let prev = self.fresh("prevAttr");
         w.line(&format!("{{ let {prev} = null;"));
         w.line(&format!("  {cleanups_var}.push(effect(() => {{"));
-        w.line(&format!("    const __n = String(__E[{n_idx}]($scope));"));
-        w.line(&format!("    const __v = __E[{v_idx}]($scope);"));
+        w.line(&format!("    const __n = String({n_rw});"));
+        w.line(&format!("    const __v = ({v_rw});"));
         w.line(&format!(
             "    if ({prev} && {prev} !== __n) {el_var}.removeAttribute({prev});"
         ));

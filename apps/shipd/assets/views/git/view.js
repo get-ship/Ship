@@ -58,64 +58,6 @@ var view_default = controller({
 });
 
 // views/git/view.js
-var __scopeEval = (src) => new Function("$scope", "with ($scope) { return (" + src + "); }");
-var __E = [];
-__E[0] = __scopeEval("err.message");
-__E[1] = __scopeEval("overview().kind === 'ok'");
-__E[2] = __scopeEval("branch()");
-__E[3] = __scopeEval("ahead() > 0 ? ' \xE2\x86\x91' + ahead() : ''");
-__E[4] = __scopeEval("behind() > 0 ? ' \xE2\x86\x93' + behind() : ''");
-__E[5] = __scopeEval("headShort()");
-__E[6] = __scopeEval("clean() ? 'success' : 'warning'");
-__E[7] = __scopeEval("clean() ? 'clean' : totalChanged() + ' changed'");
-__E[8] = __scopeEval("tab() === 'changes'");
-__E[9] = __scopeEval("totalChanged() + ''");
-__E[10] = __scopeEval("() => tab.set('changes')");
-__E[11] = __scopeEval("tab() === 'history'");
-__E[12] = __scopeEval("commitsCount() + ''");
-__E[13] = __scopeEval("() => tab.set('history')");
-__E[14] = __scopeEval("tab() === 'branches'");
-__E[15] = __scopeEval("branchesCount() + ''");
-__E[16] = __scopeEval("() => tab.set('branches')");
-__E[17] = __scopeEval("clean()");
-__E[18] = __scopeEval(`ahead() === 0 && behind() === 0 ? "You're up to date with the upstream." : ''`);
-__E[19] = __scopeEval("ahead() > 0 ? ahead() + ' commit' + (ahead() === 1 ? '' : 's') + ' ahead of upstream.' : ''");
-__E[20] = __scopeEval("behind() > 0 ? ' ' + behind() + ' commit' + (behind() === 1 ? '' : 's') + ' behind upstream.' : ''");
-__E[21] = __scopeEval("recentCommits().length === 0");
-__E[22] = __scopeEval("recentCommits()");
-__E[23] = __scopeEval("c.sha");
-__E[24] = __scopeEval("c.author");
-__E[25] = __scopeEval("c.subject");
-__E[26] = __scopeEval("c.short_sha");
-__E[27] = __scopeEval("c.date");
-__E[28] = __scopeEval("c.additions");
-__E[29] = __scopeEval("c.deletions");
-__E[30] = __scopeEval("recentBranches().length === 0");
-__E[31] = __scopeEval("recentBranches()");
-__E[32] = __scopeEval("b.name");
-__E[33] = __scopeEval("b.active ? 'git-icon-active' : 'git-icon-muted'");
-__E[34] = __scopeEval("b.upstream ? b.upstream : 'local only'");
-__E[35] = __scopeEval("b.ahead > 0 ? '\xE2\x86\x91' + b.ahead : ''");
-__E[36] = __scopeEval("b.behind > 0 ? ' \xE2\x86\x93' + b.behind : ''");
-__E[37] = __scopeEval("staged().length > 0");
-__E[38] = __scopeEval("staged().length");
-__E[39] = __scopeEval("staged()");
-__E[40] = __scopeEval("f.path");
-__E[41] = __scopeEval("modified().length > 0");
-__E[42] = __scopeEval("modified().length");
-__E[43] = __scopeEval("modified()");
-__E[44] = __scopeEval("untracked().length > 0");
-__E[45] = __scopeEval("untracked().length");
-__E[46] = __scopeEval("untracked()");
-__E[47] = __scopeEval("commitFilter.query");
-__E[48] = __scopeEval("commitFilter.filtered().length");
-__E[49] = __scopeEval("commitsCount()");
-__E[50] = __scopeEval("commitFilter.filtered().length === 0");
-__E[51] = __scopeEval("commitsCount() === 0 ? 'No commits' : 'No matching commits'");
-__E[52] = __scopeEval("commitFilter.filtered()");
-__E[53] = __scopeEval("branches().length === 0");
-__E[54] = __scopeEval("branches()");
-__E[55] = __scopeEval("b.active ? ' (HEAD)' : ''");
 var view_default2 = view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = /* @__PURE__ */ Object.create(null);
@@ -163,7 +105,7 @@ var view_default2 = view((ctx) => {
     __e25.appendChild(__t26);
     const __t27 = document.createTextNode("");
     __e25.appendChild(__t27);
-    __c22.push(bindText(__t27, () => __E[0]($scope2)));
+    __c22.push(bindText(__t27, () => $scope2.err.message));
     __frag21.appendChild(__e25);
     const __t28 = document.createTextNode("\n  ");
     __frag21.appendChild(__t28);
@@ -176,12 +118,13 @@ var view_default2 = view((ctx) => {
   };
   const __wireBoundary_b26 = (anchor) => bindFor({
     anchor,
-    items: () => __E[22]($scope),
+    items: () => $scope.recentCommits(),
     key: (c, __i) => {
-      const __child = Object.create($scope);
+      const __child = Object.create($scope2);
       __child.c = c;
       __child.__i = __i;
-      return __E[23](__child);
+      const $scope2 = __child;
+      return c.sha;
     },
     render: (c, __i) => {
       const __childScope138 = Object.create($scope2);
@@ -199,7 +142,7 @@ var view_default2 = view((ctx) => {
       const __e142 = document.createElement("sui-avatar");
       __e142.setAttribute("size", "sm");
       __e142.setAttribute("shape", "round");
-      __c137.push(bindAttr(__e142, "name", () => __E[24]($scope2)));
+      __c137.push(bindAttr(__e142, "name", () => $scope2.c.author));
       __e140.appendChild(__e142);
       const __t143 = document.createTextNode("\n                      ");
       __e140.appendChild(__t143);
@@ -211,7 +154,7 @@ var view_default2 = view((ctx) => {
       __e146.setAttribute("class", "git-row-title");
       const __t147 = document.createTextNode("");
       __e146.appendChild(__t147);
-      __c137.push(bindText(__t147, () => __E[25]($scope2)));
+      __c137.push(bindText(__t147, () => $scope2.c.subject));
       __e144.appendChild(__e146);
       const __t148 = document.createTextNode("\n                        ");
       __e144.appendChild(__t148);
@@ -219,17 +162,17 @@ var view_default2 = view((ctx) => {
       __e149.setAttribute("class", "git-row-sub");
       const __t150 = document.createTextNode("");
       __e149.appendChild(__t150);
-      __c137.push(bindText(__t150, () => __E[26]($scope2)));
+      __c137.push(bindText(__t150, () => $scope2.c.short_sha));
       const __t151 = document.createTextNode(" &middot; ");
       __e149.appendChild(__t151);
       const __t152 = document.createTextNode("");
       __e149.appendChild(__t152);
-      __c137.push(bindText(__t152, () => __E[24]($scope2)));
+      __c137.push(bindText(__t152, () => $scope2.c.author));
       const __t153 = document.createTextNode(" &middot; ");
       __e149.appendChild(__t153);
       const __t154 = document.createTextNode("");
       __e149.appendChild(__t154);
-      __c137.push(bindText(__t154, () => __E[27]($scope2)));
+      __c137.push(bindText(__t154, () => $scope2.c.date));
       __e144.appendChild(__e149);
       const __t155 = document.createTextNode("\n                      ");
       __e144.appendChild(__t155);
@@ -246,7 +189,7 @@ var view_default2 = view((ctx) => {
       __e159.appendChild(__t160);
       const __t161 = document.createTextNode("");
       __e159.appendChild(__t161);
-      __c137.push(bindText(__t161, () => __E[28]($scope2)));
+      __c137.push(bindText(__t161, () => $scope2.c.additions));
       __e157.appendChild(__e159);
       const __t162 = document.createTextNode("\n                        ");
       __e157.appendChild(__t162);
@@ -256,7 +199,7 @@ var view_default2 = view((ctx) => {
       __e163.appendChild(__t164);
       const __t165 = document.createTextNode("");
       __e163.appendChild(__t165);
-      __c137.push(bindText(__t165, () => __E[29]($scope2)));
+      __c137.push(bindText(__t165, () => $scope2.c.deletions));
       __e157.appendChild(__e163);
       const __t166 = document.createTextNode("\n                      ");
       __e157.appendChild(__t166);
@@ -277,7 +220,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b25 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[21]($scope)) return 0;
+      if ($scope.recentCommits().length === 0) return 0;
       return 1;
     },
     branches: [
@@ -321,12 +264,13 @@ var view_default2 = view((ctx) => {
   });
   const __wireBoundary_b35 = (anchor) => bindFor({
     anchor,
-    items: () => __E[31]($scope),
+    items: () => $scope.recentBranches(),
     key: (b, __i) => {
-      const __child = Object.create($scope);
+      const __child = Object.create($scope2);
       __child.b = b;
       __child.__i = __i;
-      return __E[32](__child);
+      const $scope2 = __child;
+      return b.name;
     },
     render: (b, __i) => {
       const __childScope190 = Object.create($scope2);
@@ -344,7 +288,7 @@ var view_default2 = view((ctx) => {
       const __e194 = document.createElement("ship-icon");
       __e194.setAttribute("name", "git-branch");
       __e194.setAttribute("size", "xs");
-      __c189.push(bindAttr(__e194, "class", () => __E[33]($scope2)));
+      __c189.push(bindAttr(__e194, "class", () => $scope2.b.active ? "git-icon-active" : "git-icon-muted"));
       __e192.appendChild(__e194);
       const __t195 = document.createTextNode("\n                      ");
       __e192.appendChild(__t195);
@@ -356,7 +300,7 @@ var view_default2 = view((ctx) => {
       __e198.setAttribute("class", "git-row-title git-mono");
       const __t199 = document.createTextNode("");
       __e198.appendChild(__t199);
-      __c189.push(bindText(__t199, () => __E[32]($scope2)));
+      __c189.push(bindText(__t199, () => $scope2.b.name));
       __e196.appendChild(__e198);
       const __t200 = document.createTextNode("\n                        ");
       __e196.appendChild(__t200);
@@ -364,7 +308,7 @@ var view_default2 = view((ctx) => {
       __e201.setAttribute("class", "git-row-sub");
       const __t202 = document.createTextNode("");
       __e201.appendChild(__t202);
-      __c189.push(bindText(__t202, () => __E[34]($scope2)));
+      __c189.push(bindText(__t202, () => $scope2.b.upstream ? $scope2.b.upstream : "local only"));
       __e196.appendChild(__e201);
       const __t203 = document.createTextNode("\n                      ");
       __e196.appendChild(__t203);
@@ -377,12 +321,12 @@ var view_default2 = view((ctx) => {
       __e205.appendChild(__t206);
       const __t207 = document.createTextNode("");
       __e205.appendChild(__t207);
-      __c189.push(bindText(__t207, () => __E[35]($scope2)));
+      __c189.push(bindText(__t207, () => $scope2.b.ahead > 0 ? "\xC3\xA2\xC2\x86\xC2\x91" + $scope2.b.ahead : ""));
       const __t208 = document.createTextNode("\n                        ");
       __e205.appendChild(__t208);
       const __t209 = document.createTextNode("");
       __e205.appendChild(__t209);
-      __c189.push(bindText(__t209, () => __E[36]($scope2)));
+      __c189.push(bindText(__t209, () => $scope2.b.behind > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope2.b.behind : ""));
       const __t210 = document.createTextNode("\n                      ");
       __e205.appendChild(__t210);
       __e192.appendChild(__e205);
@@ -402,7 +346,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b34 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[30]($scope)) return 0;
+      if ($scope.recentBranches().length === 0) return 0;
       return 1;
     },
     branches: [
@@ -446,12 +390,13 @@ var view_default2 = view((ctx) => {
   });
   const __wireBoundary_b43 = (anchor) => bindFor({
     anchor,
-    items: () => __E[39]($scope),
+    items: () => $scope.staged(),
     key: (f, __i) => {
-      const __child = Object.create($scope);
+      const __child = Object.create($scope2);
       __child.f = f;
       __child.__i = __i;
-      return __E[40](__child);
+      const $scope2 = __child;
+      return f.path;
     },
     render: (f, __i) => {
       const __childScope237 = Object.create($scope2);
@@ -466,7 +411,7 @@ var view_default2 = view((ctx) => {
       __e239.setAttribute("class", "git-fileline git-mono");
       const __t240 = document.createTextNode("");
       __e239.appendChild(__t240);
-      __c236.push(bindText(__t240, () => __E[40]($scope2)));
+      __c236.push(bindText(__t240, () => $scope2.f.path));
       __frag235.appendChild(__e239);
       const __t241 = document.createTextNode("\n                ");
       __frag235.appendChild(__t241);
@@ -481,7 +426,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b41 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[37]($scope)) return 0;
+      if ($scope.staged().length > 0) return 0;
       return -1;
     },
     branches: [
@@ -499,7 +444,7 @@ var view_default2 = view((ctx) => {
         __e229.appendChild(__t230);
         const __t231 = document.createTextNode("");
         __e229.appendChild(__t231);
-        __c225.push(bindText(__t231, () => __E[38]($scope)));
+        __c225.push(bindText(__t231, () => $scope.staged().length));
         const __t232 = document.createTextNode(")");
         __e229.appendChild(__t232);
         __e227.appendChild(__e229);
@@ -524,12 +469,13 @@ var view_default2 = view((ctx) => {
   });
   const __wireBoundary_b47 = (anchor) => bindFor({
     anchor,
-    items: () => __E[43]($scope),
+    items: () => $scope.modified(),
     key: (f, __i) => {
-      const __child = Object.create($scope);
+      const __child = Object.create($scope2);
       __child.f = f;
       __child.__i = __i;
-      return __E[40](__child);
+      const $scope2 = __child;
+      return f.path;
     },
     render: (f, __i) => {
       const __childScope259 = Object.create($scope2);
@@ -544,7 +490,7 @@ var view_default2 = view((ctx) => {
       __e261.setAttribute("class", "git-fileline git-mono");
       const __t262 = document.createTextNode("");
       __e261.appendChild(__t262);
-      __c258.push(bindText(__t262, () => __E[40]($scope2)));
+      __c258.push(bindText(__t262, () => $scope2.f.path));
       __frag257.appendChild(__e261);
       const __t263 = document.createTextNode("\n                ");
       __frag257.appendChild(__t263);
@@ -559,7 +505,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b45 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[41]($scope)) return 0;
+      if ($scope.modified().length > 0) return 0;
       return -1;
     },
     branches: [
@@ -577,7 +523,7 @@ var view_default2 = view((ctx) => {
         __e251.appendChild(__t252);
         const __t253 = document.createTextNode("");
         __e251.appendChild(__t253);
-        __c247.push(bindText(__t253, () => __E[42]($scope)));
+        __c247.push(bindText(__t253, () => $scope.modified().length));
         const __t254 = document.createTextNode(")");
         __e251.appendChild(__t254);
         __e249.appendChild(__e251);
@@ -602,12 +548,13 @@ var view_default2 = view((ctx) => {
   });
   const __wireBoundary_b51 = (anchor) => bindFor({
     anchor,
-    items: () => __E[46]($scope),
+    items: () => $scope.untracked(),
     key: (f, __i) => {
-      const __child = Object.create($scope);
+      const __child = Object.create($scope2);
       __child.f = f;
       __child.__i = __i;
-      return __E[40](__child);
+      const $scope2 = __child;
+      return f.path;
     },
     render: (f, __i) => {
       const __childScope281 = Object.create($scope2);
@@ -622,7 +569,7 @@ var view_default2 = view((ctx) => {
       __e283.setAttribute("class", "git-fileline git-mono");
       const __t284 = document.createTextNode("");
       __e283.appendChild(__t284);
-      __c280.push(bindText(__t284, () => __E[40]($scope2)));
+      __c280.push(bindText(__t284, () => $scope2.f.path));
       __frag279.appendChild(__e283);
       const __t285 = document.createTextNode("\n                ");
       __frag279.appendChild(__t285);
@@ -637,7 +584,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b49 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[44]($scope)) return 0;
+      if ($scope.untracked().length > 0) return 0;
       return -1;
     },
     branches: [
@@ -655,7 +602,7 @@ var view_default2 = view((ctx) => {
         __e273.appendChild(__t274);
         const __t275 = document.createTextNode("");
         __e273.appendChild(__t275);
-        __c269.push(bindText(__t275, () => __E[45]($scope)));
+        __c269.push(bindText(__t275, () => $scope.untracked().length));
         const __t276 = document.createTextNode(")");
         __e273.appendChild(__t276);
         __e271.appendChild(__e273);
@@ -681,7 +628,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b20 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[17]($scope)) return 0;
+      if ($scope.clean()) return 0;
       return 1;
     },
     branches: [
@@ -729,23 +676,23 @@ var view_default2 = view((ctx) => {
         __e106.setAttribute("class", "git-mono");
         const __t107 = document.createTextNode("");
         __e106.appendChild(__t107);
-        __c88.push(bindText(__t107, () => __E[2]($scope)));
+        __c88.push(bindText(__t107, () => $scope.branch()));
         __e104.appendChild(__e106);
         const __t108 = document.createTextNode(".\n                  ");
         __e104.appendChild(__t108);
         const __t109 = document.createTextNode("");
         __e104.appendChild(__t109);
-        __c88.push(bindText(__t109, () => __E[18]($scope)));
+        __c88.push(bindText(__t109, () => $scope.ahead() === 0 && $scope.behind() === 0 ? "You're up to date with the upstream." : ""));
         const __t110 = document.createTextNode("\n                  ");
         __e104.appendChild(__t110);
         const __t111 = document.createTextNode("");
         __e104.appendChild(__t111);
-        __c88.push(bindText(__t111, () => __E[19]($scope)));
+        __c88.push(bindText(__t111, () => $scope.ahead() > 0 ? $scope.ahead() + " commit" + ($scope.ahead() === 1 ? "" : "s") + " ahead of upstream." : ""));
         const __t112 = document.createTextNode("\n                  ");
         __e104.appendChild(__t112);
         const __t113 = document.createTextNode("");
         __e104.appendChild(__t113);
-        __c88.push(bindText(__t113, () => __E[20]($scope)));
+        __c88.push(bindText(__t113, () => $scope.behind() > 0 ? " " + $scope.behind() + " commit" + ($scope.behind() === 1 ? "" : "s") + " behind upstream." : ""));
         const __t114 = document.createTextNode("\n                ");
         __e104.appendChild(__t114);
         __e99.appendChild(__e104);
@@ -849,7 +796,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b19 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[8]($scope)) return 0;
+      if ($scope.tab() === "changes") return 0;
       return -1;
     },
     branches: [
@@ -874,12 +821,13 @@ var view_default2 = view((ctx) => {
   });
   const __wireBoundary_b59 = (anchor) => bindFor({
     anchor,
-    items: () => __E[52]($scope),
+    items: () => $scope.commitFilter.filtered(),
     key: (c, __i) => {
-      const __child = Object.create($scope);
+      const __child = Object.create($scope2);
       __child.c = c;
       __child.__i = __i;
-      return __E[23](__child);
+      const $scope2 = __child;
+      return c.sha;
     },
     render: (c, __i) => {
       const __childScope326 = Object.create($scope2);
@@ -897,7 +845,7 @@ var view_default2 = view((ctx) => {
       const __e330 = document.createElement("sui-avatar");
       __e330.setAttribute("size", "sm");
       __e330.setAttribute("shape", "round");
-      __c325.push(bindAttr(__e330, "name", () => __E[24]($scope2)));
+      __c325.push(bindAttr(__e330, "name", () => $scope2.c.author));
       __e328.appendChild(__e330);
       const __t331 = document.createTextNode("\n                  ");
       __e328.appendChild(__t331);
@@ -909,7 +857,7 @@ var view_default2 = view((ctx) => {
       __e334.setAttribute("class", "git-row-title");
       const __t335 = document.createTextNode("");
       __e334.appendChild(__t335);
-      __c325.push(bindText(__t335, () => __E[25]($scope2)));
+      __c325.push(bindText(__t335, () => $scope2.c.subject));
       __e332.appendChild(__e334);
       const __t336 = document.createTextNode("\n                    ");
       __e332.appendChild(__t336);
@@ -917,17 +865,17 @@ var view_default2 = view((ctx) => {
       __e337.setAttribute("class", "git-row-sub git-mono");
       const __t338 = document.createTextNode("");
       __e337.appendChild(__t338);
-      __c325.push(bindText(__t338, () => __E[26]($scope2)));
+      __c325.push(bindText(__t338, () => $scope2.c.short_sha));
       const __t339 = document.createTextNode(" &middot; ");
       __e337.appendChild(__t339);
       const __t340 = document.createTextNode("");
       __e337.appendChild(__t340);
-      __c325.push(bindText(__t340, () => __E[24]($scope2)));
+      __c325.push(bindText(__t340, () => $scope2.c.author));
       const __t341 = document.createTextNode(" &middot; ");
       __e337.appendChild(__t341);
       const __t342 = document.createTextNode("");
       __e337.appendChild(__t342);
-      __c325.push(bindText(__t342, () => __E[27]($scope2)));
+      __c325.push(bindText(__t342, () => $scope2.c.date));
       __e332.appendChild(__e337);
       const __t343 = document.createTextNode("\n                  ");
       __e332.appendChild(__t343);
@@ -944,7 +892,7 @@ var view_default2 = view((ctx) => {
       __e347.appendChild(__t348);
       const __t349 = document.createTextNode("");
       __e347.appendChild(__t349);
-      __c325.push(bindText(__t349, () => __E[28]($scope2)));
+      __c325.push(bindText(__t349, () => $scope2.c.additions));
       __e345.appendChild(__e347);
       const __t350 = document.createTextNode("\n                    ");
       __e345.appendChild(__t350);
@@ -954,7 +902,7 @@ var view_default2 = view((ctx) => {
       __e351.appendChild(__t352);
       const __t353 = document.createTextNode("");
       __e351.appendChild(__t353);
-      __c325.push(bindText(__t353, () => __E[29]($scope2)));
+      __c325.push(bindText(__t353, () => $scope2.c.deletions));
       __e345.appendChild(__e351);
       const __t354 = document.createTextNode("\n                  ");
       __e345.appendChild(__t354);
@@ -975,7 +923,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b57 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[50]($scope)) return 0;
+      if ($scope.commitFilter.filtered().length === 0) return 0;
       return 1;
     },
     branches: [
@@ -993,7 +941,7 @@ var view_default2 = view((ctx) => {
         __e314.setAttribute("slot", "title");
         const __t315 = document.createTextNode("");
         __e314.appendChild(__t315);
-        __c310.push(bindText(__t315, () => __E[51]($scope)));
+        __c310.push(bindText(__t315, () => $scope.commitsCount() === 0 ? "No commits" : "No matching commits"));
         __e312.appendChild(__e314);
         const __t316 = document.createTextNode("\n            ");
         __e312.appendChild(__t316);
@@ -1036,7 +984,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b53 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[11]($scope)) return 0;
+      if ($scope.tab() === "history") return 0;
       return -1;
     },
     branches: [
@@ -1056,7 +1004,7 @@ var view_default2 = view((ctx) => {
         const __e300 = document.createElement("input");
         __e300.setAttribute("class", "git-search");
         __e300.setAttribute("placeholder", "Filter by subject, sha, or author");
-        __c294.push(bindValue(__e300, __E[47]($scope)));
+        __c294.push(bindValue(__e300, $scope.commitFilter.query));
         __e298.appendChild(__e300);
         const __t301 = document.createTextNode("\n            ");
         __e298.appendChild(__t301);
@@ -1064,12 +1012,12 @@ var view_default2 = view((ctx) => {
         __e302.setAttribute("class", "git-history-count");
         const __t303 = document.createTextNode("");
         __e302.appendChild(__t303);
-        __c294.push(bindText(__t303, () => __E[48]($scope)));
+        __c294.push(bindText(__t303, () => $scope.commitFilter.filtered().length));
         const __t304 = document.createTextNode(" of ");
         __e302.appendChild(__t304);
         const __t305 = document.createTextNode("");
         __e302.appendChild(__t305);
-        __c294.push(bindText(__t305, () => __E[49]($scope)));
+        __c294.push(bindText(__t305, () => $scope.commitsCount()));
         __e298.appendChild(__e302);
         const __t306 = document.createTextNode("\n          ");
         __e298.appendChild(__t306);
@@ -1095,12 +1043,13 @@ var view_default2 = view((ctx) => {
   });
   const __wireBoundary_b69 = (anchor) => bindFor({
     anchor,
-    items: () => __E[54]($scope),
+    items: () => $scope.branches(),
     key: (b, __i) => {
-      const __child = Object.create($scope);
+      const __child = Object.create($scope2);
       __child.b = b;
       __child.__i = __i;
-      return __E[32](__child);
+      const $scope2 = __child;
+      return b.name;
     },
     render: (b, __i) => {
       const __childScope386 = Object.create($scope2);
@@ -1118,7 +1067,7 @@ var view_default2 = view((ctx) => {
       const __e390 = document.createElement("ship-icon");
       __e390.setAttribute("name", "git-branch");
       __e390.setAttribute("size", "sm");
-      __c385.push(bindAttr(__e390, "class", () => __E[33]($scope2)));
+      __c385.push(bindAttr(__e390, "class", () => $scope2.b.active ? "git-icon-active" : "git-icon-muted"));
       __e388.appendChild(__e390);
       const __t391 = document.createTextNode("\n                  ");
       __e388.appendChild(__t391);
@@ -1130,10 +1079,10 @@ var view_default2 = view((ctx) => {
       __e394.setAttribute("class", "git-row-title git-mono");
       const __t395 = document.createTextNode("");
       __e394.appendChild(__t395);
-      __c385.push(bindText(__t395, () => __E[32]($scope2)));
+      __c385.push(bindText(__t395, () => $scope2.b.name));
       const __t396 = document.createTextNode("");
       __e394.appendChild(__t396);
-      __c385.push(bindText(__t396, () => __E[55]($scope2)));
+      __c385.push(bindText(__t396, () => $scope2.b.active ? " (HEAD)" : ""));
       __e392.appendChild(__e394);
       const __t397 = document.createTextNode("\n                    ");
       __e392.appendChild(__t397);
@@ -1141,7 +1090,7 @@ var view_default2 = view((ctx) => {
       __e398.setAttribute("class", "git-row-sub");
       const __t399 = document.createTextNode("");
       __e398.appendChild(__t399);
-      __c385.push(bindText(__t399, () => __E[34]($scope2)));
+      __c385.push(bindText(__t399, () => $scope2.b.upstream ? $scope2.b.upstream : "local only"));
       __e392.appendChild(__e398);
       const __t400 = document.createTextNode("\n                  ");
       __e392.appendChild(__t400);
@@ -1154,12 +1103,12 @@ var view_default2 = view((ctx) => {
       __e402.appendChild(__t403);
       const __t404 = document.createTextNode("");
       __e402.appendChild(__t404);
-      __c385.push(bindText(__t404, () => __E[35]($scope2)));
+      __c385.push(bindText(__t404, () => $scope2.b.ahead > 0 ? "\xC3\xA2\xC2\x86\xC2\x91" + $scope2.b.ahead : ""));
       const __t405 = document.createTextNode("\n                    ");
       __e402.appendChild(__t405);
       const __t406 = document.createTextNode("");
       __e402.appendChild(__t406);
-      __c385.push(bindText(__t406, () => __E[36]($scope2)));
+      __c385.push(bindText(__t406, () => $scope2.b.behind > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope2.b.behind : ""));
       const __t407 = document.createTextNode("\n                  ");
       __e402.appendChild(__t407);
       __e388.appendChild(__e402);
@@ -1179,7 +1128,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b68 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[53]($scope)) return 0;
+      if ($scope.branches().length === 0) return 0;
       return 1;
     },
     branches: [
@@ -1239,7 +1188,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b67 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[14]($scope)) return 0;
+      if ($scope.tab() === "branches") return 0;
       return -1;
     },
     branches: [
@@ -1272,7 +1221,7 @@ var view_default2 = view((ctx) => {
   const __wireBoundary_b3 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if (__E[1]($scope)) return 0;
+      if ($scope.overview().kind === "ok") return 0;
       return -1;
     },
     branches: [
@@ -1304,25 +1253,25 @@ var view_default2 = view((ctx) => {
         __e44.setAttribute("class", "git-mono");
         const __t45 = document.createTextNode("");
         __e44.appendChild(__t45);
-        __c33.push(bindText(__t45, () => __E[2]($scope)));
+        __c33.push(bindText(__t45, () => $scope.branch()));
         __e42.appendChild(__e44);
         const __t46 = document.createTextNode("\n          ");
         __e42.appendChild(__t46);
         const __t47 = document.createTextNode("");
         __e42.appendChild(__t47);
-        __c33.push(bindText(__t47, () => __E[3]($scope)));
+        __c33.push(bindText(__t47, () => $scope.ahead() > 0 ? " \xC3\xA2\xC2\x86\xC2\x91" + $scope.ahead() : ""));
         const __t48 = document.createTextNode("\n          ");
         __e42.appendChild(__t48);
         const __t49 = document.createTextNode("");
         __e42.appendChild(__t49);
-        __c33.push(bindText(__t49, () => __E[4]($scope)));
+        __c33.push(bindText(__t49, () => $scope.behind() > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope.behind() : ""));
         const __t50 = document.createTextNode("\n          &middot;\n          ");
         __e42.appendChild(__t50);
         const __e51 = document.createElement("span");
         __e51.setAttribute("class", "git-mono");
         const __t52 = document.createTextNode("");
         __e51.appendChild(__t52);
-        __c33.push(bindText(__t52, () => __E[5]($scope)));
+        __c33.push(bindText(__t52, () => $scope.headShort()));
         __e42.appendChild(__e51);
         const __t53 = document.createTextNode("\n        ");
         __e42.appendChild(__t53);
@@ -1337,14 +1286,14 @@ var view_default2 = view((ctx) => {
         const __t57 = document.createTextNode("\n        ");
         __e56.appendChild(__t57);
         const __e58 = document.createElement("sui-chip");
-        __c33.push(bindAttr(__e58, "tone", () => __E[6]($scope)));
+        __c33.push(bindAttr(__e58, "tone", () => $scope.clean() ? "success" : "warning"));
         __e58.setAttribute("variant", "soft");
         __e58.setAttribute("size", "sm");
         const __t59 = document.createTextNode("\n          ");
         __e58.appendChild(__t59);
         const __t60 = document.createTextNode("");
         __e58.appendChild(__t60);
-        __c33.push(bindText(__t60, () => __E[7]($scope)));
+        __c33.push(bindText(__t60, () => $scope.clean() ? "clean" : $scope.totalChanged() + " changed"));
         const __t61 = document.createTextNode("\n        ");
         __e58.appendChild(__t61);
         __e56.appendChild(__e58);
@@ -1366,10 +1315,10 @@ var view_default2 = view((ctx) => {
         __e67.appendChild(__t68);
         const __e69 = document.createElement("sui-tab");
         __e69.setAttribute("name", "changes");
-        __c33.push(bindAttr(__e69, "active", () => __E[8]($scope)));
-        __c33.push(bindAttr(__e69, "count", () => __E[9]($scope)));
+        __c33.push(bindAttr(__e69, "active", () => $scope.tab() === "changes"));
+        __c33.push(bindAttr(__e69, "count", () => $scope.totalChanged() + ""));
         __c33.push(on(__e69, "click", (function() {
-          const __h = __E[10]($scope);
+          const __h = (() => $scope.tab.set("changes"));
           return typeof __h === "function" ? __h.bind(void 0) : (() => {
           });
         })(), { modifiers: [] }));
@@ -1380,10 +1329,10 @@ var view_default2 = view((ctx) => {
         __e67.appendChild(__t71);
         const __e72 = document.createElement("sui-tab");
         __e72.setAttribute("name", "history");
-        __c33.push(bindAttr(__e72, "active", () => __E[11]($scope)));
-        __c33.push(bindAttr(__e72, "count", () => __E[12]($scope)));
+        __c33.push(bindAttr(__e72, "active", () => $scope.tab() === "history"));
+        __c33.push(bindAttr(__e72, "count", () => $scope.commitsCount() + ""));
         __c33.push(on(__e72, "click", (function() {
-          const __h = __E[13]($scope);
+          const __h = (() => $scope.tab.set("history"));
           return typeof __h === "function" ? __h.bind(void 0) : (() => {
           });
         })(), { modifiers: [] }));
@@ -1394,10 +1343,10 @@ var view_default2 = view((ctx) => {
         __e67.appendChild(__t74);
         const __e75 = document.createElement("sui-tab");
         __e75.setAttribute("name", "branches");
-        __c33.push(bindAttr(__e75, "active", () => __E[14]($scope)));
-        __c33.push(bindAttr(__e75, "count", () => __E[15]($scope)));
+        __c33.push(bindAttr(__e75, "active", () => $scope.tab() === "branches"));
+        __c33.push(bindAttr(__e75, "count", () => $scope.branchesCount() + ""));
         __c33.push(on(__e75, "click", (function() {
-          const __h = __E[16]($scope);
+          const __h = (() => $scope.tab.set("branches"));
           return typeof __h === "function" ? __h.bind(void 0) : (() => {
           });
         })(), { modifiers: [] }));
