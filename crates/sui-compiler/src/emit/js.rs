@@ -249,7 +249,14 @@ fn emit_setup_body(
     emit_data_decls(w, program);
     emit_state_decls(w, program);
     if opts.setup_url.is_some() {
-        emit_setup_call(w);
+        if is_component {
+            // Component path: pass $scope as ctx.scope so the controller's
+            // on-handlers can mutate state signals. Store __r outside the
+            // if-block so we can read LIFECYCLE_KEY after the template renders.
+            emit_component_setup_call(w);
+        } else {
+            emit_setup_call(w);
+        }
     }
 
     let mut emitter = TemplateEmitter::new(bank);
@@ -260,6 +267,13 @@ fn emit_setup_body(
         // discriminator the runtime hydrate path uses.
         w.line("const __root = host.shadowRoot ?? host;");
         emitter.emit_top_level(w, &program.template, "__root", "__cleanups");
+        if opts.setup_url.is_some() {
+            // bind:this refs are now in $scope; call mount (if any) with a
+            // proxy that reads them lazily — giving the controller access to
+            // e.g. `state.termHost()` even though termHost was not yet in
+            // $scope when setup.setup(ctx) ran above.
+            emit_component_lifecycle_wiring(w);
+        }
         w.line("return $scope;");
     } else {
         w.line("return Object.assign({}, $scope, {");
@@ -331,6 +345,49 @@ fn emit_setup_call(w: &mut Writer) {
     w.enter();
     w.line("const __r = setup.setup(ctx);");
     w.line("if (__r && typeof __r === \"object\") Object.assign($scope, __r);");
+    w.leave();
+    w.line("}");
+}
+
+fn emit_component_setup_call(w: &mut Writer) {
+    // Component variant: expose $scope to the controller so its on-handlers
+    // can mutate <state> signals via the writable proxy. Store __r in a
+    // let-binding so emit_component_lifecycle_wiring can read LIFECYCLE_KEY
+    // from it after the template has rendered (bind:this refs land in $scope
+    // during emit_top_level, which runs after this call).
+    w.line("let __r = null;");
+    w.line("if (setup && typeof setup.setup === \"function\") {");
+    w.enter();
+    w.line("ctx.scope = $scope;");
+    w.line("__r = setup.setup(ctx);");
+    w.line("if (__r && typeof __r === \"object\") Object.assign($scope, __r);");
+    w.leave();
+    w.line("}");
+}
+
+fn emit_component_lifecycle_wiring(w: &mut Writer) {
+    // Called after emit_top_level so bind:this refs are in $scope. Reads
+    // the LIFECYCLE_KEY bundle from the controller's setup result and wires
+    // mount + unmount into __cleanups.
+    //
+    // The __sp proxy returns $scope values as-is so signal-typed refs (e.g.
+    // termHost, prop signals) remain callable: `state.termHost()` works.
+    // The set-trap delegates writes back to signal.set() for mutable keys.
+    w.line("if (__r != null) {");
+    w.enter();
+    w.line("const __lc = Object.getOwnPropertyDescriptor(__r, \"__shipSetLifecycle\")?.value;");
+    w.line("if (__lc) {");
+    w.enter();
+    w.line("const __sp = new Proxy($scope, {");
+    w.enter();
+    w.line("get(t, k) { return t[k]; },");
+    w.line("set(t, k, v) { const s = t[k]; if (s != null && typeof s.set === \"function\") { s.set(v); return true; } return false; }");
+    w.leave();
+    w.line("});");
+    w.line("if (__lc.mount) { const __mc = __lc.mount(__sp, host); if (typeof __mc === \"function\") __cleanups.push(__mc); }");
+    w.line("if (__lc.unmount) __cleanups.push(() => __lc.unmount(__sp));");
+    w.leave();
+    w.line("}");
     w.leave();
     w.line("}");
 }

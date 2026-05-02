@@ -58,6 +58,7 @@ const targets = [
       { htmlSet: 'packages/ship-set-components/src/set-tab/set-tab.sui' },
       { htmlSet: 'packages/ship-set-components/src/set-empty-state/set-empty-state.sui' },
       { htmlSet: 'packages/ship-set-components/src/set-input/set-input.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-terminal/set-terminal.sui' },
     ] },
   // Each view: compile .sui via the Rust compiler first (it
   // emits view.js next to view.ts, re-imports view.ts as setup, and

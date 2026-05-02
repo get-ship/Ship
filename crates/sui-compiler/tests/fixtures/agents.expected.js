@@ -20,10 +20,7 @@ export default view((ctx) => {
   $scope.route = route;
   $scope.navigate = navigate;
   $scope.agents = live(({ ship, route }) => ship.agents.summaries());
-  if (typeof setup === "function") {
-    const __r = setup(ctx);
-    if (__r && typeof __r === "object") Object.assign($scope, __r);
-  } else if (setup && typeof setup.setup === "function") {
+  if (setup && typeof setup.setup === "function") {
     const __r = setup.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
   }

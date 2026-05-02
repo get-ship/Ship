@@ -36,6 +36,7 @@ import './set-tabs/set-tabs.compiled.js'
 import './set-tab/set-tab.compiled.js'
 import './set-empty-state/set-empty-state.compiled.js'
 import './set-input/set-input.compiled.js'
+import './set-terminal/set-terminal.compiled.js'
 
 /**
  * @deprecated Components are now AOT-compiled by `ship-set-compiler`

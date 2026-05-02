@@ -18,7 +18,12 @@ pub fn emit_dts(program: &Program) -> String {
         members.push((d.name.clone(), data_ts_type(d)));
     }
     for p in &program.props {
-        members.push((p.name.clone(), prop_ts_type(p)));
+        // Prop names in templates are kebab-case to match HTML attribute
+        // convention (e.g. `<prop name="font-size">`); the runtime
+        // camelCases them to JS identifiers (`fontSize`) via
+        // ui-runtime/component-factory.ts::camelOf. Scope must agree —
+        // emit the camelCased identifier so `state.fontSize` typechecks.
+        members.push((super::util::camel_of(&p.name), prop_ts_type(p)));
     }
     collect_use_bindings(&program.template, &mut members);
     collect_ref_bindings(&program.template, &mut members);
