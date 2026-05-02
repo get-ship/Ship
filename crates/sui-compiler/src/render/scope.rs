@@ -37,25 +37,6 @@ pub struct InitialScope {
     pub init: Value,
 }
 
-/// Build the initial scope, then merge caller-provided overrides on
-/// top. Phase E-2 fragment renders use this so the runtime can ship the
-/// current state/data envelopes alongside its boundary key — the
-/// renderer walks the IR with the live scope instead of the IR's first-
-/// paint defaults. Unknown keys in `overrides` are still merged in so
-/// callers can pass through `route` / additional ambient values.
-pub fn build_with_overrides(program: &Program, overrides: &Value) -> InitialScope {
-    let mut s = build(program);
-    if let Value::Object(map) = overrides {
-        for (k, v) in map {
-            s.scope.insert(k.clone(), v.clone());
-            if let Value::Object(init_map) = &mut s.init {
-                init_map.insert(k.clone(), v.clone());
-            }
-        }
-    }
-    s
-}
-
 pub fn build(program: &Program) -> InitialScope {
     let mut scope: Scope = Scope::new();
     let mut init: Map<String, Value> = Map::new();

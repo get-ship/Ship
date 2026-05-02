@@ -1,13 +1,5 @@
 #![allow(clippy::doc_lazy_continuation)]
 //! `GET /_sui/render/{view}` — SSR walker debug endpoint.
-//! `POST /_sui/render-fragment/{view}` — Phase E-2 swap-on-change.
-//!
-//! Two ship-set rendering endpoints share `views::sui_render_helpers`
-//! for view-name validation and source lookup. The GET handler lives
-//! here; the POST handler lives in `ship_set_render_fragment.rs` (file
-//! cap).
-//!
-//! ## GET — debug surface
 //!
 //! Phase F-1: an inspection surface that returns the
 //! `sui_compiler::render::render` walker's output for a compiled
@@ -23,29 +15,8 @@
 //! surface as 500 text. Unknown views surface as 404 with the path
 //! that was looked up.
 //!
-//! ## POST — control-flow fragment render (Phase E-2)
-//!
-//! Path: `POST /_sui/render-fragment/{view}`
-//! Body: `{ "init": { <state/data overrides> }, "key": "b<N>" }`
-//!  - `init` is a JSON object whose keys are `<state>` / `<data>`
-//!    declaration names; values replace the IR's first-paint defaults
-//!    so the renderer evaluates expressions against the runtime's
-//!    current scope. Unknown keys (e.g. `route`) are merged in too.
-//!  - `key` is the `b<N>` boundary key the runtime is asking the
-//!    daemon to re-render. Must be a control-flow binding (`If` /
-//!    `For` / `Match` / `Await`); leaf bindings return 400.
-//! Response: `200 application/json` with `{ "html": "...", "init": {...} }`
-//!  - `html` is the body of the boundary — *not* surrounded by the
-//!    `<sui-{kind} key="bN">` wrapper. The
-//!    runtime swaps the wrapper's children, not the wrapper itself.
-//!  - `init` is the merged scope used by the renderer (defaults +
-//!    overrides), mirrored back so the client can confirm what was
-//!    rendered against.
-//! Errors:
-//!  - 400: malformed body / `key` not in registry / `key` is a leaf
-//!    (non-control-flow) binding.
-//!  - 404: unknown `view`.
-//!  - 500: compile / parse error in the embedded view source.
+//! Phase 2 deleted the companion POST `/_sui/render-fragment/{view}`
+//! endpoint — control-flow swap is now client-side, no round trip.
 
 use axum::{
     body::Body,

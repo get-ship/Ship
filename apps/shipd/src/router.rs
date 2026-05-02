@@ -189,15 +189,6 @@ pub fn build_router(
             "/_sui/render/{name}",
             axum::routing::get(views::sui_render::serve_sui_render),
         )
-        // E-2 control-flow swap: the attach runtime POSTs the current
-        // scope + a boundary key, the daemon walks the IR with that
-        // scope and returns the boundary's body HTML.
-        .route(
-            "/_sui/render-fragment/{name}",
-            axum::routing::post(
-                views::sui_render_fragment::serve_sui_render_fragment,
-            ),
-        )
         // Embeddable fragment endpoint — returns SSR markup + scoped
         // __set_init__ island + an inline boot module that calls
         // attach() against `[data-sui-root][data-view="<name>"]`. No

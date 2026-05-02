@@ -42,7 +42,6 @@ pub mod sui_view;
 pub mod sui_attach_boot;
 pub mod sui_view_shell;
 pub mod sui_render;
-pub mod sui_render_fragment;
 pub mod sui_mutation;
 pub mod sui_resolver;
 pub mod sui_fragment;

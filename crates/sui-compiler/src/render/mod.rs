@@ -23,7 +23,6 @@ use crate::keys::BindingRegistry;
 mod control_flow;
 mod escape;
 pub(crate) mod eval;
-mod fragment;
 mod island;
 mod out;
 mod render_for;
@@ -36,7 +35,6 @@ mod walker_attrs;
 mod tests;
 
 pub use escape::{escape_attr_value, escape_text_value, is_void_element};
-pub use fragment::render_fragment;
 
 /// Public entry point.
 #[derive(Debug, Clone)]

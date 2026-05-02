@@ -12,16 +12,16 @@ export default view((ctx) => {
   $scope.navigate = navigate;
   return Object.assign({}, $scope, {
     __mount(container) {
-      const __cleanups = [];
-      const __e0 = document.createElement("button");
-      $scope.btnEl = signal(__e0);
-      __e0.setAttribute("part", "button");
-      const __t1 = document.createTextNode("click");
-      __e0.appendChild(__t1);
-      container.appendChild(__e0);
-      const __t2 = document.createTextNode("\n");
-      container.appendChild(__t2);
-      return () => { for (const c of __cleanups) try { c(); } catch (e) {} };
+const __cleanups = [];
+const __e0 = document.createElement("button");
+$scope.btnEl = signal(__e0);
+__e0.setAttribute("part", "button");
+const __t1 = document.createTextNode("click");
+__e0.appendChild(__t1);
+container.appendChild(__e0);
+const __t2 = document.createTextNode("\n");
+container.appendChild(__t2);
+return () => { for (const c of __cleanups) try { c(); } catch (e) {} };
     },
   });
 });

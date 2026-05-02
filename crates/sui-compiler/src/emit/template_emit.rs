@@ -8,6 +8,21 @@
 //! that pre-compiles each unique expression into a `new Function`
 //! at module load. The DOM-time call site is `__E[idx]($scope)`.
 //!
+//! ## Phase 2 — client-side control flow
+//!
+//! `{#if}` / `{#for}` / `{#match}` boundaries no longer round-trip
+//! through `/_sui/render-fragment/`. Each boundary emits two pieces:
+//!
+//!   1. A hoisted `const __wireBoundary_b<N> = (anchor) => bindIf({...})`
+//!      defined inside `setup(ctx)`. Captures `$scope`. Used by
+//!      `__mount`'s inline path AND by the public attach handler below.
+//!   2. (Views only) A public property `__b<N>_attach: (target) => …`
+//!      on the setup return. `attach()` walks SSR'd
+//!      `<sui-{if|for|match|await} key="b<N>">` elements, finds the
+//!      handler by key, swaps the SSR wrapper for a Comment anchor, and
+//!      invokes the hoisted helper. The first effect-run mounts the
+//!      active branch synchronously, replacing the SSR'd content.
+//!
 //! The emit logic is split across three modules:
 //!  * this file — orchestration, `ExprBank`, the `emit_one` dispatcher
 //!  * `dom_emit` — element + attribute emit
@@ -15,6 +30,7 @@
 
 use super::writer::{js_string, Writer};
 use crate::ir::*;
+use crate::keys::{BindingRegistry, KeyAllocator};
 
 mod control_emit;
 mod dom_emit;
@@ -53,16 +69,37 @@ pub struct TemplateEmitter<'a> {
     /// emitted as named properties on the setup return object (outside
     /// `__mount`) so `attach()` can look them up by `renderKey`.
     pub(super) render_callbacks: Writer,
+    /// Hoisted `const __wireBoundary_b<N> = (anchor) => bindIf(...)`
+    /// declarations for each `{#if}` / `{#for}` / `{#match}` boundary.
+    /// Drained into the setup body before the return statement so the
+    /// helpers are in scope for both `__mount` and `__b<N>_attach`.
+    pub(super) boundary_hoists: Writer,
+    /// `__b<N>_attach: (target) => …` named properties on the setup
+    /// return object. Populated only in view mode; components don't
+    /// have an attach() entry path.
+    pub(super) attach_handlers: Writer,
+    /// Key allocator that mirrors `bindings::Builder` exactly. Bumped at
+    /// every IR position the registry pre-pass would have allocated a
+    /// key — so the `b<N>` we read here for control-flow boundaries
+    /// matches the SSR walker's emitted `<sui-{kind} key="b<N>">`.
+    pub(super) keys: KeyAllocator,
+    /// Whether the current compile mode is `View`. Components don't
+    /// emit `__b<N>_attach` properties (no SSR/attach() path).
+    pub(super) is_view: bool,
 }
 
 impl<'a> TemplateEmitter<'a> {
-    pub fn new(bank: &'a mut ExprBank) -> Self {
+    pub fn new(bank: &'a mut ExprBank, _registry: &'a BindingRegistry, is_view: bool) -> Self {
         Self {
             bank,
             next_id: 0,
             while_loading_idx: 0,
             while_error_idx: 0,
             render_callbacks: Writer::new(),
+            boundary_hoists: Writer::new(),
+            attach_handlers: Writer::new(),
+            keys: KeyAllocator::default(),
+            is_view,
         }
     }
 
@@ -72,10 +109,28 @@ impl<'a> TemplateEmitter<'a> {
         std::mem::replace(&mut self.render_callbacks, Writer::new()).into_string()
     }
 
+    /// Drain the hoisted-handler buffer. Called by `emit_setup_body`
+    /// before the `return` statement so the consts are in scope.
+    pub fn take_boundary_hoists(&mut self) -> String {
+        std::mem::replace(&mut self.boundary_hoists, Writer::new()).into_string()
+    }
+
+    /// Drain the attach-handler property buffer. Called by
+    /// `emit_setup_body` to merge into the view's setup-return object.
+    pub fn take_attach_handlers(&mut self) -> String {
+        std::mem::replace(&mut self.attach_handlers, Writer::new()).into_string()
+    }
+
     pub(super) fn fresh(&mut self, prefix: &str) -> String {
         let id = self.next_id;
         self.next_id += 1;
         format!("__{prefix}{id}")
+    }
+
+    /// Allocate the next `b<N>` key. Mirrors `bindings::Builder::push`
+    /// — call sites must match the registry pre-pass exactly.
+    pub(super) fn next_key(&mut self) -> String {
+        self.keys.alloc()
     }
 
     pub fn emit_top_level(
@@ -125,6 +180,8 @@ impl<'a> TemplateEmitter<'a> {
                 w.line(&format!("{parent_var}.appendChild({v});"));
             }
             Instr::DynamicText { expr } => {
+                // Registry parity: text bindings consume one b<N>.
+                let _ = self.next_key();
                 let v = self.fresh("t");
                 let idx = self.bank.add(&expr.source);
                 w.line(&format!("const {v} = document.createTextNode(\"\");"));

@@ -1,10 +1,7 @@
 //! Shared helpers for the `/_sui/render/{view}` (GET, walker
-//! debug) and `/_sui/render-fragment/{view}` (POST, Phase E-2
-//! control-flow swap) endpoints.
-//!
-//! Both endpoints look the same view source up by name and validate
-//! against the same lowercase-ASCII charset, so the lookup + name
-//! check live here.
+//! debug) endpoint. Phase 2 deleted the
+//! `/_sui/render-fragment/{view}` POST endpoint that paired with
+//! this; all that remains is the GET inspector.
 
 use axum::{
     body::Body,
@@ -31,11 +28,10 @@ pub(super) fn view_source(name: &str) -> Option<&'static str> {
     }
 }
 
-/// Resolve a view's source for render endpoints (GET /_sui/render and
-/// POST /_sui/render-fragment). Tries the bake list first, then falls
-/// back to per-worktree `.ship/views/<name>/index.sui` so project-defined
-/// SUI views (e.g. ship-ui-studio) can be re-rendered by the control-flow
-/// boundary swap path.
+/// Resolve a view's source for the GET /_sui/render debug endpoint.
+/// Tries the bake list first, then falls back to per-worktree
+/// `.ship/views/<name>/index.sui` so project-defined SUI views (e.g.
+/// ship-ui-studio) are still inspectable.
 pub(super) fn render_view_source(name: &str) -> Option<String> {
     if let Some(baked) = view_source(name) {
         return Some(baked.to_string());
@@ -70,10 +66,3 @@ pub(super) fn render_error(message: String) -> Response {
         .unwrap_or_else(|_| Response::new(Body::from("compile error")))
 }
 
-pub(super) fn bad_request(msg: &str) -> Response {
-    Response::builder()
-        .status(StatusCode::BAD_REQUEST)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .body(Body::from(msg.to_string()))
-        .unwrap_or_else(|_| Response::new(Body::from("bad request")))
-}

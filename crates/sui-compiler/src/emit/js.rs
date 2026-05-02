@@ -17,8 +17,11 @@
 //!   $scope.ship = ctx.ship; …
 //!   $scope.count = signal(0);
 //!   …
+//!   const __wireBoundary_b3 = (anchor) => bindIf({ … });
+//!   …
 //!   return Object.assign({}, $scope, {
 //!     __mount(container) { … }
+//!     __b3_attach: (target) => { … },
 //!   });
 //! });
 //! ```
@@ -26,13 +29,21 @@
 //! The expression-closure trick uses `new Function` so the emitted
 //! module is itself plain ESM (strict by spec) but each closure runs
 //! in a non-strict body where `with($scope)` is legal.
+//!
+//! Phase 2 client-side control flow: each `{#if}` / `{#for}` / `{#match}`
+//! emits a hoisted `__wireBoundary_b<N>` (used by both `__mount` and
+//! `__b<N>_attach`) plus a `__b<N>_attach` named property on the view's
+//! setup return. The compiled module exports no manifest entries for
+//! `if` / `for` / `match` / `await` kinds — `attach()` finds these
+//! boundaries by walking SSR'd `<sui-{kind} key="…">` elements and
+//! dispatching to the matching attach handler on the setup return.
 
 use super::template_emit::{ExprBank, TemplateEmitter};
 use super::util::{camel_of, js_ident};
 use super::writer::{js_string, Writer};
 use crate::ir::*;
 use crate::islands::collect_islands;
-use crate::keys::BindingRegistry;
+use crate::keys::{BindingKind, BindingRegistry};
 use crate::lower::{directives::prop_default_literal, Lowered};
 use crate::{CompileMode, CompileOpts};
 
@@ -60,7 +71,7 @@ pub fn emit_module(
     let mut bank = ExprBank::new();
     let mut body = Writer::new();
     body.enter();
-    emit_setup_body(&mut body, program, &mut bank, mode, opts);
+    emit_setup_body(&mut body, program, bindings, &mut bank, mode, opts);
     body.leave();
 
     emit_expr_bank(&mut w, &bank);
@@ -87,6 +98,19 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
     w.enter();
     for b in bindings.iter() {
         if b.suppressed {
+            continue;
+        }
+        // Phase 2: control-flow boundaries no longer surface in the
+        // manifest. attach() finds them by walking SSR'd
+        // `<sui-{kind} key="b<N>">` elements and dispatching to the
+        // setup return's `__b<N>_attach` handler.
+        if matches!(
+            b.kind,
+            BindingKind::If
+                | BindingKind::For
+                | BindingKind::Match
+                | BindingKind::Await
+        ) {
             continue;
         }
         let deps_js = b
@@ -245,6 +269,7 @@ fn build_prop_opts(p: &PropDecl) -> Vec<String> {
 fn emit_setup_body(
     w: &mut Writer,
     program: &Program,
+    bindings: &BindingRegistry,
     bank: &mut ExprBank,
     mode: CompileMode,
     opts: &CompileOpts,
@@ -278,40 +303,62 @@ fn emit_setup_body(
         }
     }
 
-    let mut emitter = TemplateEmitter::new(bank);
+    // Single-pass walk: emit the template body into a side writer so
+    // the emitter's boundary-hoist buffer fills up. Drain hoists into
+    // `w` before writing the body — the `__wireBoundary_b<N>` consts
+    // must be in scope at every bindIf/bindFor call site they wrap.
+    let mut emitter = TemplateEmitter::new(bank, bindings, !is_component);
     if is_component {
-        // Shadow components render into the attached shadow root (the
-        // factory attaches it before setup runs); light components
-        // render into the host. `host.shadowRoot ?? host` is the same
-        // discriminator the runtime hydrate path uses.
-        w.line("const __root = host.shadowRoot ?? host;");
+        let mut tpl_w = Writer::new();
+        tpl_w.line("const __root = host.shadowRoot ?? host;");
         let is_shadow = opts.component_meta.as_ref().map(|m| m.shadow).unwrap_or(false);
         if is_shadow {
-            w.line("if (suiTonesSheet && __root instanceof ShadowRoot) { try { __root.adoptedStyleSheets = [suiTonesSheet, ...(__root.adoptedStyleSheets ?? [])]; } catch {} }");
+            tpl_w.line("if (suiTonesSheet && __root instanceof ShadowRoot) { try { __root.adoptedStyleSheets = [suiTonesSheet, ...(__root.adoptedStyleSheets ?? [])]; } catch {} }");
         }
-        emitter.emit_top_level(w, &program.template, "__root", "__cleanups");
+        emitter.emit_top_level(&mut tpl_w, &program.template, "__root", "__cleanups");
         if opts.setup_url.is_some() {
             // bind:this refs are now in $scope; call mount (if any) with a
             // proxy that reads them lazily — giving the controller access to
             // e.g. `state.termHost()` even though termHost was not yet in
             // $scope when setup.setup(ctx) ran above.
-            emit_component_lifecycle_wiring(w);
+            emit_component_lifecycle_wiring(&mut tpl_w);
         }
-        w.line("return $scope;");
+        tpl_w.line("return $scope;");
+
+        let hoists = emitter.take_boundary_hoists();
+        if !hoists.is_empty() {
+            w.push_str(&hoists);
+        }
+        w.push_str(&tpl_w.into_string());
     } else {
+        let mut mount_w = Writer::new();
+        mount_w.line("const __cleanups = [];");
+        emitter.emit_top_level(
+            &mut mount_w,
+            &program.template,
+            "container",
+            "__cleanups",
+        );
+        mount_w.line("return () => { for (const c of __cleanups) try { c(); } catch (e) {} };");
+
+        let hoists = emitter.take_boundary_hoists();
+        let attach_handlers = emitter.take_attach_handlers();
+        let callbacks = emitter.take_render_callbacks();
+
+        if !hoists.is_empty() {
+            w.push_str(&hoists);
+        }
+
         w.line("return Object.assign({}, $scope, {");
         w.enter();
         w.line("__mount(container) {");
         w.enter();
-        w.line("const __cleanups = [];");
-        emitter.emit_top_level(w, &program.template, "container", "__cleanups");
-        w.line("return () => { for (const c of __cleanups) try { c(); } catch (e) {} };");
+        w.push_str(&mount_w.into_string());
         w.leave();
         w.line("},");
-        // Emit while-loading / while-error render callbacks as named
-        // properties on the setup return so attach() can look them up
-        // by the `renderKey` from the bindings manifest.
-        let callbacks = emitter.take_render_callbacks();
+        if !attach_handlers.is_empty() {
+            w.push_str(&attach_handlers);
+        }
         if !callbacks.is_empty() {
             w.push_str(&callbacks);
         }
@@ -414,4 +461,3 @@ fn emit_component_lifecycle_wiring(w: &mut Writer) {
     w.leave();
     w.line("}");
 }
-
