@@ -3,11 +3,9 @@
 // reactively update their DOM.
 
 import { afterEach, describe, expect, it } from 'vitest'
-// AOT registration: importing the .ts file pulls in the side-effect
-// `import './set-status-dot.compiled.js'`, which calls
-// `customElements.define()` at module load. No `register*` function
-// to call — the import IS the registration.
-import '../src/set-status-dot/set-status-dot'
+// AOT registration: importing the compiled output calls
+// `customElements.define()` at module load.
+import '../src/set-status-dot/set-status-dot.compiled.js'
 
 const containers: HTMLElement[] = []
 const mkContainer = (): HTMLElement => {
