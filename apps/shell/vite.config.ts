@@ -94,6 +94,8 @@ export default defineConfig(({ mode }) => {
 
   // Per-worktree daemon: read port + token from `<daemon_dir>/{port,token}`.
   // Explicit env-var overrides win for tests / CI / one-off forwarding.
+  // daemonDir is stable for a Vite session (keyed on project path hash);
+  // only the port file inside it changes across daemon restarts.
   const daemonDir = resolveDaemonDir();
   const daemonPortFromDir = daemonDir ? readSmall(join(daemonDir, "port")) : "";
   const daemonPort =
@@ -102,7 +104,6 @@ export default defineConfig(({ mode }) => {
     daemonPortFromDir ||
     "9315";
   const daemonPortNum = Number(daemonPort);
-  const daemon = env.VITE_DAEMON_URL ?? `http://127.0.0.1:${daemonPort}`;
 
   // Vite dev port follows daemon port so two worktrees run side-by-side:
   // daemon 9315 → vite 3100; daemon 9385 → vite 3170; etc. Guard against
@@ -110,6 +111,27 @@ export default defineConfig(({ mode }) => {
   // to 3100 when the offset doesn't make sense.
   const offset = daemonPortNum >= 9315 ? daemonPortNum - 9315 : 0;
   const vitePort = Number(env.VITE_PORT ?? process.env.VITE_PORT ?? 3100 + offset);
+
+  // Port resolved per-request (symmetric with token) so daemon restarts on a
+  // different port, worktree switches, or orphan-daemon cleanup never leave
+  // Vite proxying to a stale address. daemonDir is cached above; only the
+  // port file inside it is re-read on each request (cheap, no process spawn).
+  let _lastDaemonUrl = "";
+  function currentDaemonUrl(): string {
+    const explicit = env.VITE_DAEMON_URL ?? process.env.VITE_DAEMON_URL;
+    if (explicit) return explicit;
+
+    const portEnv = env.SHIP_DAEMON_PORT ?? process.env.SHIP_DAEMON_PORT;
+    if (portEnv) return `http://127.0.0.1:${portEnv}`;
+
+    const port = daemonDir ? readSmall(join(daemonDir, "port")) : "";
+    const url = `http://127.0.0.1:${port || "9315"}`;
+    if (_lastDaemonUrl && url !== _lastDaemonUrl) {
+      console.warn(`[vite] proxy target changed: ${_lastDaemonUrl} → ${url}`);
+    }
+    _lastDaemonUrl = url;
+    return url;
+  }
 
   // Token resolved per-request so daemon restarts (which mint a new token)
   // don't require a Vite restart. Precedence: env override → daemon-dir
@@ -138,8 +160,8 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       // Client sees empty string → relative URLs → Vite proxy forwards to
-      // daemon with fresh token. The `daemon` var above is the proxy target
-      // only (server-side), never exposed to the browser.
+      // daemon with fresh token. currentDaemonUrl() resolves server-side per
+      // request and is never exposed to the browser.
       "import.meta.env.VITE_DAEMON_URL": JSON.stringify(""),
       "import.meta.env.VITE_DAEMON_TOKEN": JSON.stringify(""),
     },
@@ -162,7 +184,7 @@ export default defineConfig(({ mode }) => {
         // as same-origin on :3100. Bearer token injected by the proxy so the
         // client code can run with credentials: "include" + cookie only.
         "/api": {
-          target: daemon,
+          router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("proxyReq", (proxyReq) => {
@@ -172,7 +194,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         "/daemon": {
-          target: daemon,
+          router: () => currentDaemonUrl(),
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/daemon/, ""),
         },
@@ -182,7 +204,7 @@ export default defineConfig(({ mode }) => {
         // mutations under /_sui/*. Listed before /_ship so the more-
         // specific prefix wins.
         "/_sui": {
-          target: daemon,
+          router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("proxyReq", (proxyReq) => {
@@ -193,7 +215,7 @@ export default defineConfig(({ mode }) => {
         },
         // SUI full-page views — file-system routed at /sui/<name>.
         "/sui": {
-          target: daemon,
+          router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("proxyReq", (proxyReq) => {
@@ -205,7 +227,7 @@ export default defineConfig(({ mode }) => {
         // SFC components — daemon serves compiled .ship files at
         // /_ship/components/<tag>.js. Same auth + same origin as /api.
         "/_ship": {
-          target: daemon,
+          router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("proxyReq", (proxyReq) => {
