@@ -68,9 +68,10 @@ async fn serve(name: &str, sub_path: Option<&str>) -> Response {
     };
 
     let island_scripts = collect_island_scripts(&resolved.source);
+    let view_css = collect_view_css(name, resolved.source_path.as_deref());
     let safe_name = escape_html(name);
     let body = format!(
-        "{island_scripts}<div data-sui-root data-view=\"{safe_name}\">{html}</div>\n{boot}\n",
+        "{island_scripts}{view_css}<div data-sui-root data-view=\"{safe_name}\">{html}</div>\n{boot}\n",
         html = rendered.html,
         boot = boot_script(&safe_name),
     );
@@ -80,6 +81,34 @@ async fn serve(name: &str, sub_path: Option<&str>) -> Response {
         .header(header::CACHE_CONTROL, "no-cache")
         .body(Body::from(body))
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+}
+
+/// Inline the view's stylesheet (if any) as a `<style>` block. Project views
+/// use `index.css` next to `index.sui`; baked views use `view.css` next to
+/// `view.sui`. Inlining (vs. emitting a `<link>`) avoids an extra HTTP round
+/// trip and avoids the misplaced-link-in-body footgun when the fragment is
+/// inserted via `slot.innerHTML` in shell-mount flows.
+fn collect_view_css(name: &str, source_path: Option<&std::path::Path>) -> String {
+    let css = match name {
+        "agents" => include_str!("../../../../views/agents/view.css").to_string(),
+        "git" => include_str!("../../../../views/git/view.css").to_string(),
+        "counter" => include_str!("../../../../views/counter/view.css").to_string(),
+        _ => match source_path.and_then(|p| p.parent()) {
+            Some(dir) => {
+                // Try index.css (project convention) then view.css (baked
+                // convention). First match wins; absence is silent.
+                std::fs::read_to_string(dir.join("index.css"))
+                    .or_else(|_| std::fs::read_to_string(dir.join("view.css")))
+                    .unwrap_or_default()
+            }
+            None => String::new(),
+        },
+    };
+    if css.is_empty() {
+        String::new()
+    } else {
+        format!("<style data-sui-view-css=\"{}\">{css}</style>", escape_html(name))
+    }
 }
 
 /// Parse `source` and return `<script type="module">` tags for each SUI island
