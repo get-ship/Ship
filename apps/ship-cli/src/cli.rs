@@ -378,6 +378,10 @@ pub enum DaemonCommands {
     Dir,
     /// Remove orphaned worktrees for merged and failed jobs
     Cleanup,
+    /// Kill orphaned daemon processes whose workspace directory is gone.
+    /// Reads each ~/.ship/machine/daemons/<hash>/workspace; if the path no
+    /// longer exists, SIGTERMs the pid (SIGKILL after 3s) and removes the dir.
+    Reap,
     /// Reconcile recorded migration checksums to the current files.
     /// Non-destructive: touches only `_sqlx_migrations`, never any data
     /// table. Use after merging branches that legitimately edited a

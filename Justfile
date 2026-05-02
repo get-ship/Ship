@@ -15,14 +15,22 @@ default:
 
 # ── Daily ────────────────────────────────────────────────────────────────────
 
+# Kill orphaned daemon processes whose workspace directory is gone.
+[group('daily')]
+reap:
+    @scripts/dev/reap.sh
+
 # Build + stash + start the dev daemon for this worktree.
 [group('daily')]
 dev:
+    @just reap
     @scripts/dev/start.sh
+    @echo "shipd running. Run 'just shell-dev' in another shell for the UI."
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
 dev-restart:
+    @just reap
     @scripts/dev/restart.sh
 
 # Stop the daemon serving this worktree.

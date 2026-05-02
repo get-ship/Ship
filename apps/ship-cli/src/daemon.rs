@@ -31,6 +31,7 @@ pub enum DaemonCommand {
     /// `scripts/dev/*` without those reaching into ShipHome internals.
     Dir,
     Cleanup,
+    Reap,
     RepairMigrations { mark_applied: Option<i64> },
     Run { host: String, port: u16, dev: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
@@ -110,6 +111,7 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
             Ok(())
         }
         DaemonCommand::Cleanup => daemon_cleanup(),
+        DaemonCommand::Reap => daemon_reap(),
         DaemonCommand::RepairMigrations { mark_applied } => daemon_repair_migrations(mark_applied),
         DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
@@ -895,6 +897,94 @@ fn daemon_cleanup() -> Result<()> {
         println!("Cleaned: {cleaned}, Errors: {errors}");
     } else {
         println!("Cleaned: {cleaned}");
+    }
+    Ok(())
+}
+
+/// Kill orphaned daemon processes whose workspace directory no longer exists.
+///
+/// For each `~/.ship/machine/daemons/<hash>/` whose `workspace` file records a
+/// path that is gone from the filesystem: SIGTERM the pid (with a 3-second
+/// grace period then SIGKILL), then remove the daemon dir. Daemons whose
+/// workspace is still present are left untouched.
+fn daemon_reap() -> Result<()> {
+    let home = runtime::ShipHome::from_env();
+    let daemons_dir = home.machine_dir().join("daemons");
+
+    if !daemons_dir.exists() {
+        println!("No per-worktree daemon dirs found.");
+        return Ok(());
+    }
+
+    let entries = std::fs::read_dir(&daemons_dir)
+        .with_context(|| format!("cannot read {}", daemons_dir.display()))?;
+
+    let mut reaped = 0usize;
+    let mut live = 0usize;
+
+    for entry in entries.flatten() {
+        let daemon_dir = entry.path();
+        if !daemon_dir.is_dir() {
+            continue;
+        }
+
+        let workspace_file = daemon_dir.join("workspace");
+        if !workspace_file.exists() {
+            continue;
+        }
+
+        let workspace_raw = match std::fs::read_to_string(&workspace_file) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let workspace = workspace_raw.trim();
+        if workspace.is_empty() {
+            continue;
+        }
+
+        if PathBuf::from(workspace).exists() {
+            live += 1;
+            continue;
+        }
+
+        // Workspace gone — kill any live daemon process first.
+        let pid_file = daemon_dir.join("pid");
+        if pid_file.exists() {
+            if let Ok(Some(pid)) = read_pid(&pid_file) {
+                if is_process_alive(pid) {
+                    let _ = std::process::Command::new("kill")
+                        .args(["-TERM", &pid.to_string()])
+                        .status();
+                    let deadline =
+                        std::time::Instant::now() + std::time::Duration::from_secs(3);
+                    while is_process_alive(pid) && std::time::Instant::now() < deadline {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                    }
+                    if is_process_alive(pid) {
+                        let _ = std::process::Command::new("kill")
+                            .args(["-9", &pid.to_string()])
+                            .status();
+                    }
+                }
+            }
+        }
+
+        let hash = daemon_dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("?");
+        std::fs::remove_dir_all(&daemon_dir)
+            .with_context(|| format!("cannot remove {}", daemon_dir.display()))?;
+        println!("  reaped {hash} (workspace={workspace})");
+        reaped += 1;
+    }
+
+    if reaped == 0 && live == 0 {
+        println!("No per-worktree daemon dirs found.");
+    } else if reaped == 0 {
+        println!("Nothing to reap ({live} daemon(s) with live workspaces).");
+    } else {
+        println!("Reaped: {reaped}.");
     }
     Ok(())
 }
