@@ -124,7 +124,7 @@ fn cli_styles_flag_threads_css_into_emitted_module() {
         .arg(&input)
         .args(["--out"])
         .arg(&out)
-        .args(["--component-name", "ship-styled-test", "--component-shadow"])
+        .args(["--component-name", "ship-styled-test"])
         .args(["--styles"])
         .arg(&css)
         .status()

@@ -92,7 +92,7 @@ describe('attach/agents end-to-end (Phase E-2)', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]!
-    expect(url).toBe('/_ship-set/render-fragment/agents')
+    expect(url).toBe('/_sui/render-fragment/agents')
     const body = JSON.parse((init as RequestInit).body as string) as {
       init: Record<string, unknown>
       key: string

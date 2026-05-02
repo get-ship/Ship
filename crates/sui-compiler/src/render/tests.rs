@@ -109,3 +109,46 @@ fn control_flow_kind_classifies_correctly() {
         None
     );
 }
+
+#[test]
+fn live_data_emits_subscribe_url_in_island() {
+    use crate::parse::parse;
+    let src = r#"<data name="overview" source="ship.git.overview()" live /><p>hello</p>"#;
+    let program = parse(src).expect("parse");
+    let opts = RenderOpts { view_name: "git".to_string() };
+    let out = render_default(&program, &opts).expect("render");
+    // The JSON island must contain the subscribe URL.
+    assert!(
+        out.init.get("__subscribe__").and_then(|v| v.as_str()) == Some("/_sui/views/git/sse"),
+        "expected __subscribe__ = /_sui/views/git/sse in init, got: {:?}",
+        out.init
+    );
+    assert!(out.html.contains("/_sui/views/git/sse"), "HTML island must contain subscribe URL");
+}
+
+#[test]
+fn non_live_data_omits_subscribe_url() {
+    use crate::parse::parse;
+    let src = r#"<data name="info" source="ship.git.overview()" /><p>hello</p>"#;
+    let program = parse(src).expect("parse");
+    let opts = RenderOpts { view_name: "git".to_string() };
+    let out = render_default(&program, &opts).expect("render");
+    assert!(
+        out.init.get("__subscribe__").is_none(),
+        "non-live data must not emit __subscribe__, got: {:?}",
+        out.init
+    );
+}
+
+#[test]
+fn mixed_live_and_non_live_emits_subscribe_url() {
+    use crate::parse::parse;
+    let src = r#"<data name="a" source="ship.git.overview()" live /><data name="b" source="ship.git.diff()" /><p>x</p>"#;
+    let program = parse(src).expect("parse");
+    let opts = RenderOpts { view_name: "myview".to_string() };
+    let out = render_default(&program, &opts).expect("render");
+    assert_eq!(
+        out.init.get("__subscribe__").and_then(|v| v.as_str()),
+        Some("/_sui/views/myview/sse"),
+    );
+}

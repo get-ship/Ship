@@ -95,7 +95,7 @@ describe('attach/boundaries', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]!
-    expect(url).toBe('/_ship-set/render-fragment/fixture')
+    expect(url).toBe('/_sui/render-fragment/fixture')
     expect((init as RequestInit).method).toBe('POST')
     const body = JSON.parse((init as RequestInit).body as string) as {
       init: Record<string, unknown>
