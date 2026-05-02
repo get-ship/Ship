@@ -95,14 +95,17 @@ describe('attach / live channel (patch-signals routing)', () => {
     expect(esConstructorCalls).toHaveLength(0)
   })
 
-  it('does NOT open EventSource when liveKeys is empty despite subscribe URL', () => {
-    // subscribe but no live data — shouldn't happen in practice but guard it.
+  it('opens EventSource even when liveKeys is empty so patch-elements can flow', () => {
+    // Phase 0.5: the SSE channel is shared with `patch-elements` events
+    // pushed by agents/SDK. Open it whenever the compiler emits a
+    // subscribe URL, regardless of whether the view declares live data.
     const root = mountWithLiveData({
       count: 0,
       __subscribe__: '/_sui/views/git/sse',
     })
     attach(root, { module: noopModule() })
-    expect(esConstructorCalls).toHaveLength(0)
+    expect(esConstructorCalls).toHaveLength(1)
+    expect(esConstructorCalls[0]).toBe('/_sui/views/git/sse')
   })
 
   it('patch-signals event updates the matching LiveSignal', () => {

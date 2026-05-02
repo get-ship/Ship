@@ -295,10 +295,22 @@ pub fn build_router(
         .ship_route(Route::McpServers, mcp_registry::list_mcp_servers)
         .layer(axum::Extension(registry_state));
 
+    // SUI agent-push: surgical HTML patches over the per-view SSE
+    // channel. Authenticated (Scope::Full) so only the daemon-token
+    // holder or contributor-role agents can publish frames; the view
+    // root is the trust boundary on the runtime side. See
+    // `views::sui_agent_push` for the trust-boundary writeup.
+    let sui_agent_push_routes = Router::new()
+        .route(
+            "/_sui/views/{name}/patch-elements",
+            axum::routing::post(views::sui_agent_push::serve_patch_elements),
+        );
+
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
         .merge(api_ship_routes)
+        .merge(sui_agent_push_routes)
         .nest("/api/v1", hook_routes)
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)

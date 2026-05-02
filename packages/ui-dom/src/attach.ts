@@ -18,8 +18,9 @@
 // Existing `hydrate` / parse-and-build path stays in place;
 // `attach` is a sibling capability targeting SSR'd DOM.
 
-import { route as makeRoute, type LiveState, type RouteSignals, type Signal } from '@ship/ui-runtime'
+import { route as makeRoute, type RouteSignals } from '@ship/ui-runtime'
 import { readInitIsland } from './attach/island'
+import { openLiveChannel } from './attach/live-channel'
 import { indexBindings, walkMarkers } from './attach/manifest'
 import { wireMarker, type WireContext } from './attach/wire'
 
@@ -202,10 +203,12 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
   }
 
   // Open one SSE EventSource per view when the compiler emitted a subscribe
-  // URL (i.e. the view has at least one `<data live />` declaration).
-  // Route each `patch-signals` event by data name to the matching LiveSignal.
-  if (init.subscribe && init.liveKeys.size > 0) {
-    const es = openLiveChannel(init.subscribe, init.scope, init.liveKeys)
+  // URL (i.e. the view has at least one `<data live />` declaration, OR the
+  // view participates in agent-pushed `patch-elements` frames). Route each
+  // `patch-signals` event by data name to the matching LiveSignal, and each
+  // `patch-elements` event to the view-scoped DOM applier.
+  if (init.subscribe) {
+    const es = openLiveChannel(init.subscribe, init.scope, init.liveKeys, root)
     cleanups.push(() => es.close())
   }
 
@@ -278,41 +281,3 @@ function extractLifecycle(ret: unknown): Lifecycle | undefined {
   return undefined
 }
 
-/** Wire format of a `patch-signals` SSE event's data payload. */
-interface PatchSignalsPayload {
-  name: string
-  value: LiveState<unknown>
-}
-
-/**
- * Open one EventSource on `url` and route `patch-signals` events to the
- * matching LiveSignals in `scope`. Only names present in `liveKeys` are
- * updated — unknown names are silently dropped. Returns the EventSource so
- * the caller can close it on dispose.
- */
-function openLiveChannel(
-  url: string,
-  scope: Record<string, Signal<unknown>>,
-  liveKeys: Set<string>,
-): EventSource {
-  const es = new EventSource(url)
-  es.addEventListener('patch-signals', (event: MessageEvent) => {
-    let payload: PatchSignalsPayload
-    try {
-      payload = JSON.parse(event.data as string) as PatchSignalsPayload
-    } catch {
-      console.warn('[ship-set/attach] patch-signals: failed to parse event data', event.data)
-      return
-    }
-    const { name, value } = payload
-    if (!liveKeys.has(name)) return
-    const sig = scope[name]
-    if (!sig) return
-    ;(sig as Signal<LiveState<unknown>>).set(value)
-  })
-  es.addEventListener('error', () => {
-    // EventSource has built-in reconnect; log only to aid debugging.
-    console.debug('[ship-set/attach] SSE channel error on', url, '— will auto-reconnect')
-  })
-  return es
-}
