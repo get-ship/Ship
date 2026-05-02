@@ -50,6 +50,7 @@ pub mod sui_bundle;
 pub mod sui_sse;
 pub mod sui_patches;
 pub mod sui_patch_channel;
+pub mod sui_agent_push;
 mod sui_render_helpers;
 pub mod setup;
 pub mod templates;
