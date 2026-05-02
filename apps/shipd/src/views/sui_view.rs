@@ -87,7 +87,7 @@ pub async fn serve_sui_components() -> Response {
 const SUI_TERMINAL_ISLAND_JS: &str =
     include_str!("../../assets/sui-islands/sui-terminal.js");
 
-/// `GET /_sui/islands/{tag}.js` — per-island SUI component bundle.
+/// `GET /_sui/islands/{tag}/island.js` — per-island SUI component bundle.
 ///
 /// Only serves tags listed in `sui_compiler::islands::SUI_ISLANDS`. Any
 /// other name returns 404 so malformed view output can't induce arbitrary

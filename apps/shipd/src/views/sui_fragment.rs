@@ -96,7 +96,7 @@ fn collect_island_scripts(source: &str) -> String {
         // an arbitrary path into the script src.
         if islands::SUI_ISLANDS.contains(&tag.as_str()) {
             out.push_str(&format!(
-                r#"<script type="module" src="/_sui/islands/{tag}.js"></script>"#
+                r#"<script type="module" src="/_sui/islands/{tag}/island.js"></script>"#
             ));
         }
     }
@@ -188,7 +188,7 @@ mod tests {
         assert_eq!(resp.status(), StatusCode::OK);
         let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
         let body = std::str::from_utf8(&bytes).unwrap();
-        let script_tag = r#"<script type="module" src="/_sui/islands/sui-terminal.js"></script>"#;
+        let script_tag = r#"<script type="module" src="/_sui/islands/sui-terminal/island.js"></script>"#;
         assert!(body.contains(script_tag), "expected island script tag in:\n{body}");
         let script_pos = body.find(script_tag).unwrap();
         let root_pos = body.find("data-sui-root").unwrap();

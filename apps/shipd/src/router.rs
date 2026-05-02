@@ -159,7 +159,7 @@ pub fn build_router(
             axum::routing::get(views::sui_view::serve_sui_components),
         )
         .route(
-            "/_sui/islands/{tag}.js",
+            "/_sui/islands/{tag}/island.js",
             axum::routing::get(views::sui_view::serve_sui_island),
         )
         .route(
