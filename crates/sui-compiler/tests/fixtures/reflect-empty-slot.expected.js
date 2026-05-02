@@ -16,7 +16,7 @@ export default component("reflect-empty-slot-test", {
   const $scope = Object.create(null);
   $scope.label = props.label;
   const __root = host.shadowRoot ?? host;
-  if (suiTonesSheet && __root instanceof ShadowRoot) { __root.adoptedStyleSheets = [suiTonesSheet, ...__root.adoptedStyleSheets]; }
+  if (suiTonesSheet && __root instanceof ShadowRoot) { try { __root.adoptedStyleSheets = [suiTonesSheet, ...(__root.adoptedStyleSheets ?? [])]; } catch {} }
   const __t0 = document.createTextNode("\n\n");
   __root.appendChild(__t0);
   const __e1 = document.createElement("button");

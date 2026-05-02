@@ -287,7 +287,7 @@ fn emit_setup_body(
         w.line("const __root = host.shadowRoot ?? host;");
         let is_shadow = opts.component_meta.as_ref().map(|m| m.shadow).unwrap_or(false);
         if is_shadow {
-            w.line("if (suiTonesSheet && __root instanceof ShadowRoot) { __root.adoptedStyleSheets = [suiTonesSheet, ...__root.adoptedStyleSheets]; }");
+            w.line("if (suiTonesSheet && __root instanceof ShadowRoot) { try { __root.adoptedStyleSheets = [suiTonesSheet, ...(__root.adoptedStyleSheets ?? [])]; } catch {} }");
         }
         emitter.emit_top_level(w, &program.template, "__root", "__cleanups");
         if opts.setup_url.is_some() {
