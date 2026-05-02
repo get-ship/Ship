@@ -136,6 +136,7 @@ apps/shipd/assets/sui-runtime.js
 apps/shipd/assets/sui-dom.js
 apps/shipd/assets/sui-sdk-client.js
 apps/shipd/assets/sui-components.js
+apps/shipd/assets/sui-islands/
 apps/shipd/assets/.cache/
 
 # Legacy shell vendor dir — shell now loads bundles via /api/runtime/assets/*.
@@ -161,6 +162,9 @@ views/*/view.schema.json
 packages/ui-components/src/*/*.compiled.js
 packages/ui-components/src/*/*.schema.json
 packages/ui-components/src/*/*.custom-elements.json
+packages/ui-components/src/islands/*/*.compiled.js
+packages/ui-components/src/islands/*/*.schema.json
+packages/ui-components/src/islands/*/*.custom-elements.json
 
 # Per-view compile cache emitted by sui-compiler / build-bundles.
 views/*/.compiled/

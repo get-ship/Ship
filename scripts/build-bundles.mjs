@@ -12,7 +12,7 @@
 
 import { build, context } from 'esbuild';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync, renameSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync, renameSync, readdirSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -20,6 +20,33 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = resolve(fileURLToPath(import.meta.url), '..', '..');
 const assetsDir = join(repoRoot, 'apps/shipd/assets');
 const cacheDir = join(repoRoot, 'apps/shipd/assets/.cache');
+
+// Discover non-island SUI components: each subdirectory of src/ that is not
+// `islands/` and contains a matching `<name>.sui` file.
+function discoverComponentSources() {
+  const srcDir = join(repoRoot, 'packages/ui-components/src');
+  const results = [];
+  for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name === 'islands') continue;
+    const suiFile = join(srcDir, entry.name, `${entry.name}.sui`);
+    if (existsSync(suiFile)) {
+      results.push({ htmlSet: `packages/ui-components/src/${entry.name}/${entry.name}.sui` });
+    }
+  }
+  return results;
+}
+
+// Discover island tags: each subdirectory of src/islands/ is one island.
+function discoverIslandTags() {
+  const islandsDir = join(repoRoot, 'packages/ui-components/src/islands');
+  if (!existsSync(islandsDir)) return [];
+  return readdirSync(islandsDir, { withFileTypes: true })
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name);
+}
+
+const componentEntries = discoverComponentSources();
+const islandTags = discoverIslandTags();
 
 const targets = [
   { name: 'ship-elements',        entry: 'packages/ship-set/src/web-components/index.ts' },
@@ -31,33 +58,21 @@ const targets = [
   { name: 'sui-runtime',          entry: 'packages/ui-runtime/src/index.ts' },
   { name: 'sui-dom',              entry: 'packages/ui-dom/src/index.ts',          external: ['@ship/ui-runtime'] },
   { name: 'sui-sdk-client',       entry: 'packages/ui-sdk-client/src/index.ts',   external: ['@ship/ui-runtime'] },
-  // ui-components: each SUI primitive's .sui is AOT-compiled by
-  // sui-compiler before esbuild runs. The compiler emits
-  // <tag>.compiled.js next to the source; index.ts side-effect
-  // imports each one, so esbuild inlines the generated
-  // `customElements.define()` calls.
+  // ui-components: each non-island SUI primitive's .sui is AOT-compiled by
+  // sui-compiler before esbuild runs. Island components are excluded here
+  // and emitted as separate bundles below.
   { name: 'sui-components',       entry: 'packages/ui-components/src/index.ts',  external: ['@ship/ui-runtime'],
-    componentSources: [
-      { htmlSet: 'packages/ui-components/src/sui-status-dot/sui-status-dot.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-spinner/sui-spinner.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-badge/sui-badge.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-chip/sui-chip.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-card/sui-card.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-link/sui-link.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-divider/sui-divider.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-skeleton/sui-skeleton.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-stat/sui-stat.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-mark/sui-mark.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-kbd/sui-kbd.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-avatar/sui-avatar.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-progress/sui-progress.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-button/sui-button.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-tabs/sui-tabs.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-tab/sui-tab.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-empty-state/sui-empty-state.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-input/sui-input.sui' },
-      { htmlSet: 'packages/ui-components/src/sui-terminal/sui-terminal.sui' },
-    ] },
+    componentSources: componentEntries },
+  // Per-island bundles — one per packages/ui-components/src/islands/<tag>/.
+  // Each externalises @ship/ui-runtime and @ship/ui-dom so the shared runtime
+  // loads once. Entry is synthesised inline (side-effect import only).
+  ...islandTags.map((tag) => ({
+    name: `sui-islands/${tag}`,
+    islandTag: tag,
+    islandDir: `packages/ui-components/src/islands/${tag}`,
+    external: ['@ship/ui-runtime', '@ship/ui-dom'],
+    componentSources: [{ htmlSet: `packages/ui-components/src/islands/${tag}/${tag}.sui` }],
+  })),
   // Each view: compile .sui via the Rust compiler first (it
   // emits view.js next to view.ts, re-imports view.ts as setup, and
   // exports the `bindings` manifest attach() needs), then esbuild
@@ -171,7 +186,9 @@ async function buildOne(t) {
       await compileSui(cs.htmlSet, { mode: 'component', cssPath: cs.cssPath });
     }
   }
-  const entryAbs = join(repoRoot, t.entry);
+  // Island targets use a synthesised stdin entry instead of a real file.
+  const isIsland = Boolean(t.islandTag);
+  const entryAbs = isIsland ? null : join(repoRoot, t.entry);
   const outfile = join(assetsDir, `${t.name}.js`);
   const cacheFile = join(cacheDir, `${t.name.replace(/[\\/]/g, '__')}.inputs.json`);
   mkdirSync(dirname(outfile), { recursive: true });
@@ -189,9 +206,19 @@ async function buildOne(t) {
     }
   }
 
+  const buildInput = isIsland
+    ? {
+        stdin: {
+          contents: `import './${t.islandTag}.compiled.js';`,
+          resolveDir: join(repoRoot, t.islandDir),
+          loader: 'js',
+        },
+      }
+    : { entryPoints: [entryAbs] };
+
   const result = await build({
     ...baseOpts,
-    entryPoints: [entryAbs],
+    ...buildInput,
     outfile,
     metafile: true,
     ...(t.external ? { external: t.external } : {}),
@@ -221,13 +248,11 @@ async function buildOne(t) {
     }
   }
 
-  // Regression guard (Arc B-1): the components bundle is registration
+  // Regression guard (Arc B-1): the main components bundle is registration
   // by side-effect — `customElements.define()` calls only, no template
-  // parsing. If any future change drags `hydrate` / `parse` /
-  // @ship/ui-dom back in, this asserts and we don't ship the size
-  // regression. Each ported tag must also appear in the bundle so a
-  // missing source file can't quietly fall off the registration list.
-  if (t.componentSources) {
+  // parsing. Island bundles are intentionally excluded from this check
+  // since they externalise @ship/ui-dom.
+  if (t.componentSources && !isIsland) {
     const out = readFileSync(outfile, 'utf8');
     if (/from\s*["']@ship\/ui-dom["']/.test(out)) {
       throw new Error(
