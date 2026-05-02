@@ -40,24 +40,24 @@ const targets = [
   // bundle has no @ship/ui-dom dep — `external` reflects that.
   { name: 'sui-components',       entry: 'packages/ship-set-components/src/index.ts',  external: ['@ship/ui-runtime'],
     componentSources: [
-      { htmlSet: 'packages/ship-set-components/src/set-status-dot/set-status-dot.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-spinner/set-spinner.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-badge/set-badge.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-chip/set-chip.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-card/set-card.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-link/set-link.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-divider/set-divider.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-skeleton/set-skeleton.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-stat/set-stat.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-mark/set-mark.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-kbd/set-kbd.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-avatar/set-avatar.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-progress/set-progress.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-status-dot/set-status-dot.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-spinner/set-spinner.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-badge/set-badge.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-chip/set-chip.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-card/set-card.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-link/set-link.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-divider/set-divider.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-skeleton/set-skeleton.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-stat/set-stat.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-mark/set-mark.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-kbd/set-kbd.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-avatar/set-avatar.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-progress/set-progress.sui' },
       { htmlSet: 'packages/ship-set-components/src/set-button/set-button.sui' },
-      { htmlSet: 'packages/ship-set-components/src/set-tabs/set-tabs.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-tab/set-tab.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-empty-state/set-empty-state.html.set' },
-      { htmlSet: 'packages/ship-set-components/src/set-input/set-input.html.set' },
+      { htmlSet: 'packages/ship-set-components/src/set-tabs/set-tabs.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-tab/set-tab.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-empty-state/set-empty-state.sui' },
+      { htmlSet: 'packages/ship-set-components/src/set-input/set-input.sui' },
     ] },
   // Each view: compile .sui via the Rust compiler first (it
   // emits view.js next to view.ts, re-imports view.ts as setup, and
@@ -89,38 +89,17 @@ function hashTree(entryAbs) {
 }
 
 /**
- * Read the component metadata from a `<stem>.sui.json` file next to the
- * `.html.set` source. Falls back to the directory name if the file is absent.
- */
-function readComponentMeta(suiPath) {
-  const inputAbs = join(repoRoot, suiPath);
-  const dir = dirname(inputAbs);
-  const stem = basename(inputAbs).replace(/\.html\.set$/, '').replace(/\.sui$/, '');
-  const metaPath = join(dir, `${stem}.sui.json`);
-  try {
-    const raw = readFileSync(metaPath, 'utf8');
-    const meta = JSON.parse(raw);
-    return {
-      name: meta.component ?? stem,
-      shadow: meta.shadow ?? false,
-      setup: meta.setup === true,
-    };
-  } catch {
-    return { name: stem, shadow: false, setup: false };
-  }
-}
-
-/**
  * Run the Rust sui-compiler against a single `.sui` source.
+ *
+ * The directory IS the component:
+ *   - tag name = filename stem (e.g. `set-button.sui` → `<set-button>`)
+ *   - shadow = always on
+ *   - paired controller = `<stem>.ts` next to source, auto-detected by the compiler
  *
  * Views: emitted `<stem>.js` carries the `bindings` manifest + the
  * default-export setup that re-imports the paired controller `.ts`.
  * esbuild then bundles the compiled file, inlining the controller.
  *
- * Components: reads `<stem>.sui.json` for the tag name and shadow flag,
- * then passes `--component-name` / `--component-shadow` to the compiler.
- * The build script renames the output to `<stem>.compiled.js` so the .ts
- * side-effect import (`import './<stem>.compiled.js'`) is unambiguous.
  * When `cssPath` is supplied, the CSS is prepended as a `<style>` block.
  */
 async function compileSui(suiPath, opts = {}) {
@@ -128,22 +107,16 @@ async function compileSui(suiPath, opts = {}) {
   const { spawnSync } = await import('node:child_process');
   const inputAbs = join(repoRoot, suiPath);
   const outDir = dirname(inputAbs);
-  const stem = basename(inputAbs).replace(/\.html\.set$/, '').replace(/\.sui$/, '');
+  const stem = basename(inputAbs).replace(/\.sui$/, '');
   const args = [
     'run', '--quiet', '-p', 'sui-compiler', '--',
     'build', inputAbs, '--out', outDir,
   ];
   if (mode === 'component') {
-    const meta = readComponentMeta(suiPath);
-    args.push('--component-name', meta.name);
-    if (meta.shadow) args.push('--component-shadow');
-    // Paired controller is opt-in via `"setup": true` in <stem>.sui.json.
-    // Most ported components have a side-effect `<stem>.ts` that just
-    // imports the compiled.js — those don't `export default` a setup
-    // function and the compiler must skip emitting the paired import.
-    if (!meta.setup) {
-      args.push('--no-setup');
-    }
+    // Compiler infers tag from filename stem; shadow is always on for
+    // components. No per-component config file. Paired `<stem>.ts`
+    // controllers are auto-detected by the compiler.
+    args.push('--component-name', stem);
   }
   if (cssPath) {
     args.push('--styles', join(repoRoot, cssPath));
@@ -189,7 +162,7 @@ async function buildOne(t) {
   if (t.htmlSet) {
     await compileSui(t.htmlSet);
   }
-  // Components (Arc B-1): compile each ported primitive's .html.set
+  // Components (Arc B-1): compile each ported primitive's .sui
   // ahead-of-time. The compiler's `customElements.define()` call
   // happens as a top-level side-effect of the emitted module; the
   // `<tag>.ts` source-side files just `import './<tag>.compiled.js'`

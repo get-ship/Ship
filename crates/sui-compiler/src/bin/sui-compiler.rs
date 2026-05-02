@@ -30,10 +30,6 @@ enum Command {
         /// Override mode (otherwise auto-detected from --component-name).
         #[arg(long)]
         mode: Option<ModeArg>,
-        /// Skip writing the paired `.ts` setup import even if a
-        /// sibling file exists.
-        #[arg(long)]
-        no_setup: bool,
         /// Suppress emitting the `.sui.d.ts` declaration file.
         #[arg(long)]
         no_dts: bool,
@@ -43,12 +39,10 @@ enum Command {
         #[arg(long)]
         styles: Option<PathBuf>,
         /// Custom element tag name for this component file. Setting this flag
-        /// implies component mode — no `--mode component` needed.
+        /// implies component mode — no `--mode component` needed. When omitted
+        /// for a file in component mode, defaults to the filename stem.
         #[arg(long)]
         component_name: Option<String>,
-        /// Attach a shadow root for this component (pairs with --component-name).
-        #[arg(long)]
-        component_shadow: bool,
     },
 }
 
@@ -72,22 +66,19 @@ impl From<ModeArg> for CompileMode {
 fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.cmd {
-        Command::Build { input, out, mode, no_setup, no_dts, styles, component_name, component_shadow } => {
-            build(input, out, mode, no_setup, no_dts, styles, component_name, component_shadow)
+        Command::Build { input, out, mode, no_dts, styles, component_name } => {
+            build(input, out, mode, no_dts, styles, component_name)
         }
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 fn build(
     input: PathBuf,
     out: PathBuf,
     mode: Option<ModeArg>,
-    no_setup: bool,
     no_dts: bool,
     styles: Option<PathBuf>,
     component_name: Option<String>,
-    component_shadow: bool,
 ) -> Result<()> {
     fs::create_dir_all(&out).with_context(|| format!("create out dir {}", out.display()))?;
     let mut targets = Vec::new();
@@ -117,16 +108,35 @@ fn build(
         ),
         None => None,
     };
-    let component_meta = component_name.map(|name| ComponentMeta {
-        name,
-        shadow: component_shadow,
-    });
+    // Component mode: tag name comes from --component-name when supplied,
+    // otherwise defaults to the filename stem at compile-one time. Shadow
+    // is always on for components — no opt-out flag.
     let count = targets.len();
     for path in targets {
-        compile_one(&path, &out, mode.clone(), no_setup, no_dts, styles_text.as_deref(), component_meta.clone())?;
+        let component_meta = match (mode.clone(), component_name.clone()) {
+            (Some(ModeArg::Component), name) => Some(ComponentMeta {
+                name: name.unwrap_or_else(|| stem_of(&path)),
+                shadow: true,
+            }),
+            (_, Some(name)) => Some(ComponentMeta { name, shadow: true }),
+            _ => None,
+        };
+        compile_one(&path, &out, mode.clone(), no_dts, styles_text.as_deref(), component_meta)?;
     }
     println!("compiled {count} file(s)");
     Ok(())
+}
+
+fn stem_of(path: &Path) -> String {
+    path.file_name()
+        .and_then(|f| f.to_str())
+        .map(|s| {
+            s.strip_suffix(".sui")
+                .or_else(|| s.strip_suffix(".html.set"))
+                .unwrap_or(s)
+                .to_string()
+        })
+        .unwrap_or_default()
 }
 
 fn is_sui_source(name: &str) -> bool {
@@ -154,7 +164,6 @@ fn compile_one(
     path: &Path,
     out_dir: &Path,
     mode: Option<ModeArg>,
-    no_setup: bool,
     no_dts: bool,
     styles: Option<&str>,
     component_meta: Option<ComponentMeta>,
@@ -162,11 +171,10 @@ fn compile_one(
     let source = fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
     let mode = mode.map(|m| m.into()).unwrap_or(CompileMode::Auto);
-    let setup_url = if no_setup {
-        None
-    } else {
-        paired_setup(path)
-    };
+    // Paired controller is auto-detected: if `<stem>.ts` exists next to
+    // the source, the compiler emits `import setup from "./<stem>.ts"`.
+    // Authors who want template-only just don't write the .ts file.
+    let setup_url = paired_setup(path);
     let opts = CompileOpts {
         setup_url,
         mode,

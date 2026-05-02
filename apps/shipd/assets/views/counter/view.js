@@ -18,10 +18,7 @@ var view_default2 = view((ctx) => {
   $scope.route = route;
   $scope.navigate = navigate;
   $scope.count = signal(0);
-  if (typeof view_default === "function") {
-    const __r = view_default(ctx);
-    if (__r && typeof __r === "object") Object.assign($scope, __r);
-  } else if (view_default && typeof view_default.setup === "function") {
+  if (view_default && typeof view_default.setup === "function") {
     const __r = view_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
   }

@@ -322,12 +322,12 @@ fn emit_state_decls(w: &mut Writer, program: &Program) {
 }
 
 fn emit_setup_call(w: &mut Writer) {
-    w.line("if (typeof setup === \"function\") {");
-    w.enter();
-    w.line("const __r = setup(ctx);");
-    w.line("if (__r && typeof __r === \"object\") Object.assign($scope, __r);");
-    w.leave();
-    w.line("} else if (setup && typeof setup.setup === \"function\") {");
+    // Author-facing paired-controller shape is `controller(def)` (and
+    // `view(setup)` for views) — both wrap into `{ setup }`. No raw
+    // `function setup(ctx)` author export. Compiler emits a single call
+    // path; if a paired `.ts` returns a non-object, we ignore it instead
+    // of letting it shadow the runtime's $scope.
+    w.line("if (setup && typeof setup.setup === \"function\") {");
     w.enter();
     w.line("const __r = setup.setup(ctx);");
     w.line("if (__r && typeof __r === \"object\") Object.assign($scope, __r);");

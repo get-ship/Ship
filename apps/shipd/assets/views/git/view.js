@@ -124,10 +124,7 @@ var view_default2 = view((ctx) => {
   $scope.navigate = navigate;
   $scope.overview = live(({ ship: ship2, route: route2 }) => ship2.git.overview());
   $scope.tab = signal("changes");
-  if (typeof view_default === "function") {
-    const __r = view_default(ctx);
-    if (__r && typeof __r === "object") Object.assign($scope, __r);
-  } else if (view_default && typeof view_default.setup === "function") {
+  if (view_default && typeof view_default.setup === "function") {
     const __r = view_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
   }
