@@ -16,9 +16,16 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered, is_view: bool, dep
         AttrInstr::Static { .. } => {}
         AttrInstr::Expr { .. } => {
             out.runtime_imports.insert("bindAttr");
+            if direct_emit {
+                out.dom_imports.insert("collectElementMarkers");
+                out.dom_imports.insert("hydrateAttr");
+            }
         }
         AttrInstr::DynamicAttr { .. } => {
             out.runtime_imports.insert("effect");
+            if direct_emit {
+                out.dom_imports.insert("collectElementMarkers");
+            }
         }
         AttrInstr::BindValue { .. } => {
             out.runtime_imports.insert("bindValue");

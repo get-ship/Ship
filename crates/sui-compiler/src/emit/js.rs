@@ -109,7 +109,9 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
         // Phase 3b.4: `on:*` event bindings are direct-emit too —
         // `collectElementMarkers` finds the SSR'd `on:{event}="bN"`
         // attribute and `hydrateOn` wires the listener via the runtime
-        // `on()` modifier pipeline.
+        // `on()` modifier pipeline. `attr:*` and `attr-dynamic` follow
+        // the same shape — `hydrateAttr` for static-named attrs, an
+        // inline `effect` block for dynamic-named ones (matches CSR).
         if matches!(
             b.kind,
             BindingKind::If
@@ -118,6 +120,8 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
                 | BindingKind::Await
                 | BindingKind::Text
                 | BindingKind::On(_)
+                | BindingKind::Attr(_)
+                | BindingKind::AttrDynamic
         ) {
             continue;
         }

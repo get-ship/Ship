@@ -740,10 +740,7 @@ var view_default2 = view((ctx) => {
 });
 var bindings = [
   { key: "b3", kind: "while-loading", expr: "agents", deps: ["agents"], renderKey: "__renderWhileLoading_0" },
-  { key: "b4", kind: "while-error", expr: "agents", deps: ["agents"], renderKey: "__renderWhileError_0" },
-  { key: "b10", kind: "attr:navigable", expr: "'/agents/' + a.id", deps: ["a"] },
-  { key: "b21", kind: "attr:provider", expr: "p", deps: ["p"] },
-  { key: "b22", kind: "attr:title", expr: "p", deps: ["p"] }
+  { key: "b4", kind: "while-error", expr: "agents", deps: ["agents"], renderKey: "__renderWhileError_0" }
 ];
 export {
   bindings,

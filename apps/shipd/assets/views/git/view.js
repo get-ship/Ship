@@ -1573,18 +1573,7 @@ var view_default2 = view((ctx) => {
 var bindings = [
   { key: "b0", kind: "while-loading", expr: "overview", deps: ["overview"], renderKey: "__renderWhileLoading_0" },
   { key: "b1", kind: "while-error", expr: "overview", deps: ["overview"], renderKey: "__renderWhileError_0" },
-  { key: "b8", kind: "attr:tone", expr: "clean() ? 'success' : 'warning'", deps: ["clean"] },
-  { key: "b10", kind: "attr:active", expr: "tab() === 'changes'", deps: ["tab"] },
-  { key: "b11", kind: "attr:count", expr: "totalChanged() + ''", deps: ["totalChanged"] },
-  { key: "b13", kind: "attr:active", expr: "tab() === 'history'", deps: ["tab"] },
-  { key: "b14", kind: "attr:count", expr: "commitsCount() + ''", deps: ["commitsCount"] },
-  { key: "b16", kind: "attr:active", expr: "tab() === 'branches'", deps: ["tab"] },
-  { key: "b17", kind: "attr:count", expr: "branchesCount() + ''", deps: ["branchesCount"] },
-  { key: "b27", kind: "attr:name", expr: "c.author", deps: ["c"] },
-  { key: "b36", kind: "attr:class", expr: "b.active ? 'git-icon-active' : 'git-icon-muted'", deps: ["b"] },
-  { key: "b54", kind: "bind:value", expr: "commitFilter.query", deps: ["commitFilter"] },
-  { key: "b60", kind: "attr:name", expr: "c.author", deps: ["c"] },
-  { key: "b70", kind: "attr:class", expr: "b.active ? 'git-icon-active' : 'git-icon-muted'", deps: ["b"] }
+  { key: "b54", kind: "bind:value", expr: "commitFilter.query", deps: ["commitFilter"] }
 ];
 export {
   bindings,
