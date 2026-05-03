@@ -77,7 +77,7 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
         }
         Instr::Element(el) => {
             for a in &el.attrs {
-                bindings::collect_attr_imports(a, out);
+                bindings::collect_attr_imports(a, out, is_view, *depth);
             }
             walk_instrs(&el.children, out, is_view, depth);
         }

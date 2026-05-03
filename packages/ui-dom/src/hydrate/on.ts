@@ -1,24 +1,17 @@
 // Event-handler hydrator (`on:<event>`).
 //
-// The compiler emits `hydrateOn(el, 'click', () => $scope.handler)` —
-// each fire reads the getter so the handler can swap when the
-// underlying signal changes (rare, but preserves the property authors
-// expect when `on:` is conditional).
+// Thin wrapper over the runtime `on()` so direct-emit hydrate paths
+// share the modifier pipeline with `__mount`. The compiler resolves
+// the handler closure at hydrate time (via the same IIFE pattern it
+// uses in `__mount`) and passes it in alongside the modifier list.
+
+import { on, type Modifier } from '@ship/ui-runtime'
 
 export function hydrateOn(
   el: Element,
   event: string,
-  handlerGetter: () => unknown,
+  handler: (e: Event) => unknown,
+  modifiers: readonly Modifier[] = [],
 ): () => void {
-  const listener = (e: Event): void => {
-    const handler = handlerGetter()
-    if (typeof handler !== 'function') return
-    try {
-      ;(handler as (e: Event) => unknown)(e)
-    } catch (err) {
-      console.error('[ship-set/hydrate] on:' + event + ' handler threw:', err)
-    }
-  }
-  el.addEventListener(event, listener)
-  return () => el.removeEventListener(event, listener)
+  return on(el, event, handler, { modifiers: modifiers as Modifier[] })
 }

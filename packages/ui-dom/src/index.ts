@@ -31,6 +31,7 @@ export {
   walk,
   hydrateText,
   collectTextOpens,
+  collectElementMarkers,
   hydrateAttr,
   hydrateClass,
   hydrateStyle,

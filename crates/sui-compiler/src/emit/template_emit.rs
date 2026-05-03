@@ -70,6 +70,11 @@ pub struct TemplateEmitter {
     /// True iff `hydrate_calls` includes any text-binding wiring — drives
     /// the `collectTextOpens(root)` preamble emit in `js.rs`.
     pub(super) hydrate_uses_text: bool,
+    /// True iff `hydrate_calls` includes any element-binding wiring
+    /// (`on:*`, `attr:*`, `class:*`, `style:*`, `bind:value`, `bind:this`)
+    /// — drives the `collectElementMarkers(root)` preamble emit in
+    /// `js.rs`.
+    pub(super) hydrate_uses_markers: bool,
     /// Depth counter for emits inside `{#if}` / `{#for}` / `{#match}` /
     /// `{#while-*}` bodies. Hydrate calls fire only at depth 0 — bindings
     /// inside boundary subtrees are wired by the boundary's own render
@@ -99,6 +104,7 @@ impl TemplateEmitter {
             attach_handlers: Writer::new(),
             hydrate_calls: Writer::new(),
             hydrate_uses_text: false,
+            hydrate_uses_markers: false,
             boundary_depth: 0,
             keys: KeyAllocator::default(),
             is_view,
@@ -134,6 +140,13 @@ impl TemplateEmitter {
     /// preamble (i.e. at least one text binding migrated).
     pub fn hydrate_uses_text(&self) -> bool {
         self.hydrate_uses_text
+    }
+
+    /// Whether `take_hydrate_calls` will need the
+    /// `collectElementMarkers(root)` preamble (i.e. at least one
+    /// element-bound leaf kind migrated).
+    pub fn hydrate_uses_markers(&self) -> bool {
+        self.hydrate_uses_markers
     }
 
     pub(super) fn fresh(&mut self, prefix: &str) -> String {

@@ -87,13 +87,26 @@ impl TemplateEmitter {
                 ));
             }
             AttrInstr::On { event, handler, modifiers, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&handler.source, &[]);
                 let mods_js = serialize_modifiers(modifiers);
                 w.line(&format!(
                     "{cleanups_var}.push(on({el_var}, {ev}, (function () {{ const __h = ({rw}); return (typeof __h === \"function\") ? __h.bind(undefined) : (() => {{}}); }})(), {{ modifiers: {mods_js} }}));",
                     ev = js_string(event)
                 ));
+                // Phase 3b.4: at depth 0 in views, also emit a direct
+                // hydrate call so SSR'd `on:{event}="bN"` markers wire
+                // up without going through the runtime walker /
+                // `bindings` manifest. The matching `on:*` manifest
+                // entry is suppressed in `js.rs::emit_bindings`.
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateOn(__m[{k}], {ev}, (function () {{ const __h = ({rw}); return (typeof __h === \"function\") ? __h.bind(undefined) : (() => {{}}); }})(), {mods_js}));",
+                        k = js_string(&key),
+                        ev = js_string(event),
+                    ));
+                }
             }
             AttrInstr::Class { name, expr, .. } => {
                 let _ = self.next_key();
