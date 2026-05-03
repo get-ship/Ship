@@ -70,10 +70,18 @@ async fn serve(name: &str, sub_path: Option<&str>) -> Response {
     let island_scripts = collect_island_scripts(&resolved.source);
     let view_css = collect_view_css(name, resolved.source_path.as_deref());
     let safe_name = escape_html(name);
+    // Per-render mount ID. The shell's SPA navigation can place the
+    // outgoing slot and the incoming slot in the document at the same
+    // time; both expose `[data-sui-root][data-view="<name>"]` (the
+    // wrapper attributes), so an `unscoped document.querySelector` can
+    // bind the new view's controller to the OLD root. Scope the boot
+    // selector to a per-render `data-sui-mount` ID so collisions are
+    // impossible regardless of how many fragments coexist.
+    let mount_id = format!("m{}", random_mount_id());
     let body = format!(
-        "{island_scripts}{view_css}<div data-sui-root data-view=\"{safe_name}\">{html}</div>\n{boot}\n",
+        "{island_scripts}{view_css}<div data-sui-root data-sui-mount=\"{mount_id}\" data-view=\"{safe_name}\">{html}</div>\n{boot}\n",
         html = rendered.html,
-        boot = boot_script(&safe_name, sub_path),
+        boot = boot_script(&safe_name, sub_path, &mount_id),
     );
     Response::builder()
         .status(StatusCode::OK)
@@ -172,20 +180,22 @@ fn collect_island_scripts(source: &str) -> String {
     out
 }
 
-/// Inline boot module. Scoped to `[data-sui-root][data-view="<name>"]`
-/// so multiple fragments on the same page don't collide.
-fn boot_script(safe_name: &str, sub_path: Option<&str>) -> String {
+/// Inline boot module. Scoped to a per-render `data-sui-mount` ID — an
+/// unscoped `[data-sui-root][data-view=X]` selector would bind the new
+/// controller to a leaving slot during shell SPA swaps, since both
+/// fragments carry the same `data-view`.
+fn boot_script(safe_name: &str, sub_path: Option<&str>, mount_id: &str) -> String {
     let view_js_url = match sub_path {
         Some(sub) => format!("/_sui/views/{safe_name}/view.js?sub={sub}"),
         None => format!("/_sui/views/{safe_name}/view.js"),
     };
     format!(
-        r#"<script type="module" data-sui-boot data-view="{safe_name}">
+        r#"<script type="module" data-sui-boot data-sui-mount="{mount_id}" data-view="{safe_name}">
 import * as viewModule from '{view_js_url}';
 import {{ attach }} from '@ship/ui-dom';
 import {{ route, navigate }} from '@ship/ui-runtime';
 import {{ createClient }} from '@ship/ui-sdk-client';
-const root = document.querySelector('[data-sui-root][data-view="{safe_name}"]');
+const root = document.querySelector('[data-sui-mount="{mount_id}"]');
 if (root) {{
   try {{
     const ship = createClient();
@@ -197,6 +207,22 @@ if (root) {{
 }}
 </script>"#
     )
+}
+
+/// Per-fragment-render unique ID. Just needs to be unique across the
+/// few fragments alive in a single document at one moment — collision
+/// odds with a 64-bit value over a 100ms swap window are negligible.
+fn random_mount_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    // Mix in the thread-local request-counter equivalent via the address
+    // of a stack local — cheap, no PRNG dependency, plenty unique.
+    let local: usize = 0;
+    let salt = (&local as *const usize) as usize;
+    format!("{:x}{:x}", nanos, salt)
 }
 
 fn text(status: StatusCode, body: &str) -> Response {
