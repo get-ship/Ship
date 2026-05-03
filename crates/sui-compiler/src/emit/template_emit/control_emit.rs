@@ -122,32 +122,51 @@ impl TemplateEmitter {
         if let Some(k) = &instr.key {
             let k_rw = rewrite_for_scope(&k.source, &[var.as_str(), idx_name]);
             h.line(&format!(
-                "key: ({var}, {idx_name}) => {{ const __child = Object.create($scope); __child.{var} = {var}; __child.{idx_name} = {idx_name}; const $scope = __child; return ({k_rw}); }},"
+                "key: ({var}, {idx_name}) => {{ const __child = Object.create($scope); __child.{var} = {var}; __child.{idx_name} = {idx_name}; return (($scope) => ({k_rw}))(__child); }},"
             ));
         }
         h.line(&format!("render: ({var}, {idx_name}) => {{"));
         h.enter();
-        let frag = self.fresh("frag");
-        let cl = self.fresh("c");
         let child_scope = self.fresh("childScope");
         h.line(&format!("const {child_scope} = Object.create($scope);"));
         h.line(&format!("{child_scope}.{var} = {var};"));
         h.line(&format!("{child_scope}.{idx_name} = {idx_name};"));
-        h.line(&format!(
+        // Wrap the body in an IIFE that takes `$scope` as a parameter so
+        // the iteration's child scope shadows the outer `$scope` without
+        // a same-block `const $scope` declaration (which would TDZ on
+        // the `Object.create($scope)` above).
+        h.line("return (($scope) => {");
+        h.enter();
+        let frag = self.fresh("frag");
+        let cl = self.fresh("c");
+        // Walk body into a separate writer so we can inject any nested
+        // boundary hoists (from {#if}/{#for}/{#match} inside the for
+        // body) BEFORE the body consumes them. Without this, nested
+        // hoists would land in `boundary_hoists` and emit at top-level —
+        // closing over the outer `$scope` instead of the iteration's
+        // IIFE-bound one. References like `$scope.item` would then
+        // resolve to undefined inside nested test/render closures.
+        let mut body_w = Writer::new();
+        body_w.line(&format!(
             "const {frag} = document.createDocumentFragment();"
         ));
-        h.line(&format!("const {cl} = [];"));
-        // Per-iteration scope shadowing — nested expressions resolve
-        // `item` against the iteration's child scope.
-        h.line(&format!("const $scope = {child_scope};"));
-        // Walk body once. Body keys are allocated inside this walk and
-        // contribute to the registry's single-iteration key range.
+        body_w.line(&format!("const {cl} = [];"));
+        let hoist_snapshot = self.boundary_hoists.len();
         self.boundary_depth += 1;
-        self.emit_children(&mut h, &instr.body, &frag, &cl);
+        self.emit_children(&mut body_w, &instr.body, &frag, &cl);
         self.boundary_depth -= 1;
+        let captured_hoists = self.boundary_hoists.split_off_from(hoist_snapshot);
+        if !captured_hoists.is_empty() {
+            // Captured hoist text was generated at indent=0; placing it
+            // inside the IIFE leaves it left-aligned (ugly but valid JS).
+            h.push_str(&captured_hoists);
+        }
+        h.push_str(&body_w.into_string());
         h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));
+        h.leave();
+        h.line(&format!("}})({child_scope});"));
         h.leave();
         h.line("},");
         if let Some(eb) = &instr.else_body {
@@ -361,8 +380,6 @@ impl TemplateEmitter {
     }
 
     fn emit_we_render_hoist(&mut self, render_key: &str, error_var: &str, body: &[Instr]) {
-        let frag = self.fresh("frag");
-        let cl = self.fresh("c");
         let child = self.fresh("childScope");
         let var = error_var;
         let mut h = Writer::new();
@@ -370,15 +387,23 @@ impl TemplateEmitter {
         h.enter();
         h.line(&format!("const {child} = Object.create($scope);"));
         h.line(&format!("{child}.{var} = {var};"));
+        // IIFE-shadow `$scope` to avoid the TDZ that would fire if we
+        // declared `const $scope = {child}` in the same block as the
+        // `Object.create($scope)` above.
+        h.line("return (($scope) => {");
+        h.enter();
+        let frag = self.fresh("frag");
+        let cl = self.fresh("c");
         h.line(&format!("const {frag} = document.createDocumentFragment();"));
         h.line(&format!("const {cl} = [];"));
-        h.line(&format!("const $scope = {child};"));
         self.boundary_depth += 1;
         self.emit_children(&mut h, body, &frag, &cl);
         self.boundary_depth -= 1;
         h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));
+        h.leave();
+        h.line(&format!("}})({child});"));
         h.leave();
         h.line("};");
         self.boundary_hoists.push_str(&h.into_string());

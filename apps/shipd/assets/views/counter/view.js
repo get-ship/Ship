@@ -12,7 +12,7 @@ var view_default2 = view((ctx) => {
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
-  $scope.count = signal(0);
+  $scope.count = (ctx && ctx.scope && ctx.scope.count) ?? signal(0);
   if (view_default && typeof view_default.setup === "function") {
     const __r = view_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);

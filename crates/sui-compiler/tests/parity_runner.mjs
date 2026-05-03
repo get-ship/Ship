@@ -18,7 +18,7 @@
 // parity test is the entry point that wires it up.
 
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
-import { join, dirname, fromFileUrl } from 'node:path'
+import { join, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { tmpdir } from 'node:os'
 

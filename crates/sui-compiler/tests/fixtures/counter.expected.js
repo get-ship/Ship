@@ -9,7 +9,7 @@ export default view((ctx) => {
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
-  $scope.count = signal((0));
+  $scope.count = (ctx && ctx.scope && ctx.scope.count) ?? signal((0));
   if (setup && typeof setup.setup === "function") {
     const __r = setup.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);

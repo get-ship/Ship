@@ -66,7 +66,7 @@ var view_default2 = view((ctx) => {
   $scope.route = route;
   $scope.navigate = navigate;
   $scope.overview = live(({ ship: ship2, route: route2 }) => ship2.git.overview());
-  $scope.tab = signal("changes");
+  $scope.tab = (ctx && ctx.scope && ctx.scope.tab) ?? signal("changes");
   if (view_default && typeof view_default.setup === "function") {
     const __r = view_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
@@ -92,130 +92,131 @@ var view_default2 = view((ctx) => {
     } };
   };
   const __renderWhileError_0 = (err) => {
-    const __childScope23 = Object.create($scope2);
-    __childScope23.err = err;
-    const __frag21 = document.createDocumentFragment();
-    const __c22 = [];
-    const $scope2 = __childScope23;
-    const __t24 = document.createTextNode("\n    ");
-    __frag21.appendChild(__t24);
-    const __e25 = document.createElement("p");
-    __e25.setAttribute("class", "git-error");
-    __e25.setAttribute("data-test", "error");
-    const __t26 = document.createTextNode("Failed to load: ");
-    __e25.appendChild(__t26);
-    const __t27 = document.createTextNode("");
-    __e25.appendChild(__t27);
-    __c22.push(bindText(__t27, () => $scope2.err.message));
-    __frag21.appendChild(__e25);
-    const __t28 = document.createTextNode("\n  ");
-    __frag21.appendChild(__t28);
-    return { nodes: Array.from(__frag21.childNodes), cleanup: () => {
-      for (const c of __c22) try {
-        c();
-      } catch (e) {
-      }
-    } };
+    const __childScope21 = Object.create($scope);
+    __childScope21.err = err;
+    return (($scope2) => {
+      const __frag22 = document.createDocumentFragment();
+      const __c23 = [];
+      const __t24 = document.createTextNode("\n    ");
+      __frag22.appendChild(__t24);
+      const __e25 = document.createElement("p");
+      __e25.setAttribute("class", "git-error");
+      __e25.setAttribute("data-test", "error");
+      const __t26 = document.createTextNode("Failed to load: ");
+      __e25.appendChild(__t26);
+      const __t27 = document.createTextNode("");
+      __e25.appendChild(__t27);
+      __c23.push(bindText(__t27, () => $scope2.err.message));
+      __frag22.appendChild(__e25);
+      const __t28 = document.createTextNode("\n  ");
+      __frag22.appendChild(__t28);
+      return { nodes: Array.from(__frag22.childNodes), cleanup: () => {
+        for (const c of __c23) try {
+          c();
+        } catch (e) {
+        }
+      } };
+    })(__childScope21);
   };
   const __wireBoundary_b26 = (anchor) => bindFor({
     anchor,
     items: () => $scope.recentCommits(),
     key: (c, __i) => {
-      const __child = Object.create($scope2);
+      const __child = Object.create($scope);
       __child.c = c;
       __child.__i = __i;
-      const $scope2 = __child;
-      return c.sha;
+      return (($scope2) => c.sha)(__child);
     },
     render: (c, __i) => {
-      const __childScope138 = Object.create($scope2);
-      __childScope138.c = c;
-      __childScope138.__i = __i;
-      const __frag136 = document.createDocumentFragment();
-      const __c137 = [];
-      const $scope2 = __childScope138;
-      const __t139 = document.createTextNode("\n                    ");
-      __frag136.appendChild(__t139);
-      const __e140 = document.createElement("div");
-      __e140.setAttribute("class", "git-row");
-      const __t141 = document.createTextNode("\n                      ");
-      __e140.appendChild(__t141);
-      const __e142 = document.createElement("sui-avatar");
-      __e142.setAttribute("size", "sm");
-      __e142.setAttribute("shape", "round");
-      __c137.push(bindAttr(__e142, "name", () => $scope2.c.author));
-      __e140.appendChild(__e142);
-      const __t143 = document.createTextNode("\n                      ");
-      __e140.appendChild(__t143);
-      const __e144 = document.createElement("div");
-      __e144.setAttribute("class", "git-row-body");
-      const __t145 = document.createTextNode("\n                        ");
-      __e144.appendChild(__t145);
-      const __e146 = document.createElement("div");
-      __e146.setAttribute("class", "git-row-title");
-      const __t147 = document.createTextNode("");
-      __e146.appendChild(__t147);
-      __c137.push(bindText(__t147, () => $scope2.c.subject));
-      __e144.appendChild(__e146);
-      const __t148 = document.createTextNode("\n                        ");
-      __e144.appendChild(__t148);
-      const __e149 = document.createElement("div");
-      __e149.setAttribute("class", "git-row-sub");
-      const __t150 = document.createTextNode("");
-      __e149.appendChild(__t150);
-      __c137.push(bindText(__t150, () => $scope2.c.short_sha));
-      const __t151 = document.createTextNode(" &middot; ");
-      __e149.appendChild(__t151);
-      const __t152 = document.createTextNode("");
-      __e149.appendChild(__t152);
-      __c137.push(bindText(__t152, () => $scope2.c.author));
-      const __t153 = document.createTextNode(" &middot; ");
-      __e149.appendChild(__t153);
-      const __t154 = document.createTextNode("");
-      __e149.appendChild(__t154);
-      __c137.push(bindText(__t154, () => $scope2.c.date));
-      __e144.appendChild(__e149);
-      const __t155 = document.createTextNode("\n                      ");
-      __e144.appendChild(__t155);
-      __e140.appendChild(__e144);
-      const __t156 = document.createTextNode("\n                      ");
-      __e140.appendChild(__t156);
-      const __e157 = document.createElement("div");
-      __e157.setAttribute("class", "git-deltas");
-      const __t158 = document.createTextNode("\n                        ");
-      __e157.appendChild(__t158);
-      const __e159 = document.createElement("span");
-      __e159.setAttribute("class", "git-add");
-      const __t160 = document.createTextNode("+");
-      __e159.appendChild(__t160);
-      const __t161 = document.createTextNode("");
-      __e159.appendChild(__t161);
-      __c137.push(bindText(__t161, () => $scope2.c.additions));
-      __e157.appendChild(__e159);
-      const __t162 = document.createTextNode("\n                        ");
-      __e157.appendChild(__t162);
-      const __e163 = document.createElement("span");
-      __e163.setAttribute("class", "git-del");
-      const __t164 = document.createTextNode("&minus;");
-      __e163.appendChild(__t164);
-      const __t165 = document.createTextNode("");
-      __e163.appendChild(__t165);
-      __c137.push(bindText(__t165, () => $scope2.c.deletions));
-      __e157.appendChild(__e163);
-      const __t166 = document.createTextNode("\n                      ");
-      __e157.appendChild(__t166);
-      __e140.appendChild(__e157);
-      const __t167 = document.createTextNode("\n                    ");
-      __e140.appendChild(__t167);
-      __frag136.appendChild(__e140);
-      const __t168 = document.createTextNode("\n                  ");
-      __frag136.appendChild(__t168);
-      return { nodes: Array.from(__frag136.childNodes), cleanup: () => {
-        for (const c2 of __c137) try {
-          c2();
-        } catch (e) {
-        }
-      } };
+      const __childScope136 = Object.create($scope);
+      __childScope136.c = c;
+      __childScope136.__i = __i;
+      return (($scope2) => {
+        const __frag137 = document.createDocumentFragment();
+        const __c138 = [];
+        const __t139 = document.createTextNode("\n                    ");
+        __frag137.appendChild(__t139);
+        const __e140 = document.createElement("div");
+        __e140.setAttribute("class", "git-row");
+        const __t141 = document.createTextNode("\n                      ");
+        __e140.appendChild(__t141);
+        const __e142 = document.createElement("sui-avatar");
+        __e142.setAttribute("size", "sm");
+        __e142.setAttribute("shape", "round");
+        __c138.push(bindAttr(__e142, "name", () => $scope2.c.author));
+        __e140.appendChild(__e142);
+        const __t143 = document.createTextNode("\n                      ");
+        __e140.appendChild(__t143);
+        const __e144 = document.createElement("div");
+        __e144.setAttribute("class", "git-row-body");
+        const __t145 = document.createTextNode("\n                        ");
+        __e144.appendChild(__t145);
+        const __e146 = document.createElement("div");
+        __e146.setAttribute("class", "git-row-title");
+        const __t147 = document.createTextNode("");
+        __e146.appendChild(__t147);
+        __c138.push(bindText(__t147, () => $scope2.c.subject));
+        __e144.appendChild(__e146);
+        const __t148 = document.createTextNode("\n                        ");
+        __e144.appendChild(__t148);
+        const __e149 = document.createElement("div");
+        __e149.setAttribute("class", "git-row-sub");
+        const __t150 = document.createTextNode("");
+        __e149.appendChild(__t150);
+        __c138.push(bindText(__t150, () => $scope2.c.short_sha));
+        const __t151 = document.createTextNode(" &middot; ");
+        __e149.appendChild(__t151);
+        const __t152 = document.createTextNode("");
+        __e149.appendChild(__t152);
+        __c138.push(bindText(__t152, () => $scope2.c.author));
+        const __t153 = document.createTextNode(" &middot; ");
+        __e149.appendChild(__t153);
+        const __t154 = document.createTextNode("");
+        __e149.appendChild(__t154);
+        __c138.push(bindText(__t154, () => $scope2.c.date));
+        __e144.appendChild(__e149);
+        const __t155 = document.createTextNode("\n                      ");
+        __e144.appendChild(__t155);
+        __e140.appendChild(__e144);
+        const __t156 = document.createTextNode("\n                      ");
+        __e140.appendChild(__t156);
+        const __e157 = document.createElement("div");
+        __e157.setAttribute("class", "git-deltas");
+        const __t158 = document.createTextNode("\n                        ");
+        __e157.appendChild(__t158);
+        const __e159 = document.createElement("span");
+        __e159.setAttribute("class", "git-add");
+        const __t160 = document.createTextNode("+");
+        __e159.appendChild(__t160);
+        const __t161 = document.createTextNode("");
+        __e159.appendChild(__t161);
+        __c138.push(bindText(__t161, () => $scope2.c.additions));
+        __e157.appendChild(__e159);
+        const __t162 = document.createTextNode("\n                        ");
+        __e157.appendChild(__t162);
+        const __e163 = document.createElement("span");
+        __e163.setAttribute("class", "git-del");
+        const __t164 = document.createTextNode("&minus;");
+        __e163.appendChild(__t164);
+        const __t165 = document.createTextNode("");
+        __e163.appendChild(__t165);
+        __c138.push(bindText(__t165, () => $scope2.c.deletions));
+        __e157.appendChild(__e163);
+        const __t166 = document.createTextNode("\n                      ");
+        __e157.appendChild(__t166);
+        __e140.appendChild(__e157);
+        const __t167 = document.createTextNode("\n                    ");
+        __e140.appendChild(__t167);
+        __frag137.appendChild(__e140);
+        const __t168 = document.createTextNode("\n                  ");
+        __frag137.appendChild(__t168);
+        return { nodes: Array.from(__frag137.childNodes), cleanup: () => {
+          for (const c2 of __c138) try {
+            c2();
+          } catch (e) {
+          }
+        } };
+      })(__childScope136);
     }
   });
   const __wireBoundary_b25 = (anchor) => bindIf({
@@ -267,81 +268,81 @@ var view_default2 = view((ctx) => {
     anchor,
     items: () => $scope.recentBranches(),
     key: (b, __i) => {
-      const __child = Object.create($scope2);
+      const __child = Object.create($scope);
       __child.b = b;
       __child.__i = __i;
-      const $scope2 = __child;
-      return b.name;
+      return (($scope2) => b.name)(__child);
     },
     render: (b, __i) => {
-      const __childScope190 = Object.create($scope2);
-      __childScope190.b = b;
-      __childScope190.__i = __i;
-      const __frag188 = document.createDocumentFragment();
-      const __c189 = [];
-      const $scope2 = __childScope190;
-      const __t191 = document.createTextNode("\n                    ");
-      __frag188.appendChild(__t191);
-      const __e192 = document.createElement("div");
-      __e192.setAttribute("class", "git-row");
-      const __t193 = document.createTextNode("\n                      ");
-      __e192.appendChild(__t193);
-      const __e194 = document.createElement("ship-icon");
-      __e194.setAttribute("name", "git-branch");
-      __e194.setAttribute("size", "xs");
-      __c189.push(bindAttr(__e194, "class", () => $scope2.b.active ? "git-icon-active" : "git-icon-muted"));
-      __e192.appendChild(__e194);
-      const __t195 = document.createTextNode("\n                      ");
-      __e192.appendChild(__t195);
-      const __e196 = document.createElement("div");
-      __e196.setAttribute("class", "git-row-body");
-      const __t197 = document.createTextNode("\n                        ");
-      __e196.appendChild(__t197);
-      const __e198 = document.createElement("div");
-      __e198.setAttribute("class", "git-row-title git-mono");
-      const __t199 = document.createTextNode("");
-      __e198.appendChild(__t199);
-      __c189.push(bindText(__t199, () => $scope2.b.name));
-      __e196.appendChild(__e198);
-      const __t200 = document.createTextNode("\n                        ");
-      __e196.appendChild(__t200);
-      const __e201 = document.createElement("div");
-      __e201.setAttribute("class", "git-row-sub");
-      const __t202 = document.createTextNode("");
-      __e201.appendChild(__t202);
-      __c189.push(bindText(__t202, () => $scope2.b.upstream ? $scope2.b.upstream : "local only"));
-      __e196.appendChild(__e201);
-      const __t203 = document.createTextNode("\n                      ");
-      __e196.appendChild(__t203);
-      __e192.appendChild(__e196);
-      const __t204 = document.createTextNode("\n                      ");
-      __e192.appendChild(__t204);
-      const __e205 = document.createElement("div");
-      __e205.setAttribute("class", "git-deltas");
-      const __t206 = document.createTextNode("\n                        ");
-      __e205.appendChild(__t206);
-      const __t207 = document.createTextNode("");
-      __e205.appendChild(__t207);
-      __c189.push(bindText(__t207, () => $scope2.b.ahead > 0 ? "\xC3\xA2\xC2\x86\xC2\x91" + $scope2.b.ahead : ""));
-      const __t208 = document.createTextNode("\n                        ");
-      __e205.appendChild(__t208);
-      const __t209 = document.createTextNode("");
-      __e205.appendChild(__t209);
-      __c189.push(bindText(__t209, () => $scope2.b.behind > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope2.b.behind : ""));
-      const __t210 = document.createTextNode("\n                      ");
-      __e205.appendChild(__t210);
-      __e192.appendChild(__e205);
-      const __t211 = document.createTextNode("\n                    ");
-      __e192.appendChild(__t211);
-      __frag188.appendChild(__e192);
-      const __t212 = document.createTextNode("\n                  ");
-      __frag188.appendChild(__t212);
-      return { nodes: Array.from(__frag188.childNodes), cleanup: () => {
-        for (const c of __c189) try {
-          c();
-        } catch (e) {
-        }
-      } };
+      const __childScope188 = Object.create($scope);
+      __childScope188.b = b;
+      __childScope188.__i = __i;
+      return (($scope2) => {
+        const __frag189 = document.createDocumentFragment();
+        const __c190 = [];
+        const __t191 = document.createTextNode("\n                    ");
+        __frag189.appendChild(__t191);
+        const __e192 = document.createElement("div");
+        __e192.setAttribute("class", "git-row");
+        const __t193 = document.createTextNode("\n                      ");
+        __e192.appendChild(__t193);
+        const __e194 = document.createElement("ship-icon");
+        __e194.setAttribute("name", "git-branch");
+        __e194.setAttribute("size", "xs");
+        __c190.push(bindAttr(__e194, "class", () => $scope2.b.active ? "git-icon-active" : "git-icon-muted"));
+        __e192.appendChild(__e194);
+        const __t195 = document.createTextNode("\n                      ");
+        __e192.appendChild(__t195);
+        const __e196 = document.createElement("div");
+        __e196.setAttribute("class", "git-row-body");
+        const __t197 = document.createTextNode("\n                        ");
+        __e196.appendChild(__t197);
+        const __e198 = document.createElement("div");
+        __e198.setAttribute("class", "git-row-title git-mono");
+        const __t199 = document.createTextNode("");
+        __e198.appendChild(__t199);
+        __c190.push(bindText(__t199, () => $scope2.b.name));
+        __e196.appendChild(__e198);
+        const __t200 = document.createTextNode("\n                        ");
+        __e196.appendChild(__t200);
+        const __e201 = document.createElement("div");
+        __e201.setAttribute("class", "git-row-sub");
+        const __t202 = document.createTextNode("");
+        __e201.appendChild(__t202);
+        __c190.push(bindText(__t202, () => $scope2.b.upstream ? $scope2.b.upstream : "local only"));
+        __e196.appendChild(__e201);
+        const __t203 = document.createTextNode("\n                      ");
+        __e196.appendChild(__t203);
+        __e192.appendChild(__e196);
+        const __t204 = document.createTextNode("\n                      ");
+        __e192.appendChild(__t204);
+        const __e205 = document.createElement("div");
+        __e205.setAttribute("class", "git-deltas");
+        const __t206 = document.createTextNode("\n                        ");
+        __e205.appendChild(__t206);
+        const __t207 = document.createTextNode("");
+        __e205.appendChild(__t207);
+        __c190.push(bindText(__t207, () => $scope2.b.ahead > 0 ? "\xC3\xA2\xC2\x86\xC2\x91" + $scope2.b.ahead : ""));
+        const __t208 = document.createTextNode("\n                        ");
+        __e205.appendChild(__t208);
+        const __t209 = document.createTextNode("");
+        __e205.appendChild(__t209);
+        __c190.push(bindText(__t209, () => $scope2.b.behind > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope2.b.behind : ""));
+        const __t210 = document.createTextNode("\n                      ");
+        __e205.appendChild(__t210);
+        __e192.appendChild(__e205);
+        const __t211 = document.createTextNode("\n                    ");
+        __e192.appendChild(__t211);
+        __frag189.appendChild(__e192);
+        const __t212 = document.createTextNode("\n                  ");
+        __frag189.appendChild(__t212);
+        return { nodes: Array.from(__frag189.childNodes), cleanup: () => {
+          for (const c of __c190) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      })(__childScope188);
     }
   });
   const __wireBoundary_b34 = (anchor) => bindIf({
@@ -393,35 +394,35 @@ var view_default2 = view((ctx) => {
     anchor,
     items: () => $scope.staged(),
     key: (f, __i) => {
-      const __child = Object.create($scope2);
+      const __child = Object.create($scope);
       __child.f = f;
       __child.__i = __i;
-      const $scope2 = __child;
-      return f.path;
+      return (($scope2) => f.path)(__child);
     },
     render: (f, __i) => {
-      const __childScope237 = Object.create($scope2);
-      __childScope237.f = f;
-      __childScope237.__i = __i;
-      const __frag235 = document.createDocumentFragment();
-      const __c236 = [];
-      const $scope2 = __childScope237;
-      const __t238 = document.createTextNode("\n                  ");
-      __frag235.appendChild(__t238);
-      const __e239 = document.createElement("div");
-      __e239.setAttribute("class", "git-fileline git-mono");
-      const __t240 = document.createTextNode("");
-      __e239.appendChild(__t240);
-      __c236.push(bindText(__t240, () => $scope2.f.path));
-      __frag235.appendChild(__e239);
-      const __t241 = document.createTextNode("\n                ");
-      __frag235.appendChild(__t241);
-      return { nodes: Array.from(__frag235.childNodes), cleanup: () => {
-        for (const c of __c236) try {
-          c();
-        } catch (e) {
-        }
-      } };
+      const __childScope235 = Object.create($scope);
+      __childScope235.f = f;
+      __childScope235.__i = __i;
+      return (($scope2) => {
+        const __frag236 = document.createDocumentFragment();
+        const __c237 = [];
+        const __t238 = document.createTextNode("\n                  ");
+        __frag236.appendChild(__t238);
+        const __e239 = document.createElement("div");
+        __e239.setAttribute("class", "git-fileline git-mono");
+        const __t240 = document.createTextNode("");
+        __e239.appendChild(__t240);
+        __c237.push(bindText(__t240, () => $scope2.f.path));
+        __frag236.appendChild(__e239);
+        const __t241 = document.createTextNode("\n                ");
+        __frag236.appendChild(__t241);
+        return { nodes: Array.from(__frag236.childNodes), cleanup: () => {
+          for (const c of __c237) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      })(__childScope235);
     }
   });
   const __wireBoundary_b41 = (anchor) => bindIf({
@@ -472,35 +473,35 @@ var view_default2 = view((ctx) => {
     anchor,
     items: () => $scope.modified(),
     key: (f, __i) => {
-      const __child = Object.create($scope2);
+      const __child = Object.create($scope);
       __child.f = f;
       __child.__i = __i;
-      const $scope2 = __child;
-      return f.path;
+      return (($scope2) => f.path)(__child);
     },
     render: (f, __i) => {
-      const __childScope259 = Object.create($scope2);
-      __childScope259.f = f;
-      __childScope259.__i = __i;
-      const __frag257 = document.createDocumentFragment();
-      const __c258 = [];
-      const $scope2 = __childScope259;
-      const __t260 = document.createTextNode("\n                  ");
-      __frag257.appendChild(__t260);
-      const __e261 = document.createElement("div");
-      __e261.setAttribute("class", "git-fileline git-mono");
-      const __t262 = document.createTextNode("");
-      __e261.appendChild(__t262);
-      __c258.push(bindText(__t262, () => $scope2.f.path));
-      __frag257.appendChild(__e261);
-      const __t263 = document.createTextNode("\n                ");
-      __frag257.appendChild(__t263);
-      return { nodes: Array.from(__frag257.childNodes), cleanup: () => {
-        for (const c of __c258) try {
-          c();
-        } catch (e) {
-        }
-      } };
+      const __childScope257 = Object.create($scope);
+      __childScope257.f = f;
+      __childScope257.__i = __i;
+      return (($scope2) => {
+        const __frag258 = document.createDocumentFragment();
+        const __c259 = [];
+        const __t260 = document.createTextNode("\n                  ");
+        __frag258.appendChild(__t260);
+        const __e261 = document.createElement("div");
+        __e261.setAttribute("class", "git-fileline git-mono");
+        const __t262 = document.createTextNode("");
+        __e261.appendChild(__t262);
+        __c259.push(bindText(__t262, () => $scope2.f.path));
+        __frag258.appendChild(__e261);
+        const __t263 = document.createTextNode("\n                ");
+        __frag258.appendChild(__t263);
+        return { nodes: Array.from(__frag258.childNodes), cleanup: () => {
+          for (const c of __c259) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      })(__childScope257);
     }
   });
   const __wireBoundary_b45 = (anchor) => bindIf({
@@ -551,35 +552,35 @@ var view_default2 = view((ctx) => {
     anchor,
     items: () => $scope.untracked(),
     key: (f, __i) => {
-      const __child = Object.create($scope2);
+      const __child = Object.create($scope);
       __child.f = f;
       __child.__i = __i;
-      const $scope2 = __child;
-      return f.path;
+      return (($scope2) => f.path)(__child);
     },
     render: (f, __i) => {
-      const __childScope281 = Object.create($scope2);
-      __childScope281.f = f;
-      __childScope281.__i = __i;
-      const __frag279 = document.createDocumentFragment();
-      const __c280 = [];
-      const $scope2 = __childScope281;
-      const __t282 = document.createTextNode("\n                  ");
-      __frag279.appendChild(__t282);
-      const __e283 = document.createElement("div");
-      __e283.setAttribute("class", "git-fileline git-mono");
-      const __t284 = document.createTextNode("");
-      __e283.appendChild(__t284);
-      __c280.push(bindText(__t284, () => $scope2.f.path));
-      __frag279.appendChild(__e283);
-      const __t285 = document.createTextNode("\n                ");
-      __frag279.appendChild(__t285);
-      return { nodes: Array.from(__frag279.childNodes), cleanup: () => {
-        for (const c of __c280) try {
-          c();
-        } catch (e) {
-        }
-      } };
+      const __childScope279 = Object.create($scope);
+      __childScope279.f = f;
+      __childScope279.__i = __i;
+      return (($scope2) => {
+        const __frag280 = document.createDocumentFragment();
+        const __c281 = [];
+        const __t282 = document.createTextNode("\n                  ");
+        __frag280.appendChild(__t282);
+        const __e283 = document.createElement("div");
+        __e283.setAttribute("class", "git-fileline git-mono");
+        const __t284 = document.createTextNode("");
+        __e283.appendChild(__t284);
+        __c281.push(bindText(__t284, () => $scope2.f.path));
+        __frag280.appendChild(__e283);
+        const __t285 = document.createTextNode("\n                ");
+        __frag280.appendChild(__t285);
+        return { nodes: Array.from(__frag280.childNodes), cleanup: () => {
+          for (const c of __c281) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      })(__childScope279);
     }
   });
   const __wireBoundary_b49 = (anchor) => bindIf({
@@ -824,101 +825,101 @@ var view_default2 = view((ctx) => {
     anchor,
     items: () => $scope.commitFilter.filtered(),
     key: (c, __i) => {
-      const __child = Object.create($scope2);
+      const __child = Object.create($scope);
       __child.c = c;
       __child.__i = __i;
-      const $scope2 = __child;
-      return c.sha;
+      return (($scope2) => c.sha)(__child);
     },
     render: (c, __i) => {
-      const __childScope326 = Object.create($scope2);
-      __childScope326.c = c;
-      __childScope326.__i = __i;
-      const __frag324 = document.createDocumentFragment();
-      const __c325 = [];
-      const $scope2 = __childScope326;
-      const __t327 = document.createTextNode("\n                ");
-      __frag324.appendChild(__t327);
-      const __e328 = document.createElement("div");
-      __e328.setAttribute("class", "git-history-row");
-      const __t329 = document.createTextNode("\n                  ");
-      __e328.appendChild(__t329);
-      const __e330 = document.createElement("sui-avatar");
-      __e330.setAttribute("size", "sm");
-      __e330.setAttribute("shape", "round");
-      __c325.push(bindAttr(__e330, "name", () => $scope2.c.author));
-      __e328.appendChild(__e330);
-      const __t331 = document.createTextNode("\n                  ");
-      __e328.appendChild(__t331);
-      const __e332 = document.createElement("div");
-      __e332.setAttribute("class", "git-row-body");
-      const __t333 = document.createTextNode("\n                    ");
-      __e332.appendChild(__t333);
-      const __e334 = document.createElement("div");
-      __e334.setAttribute("class", "git-row-title");
-      const __t335 = document.createTextNode("");
-      __e334.appendChild(__t335);
-      __c325.push(bindText(__t335, () => $scope2.c.subject));
-      __e332.appendChild(__e334);
-      const __t336 = document.createTextNode("\n                    ");
-      __e332.appendChild(__t336);
-      const __e337 = document.createElement("div");
-      __e337.setAttribute("class", "git-row-sub git-mono");
-      const __t338 = document.createTextNode("");
-      __e337.appendChild(__t338);
-      __c325.push(bindText(__t338, () => $scope2.c.short_sha));
-      const __t339 = document.createTextNode(" &middot; ");
-      __e337.appendChild(__t339);
-      const __t340 = document.createTextNode("");
-      __e337.appendChild(__t340);
-      __c325.push(bindText(__t340, () => $scope2.c.author));
-      const __t341 = document.createTextNode(" &middot; ");
-      __e337.appendChild(__t341);
-      const __t342 = document.createTextNode("");
-      __e337.appendChild(__t342);
-      __c325.push(bindText(__t342, () => $scope2.c.date));
-      __e332.appendChild(__e337);
-      const __t343 = document.createTextNode("\n                  ");
-      __e332.appendChild(__t343);
-      __e328.appendChild(__e332);
-      const __t344 = document.createTextNode("\n                  ");
-      __e328.appendChild(__t344);
-      const __e345 = document.createElement("div");
-      __e345.setAttribute("class", "git-deltas");
-      const __t346 = document.createTextNode("\n                    ");
-      __e345.appendChild(__t346);
-      const __e347 = document.createElement("span");
-      __e347.setAttribute("class", "git-add");
-      const __t348 = document.createTextNode("+");
-      __e347.appendChild(__t348);
-      const __t349 = document.createTextNode("");
-      __e347.appendChild(__t349);
-      __c325.push(bindText(__t349, () => $scope2.c.additions));
-      __e345.appendChild(__e347);
-      const __t350 = document.createTextNode("\n                    ");
-      __e345.appendChild(__t350);
-      const __e351 = document.createElement("span");
-      __e351.setAttribute("class", "git-del");
-      const __t352 = document.createTextNode("&minus;");
-      __e351.appendChild(__t352);
-      const __t353 = document.createTextNode("");
-      __e351.appendChild(__t353);
-      __c325.push(bindText(__t353, () => $scope2.c.deletions));
-      __e345.appendChild(__e351);
-      const __t354 = document.createTextNode("\n                  ");
-      __e345.appendChild(__t354);
-      __e328.appendChild(__e345);
-      const __t355 = document.createTextNode("\n                ");
-      __e328.appendChild(__t355);
-      __frag324.appendChild(__e328);
-      const __t356 = document.createTextNode("\n              ");
-      __frag324.appendChild(__t356);
-      return { nodes: Array.from(__frag324.childNodes), cleanup: () => {
-        for (const c2 of __c325) try {
-          c2();
-        } catch (e) {
-        }
-      } };
+      const __childScope324 = Object.create($scope);
+      __childScope324.c = c;
+      __childScope324.__i = __i;
+      return (($scope2) => {
+        const __frag325 = document.createDocumentFragment();
+        const __c326 = [];
+        const __t327 = document.createTextNode("\n                ");
+        __frag325.appendChild(__t327);
+        const __e328 = document.createElement("div");
+        __e328.setAttribute("class", "git-history-row");
+        const __t329 = document.createTextNode("\n                  ");
+        __e328.appendChild(__t329);
+        const __e330 = document.createElement("sui-avatar");
+        __e330.setAttribute("size", "sm");
+        __e330.setAttribute("shape", "round");
+        __c326.push(bindAttr(__e330, "name", () => $scope2.c.author));
+        __e328.appendChild(__e330);
+        const __t331 = document.createTextNode("\n                  ");
+        __e328.appendChild(__t331);
+        const __e332 = document.createElement("div");
+        __e332.setAttribute("class", "git-row-body");
+        const __t333 = document.createTextNode("\n                    ");
+        __e332.appendChild(__t333);
+        const __e334 = document.createElement("div");
+        __e334.setAttribute("class", "git-row-title");
+        const __t335 = document.createTextNode("");
+        __e334.appendChild(__t335);
+        __c326.push(bindText(__t335, () => $scope2.c.subject));
+        __e332.appendChild(__e334);
+        const __t336 = document.createTextNode("\n                    ");
+        __e332.appendChild(__t336);
+        const __e337 = document.createElement("div");
+        __e337.setAttribute("class", "git-row-sub git-mono");
+        const __t338 = document.createTextNode("");
+        __e337.appendChild(__t338);
+        __c326.push(bindText(__t338, () => $scope2.c.short_sha));
+        const __t339 = document.createTextNode(" &middot; ");
+        __e337.appendChild(__t339);
+        const __t340 = document.createTextNode("");
+        __e337.appendChild(__t340);
+        __c326.push(bindText(__t340, () => $scope2.c.author));
+        const __t341 = document.createTextNode(" &middot; ");
+        __e337.appendChild(__t341);
+        const __t342 = document.createTextNode("");
+        __e337.appendChild(__t342);
+        __c326.push(bindText(__t342, () => $scope2.c.date));
+        __e332.appendChild(__e337);
+        const __t343 = document.createTextNode("\n                  ");
+        __e332.appendChild(__t343);
+        __e328.appendChild(__e332);
+        const __t344 = document.createTextNode("\n                  ");
+        __e328.appendChild(__t344);
+        const __e345 = document.createElement("div");
+        __e345.setAttribute("class", "git-deltas");
+        const __t346 = document.createTextNode("\n                    ");
+        __e345.appendChild(__t346);
+        const __e347 = document.createElement("span");
+        __e347.setAttribute("class", "git-add");
+        const __t348 = document.createTextNode("+");
+        __e347.appendChild(__t348);
+        const __t349 = document.createTextNode("");
+        __e347.appendChild(__t349);
+        __c326.push(bindText(__t349, () => $scope2.c.additions));
+        __e345.appendChild(__e347);
+        const __t350 = document.createTextNode("\n                    ");
+        __e345.appendChild(__t350);
+        const __e351 = document.createElement("span");
+        __e351.setAttribute("class", "git-del");
+        const __t352 = document.createTextNode("&minus;");
+        __e351.appendChild(__t352);
+        const __t353 = document.createTextNode("");
+        __e351.appendChild(__t353);
+        __c326.push(bindText(__t353, () => $scope2.c.deletions));
+        __e345.appendChild(__e351);
+        const __t354 = document.createTextNode("\n                  ");
+        __e345.appendChild(__t354);
+        __e328.appendChild(__e345);
+        const __t355 = document.createTextNode("\n                ");
+        __e328.appendChild(__t355);
+        __frag325.appendChild(__e328);
+        const __t356 = document.createTextNode("\n              ");
+        __frag325.appendChild(__t356);
+        return { nodes: Array.from(__frag325.childNodes), cleanup: () => {
+          for (const c2 of __c326) try {
+            c2();
+          } catch (e) {
+          }
+        } };
+      })(__childScope324);
     }
   });
   const __wireBoundary_b57 = (anchor) => bindIf({
@@ -1046,84 +1047,84 @@ var view_default2 = view((ctx) => {
     anchor,
     items: () => $scope.branches(),
     key: (b, __i) => {
-      const __child = Object.create($scope2);
+      const __child = Object.create($scope);
       __child.b = b;
       __child.__i = __i;
-      const $scope2 = __child;
-      return b.name;
+      return (($scope2) => b.name)(__child);
     },
     render: (b, __i) => {
-      const __childScope386 = Object.create($scope2);
-      __childScope386.b = b;
-      __childScope386.__i = __i;
-      const __frag384 = document.createDocumentFragment();
-      const __c385 = [];
-      const $scope2 = __childScope386;
-      const __t387 = document.createTextNode("\n                ");
-      __frag384.appendChild(__t387);
-      const __e388 = document.createElement("div");
-      __e388.setAttribute("class", "git-history-row");
-      const __t389 = document.createTextNode("\n                  ");
-      __e388.appendChild(__t389);
-      const __e390 = document.createElement("ship-icon");
-      __e390.setAttribute("name", "git-branch");
-      __e390.setAttribute("size", "sm");
-      __c385.push(bindAttr(__e390, "class", () => $scope2.b.active ? "git-icon-active" : "git-icon-muted"));
-      __e388.appendChild(__e390);
-      const __t391 = document.createTextNode("\n                  ");
-      __e388.appendChild(__t391);
-      const __e392 = document.createElement("div");
-      __e392.setAttribute("class", "git-row-body");
-      const __t393 = document.createTextNode("\n                    ");
-      __e392.appendChild(__t393);
-      const __e394 = document.createElement("div");
-      __e394.setAttribute("class", "git-row-title git-mono");
-      const __t395 = document.createTextNode("");
-      __e394.appendChild(__t395);
-      __c385.push(bindText(__t395, () => $scope2.b.name));
-      const __t396 = document.createTextNode("");
-      __e394.appendChild(__t396);
-      __c385.push(bindText(__t396, () => $scope2.b.active ? " (HEAD)" : ""));
-      __e392.appendChild(__e394);
-      const __t397 = document.createTextNode("\n                    ");
-      __e392.appendChild(__t397);
-      const __e398 = document.createElement("div");
-      __e398.setAttribute("class", "git-row-sub");
-      const __t399 = document.createTextNode("");
-      __e398.appendChild(__t399);
-      __c385.push(bindText(__t399, () => $scope2.b.upstream ? $scope2.b.upstream : "local only"));
-      __e392.appendChild(__e398);
-      const __t400 = document.createTextNode("\n                  ");
-      __e392.appendChild(__t400);
-      __e388.appendChild(__e392);
-      const __t401 = document.createTextNode("\n                  ");
-      __e388.appendChild(__t401);
-      const __e402 = document.createElement("div");
-      __e402.setAttribute("class", "git-deltas");
-      const __t403 = document.createTextNode("\n                    ");
-      __e402.appendChild(__t403);
-      const __t404 = document.createTextNode("");
-      __e402.appendChild(__t404);
-      __c385.push(bindText(__t404, () => $scope2.b.ahead > 0 ? "\xC3\xA2\xC2\x86\xC2\x91" + $scope2.b.ahead : ""));
-      const __t405 = document.createTextNode("\n                    ");
-      __e402.appendChild(__t405);
-      const __t406 = document.createTextNode("");
-      __e402.appendChild(__t406);
-      __c385.push(bindText(__t406, () => $scope2.b.behind > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope2.b.behind : ""));
-      const __t407 = document.createTextNode("\n                  ");
-      __e402.appendChild(__t407);
-      __e388.appendChild(__e402);
-      const __t408 = document.createTextNode("\n                ");
-      __e388.appendChild(__t408);
-      __frag384.appendChild(__e388);
-      const __t409 = document.createTextNode("\n              ");
-      __frag384.appendChild(__t409);
-      return { nodes: Array.from(__frag384.childNodes), cleanup: () => {
-        for (const c of __c385) try {
-          c();
-        } catch (e) {
-        }
-      } };
+      const __childScope384 = Object.create($scope);
+      __childScope384.b = b;
+      __childScope384.__i = __i;
+      return (($scope2) => {
+        const __frag385 = document.createDocumentFragment();
+        const __c386 = [];
+        const __t387 = document.createTextNode("\n                ");
+        __frag385.appendChild(__t387);
+        const __e388 = document.createElement("div");
+        __e388.setAttribute("class", "git-history-row");
+        const __t389 = document.createTextNode("\n                  ");
+        __e388.appendChild(__t389);
+        const __e390 = document.createElement("ship-icon");
+        __e390.setAttribute("name", "git-branch");
+        __e390.setAttribute("size", "sm");
+        __c386.push(bindAttr(__e390, "class", () => $scope2.b.active ? "git-icon-active" : "git-icon-muted"));
+        __e388.appendChild(__e390);
+        const __t391 = document.createTextNode("\n                  ");
+        __e388.appendChild(__t391);
+        const __e392 = document.createElement("div");
+        __e392.setAttribute("class", "git-row-body");
+        const __t393 = document.createTextNode("\n                    ");
+        __e392.appendChild(__t393);
+        const __e394 = document.createElement("div");
+        __e394.setAttribute("class", "git-row-title git-mono");
+        const __t395 = document.createTextNode("");
+        __e394.appendChild(__t395);
+        __c386.push(bindText(__t395, () => $scope2.b.name));
+        const __t396 = document.createTextNode("");
+        __e394.appendChild(__t396);
+        __c386.push(bindText(__t396, () => $scope2.b.active ? " (HEAD)" : ""));
+        __e392.appendChild(__e394);
+        const __t397 = document.createTextNode("\n                    ");
+        __e392.appendChild(__t397);
+        const __e398 = document.createElement("div");
+        __e398.setAttribute("class", "git-row-sub");
+        const __t399 = document.createTextNode("");
+        __e398.appendChild(__t399);
+        __c386.push(bindText(__t399, () => $scope2.b.upstream ? $scope2.b.upstream : "local only"));
+        __e392.appendChild(__e398);
+        const __t400 = document.createTextNode("\n                  ");
+        __e392.appendChild(__t400);
+        __e388.appendChild(__e392);
+        const __t401 = document.createTextNode("\n                  ");
+        __e388.appendChild(__t401);
+        const __e402 = document.createElement("div");
+        __e402.setAttribute("class", "git-deltas");
+        const __t403 = document.createTextNode("\n                    ");
+        __e402.appendChild(__t403);
+        const __t404 = document.createTextNode("");
+        __e402.appendChild(__t404);
+        __c386.push(bindText(__t404, () => $scope2.b.ahead > 0 ? "\xC3\xA2\xC2\x86\xC2\x91" + $scope2.b.ahead : ""));
+        const __t405 = document.createTextNode("\n                    ");
+        __e402.appendChild(__t405);
+        const __t406 = document.createTextNode("");
+        __e402.appendChild(__t406);
+        __c386.push(bindText(__t406, () => $scope2.b.behind > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope2.b.behind : ""));
+        const __t407 = document.createTextNode("\n                  ");
+        __e402.appendChild(__t407);
+        __e388.appendChild(__e402);
+        const __t408 = document.createTextNode("\n                ");
+        __e388.appendChild(__t408);
+        __frag385.appendChild(__e388);
+        const __t409 = document.createTextNode("\n              ");
+        __frag385.appendChild(__t409);
+        return { nodes: Array.from(__frag385.childNodes), cleanup: () => {
+          for (const c of __c386) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      })(__childScope384);
     }
   });
   const __wireBoundary_b68 = (anchor) => bindIf({

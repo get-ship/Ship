@@ -42,6 +42,27 @@ impl Writer {
     pub fn into_string(self) -> String {
         self.buf
     }
+
+    /// Current buffer byte-length. Used by control-flow emitters to
+    /// snapshot the boundary-hoist buffer before walking a nested
+    /// region, then split off the new content via [`split_off_from`]
+    /// so it can be relocated (e.g. inlined inside a for-iteration's
+    /// IIFE so nested boundaries close over the iteration's `$scope`).
+    pub fn len(&self) -> usize {
+        self.buf.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.buf.is_empty()
+    }
+
+    /// Split the buffer at `at` and return the suffix; the writer
+    /// keeps the prefix. Caller is responsible for keeping `at` on a
+    /// UTF-8 char boundary (this is true when `at` came from a prior
+    /// `len()` call against the same buffer).
+    pub fn split_off_from(&mut self, at: usize) -> String {
+        self.buf.split_off(at)
+    }
 }
 
 /// Quote a string as a JS double-quoted literal.

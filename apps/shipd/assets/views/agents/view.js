@@ -47,408 +47,411 @@ var view_default2 = view((ctx) => {
     } };
   };
   const __renderWhileError_0 = (err) => {
-    const __childScope34 = Object.create($scope2);
-    __childScope34.err = err;
-    const __frag32 = document.createDocumentFragment();
-    const __c33 = [];
-    const $scope2 = __childScope34;
-    const __t35 = document.createTextNode("\n      ");
-    __frag32.appendChild(__t35);
-    const __e36 = document.createElement("p");
-    __e36.setAttribute("class", "loading-copy");
-    __e36.setAttribute("data-test", "error");
-    const __t37 = document.createTextNode("Error loading agents: ");
-    __e36.appendChild(__t37);
-    const __t38 = document.createTextNode("");
-    __e36.appendChild(__t38);
-    __c33.push(bindText(__t38, () => $scope2.err.message));
-    __frag32.appendChild(__e36);
-    const __t39 = document.createTextNode("\n    ");
-    __frag32.appendChild(__t39);
-    return { nodes: Array.from(__frag32.childNodes), cleanup: () => {
-      for (const c of __c33) try {
-        c();
-      } catch (e) {
-      }
-    } };
+    const __childScope32 = Object.create($scope);
+    __childScope32.err = err;
+    return (($scope2) => {
+      const __frag33 = document.createDocumentFragment();
+      const __c34 = [];
+      const __t35 = document.createTextNode("\n      ");
+      __frag33.appendChild(__t35);
+      const __e36 = document.createElement("p");
+      __e36.setAttribute("class", "loading-copy");
+      __e36.setAttribute("data-test", "error");
+      const __t37 = document.createTextNode("Error loading agents: ");
+      __e36.appendChild(__t37);
+      const __t38 = document.createTextNode("");
+      __e36.appendChild(__t38);
+      __c34.push(bindText(__t38, () => $scope2.err.message));
+      __frag33.appendChild(__e36);
+      const __t39 = document.createTextNode("\n    ");
+      __frag33.appendChild(__t39);
+      return { nodes: Array.from(__frag33.childNodes), cleanup: () => {
+        for (const c of __c34) try {
+          c();
+        } catch (e) {
+        }
+      } };
+    })(__childScope32);
   };
-  const __wireBoundary_b20 = (anchor) => bindFor({
-    anchor,
-    items: () => $scope.a.providers.slice(0, 4),
-    render: (p, __i) => {
-      const __childScope125 = Object.create($scope2);
-      __childScope125.p = p;
-      __childScope125.__i = __i;
-      const __frag123 = document.createDocumentFragment();
-      const __c124 = [];
-      const $scope2 = __childScope125;
-      const __t126 = document.createTextNode("\n                      ");
-      __frag123.appendChild(__t126);
-      const __e127 = document.createElement("ship-provider-blob");
-      __c124.push(bindAttr(__e127, "provider", () => $scope2.p));
-      __e127.setAttribute("size", "sm");
-      __e127.setAttribute("variant", "glyph");
-      __c124.push(bindAttr(__e127, "title", () => $scope2.p));
-      __frag123.appendChild(__e127);
-      const __t128 = document.createTextNode("\n                    ");
-      __frag123.appendChild(__t128);
-      return { nodes: Array.from(__frag123.childNodes), cleanup: () => {
-        for (const c of __c124) try {
-          c();
-        } catch (e) {
-        }
-      } };
-    }
-  });
-  const __wireBoundary_b23 = (anchor) => bindIf({
-    anchor,
-    test: () => {
-      if ($scope.a.providers.length > 4) return 0;
-      return -1;
-    },
-    branches: [
-      () => {
-        const __frag131 = document.createDocumentFragment();
-        const __c132 = [];
-        const __t133 = document.createTextNode("\n                      ");
-        __frag131.appendChild(__t133);
-        const __e134 = document.createElement("ship-chip");
-        __e134.setAttribute("tone", "muted");
-        __e134.setAttribute("variant", "outline");
-        __e134.setAttribute("size", "sm");
-        const __t135 = document.createTextNode("+");
-        __e134.appendChild(__t135);
-        const __t136 = document.createTextNode("");
-        __e134.appendChild(__t136);
-        __c132.push(bindText(__t136, () => $scope.a.providers.length - 4));
-        __frag131.appendChild(__e134);
-        const __t137 = document.createTextNode("\n                    ");
-        __frag131.appendChild(__t137);
-        return { nodes: Array.from(__frag131.childNodes), cleanup: () => {
-          for (const c of __c132) try {
-            c();
-          } catch (e) {
-          }
-        } };
-      }
-    ]
-  });
-  const __wireBoundary_b19 = (anchor) => bindIf({
-    anchor,
-    test: () => {
-      if ($scope.a.providers && $scope.a.providers.length > 0) return 0;
-      return -1;
-    },
-    branches: [
-      () => {
-        const __frag117 = document.createDocumentFragment();
-        const __c118 = [];
-        const __t119 = document.createTextNode("\n                  ");
-        __frag117.appendChild(__t119);
-        const __e120 = document.createElement("div");
-        __e120.setAttribute("class", "agents-card-providers");
-        __e120.setAttribute("aria-label", "Compiles to");
-        const __t121 = document.createTextNode("\n                    ");
-        __e120.appendChild(__t121);
-        const __forAnchor122 = document.createComment("for");
-        __e120.appendChild(__forAnchor122);
-        __c118.push(__wireBoundary_b20(__forAnchor122));
-        const __t129 = document.createTextNode("\n                    ");
-        __e120.appendChild(__t129);
-        const __ifAnchor130 = document.createComment("if");
-        __e120.appendChild(__ifAnchor130);
-        __c118.push(__wireBoundary_b23(__ifAnchor130));
-        const __t138 = document.createTextNode("\n                  ");
-        __e120.appendChild(__t138);
-        __frag117.appendChild(__e120);
-        const __t139 = document.createTextNode("\n                ");
-        __frag117.appendChild(__t139);
-        return { nodes: Array.from(__frag117.childNodes), cleanup: () => {
-          for (const c of __c118) try {
-            c();
-          } catch (e) {
-          }
-        } };
-      }
-    ]
-  });
-  const __wireBoundary_b26 = (anchor) => bindIf({
-    anchor,
-    test: () => {
-      if ($scope.a.active) return 0;
-      return -1;
-    },
-    branches: [
-      () => {
-        const __frag147 = document.createDocumentFragment();
-        const __c148 = [];
-        const __t149 = document.createTextNode("\n                    ");
-        __frag147.appendChild(__t149);
-        const __e150 = document.createElement("ship-chip");
-        __e150.setAttribute("tone", "primary");
-        __e150.setAttribute("variant", "soft");
-        __e150.setAttribute("size", "sm");
-        const __t151 = document.createTextNode("\n                      ");
-        __e150.appendChild(__t151);
-        const __e152 = document.createElement("sui-status-dot");
-        __e152.setAttribute("slot", "leading");
-        __e152.setAttribute("tone", "primary");
-        __e152.setAttribute("size", "sm");
-        __e152.setAttribute("pulse", "");
-        __e152.setAttribute("label", "Active session");
-        __e150.appendChild(__e152);
-        const __t153 = document.createTextNode("\n                      active session\n                    ");
-        __e150.appendChild(__t153);
-        __frag147.appendChild(__e150);
-        const __t154 = document.createTextNode("\n                  ");
-        __frag147.appendChild(__t154);
-        return { nodes: Array.from(__frag147.childNodes), cleanup: () => {
-          for (const c of __c148) try {
-            c();
-          } catch (e) {
-          }
-        } };
-      }
-    ]
-  });
-  const __wireBoundary_b27 = (anchor) => bindFor({
-    anchor,
-    items: () => ($scope.a.tags || []).slice(0, 2),
-    render: (t, __i) => {
-      const __childScope159 = Object.create($scope2);
-      __childScope159.t = t;
-      __childScope159.__i = __i;
-      const __frag157 = document.createDocumentFragment();
-      const __c158 = [];
-      const $scope2 = __childScope159;
-      const __t160 = document.createTextNode("\n                    ");
-      __frag157.appendChild(__t160);
-      const __e161 = document.createElement("ship-chip");
-      __e161.setAttribute("tone", "muted");
-      __e161.setAttribute("variant", "soft");
-      __e161.setAttribute("size", "sm");
-      const __t162 = document.createTextNode("");
-      __e161.appendChild(__t162);
-      __c158.push(bindText(__t162, () => $scope2.t));
-      __frag157.appendChild(__e161);
-      const __t163 = document.createTextNode("\n                  ");
-      __frag157.appendChild(__t163);
-      return { nodes: Array.from(__frag157.childNodes), cleanup: () => {
-        for (const c of __c158) try {
-          c();
-        } catch (e) {
-        }
-      } };
-    }
-  });
-  const __wireBoundary_b29 = (anchor) => bindIf({
-    anchor,
-    test: () => {
-      if (($scope.a.tags || []).length > 2) return 0;
-      return -1;
-    },
-    branches: [
-      () => {
-        const __frag166 = document.createDocumentFragment();
-        const __c167 = [];
-        const __t168 = document.createTextNode("\n                    ");
-        __frag166.appendChild(__t168);
-        const __e169 = document.createElement("ship-chip");
-        __e169.setAttribute("tone", "muted");
-        __e169.setAttribute("variant", "outline");
-        __e169.setAttribute("size", "sm");
-        const __t170 = document.createTextNode("+");
-        __e169.appendChild(__t170);
-        const __t171 = document.createTextNode("");
-        __e169.appendChild(__t171);
-        __c167.push(bindText(__t171, () => ($scope.a.tags || []).length - 2));
-        __frag166.appendChild(__e169);
-        const __t172 = document.createTextNode("\n                  ");
-        __frag166.appendChild(__t172);
-        return { nodes: Array.from(__frag166.childNodes), cleanup: () => {
-          for (const c of __c167) try {
-            c();
-          } catch (e) {
-          }
-        } };
-      }
-    ]
-  });
   const __wireBoundary_b9 = (anchor) => bindFor({
     anchor,
     items: () => $scope.items(),
     key: (a, __i) => {
-      const __child = Object.create($scope2);
+      const __child = Object.create($scope);
       __child.a = a;
       __child.__i = __i;
-      const $scope2 = __child;
-      return a.id;
+      return (($scope2) => a.id)(__child);
     },
     render: (a, __i) => {
-      const __childScope72 = Object.create($scope2);
-      __childScope72.a = a;
-      __childScope72.__i = __i;
-      const __frag70 = document.createDocumentFragment();
-      const __c71 = [];
-      const $scope2 = __childScope72;
-      const __t73 = document.createTextNode("\n            ");
-      __frag70.appendChild(__t73);
-      const __e74 = document.createElement("ship-list-tile");
-      __e74.setAttribute("variant", "card");
-      __e74.setAttribute("density", "normal");
-      __e74.setAttribute("interactive", "");
-      __c71.push(bindAttr(__e74, "navigable", () => "/agents/" + $scope2.a.id));
-      __e74.setAttribute("class", "agents-card-tile");
-      __e74.setAttribute("data-test", "agent");
-      const __t75 = document.createTextNode("\n              ");
-      __e74.appendChild(__t75);
-      const __e76 = document.createElement("div");
-      __e76.setAttribute("class", "agents-card-icon-tile");
-      __e76.setAttribute("slot", "leading");
-      const __t77 = document.createTextNode("\n                ");
-      __e76.appendChild(__t77);
-      const __e78 = document.createElement("span");
-      __e78.setAttribute("class", "agents-card-letter");
-      const __t79 = document.createTextNode("");
-      __e78.appendChild(__t79);
-      __c71.push(bindText(__t79, () => $scope2.a.letter));
-      __e76.appendChild(__e78);
-      const __t80 = document.createTextNode("\n              ");
-      __e76.appendChild(__t80);
-      __e74.appendChild(__e76);
-      const __t81 = document.createTextNode("\n              ");
-      __e74.appendChild(__t81);
-      const __e82 = document.createElement("div");
-      __e82.setAttribute("class", "agents-card-body");
-      const __t83 = document.createTextNode("\n                ");
-      __e82.appendChild(__t83);
-      const __e84 = document.createElement("div");
-      __e84.setAttribute("class", "agents-card-head");
-      const __t85 = document.createTextNode("\n                  ");
-      __e84.appendChild(__t85);
-      const __e86 = document.createElement("div");
-      __e86.setAttribute("class", "agents-card-title");
-      const __t87 = document.createTextNode("");
-      __e86.appendChild(__t87);
-      __c71.push(bindText(__t87, () => $scope2.a.name));
-      __e84.appendChild(__e86);
-      const __t88 = document.createTextNode("\n                  ");
-      __e84.appendChild(__t88);
-      const __e89 = document.createElement("p");
-      __e89.setAttribute("class", "agents-card-desc");
-      const __t90 = document.createTextNode("");
-      __e89.appendChild(__t90);
-      __c71.push(bindText(__t90, () => $scope2.a.description || "No description"));
-      __e84.appendChild(__e89);
-      const __t91 = document.createTextNode("\n                ");
-      __e84.appendChild(__t91);
-      __e82.appendChild(__e84);
-      const __t92 = document.createTextNode("\n                ");
-      __e82.appendChild(__t92);
-      const __e93 = document.createElement("div");
-      __e93.setAttribute("class", "agents-card-stats");
-      const __t94 = document.createTextNode("\n                  ");
-      __e93.appendChild(__t94);
-      const __e95 = document.createElement("span");
-      const __t96 = document.createTextNode("");
-      __e95.appendChild(__t96);
-      __c71.push(bindText(__t96, () => $scope2.a.skills_count));
-      const __t97 = document.createTextNode(" skill");
-      __e95.appendChild(__t97);
-      const __t98 = document.createTextNode("");
-      __e95.appendChild(__t98);
-      __c71.push(bindText(__t98, () => $scope2.a.skills_count === 1 ? "" : "s"));
-      __e93.appendChild(__e95);
-      const __t99 = document.createTextNode("\n                  ");
-      __e93.appendChild(__t99);
-      const __e100 = document.createElement("span");
-      __e100.setAttribute("class", "agents-card-sep");
-      const __t101 = document.createTextNode("&middot;");
-      __e100.appendChild(__t101);
-      __e93.appendChild(__e100);
-      const __t102 = document.createTextNode("\n                  ");
-      __e93.appendChild(__t102);
-      const __e103 = document.createElement("span");
-      const __t104 = document.createTextNode("");
-      __e103.appendChild(__t104);
-      __c71.push(bindText(__t104, () => $scope2.a.mcp_count));
-      const __t105 = document.createTextNode(" MCP");
-      __e103.appendChild(__t105);
-      __e93.appendChild(__e103);
-      const __t106 = document.createTextNode("\n                  ");
-      __e93.appendChild(__t106);
-      const __e107 = document.createElement("span");
-      __e107.setAttribute("class", "agents-card-sep");
-      const __t108 = document.createTextNode("&middot;");
-      __e107.appendChild(__t108);
-      __e93.appendChild(__e107);
-      const __t109 = document.createTextNode("\n                  ");
-      __e93.appendChild(__t109);
-      const __e110 = document.createElement("span");
-      const __t111 = document.createTextNode("");
-      __e110.appendChild(__t111);
-      __c71.push(bindText(__t111, () => $scope2.a.rules_count));
-      const __t112 = document.createTextNode(" rule");
-      __e110.appendChild(__t112);
-      const __t113 = document.createTextNode("");
-      __e110.appendChild(__t113);
-      __c71.push(bindText(__t113, () => $scope2.a.rules_count === 1 ? "" : "s"));
-      __e93.appendChild(__e110);
-      const __t114 = document.createTextNode("\n                ");
-      __e93.appendChild(__t114);
-      __e82.appendChild(__e93);
-      const __t115 = document.createTextNode("\n                ");
-      __e82.appendChild(__t115);
-      const __ifAnchor116 = document.createComment("if");
-      __e82.appendChild(__ifAnchor116);
-      __c71.push(__wireBoundary_b19(__ifAnchor116));
-      const __t140 = document.createTextNode("\n                ");
-      __e82.appendChild(__t140);
-      const __e141 = document.createElement("div");
-      __e141.setAttribute("class", "agents-card-badges");
-      const __t142 = document.createTextNode("\n                  ");
-      __e141.appendChild(__t142);
-      const __e143 = document.createElement("ship-badge");
-      __e143.setAttribute("tone", "muted");
-      __e143.setAttribute("variant", "outline");
-      __e143.setAttribute("size", "sm");
-      __e143.setAttribute("class", "agents-card-badge-source");
-      const __t144 = document.createTextNode("");
-      __e143.appendChild(__t144);
-      __c71.push(bindText(__t144, () => $scope2.a.source));
-      __e141.appendChild(__e143);
-      const __t145 = document.createTextNode("\n                  ");
-      __e141.appendChild(__t145);
-      const __ifAnchor146 = document.createComment("if");
-      __e141.appendChild(__ifAnchor146);
-      __c71.push(__wireBoundary_b26(__ifAnchor146));
-      const __t155 = document.createTextNode("\n                  ");
-      __e141.appendChild(__t155);
-      const __forAnchor156 = document.createComment("for");
-      __e141.appendChild(__forAnchor156);
-      __c71.push(__wireBoundary_b27(__forAnchor156));
-      const __t164 = document.createTextNode("\n                  ");
-      __e141.appendChild(__t164);
-      const __ifAnchor165 = document.createComment("if");
-      __e141.appendChild(__ifAnchor165);
-      __c71.push(__wireBoundary_b29(__ifAnchor165));
-      const __t173 = document.createTextNode("\n                ");
-      __e141.appendChild(__t173);
-      __e82.appendChild(__e141);
-      const __t174 = document.createTextNode("\n              ");
-      __e82.appendChild(__t174);
-      __e74.appendChild(__e82);
-      const __t175 = document.createTextNode("\n            ");
-      __e74.appendChild(__t175);
-      __frag70.appendChild(__e74);
-      const __t176 = document.createTextNode("\n          ");
-      __frag70.appendChild(__t176);
-      return { nodes: Array.from(__frag70.childNodes), cleanup: () => {
-        for (const c of __c71) try {
-          c();
-        } catch (e) {
-        }
-      } };
+      const __childScope70 = Object.create($scope);
+      __childScope70.a = a;
+      __childScope70.__i = __i;
+      return (($scope2) => {
+        const __wireBoundary_b20 = (anchor2) => bindFor({
+          anchor: anchor2,
+          items: () => $scope2.a.providers.slice(0, 4),
+          render: (p, __i2) => {
+            const __childScope123 = Object.create($scope2);
+            __childScope123.p = p;
+            __childScope123.__i = __i2;
+            return (($scope3) => {
+              const __frag124 = document.createDocumentFragment();
+              const __c125 = [];
+              const __t126 = document.createTextNode("\n                      ");
+              __frag124.appendChild(__t126);
+              const __e127 = document.createElement("ship-provider-blob");
+              __c125.push(bindAttr(__e127, "provider", () => $scope3.p));
+              __e127.setAttribute("size", "sm");
+              __e127.setAttribute("variant", "glyph");
+              __c125.push(bindAttr(__e127, "title", () => $scope3.p));
+              __frag124.appendChild(__e127);
+              const __t128 = document.createTextNode("\n                    ");
+              __frag124.appendChild(__t128);
+              return { nodes: Array.from(__frag124.childNodes), cleanup: () => {
+                for (const c of __c125) try {
+                  c();
+                } catch (e) {
+                }
+              } };
+            })(__childScope123);
+          }
+        });
+        const __wireBoundary_b23 = (anchor2) => bindIf({
+          anchor: anchor2,
+          test: () => {
+            if ($scope2.a.providers.length > 4) return 0;
+            return -1;
+          },
+          branches: [
+            () => {
+              const __frag131 = document.createDocumentFragment();
+              const __c132 = [];
+              const __t133 = document.createTextNode("\n                      ");
+              __frag131.appendChild(__t133);
+              const __e134 = document.createElement("ship-chip");
+              __e134.setAttribute("tone", "muted");
+              __e134.setAttribute("variant", "outline");
+              __e134.setAttribute("size", "sm");
+              const __t135 = document.createTextNode("+");
+              __e134.appendChild(__t135);
+              const __t136 = document.createTextNode("");
+              __e134.appendChild(__t136);
+              __c132.push(bindText(__t136, () => $scope2.a.providers.length - 4));
+              __frag131.appendChild(__e134);
+              const __t137 = document.createTextNode("\n                    ");
+              __frag131.appendChild(__t137);
+              return { nodes: Array.from(__frag131.childNodes), cleanup: () => {
+                for (const c of __c132) try {
+                  c();
+                } catch (e) {
+                }
+              } };
+            }
+          ]
+        });
+        const __wireBoundary_b19 = (anchor2) => bindIf({
+          anchor: anchor2,
+          test: () => {
+            if ($scope2.a.providers && $scope2.a.providers.length > 0) return 0;
+            return -1;
+          },
+          branches: [
+            () => {
+              const __frag117 = document.createDocumentFragment();
+              const __c118 = [];
+              const __t119 = document.createTextNode("\n                  ");
+              __frag117.appendChild(__t119);
+              const __e120 = document.createElement("div");
+              __e120.setAttribute("class", "agents-card-providers");
+              __e120.setAttribute("aria-label", "Compiles to");
+              const __t121 = document.createTextNode("\n                    ");
+              __e120.appendChild(__t121);
+              const __forAnchor122 = document.createComment("for");
+              __e120.appendChild(__forAnchor122);
+              __c118.push(__wireBoundary_b20(__forAnchor122));
+              const __t129 = document.createTextNode("\n                    ");
+              __e120.appendChild(__t129);
+              const __ifAnchor130 = document.createComment("if");
+              __e120.appendChild(__ifAnchor130);
+              __c118.push(__wireBoundary_b23(__ifAnchor130));
+              const __t138 = document.createTextNode("\n                  ");
+              __e120.appendChild(__t138);
+              __frag117.appendChild(__e120);
+              const __t139 = document.createTextNode("\n                ");
+              __frag117.appendChild(__t139);
+              return { nodes: Array.from(__frag117.childNodes), cleanup: () => {
+                for (const c of __c118) try {
+                  c();
+                } catch (e) {
+                }
+              } };
+            }
+          ]
+        });
+        const __wireBoundary_b26 = (anchor2) => bindIf({
+          anchor: anchor2,
+          test: () => {
+            if ($scope2.a.active) return 0;
+            return -1;
+          },
+          branches: [
+            () => {
+              const __frag147 = document.createDocumentFragment();
+              const __c148 = [];
+              const __t149 = document.createTextNode("\n                    ");
+              __frag147.appendChild(__t149);
+              const __e150 = document.createElement("ship-chip");
+              __e150.setAttribute("tone", "primary");
+              __e150.setAttribute("variant", "soft");
+              __e150.setAttribute("size", "sm");
+              const __t151 = document.createTextNode("\n                      ");
+              __e150.appendChild(__t151);
+              const __e152 = document.createElement("sui-status-dot");
+              __e152.setAttribute("slot", "leading");
+              __e152.setAttribute("tone", "primary");
+              __e152.setAttribute("size", "sm");
+              __e152.setAttribute("pulse", "");
+              __e152.setAttribute("label", "Active session");
+              __e150.appendChild(__e152);
+              const __t153 = document.createTextNode("\n                      active session\n                    ");
+              __e150.appendChild(__t153);
+              __frag147.appendChild(__e150);
+              const __t154 = document.createTextNode("\n                  ");
+              __frag147.appendChild(__t154);
+              return { nodes: Array.from(__frag147.childNodes), cleanup: () => {
+                for (const c of __c148) try {
+                  c();
+                } catch (e) {
+                }
+              } };
+            }
+          ]
+        });
+        const __wireBoundary_b27 = (anchor2) => bindFor({
+          anchor: anchor2,
+          items: () => ($scope2.a.tags || []).slice(0, 2),
+          render: (t, __i2) => {
+            const __childScope157 = Object.create($scope2);
+            __childScope157.t = t;
+            __childScope157.__i = __i2;
+            return (($scope3) => {
+              const __frag158 = document.createDocumentFragment();
+              const __c159 = [];
+              const __t160 = document.createTextNode("\n                    ");
+              __frag158.appendChild(__t160);
+              const __e161 = document.createElement("ship-chip");
+              __e161.setAttribute("tone", "muted");
+              __e161.setAttribute("variant", "soft");
+              __e161.setAttribute("size", "sm");
+              const __t162 = document.createTextNode("");
+              __e161.appendChild(__t162);
+              __c159.push(bindText(__t162, () => $scope3.t));
+              __frag158.appendChild(__e161);
+              const __t163 = document.createTextNode("\n                  ");
+              __frag158.appendChild(__t163);
+              return { nodes: Array.from(__frag158.childNodes), cleanup: () => {
+                for (const c of __c159) try {
+                  c();
+                } catch (e) {
+                }
+              } };
+            })(__childScope157);
+          }
+        });
+        const __wireBoundary_b29 = (anchor2) => bindIf({
+          anchor: anchor2,
+          test: () => {
+            if (($scope2.a.tags || []).length > 2) return 0;
+            return -1;
+          },
+          branches: [
+            () => {
+              const __frag166 = document.createDocumentFragment();
+              const __c167 = [];
+              const __t168 = document.createTextNode("\n                    ");
+              __frag166.appendChild(__t168);
+              const __e169 = document.createElement("ship-chip");
+              __e169.setAttribute("tone", "muted");
+              __e169.setAttribute("variant", "outline");
+              __e169.setAttribute("size", "sm");
+              const __t170 = document.createTextNode("+");
+              __e169.appendChild(__t170);
+              const __t171 = document.createTextNode("");
+              __e169.appendChild(__t171);
+              __c167.push(bindText(__t171, () => ($scope2.a.tags || []).length - 2));
+              __frag166.appendChild(__e169);
+              const __t172 = document.createTextNode("\n                  ");
+              __frag166.appendChild(__t172);
+              return { nodes: Array.from(__frag166.childNodes), cleanup: () => {
+                for (const c of __c167) try {
+                  c();
+                } catch (e) {
+                }
+              } };
+            }
+          ]
+        });
+        const __frag71 = document.createDocumentFragment();
+        const __c72 = [];
+        const __t73 = document.createTextNode("\n            ");
+        __frag71.appendChild(__t73);
+        const __e74 = document.createElement("ship-list-tile");
+        __e74.setAttribute("variant", "card");
+        __e74.setAttribute("density", "normal");
+        __e74.setAttribute("interactive", "");
+        __c72.push(bindAttr(__e74, "navigable", () => "/agents/" + $scope2.a.id));
+        __e74.setAttribute("class", "agents-card-tile");
+        __e74.setAttribute("data-test", "agent");
+        const __t75 = document.createTextNode("\n              ");
+        __e74.appendChild(__t75);
+        const __e76 = document.createElement("div");
+        __e76.setAttribute("class", "agents-card-icon-tile");
+        __e76.setAttribute("slot", "leading");
+        const __t77 = document.createTextNode("\n                ");
+        __e76.appendChild(__t77);
+        const __e78 = document.createElement("span");
+        __e78.setAttribute("class", "agents-card-letter");
+        const __t79 = document.createTextNode("");
+        __e78.appendChild(__t79);
+        __c72.push(bindText(__t79, () => $scope2.a.letter));
+        __e76.appendChild(__e78);
+        const __t80 = document.createTextNode("\n              ");
+        __e76.appendChild(__t80);
+        __e74.appendChild(__e76);
+        const __t81 = document.createTextNode("\n              ");
+        __e74.appendChild(__t81);
+        const __e82 = document.createElement("div");
+        __e82.setAttribute("class", "agents-card-body");
+        const __t83 = document.createTextNode("\n                ");
+        __e82.appendChild(__t83);
+        const __e84 = document.createElement("div");
+        __e84.setAttribute("class", "agents-card-head");
+        const __t85 = document.createTextNode("\n                  ");
+        __e84.appendChild(__t85);
+        const __e86 = document.createElement("div");
+        __e86.setAttribute("class", "agents-card-title");
+        const __t87 = document.createTextNode("");
+        __e86.appendChild(__t87);
+        __c72.push(bindText(__t87, () => $scope2.a.name));
+        __e84.appendChild(__e86);
+        const __t88 = document.createTextNode("\n                  ");
+        __e84.appendChild(__t88);
+        const __e89 = document.createElement("p");
+        __e89.setAttribute("class", "agents-card-desc");
+        const __t90 = document.createTextNode("");
+        __e89.appendChild(__t90);
+        __c72.push(bindText(__t90, () => $scope2.a.description || "No description"));
+        __e84.appendChild(__e89);
+        const __t91 = document.createTextNode("\n                ");
+        __e84.appendChild(__t91);
+        __e82.appendChild(__e84);
+        const __t92 = document.createTextNode("\n                ");
+        __e82.appendChild(__t92);
+        const __e93 = document.createElement("div");
+        __e93.setAttribute("class", "agents-card-stats");
+        const __t94 = document.createTextNode("\n                  ");
+        __e93.appendChild(__t94);
+        const __e95 = document.createElement("span");
+        const __t96 = document.createTextNode("");
+        __e95.appendChild(__t96);
+        __c72.push(bindText(__t96, () => $scope2.a.skills_count));
+        const __t97 = document.createTextNode(" skill");
+        __e95.appendChild(__t97);
+        const __t98 = document.createTextNode("");
+        __e95.appendChild(__t98);
+        __c72.push(bindText(__t98, () => $scope2.a.skills_count === 1 ? "" : "s"));
+        __e93.appendChild(__e95);
+        const __t99 = document.createTextNode("\n                  ");
+        __e93.appendChild(__t99);
+        const __e100 = document.createElement("span");
+        __e100.setAttribute("class", "agents-card-sep");
+        const __t101 = document.createTextNode("&middot;");
+        __e100.appendChild(__t101);
+        __e93.appendChild(__e100);
+        const __t102 = document.createTextNode("\n                  ");
+        __e93.appendChild(__t102);
+        const __e103 = document.createElement("span");
+        const __t104 = document.createTextNode("");
+        __e103.appendChild(__t104);
+        __c72.push(bindText(__t104, () => $scope2.a.mcp_count));
+        const __t105 = document.createTextNode(" MCP");
+        __e103.appendChild(__t105);
+        __e93.appendChild(__e103);
+        const __t106 = document.createTextNode("\n                  ");
+        __e93.appendChild(__t106);
+        const __e107 = document.createElement("span");
+        __e107.setAttribute("class", "agents-card-sep");
+        const __t108 = document.createTextNode("&middot;");
+        __e107.appendChild(__t108);
+        __e93.appendChild(__e107);
+        const __t109 = document.createTextNode("\n                  ");
+        __e93.appendChild(__t109);
+        const __e110 = document.createElement("span");
+        const __t111 = document.createTextNode("");
+        __e110.appendChild(__t111);
+        __c72.push(bindText(__t111, () => $scope2.a.rules_count));
+        const __t112 = document.createTextNode(" rule");
+        __e110.appendChild(__t112);
+        const __t113 = document.createTextNode("");
+        __e110.appendChild(__t113);
+        __c72.push(bindText(__t113, () => $scope2.a.rules_count === 1 ? "" : "s"));
+        __e93.appendChild(__e110);
+        const __t114 = document.createTextNode("\n                ");
+        __e93.appendChild(__t114);
+        __e82.appendChild(__e93);
+        const __t115 = document.createTextNode("\n                ");
+        __e82.appendChild(__t115);
+        const __ifAnchor116 = document.createComment("if");
+        __e82.appendChild(__ifAnchor116);
+        __c72.push(__wireBoundary_b19(__ifAnchor116));
+        const __t140 = document.createTextNode("\n                ");
+        __e82.appendChild(__t140);
+        const __e141 = document.createElement("div");
+        __e141.setAttribute("class", "agents-card-badges");
+        const __t142 = document.createTextNode("\n                  ");
+        __e141.appendChild(__t142);
+        const __e143 = document.createElement("ship-badge");
+        __e143.setAttribute("tone", "muted");
+        __e143.setAttribute("variant", "outline");
+        __e143.setAttribute("size", "sm");
+        __e143.setAttribute("class", "agents-card-badge-source");
+        const __t144 = document.createTextNode("");
+        __e143.appendChild(__t144);
+        __c72.push(bindText(__t144, () => $scope2.a.source));
+        __e141.appendChild(__e143);
+        const __t145 = document.createTextNode("\n                  ");
+        __e141.appendChild(__t145);
+        const __ifAnchor146 = document.createComment("if");
+        __e141.appendChild(__ifAnchor146);
+        __c72.push(__wireBoundary_b26(__ifAnchor146));
+        const __t155 = document.createTextNode("\n                  ");
+        __e141.appendChild(__t155);
+        const __forAnchor156 = document.createComment("for");
+        __e141.appendChild(__forAnchor156);
+        __c72.push(__wireBoundary_b27(__forAnchor156));
+        const __t164 = document.createTextNode("\n                  ");
+        __e141.appendChild(__t164);
+        const __ifAnchor165 = document.createComment("if");
+        __e141.appendChild(__ifAnchor165);
+        __c72.push(__wireBoundary_b29(__ifAnchor165));
+        const __t173 = document.createTextNode("\n                ");
+        __e141.appendChild(__t173);
+        __e82.appendChild(__e141);
+        const __t174 = document.createTextNode("\n              ");
+        __e82.appendChild(__t174);
+        __e74.appendChild(__e82);
+        const __t175 = document.createTextNode("\n            ");
+        __e74.appendChild(__t175);
+        __frag71.appendChild(__e74);
+        const __t176 = document.createTextNode("\n          ");
+        __frag71.appendChild(__t176);
+        return { nodes: Array.from(__frag71.childNodes), cleanup: () => {
+          for (const c of __c72) try {
+            c();
+          } catch (e) {
+          }
+        } };
+      })(__childScope70);
     }
   });
   const __wireBoundary_b7 = (anchor) => bindIf({
