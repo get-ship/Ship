@@ -17,8 +17,6 @@ __e0.setAttribute("part", "button");
 const __t1 = document.createTextNode("click");
 __e0.appendChild(__t1);
 container.appendChild(__e0);
-const __t2 = document.createTextNode("\n");
-container.appendChild(__t2);
 return () => { for (const c of __cleanups) try { c(); } catch (e) {} };
     },
     hydrate(root, ctx) {

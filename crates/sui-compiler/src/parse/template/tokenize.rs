@@ -16,7 +16,6 @@ pub struct Token {
 #[derive(Debug, Clone)]
 pub enum TokenKind {
     Text(String),
-    Comment(String),
     Element(html::Element),
     Expr { src: String },
     OpenIf { src: String },
@@ -40,7 +39,6 @@ pub enum TokenKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Discriminant {
     Text,
-    Comment,
     Element,
     Expr,
     OpenIf,
@@ -63,7 +61,6 @@ impl TokenKind {
     pub fn discriminant(&self) -> Discriminant {
         match self {
             TokenKind::Text(_) => Discriminant::Text,
-            TokenKind::Comment(_) => Discriminant::Comment,
             TokenKind::Element(_) => Discriminant::Element,
             TokenKind::Expr { .. } => Discriminant::Expr,
             TokenKind::OpenIf { .. } => Discriminant::OpenIf,
@@ -86,7 +83,6 @@ impl TokenKind {
     pub fn label(&self) -> &'static str {
         match self.discriminant() {
             Discriminant::Text => "text",
-            Discriminant::Comment => "comment",
             Discriminant::Element => "element",
             Discriminant::Expr => "{expr}",
             Discriminant::OpenIf => "{#if}",
@@ -108,14 +104,40 @@ impl TokenKind {
 }
 
 pub fn tokenize_children(nodes: &[Node]) -> Vec<Token> {
+    let has_element_sibling = nodes.iter().any(|n| matches!(n, Node::Element(_)));
     let mut out = Vec::new();
     for n in nodes {
         match n {
-            Node::Text(t) => tokenize_text(&t.data, t.span, &mut out),
-            Node::Comment(c) => out.push(Token {
-                kind: TokenKind::Comment(c.data.clone()),
-                span: c.span,
-            }),
+            Node::Text(t) => {
+                // Indentation/newline whitespace between elements is invisible in
+                // Shadow DOM. Drop it when the parent has element children; keep it
+                // when all siblings are text (e.g. <span> </span>) so intentional
+                // inline whitespace is preserved.
+                if has_element_sibling && t.data.chars().all(|c| c.is_ascii_whitespace()) {
+                    continue;
+                }
+                let before = out.len();
+                tokenize_text(&t.data, t.span, &mut out);
+                // If this text node produced control-flow tokens (e.g. the raw source
+                // is "\n  {#if ...}\n    "), strip the surrounding whitespace-only
+                // text sub-tokens — they're structural indentation around the markers,
+                // not content.
+                let has_control = out[before..].iter().any(|tok| {
+                    !matches!(tok.kind, TokenKind::Text(_))
+                });
+                if has_control {
+                    let slice: Vec<Token> = out.drain(before..).collect();
+                    for tok in slice {
+                        if let TokenKind::Text(ref s) = tok.kind
+                            && s.chars().all(|c| c.is_ascii_whitespace())
+                        {
+                            continue;
+                        }
+                        out.push(tok);
+                    }
+                }
+            }
+            Node::Comment(_) => {}
             Node::Element(e) => out.push(Token {
                 kind: TokenKind::Element(e.clone()),
                 span: e.span,

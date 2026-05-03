@@ -26,6 +26,7 @@ fn fixtures() -> Vec<Fixture> {
             component_meta: Some(ComponentMeta { name: "reflect-empty-slot-test".into(), shadow: true }) },
         Fixture { name: "shadow-tones", setup_url: None,               mode: CompileMode::Component,
             component_meta: Some(ComponentMeta { name: "shadow-tones-test".into(), shadow: true }) },
+        Fixture { name: "comment-and-whitespace", setup_url: None,    mode: CompileMode::View,      component_meta: None },
     ]
 }
 
@@ -152,6 +153,64 @@ fn shadow_tones_snapshot() {
     let js = compile_fixture(fx);
     let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
     assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn comment_and_whitespace_snapshot() {
+    let fx = &fixtures()[7];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+/// Fix 1: source HTML comments must never appear as createComment() in output.
+#[test]
+fn comment_nodes_not_emitted() {
+    let path = fixtures_dir().join("comment-and-whitespace.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        !out.js.contains("createComment(\"Developer comment"),
+        "source HTML comment must not appear in compiled output:\n{}",
+        out.js
+    );
+}
+
+/// Fix 2: whitespace-only text nodes between elements must not be emitted;
+/// intentional inline whitespace (text-only parent) must be preserved.
+#[test]
+fn whitespace_text_nodes_dropped_between_elements() {
+    let path = fixtures_dir().join("comment-and-whitespace.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    // Inter-element indentation whitespace must be gone.
+    assert!(
+        !out.js.contains("createTextNode(\"\\n"),
+        "whitespace-only text nodes between elements must not be emitted:\n{}",
+        out.js
+    );
+    // Intentional space inside <span> (text-only parent) must be kept.
+    assert!(
+        out.js.contains("createTextNode(\" \")"),
+        "intentional inline whitespace must be preserved:\n{}",
+        out.js
+    );
 }
 
 #[test]

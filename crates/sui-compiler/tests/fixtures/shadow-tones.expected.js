@@ -15,15 +15,9 @@ export default component("shadow-tones-test", {
   $scope.tone = props.tone;
 const __root = host.shadowRoot ?? host;
 if (suiTonesSheet && __root instanceof ShadowRoot) { try { __root.adoptedStyleSheets = [suiTonesSheet, ...(__root.adoptedStyleSheets ?? [])]; } catch {} }
-const __t0 = document.createTextNode("\n\n");
-__root.appendChild(__t0);
-const __t1 = document.createTextNode("\n\n");
-__root.appendChild(__t1);
-const __e2 = document.createElement("span");
-__e2.setAttribute("class", "dot");
-__root.appendChild(__e2);
-const __t3 = document.createTextNode("\n");
-__root.appendChild(__t3);
+const __e0 = document.createElement("span");
+__e0.setAttribute("class", "dot");
+__root.appendChild(__e0);
 return $scope;
   },
 });
