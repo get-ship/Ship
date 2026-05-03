@@ -121,20 +121,36 @@ impl TemplateEmitter {
                 }
             }
             AttrInstr::Class { name, expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
                     "{cleanups_var}.push(bindClass({el_var}, {n}, () => ({rw})));",
                     n = js_string(name)
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateClass(__m[{k}], {n}, () => ({rw})));",
+                        k = js_string(&key),
+                        n = js_string(name),
+                    ));
+                }
             }
             AttrInstr::Style { name, expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 let prop = js_string(name);
                 w.line(&format!(
                     "{cleanups_var}.push(effect(() => {{ const __v = ({rw}); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateStyle(__m[{k}], {p}, () => ({rw})));",
+                        k = js_string(&key),
+                        p = prop,
+                    ));
+                }
             }
             AttrInstr::Mutation { expr, .. } => {
                 let _ = self.next_key();
