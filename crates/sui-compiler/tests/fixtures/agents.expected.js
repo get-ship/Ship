@@ -15,63 +15,51 @@ export default view((ctx) => {
     if (__r && typeof __r === "object") Object.assign($scope, __r);
   }
 const __renderWhileLoading_0 = () => {
-  const __frag3 = document.createDocumentFragment();
-  const __c4 = [];
-  const __t5 = document.createTextNode("\n    ");
-  __frag3.appendChild(__t5);
-  const __e6 = document.createElement("p");
-  __e6.setAttribute("data-test", "loading");
-  const __t7 = document.createTextNode("Loading agents...");
-  __e6.appendChild(__t7);
-  __frag3.appendChild(__e6);
-  const __t8 = document.createTextNode("\n  ");
-  __frag3.appendChild(__t8);
-  return { nodes: Array.from(__frag3.childNodes), cleanup: () => { for (const c of __c4) try { c(); } catch (e) {} } };
+  const __frag1 = document.createDocumentFragment();
+  const __c2 = [];
+  const __e3 = document.createElement("p");
+  __e3.setAttribute("data-test", "loading");
+  const __t4 = document.createTextNode("Loading agents...");
+  __e3.appendChild(__t4);
+  __frag1.appendChild(__e3);
+  return { nodes: Array.from(__frag1.childNodes), cleanup: () => { for (const c of __c2) try { c(); } catch (e) {} } };
 };
 const __renderWhileError_0 = (err) => {
-  const __childScope11 = Object.create($scope);
-  __childScope11.err = err;
+  const __childScope6 = Object.create($scope);
+  __childScope6.err = err;
   return (($scope) => {
-    const __frag12 = document.createDocumentFragment();
-    const __c13 = [];
-    const __t14 = document.createTextNode("\n    ");
-    __frag12.appendChild(__t14);
-    const __e15 = document.createElement("p");
-    __e15.setAttribute("data-test", "error");
-    const __t16 = document.createTextNode("Error: ");
-    __e15.appendChild(__t16);
-    const __t17 = document.createTextNode("");
-    __e15.appendChild(__t17);
-    __c13.push(bindText(__t17, () => ($scope.err.message)));
-    __frag12.appendChild(__e15);
-    const __t18 = document.createTextNode("\n  ");
-    __frag12.appendChild(__t18);
-    return { nodes: Array.from(__frag12.childNodes), cleanup: () => { for (const c of __c13) try { c(); } catch (e) {} } };
-  })(__childScope11);
+    const __frag7 = document.createDocumentFragment();
+    const __c8 = [];
+    const __e9 = document.createElement("p");
+    __e9.setAttribute("data-test", "error");
+    const __t10 = document.createTextNode("Error: ");
+    __e9.appendChild(__t10);
+    const __t11 = document.createTextNode("");
+    __e9.appendChild(__t11);
+    __c8.push(bindText(__t11, () => ($scope.err.message)));
+    __frag7.appendChild(__e9);
+    return { nodes: Array.from(__frag7.childNodes), cleanup: () => { for (const c of __c8) try { c(); } catch (e) {} } };
+  })(__childScope6);
 };
 const __wireBoundary_b5 = (anchor) => bindFor({
   anchor,
   items: () => ($scope.agents().value.items),
   key: (agent, __i) => { const __child = Object.create($scope); __child.agent = agent; __child.__i = __i; return (($scope) => (agent.id))(__child); },
   render: (agent, __i) => {
-    const __childScope38 = Object.create($scope);
-    __childScope38.agent = agent;
-    __childScope38.__i = __i;
+    const __childScope25 = Object.create($scope);
+    __childScope25.agent = agent;
+    __childScope25.__i = __i;
     return (($scope) => {
-const __frag39 = document.createDocumentFragment();
-const __c40 = [];
-const __t41 = document.createTextNode("\n          ");
-__frag39.appendChild(__t41);
-const __e42 = document.createElement("li");
-__e42.setAttribute("data-test", "agent");
-const __t43 = document.createTextNode("");
-__e42.appendChild(__t43);
-__c40.push(bindText(__t43, () => ($scope.agent.name)));
-__frag39.appendChild(__e42);
-const __t44 = document.createTextNode("\n        ");
-__frag39.appendChild(__t44);
-      return { nodes: Array.from(__frag39.childNodes), cleanup: () => { for (const c of __c40) try { c(); } catch (e) {} } };
-    })(__childScope38);
+const __frag26 = document.createDocumentFragment();
+const __c27 = [];
+const __e28 = document.createElement("li");
+__e28.setAttribute("data-test", "agent");
+const __t29 = document.createTextNode("");
+__e28.appendChild(__t29);
+__c27.push(bindText(__t29, () => ($scope.agent.name)));
+__frag26.appendChild(__e28);
+      return { nodes: Array.from(__frag26.childNodes), cleanup: () => { for (const c of __c27) try { c(); } catch (e) {} } };
+    })(__childScope25);
   },
 });
 const __wireBoundary_b4 = (anchor) => bindIf({
@@ -82,37 +70,25 @@ const __wireBoundary_b4 = (anchor) => bindIf({
   },
   branches: [
     () => {
-      const __frag26 = document.createDocumentFragment();
-      const __c27 = [];
-      const __t28 = document.createTextNode("\n      ");
-      __frag26.appendChild(__t28);
-      const __e29 = document.createElement("p");
-      __e29.setAttribute("data-test", "empty");
-      const __t30 = document.createTextNode("No agents.");
-      __e29.appendChild(__t30);
-      __frag26.appendChild(__e29);
-      const __t31 = document.createTextNode("\n    ");
-      __frag26.appendChild(__t31);
-      return { nodes: Array.from(__frag26.childNodes), cleanup: () => { for (const c of __c27) try { c(); } catch (e) {} } };
+      const __frag17 = document.createDocumentFragment();
+      const __c18 = [];
+      const __e19 = document.createElement("p");
+      __e19.setAttribute("data-test", "empty");
+      const __t20 = document.createTextNode("No agents.");
+      __e19.appendChild(__t20);
+      __frag17.appendChild(__e19);
+      return { nodes: Array.from(__frag17.childNodes), cleanup: () => { for (const c of __c18) try { c(); } catch (e) {} } };
     },
     () => {
-      const __frag32 = document.createDocumentFragment();
-      const __c33 = [];
-      const __t34 = document.createTextNode("\n      ");
-      __frag32.appendChild(__t34);
-      const __e35 = document.createElement("ul");
-      __e35.setAttribute("data-test", "grid");
-      const __t36 = document.createTextNode("\n        ");
-      __e35.appendChild(__t36);
-      const __forAnchor37 = document.createComment("for");
-      __e35.appendChild(__forAnchor37);
-      __c33.push(__wireBoundary_b5(__forAnchor37));
-      const __t45 = document.createTextNode("\n      ");
-      __e35.appendChild(__t45);
-      __frag32.appendChild(__e35);
-      const __t46 = document.createTextNode("\n    ");
-      __frag32.appendChild(__t46);
-      return { nodes: Array.from(__frag32.childNodes), cleanup: () => { for (const c of __c33) try { c(); } catch (e) {} } };
+      const __frag21 = document.createDocumentFragment();
+      const __c22 = [];
+      const __e23 = document.createElement("ul");
+      __e23.setAttribute("data-test", "grid");
+      const __forAnchor24 = document.createComment("for");
+      __e23.appendChild(__forAnchor24);
+      __c22.push(__wireBoundary_b5(__forAnchor24));
+      __frag21.appendChild(__e23);
+      return { nodes: Array.from(__frag21.childNodes), cleanup: () => { for (const c of __c22) try { c(); } catch (e) {} } };
     },
   ],
 });
@@ -124,46 +100,30 @@ const __wireBoundary_b3 = (anchor) => bindIf({
   },
   branches: [
     () => {
-      const __frag22 = document.createDocumentFragment();
-      const __c23 = [];
-      const __t24 = document.createTextNode("\n    ");
-      __frag22.appendChild(__t24);
-      const __ifAnchor25 = document.createComment("if");
-      __frag22.appendChild(__ifAnchor25);
-      __c23.push(__wireBoundary_b4(__ifAnchor25));
-      const __t47 = document.createTextNode("\n  ");
-      __frag22.appendChild(__t47);
-      return { nodes: Array.from(__frag22.childNodes), cleanup: () => { for (const c of __c23) try { c(); } catch (e) {} } };
+      const __frag14 = document.createDocumentFragment();
+      const __c15 = [];
+      const __ifAnchor16 = document.createComment("if");
+      __frag14.appendChild(__ifAnchor16);
+      __c15.push(__wireBoundary_b4(__ifAnchor16));
+      return { nodes: Array.from(__frag14.childNodes), cleanup: () => { for (const c of __c15) try { c(); } catch (e) {} } };
     },
   ],
 });
   return Object.assign({}, $scope, {
     __mount(container) {
 const __cleanups = [];
-const __t0 = document.createTextNode("\n\n");
-container.appendChild(__t0);
-const __e1 = document.createElement("section");
-__e1.setAttribute("class", "agents");
-const __t2 = document.createTextNode("\n  ");
-__e1.appendChild(__t2);
-const __wlAnchor9 = document.createComment("while-loading");
-__e1.appendChild(__wlAnchor9);
-__cleanups.push(bindWhileLoading({ anchor: __wlAnchor9, signal: $scope.agents, render: __renderWhileLoading_0 }));
-const __t10 = document.createTextNode("\n  ");
-__e1.appendChild(__t10);
-const __weAnchor19 = document.createComment("while-error");
-__e1.appendChild(__weAnchor19);
-__cleanups.push(bindWhileError({ anchor: __weAnchor19, signal: $scope.agents, render: __renderWhileError_0 }));
-const __t20 = document.createTextNode("\n  ");
-__e1.appendChild(__t20);
-const __ifAnchor21 = document.createComment("if");
-__e1.appendChild(__ifAnchor21);
-__cleanups.push(__wireBoundary_b3(__ifAnchor21));
-const __t48 = document.createTextNode("\n");
-__e1.appendChild(__t48);
-container.appendChild(__e1);
-const __t49 = document.createTextNode("\n");
-container.appendChild(__t49);
+const __e0 = document.createElement("section");
+__e0.setAttribute("class", "agents");
+const __wlAnchor5 = document.createComment("while-loading");
+__e0.appendChild(__wlAnchor5);
+__cleanups.push(bindWhileLoading({ anchor: __wlAnchor5, signal: $scope.agents, render: __renderWhileLoading_0 }));
+const __weAnchor12 = document.createComment("while-error");
+__e0.appendChild(__weAnchor12);
+__cleanups.push(bindWhileError({ anchor: __weAnchor12, signal: $scope.agents, render: __renderWhileError_0 }));
+const __ifAnchor13 = document.createComment("if");
+__e0.appendChild(__ifAnchor13);
+__cleanups.push(__wireBoundary_b3(__ifAnchor13));
+container.appendChild(__e0);
 return () => { for (const c of __cleanups) try { c(); } catch (e) {} };
     },
     hydrate(root, ctx) {
