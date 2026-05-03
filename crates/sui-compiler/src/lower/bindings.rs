@@ -77,6 +77,9 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered, is_view: bool, dep
         }
         AttrInstr::Mutation { .. } => {
             out.runtime_imports.insert("wireFormMutation");
+            if direct_emit {
+                out.dom_imports.insert("collectElementMarkers");
+            }
         }
     }
 }

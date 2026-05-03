@@ -23,7 +23,8 @@ export function collectElementMarkers(root: Node): Record<string, Element> {
         name === 'attr-dynamic' ||
         name.startsWith('class:') ||
         name.startsWith('style:') ||
-        name.startsWith('bind:')
+        name.startsWith('bind:') ||
+        name === 'mutation'
       ) {
         out[attr.value] = el
       }

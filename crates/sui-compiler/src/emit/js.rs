@@ -127,6 +127,7 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
                 | BindingKind::BindValue
                 | BindingKind::BindChecked
                 | BindingKind::BindThis
+                | BindingKind::Mutation
         ) {
             continue;
         }

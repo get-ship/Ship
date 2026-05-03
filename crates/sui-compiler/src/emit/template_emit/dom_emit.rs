@@ -175,11 +175,18 @@ impl TemplateEmitter {
                 }
             }
             AttrInstr::Mutation { expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let chain = js_string(&expr.source);
                 w.line(&format!(
                     "{cleanups_var}.push(wireFormMutation({el_var}, {chain}, $scope));"
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(wireFormMutation(__m[{k}], {chain}, $scope));",
+                        k = js_string(&key),
+                    ));
+                }
             }
         }
     }
