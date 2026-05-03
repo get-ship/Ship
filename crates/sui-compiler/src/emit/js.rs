@@ -105,6 +105,13 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
         // SSR'd `<!--sui:text:bN-->` markers and `hydrateText` writes
         // the reactive Text node. Skip them here so the runtime walker
         // doesn't double-wire.
+        //
+        // Phase 3b.4: `on:*` event bindings are direct-emit too —
+        // `collectElementMarkers` finds the SSR'd `on:{event}="bN"`
+        // attribute and `hydrateOn` wires the listener via the runtime
+        // `on()` modifier pipeline. `attr:*` and `attr-dynamic` follow
+        // the same shape — `hydrateAttr` for static-named attrs, an
+        // inline `effect` block for dynamic-named ones (matches CSR).
         if matches!(
             b.kind,
             BindingKind::If
@@ -112,6 +119,14 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
                 | BindingKind::Match
                 | BindingKind::Await
                 | BindingKind::Text
+                | BindingKind::On(_)
+                | BindingKind::Attr(_)
+                | BindingKind::AttrDynamic
+                | BindingKind::Class(_)
+                | BindingKind::Style(_)
+                | BindingKind::BindValue
+                | BindingKind::BindChecked
+                | BindingKind::BindThis
         ) {
             continue;
         }
@@ -332,6 +347,7 @@ fn emit_setup_body(
         let attach_handlers = emitter.take_attach_handlers();
         let callbacks = emitter.take_render_callbacks();
         let hydrate_uses_text = emitter.hydrate_uses_text();
+        let hydrate_uses_markers = emitter.hydrate_uses_markers();
         let hydrate_calls = emitter.take_hydrate_calls();
 
         if !hoists.is_empty() {
@@ -346,7 +362,7 @@ fn emit_setup_body(
         w.leave();
         w.line("},");
         if !hydrate_calls.is_empty() {
-            emit_view_hydrate(w, &hydrate_calls, hydrate_uses_text);
+            emit_view_hydrate(w, &hydrate_calls, hydrate_uses_text, hydrate_uses_markers);
         }
         if !attach_handlers.is_empty() {
             w.push_str(&attach_handlers);
@@ -363,12 +379,20 @@ fn emit_setup_body(
 /// return. Wires every binding kind the compiler now direct-emits
 /// (Phase 3b.3+) — runs after `wireBoundaries` so SSR'd markers inside
 /// boundary subtrees are already detached and won't be matched.
-fn emit_view_hydrate(w: &mut Writer, hydrate_calls: &str, uses_text: bool) {
+fn emit_view_hydrate(
+    w: &mut Writer,
+    hydrate_calls: &str,
+    uses_text: bool,
+    uses_markers: bool,
+) {
     w.line("hydrate(root, ctx) {");
     w.enter();
     w.line("const __cleanups = [];");
     if uses_text {
         w.line("const __t = collectTextOpens(root);");
+    }
+    if uses_markers {
+        w.line("const __m = collectElementMarkers(root);");
     }
     w.push_str(hydrate_calls);
     w.line("return () => { for (const c of __cleanups) try { c(); } catch (e) {} };");

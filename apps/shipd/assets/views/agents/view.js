@@ -1,6 +1,6 @@
 // views/agents/view.js
 import { bindAttr, bindFor, bindIf, bindText, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship/ui-runtime";
-import { collectTextOpens, hydrateText } from "@ship/ui-dom";
+import { collectElementMarkers, collectTextOpens, hydrateOn, hydrateText } from "@ship/ui-dom";
 
 // views/agents/view.ts
 import { controller, unwrap } from "@ship/ui-runtime";
@@ -665,8 +665,14 @@ var view_default2 = view((ctx) => {
     hydrate(root, ctx2) {
       const __cleanups = [];
       const __t = collectTextOpens(root);
+      const __m = collectElementMarkers(root);
       if (__t["b0"]) __cleanups.push(hydrateText(__t["b0"], () => $scope.total()));
       if (__t["b1"]) __cleanups.push(hydrateText(__t["b1"], () => $scope.total() === 1 ? "" : "s"));
+      if (__m["b2"]) __cleanups.push(hydrateOn(__m["b2"], "click", (function() {
+        const __h = $scope.newAgent;
+        return typeof __h === "function" ? __h.bind(void 0) : (() => {
+        });
+      })(), []));
       return () => {
         for (const c of __cleanups) try {
           c();
@@ -733,13 +739,8 @@ var view_default2 = view((ctx) => {
   });
 });
 var bindings = [
-  { key: "b2", kind: "on:click", expr: "newAgent", deps: ["newAgent"] },
   { key: "b3", kind: "while-loading", expr: "agents", deps: ["agents"], renderKey: "__renderWhileLoading_0" },
-  { key: "b4", kind: "while-error", expr: "agents", deps: ["agents"], renderKey: "__renderWhileError_0" },
-  { key: "b8", kind: "on:click", expr: "newAgent", deps: ["newAgent"] },
-  { key: "b10", kind: "attr:navigable", expr: "'/agents/' + a.id", deps: ["a"] },
-  { key: "b21", kind: "attr:provider", expr: "p", deps: ["p"] },
-  { key: "b22", kind: "attr:title", expr: "p", deps: ["p"] }
+  { key: "b4", kind: "while-error", expr: "agents", deps: ["agents"], renderKey: "__renderWhileError_0" }
 ];
 export {
   bindings,

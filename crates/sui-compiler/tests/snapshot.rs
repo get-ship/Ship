@@ -110,7 +110,7 @@ fn bind_this_button_snapshot() {
 }
 
 #[test]
-fn bind_this_button_manifest_carries_ref_kind() {
+fn bind_this_button_direct_emits_hydrate_ref() {
     use sui_compiler::compile;
     let path = fixtures_dir().join("bind-this-button.sui");
     let source = std::fs::read_to_string(&path).unwrap();
@@ -123,16 +123,17 @@ fn bind_this_button_manifest_carries_ref_kind() {
         emit_dts: false,
     };
     let out = compile(&source, opts).expect("compile");
-    // The view bundle exports `bindings` — the bind:this entry must
-    // surface as kind "bind:this" with the bare scope variable name.
+    // Phase 3b.4: the bind:this leaf is direct-emit — the view's
+    // `hydrate(root, ctx)` calls `hydrateRef` with the bare scope
+    // variable name; the manifest no longer carries a `bind:this` row.
     assert!(
-        out.js.contains("kind: \"bind:this\""),
-        "expected bind:this kind in manifest, got:\n{}",
+        out.js.contains("hydrateRef(__m[\"b0\"], $scope, \"btnEl\")"),
+        "expected hydrateRef call in hydrate(), got:\n{}",
         out.js
     );
     assert!(
-        out.js.contains("expr: \"btnEl\""),
-        "expected btnEl scope-var in manifest, got:\n{}",
+        !out.js.contains("kind: \"bind:this\""),
+        "did not expect bind:this manifest entry post-direct-emit, got:\n{}",
         out.js
     );
 }

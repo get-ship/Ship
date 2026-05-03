@@ -7,6 +7,7 @@
 
 export { walk } from './walk'
 export { hydrateText, collectTextOpens } from './text'
+export { collectElementMarkers } from './markers'
 export { hydrateAttr } from './attr'
 export { hydrateClass } from './class'
 export { hydrateStyle } from './style'

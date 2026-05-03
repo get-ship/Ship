@@ -47,38 +47,72 @@ impl TemplateEmitter {
                 ));
             }
             AttrInstr::Expr { name, expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
                     "{cleanups_var}.push(bindAttr({el_var}, {n}, () => ({rw})));",
                     n = js_string(name)
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateAttr(__m[{k}], {n}, () => ({rw})));",
+                        k = js_string(&key),
+                        n = js_string(name),
+                    ));
+                }
             }
             AttrInstr::DynamicAttr { name_expr, expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 self.emit_dynamic_attr(w, name_expr, expr, el_var, cleanups_var);
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.emit_dynamic_attr_hydrate(&key, name_expr, expr);
+                }
             }
             AttrInstr::BindValue { expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
                     "{cleanups_var}.push(bindValue({el_var}, ({rw})));"
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateBindValue(__m[{k}], ({rw})));",
+                        k = js_string(&key),
+                    ));
+                }
             }
             AttrInstr::BindChecked { expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
                     "{cleanups_var}.push(bindChecked({el_var}, ({rw})));"
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateBindChecked(__m[{k}], ({rw})));",
+                        k = js_string(&key),
+                    ));
+                }
             }
             AttrInstr::BindThis { var, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 // Refs are write-once-from-runtime: create the signal
                 // pre-seeded with the freshly constructed element. The
                 // component author reads `<var>()` from the controller
                 // — same shape as React's `ref.current`, but signal-typed.
                 w.line(&format!("$scope.{var} = signal({el_var});"));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateRef(__m[{k}], $scope, {v}));",
+                        k = js_string(&key),
+                        v = js_string(var),
+                    ));
+                }
             }
             AttrInstr::SlotReflectEmpty { attr, .. } => {
                 w.line(&format!(
@@ -87,29 +121,58 @@ impl TemplateEmitter {
                 ));
             }
             AttrInstr::On { event, handler, modifiers, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&handler.source, &[]);
                 let mods_js = serialize_modifiers(modifiers);
                 w.line(&format!(
                     "{cleanups_var}.push(on({el_var}, {ev}, (function () {{ const __h = ({rw}); return (typeof __h === \"function\") ? __h.bind(undefined) : (() => {{}}); }})(), {{ modifiers: {mods_js} }}));",
                     ev = js_string(event)
                 ));
+                // Phase 3b.4: at depth 0 in views, also emit a direct
+                // hydrate call so SSR'd `on:{event}="bN"` markers wire
+                // up without going through the runtime walker /
+                // `bindings` manifest. The matching `on:*` manifest
+                // entry is suppressed in `js.rs::emit_bindings`.
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateOn(__m[{k}], {ev}, (function () {{ const __h = ({rw}); return (typeof __h === \"function\") ? __h.bind(undefined) : (() => {{}}); }})(), {mods_js}));",
+                        k = js_string(&key),
+                        ev = js_string(event),
+                    ));
+                }
             }
             AttrInstr::Class { name, expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
                     "{cleanups_var}.push(bindClass({el_var}, {n}, () => ({rw})));",
                     n = js_string(name)
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateClass(__m[{k}], {n}, () => ({rw})));",
+                        k = js_string(&key),
+                        n = js_string(name),
+                    ));
+                }
             }
             AttrInstr::Style { name, expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 let prop = js_string(name);
                 w.line(&format!(
                     "{cleanups_var}.push(effect(() => {{ const __v = ({rw}); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateStyle(__m[{k}], {p}, () => ({rw})));",
+                        k = js_string(&key),
+                        p = prop,
+                    ));
+                }
             }
             AttrInstr::Mutation { expr, .. } => {
                 let _ = self.next_key();
@@ -148,6 +211,31 @@ impl TemplateEmitter {
         ));
         w.line(&format!("    else {el_var}.setAttribute(__n, String(__v));"));
         w.line("  })); }");
+    }
+
+    /// Hydrate-side mirror of `emit_dynamic_attr`. The marker carrying
+    /// the binding key is `attr-dynamic="bN"` on the SSR'd element, so
+    /// `__m[bN]` resolves to the same element the CSR effect would
+    /// observe. The body matches CSR exactly, modulo the element source.
+    fn emit_dynamic_attr_hydrate(&mut self, key: &str, name_expr: &Expr, value_expr: &Expr) {
+        let n_rw = rewrite_for_scope(&name_expr.source, &[]);
+        let v_rw = rewrite_for_scope(&value_expr.source, &[]);
+        let k = js_string(key);
+        self.hydrate_calls.line(&format!("if (__m[{k}]) {{"));
+        self.hydrate_calls.line(&format!("  const __el = __m[{k}];"));
+        self.hydrate_calls.line("  let __prev = null;");
+        self.hydrate_calls.line("  __cleanups.push(effect(() => {");
+        self.hydrate_calls.line(&format!("    const __n = String({n_rw});"));
+        self.hydrate_calls.line(&format!("    const __v = ({v_rw});"));
+        self.hydrate_calls.line("    if (__prev && __prev !== __n) __el.removeAttribute(__prev);");
+        self.hydrate_calls.line("    __prev = __n;");
+        self.hydrate_calls.line(
+            "    if (__v == null || __v === false || __v === \"\") __el.removeAttribute(__n);",
+        );
+        self.hydrate_calls.line("    else if (__v === true) __el.setAttribute(__n, \"\");");
+        self.hydrate_calls.line("    else __el.setAttribute(__n, String(__v));");
+        self.hydrate_calls.line("  }));");
+        self.hydrate_calls.line("}");
     }
 }
 
