@@ -756,10 +756,17 @@ if (import.meta.env.DEV) {
 }
 
 // ── UI Studio (SUI view — catalog + storybook) ──────────────────────
+//
+// Per-slot disposer tracking. mountSuiView returns the runtime mount
+// handle's `dispose()` — we stash it on the slot so the swap-out path
+// can tear down the previous controller cleanly. The querySelector-by-
+// attribute lookup the legacy `attach()` flow used is gone.
+type SuiSlot = HTMLElement & { __suiUnmount?: () => void };
+
 async function mountSuiSlot(name: string, subPath?: string): Promise<void> {
-  const old = document.getElementById("ship-view-root");
+  const old = document.getElementById("ship-view-root") as SuiSlot | null;
   const parent = old?.parentElement ?? document.body;
-  const slot = document.createElement("main");
+  const slot = document.createElement("main") as SuiSlot;
   slot.id = "ship-view-root-next";
   slot.className = "ship-content ship-content-entering";
   slot.style.cssText = "position:absolute;inset:0;z-index:-1;pointer-events:none";
@@ -767,7 +774,7 @@ async function mountSuiSlot(name: string, subPath?: string): Promise<void> {
   else parent.appendChild(slot);
   try {
     const { mountSuiView } = await import("./mount-sui");
-    await mountSuiView(slot, name, subPath);
+    slot.__suiUnmount = await mountSuiView(slot, name, subPath);
   } catch (err) {
     slot.innerHTML = `<div class="mount-error">Failed to mount ${name}${subPath ? "/" + subPath : ""}\n${(err as Error).message}</div>`;
   }
@@ -779,16 +786,11 @@ async function mountSuiSlot(name: string, subPath?: string): Promise<void> {
   if (old && old !== slot) {
     old.classList.add("ship-content-leaving");
     setTimeout(() => {
-      // Call SUI's attach() teardown for the outgoing root before
-      // detaching its DOM. Without this, every nav leaks the prior
-      // controller's effects, signal subscriptions, and SDK client
-      // EventSource — N navs ≡ N phantom controllers running in the
-      // background. The boot script publishes the disposer on each
-      // `[data-sui-root]` element it owns; multiple roots are possible
-      // when more than one fragment is mounted in the same slot.
-      for (const r of old.querySelectorAll<HTMLElement & { __suiDispose?: () => void }>("[data-sui-root]")) {
-        try { r.__suiDispose?.(); } catch (err) { console.error("[shell] sui dispose threw:", err); }
-      }
+      // Tear down the previous mount before detaching DOM. Without this,
+      // every nav leaks the prior controller's effects, signal
+      // subscriptions, and SDK client EventSource.
+      try { old.__suiUnmount?.(); }
+      catch (err) { console.error("[shell] sui dispose threw:", err); }
       old.parentElement?.removeChild(old);
     }, 180);
   }

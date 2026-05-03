@@ -168,7 +168,16 @@ export async function mount<Scope = Record<string, unknown>>(
   const lifecycle = extractLifecycle(setupRet)
   if (lifecycle?.mount) {
     try {
-      lifecycle.mount(lifecycle.state, target)
+      const result = lifecycle.mount(lifecycle.state, target)
+      // Controller mount may return a Promise (async controllers). We
+      // don't await it — the controller drives state reactively — but
+      // we DO want to surface unhandled rejections so authoring bugs
+      // aren't silent.
+      if (result && typeof (result as Promise<unknown>).then === 'function') {
+        ;(result as Promise<unknown>).catch((err) => {
+          console.error('[sui/mount] controller mount() promise rejected:', err)
+        })
+      }
     } catch (err) {
       console.error('[sui/mount] controller mount() threw:', err)
     }

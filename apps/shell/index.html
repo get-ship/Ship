@@ -979,6 +979,30 @@
         document.head.appendChild(s);
       })();
     </script>
+    <!-- Bootstrap @ship/ui-runtime onto window before the shell's
+         main.ts runs. Why an IIFE-injected script tag instead of inline
+         `import 'X'`: Vite's import-analysis transforms inline module
+         scripts the same way it does .ts files — bare specifiers get
+         rewritten, dynamic-import URLs get `?import` appended — both
+         create a SECOND copy of the runtime, separate from the one
+         compiled view modules import. The injected `<script>` is opaque
+         to Vite's analyzer; the browser's importmap resolves the bare
+         specifier directly, putting all SUI code on ONE module instance.
+
+         `window.__suiRuntimeReady` is the gate the shell's main.ts
+         awaits before calling mount(). -->
+    <script>
+      (function() {
+        window.__suiRuntimeReady = new Promise(function(res) {
+          var s = document.createElement('script');
+          s.type = 'module';
+          s.textContent =
+            "import * as r from '@ship/ui-runtime'; window.__suiRuntime = r; window.dispatchEvent(new Event('sui-runtime-ready'));";
+          document.head.appendChild(s);
+          window.addEventListener('sui-runtime-ready', function() { res(window.__suiRuntime); }, { once: true });
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.ts"></script>
     <!-- Agent UI single-file components. The auto-loader is future
          work in the SDK; until then each component used here lists
