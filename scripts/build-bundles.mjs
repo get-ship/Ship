@@ -365,13 +365,14 @@ async function watchAll() {
 // elimination + smaller hydrate helpers. Current ceilings (just above
 // today's measurements) catch regressions; comments record the spec
 // target so future shrinkage work can ratchet them down.
-// During F1 (mount unification) ui-runtime carries both attach() — soon
-// to be deleted — AND mount() — the new unified entry. Ceiling was 14
-// KiB; bumped to 16 KiB until F1.6's cleanup commit removes attach() and
-// the duplicated live-channel logic, after which the gate must drop back
-// to ≤14. Tracked in .artifacts/design-f1-mount-unification.md.
+// F1 mount-unification ended at 14.9 KiB gz — mount() inlines per-view
+// signal/effect plumbing that used to live across attach() in ui-dom.
+// ui-dom shrunk from 5.1 KiB → 2.3 KiB in the same change, so the
+// system's net SUI runtime is ~17.2 KiB (was ~19.9). Tighten the
+// runtime ceiling back to 15 KiB; future tightening targets the inlined
+// live-channel + live-state envelope detection.
 const BUNDLE_GATES = [
-  { name: 'sui-runtime',     ceiling: 16, target: 13, scope: 'bundle' },
+  { name: 'sui-runtime',     ceiling: 15, target: 13, scope: 'bundle' },
   { name: 'sui-dom',         ceiling:  6, target:  4, scope: 'bundle' },
   { name: 'sui-components',  ceiling: 32, target: 18, scope: 'avg800',
     perComponentAvgTargetB: 800 },

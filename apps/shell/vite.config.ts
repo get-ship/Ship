@@ -201,10 +201,9 @@ export default defineConfig(({ mode }) => {
           rewrite: (p) => p.replace(/^\/daemon/, ""),
         },
         // SUI framework — daemon serves the runtime/dom/sdk-client
-        // bundles, view templates, the embeddable fragment endpoint
-        // (`/_sui/fragment/<name>`), the JSON island data feed, and
-        // mutations under /_sui/*. Listed before /_ship so the more-
-        // specific prefix wins.
+        // bundles, view templates, view payloads
+        // (`/_sui/views/<name>`), and mutations under /_sui/*. Listed
+        // before /_ship so the more-specific prefix wins.
         "/_sui": {
           target: currentDaemonUrl(),
           router: () => currentDaemonUrl(),

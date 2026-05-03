@@ -1,48 +1,36 @@
-# apps/shell — Ship hypermedia shell (POC)
+# apps/shell — Lit/Datastar/Jinja chrome
 
-A tiny Vite app that demonstrates a shell loading `ship-elements` and
-`datastar` once, then mounting HTML fragments from the daemon. See
-`POC-findings.md` for what worked, what didn't, and the recommendation.
+Frozen as of F1's mount-unification cleanup (see
+`.artifacts/design-f1-mount-unification.md`). This shell hosts the
+legacy Lit-based chrome — top bar, status bar, side rail, command
+palette — and the Lit/Datastar/Jinja-driven views (agents, git,
+pipelines, etc.) that haven't been ported to SUI yet.
+
+**No SUI plumbing lives here.** The studio (`/ship-ui-studio`) used
+to be the one SUI surface hosted by this shell; F1.6 removed it. SUI
+views are accessed standalone at `/sui/<name>` via the daemon's
+`view-host` static page until shell 2.0 ports them in.
+
+**Status: maintenance-only.** Bug fixes welcome; no new features.
+Anything net-new — new chrome, new views, new components — should
+land in shell 2.0 (`apps/shell2/`, not yet created at the time of
+this writing) where SUI is the canonical paradigm.
+
+When shell 2.0 reaches feature parity, this directory is deleted in
+one commit, along with `lit`, `datastar`, and the Jinja templating
+deps it carries.
 
 ## Run
 
 ```bash
-# install fixture views (one-time)
-for v in poc-home poc-pipelines poc-chat poc-form poc-drawer; do
-  mkdir -p ~/.ship/views/$v
-  cp apps/shell/fixtures/views/$v/index.html ~/.ship/views/$v/index.html
-done
-
-cd apps/shell
-VITE_DAEMON_TOKEN=$(cat ~/.ship/daemon.token) \
-VITE_DAEMON_URL=http://127.0.0.1:51742 \
-pnpm dev
+just shell-dev   # starts vite at http://127.0.0.1:3100/
 ```
-
-Open <http://127.0.0.1:3100/>.
-
-## Re-capture evidence
-
-With dev server running:
-
-```bash
-cd apps/shell
-node scripts/capture-evidence.mjs
-```
-
-Writes PNGs + `report.json` to `findings-evidence/`.
 
 ## Layout
 
-- `index.html` — boots `ship-elements.js` + `datastar.js` from the daemon
-  at `/api/assets/*` (proxied same-origin via Vite in dev)
+- `index.html` — boots `ship-elements.js` + `datastar.js` from the
+  daemon at `/api/assets/*` (proxied same-origin via Vite in dev)
 - `src/mount.ts` — `mountDaemonFragment` primitive (+ `openDaemonSSE`)
-- `src/main.ts` — minimal router, drawer toggle, form interception
-- `fixtures/views/` — sample daemon-served fragments used by the POC
+- `src/main.ts` — Navigo router, command palette, view mounting
 
-Bundles are built on demand by `pnpm build:bundles` (root); they are no
-longer vendored into `public/`.
-
-## Scope
-
-This app is the Ship daemon shell UI. The legacy TanStack Start app (`apps/web/`) has been retired.
+Bundles are built by `pnpm build:bundles` (root) before `cargo build`.

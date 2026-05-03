@@ -730,82 +730,9 @@ onRoute("/pipelines/run/:slug", (data) => {
   void mount(`/api/v1/v/pipelines/run/${encodeURIComponent(data.slug)}`);
 });
 
-// Dev-only embed probe — proves mountSuiView() can render a SUI view in
-// place inside the shell, without any full-page navigation. Targeted by
-// the Playwright probe at .artifacts/sui-embed-probe.mjs.
-if (import.meta.env.DEV) {
-  onRoute("/dev/sui/:name", async (data) => {
-    const name = data.name;
-    updateNav("");
-    const old = document.getElementById("ship-view-root");
-    const parent = old?.parentElement ?? document.body;
-    const slot = document.createElement("main");
-    slot.id = "ship-view-root";
-    slot.className = "ship-content";
-    slot.dataset.devSuiSlot = name;
-    if (old) old.replaceWith(slot);
-    else parent.appendChild(slot);
-    view = slot;
-    try {
-      const { mountSuiView } = await import("./mount-sui");
-      await mountSuiView(slot, name);
-    } catch (err) {
-      slot.innerHTML = `<div class="mount-error">Failed to mount /dev/sui/${name}\n${(err as Error).message}</div>`;
-    }
-  });
-}
-
-// ── UI Studio (SUI view — catalog + storybook) ──────────────────────
-//
-// Per-slot disposer tracking. mountSuiView returns the runtime mount
-// handle's `dispose()` — we stash it on the slot so the swap-out path
-// can tear down the previous controller cleanly. The querySelector-by-
-// attribute lookup the legacy `attach()` flow used is gone.
-type SuiSlot = HTMLElement & { __suiUnmount?: () => void };
-
-async function mountSuiSlot(name: string, subPath?: string): Promise<void> {
-  const old = document.getElementById("ship-view-root") as SuiSlot | null;
-  const parent = old?.parentElement ?? document.body;
-  const slot = document.createElement("main") as SuiSlot;
-  slot.id = "ship-view-root-next";
-  slot.className = "ship-content ship-content-entering";
-  slot.style.cssText = "position:absolute;inset:0;z-index:-1;pointer-events:none";
-  if (old) parent.insertBefore(slot, old.nextSibling);
-  else parent.appendChild(slot);
-  try {
-    const { mountSuiView } = await import("./mount-sui");
-    slot.__suiUnmount = await mountSuiView(slot, name, subPath);
-  } catch (err) {
-    slot.innerHTML = `<div class="mount-error">Failed to mount ${name}${subPath ? "/" + subPath : ""}\n${(err as Error).message}</div>`;
-  }
-  if (old) old.id = "ship-view-root-leaving";
-  slot.id = "ship-view-root";
-  slot.style.cssText = "";
-  view = slot;
-  requestAnimationFrame(() => slot.classList.remove("ship-content-entering"));
-  if (old && old !== slot) {
-    old.classList.add("ship-content-leaving");
-    setTimeout(() => {
-      // Tear down the previous mount before detaching DOM. Without this,
-      // every nav leaks the prior controller's effects, signal
-      // subscriptions, and SDK client EventSource.
-      try { old.__suiUnmount?.(); }
-      catch (err) { console.error("[shell] sui dispose threw:", err); }
-      old.parentElement?.removeChild(old);
-    }, 180);
-  }
-}
-
-router.on("/ship-ui-studio", () => {
-  updateNav("/ship-ui-studio");
-  void mountSuiSlot("ship-ui-studio");
-});
-
-router.on("/ship-ui-studio/:name", (match) => {
-  updateNav("/ship-ui-studio");
-  const name = (match as { data?: Record<string, string> }).data?.name ?? "";
-  void mountSuiSlot("ship-ui-studio", name);
-});
+// SUI views are no longer hosted from the shell. ship-ui-studio lives
+// at /sui/ship-ui-studio (standalone view-host) until shell 2.0 ports it
+// in. See .artifacts/design-f1-mount-unification.md.
 
 // 404
 router.notFound(() => {

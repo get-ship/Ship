@@ -1,7 +1,6 @@
-//! Shared helpers for the `/_sui/render/{view}` (GET, walker
-//! debug) endpoint. Phase 2 deleted the
-//! `/_sui/render-fragment/{view}` POST endpoint that paired with
-//! this; all that remains is the GET inspector.
+//! Shared baked-view helpers — embed agents/git/counter `.sui` source
+//! at compile time so the resolver and the SSE channel handler can
+//! resolve them without a project filesystem.
 
 use axum::{
     body::Body,
@@ -28,10 +27,10 @@ pub(super) fn view_source(name: &str) -> Option<&'static str> {
     }
 }
 
-/// Resolve a view's source for the GET /_sui/render debug endpoint.
-/// Tries the bake list first, then falls back to per-worktree
-/// `.ship/views/<name>/index.sui` so project-defined SUI views (e.g.
-/// ship-ui-studio) are still inspectable.
+/// Resolve a view's source by name. Tries the bake list first, then
+/// falls back to per-worktree `.ship/views/<name>/index.sui` so
+/// project-defined SUI views (e.g. ship-ui-studio) are still
+/// reachable. Used by the SSE channel handler.
 pub(super) fn render_view_source(name: &str) -> Option<String> {
     if let Some(baked) = view_source(name) {
         return Some(baked.to_string());
@@ -56,13 +55,5 @@ pub(super) fn not_found(msg: &str) -> Response {
         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
         .body(Body::from(msg.to_string()))
         .unwrap_or_else(|_| Response::new(Body::from("not found")))
-}
-
-pub(super) fn render_error(message: String) -> Response {
-    Response::builder()
-        .status(StatusCode::INTERNAL_SERVER_ERROR)
-        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .body(Body::from(message))
-        .unwrap_or_else(|_| Response::new(Body::from("compile error")))
 }
 

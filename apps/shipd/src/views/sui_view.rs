@@ -33,7 +33,7 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use sui_compiler::{CompileOpts, compile, islands::SUI_ISLANDS, parse, render};
+use sui_compiler::{CompileOpts, compile, islands::SUI_ISLANDS};
 
 use super::sui_bundle::bundle_view;
 use super::sui_resolver::{ResolvedView, resolve};
@@ -104,55 +104,6 @@ pub async fn serve_sui_island(Path(tag): Path<String>) -> Response {
         .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
         .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
         .body(Body::from(body))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
-}
-
-/// `GET /sui/{name}` — server-rendered HTML for `views/{name}/` plus a
-/// boot script that calls `attach()`.
-///
-/// The walker output is wrapped in a document shell that loads the same
-/// bundled runtime / dom / sdk-client modules the F-1 debug endpoint
-/// uses. Compile errors surface as a 500 with the rendered diagnostic
-/// (matches the F-1 endpoint's behaviour and lets `curl` see the same
-/// failure mode locally).
-pub async fn serve_sui_view(Path(name): Path<String>) -> Response {
-    serve_full_page(&name, None).await
-}
-
-/// `GET /sui/{name}/{*sub_path}` — same as serve_sui_view but for the
-/// `[param]`-routed detail pages. The shell's mountSuiView already handles
-/// the shell-mounted flow via `/_sui/fragment/{name}/{*sub_path}`; this is
-/// the standalone full-page equivalent so direct URLs / bookmarks work.
-pub async fn serve_sui_view_subpath(Path((name, sub_path)): Path<(String, String)>) -> Response {
-    serve_full_page(&name, Some(sub_path.as_str())).await
-}
-
-async fn serve_full_page(name: &str, sub_path: Option<&str>) -> Response {
-    if !is_valid_view_name(name) {
-        return not_found("invalid view name");
-    }
-    let resolved = match resolve(name, sub_path) {
-        Ok(r) => r,
-        Err(e) => return not_found(&e.message),
-    };
-    let source = resolved.source.as_str();
-    let program = match parse::parse(source) {
-        Ok(p) => p,
-        Err(err) => return render_error(err.render(source)),
-    };
-    let opts = render::RenderOpts { view_name: name.to_string() };
-    let rendered = match render::render_default(&program, &opts) {
-        Ok(r) => r,
-        Err(err) => return render_error(err.render(source)),
-    };
-
-    let title = title_for(name);
-    let html = crate::views::sui_view_shell::render_shell_with_sub(name, title, &rendered.html, sub_path);
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(html))
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
@@ -357,15 +308,6 @@ fn render_error(message: String) -> Response {
         .unwrap_or_else(|_| Response::new(Body::from("compile error")))
 }
 
-fn title_for(name: &str) -> &'static str {
-    match name {
-        "agents" => "Agents",
-        "git" => "Git",
-        "counter" => "Counter",
-        _ => "Ship",
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -402,50 +344,6 @@ mod tests {
         assert!(!is_valid_view_name("agents/index"));
         assert!(is_valid_view_name("agents"));
         assert!(is_valid_view_name("agent-detail"));
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn unknown_view_returns_404() {
-        let resp = serve_sui_view(Path("unknown".to_string())).await;
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn invalid_name_returns_404() {
-        let resp = serve_sui_view(Path("BadName".to_string())).await;
-        assert_eq!(resp.status(), StatusCode::NOT_FOUND);
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn agents_shell_returns_ssr_html() {
-        let resp = serve_sui_view(Path("agents".to_string())).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let ct = resp.headers().get(header::CONTENT_TYPE).unwrap();
-        assert!(ct.to_str().unwrap().contains("text/html"));
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let body = std::str::from_utf8(&bytes).unwrap();
-        assert!(body.contains(r#"id="sui-root""#));
-        assert!(body.contains(r#"data-view="agents""#));
-        assert!(body.contains("data-ssr-root"));
-        assert!(body.contains("<sui-if key=") || body.contains("<!--sui:text:") || body.contains("on:click="));
-        assert!(body.contains("__set_init__"));
-        assert!(body.contains("import { attach } from '@ship/ui-dom'"));
-        assert!(!body.contains("hydrate(template"));
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn counter_shell_returns_ssr_html() {
-        let resp = serve_sui_view(Path("counter".to_string())).await;
-        assert_eq!(resp.status(), StatusCode::OK);
-        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
-            .await
-            .unwrap();
-        let body = std::str::from_utf8(&bytes).unwrap();
-        assert!(body.contains(r#"data-view="counter""#));
-        assert!(body.contains("<!--sui:text:") || body.contains("on:click="));
-        assert!(body.contains("__set_init__"));
     }
 
     #[tokio::test(flavor = "multi_thread")]

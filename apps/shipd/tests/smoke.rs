@@ -280,73 +280,40 @@ async fn fresh_daemon_writes_canonical_home_layout() {
     }
 }
 
-/// `/set/agents` is the production ship-set view — unauthenticated,
-/// returns SSR HTML wired up with `attach()`. The boot script imports
-/// the bundled `@ship/ui-dom` runtime via the inline importmap and
-/// reuses the `id="sui-root"` / `data-view="agents"` selectors
-/// existing integrations (and tests) rely on.
+/// `/sui/<name>` serves the static view-host page after F1's mount
+/// unification — same HTML for every view; the page reads its URL
+/// and mounts the matching JSON payload at `/_sui/views/<name>`.
 #[tokio::test]
-async fn set_agents_serves_ssr_html() {
+async fn sui_route_serves_view_host_static() {
     let d = TestDaemon::start().await;
     let res = d.bare().get(d.url("/sui/agents")).send().await.unwrap();
     assert_eq!(res.status(), 200);
-    let ct = res
-        .headers()
-        .get("content-type")
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .to_string();
+    let ct = res.headers().get("content-type").unwrap().to_str().unwrap().to_string();
     assert!(ct.contains("text/html"));
     let body = res.text().await.unwrap();
-    // Existing selectors still work.
-    assert!(body.contains(r#"id="sui-root""#));
-    assert!(body.contains(r#"data-view="agents""#));
-    // Importmap entries the boot script resolves.
-    assert!(body.contains("/_sui/runtime.js"));
-    assert!(body.contains("/_sui/dom.js"));
-    assert!(body.contains("/_sui/sdk-client.js"));
-    // SSR walker output is inlined.
-    assert!(body.contains("data-ssr-root"));
-    assert!(body.contains("<sui-if key=") || body.contains("<!--sui:text:") || body.contains("on:click="));
-    assert!(body.contains("__set_init__"));
-    // Boot script attaches reactivity in place — no parse-and-build.
-    assert!(body.contains("import { attach } from '@ship/ui-dom'"));
-    assert!(!body.contains("hydrate(template"));
-    assert!(!body.contains("fetch('/_sui/views/agents/view.sui')"));
+    // Static page: hosts mount() against /_sui/views/<name>.
+    assert!(body.contains("import { mount } from '@ship/ui-runtime'"));
+    assert!(body.contains("/_sui/views/"));
+    // Importmap precedes any module script (browser freezes on first module
+    // fetch otherwise).
+    let imap = body.find(r#"type="importmap""#).expect("importmap present");
+    let module = body.find(r#"type="module""#).expect("module script present");
+    assert!(imap < module, "importmap must come before any module script");
 }
 
-/// Until Phase E-2 lands the control-flow swap, `views/agents/`
-/// renders the loading branch on first paint. Lock that in so a future
-/// regression in the walker's branch-selection is loud.
+/// `/_sui/views/<name>` returns the JSON payload mount() consumes.
 #[tokio::test]
-async fn set_agents_first_paint_is_loading_branch() {
+async fn sui_views_json_payload_shape() {
     let d = TestDaemon::start().await;
-    let res = d.bare().get(d.url("/sui/agents")).send().await.unwrap();
+    let res = d.bare().get(d.url("/_sui/views/counter")).send().await.unwrap();
     assert_eq!(res.status(), 200);
-    let body = res.text().await.unwrap();
-    assert!(
-        body.contains("Loading agents"),
-        "expected 'Loading agents' copy in first paint; body was {body:.400}",
-    );
-    // The init island must mark agents as loading so attach() picks
-    // the same branch on hydration.
-    assert!(body.contains(r#""kind":"loading""#));
-}
-
-/// Counter view has no control-flow gate, so first paint is fully
-/// interactive once attach() boots. Verifies the SSR fragment carries
-/// the bound text + click handler markers and the init island.
-#[tokio::test]
-async fn set_counter_serves_interactive_ssr() {
-    let d = TestDaemon::start().await;
-    let res = d.bare().get(d.url("/sui/counter")).send().await.unwrap();
-    assert_eq!(res.status(), 200);
-    let body = res.text().await.unwrap();
-    assert!(body.contains(r#"data-view="counter""#));
-    assert!(body.contains("<!--sui:text:") || body.contains("on:click="));
-    assert!(body.contains("__set_init__"));
-    assert!(body.contains("import { attach } from '@ship/ui-dom'"));
+    let v: serde_json::Value = res.json().await.unwrap();
+    assert_eq!(v["name"], "counter");
+    assert!(v["html"].as_str().unwrap().contains("Counter"));
+    assert!(v["css"].as_str().unwrap().contains("counter"));
+    assert_eq!(v["moduleUrl"], "/_sui/views/counter/view.js");
+    // Scope carries the initial state values for the view's <state> decls.
+    assert!(v["scope"]["count"].is_number());
 }
 
 /// The view's framework asset endpoints must serve module JS so the

@@ -209,32 +209,10 @@ pub fn build_router(
                 views::sui_sse::serve_sui_sse(path, axum::extract::State(sui_sse_state.clone()))
             }),
         )
-        // F-1 SSR walker debug endpoint. Returns the render walker's
-        // output for a compiled `.sui` view — wrapped HTML by
-        // default, `?format=json` for `{ html, init }`. Inspection
-        // surface only; the production SSR cut-over is Phase F.
-        .route(
-            "/_sui/render/{name}",
-            axum::routing::get(views::sui_render::serve_sui_render),
-        )
-        // Embeddable fragment endpoint — returns SSR markup + scoped
-        // __set_init__ island + an inline boot module that calls
-        // attach() against `[data-sui-root][data-view="<name>"]`. No
-        // document chrome — the shell already loads the importmap and
-        // runtime modules. Two-arg variant matches sub-paths through
-        // `[param]` directories under `<project>/.ship/views/<name>/`.
-        .route(
-            "/_sui/fragment/{name}",
-            axum::routing::get(views::sui_fragment::serve_sui_fragment),
-        )
-        .route(
-            "/_sui/fragment/{name}/{*sub_path}",
-            axum::routing::get(views::sui_fragment::serve_sui_fragment_subpath),
-        )
         // Standalone view hosting. Same static HTML for every URL —
         // the page reads its location and mounts the matching payload
-        // from /_sui/views/<name>[/<sub>]. The dynamic per-view HTML
-        // handlers (serve_sui_view{,_subpath}) are deleted in F1.6.
+        // from /_sui/views/<name>[/<sub>]. F1.6 cleanup deleted the
+        // dynamic per-view HTML endpoints this replaced.
         .route(
             "/sui/{name}",
             axum::routing::get(views::sui_view_host::serve_view_host),

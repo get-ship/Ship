@@ -44,8 +44,8 @@ pub struct ResolveError {
 
 /// Resolve `<name>` (top-level segment) plus optional sub-path.
 ///
-/// `sub_path` is `None` for `/_sui/fragment/{name}` and `Some("a/b/c")`
-/// for `/_sui/fragment/{name}/a/b/c`. The empty string and `Some("")`
+/// `sub_path` is `None` for `/_sui/views/{name}` and `Some("a/b/c")`
+/// for `/_sui/views/{name}/a/b/c`. The empty string and `Some("")`
 /// are equivalent.
 pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, ResolveError> {
     let segments: Vec<&str> = sub_path
