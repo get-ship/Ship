@@ -128,6 +128,8 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
                 | BindingKind::BindChecked
                 | BindingKind::BindThis
                 | BindingKind::Mutation
+                | BindingKind::WhileLoading
+                | BindingKind::WhileError
         ) {
             continue;
         }

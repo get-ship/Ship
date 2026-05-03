@@ -257,7 +257,7 @@ impl TemplateEmitter {
     ///
     /// Hoists `const __renderWhileLoading_<N> = () => …` inside
     /// `setup(ctx)` so the body is walked exactly once. Both `__mount`
-    /// (legacy) and `attach()` paths reference the same hoisted const.
+    /// (legacy) and `hydrate(root, ctx)` reference the same hoisted const.
     /// Single walk = single registry-key consumption per body.
     pub(super) fn emit_while_loading_block(
         &mut self,
@@ -269,7 +269,7 @@ impl TemplateEmitter {
         // Registry parity: while-loading consumes one b<N> for the
         // boundary itself. Body keys are consumed during the (single)
         // emit walk below.
-        let _ = self.next_key();
+        let key = self.next_key();
         let idx = self.while_loading_idx;
         self.while_loading_idx += 1;
         let render_key = format!("__renderWhileLoading_{idx}");
@@ -288,12 +288,16 @@ impl TemplateEmitter {
             "{cleanups_var}.push(bindWhileLoading({{ anchor: {anchor}, signal: $scope.{bind}, render: {render_key} }}));"
         ));
 
-        // Re-export the hoisted const as a named property so
-        // `attach()` can find the render fn through `binding.renderKey`.
-        self.attach_handlers.push_str(&format!(
-            "{}: {render_key},\n",
-            js_string(&render_key)
-        ));
+        // Phase 3b.5 gate G: direct-emit hydrate call. The render fn is
+        // already in the setup closure (no need to expose it as a named
+        // property anymore).
+        if self.is_view && self.boundary_depth == 0 {
+            self.hydrate_uses_markers = true;
+            self.hydrate_calls.line(&format!(
+                "if (__m[{k}]) __cleanups.push(hydrateWhileLoading(__m[{k}], {k}, () => $scope.{bind}(), {render_key}));",
+                k = js_string(&key),
+            ));
+        }
     }
 
     /// Emit `{#while-error <errVar> of <bind>}…{/while-error}`.
@@ -304,7 +308,7 @@ impl TemplateEmitter {
         parent_var: &str,
         cleanups_var: &str,
     ) {
-        let _ = self.next_key();
+        let key = self.next_key();
         let idx = self.while_error_idx;
         self.while_error_idx += 1;
         let render_key = format!("__renderWhileError_{idx}");
@@ -322,10 +326,13 @@ impl TemplateEmitter {
             "{cleanups_var}.push(bindWhileError({{ anchor: {anchor}, signal: $scope.{bind}, render: {render_key} }}));"
         ));
 
-        self.attach_handlers.push_str(&format!(
-            "{}: {render_key},\n",
-            js_string(&render_key)
-        ));
+        if self.is_view && self.boundary_depth == 0 {
+            self.hydrate_uses_markers = true;
+            self.hydrate_calls.line(&format!(
+                "if (__m[{k}]) __cleanups.push(hydrateWhileError(__m[{k}], {k}, () => $scope.{bind}(), {render_key}));",
+                k = js_string(&key),
+            ));
+        }
     }
 
     fn emit_wl_render_hoist(&mut self, render_key: &str, body: &[Instr]) {

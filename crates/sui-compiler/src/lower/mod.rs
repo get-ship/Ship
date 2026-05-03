@@ -83,12 +83,20 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
         }
         Instr::WhileLoading(wl) => {
             out.runtime_imports.insert("bindWhileLoading");
+            if is_view && *depth == 0 {
+                out.dom_imports.insert("collectElementMarkers");
+                out.dom_imports.insert("hydrateWhileLoading");
+            }
             *depth += 1;
             walk_instrs(&wl.body, out, is_view, depth);
             *depth -= 1;
         }
         Instr::WhileError(we) => {
             out.runtime_imports.insert("bindWhileError");
+            if is_view && *depth == 0 {
+                out.dom_imports.insert("collectElementMarkers");
+                out.dom_imports.insert("hydrateWhileError");
+            }
             *depth += 1;
             walk_instrs(&we.body, out, is_view, depth);
             *depth -= 1;
