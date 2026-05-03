@@ -188,6 +188,17 @@ pub fn build_router(
             "/_sui/views/{name}/{*sub_path}",
             axum::routing::get(views::sui_view_payload::serve_view_payload_subpath),
         )
+        // F1: static view-host page. Same HTML for every view — the page
+        // reads its URL and mounts the matching payload. F1.5 will route
+        // /sui/<name> here too; for now this stands on its own.
+        .route(
+            "/view-host",
+            axum::routing::get(views::sui_view_host::serve_view_host),
+        )
+        .route(
+            "/view-host/{*rest}",
+            axum::routing::get(views::sui_view_host::serve_view_host),
+        )
         .route(
             "/_sui/views/{name}/view.css",
             axum::routing::get(views::sui_view::serve_sui_view_css),
