@@ -29,7 +29,7 @@
 
 use axum::{
     body::Body,
-    extract::Path,
+    extract::{Path, Query},
     http::{StatusCode, header},
     response::Response,
 };
@@ -117,10 +117,22 @@ pub async fn serve_sui_island(Path(tag): Path<String>) -> Response {
 /// (matches the F-1 endpoint's behaviour and lets `curl` see the same
 /// failure mode locally).
 pub async fn serve_sui_view(Path(name): Path<String>) -> Response {
-    if !is_valid_view_name(&name) {
+    serve_full_page(&name, None).await
+}
+
+/// `GET /sui/{name}/{*sub_path}` — same as serve_sui_view but for the
+/// `[param]`-routed detail pages. The shell's mountSuiView already handles
+/// the shell-mounted flow via `/_sui/fragment/{name}/{*sub_path}`; this is
+/// the standalone full-page equivalent so direct URLs / bookmarks work.
+pub async fn serve_sui_view_subpath(Path((name, sub_path)): Path<(String, String)>) -> Response {
+    serve_full_page(&name, Some(sub_path.as_str())).await
+}
+
+async fn serve_full_page(name: &str, sub_path: Option<&str>) -> Response {
+    if !is_valid_view_name(name) {
         return not_found("invalid view name");
     }
-    let resolved = match resolve(&name, None) {
+    let resolved = match resolve(name, sub_path) {
         Ok(r) => r,
         Err(e) => return not_found(&e.message),
     };
@@ -129,14 +141,14 @@ pub async fn serve_sui_view(Path(name): Path<String>) -> Response {
         Ok(p) => p,
         Err(err) => return render_error(err.render(source)),
     };
-    let opts = render::RenderOpts { view_name: name.clone() };
+    let opts = render::RenderOpts { view_name: name.to_string() };
     let rendered = match render::render_default(&program, &opts) {
         Ok(r) => r,
         Err(err) => return render_error(err.render(source)),
     };
 
-    let title = title_for(&name);
-    let html = render_shell(&name, title, &rendered.html);
+    let title = title_for(name);
+    let html = crate::views::sui_view_shell::render_shell_with_sub(name, title, &rendered.html, sub_path);
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
@@ -163,8 +175,15 @@ pub async fn serve_sui_view_template(Path(name): Path<String>) -> Response {
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
-/// `GET /_sui/views/{name}/view.js` — the bundled paired setup module.
-pub async fn serve_sui_view_setup(Path(name): Path<String>) -> Response {
+/// `GET /_sui/views/{name}/view.js[?sub=<sub_path>]` — the bundled paired
+/// setup module. The optional `sub` query param routes to a `[param]`-style
+/// sub-template inside the view directory; required for detail pages whose
+/// boot script must load the SAME compiled module that the rendered HTML
+/// was generated from.
+pub async fn serve_sui_view_setup(
+    Path(name): Path<String>,
+    Query(q): Query<ViewSetupQuery>,
+) -> Response {
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
@@ -173,15 +192,23 @@ pub async fn serve_sui_view_setup(Path(name): Path<String>) -> Response {
     // time. The latter only emits the template-side module — author
     // <script> blocks aren't bundled — but that's enough for the
     // declarative views the resolver enables.
-    match name.as_str() {
-        "agents" => js_response(AGENTS_VIEW_JS),
-        "git" => js_response(GIT_VIEW_JS),
-        "counter" => js_response(COUNTER_VIEW_JS),
-        _ => match resolve(&name, None) {
-            Ok(r) => compile_view_js(&name, &r),
-            Err(e) => not_found(&e.message),
-        },
+    if q.sub.is_none() {
+        match name.as_str() {
+            "agents" => return js_response(AGENTS_VIEW_JS),
+            "git" => return js_response(GIT_VIEW_JS),
+            "counter" => return js_response(COUNTER_VIEW_JS),
+            _ => {}
+        }
     }
+    match resolve(&name, q.sub.as_deref()) {
+        Ok(r) => compile_view_js(&name, &r),
+        Err(e) => not_found(&e.message),
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ViewSetupQuery {
+    pub sub: Option<String>,
 }
 
 fn compile_view_js(name: &str, resolved: &ResolvedView) -> Response {

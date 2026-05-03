@@ -208,6 +208,10 @@ pub fn build_router(
             axum::routing::get(views::sui_view::serve_sui_view),
         )
         .route(
+            "/sui/{name}/{*sub_path}",
+            axum::routing::get(views::sui_view::serve_sui_view_subpath),
+        )
+        .route(
             "/_sui/data",
             axum::routing::get(move |q: axum::extract::Query<views::sui_data::DataQuery>| {
                 views::sui_data::serve_data(axum::extract::State(sui_data_state.clone()), q)

@@ -73,7 +73,7 @@ async fn serve(name: &str, sub_path: Option<&str>) -> Response {
     let body = format!(
         "{island_scripts}{view_css}<div data-sui-root data-view=\"{safe_name}\">{html}</div>\n{boot}\n",
         html = rendered.html,
-        boot = boot_script(&safe_name),
+        boot = boot_script(&safe_name, sub_path),
     );
     Response::builder()
         .status(StatusCode::OK)
@@ -134,10 +134,14 @@ fn collect_island_scripts(source: &str) -> String {
 
 /// Inline boot module. Scoped to `[data-sui-root][data-view="<name>"]`
 /// so multiple fragments on the same page don't collide.
-fn boot_script(safe_name: &str) -> String {
+fn boot_script(safe_name: &str, sub_path: Option<&str>) -> String {
+    let view_js_url = match sub_path {
+        Some(sub) => format!("/_sui/views/{safe_name}/view.js?sub={sub}"),
+        None => format!("/_sui/views/{safe_name}/view.js"),
+    };
     format!(
         r#"<script type="module" data-sui-boot data-view="{safe_name}">
-import * as viewModule from '/_sui/views/{safe_name}/view.js';
+import * as viewModule from '{view_js_url}';
 import {{ attach }} from '@ship/ui-dom';
 import {{ route, navigate }} from '@ship/ui-runtime';
 import {{ createClient }} from '@ship/ui-sdk-client';

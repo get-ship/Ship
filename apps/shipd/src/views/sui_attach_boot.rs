@@ -56,11 +56,26 @@ pub fn attach_boot_script(
     root_selector: &str,
     error_label: &str,
 ) -> String {
+    attach_boot_script_with_sub(view_name_escaped, root_selector, error_label, None)
+}
+
+pub fn attach_boot_script_with_sub(
+    view_name_escaped: &str,
+    root_selector: &str,
+    error_label: &str,
+    sub_path: Option<&str>,
+) -> String {
+    // Sub-path is constrained to [a-z0-9-/] by is_valid_view_name + sub-path
+    // segments, so no URL encoding is needed beyond the literal substitution.
+    let view_js_url = match sub_path {
+        Some(sub) => format!("/_sui/views/{view_name_escaped}/view.js?sub={sub}"),
+        None => format!("/_sui/views/{view_name_escaped}/view.js"),
+    };
     let mut s = String::with_capacity(640);
     write!(
         &mut s,
         r#"<script type="module">
-    import * as viewModule from '/_sui/views/{view_name_escaped}/view.js';
+    import * as viewModule from '{view_js_url}';
     import {{ attach }} from '@ship/ui-dom';
     import {{ route, navigate }} from '@ship/ui-runtime';
     import {{ createClient }} from '@ship/ui-sdk-client';

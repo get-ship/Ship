@@ -14,14 +14,22 @@ use super::sui_attach_boot::{
 
 /// Wrap the SSR walker fragment in the production document shell.
 pub fn render_shell(name: &str, title: &str, ssr_html: &str) -> String {
+    render_shell_with_sub(name, title, ssr_html, None)
+}
+
+/// Same as `render_shell` but encodes a sub-path in the boot's view.js URL.
+/// Required for `[param]`-routed detail pages so the compiled module loaded
+/// by the boot script matches the rendered template.
+pub fn render_shell_with_sub(name: &str, title: &str, ssr_html: &str, sub_path: Option<&str>) -> String {
     let safe_name = escape_html(name);
     let safe_title = escape_html(title);
     let importmap = importmap_script();
     let components = components_side_effect_script();
-    let boot = attach_boot_script(
+    let boot = crate::views::sui_attach_boot::attach_boot_script_with_sub(
         &safe_name,
         "document.getElementById('sui-root')",
         "view",
+        sub_path,
     );
     // Importmap MUST come before any module script. Browsers freeze
     // the importmap as soon as the first module script begins fetching;
