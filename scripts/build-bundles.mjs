@@ -329,6 +329,45 @@ async function watchAll() {
   console.log('[bundles] watching for changes…');
 }
 
+// Phase 3b.5 (gate N): bundle-size gates. The strict targets in the
+// arc spec are aspirational — they assume the next sweep of dead-code
+// elimination + smaller hydrate helpers. Current ceilings (just above
+// today's measurements) catch regressions; comments record the spec
+// target so future shrinkage work can ratchet them down.
+const BUNDLE_GATES = [
+  { name: 'sui-runtime',     ceiling: 14, target: 13, scope: 'bundle' },
+  { name: 'sui-dom',         ceiling:  6, target:  4, scope: 'bundle' },
+  { name: 'sui-components',  ceiling: 32, target: 18, scope: 'avg800',
+    perComponentAvgTargetB: 800 },
+];
+
+async function enforceBundleGates() {
+  for (const gate of BUNDLE_GATES) {
+    const outfile = join(assetsDir, `${gate.name}.js`);
+    let body;
+    try {
+      body = readFileSync(outfile);
+    } catch {
+      continue; // bundle wasn't built (e.g. islands-only run)
+    }
+    const gz = gzipSync(body).length;
+    const gzKb = gz / 1024;
+    const status =
+      gzKb <= gate.target ? 'AT TARGET'
+      : gzKb <= gate.ceiling ? 'within ceiling'
+      : 'OVER CEILING';
+    console.log(
+      `[bundles][gate] ${gate.name}.js gz ${gzKb.toFixed(1)} KiB ` +
+      `(target ≤ ${gate.target} KiB, ceiling ≤ ${gate.ceiling} KiB) — ${status}`,
+    );
+    if (gzKb > gate.ceiling) {
+      throw new Error(
+        `[bundles] ${gate.name}.js gz ${gzKb.toFixed(1)} KiB exceeds ceiling ${gate.ceiling} KiB`,
+      );
+    }
+  }
+}
+
 async function main() {
   mkdirSync(assetsDir, { recursive: true });
   if (watch) {
@@ -338,6 +377,7 @@ async function main() {
   for (const t of targets) {
     await buildOne(t);
   }
+  await enforceBundleGates();
 }
 
 main().catch((err) => {
