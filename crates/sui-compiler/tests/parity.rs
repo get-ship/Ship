@@ -121,6 +121,39 @@ fn compile_is_deterministic() {
     }
 }
 
+/// Regression: the `{#for}` emit must not declare `const $scope = …`
+/// in the same block as a `Object.create($scope)` reference. JS const
+/// declarations create a Temporal Dead Zone from the start of the
+/// block, so the `Object.create($scope)` would fault on the
+/// to-be-declared inner `$scope` rather than reach the outer one.
+/// The fix wraps the iteration body in an IIFE that takes `$scope`
+/// as a parameter — outer `$scope` stays reachable; inner closures
+/// see the IIFE's parameter binding.
+#[test]
+fn for_iteration_emit_has_no_scope_tdz() {
+    let js = compile_fixture("agents", CompileMode::View, Some("./agents.ts"));
+    // The view's setup body legitimately declares the outer scope
+    // exactly once: `const $scope = Object.create(null);`. Any
+    // additional `const $scope = …` is the TDZ-shadow pattern.
+    let scope_decls = js.matches("const $scope =").count();
+    assert_eq!(
+        scope_decls, 1,
+        "expected exactly one `const $scope = …` declaration (the outer \
+         seed); extra ones are the TDZ-shadow pattern. Found {scope_decls} in:\n{js}"
+    );
+    // The IIFE shape must be present in both the for-render and the
+    // while-error render hoists the agents fixture exercises.
+    let iife_count = js.matches("(($scope) =>").count();
+    assert!(
+        iife_count >= 3,
+        "expected at least 3 `(($scope) => …)(__child…)` IIFE wrappers \
+         (key + render + while-error render); found {iife_count} in:\n{js}"
+    );
+    // node --check confirms the wrapped emission is still valid JS.
+    let p = write_mjs("agents-tdz-regression", &js);
+    node_check(&p);
+}
+
 /// Full hydrate-and-compare parity. Opt-in: requires the workspace's
 /// JS dependencies to be installed (`pnpm install`) so that
 /// `@ship/ui-dom` and `@ship/ui-runtime` resolve.

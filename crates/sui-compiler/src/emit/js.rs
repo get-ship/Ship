@@ -351,8 +351,16 @@ fn emit_data_decls(w: &mut Writer, program: &Program) {
 
 fn emit_state_decls(w: &mut Writer, program: &Program) {
     for s in &program.state {
+        // Reuse the SSR-built state signal from `ctx.scope` when one
+        // exists. attach.ts seeds `setupCtx.scope` with init.scope's
+        // signals (one per `<state>`); the controller's writable proxy
+        // is built against that same set, so writes go to those signals.
+        // If we instead created a fresh signal here, bindings would
+        // close over the duplicate and never see controller writes.
+        // Components have no init.scope; the `?? signal(...)` fallback
+        // creates a fresh signal for that path.
         w.line(&format!(
-            "$scope.{name} = signal(({src}));",
+            "$scope.{name} = (ctx && ctx.scope && ctx.scope.{name}) ?? signal(({src}));",
             name = js_ident(&s.name),
             src = s.value.source
         ));
