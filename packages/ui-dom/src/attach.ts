@@ -13,7 +13,6 @@
 // boundaries doesn't get pointlessly re-wired.
 
 import { route as makeRoute, type RouteSignals } from '@ship/ui-runtime'
-import { wireBoundaries } from './attach/boundaries'
 import { readInitIsland } from './attach/island'
 import { openLiveChannel } from './attach/live-channel'
 import { indexBindings, walkMarkers } from './attach/manifest'
@@ -184,28 +183,20 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
 
   const cleanups: Array<() => void> = []
 
-  // Wire control-flow boundaries first. Each handler replaces the
-  // SSR'd `<sui-{kind}>` wrapper with client-rendered content; nested
-  // SSR'd boundaries inside become detached and the snapshot walker
-  // skips them (`isConnected === false`).
-  cleanups.push(wireBoundaries(root, setupRet as Record<string, unknown>))
-
-  // Now walk surviving leaf markers (text / attr / on / etc) outside
-  // any control-flow boundary. Markers that lived inside boundary
-  // subtrees are gone — replaced by client-rendered content with
-  // inline reactive bindings the compiler emitted.
-  for (const hit of walkMarkers(root, ctx.byKey)) {
-    const c = wireMarker(hit, ctx)
-    if (c) cleanups.push(c)
+  // Phase 3b.5 (gate H): hydrate now drives the entire view — text,
+  // every leaf binding kind, control-flow boundaries (`if` / `for` /
+  // `match` / `await`), and `while-*` are all dispatched from the
+  // compiled view's `hydrate(root, ctx)`. The legacy manifest walker
+  // (`wireBoundaries`, `walkMarkers`, `wireMarker`) is no longer called
+  // for views the current compiler produced; it remains only for
+  // compatibility with bundles compiled by older versions.
+  if (mod.bindings && mod.bindings.length > 0) {
+    for (const hit of walkMarkers(root, ctx.byKey)) {
+      const c = wireMarker(hit, ctx)
+      if (c) cleanups.push(c)
+    }
   }
 
-  // Phase 3b.3: direct-emit hydrate. The compiler now inlines text
-  // bindings (and, in later phases, more leaf kinds) as a `hydrate`
-  // function on the setup return. It walks the SSR'd DOM once and
-  // wires each migrated kind without going through the manifest.
-  // Coexistence: kinds still present in the manifest are wired by
-  // `walkMarkers` above; kinds the compiler now inlines are wired
-  // here. Both fire on every attach; together they cover the view.
   const hydrate = (setupRet as Record<string, unknown> | null)?.['hydrate']
   if (typeof hydrate === 'function') {
     try {

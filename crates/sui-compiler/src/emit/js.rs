@@ -347,7 +347,6 @@ fn emit_setup_body(
         mount_w.line("return () => { for (const c of __cleanups) try { c(); } catch (e) {} };");
 
         let hoists = emitter.take_boundary_hoists();
-        let attach_handlers = emitter.take_attach_handlers();
         let callbacks = emitter.take_render_callbacks();
         let hydrate_uses_text = emitter.hydrate_uses_text();
         let hydrate_uses_markers = emitter.hydrate_uses_markers();
@@ -366,9 +365,6 @@ fn emit_setup_body(
         w.line("},");
         if !hydrate_calls.is_empty() {
             emit_view_hydrate(w, &hydrate_calls, hydrate_uses_text, hydrate_uses_markers);
-        }
-        if !attach_handlers.is_empty() {
-            w.push_str(&attach_handlers);
         }
         if !callbacks.is_empty() {
             w.push_str(&callbacks);

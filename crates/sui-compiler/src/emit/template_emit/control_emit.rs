@@ -1,18 +1,18 @@
 //! Control-flow emit: `{#if}`, `{#for}`, `{#match}`, `{#while-loading}`,
 //! and `{#while-error}`.
 //!
-//! Phase 2 design: each `{#if}` / `{#for}` / `{#match}` boundary emits
-//! a hoisted `__wireBoundary_b<N>` const inside `setup(ctx)` plus a
-//! `__b<N>_attach` named property on the view's setup return. The
-//! __mount path (legacy hand-mount) and `attach()` (SSR re-hydration)
-//! both call into the same hoisted helper, with `attach()` first
-//! swapping the SSR'd `<sui-{kind} key="b<N>">` wrapper for a Comment
-//! anchor. `bindIf` / `bindFor`'s effect mounts the active branch
-//! synchronously, replacing the SSR'd content client-side.
+//! Phase 3b.5 (gate H): control-flow boundaries are direct-emit through
+//! the unified `hydrate(root, ctx)` function on the view's setup return.
+//! Each `{#if}` / `{#for}` / `{#match}` boundary still hoists a
+//! `__wireBoundary_b<N>` const inside `setup(ctx)` so the legacy
+//! `__mount` path can call it inline; the hydrate function looks up the
+//! SSR'd `<sui-{kind} key="b<N>">` element via `collectElementMarkers`,
+//! swaps it for a Comment anchor, and invokes the same hoisted helper.
+//! `__b<N>_attach` named properties are no longer emitted — `attach()`
+//! drives boundaries through hydrate now, not through `wireBoundaries`.
 //!
-//! `{#while-loading}` / `{#while-error}` keep their existing renderKey
-//! shape — they're already client-side and don't go through the
-//! deleted `/_sui/render-fragment/` endpoint.
+//! `{#while-loading}` / `{#while-error}` follow the same shape via
+//! `hydrateWhileLoading` / `hydrateWhileError` (gate G).
 
 use super::super::expr_rewrite::rewrite_for_scope;
 use super::super::writer::{js_string, Writer};
@@ -38,6 +38,14 @@ impl TemplateEmitter {
         w.line(&format!(
             "{cleanups_var}.push(__wireBoundary_{key}({anchor}));"
         ));
+
+        // Direct-emit hydrate dispatch (parent before children — outer
+        // boundary swaps detach inner SSR'd nodes, so inner hydrate
+        // calls become no-ops via the `__m[k]` guard).
+        if self.is_view && self.boundary_depth == 0 {
+            self.hydrate_uses_markers = true;
+            self.emit_boundary_hydrate(&key, "if");
+        }
 
         // Hoisted handler — emitted into `boundary_hoists`, drained
         // into the setup body before the `return`.
@@ -74,10 +82,6 @@ impl TemplateEmitter {
         h.leave();
         h.line("});");
         self.boundary_hoists.push_str(&h.into_string());
-
-        if self.is_view {
-            self.emit_attach_handler(&key, "if");
-        }
     }
 
     pub(in crate::emit) fn emit_for(
@@ -98,6 +102,11 @@ impl TemplateEmitter {
         w.line(&format!(
             "{cleanups_var}.push(__wireBoundary_{key}({anchor}));"
         ));
+
+        if self.is_view && self.boundary_depth == 0 {
+            self.hydrate_uses_markers = true;
+            self.emit_boundary_hydrate(&key, "for");
+        }
 
         let it_rw = rewrite_for_scope(&instr.iterable.source, &[]);
         let var = &instr.var_name;
@@ -162,10 +171,6 @@ impl TemplateEmitter {
         h.leave();
         h.line("});");
         self.boundary_hoists.push_str(&h.into_string());
-
-        if self.is_view {
-            self.emit_attach_handler(&key, "for");
-        }
     }
 
     pub(in crate::emit) fn emit_match(
@@ -185,6 +190,11 @@ impl TemplateEmitter {
         w.line(&format!(
             "{cleanups_var}.push(__wireBoundary_{key}({anchor}));"
         ));
+
+        if self.is_view && self.boundary_depth == 0 {
+            self.hydrate_uses_markers = true;
+            self.emit_boundary_hydrate(&key, "match");
+        }
 
         let disc_rw = rewrite_for_scope(&instr.discriminant.source, &[]);
         let mut h = Writer::new();
@@ -223,34 +233,30 @@ impl TemplateEmitter {
         h.leave();
         h.line("});");
         self.boundary_hoists.push_str(&h.into_string());
-
-        if self.is_view {
-            self.emit_attach_handler(&key, "match");
-        }
     }
 
-    /// Emit a `__b<N>_attach: (target) => …` named property on the
-    /// view's setup return. `attach()` looks this up by walking SSR'd
-    /// `<sui-{kind} key="b<N>">` elements, then calls the handler with
-    /// the boundary element. The handler swaps the wrapper for a
-    /// Comment anchor and invokes the hoisted helper, whose first
-    /// effect-run mounts the active branch synchronously.
-    fn emit_attach_handler(&mut self, key: &str, kind: &str) {
-        let mut a = Writer::new();
-        a.line(&format!("__{key}_attach: (target) => {{"));
-        a.enter();
-        a.line("const __doc = target.ownerDocument ?? document;");
-        a.line(&format!(
-            "const __anchor = (target.nodeType === 1) ? __doc.createComment({}) : target;",
-            js_string(kind)
+    /// Emit a hydrate-side dispatch for an `if` / `for` / `match`
+    /// boundary. The compiled `hydrate(root, ctx)` body looks up the
+    /// SSR'd `<sui-{kind} key="b<N>">` element via `__m`, swaps it for
+    /// a Comment anchor, and invokes the hoisted `__wireBoundary_b<N>`
+    /// helper — same shape the legacy `__bN_attach` named property used
+    /// to expose, just inlined into the unified hydrate function.
+    fn emit_boundary_hydrate(&mut self, key: &str, kind: &str) {
+        let k = js_string(key);
+        self.hydrate_calls.line(&format!("if (__m[{k}]) {{"));
+        self.hydrate_calls.line(&format!("  const __t = __m[{k}];"));
+        self.hydrate_calls.line("  const __doc = __t.ownerDocument ?? document;");
+        self.hydrate_calls.line(&format!(
+            "  const __anchor = (__t.nodeType === 1) ? __doc.createComment({}) : __t;",
+            js_string(kind),
         ));
-        a.line(
-            "if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);",
+        self.hydrate_calls.line(
+            "  if (__t.nodeType === 1 && __t.parentNode) __t.parentNode.replaceChild(__anchor, __t);",
         );
-        a.line(&format!("return __wireBoundary_{key}(__anchor);"));
-        a.leave();
-        a.line("},");
-        self.attach_handlers.push_str(&a.into_string());
+        self.hydrate_calls.line(&format!(
+            "  __cleanups.push(__wireBoundary_{key}(__anchor));"
+        ));
+        self.hydrate_calls.line("}");
     }
 
     /// Emit `{#while-loading of <bind>}…{/while-loading}`.
