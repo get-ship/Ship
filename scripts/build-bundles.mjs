@@ -237,17 +237,16 @@ async function buildOne(t) {
   writeFileSync(cacheFile, JSON.stringify({ hash, inputs }, null, 2));
 
   // Regression guard: views go through the Rust compiler, so the
-  // bundle MUST export both `bindings` (manifest attach() reads) and
-  // a `default` (the view setup). Catches the foundation-level bug
-  // where view.ts was bundled directly without sui-compiler.
+  // bundle MUST export a `default` (the view setup). Phase 3b.5
+  // dropped the `bindings` manifest — every kind is now wired by the
+  // compiled view's hydrate() directly. Catches the foundation-level
+  // bug where view.ts was bundled directly without sui-compiler.
   if (t.htmlSet) {
     const out = readFileSync(outfile, 'utf8');
-    const hasBindings = /export\s*\{[^}]*\bbindings\b/.test(out)
-      || /\bbindings\s*,/.test(out);
     const hasDefault = /\bdefault\b/.test(out);
-    if (!hasBindings || !hasDefault) {
+    if (!hasDefault) {
       throw new Error(
-        `[bundles] ${t.name}.js missing required exports — bindings:${hasBindings} default:${hasDefault}. View bundles must be compiled via sui-compiler before esbuild.`,
+        `[bundles] ${t.name}.js missing required default export. View bundles must be compiled via sui-compiler before esbuild.`,
       );
     }
   }

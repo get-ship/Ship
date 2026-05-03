@@ -1,0 +1,141 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "attr:type",
+      "expr": "type()",
+      "deps": [
+        "type"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:placeholder",
+      "expr": "placeholder()",
+      "deps": [
+        "placeholder"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:name",
+      "expr": "name()",
+      "deps": [
+        "name"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "attr:autocomplete",
+      "expr": "autocomplete() || 'off'",
+      "deps": [
+        "autocomplete"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "attr:disabled",
+      "expr": "disabled()",
+      "deps": [
+        "disabled"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "attr:readonly",
+      "expr": "readonly()",
+      "deps": [
+        "readonly"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "attr:required",
+      "expr": "required()",
+      "deps": [
+        "required"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "attr:aria-label",
+      "expr": "label()",
+      "deps": [
+        "label"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "attr:aria-invalid",
+      "expr": "invalid() ? 'true' : 'false'",
+      "deps": [
+        "invalid"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "attr:aria-required",
+      "expr": "required() ? 'true' : 'false'",
+      "deps": [
+        "required"
+      ]
+    },
+    {
+      "key": "b10",
+      "kind": "attr:aria-busy",
+      "expr": "loading() ? 'true' : 'false'",
+      "deps": [
+        "loading"
+      ]
+    },
+    {
+      "key": "b11",
+      "kind": "bind:value",
+      "expr": "value",
+      "deps": [
+        "value"
+      ]
+    },
+    {
+      "key": "b12",
+      "kind": "bind:this",
+      "expr": "inputEl",
+      "deps": [
+        "inputEl"
+      ]
+    },
+    {
+      "key": "b13",
+      "kind": "if",
+      "expr": "loading()",
+      "deps": [
+        "loading"
+      ]
+    },
+    {
+      "key": "b14",
+      "kind": "if",
+      "expr": "invalid() && errorMessage()",
+      "deps": [
+        "invalid",
+        "errorMessage"
+      ]
+    },
+    {
+      "key": "b15",
+      "kind": "bind:this",
+      "expr": "errorEl",
+      "deps": [
+        "errorEl"
+      ]
+    },
+    {
+      "key": "b16",
+      "kind": "text",
+      "expr": "errorMessage()",
+      "deps": [
+        "errorMessage"
+      ]
+    }
+  ]
+}

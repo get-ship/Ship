@@ -1,0 +1,47 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "attr:aria-valuenow",
+      "expr": "indeterminate() ? null : value()",
+      "deps": [
+        "indeterminate",
+        "value"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:aria-valuemax",
+      "expr": "max()",
+      "deps": [
+        "max"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:aria-busy",
+      "expr": "indeterminate() ? 'true' : 'false'",
+      "deps": [
+        "indeterminate"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "attr:aria-label",
+      "expr": "label()",
+      "deps": [
+        "label"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "attr:style",
+      "expr": "indeterminate() ? '' : ('width: clamp(0%, ' + (value() / (max() || 1) * 100) + '%, 100%)')",
+      "deps": [
+        "indeterminate",
+        "value",
+        "max"
+      ]
+    }
+  ]
+}

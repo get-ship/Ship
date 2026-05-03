@@ -1,0 +1,38 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "attr:href",
+      "expr": "href()",
+      "deps": [
+        "href"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:target",
+      "expr": "external() ? '_blank' : target()",
+      "deps": [
+        "external",
+        "target"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:rel",
+      "expr": "external() ? 'noopener noreferrer' : rel()",
+      "deps": [
+        "external",
+        "rel"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "if",
+      "expr": "external()",
+      "deps": [
+        "external"
+      ]
+    }
+  ]
+}
