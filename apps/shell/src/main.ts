@@ -778,7 +778,19 @@ async function mountSuiSlot(name: string, subPath?: string): Promise<void> {
   requestAnimationFrame(() => slot.classList.remove("ship-content-entering"));
   if (old && old !== slot) {
     old.classList.add("ship-content-leaving");
-    setTimeout(() => old.parentElement?.removeChild(old), 180);
+    setTimeout(() => {
+      // Call SUI's attach() teardown for the outgoing root before
+      // detaching its DOM. Without this, every nav leaks the prior
+      // controller's effects, signal subscriptions, and SDK client
+      // EventSource — N navs ≡ N phantom controllers running in the
+      // background. The boot script publishes the disposer on each
+      // `[data-sui-root]` element it owns; multiple roots are possible
+      // when more than one fragment is mounted in the same slot.
+      for (const r of old.querySelectorAll<HTMLElement & { __suiDispose?: () => void }>("[data-sui-root]")) {
+        try { r.__suiDispose?.(); } catch (err) { console.error("[shell] sui dispose threw:", err); }
+      }
+      old.parentElement?.removeChild(old);
+    }, 180);
   }
 }
 
@@ -948,6 +960,37 @@ setInterval(updateStatus, 15000);
   persistTheme(applied);
   document.dispatchEvent(new CustomEvent("ship-theme-change", { detail: { id: applied } }));
 };
+
+// ── Delegated SPA navigation ─────────────────────────────────────────
+//
+// Intercept clicks on any in-app anchor (`<a href="/...">`) so the
+// shell's router handles them without a full page reload. Dynamically-
+// rendered links (SUI views, runtime-injected fragments) are caught
+// the same way — there is no boot-time DOM scan to keep in sync.
+//
+// Skip cases (matching the typical SPA contract): modifier-keyed
+// clicks (open in new tab), middle/right-click, target=_blank, links
+// with explicit `data-no-router`, hash-only fragments, off-origin
+// URLs. `data-route` links are still handled by the existing per-link
+// handler that pre-existed this delegation.
+document.addEventListener("click", (e: MouseEvent) => {
+  if (e.defaultPrevented) return;
+  if (e.button !== 0) return;
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = (e.target as Element | null)?.closest?.("a[href]") as
+    | HTMLAnchorElement
+    | null;
+  if (!a) return;
+  if (a.target && a.target !== "" && a.target !== "_self") return;
+  if (a.hasAttribute("download")) return;
+  if (a.dataset.noRouter !== undefined) return;
+  if (a.dataset.route !== undefined) return; // legacy handler owns these
+  if (a.getAttribute("href")?.startsWith("#")) return;
+  // External or off-origin? Let the browser handle it.
+  if (a.origin !== location.origin) return;
+  e.preventDefault();
+  router.navigate(a.pathname + a.search + a.hash);
+});
 
 // ── Boot ─────────────────────────────────────────────────────────────
 router.resolve();
