@@ -6,7 +6,7 @@
 // dispose function returned to `attach()`.
 
 export { walk } from './walk'
-export { hydrateText } from './text'
+export { hydrateText, collectTextOpens } from './text'
 export { hydrateAttr } from './attr'
 export { hydrateClass } from './class'
 export { hydrateStyle } from './style'

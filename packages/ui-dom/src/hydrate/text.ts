@@ -1,6 +1,6 @@
 // Text-interpolation hydrator.
 //
-// Direct-emit shape: the compiler walks to a `<!--sui:text-->` open
+// Direct-emit shape: the compiler walks to a `<!--sui:text:bN-->` open
 // comment and passes it in. We collapse the SSR'd nodes between this
 // open comment and its sibling `<!--/sui-->` close into a single Text
 // node we own, then run an effect that writes the stringified getter
@@ -11,6 +11,7 @@
 
 import { effect } from '@ship/ui-runtime'
 
+const TEXT_OPEN_PREFIX = 'sui:text:'
 const TEXT_CLOSE = '/sui'
 
 export function hydrateText(open: Comment, getter: () => unknown): () => void {
@@ -36,4 +37,22 @@ export function hydrateText(open: Comment, getter: () => unknown): () => void {
     const v = getter()
     text.data = v == null ? '' : String(v)
   })
+}
+
+// Single-pass scan for every `<!--sui:text:bN-->` opener under `root`.
+// The compiler-emitted `hydrate(root, ctx)` calls this once and then
+// dispatches each text binding by key — one tree walk for the whole
+// view rather than one per binding.
+export function collectTextOpens(root: Node): Record<string, Comment> {
+  const owner = (root as Element).ownerDocument ?? document
+  const walker = owner.createTreeWalker(root, 128 /* SHOW_COMMENT */)
+  const out: Record<string, Comment> = Object.create(null)
+  let n: Node | null = walker.currentNode
+  while ((n = walker.nextNode())) {
+    if (n.nodeType !== 8) continue
+    const data = (n as Comment).data
+    if (!data.startsWith(TEXT_OPEN_PREFIX)) continue
+    out[data.slice(TEXT_OPEN_PREFIX.length)] = n as Comment
+  }
+  return out
 }

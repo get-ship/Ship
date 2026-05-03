@@ -199,6 +199,26 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
     if (c) cleanups.push(c)
   }
 
+  // Phase 3b.3: direct-emit hydrate. The compiler now inlines text
+  // bindings (and, in later phases, more leaf kinds) as a `hydrate`
+  // function on the setup return. It walks the SSR'd DOM once and
+  // wires each migrated kind without going through the manifest.
+  // Coexistence: kinds still present in the manifest are wired by
+  // `walkMarkers` above; kinds the compiler now inlines are wired
+  // here. Both fire on every attach; together they cover the view.
+  const hydrate = (setupRet as Record<string, unknown> | null)?.['hydrate']
+  if (typeof hydrate === 'function') {
+    try {
+      const dispose = (hydrate as (r: HTMLElement, c: SetupContext) => unknown)(
+        root,
+        setupCtx,
+      )
+      if (typeof dispose === 'function') cleanups.push(dispose as () => void)
+    } catch (err) {
+      console.error('[ship-set/attach] compiled hydrate() threw:', err)
+    }
+  }
+
   if (lifecycle?.mount) {
     try {
       lifecycle.mount(lifecycle.state, root)

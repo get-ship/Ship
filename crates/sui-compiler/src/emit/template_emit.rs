@@ -59,6 +59,25 @@ pub struct TemplateEmitter {
     /// return object. Populated only in view mode; components don't
     /// have an attach() entry path.
     pub(super) attach_handlers: Writer,
+    /// Direct-emit hydrate calls for migrated binding kinds (Phase 3b.3).
+    /// Each line is one statement inside the view's `hydrate(root, ctx)`
+    /// function — e.g. `if (__t["b0"]) __cleanups.push(hydrateText(...));`.
+    /// Only populated in view mode; components stay manifest-driven this
+    /// phase. The corresponding manifest entries are skipped in
+    /// `js.rs::emit_bindings`, so each migrated kind moves out of the
+    /// manifest and into hydrate atomically.
+    pub(super) hydrate_calls: Writer,
+    /// True iff `hydrate_calls` includes any text-binding wiring — drives
+    /// the `collectTextOpens(root)` preamble emit in `js.rs`.
+    pub(super) hydrate_uses_text: bool,
+    /// Depth counter for emits inside `{#if}` / `{#for}` / `{#match}` /
+    /// `{#while-*}` bodies. Hydrate calls fire only at depth 0 — bindings
+    /// inside boundary subtrees are wired by the boundary's own render
+    /// closure (which builds DOM client-side and calls `bindText` etc.
+    /// directly). The SSR'd markers inside boundary subtrees are detached
+    /// when `wireBoundaries` swaps the wrapper, so `collectTextOpens`
+    /// would not see them anyway.
+    pub(super) boundary_depth: usize,
     /// Key allocator that mirrors `bindings::Builder` exactly. Bumped at
     /// every IR position the registry pre-pass would have allocated a
     /// key — so the `b<N>` we read here for control-flow boundaries
@@ -78,6 +97,9 @@ impl TemplateEmitter {
             render_callbacks: Writer::new(),
             boundary_hoists: Writer::new(),
             attach_handlers: Writer::new(),
+            hydrate_calls: Writer::new(),
+            hydrate_uses_text: false,
+            boundary_depth: 0,
             keys: KeyAllocator::default(),
             is_view,
         }
@@ -99,6 +121,19 @@ impl TemplateEmitter {
     /// `emit_setup_body` to merge into the view's setup-return object.
     pub fn take_attach_handlers(&mut self) -> String {
         std::mem::replace(&mut self.attach_handlers, Writer::new()).into_string()
+    }
+
+    /// Drain the hydrate-call buffer. Returns the body of the view's
+    /// `hydrate(root, ctx)` named property — empty when no leaf binding
+    /// kinds have been migrated to direct-emit yet.
+    pub fn take_hydrate_calls(&mut self) -> String {
+        std::mem::replace(&mut self.hydrate_calls, Writer::new()).into_string()
+    }
+
+    /// Whether `take_hydrate_calls` will need the `collectTextOpens(root)`
+    /// preamble (i.e. at least one text binding migrated).
+    pub fn hydrate_uses_text(&self) -> bool {
+        self.hydrate_uses_text
     }
 
     pub(super) fn fresh(&mut self, prefix: &str) -> String {
@@ -161,7 +196,7 @@ impl TemplateEmitter {
             }
             Instr::DynamicText { expr } => {
                 // Registry parity: text bindings consume one b<N>.
-                let _ = self.next_key();
+                let key = self.next_key();
                 let v = self.fresh("t");
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!("const {v} = document.createTextNode(\"\");"));
@@ -169,6 +204,18 @@ impl TemplateEmitter {
                 w.line(&format!(
                     "{cleanups_var}.push(bindText({v}, () => ({rw})));"
                 ));
+                // Phase 3b.3: at depth 0 in views, also emit a direct
+                // hydrate call so SSR'd `<!--sui:text:bN-->…<!--/sui-->`
+                // markers wire up without going through the runtime
+                // walker / `bindings` manifest. The matching `text`
+                // manifest entry is suppressed in `js.rs::emit_bindings`.
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_text = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__t[{k}]) __cleanups.push(hydrateText(__t[{k}], () => ({rw})));",
+                        k = js_string(&key),
+                    ));
+                }
             }
             Instr::Element(el) => self.emit_element(w, el, parent_var, cleanups_var),
             Instr::If(if_instr) => self.emit_if(w, if_instr, parent_var, cleanups_var),
@@ -199,7 +246,9 @@ impl TemplateEmitter {
             "const {frag} = document.createDocumentFragment();"
         ));
         w.line(&format!("const {cl} = [];"));
+        self.boundary_depth += 1;
         self.emit_children(w, body, &frag, &cl);
+        self.boundary_depth -= 1;
         w.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));

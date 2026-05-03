@@ -133,7 +133,9 @@ impl TemplateEmitter {
         h.line(&format!("const $scope = {child_scope};"));
         // Walk body once. Body keys are allocated inside this walk and
         // contribute to the registry's single-iteration key range.
+        self.boundary_depth += 1;
         self.emit_children(&mut h, &instr.body, &frag, &cl);
+        self.boundary_depth -= 1;
         h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));
@@ -148,7 +150,9 @@ impl TemplateEmitter {
                 "const {frag} = document.createDocumentFragment();"
             ));
             h.line(&format!("const {cl} = [];"));
+            self.boundary_depth += 1;
             self.emit_children(&mut h, eb, &frag, &cl);
+            self.boundary_depth -= 1;
             h.line(&format!(
                 "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
             ));
@@ -332,7 +336,9 @@ impl TemplateEmitter {
         h.enter();
         h.line(&format!("const {frag} = document.createDocumentFragment();"));
         h.line(&format!("const {cl} = [];"));
+        self.boundary_depth += 1;
         self.emit_children(&mut h, body, &frag, &cl);
+        self.boundary_depth -= 1;
         h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));
@@ -354,7 +360,9 @@ impl TemplateEmitter {
         h.line(&format!("const {frag} = document.createDocumentFragment();"));
         h.line(&format!("const {cl} = [];"));
         h.line(&format!("const $scope = {child};"));
+        self.boundary_depth += 1;
         self.emit_children(&mut h, body, &frag, &cl);
+        self.boundary_depth -= 1;
         h.line(&format!(
             "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
         ));

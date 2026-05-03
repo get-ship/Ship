@@ -77,9 +77,13 @@ const targets = [
   // emits view.js next to view.ts, re-imports view.ts as setup, and
   // exports the `bindings` manifest attach() needs), then esbuild
   // bundles the compiled output, inlining the controller.
-  { name: 'views/agents/view',    entry: 'views/agents/view.js',  htmlSet: 'views/agents/view.sui',  external: ['@ship/ui-runtime', '@ship/ui-sdk-client'] },
-  { name: 'views/counter/view',   entry: 'views/counter/view.js', htmlSet: 'views/counter/view.sui', external: ['@ship/ui-runtime', '@ship/ui-sdk-client'] },
-  { name: 'views/git/view',       entry: 'views/git/view.js',     htmlSet: 'views/git/view.sui',     external: ['@ship/ui-runtime', '@ship/ui-sdk-client'] },
+  // @ship/ui-dom is externalised because Phase 3b.3 compiled views import
+  // hydrate helpers (`hydrateText`, `collectTextOpens`) from it. The
+  // shared sui-dom.js bundle on the page already exposes them globally
+  // via the runtime registry — bundling them again would duplicate code.
+  { name: 'views/agents/view',    entry: 'views/agents/view.js',  htmlSet: 'views/agents/view.sui',  external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
+  { name: 'views/counter/view',   entry: 'views/counter/view.js', htmlSet: 'views/counter/view.sui', external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
+  { name: 'views/git/view',       entry: 'views/git/view.js',     htmlSet: 'views/git/view.sui',     external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
 ];
 
 const args = new Set(process.argv.slice(2));
