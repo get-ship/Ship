@@ -5,6 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ship</title>
     <link rel="icon" href="/favicon.ico" />
+    <!-- SUI runtime resolution. Importmap MUST come before the first
+         module script — browsers freeze it as soon as any
+         <script type="module"> begins fetching. Vite's HMR client
+         injects module scripts early in <head>, so this lives at the
+         very top to win the race. Embedded SUI fragments (loaded via
+         mountSuiView) import the runtime through these bare specifiers;
+         the daemon-served bundles are loaded once at boot so every
+         fragment shares the same module instances. -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@ship/ui-runtime":    "/_sui/runtime.js",
+          "@ship/ui-dom":        "/_sui/dom.js",
+          "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+        }
+      }
+    </script>
     <script>
       // Load daemon-served stylesheet + datastar runtime. Web-component
       // registrations (`ship-elements`) are imported into the Vite bundle
@@ -949,23 +966,19 @@
     <app-agent-modal></app-agent-modal>
     </ship-shell>
 
-    <!-- SUI runtime resolution.
-         Importmap MUST come before the first module script — browsers
-         freeze it as soon as any <script type="module"> begins fetching.
-         Embedded SUI fragments (loaded via mountSuiView) import the
-         runtime through these bare specifiers; the daemon-served bundles
-         here are loaded once at boot so every fragment shares the same
-         module instances. -->
-    <script type="importmap">
-      {
-        "imports": {
-          "@ship/ui-runtime":    "/_sui/runtime.js",
-          "@ship/ui-dom":        "/_sui/dom.js",
-          "@ship/ui-sdk-client": "/_sui/sdk-client.js"
-        }
-      }
+    <!-- SUI components bundle — loaded via runtime IIFE so Vite's
+         pre-transform doesn't try to resolve daemon-served URLs at
+         compile time. Importmap moved to <head> so it precedes any
+         module script (Vite injects HMR client modules early; the
+         importmap MUST be first). -->
+    <script>
+      (function() {
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = '/_sui/components.js';
+        document.head.appendChild(s);
+      })();
     </script>
-    <script type="module" src="/_sui/components.js"></script>
     <script type="module" src="/src/main.ts"></script>
     <!-- Agent UI single-file components. The auto-loader is future
          work in the SDK; until then each component used here lists

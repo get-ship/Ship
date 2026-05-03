@@ -184,6 +184,7 @@ export default defineConfig(({ mode }) => {
         // as same-origin on :3100. Bearer token injected by the proxy so the
         // client code can run with credentials: "include" + cookie only.
         "/api": {
+          target: currentDaemonUrl(),
           router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
@@ -194,6 +195,7 @@ export default defineConfig(({ mode }) => {
           },
         },
         "/daemon": {
+          target: currentDaemonUrl(),
           router: () => currentDaemonUrl(),
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/daemon/, ""),
@@ -204,6 +206,7 @@ export default defineConfig(({ mode }) => {
         // mutations under /_sui/*. Listed before /_ship so the more-
         // specific prefix wins.
         "/_sui": {
+          target: currentDaemonUrl(),
           router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
@@ -215,6 +218,7 @@ export default defineConfig(({ mode }) => {
         },
         // SUI full-page views — file-system routed at /sui/<name>.
         "/sui": {
+          target: currentDaemonUrl(),
           router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
@@ -227,6 +231,7 @@ export default defineConfig(({ mode }) => {
         // SFC components — daemon serves compiled .ship files at
         // /_ship/components/<tag>.js. Same auth + same origin as /api.
         "/_ship": {
+          target: currentDaemonUrl(),
           router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
