@@ -99,12 +99,19 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
         // manifest. attach() finds them by walking SSR'd
         // `<sui-{kind} key="b<N>">` elements and dispatching to the
         // setup return's `__b<N>_attach` handler.
+        //
+        // Phase 3b.3: text bindings are now wired by the compiled
+        // `hydrate(root, ctx)` directly — `collectTextOpens` finds the
+        // SSR'd `<!--sui:text:bN-->` markers and `hydrateText` writes
+        // the reactive Text node. Skip them here so the runtime walker
+        // doesn't double-wire.
         if matches!(
             b.kind,
             BindingKind::If
                 | BindingKind::For
                 | BindingKind::Match
                 | BindingKind::Await
+                | BindingKind::Text
         ) {
             continue;
         }
@@ -154,6 +161,13 @@ fn emit_imports(w: &mut Writer, lowered: &Lowered, opts: &CompileOpts) {
         w.line(&format!(
             "import {{ {} }} from \"@ship/ui-runtime\";",
             imports.join(", ")
+        ));
+    }
+    if !lowered.dom_imports.is_empty() {
+        let dom: Vec<String> = lowered.dom_imports.iter().map(|s| s.to_string()).collect();
+        w.line(&format!(
+            "import {{ {} }} from \"@ship/ui-dom\";",
+            dom.join(", ")
         ));
     }
     if let Some(setup) = &opts.setup_url {
@@ -317,6 +331,8 @@ fn emit_setup_body(
         let hoists = emitter.take_boundary_hoists();
         let attach_handlers = emitter.take_attach_handlers();
         let callbacks = emitter.take_render_callbacks();
+        let hydrate_uses_text = emitter.hydrate_uses_text();
+        let hydrate_calls = emitter.take_hydrate_calls();
 
         if !hoists.is_empty() {
             w.push_str(&hoists);
@@ -329,6 +345,9 @@ fn emit_setup_body(
         w.push_str(&mount_w.into_string());
         w.leave();
         w.line("},");
+        if !hydrate_calls.is_empty() {
+            emit_view_hydrate(w, &hydrate_calls, hydrate_uses_text);
+        }
         if !attach_handlers.is_empty() {
             w.push_str(&attach_handlers);
         }
@@ -338,6 +357,23 @@ fn emit_setup_body(
         w.leave();
         w.line("});");
     }
+}
+
+/// Emit the `hydrate(root, ctx)` named property on a view's setup
+/// return. Wires every binding kind the compiler now direct-emits
+/// (Phase 3b.3+) — runs after `wireBoundaries` so SSR'd markers inside
+/// boundary subtrees are already detached and won't be matched.
+fn emit_view_hydrate(w: &mut Writer, hydrate_calls: &str, uses_text: bool) {
+    w.line("hydrate(root, ctx) {");
+    w.enter();
+    w.line("const __cleanups = [];");
+    if uses_text {
+        w.line("const __t = collectTextOpens(root);");
+    }
+    w.push_str(hydrate_calls);
+    w.line("return () => { for (const c of __cleanups) try { c(); } catch (e) {} };");
+    w.leave();
+    w.line("},");
 }
 
 fn emit_component_scope_seed(w: &mut Writer, program: &Program) {

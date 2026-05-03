@@ -1,5 +1,6 @@
 // views/counter/view.js
 import { bindText, on, signal, view } from "@ship/ui-runtime";
+import { collectTextOpens, hydrateText } from "@ship/ui-dom";
 
 // views/counter/view.ts
 var view_default = null;
@@ -95,11 +96,21 @@ var view_default2 = view((ctx) => {
         } catch (e) {
         }
       };
+    },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __t = collectTextOpens(root);
+      if (__t["b0"]) __cleanups.push(hydrateText(__t["b0"], () => $scope.count()));
+      return () => {
+        for (const c of __cleanups) try {
+          c();
+        } catch (e) {
+        }
+      };
     }
   });
 });
 var bindings = [
-  { key: "b0", kind: "text", expr: "count()", deps: ["count"] },
   { key: "b1", kind: "on:click", expr: "() => count.set(count() - 1)", deps: ["count"] },
   { key: "b2", kind: "on:click", expr: "() => count.set(count() + 1)", deps: ["count"] },
   { key: "b3", kind: "on:click", expr: "() => count.set(0)", deps: ["count"] }

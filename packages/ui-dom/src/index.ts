@@ -30,6 +30,7 @@ export { loadSetup, pairedTsPath } from './setup-loader'
 export {
   walk,
   hydrateText,
+  collectTextOpens,
   hydrateAttr,
   hydrateClass,
   hydrateStyle,

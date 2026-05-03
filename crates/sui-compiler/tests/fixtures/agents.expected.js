@@ -189,5 +189,4 @@ __b3_attach: (target) => {
 export const bindings = [
   { key: "b0", kind: "while-loading", expr: "agents", deps: ["agents"], renderKey: "__renderWhileLoading_0" },
   { key: "b1", kind: "while-error", expr: "agents", deps: ["agents"], renderKey: "__renderWhileError_0" },
-  { key: "b6", kind: "text", expr: "agent.name", deps: ["agent"] },
 ];

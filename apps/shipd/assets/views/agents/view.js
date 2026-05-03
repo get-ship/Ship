@@ -1,5 +1,6 @@
 // views/agents/view.js
 import { bindAttr, bindFor, bindIf, bindText, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship/ui-runtime";
+import { collectTextOpens, hydrateText } from "@ship/ui-dom";
 
 // views/agents/view.ts
 import { controller, unwrap } from "@ship/ui-runtime";
@@ -661,6 +662,18 @@ var view_default2 = view((ctx) => {
         }
       };
     },
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __t = collectTextOpens(root);
+      if (__t["b0"]) __cleanups.push(hydrateText(__t["b0"], () => $scope.total()));
+      if (__t["b1"]) __cleanups.push(hydrateText(__t["b1"], () => $scope.total() === 1 ? "" : "s"));
+      return () => {
+        for (const c of __cleanups) try {
+          c();
+        } catch (e) {
+        }
+      };
+    },
     "__renderWhileLoading_0": __renderWhileLoading_0,
     "__renderWhileError_0": __renderWhileError_0,
     __b20_attach: (target) => {
@@ -720,27 +733,13 @@ var view_default2 = view((ctx) => {
   });
 });
 var bindings = [
-  { key: "b0", kind: "text", expr: "total()", deps: ["total"] },
-  { key: "b1", kind: "text", expr: "total() === 1 ? '' : 's'", deps: ["total"] },
   { key: "b2", kind: "on:click", expr: "newAgent", deps: ["newAgent"] },
   { key: "b3", kind: "while-loading", expr: "agents", deps: ["agents"], renderKey: "__renderWhileLoading_0" },
   { key: "b4", kind: "while-error", expr: "agents", deps: ["agents"], renderKey: "__renderWhileError_0" },
   { key: "b8", kind: "on:click", expr: "newAgent", deps: ["newAgent"] },
   { key: "b10", kind: "attr:navigable", expr: "'/agents/' + a.id", deps: ["a"] },
-  { key: "b11", kind: "text", expr: "a.letter", deps: ["a"] },
-  { key: "b12", kind: "text", expr: "a.name", deps: ["a"] },
-  { key: "b13", kind: "text", expr: "a.description || 'No description'", deps: ["a"] },
-  { key: "b14", kind: "text", expr: "a.skills_count", deps: ["a"] },
-  { key: "b15", kind: "text", expr: "a.skills_count === 1 ? '' : 's'", deps: ["a"] },
-  { key: "b16", kind: "text", expr: "a.mcp_count", deps: ["a"] },
-  { key: "b17", kind: "text", expr: "a.rules_count", deps: ["a"] },
-  { key: "b18", kind: "text", expr: "a.rules_count === 1 ? '' : 's'", deps: ["a"] },
   { key: "b21", kind: "attr:provider", expr: "p", deps: ["p"] },
-  { key: "b22", kind: "attr:title", expr: "p", deps: ["p"] },
-  { key: "b24", kind: "text", expr: "a.providers.length - 4", deps: ["a"] },
-  { key: "b25", kind: "text", expr: "a.source", deps: ["a"] },
-  { key: "b28", kind: "text", expr: "t", deps: ["t"] },
-  { key: "b30", kind: "text", expr: "(a.tags || []).length - 2", deps: ["a"] }
+  { key: "b22", kind: "attr:title", expr: "p", deps: ["p"] }
 ];
 export {
   bindings,
