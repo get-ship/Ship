@@ -2,7 +2,13 @@ import { controller, effect, defineRoutes } from '@ship/ui-runtime'
 import type { Scope } from './index.sui'
 import { loadCatalog, type CatalogEntry, type PropEntry } from '../partials/catalog'
 
-defineRoutes([{ pattern: '/ship-ui-studio/:name' }])
+// View can be hosted at `/ship-ui-studio/:name` (shell SPA) or
+// `/sui/ship-ui-studio/:name` (standalone daemon URL). Register both so
+// `route.params.name` resolves regardless of mount context.
+defineRoutes([
+  { pattern: '/ship-ui-studio/:name' },
+  { pattern: '/sui/ship-ui-studio/:name' },
+])
 
 export default controller<Scope>({
   derived: {

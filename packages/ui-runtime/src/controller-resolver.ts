@@ -166,7 +166,15 @@ function buildWritableProxy(
     },
     set(_target, key: string, value: unknown) {
       if (key in stateSignals) {
-        stateSignals[key]!.set(value)
+        // signal.set treats a function argument as an updater — `set((prev) =>
+        // next)` — but a writable-proxy assignment like `state.dispose = () =>
+        // {...}` means STORE that function as the value, not invoke it. Wrap
+        // function values so signal.set sees a constant updater.
+        if (typeof value === 'function') {
+          stateSignals[key]!.set(() => value as never)
+        } else {
+          stateSignals[key]!.set(value)
+        }
         return true
       }
       console.warn(

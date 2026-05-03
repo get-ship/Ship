@@ -285,12 +285,16 @@ describe('mount / unmount lifecycle — attached as non-enumerable LIFECYCLE_KEY
     expect((ctx.stateSignals.count as () => number)()).toBe(7)
   })
 
-  it('LIFECYCLE_KEY is non-enumerable (does not appear in Object.keys / spread)', () => {
+  it('LIFECYCLE_KEY is enumerable so the compiled view carries it through Object.assign', () => {
+    // The compiled view does `Object.assign($scope, __r)` to fold the
+    // resolver result into the template scope. A non-enumerable key was
+    // silently dropped by that assign, so async mounts (e.g. ship-ui-studio)
+    // never wired up. Keeping it enumerable is the contract.
     const ctx = withState({ x: 1 })
     const b = resolveController({ mount: () => {} }, ctx)
-    expect(Object.keys(b)).not.toContain('__shipSetLifecycle')
-    const spread = { ...b }
-    expect((spread as Record<string, unknown>).__shipSetLifecycle).toBeUndefined()
+    expect(Object.keys(b)).toContain('__shipSetLifecycle')
+    const spread = { ...b } as Record<string, unknown>
+    expect(spread.__shipSetLifecycle).toBeDefined()
   })
 })
 

@@ -8,9 +8,7 @@
 //! legacy include, `id="sui-root"` + `data-view="{name}"` for
 //! selector compatibility.
 
-use super::sui_attach_boot::{
-    attach_boot_script, components_side_effect_script, importmap_script,
-};
+use super::sui_attach_boot::{components_side_effect_script, importmap_script};
 
 /// Wrap the SSR walker fragment in the production document shell.
 pub fn render_shell(name: &str, title: &str, ssr_html: &str) -> String {
@@ -31,6 +29,14 @@ pub fn render_shell_with_sub(name: &str, title: &str, ssr_html: &str, sub_path: 
         "view",
         sub_path,
     );
+    // Mirror the JS endpoint's `?sub=` query so detail-page CSS is loaded
+    // (parent index.css + the sub-template's own index.css concatenated).
+    // sub_path comes from a validated route segment; encode `/` to `%2F`
+    // so the query parser doesn't see path delimiters.
+    let css_query = match sub_path {
+        Some(s) if !s.is_empty() => format!("?sub={}", s.replace('/', "%2F")),
+        _ => String::new(),
+    };
     // Importmap MUST come before any module script. Browsers freeze
     // the importmap as soon as the first module script begins fetching;
     // ship-elements.js used to load first and that broke bare-specifier
@@ -43,7 +49,7 @@ pub fn render_shell_with_sub(name: &str, title: &str, ssr_html: &str, sub_path: 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{safe_title}</title>
   <link rel="stylesheet" href="/api/assets/view-tokens.css">
-  <link rel="stylesheet" href="/_sui/views/{safe_name}/view.css">
+  <link rel="stylesheet" href="/_sui/views/{safe_name}/view.css{css_query}">
   {importmap}
   <script type="module" src="/api/assets/ship-elements.js"></script>
   {components}

@@ -82,6 +82,9 @@ importers:
       esbuild:
         specifier: ^0.27.3
         version: 0.27.3
+      playwright:
+        specifier: ^1.59.1
+        version: 1.59.1
       typescript:
         specifier: ~5.8.3
         version: 5.8.3

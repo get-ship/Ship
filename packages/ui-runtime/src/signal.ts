@@ -205,7 +205,7 @@ export function effect(fn: () => void | (() => void)): () => void {
       try {
         cleanup()
       } catch (e) {
-        console.error('[ship-set] effect cleanup threw:', e)
+        console.error('[sui] effect cleanup threw:', e)
       }
       cleanup = undefined
     }
@@ -214,7 +214,7 @@ export function effect(fn: () => void | (() => void)): () => void {
     try {
       cleanup = fn()
     } catch (e) {
-      console.error('[ship-set] effect threw:', e)
+      console.error('[sui] effect threw:', e)
     } finally {
       CURRENT_OBSERVER = prev
     }
@@ -228,7 +228,7 @@ export function effect(fn: () => void | (() => void)): () => void {
       try {
         cleanup()
       } catch (e) {
-        console.error('[ship-set] effect cleanup threw:', e)
+        console.error('[sui] effect cleanup threw:', e)
       }
     }
   }

@@ -23,8 +23,15 @@ fn quote_brace_attrs(source: &str) -> String {
     let mut i = 0usize;
     while i < bytes.len() {
         if bytes[i] != b'<' {
-            out.push(bytes[i] as char);
-            i += 1;
+            // Append one UTF-8 char (1–4 bytes). `bytes[i] as char` would
+            // mangle multi-byte sequences like `…` (e2 80 a6) into latin-1
+            // codepoints and re-encode them as gibberish.
+            let mut j = i + 1;
+            while j < bytes.len() && (bytes[j] & 0xC0) == 0x80 {
+                j += 1;
+            }
+            out.push_str(&source[i..j]);
+            i = j;
             continue;
         }
         out.push('<');

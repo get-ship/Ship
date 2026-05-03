@@ -32,10 +32,18 @@ const BAKED_SUI_VIEWS: CatalogEntry[] = [
   { id: 'git',     tag: 'git',     kind: 'view', description: 'Git overview' },
 ]
 
+interface CemAttribute {
+  name: string
+  type?: { text: string }
+  default?: string
+  description?: string
+}
+
 interface CemDeclaration {
   kind: string
   tagName?: string
   description?: string
+  attributes?: CemAttribute[]
   members?: Array<{
     kind: string
     name: string
@@ -87,8 +95,41 @@ async function loadLitComponents(): Promise<CatalogEntry[]> {
   }
 }
 
-function loadSuiComponents(): CatalogEntry[] {
-  return SET_TAGS.map(tag => ({ id: tag, tag, kind: 'sui' as const }))
+async function loadSuiComponents(): Promise<CatalogEntry[]> {
+  const propsByTag = await loadSuiPropMap()
+  return SET_TAGS.map(tag => ({
+    id: tag,
+    tag,
+    kind: 'sui' as const,
+    props: propsByTag[tag] ?? [],
+  }))
+}
+
+// Fetch the daemon's aggregated SUI CEM and project it down to the prop
+// shape the studio's prop panel renders. Empty map on any error so the
+// catalog still renders even if the endpoint is unreachable.
+async function loadSuiPropMap(): Promise<Record<string, PropEntry[]>> {
+  try {
+    const res = await fetch('/api/assets/sui-custom-elements.json', { credentials: 'same-origin' })
+    if (!res.ok) return {}
+    const cem = await res.json() as CemRoot
+    const out: Record<string, PropEntry[]> = {}
+    for (const mod of cem.modules ?? []) {
+      for (const decl of mod.declarations ?? []) {
+        if (decl.kind !== 'class' || !decl.tagName) continue
+        const attrs = decl.attributes ?? []
+        out[decl.tagName] = attrs.map(a => ({
+          name: a.name,
+          type: a.type?.text ?? 'string',
+          default: a.default,
+          description: a.description,
+        }))
+      }
+    }
+    return out
+  } catch {
+    return {}
+  }
 }
 
 interface ApiView {
@@ -126,8 +167,10 @@ export async function loadCatalog(): Promise<CatalogResult> {
   // legacy production stack; documenting them in the SUI studio is
   // wasted effort unless we're doing intentional side-by-side
   // comparison work, which we're not.
-  const daemonViews = await loadDaemonViews()
-  const sui = loadSuiComponents()
+  const [daemonViews, sui] = await Promise.all([
+    loadDaemonViews(),
+    loadSuiComponents(),
+  ])
 
   // Merge baked views; skip any already returned by the daemon endpoint.
   const daemonIds = new Set(daemonViews.map(v => v.id))

@@ -413,7 +413,10 @@ fn emit_component_lifecycle_wiring(w: &mut Writer) {
     w.line("const __sp = new Proxy($scope, {");
     w.enter();
     w.line("get(t, k) { return t[k]; },");
-    w.line("set(t, k, v) { const s = t[k]; if (s != null && typeof s.set === \"function\") { s.set(v); return true; } return false; }");
+    // signal.set treats a function arg as an updater. When the user assigns a
+    // function via `state.foo = () => {…}`, they mean to STORE the function,
+    // not call it. Wrap so signal.set sees a constant-returning updater.
+    w.line("set(t, k, v) { const s = t[k]; if (s != null && typeof s.set === \"function\") { if (typeof v === \"function\") { s.set(() => v); } else { s.set(v); } return true; } return false; }");
     w.leave();
     w.line("});");
     w.line("if (__lc.mount) { const __mc = __lc.mount(__sp, host); if (typeof __mc === \"function\") __cleanups.push(__mc); }");
