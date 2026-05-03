@@ -191,9 +191,17 @@ fn expand_self_close(source: &str) -> String {
             break;
         }
         let head = &source[i..j];
-        let trimmed_head = head.trim_end_matches(|c: char| c.is_whitespace() || c == '/');
-        let is_self_close = trimmed_head.len() != head.len();
+        // Self-close requires an actual `/` before `>`. Trailing whitespace
+        // alone (multi-line attr layout `<button\n  …\n>`) MUST NOT be
+        // treated as self-close — that would flatten every multi-line
+        // element's children into siblings.
+        let trimmed_ws = head.trim_end_matches(|c: char| c.is_whitespace());
+        let is_self_close = trimmed_ws.ends_with('/');
         if is_self_close && !VOID_TAGS.contains(&tag.as_str()) {
+            // Strip the slash, then any whitespace before it (`<x  />` → `<x>`).
+            let trimmed_head = trimmed_ws
+                .trim_end_matches('/')
+                .trim_end_matches(|c: char| c.is_whitespace());
             out.push_str(trimmed_head);
             out.push('>');
             out.push_str("</");
@@ -233,6 +241,23 @@ mod tests {
     fn leaves_void_selfclose() {
         let out = expand_self_close("<br />");
         assert_eq!(out, "<br />");
+    }
+
+    #[test]
+    fn multiline_open_tag_is_not_self_close() {
+        // Multi-line attribute layout — trailing newline before `>` must
+        // NOT be treated as a self-close marker. Regression for sui-button
+        // emitting children as siblings instead of nesting them inside.
+        let src = "<button\n  type=\"button\"\n  disabled\n>\n  <span>x</span>\n</button>";
+        let out = expand_self_close(src);
+        assert_eq!(out, src, "multi-line open tag should pass through unchanged");
+    }
+
+    #[test]
+    fn slash_with_leading_whitespace_is_self_close() {
+        // `<x  />` (whitespace before `/`) is still XHTML-style self-close.
+        let out = expand_self_close("<x  />");
+        assert_eq!(out, "<x></x>");
     }
 
     #[test]
