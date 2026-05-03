@@ -232,7 +232,10 @@ pub async fn serve_sui_view_css(Path(name): Path<String>) -> Response {
         "counter" => COUNTER_VIEW_CSS.to_string(),
         _ => match resolve(&name, None) {
             Ok(r) => match r.source_path.as_ref().and_then(|p| p.parent()) {
-                Some(dir) => std::fs::read_to_string(dir.join("view.css")).unwrap_or_default(),
+                // Project views use `index.css`; baked use `view.css`. First match wins.
+                Some(dir) => std::fs::read_to_string(dir.join("index.css"))
+                    .or_else(|_| std::fs::read_to_string(dir.join("view.css")))
+                    .unwrap_or_default(),
                 None => String::new(),
             },
             Err(e) => return not_found(&e.message),

@@ -122,7 +122,11 @@ export interface CatalogResult {
 }
 
 export async function loadCatalog(): Promise<CatalogResult> {
-  const [lit, daemonViews] = await Promise.all([loadLitComponents(), loadDaemonViews()])
+  // Storybook documents SUI components only. Lit primitives are
+  // legacy production stack; documenting them in the SUI studio is
+  // wasted effort unless we're doing intentional side-by-side
+  // comparison work, which we're not.
+  const daemonViews = await loadDaemonViews()
   const sui = loadSuiComponents()
 
   // Merge baked views; skip any already returned by the daemon endpoint.
@@ -130,5 +134,5 @@ export async function loadCatalog(): Promise<CatalogResult> {
   const extraViews = BAKED_SUI_VIEWS.filter(v => !daemonIds.has(v.id))
   const views = [...daemonViews, ...extraViews]
 
-  return { lit, sui, views }
+  return { lit: [], sui, views }
 }

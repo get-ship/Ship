@@ -1,6 +1,6 @@
 <state name="allCatalog" value="[]" />
 <state name="loading"    value="true" />
-<state name="propValues" value="{}" />
+<state name="propValues" value="({})" />
 <state name="_dispose"   value="null" />
 
 <div class="detail-layout">
