@@ -39,6 +39,7 @@ pub mod sui_data;
 pub mod sui_data_resolvers;
 pub mod sui_hmr;
 pub mod sui_view;
+pub mod sui_view_payload;
 pub mod sui_attach_boot;
 pub mod sui_view_shell;
 pub mod sui_render;

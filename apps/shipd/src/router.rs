@@ -177,6 +177,17 @@ pub fn build_router(
             "/_sui/views/{name}/view.js",
             axum::routing::get(views::sui_view::serve_sui_view_setup),
         )
+        // F1: canonical view payload endpoint. JSON-only data — no HTML
+        // rendering, no boot scripts. Hosts call the runtime's mount()
+        // with this payload. Top-level + sub-path variants.
+        .route(
+            "/_sui/views/{name}",
+            axum::routing::get(views::sui_view_payload::serve_view_payload),
+        )
+        .route(
+            "/_sui/views/{name}/{*sub_path}",
+            axum::routing::get(views::sui_view_payload::serve_view_payload_subpath),
+        )
         .route(
             "/_sui/views/{name}/view.css",
             axum::routing::get(views::sui_view::serve_sui_view_css),

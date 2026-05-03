@@ -55,6 +55,25 @@ pub struct RenderOutput {
     pub init: serde_json::Value,
 }
 
+/// Output of a "split" render — body HTML and initial scope returned
+/// separately so callers that want to ship scope through a different
+/// channel (e.g. as a field of a JSON payload) don't have to re-parse
+/// the inline `<script id="__set_init__">` island out of the body.
+#[derive(Debug, Clone)]
+pub struct RenderSplit {
+    /// Rendered HTML *without* the JSON-island script. Suitable for
+    /// callers shipping scope as a separate field.
+    pub html: String,
+    /// Initial scope values as a JSON object. Same shape that the
+    /// `<script id="__set_init__">` island carries in `RenderOutput.html`.
+    pub init: serde_json::Value,
+    /// Whether `<data live />` was declared in the program. When true,
+    /// callers should subscribe to `/_sui/views/<name>/sse` for live
+    /// patches — the existing `RenderOutput` flow embeds the URL inside
+    /// `init`; the split flow leaves that decision to the caller.
+    pub has_live_data: bool,
+}
+
 /// Render a parsed program to HTML with author-syntax markers.
 ///
 /// D-2 evaluates the renderable subset against the program's initial
@@ -71,22 +90,41 @@ pub fn render(
     registry: &BindingRegistry,
     opts: &RenderOpts,
 ) -> Result<RenderOutput, CompileError> {
-    let initial = scope::build(program);
-    let mut init_json = initial.init.clone();
-    // If any <data live /> declarations exist, embed the SSE subscribe URL so
-    // the runtime can open one EventSource per view without knowing the URL.
-    if program.data.iter().any(|d| d.live)
-        && let Some(obj) = init_json.as_object_mut() {
+    // Body HTML + initial scope as separate values…
+    let split = render_split(program, registry, opts)?;
+    // …then re-assemble: append the JSON-island script that the legacy
+    // attach() path reads on hydrate.
+    let init_json = if split.has_live_data {
+        let mut v = split.init.clone();
+        if let Some(obj) = v.as_object_mut() {
             obj.insert(
                 "__subscribe__".to_string(),
                 serde_json::Value::String(format!("/_sui/views/{}/sse", opts.view_name)),
             );
         }
-    let mut state = walker::Walker::new_named(initial.scope, registry, opts.view_name.clone());
-    state.walk_block(&program.template);
-    let mut html = state.into_html();
+        v
+    } else {
+        split.init.clone()
+    };
+    let mut html = split.html;
     html.push_str(&island::emit(&init_json));
     Ok(RenderOutput { html, init: init_json })
+}
+
+/// Render to body HTML + initial scope, returned separately. Used by the
+/// payload endpoint that ships scope as a JSON field rather than as an
+/// embedded script island.
+pub fn render_split(
+    program: &Program,
+    registry: &BindingRegistry,
+    opts: &RenderOpts,
+) -> Result<RenderSplit, CompileError> {
+    let initial = scope::build(program);
+    let mut state = walker::Walker::new_named(initial.scope, registry, opts.view_name.clone());
+    state.walk_block(&program.template);
+    let html = state.into_html();
+    let has_live_data = program.data.iter().any(|d| d.live);
+    Ok(RenderSplit { html, init: initial.init, has_live_data })
 }
 
 /// Convenience wrapper that builds the registry inline. Used by tests
