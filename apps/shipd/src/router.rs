@@ -118,6 +118,12 @@ pub fn build_router(
         .ship_route(Route::AssetTerminalJs, views::serve_terminal)
         .ship_route(Route::AssetGitJs, views::serve_git)
         .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
+        // SUI CEM aggregation served alongside the Lit one. Used by the
+        // ship-ui-studio detail page to populate prop panels.
+        .route(
+            "/api/assets/sui-custom-elements.json",
+            axum::routing::get(views::serve_sui_elements_manifest),
+        )
         .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog)
         .ship_route(Route::AssetJinjaMacrosJson, views::serve_jinja_macros_json)
         .ship_route(Route::AssetJinjaMacrosMd, views::serve_jinja_macros_md)

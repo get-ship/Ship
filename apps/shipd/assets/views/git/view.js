@@ -266,10 +266,10 @@ var view_default2 = view((ctx) => {
         __e119.setAttribute("class", "git-deltas");
         const __t120 = document.createTextNode("");
         __e119.appendChild(__t120);
-        __c111.push(bindText(__t120, () => $scope2.b.ahead > 0 ? "\xC3\xA2\xC2\x86\xC2\x91" + $scope2.b.ahead : ""));
+        __c111.push(bindText(__t120, () => $scope2.b.ahead > 0 ? "\xE2\x86\x91" + $scope2.b.ahead : ""));
         const __t121 = document.createTextNode("");
         __e119.appendChild(__t121);
-        __c111.push(bindText(__t121, () => $scope2.b.behind > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope2.b.behind : ""));
+        __c111.push(bindText(__t121, () => $scope2.b.behind > 0 ? " \xE2\x86\x93" + $scope2.b.behind : ""));
         __e112.appendChild(__e119);
         __frag110.appendChild(__e112);
         return { nodes: Array.from(__frag110.childNodes), cleanup: () => {
@@ -852,10 +852,10 @@ var view_default2 = view((ctx) => {
         __e233.setAttribute("class", "git-deltas");
         const __t234 = document.createTextNode("");
         __e233.appendChild(__t234);
-        __c224.push(bindText(__t234, () => $scope2.b.ahead > 0 ? "\xC3\xA2\xC2\x86\xC2\x91" + $scope2.b.ahead : ""));
+        __c224.push(bindText(__t234, () => $scope2.b.ahead > 0 ? "\xE2\x86\x91" + $scope2.b.ahead : ""));
         const __t235 = document.createTextNode("");
         __e233.appendChild(__t235);
-        __c224.push(bindText(__t235, () => $scope2.b.behind > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope2.b.behind : ""));
+        __c224.push(bindText(__t235, () => $scope2.b.behind > 0 ? " \xE2\x86\x93" + $scope2.b.behind : ""));
         __e225.appendChild(__e233);
         __frag223.appendChild(__e225);
         return { nodes: Array.from(__frag223.childNodes), cleanup: () => {
@@ -965,10 +965,10 @@ var view_default2 = view((ctx) => {
         __e24.appendChild(__e25);
         const __t27 = document.createTextNode("");
         __e24.appendChild(__t27);
-        __c19.push(bindText(__t27, () => $scope.ahead() > 0 ? " \xC3\xA2\xC2\x86\xC2\x91" + $scope.ahead() : ""));
+        __c19.push(bindText(__t27, () => $scope.ahead() > 0 ? " \xE2\x86\x91" + $scope.ahead() : ""));
         const __t28 = document.createTextNode("");
         __e24.appendChild(__t28);
-        __c19.push(bindText(__t28, () => $scope.behind() > 0 ? " \xC3\xA2\xC2\x86\xC2\x93" + $scope.behind() : ""));
+        __c19.push(bindText(__t28, () => $scope.behind() > 0 ? " \xE2\x86\x93" + $scope.behind() : ""));
         const __t29 = document.createTextNode("\n          &middot;\n          ");
         __e24.appendChild(__t29);
         const __e30 = document.createElement("span");

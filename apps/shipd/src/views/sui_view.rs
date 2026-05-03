@@ -37,7 +37,6 @@ use sui_compiler::{CompileOpts, compile, islands::SUI_ISLANDS, parse, render};
 
 use super::sui_bundle::bundle_view;
 use super::sui_resolver::{ResolvedView, resolve};
-use super::sui_view_shell::render_shell;
 
 // ── Compile-time embedded view assets ────────────────────────────────
 
@@ -248,32 +247,82 @@ fn compile_view_js(name: &str, resolved: &ResolvedView) -> Response {
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
-/// `GET /_sui/views/{name}/view.css` — the view's style sheet.
-pub async fn serve_sui_view_css(Path(name): Path<String>) -> Response {
+/// `GET /_sui/views/{name}/view.css[?sub=<sub_path>]` — the view's style sheet.
+/// The optional `sub` query param appends a `[param]`-style sub-template's
+/// own CSS so detail pages get both the parent layout and their own rules.
+pub async fn serve_sui_view_css(
+    Path(name): Path<String>,
+    Query(q): Query<ViewSetupQuery>,
+) -> Response {
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
-    let body: String = match name.as_str() {
-        "agents" => AGENTS_VIEW_CSS.to_string(),
-        "git" => GIT_VIEW_CSS.to_string(),
-        "counter" => COUNTER_VIEW_CSS.to_string(),
-        _ => match resolve(&name, None) {
-            Ok(r) => match r.source_path.as_ref().and_then(|p| p.parent()) {
-                // Project views use `index.css`; baked use `view.css`. First match wins.
-                Some(dir) => std::fs::read_to_string(dir.join("index.css"))
-                    .or_else(|_| std::fs::read_to_string(dir.join("view.css")))
-                    .unwrap_or_default(),
-                None => String::new(),
-            },
-            Err(e) => return not_found(&e.message),
-        },
+    if q.sub.is_none() {
+        let baked: Option<&str> = match name.as_str() {
+            "agents" => Some(AGENTS_VIEW_CSS),
+            "git" => Some(GIT_VIEW_CSS),
+            "counter" => Some(COUNTER_VIEW_CSS),
+            _ => None,
+        };
+        if let Some(b) = baked {
+            return css_response(b.to_string());
+        }
+    }
+    let body: String = match resolve(&name, q.sub.as_deref()) {
+        Ok(r) => {
+            // Project views use `index.css`; baked use `view.css`. The
+            // parent (top-level) CSS always loads. When a sub-template is
+            // requested, its own CSS (if present) is appended so detail
+            // pages get both the parent's layout rules and their own.
+            let mut buf = String::new();
+            if let Some(parent_dir) = r
+                .source_path
+                .as_ref()
+                .and_then(|p| top_level_view_dir(p, &name))
+            {
+                if let Ok(s) = std::fs::read_to_string(parent_dir.join("index.css")) {
+                    buf.push_str(&s);
+                } else if let Ok(s) = std::fs::read_to_string(parent_dir.join("view.css")) {
+                    buf.push_str(&s);
+                }
+            }
+            if q.sub.is_some()
+                && let Some(sub_dir) = r.source_path.as_ref().and_then(|p| p.parent())
+                && let Ok(s) = std::fs::read_to_string(sub_dir.join("index.css"))
+            {
+                if !buf.is_empty() && !buf.ends_with('\n') {
+                    buf.push('\n');
+                }
+                buf.push_str(&s);
+            }
+            buf
+        }
+        Err(e) => return not_found(&e.message),
     };
+    css_response(body)
+}
+
+fn css_response(body: String) -> Response {
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/css; charset=utf-8")
         .header(header::CACHE_CONTROL, "no-cache")
         .body(Body::from(body))
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+}
+
+/// Walk up from a sub-template path (e.g. `views/X/[name]/index.sui`) to the
+/// top-level view directory `views/X/`. The top-level dir is the one whose
+/// basename equals `view_name`. Returns `None` when no parent matches —
+/// e.g. a single-file view served straight from `views/X/index.sui`.
+fn top_level_view_dir(p: &std::path::Path, view_name: &str) -> Option<std::path::PathBuf> {
+    let mut cur = p.parent()?;
+    loop {
+        if cur.file_name().and_then(|s| s.to_str()) == Some(view_name) {
+            return Some(cur.to_path_buf());
+        }
+        cur = cur.parent()?;
+    }
 }
 
 fn js_response(body: &'static str) -> Response {

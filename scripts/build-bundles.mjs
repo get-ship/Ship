@@ -90,6 +90,37 @@ const args = new Set(process.argv.slice(2));
 const force = args.has('--force');
 const watch = args.has('--watch');
 
+// Aggregate per-component CEMs into a single file the daemon can serve at
+// /api/assets/sui-custom-elements.json. Each subdir of ui-components/src
+// (excluding `islands/`) contributes its `<tag>.custom-elements.json` if
+// present. Writes when content changes; otherwise leaves the file alone
+// so cargo build doesn't re-link unnecessarily.
+function aggregateSuiCem() {
+  const srcDir = join(repoRoot, 'packages/ui-components/src');
+  const out = { schemaVersion: '1.0.0', readme: '', modules: [] };
+  for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
+    if (!entry.isDirectory() || entry.name === 'islands') continue;
+    const cemPath = join(srcDir, entry.name, `${entry.name}.custom-elements.json`);
+    if (!existsSync(cemPath)) continue;
+    try {
+      const cem = JSON.parse(readFileSync(cemPath, 'utf8'));
+      if (Array.isArray(cem.modules)) out.modules.push(...cem.modules);
+    } catch {
+      // ignore malformed CEMs — they show up as warnings during the next build
+    }
+  }
+  const target = join(assetsDir, 'sui-custom-elements.json');
+  const next = JSON.stringify(out);
+  let prev = '';
+  try { prev = readFileSync(target, 'utf8'); } catch {}
+  if (prev !== next) {
+    mkdirSync(assetsDir, { recursive: true });
+    writeFileSync(target, next);
+    console.log(`[bundles] write  sui-custom-elements.json  (${out.modules.length} modules)`);
+  }
+}
+aggregateSuiCem();
+
 const baseOpts = {
   bundle: true,
   format: 'esm',
