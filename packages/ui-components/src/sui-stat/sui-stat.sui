@@ -12,17 +12,16 @@
                                                          convention. Maps to
                                                          the same color tokens.
   interactive (Boolean,        interactive (bool,       ✓ CSS hover lift +
-    false)                       false, reflect)          cursor: pointer. No
-                                                         role=button or
-                                                         tabindex — template-
-                                                         only port; callers add
-                                                         those when needed.
+    false)                       false, reflect)          cursor: pointer,
+                                                         role=button,
+                                                         tabindex=0,
+                                                         Enter/Space → click
+                                                         via controller.
   ─────────────────────────────────────────────────────────────────────────────
-  Keyboard: Enter/Space click  OMITTED                  Requires controller;
-    on host when interactive                             template-only port.
-  role=button / tabindex=0     OMITTED                  Callers set on host
-    set via connectedCallback                            manually when using
-                                                         interactive mode.
+  Keyboard: Enter/Space click  ✓ controller handles     ✓
+    on host when interactive
+  role=button / tabindex=0     ✓ controller sets on     ✓
+    set via connectedCallback    mount / effect
   ─────────────────────────────────────────────────────────────────────────────
   slots: label, default        slots: label, default,   ✓
     (value), trend, hint         trend, hint
