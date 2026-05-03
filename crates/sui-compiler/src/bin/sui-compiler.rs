@@ -211,6 +211,14 @@ fn compile_one(
         fs::write(&schema_path, pretty)
             .with_context(|| format!("write {}", schema_path.display()))?;
     }
+    // `.sui.meta.json` sidecar — binding info for LSP/IDE tooling. The
+    // runtime never loads this; it's purely developer-facing fuel.
+    if let Some(meta) = result.meta {
+        let meta_path = out_dir.join(format!("{stem_no_ext}.sui.meta.json"));
+        let pretty = serde_json::to_string_pretty(&meta)?;
+        fs::write(&meta_path, pretty)
+            .with_context(|| format!("write {}", meta_path.display()))?;
+    }
     // Write the .d.ts next to the source file so `import type { Scope } from
     // './view.sui'` resolves correctly regardless of --out placement.
     if let Some(dts) = result.dts {

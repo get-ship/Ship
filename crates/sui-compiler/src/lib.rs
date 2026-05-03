@@ -102,6 +102,10 @@ pub struct CompileOutput {
     pub schema: Option<serde_json::Value>,
     /// Emitted `.sui.d.ts` text, present when `CompileOpts::emit_dts` is true.
     pub dts: Option<String>,
+    /// `.sui.meta.json` sidecar — binding info (kinds/exprs/deps/renderKey)
+    /// for LSP/IDE consumption. The runtime never loads this; it's purely
+    /// developer-tooling fuel.
+    pub meta: Option<serde_json::Value>,
 }
 
 /// Compile a `.sui` source string.
@@ -149,7 +153,8 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
     } else {
         None
     };
-    Ok(CompileOutput { js, css: None, cem, schema, dts })
+    let meta = Some(emit::meta::emit_meta(&bindings));
+    Ok(CompileOutput { js, css: None, cem, schema, dts, meta })
 }
 
 fn attach_path(err: CompileError, opts: &CompileOpts) -> CompileError {

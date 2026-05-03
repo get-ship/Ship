@@ -324,3 +324,34 @@ fn schema_emitted_for_each_fixture() {
         assert_snapshot(&format!("{}.schema", fx.name), &s, &expected);
     }
 }
+
+/// Phase 3b.5 (gate L): every fixture emits a `.sui.meta.json` sidecar
+/// with binding info. The runtime never loads it; it's purely
+/// developer-tooling fuel (LSP hover, error overlay, HMR diff).
+#[test]
+fn meta_sidecar_emitted_for_each_fixture() {
+    for fx in &fixtures() {
+        let path = fixtures_dir().join(format!("{}.sui", fx.name));
+        let source = fs::read_to_string(&path).unwrap();
+        let opts = CompileOpts {
+            setup_url: None,
+            mode: fx.mode,
+            source_path: Some(path),
+            styles: None,
+            component_meta: fx.component_meta.clone(),
+            emit_dts: false,
+        };
+        let out = compile(&source, opts).expect("compile");
+        let meta = out.meta.expect("meta emitted");
+        let bindings = meta
+            .get("bindings")
+            .and_then(|v| v.as_array())
+            .expect("bindings array");
+        for entry in bindings {
+            assert!(entry.get("key").and_then(|v| v.as_str()).is_some(),
+                "binding entry missing key: {entry}");
+            assert!(entry.get("kind").and_then(|v| v.as_str()).is_some(),
+                "binding entry missing kind: {entry}");
+        }
+    }
+}
