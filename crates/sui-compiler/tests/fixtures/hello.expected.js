@@ -26,6 +26,3 @@ return () => { for (const c of __cleanups) try { c(); } catch (e) {} };
     },
   });
 });
-
-export const bindings = [
-];

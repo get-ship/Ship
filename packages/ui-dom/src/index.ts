@@ -13,8 +13,6 @@ export { attach } from './attach'
 export type {
   AttachOptions,
   AttachDisposer,
-  Binding,
-  BindingKind,
   SetCompiledModule,
   SetupContext,
 } from './attach'
@@ -39,4 +37,6 @@ export {
   hydrateBindValue,
   hydrateBindChecked,
   hydrateRef,
+  hydrateWhileLoading,
+  hydrateWhileError,
 } from './hydrate'

@@ -53,12 +53,9 @@ pub struct TemplateEmitter {
     /// Hoisted `const __wireBoundary_b<N> = (anchor) => bindIf(...)`
     /// declarations for each `{#if}` / `{#for}` / `{#match}` boundary.
     /// Drained into the setup body before the return statement so the
-    /// helpers are in scope for both `__mount` and `__b<N>_attach`.
+    /// helpers are in scope for both `__mount` and the hydrate-side
+    /// boundary dispatch emitted into `hydrate_calls`.
     pub(super) boundary_hoists: Writer,
-    /// `__b<N>_attach: (target) => …` named properties on the setup
-    /// return object. Populated only in view mode; components don't
-    /// have an attach() entry path.
-    pub(super) attach_handlers: Writer,
     /// Direct-emit hydrate calls for migrated binding kinds (Phase 3b.3).
     /// Each line is one statement inside the view's `hydrate(root, ctx)`
     /// function — e.g. `if (__t["b0"]) __cleanups.push(hydrateText(...));`.
@@ -89,7 +86,7 @@ pub struct TemplateEmitter {
     /// matches the SSR walker's emitted `<sui-{kind} key="b<N>">`.
     pub(super) keys: KeyAllocator,
     /// Whether the current compile mode is `View`. Components don't
-    /// emit `__b<N>_attach` properties (no SSR/attach() path).
+    /// emit `hydrate(root, ctx)` (no SSR/attach() path).
     pub(super) is_view: bool,
 }
 
@@ -101,7 +98,6 @@ impl TemplateEmitter {
             while_error_idx: 0,
             render_callbacks: Writer::new(),
             boundary_hoists: Writer::new(),
-            attach_handlers: Writer::new(),
             hydrate_calls: Writer::new(),
             hydrate_uses_text: false,
             hydrate_uses_markers: false,
@@ -121,12 +117,6 @@ impl TemplateEmitter {
     /// before the `return` statement so the consts are in scope.
     pub fn take_boundary_hoists(&mut self) -> String {
         std::mem::replace(&mut self.boundary_hoists, Writer::new()).into_string()
-    }
-
-    /// Drain the attach-handler property buffer. Called by
-    /// `emit_setup_body` to merge into the view's setup-return object.
-    pub fn take_attach_handlers(&mut self) -> String {
-        std::mem::replace(&mut self.attach_handlers, Writer::new()).into_string()
     }
 
     /// Drain the hydrate-call buffer. Returns the body of the view's

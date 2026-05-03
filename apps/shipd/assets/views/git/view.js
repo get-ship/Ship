@@ -1,5 +1,6 @@
 // views/git/view.js
 import { bindAttr, bindFor, bindIf, bindText, bindValue, bindWhileError, bindWhileLoading, data, live, on, signal, view } from "@ship/ui-runtime";
+import { collectElementMarkers, hydrateWhileError, hydrateWhileLoading } from "@ship/ui-dom";
 
 // views/git/view.ts
 import { controller, unwrapOr, useFilteredList } from "@ship/ui-runtime";
@@ -1452,129 +1453,27 @@ var view_default2 = view((ctx) => {
         }
       };
     },
-    "__renderWhileLoading_0": __renderWhileLoading_0,
-    "__renderWhileError_0": __renderWhileError_0,
-    __b26_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b26(__anchor);
-    },
-    __b25_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b25(__anchor);
-    },
-    __b35_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b35(__anchor);
-    },
-    __b34_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b34(__anchor);
-    },
-    __b43_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b43(__anchor);
-    },
-    __b41_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b41(__anchor);
-    },
-    __b47_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b47(__anchor);
-    },
-    __b45_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b45(__anchor);
-    },
-    __b51_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b51(__anchor);
-    },
-    __b49_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b49(__anchor);
-    },
-    __b20_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b20(__anchor);
-    },
-    __b19_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b19(__anchor);
-    },
-    __b59_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b59(__anchor);
-    },
-    __b57_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b57(__anchor);
-    },
-    __b53_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b53(__anchor);
-    },
-    __b69_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("for") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b69(__anchor);
-    },
-    __b68_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b68(__anchor);
-    },
-    __b67_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b67(__anchor);
-    },
-    __b3_attach: (target) => {
-      const __doc = target.ownerDocument ?? document;
-      const __anchor = target.nodeType === 1 ? __doc.createComment("if") : target;
-      if (target.nodeType === 1 && target.parentNode) target.parentNode.replaceChild(__anchor, target);
-      return __wireBoundary_b3(__anchor);
+    hydrate(root, ctx2) {
+      const __cleanups = [];
+      const __m = collectElementMarkers(root);
+      if (__m["b0"]) __cleanups.push(hydrateWhileLoading(__m["b0"], "b0", () => $scope.overview(), __renderWhileLoading_0));
+      if (__m["b1"]) __cleanups.push(hydrateWhileError(__m["b1"], "b1", () => $scope.overview(), __renderWhileError_0));
+      if (__m["b3"]) {
+        const __t = __m["b3"];
+        const __doc = __t.ownerDocument ?? document;
+        const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
+        if (__t.nodeType === 1 && __t.parentNode) __t.parentNode.replaceChild(__anchor, __t);
+        __cleanups.push(__wireBoundary_b3(__anchor));
+      }
+      return () => {
+        for (const c of __cleanups) try {
+          c();
+        } catch (e) {
+        }
+      };
     }
   });
 });
-var bindings = [
-  { key: "b0", kind: "while-loading", expr: "overview", deps: ["overview"], renderKey: "__renderWhileLoading_0" },
-  { key: "b1", kind: "while-error", expr: "overview", deps: ["overview"], renderKey: "__renderWhileError_0" }
-];
 export {
-  bindings,
   view_default2 as default
 };

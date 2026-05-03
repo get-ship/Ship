@@ -1,52 +1,17 @@
 // attach() — the SSR-side client runtime.
 //
-// Walks DOM rendered by the Rust SSR walker, wires every reactive
-// binding listed in `opts.module.bindings`, and runs the controller's
-// `mount`. See `docs/ship-adrs/.../sui-marker-contract.md` for the
-// marker contract.
-//
-// Phase 2 — control-flow boundaries (`if` / `for` / `match` / `await`)
-// are wired client-side without server round-trip. The compiler emits
-// per-boundary `__b<N>_attach` named handlers on the setup return; we
-// dispatch SSR'd `<sui-{kind} key="b<N>">` wrappers to those handlers
-// before walking leaf markers, so SSR'd content inside replaced
-// boundaries doesn't get pointlessly re-wired.
+// Reads the `__set_init__` JSON island, builds a setup context, calls
+// the compiled view's `setup(ctx)`, and invokes the unified
+// `hydrate(root, ctx)` named property on the setup return. Hydrate is
+// the single dispatch surface for every binding kind (text, on:*,
+// attr:*, class:*, style:*, bind:*, mutation, while-loading,
+// while-error, control-flow boundaries) — the compiler inlines each
+// kind directly. There is no manifest, no marker walker, no per-kind
+// wirer left in the runtime.
 
 import { route as makeRoute, type RouteSignals } from '@ship/ui-runtime'
-import { wireBoundaries } from './attach/boundaries'
 import { readInitIsland } from './attach/island'
 import { openLiveChannel } from './attach/live-channel'
-import { indexBindings, walkMarkers } from './attach/manifest'
-import { wireMarker, type WireContext } from './attach/wire'
-
-/** Marker `kind` for each binding (matches the author-syntax attribute prefix). */
-export type BindingKind =
-  | 'text'
-  | `on:${string}`
-  | 'bind:value'
-  | 'bind:checked'
-  | `attr:${string}`
-  | 'attr-dynamic'
-  | `class:${string}`
-  | `style:${string}`
-  | 'while-loading'
-  | 'while-error'
-  | 'mutation'
-  | 'bind:this'
-
-/** One entry in the compiled module's `bindings` manifest. */
-export interface Binding {
-  /** `"b0"`, `"b1"`, … — the opaque counter-allocated binding key. */
-  key: string
-  /** Marker kind. See {@link BindingKind}. */
-  kind: BindingKind
-  /** Raw expression source from the IR. Empty when no expression applies. */
-  expr: string
-  /** Root identifiers the expression reads (de-duplicated, source order). */
-  deps: string[]
-  /** Name of the render callback on the setup return object, for while-loading / while-error. */
-  renderKey?: string
-}
 
 /** Setup-context shape mirrored on `ResolverContext` from the runtime. */
 export interface SetupContext {
@@ -67,13 +32,12 @@ export interface SetupContext {
 
 /**
  * Subset of a compiled `.sui.js` module that `attach` requires.
- * `default` exposes a `setup(ctx)` returning the bindings record (and
- * optionally a non-enumerable `__shipSetLifecycle`); `bindings` is
- * the manifest indexed by `bN` keys.
+ * `default.setup(ctx)` returns the binding-set record (with
+ * `hydrate(root, ctx)` and an optional non-enumerable
+ * `__shipSetLifecycle`).
  */
 export interface SetCompiledModule {
   default: { setup: (ctx: SetupContext) => Record<string, unknown> }
-  bindings: Binding[]
 }
 
 export interface AttachOptions {
@@ -94,8 +58,7 @@ export interface AttachOptions {
     | { params: Record<string, string>; query: Record<string, string> }
   navigate?: (path: string) => void
   /** Name of the view (the path segment under `views/`). Retained for
-   *  diagnostic output and live-channel routing; no longer used for
-   *  control-flow swap (Phase 2 went client-side). */
+   *  diagnostic output and live-channel routing. */
   viewName?: string
 }
 
@@ -110,20 +73,19 @@ interface Lifecycle {
 }
 
 /**
- * Walk SSR'd DOM rooted at `root`, wire every reactive binding listed
- * in `opts.module.bindings`, run the controller's `mount`, and return
- * a disposer that tears the whole thing down.
+ * Walk SSR'd DOM rooted at `root`, dispatch the compiled
+ * `hydrate(root, ctx)`, run the controller's `mount`, and return a
+ * disposer that tears the whole thing down.
  *
  * Bootstrap order:
  *
  *   1. Read the `__set_init__` JSON island.
  *   2. Wrap each entry in a `Signal` (or `LiveSignal` for envelopes).
  *   3. Build the setup context and call `module.default.setup(ctx)`.
- *   4. Wire control-flow boundaries — `__b<N>_attach` handlers
- *      replace each SSR'd `<sui-{kind}>` wrapper with client-rendered
- *      content driven by the signal layer.
- *   5. Walk surviving manifest markers and dispatch to per-kind wirers.
- *   6. Run `lifecycle.mount(state, root)`.
+ *   4. Invoke the setup return's `hydrate(root, ctx)` — single pass
+ *      that dispatches every binding kind by direct-emit dispatch.
+ *   5. Run `lifecycle.mount(state, root)`.
+ *   6. Open the SSE channel if the view has live data.
  *
  * The disposer is idempotent.
  */
@@ -146,7 +108,6 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
     route: routeSignals,
     navigate: opts.navigate ?? ((_p: string) => {}),
   }
-  // Merge state/data signals into the same scope the setup will read.
   const scope: Record<string, unknown> = { ...baseScope, ...init.scope }
 
   const setupCtx: SetupContext = {
@@ -160,15 +121,10 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
   if (setupRet && typeof setupRet === 'object') {
     Object.assign(scope, setupRet)
   }
-  // The compiled view's setup creates its own `$scope.<state> = signal(...)`
-  // for every <state> declaration and `$scope.<data> = live(...)` for every
-  // <data> declaration. Object.assign(scope, setupRet) above shadows
-  // init.scope's SSR-built signals with these duplicates. The controller's
-  // writable proxy targets init.scope (via setupCtx.scope), so controller
-  // mount writes go to init's signals — but bindings would read the duplicates
-  // and miss the updates. Restore init's signals (both state AND live) here so
-  // all readers agree, and so the SSE patch-signals channel updates the same
-  // signal the boundary effects are watching.
+  // setupRet's $scope shadows init.scope's SSR-built signals with
+  // duplicates. The controller's writable proxy targets init.scope, so
+  // controller mount writes go to init's signals — restore them here so
+  // bindings/SSE all read the same signals.
   for (const k of init.stateKeys) {
     if (init.scope[k]) scope[k] = init.scope[k]
   }
@@ -177,35 +133,8 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
   }
   const lifecycle = extractLifecycle(setupRet)
 
-  const ctx: WireContext = {
-    byKey: indexBindings(mod.bindings),
-    scope,
-  }
-
   const cleanups: Array<() => void> = []
 
-  // Wire control-flow boundaries first. Each handler replaces the
-  // SSR'd `<sui-{kind}>` wrapper with client-rendered content; nested
-  // SSR'd boundaries inside become detached and the snapshot walker
-  // skips them (`isConnected === false`).
-  cleanups.push(wireBoundaries(root, setupRet as Record<string, unknown>))
-
-  // Now walk surviving leaf markers (text / attr / on / etc) outside
-  // any control-flow boundary. Markers that lived inside boundary
-  // subtrees are gone — replaced by client-rendered content with
-  // inline reactive bindings the compiler emitted.
-  for (const hit of walkMarkers(root, ctx.byKey)) {
-    const c = wireMarker(hit, ctx)
-    if (c) cleanups.push(c)
-  }
-
-  // Phase 3b.3: direct-emit hydrate. The compiler now inlines text
-  // bindings (and, in later phases, more leaf kinds) as a `hydrate`
-  // function on the setup return. It walks the SSR'd DOM once and
-  // wires each migrated kind without going through the manifest.
-  // Coexistence: kinds still present in the manifest are wired by
-  // `walkMarkers` above; kinds the compiler now inlines are wired
-  // here. Both fire on every attach; together they cover the view.
   const hydrate = (setupRet as Record<string, unknown> | null)?.['hydrate']
   if (typeof hydrate === 'function') {
     try {
@@ -227,11 +156,6 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
     }
   }
 
-  // Open one SSE EventSource per view when the compiler emitted a subscribe
-  // URL (i.e. the view has at least one `<data live />` declaration, OR the
-  // view participates in agent-pushed `patch-elements` frames). Route each
-  // `patch-signals` event by data name to the matching LiveSignal, and each
-  // `patch-elements` event to the view-scoped DOM applier.
   if (init.subscribe) {
     const es = openLiveChannel(init.subscribe, init.scope, init.liveKeys, root)
     cleanups.push(() => es.close())

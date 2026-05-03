@@ -126,8 +126,6 @@ var view_default2 = view((ctx) => {
     }
   });
 });
-var bindings = [];
 export {
-  bindings,
   view_default2 as default
 };

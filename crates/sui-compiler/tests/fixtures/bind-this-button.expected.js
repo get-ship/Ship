@@ -29,6 +29,3 @@ if (__m["b0"]) __cleanups.push(hydrateRef(__m["b0"], $scope, "btnEl"));
     },
   });
 });
-
-export const bindings = [
-];

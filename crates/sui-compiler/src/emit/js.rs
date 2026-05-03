@@ -42,7 +42,7 @@ use super::util::{camel_of, js_ident};
 use super::writer::{js_string, Writer};
 use crate::ir::*;
 use crate::islands::collect_islands;
-use crate::keys::{BindingKind, BindingRegistry};
+use crate::keys::BindingRegistry;
 use crate::lower::{directives::prop_default_literal, Lowered};
 use crate::{CompileMode, CompileOpts};
 
@@ -75,88 +75,13 @@ pub fn emit_module(
         CompileMode::Component => emit_component_export(&mut w, program, body, opts),
         _ => emit_view_export(&mut w, body),
     }
-    // The `bindings` manifest is read by the view runtime's
-    // `attach()` to re-wire DOM bindings on hydration. Components
-    // register via `customElements.define()` and re-bind themselves
-    // through the lifecycle, so the manifest is dead weight in the
-    // component bundle — skip it. Trimming this saves ~9 KB
-    // ungzipped across the 18 ported primitives.
-    if !matches!(mode, CompileMode::Component) {
-        emit_bindings(&mut w, bindings);
-    }
+    // Phase 3b.5 (gate I): the `bindings` manifest is gone — every
+    // binding kind is now wired by the compiled view's
+    // `hydrate(root, ctx)` directly, so the runtime walker has nothing
+    // left to dispatch through. Components never used the manifest;
+    // views no longer need it either. Saves ~9 KB ungzipped across the
+    // ported primitives + per-view overhead.
     w.into_string()
-}
-
-fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
-    w.nl();
-    w.line("export const bindings = [");
-    w.enter();
-    for b in bindings.iter() {
-        if b.suppressed {
-            continue;
-        }
-        // Phase 2: control-flow boundaries no longer surface in the
-        // manifest. attach() finds them by walking SSR'd
-        // `<sui-{kind} key="b<N>">` elements and dispatching to the
-        // setup return's `__b<N>_attach` handler.
-        //
-        // Phase 3b.3: text bindings are now wired by the compiled
-        // `hydrate(root, ctx)` directly — `collectTextOpens` finds the
-        // SSR'd `<!--sui:text:bN-->` markers and `hydrateText` writes
-        // the reactive Text node. Skip them here so the runtime walker
-        // doesn't double-wire.
-        //
-        // Phase 3b.4: `on:*` event bindings are direct-emit too —
-        // `collectElementMarkers` finds the SSR'd `on:{event}="bN"`
-        // attribute and `hydrateOn` wires the listener via the runtime
-        // `on()` modifier pipeline. `attr:*` and `attr-dynamic` follow
-        // the same shape — `hydrateAttr` for static-named attrs, an
-        // inline `effect` block for dynamic-named ones (matches CSR).
-        if matches!(
-            b.kind,
-            BindingKind::If
-                | BindingKind::For
-                | BindingKind::Match
-                | BindingKind::Await
-                | BindingKind::Text
-                | BindingKind::On(_)
-                | BindingKind::Attr(_)
-                | BindingKind::AttrDynamic
-                | BindingKind::Class(_)
-                | BindingKind::Style(_)
-                | BindingKind::BindValue
-                | BindingKind::BindChecked
-                | BindingKind::BindThis
-        ) {
-            continue;
-        }
-        let deps_js = b
-            .deps
-            .iter()
-            .map(|d| js_string(d))
-            .collect::<Vec<_>>()
-            .join(", ");
-        if let Some(rk) = &b.render_key {
-            w.line(&format!(
-                "{{ key: {}, kind: {}, expr: {}, deps: [{}], renderKey: {} }},",
-                js_string(&b.key),
-                js_string(&b.kind.as_marker_str()),
-                js_string(&b.expr),
-                deps_js,
-                js_string(rk),
-            ));
-        } else {
-            w.line(&format!(
-                "{{ key: {}, kind: {}, expr: {}, deps: [{}] }},",
-                js_string(&b.key),
-                js_string(&b.kind.as_marker_str()),
-                js_string(&b.expr),
-                deps_js,
-            ));
-        }
-    }
-    w.leave();
-    w.line("];");
 }
 
 fn emit_imports(w: &mut Writer, lowered: &Lowered, opts: &CompileOpts) {
@@ -344,7 +269,6 @@ fn emit_setup_body(
         mount_w.line("return () => { for (const c of __cleanups) try { c(); } catch (e) {} };");
 
         let hoists = emitter.take_boundary_hoists();
-        let attach_handlers = emitter.take_attach_handlers();
         let callbacks = emitter.take_render_callbacks();
         let hydrate_uses_text = emitter.hydrate_uses_text();
         let hydrate_uses_markers = emitter.hydrate_uses_markers();
@@ -363,9 +287,6 @@ fn emit_setup_body(
         w.line("},");
         if !hydrate_calls.is_empty() {
             emit_view_hydrate(w, &hydrate_calls, hydrate_uses_text, hydrate_uses_markers);
-        }
-        if !attach_handlers.is_empty() {
-            w.push_str(&attach_handlers);
         }
         if !callbacks.is_empty() {
             w.push_str(&callbacks);

@@ -153,6 +153,8 @@ views/*/view.js
 views/*/view.schema.json
 # sui-compiler emits <file>.sui.d.ts alongside each .sui; regenerated artifact.
 **/*.sui.d.ts
+# .sui.meta.json sidecar — LSP/IDE binding info, regenerated artifact.
+**/*.sui.meta.json
 
 # SUI components AOT artifacts. sui-compiler emits
 # <tag>.compiled.js + <tag>.schema.json next to each .sui source;

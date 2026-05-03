@@ -1,12 +1,23 @@
 // Single-pass scan for every author-syntax binding marker attribute
-// (`on:*`, `attr:*`, `attr-dynamic`, `class:*`, `style:*`, `bind:*`)
+// (`on:*`, `attr:*`, `attr-dynamic`, `class:*`, `style:*`, `bind:*`,
+// `mutation`) AND every control-flow boundary wrapper element
+// (`<sui-if|sui-for|sui-match|sui-await|sui-while-loading|sui-while-error key="bN">`)
 // under `root`. Returns a map from binding key (`bN`) → the SSR'd
 // element carrying the marker.
 //
 // The compiler-emitted `hydrate(root, ctx)` calls this once per attach
-// and dispatches each element-bound leaf binding by key — one tree walk
-// for the whole view rather than one per binding. Mirrors the
-// `collectTextOpens` pattern used for text bindings.
+// and dispatches each binding by key — one tree walk for the whole
+// view rather than one per binding. Mirrors the `collectTextOpens`
+// pattern used for text bindings.
+
+const BOUNDARY_TAGS = new Set([
+  'sui-if',
+  'sui-for',
+  'sui-match',
+  'sui-await',
+  'sui-while-loading',
+  'sui-while-error',
+])
 
 export function collectElementMarkers(root: Node): Record<string, Element> {
   const owner = (root as Element).ownerDocument ?? document
@@ -15,6 +26,11 @@ export function collectElementMarkers(root: Node): Record<string, Element> {
   let n: Node | null = walker.currentNode
   while ((n = walker.nextNode())) {
     const el = n as Element
+    if (BOUNDARY_TAGS.has(el.tagName.toLowerCase())) {
+      const key = el.getAttribute('key')
+      if (key) out[key] = el
+      continue
+    }
     for (const attr of Array.from(el.attributes)) {
       const name = attr.name
       if (
@@ -23,7 +39,8 @@ export function collectElementMarkers(root: Node): Record<string, Element> {
         name === 'attr-dynamic' ||
         name.startsWith('class:') ||
         name.startsWith('style:') ||
-        name.startsWith('bind:')
+        name.startsWith('bind:') ||
+        name === 'mutation'
       ) {
         out[attr.value] = el
       }

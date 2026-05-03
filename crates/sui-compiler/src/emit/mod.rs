@@ -10,6 +10,7 @@ pub mod cem;
 pub mod dts;
 pub mod expr_rewrite;
 pub mod js;
+pub mod meta;
 pub mod schema;
 pub mod template_emit;
 pub mod util;

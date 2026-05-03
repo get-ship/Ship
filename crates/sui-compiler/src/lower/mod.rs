@@ -83,18 +83,29 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
         }
         Instr::WhileLoading(wl) => {
             out.runtime_imports.insert("bindWhileLoading");
+            if is_view && *depth == 0 {
+                out.dom_imports.insert("collectElementMarkers");
+                out.dom_imports.insert("hydrateWhileLoading");
+            }
             *depth += 1;
             walk_instrs(&wl.body, out, is_view, depth);
             *depth -= 1;
         }
         Instr::WhileError(we) => {
             out.runtime_imports.insert("bindWhileError");
+            if is_view && *depth == 0 {
+                out.dom_imports.insert("collectElementMarkers");
+                out.dom_imports.insert("hydrateWhileError");
+            }
             *depth += 1;
             walk_instrs(&we.body, out, is_view, depth);
             *depth -= 1;
         }
         Instr::If(IfInstr { branches, else_body, .. }) => {
             out.runtime_imports.insert("bindIf");
+            if is_view && *depth == 0 {
+                out.dom_imports.insert("collectElementMarkers");
+            }
             *depth += 1;
             for b in branches {
                 walk_instrs(&b.body, out, is_view, depth);
@@ -106,6 +117,9 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
         }
         Instr::For(ForInstr { body, else_body, .. }) => {
             out.runtime_imports.insert("bindFor");
+            if is_view && *depth == 0 {
+                out.dom_imports.insert("collectElementMarkers");
+            }
             *depth += 1;
             walk_instrs(body, out, is_view, depth);
             if let Some(eb) = else_body {
@@ -115,6 +129,9 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
         }
         Instr::Match(MatchInstr { cases, default, .. }) => {
             out.runtime_imports.insert("bindIf");
+            if is_view && *depth == 0 {
+                out.dom_imports.insert("collectElementMarkers");
+            }
             *depth += 1;
             for c in cases {
                 walk_instrs(&c.body, out, is_view, depth);

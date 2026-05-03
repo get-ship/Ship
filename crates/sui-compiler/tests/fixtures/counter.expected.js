@@ -67,6 +67,3 @@ if (__m["b2"]) __cleanups.push(hydrateOn(__m["b2"], "click", (function () { cons
     },
   });
 });
-
-export const bindings = [
-];

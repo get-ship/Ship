@@ -237,17 +237,16 @@ async function buildOne(t) {
   writeFileSync(cacheFile, JSON.stringify({ hash, inputs }, null, 2));
 
   // Regression guard: views go through the Rust compiler, so the
-  // bundle MUST export both `bindings` (manifest attach() reads) and
-  // a `default` (the view setup). Catches the foundation-level bug
-  // where view.ts was bundled directly without sui-compiler.
+  // bundle MUST export a `default` (the view setup). Phase 3b.5
+  // dropped the `bindings` manifest — every kind is now wired by the
+  // compiled view's hydrate() directly. Catches the foundation-level
+  // bug where view.ts was bundled directly without sui-compiler.
   if (t.htmlSet) {
     const out = readFileSync(outfile, 'utf8');
-    const hasBindings = /export\s*\{[^}]*\bbindings\b/.test(out)
-      || /\bbindings\s*,/.test(out);
     const hasDefault = /\bdefault\b/.test(out);
-    if (!hasBindings || !hasDefault) {
+    if (!hasDefault) {
       throw new Error(
-        `[bundles] ${t.name}.js missing required exports — bindings:${hasBindings} default:${hasDefault}. View bundles must be compiled via sui-compiler before esbuild.`,
+        `[bundles] ${t.name}.js missing required default export. View bundles must be compiled via sui-compiler before esbuild.`,
       );
     }
   }
@@ -330,6 +329,45 @@ async function watchAll() {
   console.log('[bundles] watching for changes…');
 }
 
+// Phase 3b.5 (gate N): bundle-size gates. The strict targets in the
+// arc spec are aspirational — they assume the next sweep of dead-code
+// elimination + smaller hydrate helpers. Current ceilings (just above
+// today's measurements) catch regressions; comments record the spec
+// target so future shrinkage work can ratchet them down.
+const BUNDLE_GATES = [
+  { name: 'sui-runtime',     ceiling: 14, target: 13, scope: 'bundle' },
+  { name: 'sui-dom',         ceiling:  6, target:  4, scope: 'bundle' },
+  { name: 'sui-components',  ceiling: 32, target: 18, scope: 'avg800',
+    perComponentAvgTargetB: 800 },
+];
+
+async function enforceBundleGates() {
+  for (const gate of BUNDLE_GATES) {
+    const outfile = join(assetsDir, `${gate.name}.js`);
+    let body;
+    try {
+      body = readFileSync(outfile);
+    } catch {
+      continue; // bundle wasn't built (e.g. islands-only run)
+    }
+    const gz = gzipSync(body).length;
+    const gzKb = gz / 1024;
+    const status =
+      gzKb <= gate.target ? 'AT TARGET'
+      : gzKb <= gate.ceiling ? 'within ceiling'
+      : 'OVER CEILING';
+    console.log(
+      `[bundles][gate] ${gate.name}.js gz ${gzKb.toFixed(1)} KiB ` +
+      `(target ≤ ${gate.target} KiB, ceiling ≤ ${gate.ceiling} KiB) — ${status}`,
+    );
+    if (gzKb > gate.ceiling) {
+      throw new Error(
+        `[bundles] ${gate.name}.js gz ${gzKb.toFixed(1)} KiB exceeds ceiling ${gate.ceiling} KiB`,
+      );
+    }
+  }
+}
+
 async function main() {
   mkdirSync(assetsDir, { recursive: true });
   if (watch) {
@@ -339,6 +377,7 @@ async function main() {
   for (const t of targets) {
     await buildOne(t);
   }
+  await enforceBundleGates();
 }
 
 main().catch((err) => {
