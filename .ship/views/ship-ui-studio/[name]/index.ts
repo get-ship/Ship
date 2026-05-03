@@ -2,13 +2,12 @@ import { controller, effect, defineRoutes } from '@ship/ui-runtime'
 import type { Scope } from './index.sui'
 import { loadCatalog, type CatalogEntry, type PropEntry } from '../partials/catalog'
 
-// View can be hosted at `/ship-ui-studio/:name` (shell SPA) or
-// `/sui/ship-ui-studio/:name` (standalone daemon URL). Register both so
-// `route.params.name` resolves regardless of mount context.
-defineRoutes([
-  { pattern: '/ship-ui-studio/:name' },
-  { pattern: '/sui/ship-ui-studio/:name' },
-])
+// Canonical shell route. The bare `/sui/ship-ui-studio/:name` URL is a
+// daemon-level dev affordance for fragment probing — not a parallel
+// public route, and not registered with the controller's reactive
+// route signal. Standalone access still works because mount() falls
+// back to parsing the last path segment.
+defineRoutes([{ pattern: '/ship-ui-studio/:name' }])
 
 export default controller<Scope>({
   derived: {

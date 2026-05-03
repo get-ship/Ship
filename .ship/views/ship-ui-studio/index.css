@@ -1,8 +1,33 @@
 /* Ship UI Studio — catalog index */
 
+/* Fill the shell's content slot. The shell's `.ship-content` is a grid
+   row with overflow:auto; the SUI fragment wrapper has no intrinsic
+   height. Stretch it via `display:flex; height:100%`, then let `.studio`
+   / `.detail-layout` flex-fill it. For standalone `/sui/<name>` access,
+   the parent is `<body>` → fall back to dynamic viewport height. */
+[data-sui-root][data-view='ship-ui-studio'] {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 100dvh;
+  width: 100%;
+}
+:where(.ship-content) [data-sui-root][data-view='ship-ui-studio'] {
+  /* Inside the shell, the parent slot already constrains height; the
+     viewport fallback would overflow past the shell chrome. */
+  min-height: 0;
+}
+
+.studio,
+.detail-layout {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  min-width: 0;
+}
+
 .studio {
   display: flex;
-  height: 100vh;
   overflow: hidden;
   background: var(--background);
   font-family: var(--font-body);
@@ -190,7 +215,6 @@
 .detail-layout {
   display: flex;
   flex-direction: column;
-  height: 100vh;
   overflow: hidden;
   background: var(--background);
   font-family: var(--font-body);

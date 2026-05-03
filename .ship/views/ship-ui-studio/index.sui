@@ -46,7 +46,7 @@
     {:else}
       <div class="tile-grid" data-test="grid">
         {#for item of filtered() key={item.id}}
-          <a class="tile" href={'/sui/ship-ui-studio/' + item.id} data-test="tile">
+          <a class="tile" href={'/ship-ui-studio/' + item.id} data-test="tile">
             <div class="tile-head">
               <code class="tile-name">{item.id}</code>
               <sui-badge tone={item.kind === 'sui' ? 'primary' : 'info'} variant="soft" size="sm">{item.kind}</sui-badge>

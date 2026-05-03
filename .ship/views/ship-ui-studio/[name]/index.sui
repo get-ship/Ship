@@ -5,7 +5,7 @@
 
 <div class="detail-layout">
   <header class="detail-header">
-    <a class="detail-back" href="/sui/ship-ui-studio">
+    <a class="detail-back" href="/ship-ui-studio">
       <span class="detail-back-arrow" aria-hidden="true">←</span>
       <span>SUI Studio</span>
     </a>

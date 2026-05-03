@@ -93,14 +93,8 @@ fn collect_view_css(name: &str, source_path: Option<&std::path::Path>) -> String
         "agents" => include_str!("../../../../views/agents/view.css").to_string(),
         "git" => include_str!("../../../../views/git/view.css").to_string(),
         "counter" => include_str!("../../../../views/counter/view.css").to_string(),
-        _ => match source_path.and_then(|p| p.parent()) {
-            Some(dir) => {
-                // Try index.css (project convention) then view.css (baked
-                // convention). First match wins; absence is silent.
-                std::fs::read_to_string(dir.join("index.css"))
-                    .or_else(|_| std::fs::read_to_string(dir.join("view.css")))
-                    .unwrap_or_default()
-            }
+        _ => match source_path {
+            Some(p) => collect_project_view_css(p, name),
             None => String::new(),
         },
     };
@@ -108,6 +102,52 @@ fn collect_view_css(name: &str, source_path: Option<&std::path::Path>) -> String
         String::new()
     } else {
         format!("<style data-sui-view-css=\"{}\">{css}</style>", escape_html(name))
+    }
+}
+
+/// Walk from the source path up to the top-level view directory and
+/// concatenate every `index.css` (or `view.css`) on the way down. Mirrors
+/// the standalone `serve_sui_view_css` behavior so fragment-mounted views
+/// (shell SPA) and standalone views (`/sui/<name>`) load the same set of
+/// styles. Without the walk, a `[param]` sub-template's fragment would
+/// only get its own (typically absent) CSS, leaving the page unstyled.
+fn collect_project_view_css(source_path: &std::path::Path, view_name: &str) -> String {
+    let mut buf = String::new();
+    if let Some(top) = top_level_view_dir(source_path, view_name) {
+        push_css_from(&mut buf, &top);
+    }
+    if let Some(parent) = source_path.parent() {
+        let is_sub = top_level_view_dir(source_path, view_name)
+            .map(|top| top != parent)
+            .unwrap_or(false);
+        if is_sub {
+            push_css_from(&mut buf, parent);
+        }
+    }
+    buf
+}
+
+fn push_css_from(buf: &mut String, dir: &std::path::Path) {
+    if let Ok(s) = std::fs::read_to_string(dir.join("index.css"))
+        .or_else(|_| std::fs::read_to_string(dir.join("view.css")))
+    {
+        if !buf.is_empty() && !buf.ends_with('\n') {
+            buf.push('\n');
+        }
+        buf.push_str(&s);
+    }
+}
+
+/// Walk up from a sub-template path (e.g. `views/X/[name]/index.sui`) to
+/// the top-level view directory `views/X/`. The top-level dir is the one
+/// whose basename equals `view_name`.
+fn top_level_view_dir(p: &std::path::Path, view_name: &str) -> Option<std::path::PathBuf> {
+    let mut cur = p.parent()?;
+    loop {
+        if cur.file_name().and_then(|s| s.to_str()) == Some(view_name) {
+            return Some(cur.to_path_buf());
+        }
+        cur = cur.parent()?;
     }
 }
 
