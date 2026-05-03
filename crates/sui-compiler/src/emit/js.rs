@@ -124,6 +124,9 @@ fn emit_bindings(w: &mut Writer, bindings: &BindingRegistry) {
                 | BindingKind::AttrDynamic
                 | BindingKind::Class(_)
                 | BindingKind::Style(_)
+                | BindingKind::BindValue
+                | BindingKind::BindChecked
+                | BindingKind::BindThis
         ) {
             continue;
         }

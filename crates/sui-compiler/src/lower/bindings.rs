@@ -29,15 +29,27 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered, is_view: bool, dep
         }
         AttrInstr::BindValue { .. } => {
             out.runtime_imports.insert("bindValue");
+            if direct_emit {
+                out.dom_imports.insert("collectElementMarkers");
+                out.dom_imports.insert("hydrateBindValue");
+            }
         }
         AttrInstr::BindChecked { .. } => {
             out.runtime_imports.insert("bindChecked");
+            if direct_emit {
+                out.dom_imports.insert("collectElementMarkers");
+                out.dom_imports.insert("hydrateBindChecked");
+            }
         }
         AttrInstr::BindThis { .. } => {
             // The component setup body emits `signal(...)` inline.
             // Views resolve the ref via the attach manifest with no
             // runtime helper needed.
             out.runtime_imports.insert("signal");
+            if direct_emit {
+                out.dom_imports.insert("collectElementMarkers");
+                out.dom_imports.insert("hydrateRef");
+            }
         }
         AttrInstr::SlotReflectEmpty { .. } => {
             out.runtime_imports.insert("bindSlotEmpty");

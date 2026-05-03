@@ -1,16 +1,36 @@
-// `bind:this={ref}` hydrator — sets the ref signal to the SSR'd element.
+// `bind:this={var}` hydrator.
 //
-// The compiler resolves the ref signal at emit time and passes it in.
-// On unmount the signal is reset to `null`.
+// Mirrors `attach/bindings/ref.ts::wireRef`: if `scope[varName]` is
+// already a writable signal (e.g. the controller pre-declared it),
+// reuse it; otherwise create a fresh `signal(el)` and write it back
+// onto the scope so subsequent reads find it. On unmount the signal
+// is reset to `null`.
 
-import type { Signal } from '@ship/ui-runtime'
+import { signal, type Signal } from '@ship/ui-runtime'
 
 export function hydrateRef(
   el: Element,
-  sig: Signal<Element | null>,
+  scope: Record<string, unknown>,
+  varName: string,
 ): () => void {
-  sig.set(el)
-  return () => {
-    sig.set(null)
+  const existing = scope[varName]
+  let ref: Signal<Element | null>
+  if (isWritableSignal(existing)) {
+    ;(existing as Signal<unknown>).set(el)
+    ref = existing as Signal<Element | null>
+  } else {
+    ref = signal<Element | null>(el)
+    scope[varName] = ref
   }
+  return () => {
+    ref.set(null)
+  }
+}
+
+function isWritableSignal(v: unknown): v is Signal<unknown> {
+  return (
+    typeof v === 'function' &&
+    'set' in (v as object) &&
+    typeof (v as unknown as { set: unknown }).set === 'function'
+  )
 }

@@ -1572,8 +1572,7 @@ var view_default2 = view((ctx) => {
 });
 var bindings = [
   { key: "b0", kind: "while-loading", expr: "overview", deps: ["overview"], renderKey: "__renderWhileLoading_0" },
-  { key: "b1", kind: "while-error", expr: "overview", deps: ["overview"], renderKey: "__renderWhileError_0" },
-  { key: "b54", kind: "bind:value", expr: "commitFilter.query", deps: ["commitFilter"] }
+  { key: "b1", kind: "while-error", expr: "overview", deps: ["overview"], renderKey: "__renderWhileError_0" }
 ];
 export {
   bindings,

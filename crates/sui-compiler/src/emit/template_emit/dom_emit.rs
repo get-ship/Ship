@@ -71,26 +71,48 @@ impl TemplateEmitter {
                 }
             }
             AttrInstr::BindValue { expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
                     "{cleanups_var}.push(bindValue({el_var}, ({rw})));"
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateBindValue(__m[{k}], ({rw})));",
+                        k = js_string(&key),
+                    ));
+                }
             }
             AttrInstr::BindChecked { expr, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 w.line(&format!(
                     "{cleanups_var}.push(bindChecked({el_var}, ({rw})));"
                 ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateBindChecked(__m[{k}], ({rw})));",
+                        k = js_string(&key),
+                    ));
+                }
             }
             AttrInstr::BindThis { var, .. } => {
-                let _ = self.next_key();
+                let key = self.next_key();
                 // Refs are write-once-from-runtime: create the signal
                 // pre-seeded with the freshly constructed element. The
                 // component author reads `<var>()` from the controller
                 // — same shape as React's `ref.current`, but signal-typed.
                 w.line(&format!("$scope.{var} = signal({el_var});"));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateRef(__m[{k}], $scope, {v}));",
+                        k = js_string(&key),
+                        v = js_string(var),
+                    ));
+                }
             }
             AttrInstr::SlotReflectEmpty { attr, .. } => {
                 w.line(&format!(
