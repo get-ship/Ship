@@ -15,9 +15,9 @@
   padding ('none'|'sm'|'md'|  padding (none|sm|md|lg,  ✓
     'lg', 'md')                 'md', reflect)
   interactive (Boolean, false) interactive (bool,       ✓ CSS hover lift +
-                                false, reflect)          cursor. role=button /
-                                                         tabindex=0 omitted —
-                                                         callers add manually.
+                                false, reflect)          cursor, role=button,
+                                                         tabindex=0, Enter/Space
+                                                         → click via controller.
   accent-bar (Boolean, false)  accent-bar (bool,        ✓ gradient top-bar
                                 false, reflect)          that fades in on hover
   status-rail (Boolean, false) status-rail (bool,       ✓ 3px left border
@@ -25,10 +25,10 @@
   fill (Boolean, false)        fill (bool, false,       ✓ tone-tinted bg wash
                                 reflect)
   ─────────────────────────────────────────────────────────────────────────────
-  Keyboard: Enter/Space click  OMITTED                  Template-only port.
-    on host when interactive                             Callers add tabindex=0
-                                                         + role=button + keydown
-                                                         when needed.
+  Keyboard: Enter/Space click  ✓ controller handles     ✓
+    on host when interactive
+  role=button / tabindex=0     ✓ controller sets on     ✓
+    set on host                  mount / effect
   ─────────────────────────────────────────────────────────────────────────────
   syncFilled (slotchange →     reflect-empty=           ✓ SUI reflect-empty
     data-filled on wrapper)     "data-no-header",        sets host attr when

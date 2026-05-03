@@ -4,6 +4,24 @@ import { existsSync, readFileSync, renameSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 
 const repoRoot = resolve(__dirname, '../..')
+// Prefer the pre-built debug binary; fall back to `cargo run` if absent.
+const compilerBin = resolve(repoRoot, 'target/debug/sui-compiler')
+
+function compileSui(suiPath: string, outDir: string, stem: string): void {
+  const hasbin = existsSync(compilerBin)
+  const cmd = hasbin ? compilerBin : 'cargo'
+  const args = hasbin
+    ? ['build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
+    : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
+  const result = spawnSync(cmd, args, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  })
+  if (result.status !== 0) {
+    throw new Error(`sui-compiler failed for ${suiPath}:\n${result.stderr || result.stdout}`)
+  }
+}
 
 export default defineConfig({
   resolve: {
@@ -12,6 +30,8 @@ export default defineConfig({
       // @ship/ui-dom/legacy is aliased for the test-only `*.compiled.js` shim; not bundled into production.
       '@ship/ui-dom/legacy': resolve(__dirname, '../ui-dom/src/legacy/index.ts'),
       '@ship/ui-dom': resolve(__dirname, '../ui-dom/src/index.ts'),
+      // No-op stub: WebGL addon throws "WebGL2 not supported" in JSDOM.
+      '@xterm/addon-webgl': resolve(__dirname, 'test/__mocks__/addon-webgl.ts'),
     },
   },
   test: {
@@ -19,14 +39,14 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],
   },
-  // `<tag>.compiled.js` shim. Production bundles get an actual AOT-compiled
-  // module emitted by the Rust sui-compiler at build time. For tests, this
-  // plugin intercepts `.compiled.js` imports and either:
-  //   (a) passes through to the file on disk if it already exists (prior build), or
-  //   (b) invokes the sui-compiler via `cargo run` to compile the sibling `.sui`
-  //       source, then passes through to the freshly compiled file.
-  //
-  // The legacy `.html.set` fallback is kept for any remaining legacy files.
+  // `<tag>.compiled.js` shim. Production bundles use AOT-compiled modules
+  // emitted by the Rust sui-compiler. For tests:
+  //   (a) If the `.compiled.js` already exists (built by build-bundles or
+  //       a prior test run), resolve it directly.
+  //   (b) If a sibling `.sui` file exists, compile it on-demand via the Rust
+  //       binary (or `cargo run` fallback) and write the output next to the
+  //       source as `<stem>.compiled.js`.
+  //   (c) Otherwise fall back to the legacy `.html.set` hydrate path.
   plugins: [
     {
       name: 'html-set-text-loader',
@@ -47,29 +67,15 @@ export default defineConfig({
         const stem = id.replace(/^\.\//, '').replace(/\.compiled\.js$/, '')
         const actualFile = resolve(dir, `${stem}.compiled.js`)
 
-        // (a) Already compiled on disk — return absolute path so vite resolves it directly.
         if (existsSync(actualFile)) return actualFile
 
-        // (b) Compile the sibling .sui source via the Rust sui-compiler.
         const suiFile = resolve(dir, `${stem}.sui`)
         if (existsSync(suiFile)) {
-          // The compiler outputs <tagName>.js into the directory containing the
-          // .sui file. For imports like './sui-status-dot/sui-status-dot.compiled.js'
-          // from src/index.ts, stem = 'sui-status-dot/sui-status-dot' so we must
-          // derive the output dir and tag name from the resolved suiFile path.
           const compDir = dirname(suiFile)
           const tagName = basename(suiFile, '.sui')
-          const r = spawnSync(
-            'cargo',
-            ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiFile, '--out', compDir, '--component-name', tagName],
-            { cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] },
-          )
-          if (r.status === 0) {
-            const emitted = resolve(compDir, `${tagName}.js`)
-            if (existsSync(emitted)) renameSync(emitted, actualFile)
-          } else {
-            console.error(`[compiled-js-test-shim] sui-compiler failed for ${tagName}:\n${r.stderr || r.stdout}`)
-          }
+          compileSui(suiFile, compDir, tagName)
+          const emitted = resolve(compDir, `${tagName}.js`)
+          if (existsSync(emitted)) renameSync(emitted, actualFile)
           if (existsSync(actualFile)) return actualFile
         }
 
