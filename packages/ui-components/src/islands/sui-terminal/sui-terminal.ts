@@ -173,12 +173,19 @@ export default controller<Scope>({
     term.loadAddon(new WebLinksAddon())
 
     // Prefer WebGL renderer to avoid canvas first-row corruption in shadow DOM.
-    try {
-      const webgl = new WebglAddon()
-      webgl.onContextLoss(() => { webgl.dispose() })
-      term.loadAddon(webgl)
-    } catch {
-      // WebGL unavailable (headless, old hardware) — canvas fallback
+    // Guard with an explicit WebGL2 probe first — the addon activation error
+    // propagates asynchronously through xterm's event bus (can't be caught with
+    // try/catch after the fact) so we must skip the addon entirely in headless /
+    // no-WebGL environments.
+    const __testCanvas = document.createElement('canvas')
+    if (__testCanvas.getContext('webgl2')) {
+      try {
+        const webgl = new WebglAddon()
+        webgl.onContextLoss(() => { webgl.dispose() })
+        term.loadAddon(webgl)
+      } catch {
+        // WebGL init failed — canvas fallback
+      }
     }
 
     // Delay open() until the container has layout to avoid garbled glyphs.
