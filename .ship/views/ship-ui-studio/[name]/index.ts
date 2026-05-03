@@ -62,9 +62,18 @@ export default controller<Scope>({
     if (!slot) return
 
     if (entry.kind === 'view') {
-      slot.innerHTML = `<div class="detail-view-hint"><p>SUI view preview: <code>${entry.id}</code></p></div>`
-      const clear = () => { slot.innerHTML = '' }
-      state._dispose = clear
+      // Render the actual view via the daemon's standalone /sui/<id>
+      // route, sandboxed in an iframe so its reactive scope stays
+      // isolated from the studio. Same-origin so authentication
+      // cookies flow; ship-ui-studio inside ship-ui-studio works
+      // because each iframe is its own document.
+      const frame = document.createElement('iframe')
+      frame.className = 'detail-view-frame'
+      frame.src = `/sui/${entry.id}`
+      frame.title = `${entry.id} preview`
+      frame.loading = 'eager'
+      slot.appendChild(frame)
+      state._dispose = () => { frame.remove() }
       return
     }
 

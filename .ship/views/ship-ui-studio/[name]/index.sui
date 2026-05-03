@@ -79,10 +79,14 @@
       {/if}
 
       <div class="detail-render-wrap">
-        <div class="detail-render-stage">
+        <div class="detail-render-stage" data-stage-kind={entry().kind}>
           <div class="detail-render" data-render-slot data-test="render-slot"></div>
         </div>
-        <div class="detail-render-caption">Live preview · default slot text: <code>example</code></div>
+        {#if entry().kind === 'sui'}
+          <div class="detail-render-caption">Live preview · default slot text: <code>example</code></div>
+        {:else}
+          <div class="detail-render-caption">Live view · <code>/sui/{entry().id}</code></div>
+        {/if}
       </div>
     </div>
   {/if}
