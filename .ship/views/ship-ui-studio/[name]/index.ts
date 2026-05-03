@@ -71,12 +71,50 @@ export default controller<Scope>({
 
     const node = document.createElement(entry.tag)
     node.className = 'detail-rendered-component'
+    // Seed the default slot with a real text node BEFORE the host
+    // observes its slot occupancy. This avoids icon-only collapse on
+    // tags like sui-button that reflect-empty into `data-icon-only`.
+    node.appendChild(document.createTextNode('example'))
     slot.appendChild(node)
 
-    // Apply initial prop values
+    // <select> ignores its `value` attribute — the matching <option>
+    // must be marked `selected`, or the select.value property must be
+    // assigned post-render. The studio's prop panel uses native
+    // <select> so author markup stays simple; sync the JS-property
+    // here once the DOM exists.
+    const syncSelects = () => {
+      const root = el as ParentNode
+      for (const sel of root.querySelectorAll<HTMLSelectElement>('.prop-select')) {
+        const propName = sel.id.replace(/^prop-/, '')
+        const v = (state.propValues as Record<string, unknown>)[propName]
+        if (v != null) sel.value = String(v)
+      }
+    }
+    syncSelects()
+
+    // Apply prop values to the rendered host. Boolean attributes follow
+    // HTML semantics: presence ≡ true, regardless of value — so
+    // `disabled="false"` would still mark the button disabled. Strip
+    // boolean attrs entirely when the value is falsy. For string props,
+    // setAttribute(k, '') deliberately keeps the attribute (some
+    // components reflect emptiness). For unset / `undefined` props, the
+    // attribute is removed so the component falls back to its declared
+    // default.
+    const props = (entry.props ?? []) as PropEntry[]
+    const propTypes = new Map(props.map(p => [p.name, p.type]))
     const applyProps = (vals: Record<string, unknown>) => {
-      for (const [k, v] of Object.entries(vals)) {
-        if (v !== undefined && v !== '') node.setAttribute(k, String(v))
+      for (const p of props) {
+        const v = vals[p.name]
+        const t = propTypes.get(p.name)
+        const isBool = t === 'boolean' || t === 'Boolean' || t === 'bool'
+        if (isBool) {
+          const truthy = v === true || v === 'true'
+          if (truthy) node.setAttribute(p.name, '')
+          else node.removeAttribute(p.name)
+        } else {
+          if (v == null || v === '') node.removeAttribute(p.name)
+          else node.setAttribute(p.name, String(v))
+        }
       }
     }
     applyProps(initVals)

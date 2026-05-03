@@ -1,4 +1,3 @@
-<state name="lit"        value="[]" />
 <state name="sui"        value="[]" />
 <state name="views"      value="[]" />
 <state name="loading"    value="true" />
@@ -8,53 +7,54 @@
 <div class="studio">
   <aside class="studio-sidebar">
     <div class="studio-sidebar-header">
-      <ship-icon name="columns" size="sm"></ship-icon>
-      <span class="studio-sidebar-title">UI Studio</span>
+      <span class="studio-brand-mark" aria-hidden="true">◐</span>
+      <span class="studio-sidebar-title">SUI Studio</span>
     </div>
 
-    <div class="studio-sidebar-search">
-      <ship-input placeholder="Search components..." size="sm" value={filterText()} on:ship-input={(e) => filterText.set(e.detail.value)}></ship-input>
-    </div>
+    <input
+      class="studio-search"
+      type="search"
+      placeholder="Search components…"
+      value={filterText()}
+      on:input={(e) => filterText.set(e.target.value)}
+      autocomplete="off"
+      spellcheck="false"
+    />
 
-    <div class="studio-sidebar-filters">
-      <ship-segmented value={filterKind()} size="sm" on:ship-change={(e) => filterKind.set(e.detail.value)}>
-        <ship-segmented-option value="all">All</ship-segmented-option>
-        <ship-segmented-option value="lit">Lit</ship-segmented-option>
-        <ship-segmented-option value="sui">SUI</ship-segmented-option>
-        <ship-segmented-option value="view">Views</ship-segmented-option>
-      </ship-segmented>
+    <div class="studio-filter" role="tablist">
+      <button class="studio-filter-pill" data-active={filterKind() === 'all'} on:click={() => filterKind.set('all')}>All</button>
+      <button class="studio-filter-pill" data-active={filterKind() === 'sui'} on:click={() => filterKind.set('sui')}>Components</button>
+      <button class="studio-filter-pill" data-active={filterKind() === 'view'} on:click={() => filterKind.set('view')}>Views</button>
     </div>
 
     <div class="studio-sidebar-counts">
-      <span class="studio-count-badge">
-        {totalCount()} total
-      </span>
+      <span class="studio-count-text">{filteredCount()} of {totalCount()}</span>
     </div>
   </aside>
 
   <main class="studio-main">
     {#if loading()}
       <div class="studio-loading">
-        <ship-spinner size="md"></ship-spinner>
-        <p class="studio-loading-text">Loading catalog…</p>
+        <sui-spinner size="md"></sui-spinner>
+        <p class="studio-loading-text">Loading catalog</p>
       </div>
     {:else if filtered().length === 0}
-      <ship-empty-state icon="search" variant="default" size="lg">
+      <sui-empty-state size="lg">
         <span slot="title">Nothing matches</span>
         <span slot="description">Try a different filter or search term.</span>
-      </ship-empty-state>
+      </sui-empty-state>
     {:else}
       <div class="tile-grid" data-test="grid">
         {#for item of filtered() key={item.id}}
-          <div class="tile" data-test="tile" on:click={() => window.ship?.navigate('/ship-ui-studio/' + item.id)}>
+          <a class="tile" href={'/sui/ship-ui-studio/' + item.id} data-test="tile">
             <div class="tile-head">
               <code class="tile-name">{item.id}</code>
-              <ship-badge tone={item.kind === 'lit' ? 'primary' : item.kind === 'sui' ? 'accent' : 'muted'} variant="soft" size="sm">{item.kind}</ship-badge>
+              <sui-badge tone={item.kind === 'sui' ? 'primary' : 'info'} variant="soft" size="sm">{item.kind}</sui-badge>
             </div>
             {#if item.description}
               <p class="tile-desc">{item.description}</p>
             {/if}
-          </div>
+          </a>
         {/for}
       </div>
     {/if}

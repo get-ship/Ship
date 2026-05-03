@@ -4,8 +4,8 @@ import { loadCatalog, type CatalogEntry } from './partials/catalog'
 
 export default controller<Scope>({
   derived: {
-    allItems: ({ lit, sui, views }) =>
-      [...(lit() as CatalogEntry[]), ...(sui() as CatalogEntry[]), ...(views() as CatalogEntry[])],
+    allItems: ({ sui, views }) =>
+      [...(sui() as CatalogEntry[]), ...(views() as CatalogEntry[])],
     filtered: ({ filterKind, filterText, allItems }) => {
       const kind = filterKind()
       const text = filterText().toLowerCase()
@@ -16,11 +16,11 @@ export default controller<Scope>({
       })
     },
     totalCount: ({ allItems }) => (allItems() as CatalogEntry[]).length,
+    filteredCount: ({ filtered }) => (filtered() as CatalogEntry[]).length,
   },
 
   mount: async (state) => {
     const catalog = await loadCatalog()
-    state.lit = catalog.lit
     state.sui = catalog.sui
     state.views = catalog.views
     state.loading = false

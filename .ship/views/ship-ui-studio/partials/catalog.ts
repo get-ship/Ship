@@ -14,6 +14,10 @@ export interface PropEntry {
   type: string
   default?: string
   description?: string
+  /// Closed set of allowed string values, when the prop is a union. Used
+  /// by the studio prop panel to render a `<select>` instead of a free
+  /// text input.
+  values?: string[]
 }
 
 // All 18 ported set-* components (kept as a static list since
@@ -37,6 +41,7 @@ interface CemAttribute {
   type?: { text: string }
   default?: string
   description?: string
+  values?: string[]
 }
 
 interface CemDeclaration {
@@ -123,6 +128,7 @@ async function loadSuiPropMap(): Promise<Record<string, PropEntry[]>> {
           type: a.type?.text ?? 'string',
           default: a.default,
           description: a.description,
+          values: Array.isArray(a.values) ? a.values : undefined,
         }))
       }
     }

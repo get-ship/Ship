@@ -5,16 +5,16 @@
 
 <div class="detail-layout">
   <header class="detail-header">
-    <a class="detail-back" on:click={() => window.ship?.navigate('/ship-ui-studio')}>
-      <ship-icon name="arrow-left" size="sm"></ship-icon>
-      <span>UI Studio</span>
+    <a class="detail-back" href="/sui/ship-ui-studio">
+      <span class="detail-back-arrow" aria-hidden="true">←</span>
+      <span>SUI Studio</span>
     </a>
 
     {#if !loading()}
       {#if entry()}
         <div class="detail-header-meta">
           <code class="detail-tag">{entry().tag}</code>
-          <ship-badge tone={entry().kind === 'lit' ? 'primary' : entry().kind === 'sui' ? 'accent' : 'muted'} variant="soft" size="sm">{entry().kind}</ship-badge>
+          <sui-badge tone={entry().kind === 'sui' ? 'primary' : 'info'} variant="soft" size="sm">{entry().kind}</sui-badge>
         </div>
         {#if entry().description}
           <p class="detail-description">{entry().description}</p>
@@ -27,7 +27,7 @@
 
   {#if loading()}
     <div class="detail-loading">
-      <ship-spinner size="md"></ship-spinner>
+      <sui-spinner size="md"></sui-spinner>
     </div>
   {:else if entry()}
     <div class="detail-body">
@@ -36,14 +36,42 @@
           <h3 class="props-heading">Props</h3>
           {#for prop of entry().props key={prop.name}}
             <div class="prop-row" data-test="prop-row">
-              <div class="prop-meta">
+              <label class="prop-meta" for={'prop-' + prop.name}>
                 <span class="prop-name">{prop.name}</span>
-                <span class="prop-type">{prop.type}</span>
-              </div>
+                {#if prop.values && prop.values.length > 0}
+                  <span class="prop-type">enum</span>
+                {:else}
+                  <span class="prop-type">{prop.type}</span>
+                {/if}
+              </label>
               {#if prop.type === 'boolean' || prop.type === 'Boolean'}
-                <ship-switch checked={propValues()[prop.name] === 'true'} on:ship-change={(e) => setProp(prop.name, e.detail.checked ? 'true' : 'false')}></ship-switch>
+                <input
+                  class="prop-checkbox"
+                  type="checkbox"
+                  id={'prop-' + prop.name}
+                  checked={propValues()[prop.name] === 'true' || propValues()[prop.name] === true}
+                  on:change={(e) => setProp(prop.name, e.target.checked ? 'true' : 'false')}
+                />
+              {:else if prop.values && prop.values.length > 0}
+                <select
+                  class="prop-select"
+                  id={'prop-' + prop.name}
+                  value={(propValues()[prop.name] ?? prop.default ?? '') + ''}
+                  on:change={(e) => setProp(prop.name, e.target.value)}
+                >
+                  {#for v of prop.values key={v}}
+                    <option value={v}>{v}</option>
+                  {/for}
+                </select>
               {:else}
-                <ship-input size="sm" value={(propValues()[prop.name] ?? prop.default ?? '') + ''} on:ship-input={(e) => setProp(prop.name, e.detail.value)}></ship-input>
+                <input
+                  class="prop-input"
+                  type="text"
+                  id={'prop-' + prop.name}
+                  value={(propValues()[prop.name] ?? prop.default ?? '') + ''}
+                  on:input={(e) => setProp(prop.name, e.target.value)}
+                  placeholder={prop.default ?? ''}
+                />
               {/if}
             </div>
           {/for}
@@ -51,7 +79,10 @@
       {/if}
 
       <div class="detail-render-wrap">
-        <div class="detail-render" data-render-slot data-test="render-slot"></div>
+        <div class="detail-render-stage">
+          <div class="detail-render" data-render-slot data-test="render-slot"></div>
+        </div>
+        <div class="detail-render-caption">Live preview · default slot text: <code>example</code></div>
       </div>
     </div>
   {/if}
