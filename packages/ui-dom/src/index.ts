@@ -13,8 +13,6 @@ export { attach } from './attach'
 export type {
   AttachOptions,
   AttachDisposer,
-  Binding,
-  BindingKind,
   SetCompiledModule,
   SetupContext,
 } from './attach'

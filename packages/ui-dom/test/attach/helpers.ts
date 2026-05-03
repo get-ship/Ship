@@ -6,7 +6,7 @@
 // already covers the real end-to-end path.
 
 import { signal, type Signal } from '@ship/ui-runtime'
-import type { Binding, SetCompiledModule, SetupContext } from '../../src/attach'
+import type { SetCompiledModule, SetupContext } from '../../src/attach'
 
 const containers: HTMLElement[] = []
 
@@ -33,12 +33,12 @@ export function mountSsr(html: string, init: Record<string, unknown>): HTMLEleme
   return c
 }
 
-/** Build a compiled-module shape from a hand-written setup + bindings. */
+/** Build a compiled-module shape from a hand-written setup function. */
 export function makeModule(
   setup: (ctx: SetupContext) => Record<string, unknown>,
-  bindings: Binding[],
+  _bindings?: unknown[],
 ): SetCompiledModule {
-  return { default: { setup }, bindings }
+  return { default: { setup } }
 }
 
 /** Yield to the microtask queue. */
