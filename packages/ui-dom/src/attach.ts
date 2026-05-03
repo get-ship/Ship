@@ -66,13 +66,15 @@ export interface SetupContext {
 
 /**
  * Subset of a compiled `.sui.js` module that `attach` requires.
- * `default` exposes a `setup(ctx)` returning the bindings record (and
- * optionally a non-enumerable `__shipSetLifecycle`); `bindings` is
- * the manifest indexed by `bN` keys.
+ * `default` exposes a `setup(ctx)` returning the binding-set record
+ * (with `hydrate(root, ctx)` and an optional non-enumerable
+ * `__shipSetLifecycle`). `bindings` is legacy from pre-3b.5 emit and
+ * is no longer populated by the current compiler — kept here for
+ * backwards compatibility with bundles produced by older versions.
  */
 export interface SetCompiledModule {
   default: { setup: (ctx: SetupContext) => Record<string, unknown> }
-  bindings: Binding[]
+  bindings?: Binding[]
 }
 
 export interface AttachOptions {
@@ -176,21 +178,16 @@ export function attach(root: HTMLElement, opts: AttachOptions): AttachDisposer {
   }
   const lifecycle = extractLifecycle(setupRet)
 
-  const ctx: WireContext = {
-    byKey: indexBindings(mod.bindings),
-    scope,
-  }
-
   const cleanups: Array<() => void> = []
 
   // Phase 3b.5 (gate H): hydrate now drives the entire view — text,
   // every leaf binding kind, control-flow boundaries (`if` / `for` /
   // `match` / `await`), and `while-*` are all dispatched from the
   // compiled view's `hydrate(root, ctx)`. The legacy manifest walker
-  // (`wireBoundaries`, `walkMarkers`, `wireMarker`) is no longer called
-  // for views the current compiler produced; it remains only for
-  // compatibility with bundles compiled by older versions.
+  // (`walkMarkers`, `wireMarker`) is invoked only for bundles compiled
+  // by pre-3b.5 versions that still ship a populated `bindings` array.
   if (mod.bindings && mod.bindings.length > 0) {
+    const ctx: WireContext = { byKey: indexBindings(mod.bindings), scope }
     for (const hit of walkMarkers(root, ctx.byKey)) {
       const c = wireMarker(hit, ctx)
       if (c) cleanups.push(c)

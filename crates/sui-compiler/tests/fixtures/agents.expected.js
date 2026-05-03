@@ -180,6 +180,3 @@ if (__m["b3"]) {
     },
   });
 });
-
-export const bindings = [
-];
