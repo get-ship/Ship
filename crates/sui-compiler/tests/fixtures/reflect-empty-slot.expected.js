@@ -14,20 +14,12 @@ export default component("reflect-empty-slot-test", {
   $scope.label = props.label;
 const __root = host.shadowRoot ?? host;
 if (suiTonesSheet && __root instanceof ShadowRoot) { try { __root.adoptedStyleSheets = [suiTonesSheet, ...(__root.adoptedStyleSheets ?? [])]; } catch {} }
-const __t0 = document.createTextNode("\n\n");
-__root.appendChild(__t0);
-const __e1 = document.createElement("button");
-__e1.setAttribute("part", "button");
-const __t2 = document.createTextNode("\n  ");
-__e1.appendChild(__t2);
-const __e3 = document.createElement("slot");
-__cleanups.push(bindSlotEmpty(__e3, host, "data-icon-only"));
-__e1.appendChild(__e3);
-const __t4 = document.createTextNode("\n");
-__e1.appendChild(__t4);
-__root.appendChild(__e1);
-const __t5 = document.createTextNode("\n");
-__root.appendChild(__t5);
+const __e0 = document.createElement("button");
+__e0.setAttribute("part", "button");
+const __e1 = document.createElement("slot");
+__cleanups.push(bindSlotEmpty(__e1, host, "data-icon-only"));
+__e0.appendChild(__e1);
+__root.appendChild(__e0);
 return $scope;
   },
 });

@@ -20,76 +20,58 @@ var view_default2 = view((ctx) => {
   return Object.assign({}, $scope, {
     __mount(container) {
       const __cleanups = [];
-      const __t0 = document.createTextNode("\n\n");
-      container.appendChild(__t0);
-      const __e1 = document.createElement("div");
-      __e1.setAttribute("class", "counter");
-      const __t2 = document.createTextNode("\n  ");
+      const __e0 = document.createElement("div");
+      __e0.setAttribute("class", "counter");
+      const __e1 = document.createElement("h1");
+      const __t2 = document.createTextNode("Counter");
       __e1.appendChild(__t2);
-      const __e3 = document.createElement("h1");
-      const __t4 = document.createTextNode("Counter");
+      __e0.appendChild(__e1);
+      const __e3 = document.createElement("p");
+      const __t4 = document.createTextNode("Count: ");
       __e3.appendChild(__t4);
-      __e1.appendChild(__e3);
-      const __t5 = document.createTextNode("\n  ");
-      __e1.appendChild(__t5);
-      const __e6 = document.createElement("p");
-      const __t7 = document.createTextNode("Count: ");
-      __e6.appendChild(__t7);
-      const __e8 = document.createElement("span");
-      __e8.setAttribute("data-test", "value");
-      const __t9 = document.createTextNode("");
-      __e8.appendChild(__t9);
-      __cleanups.push(bindText(__t9, () => $scope.count()));
-      __e6.appendChild(__e8);
-      __e1.appendChild(__e6);
-      const __t10 = document.createTextNode("\n  ");
-      __e1.appendChild(__t10);
-      const __e11 = document.createElement("button");
-      __e11.setAttribute("data-test", "dec");
-      __cleanups.push(on(__e11, "click", (function() {
+      const __e5 = document.createElement("span");
+      __e5.setAttribute("data-test", "value");
+      const __t6 = document.createTextNode("");
+      __e5.appendChild(__t6);
+      __cleanups.push(bindText(__t6, () => $scope.count()));
+      __e3.appendChild(__e5);
+      __e0.appendChild(__e3);
+      const __e7 = document.createElement("button");
+      __e7.setAttribute("data-test", "dec");
+      __cleanups.push(on(__e7, "click", (function() {
         const __h = (() => $scope.count.set($scope.count() - 1));
         return typeof __h === "function" ? __h.bind(void 0) : (() => {
         });
       })(), { modifiers: [] }));
-      const __t12 = document.createTextNode("-");
-      __e11.appendChild(__t12);
-      __e1.appendChild(__e11);
-      const __t13 = document.createTextNode("\n  ");
-      __e1.appendChild(__t13);
-      const __e14 = document.createElement("button");
-      __e14.setAttribute("data-test", "inc");
-      __cleanups.push(on(__e14, "click", (function() {
+      const __t8 = document.createTextNode("-");
+      __e7.appendChild(__t8);
+      __e0.appendChild(__e7);
+      const __e9 = document.createElement("button");
+      __e9.setAttribute("data-test", "inc");
+      __cleanups.push(on(__e9, "click", (function() {
         const __h = (() => $scope.count.set($scope.count() + 1));
         return typeof __h === "function" ? __h.bind(void 0) : (() => {
         });
       })(), { modifiers: [] }));
-      const __t15 = document.createTextNode("+");
-      __e14.appendChild(__t15);
-      __e1.appendChild(__e14);
-      const __t16 = document.createTextNode("\n  ");
-      __e1.appendChild(__t16);
-      const __e17 = document.createElement("button");
-      __e17.setAttribute("data-test", "reset");
-      __cleanups.push(on(__e17, "click", (function() {
+      const __t10 = document.createTextNode("+");
+      __e9.appendChild(__t10);
+      __e0.appendChild(__e9);
+      const __e11 = document.createElement("button");
+      __e11.setAttribute("data-test", "reset");
+      __cleanups.push(on(__e11, "click", (function() {
         const __h = (() => $scope.count.set(0));
         return typeof __h === "function" ? __h.bind(void 0) : (() => {
         });
       })(), { modifiers: [] }));
-      const __t18 = document.createTextNode("reset");
-      __e17.appendChild(__t18);
-      __e1.appendChild(__e17);
-      const __t19 = document.createTextNode("\n  ");
-      __e1.appendChild(__t19);
-      const __e20 = document.createElement("p");
-      __e20.setAttribute("class", "caption");
-      const __t21 = document.createTextNode("Tier 1: no controller, declarative state, the simplest possible Ship Set view.");
-      __e20.appendChild(__t21);
-      __e1.appendChild(__e20);
-      const __t22 = document.createTextNode("\n");
-      __e1.appendChild(__t22);
-      container.appendChild(__e1);
-      const __t23 = document.createTextNode("\n");
-      container.appendChild(__t23);
+      const __t12 = document.createTextNode("reset");
+      __e11.appendChild(__t12);
+      __e0.appendChild(__e11);
+      const __e13 = document.createElement("p");
+      __e13.setAttribute("class", "caption");
+      const __t14 = document.createTextNode("Tier 1: no controller, declarative state, the simplest possible Ship Set view.");
+      __e13.appendChild(__t14);
+      __e0.appendChild(__e13);
+      container.appendChild(__e0);
       return () => {
         for (const c of __cleanups) try {
           c();

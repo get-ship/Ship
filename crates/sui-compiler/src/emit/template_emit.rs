@@ -189,14 +189,8 @@ impl TemplateEmitter {
                 ));
                 w.line(&format!("{parent_var}.appendChild({v});"));
             }
-            Instr::Comment { data, .. } => {
-                let v = self.fresh("c");
-                w.line(&format!(
-                    "const {v} = document.createComment({});",
-                    js_string(data)
-                ));
-                w.line(&format!("{parent_var}.appendChild({v});"));
-            }
+            // HTML comments are developer documentation; drop from compiled output.
+            Instr::Comment { .. } => {}
             Instr::DynamicText { expr } => {
                 // Registry parity: text bindings consume one b<N>.
                 let key = self.next_key();

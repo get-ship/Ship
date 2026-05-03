@@ -14,14 +14,10 @@ const __e0 = document.createElement("h1");
 const __t1 = document.createTextNode("Hello, world.");
 __e0.appendChild(__t1);
 container.appendChild(__e0);
-const __t2 = document.createTextNode("\n");
-container.appendChild(__t2);
-const __e3 = document.createElement("p");
-const __t4 = document.createTextNode("The interpreter renders static markup verbatim.");
-__e3.appendChild(__t4);
-container.appendChild(__e3);
-const __t5 = document.createTextNode("\n");
-container.appendChild(__t5);
+const __e2 = document.createElement("p");
+const __t3 = document.createTextNode("The interpreter renders static markup verbatim.");
+__e2.appendChild(__t3);
+container.appendChild(__e2);
 return () => { for (const c of __cleanups) try { c(); } catch (e) {} };
     },
   });

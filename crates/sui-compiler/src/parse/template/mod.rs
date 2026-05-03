@@ -54,13 +54,6 @@ pub(crate) fn parse_tokens(
                 }
                 i += 1;
             }
-            TokenKind::Comment(data) => {
-                instrs.push(Instr::Comment {
-                    data: data.clone(),
-                    span: tok.span,
-                });
-                i += 1;
-            }
             TokenKind::Expr { src } => {
                 expr::validate_at(src, false, "{expr}", tok.span)?;
                 instrs.push(Instr::DynamicText {
