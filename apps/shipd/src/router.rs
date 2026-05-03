@@ -231,13 +231,17 @@ pub fn build_router(
             "/_sui/fragment/{name}/{*sub_path}",
             axum::routing::get(views::sui_fragment::serve_sui_fragment_subpath),
         )
+        // Standalone view hosting. Same static HTML for every URL —
+        // the page reads its location and mounts the matching payload
+        // from /_sui/views/<name>[/<sub>]. The dynamic per-view HTML
+        // handlers (serve_sui_view{,_subpath}) are deleted in F1.6.
         .route(
             "/sui/{name}",
-            axum::routing::get(views::sui_view::serve_sui_view),
+            axum::routing::get(views::sui_view_host::serve_view_host),
         )
         .route(
             "/sui/{name}/{*sub_path}",
-            axum::routing::get(views::sui_view::serve_sui_view_subpath),
+            axum::routing::get(views::sui_view_host::serve_view_host),
         )
         .route(
             "/_sui/data",
