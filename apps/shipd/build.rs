@@ -26,6 +26,35 @@ fn main() {
     println!("cargo:rerun-if-changed=src/routes.rs");
     println!("cargo:rerun-if-changed=build.rs");
 
+    // Asset rerun triggers — `include_str!`/`include_bytes!` does NOT make
+    // cargo aware of the file dependency. Without these declarations,
+    // regenerating bundles via `node scripts/build-bundles.mjs` doesn't
+    // invalidate the shipd build cache, so the next `cargo build` reuses
+    // the binary with the OLD asset embedded — silently. Every gitignored
+    // asset under `assets/` that any source `include_str!`s must be listed
+    // here. Keep in sync with `serve_*` handlers in `src/views/`.
+    let asset_paths: &[&str] = &[
+        "assets/datastar.js",
+        "assets/ship-elements.js",
+        "assets/ship-git.js",
+        "assets/ship-code-editor.js",
+        "assets/ship-markdown-editor.js",
+        "assets/ship-terminal.js",
+        "assets/sui-runtime.js",
+        "assets/sui-dom.js",
+        "assets/sui-sdk-client.js",
+        "assets/sui-components.js",
+        "assets/sui-islands/sui-terminal.js",
+        "assets/sui-custom-elements.json",
+        "assets/view-tokens.css",
+        "assets/views/agents/view.js",
+        "assets/views/git/view.js",
+        "assets/views/counter/view.js",
+    ];
+    for p in asset_paths {
+        println!("cargo:rerun-if-changed={p}");
+    }
+
     // Build identity (BUILD_GIT_SHA, BUILD_GIT_DIRTY, BUILD_TIMESTAMP,
     // BUILD_RUSTC_VERSION, BUILD_PROFILE) — shared across shipd, ship-cli,
     // and mcp via the build-info crate.
@@ -61,6 +90,47 @@ fn main() {
     let shell_dist = manifest_dir.join("..").join("shell").join("dist");
     if let Err(e) = fs::create_dir_all(&shell_dist) {
         panic!("build.rs: mkdir {shell_dist:?}: {e}");
+    }
+
+    // Ensure every gitignored asset that `include_str!` references exists.
+    // Without this, a fresh clone that runs `cargo build` before the node
+    // bundle script (build-bundles.mjs) fails with "couldn't read X". The
+    // bundle script overwrites these placeholders with real content when it
+    // runs; until then, asset endpoints serve an empty body which is the
+    // same outcome as the file being absent at runtime.
+    let assets_dir = manifest_dir.join("assets");
+    let placeholders: &[&str] = &[
+        "datastar.js",
+        "ship-elements.js",
+        "ship-git.js",
+        "ship-code-editor.js",
+        "ship-markdown-editor.js",
+        "ship-terminal.js",
+        "sui-runtime.js",
+        "sui-dom.js",
+        "sui-sdk-client.js",
+        "sui-components.js",
+        "sui-islands/sui-terminal.js",
+        "sui-custom-elements.json",
+        "view-tokens.css",
+        "views/agents/view.js",
+        "views/git/view.js",
+        "views/counter/view.js",
+    ];
+    for rel in placeholders {
+        let path = assets_dir.join(rel);
+        if path.exists() {
+            continue;
+        }
+        if let Some(parent) = path.parent() {
+            if let Err(e) = fs::create_dir_all(parent) {
+                panic!("build.rs: mkdir {parent:?}: {e}");
+            }
+        }
+        let initial = if rel.ends_with(".json") { "{}" } else { "" };
+        if let Err(e) = fs::write(&path, initial) {
+            panic!("build.rs: write placeholder {path:?}: {e}");
+        }
     }
 
     // SDK TypeScript catalog. apps/shipd → ../../packages/sdk/src/generated/routes.ts
