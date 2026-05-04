@@ -46,5 +46,9 @@ import './sui-timestamp/sui-timestamp.compiled.js'
 import './sui-metachip/sui-metachip.compiled.js'
 import './sui-popover/sui-popover.compiled.js'
 import './sui-theme-picker/sui-theme-picker.compiled.js'
+import './sui-rail/sui-rail.compiled.js'
+import './sui-rail/sui-rail-item.compiled.js'
+import './sui-rail/sui-rail-section.compiled.js'
+import './sui-status-bar/sui-status-bar.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.

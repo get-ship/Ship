@@ -1,0 +1,121 @@
+<!--
+  <sui-rail> — SUI port of <ship-rail>.
+  Vertical chrome nav container with collapse toggle.
+
+  Prop / event surface
+  ─────────────────────────────────────────────────────────────────────────────
+  Props:
+    collapsed (bool, false, reflect)  — icon-only collapsed mode
+  ─────────────────────────────────────────────────────────────────────────────
+  Events:
+    sui-rail:toggle  { detail: { collapsed: bool } }  bubbles, composed
+      Fired when the user clicks the collapse toggle. Controlling state
+      (whether the rail is open) lives on the shell, not the rail — the
+      shell listens and persists collapsed state, then reflects it back
+      by setting/removing the [collapsed] attribute.
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots: (default) — accepts <sui-rail-item> and <sui-rail-section> children
+  Parts: nav, footer, toggle
+  ─────────────────────────────────────────────────────────────────────────────
+  CSS custom properties emitted for co-located children:
+    --rail-label-display  block | none     drives label visibility on items
+    --rail-item-justify   flex-start | center  drives icon centering on items
+  Both properties are inherited by slotted sui-rail-item / sui-rail-section
+  children, which consume them in their own shadow styles.
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="collapsed" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    width: var(--ship-rail-w, 200px);
+    background: var(--sidebar, var(--muted));
+    border-right: 1px solid var(--border);
+    overflow: hidden;
+    transition: width var(--duration-medium, 200ms) var(--ease-out, ease-out);
+    user-select: none;
+    -webkit-user-select: none;
+    /* Inherited custom props consumed by slotted children */
+    --rail-label-display: flex;
+    --rail-item-justify: flex-start;
+  }
+  :host([collapsed]) {
+    width: var(--ship-rail-w-collapsed, 48px);
+    --rail-label-display: none;
+    --rail-item-justify: center;
+  }
+  :host([hidden]) { display: none; }
+
+  .rail-nav {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--space-2, 8px) 0;
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .rail-nav:hover {
+    scrollbar-color: color-mix(in oklch, var(--foreground) 20%, transparent) transparent;
+  }
+
+  .rail-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: var(--space-2, 8px);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .toggle-btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 4px);
+    padding: 4px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    transition:
+      background-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
+      border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .toggle-btn:hover {
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    border-color: var(--border);
+    color: var(--foreground);
+  }
+  .toggle-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+</style>
+
+<nav class="rail-nav" part="nav">
+  <slot bind:this={navSlot}></slot>
+</nav>
+<div class="rail-footer" part="footer">
+  <button
+    type="button"
+    class="toggle-btn"
+    part="toggle"
+    bind:this={toggleBtn}
+    aria-label="Toggle rail"
+  ><sui-icon name="chevrons-left" size="sm" bind:this={toggleIcon}></sui-icon></button>
+</div>

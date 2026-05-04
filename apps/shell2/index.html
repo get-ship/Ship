@@ -59,6 +59,7 @@
 </head>
 <body>
   <div id="ship-app">
+    <!-- Top bar: brand, nav breadcrumb, search, theme picker -->
     <header class="ship-top-bar" data-shell="top-bar">
       <span class="ship-brand-mark" aria-hidden="true">◐</span>
       <span class="ship-brand-title">Ship</span>
@@ -67,64 +68,24 @@
       <button id="ship-notify-btn" class="ship-theme-toggle" type="button" title="Send demo notification">Notify</button>
       <sui-theme-picker placement="bottom-end"></sui-theme-picker>
     </header>
+
+    <!-- Left rail: vertical nav with collapse toggle -->
+    <sui-rail id="ship-rail">
+      <sui-rail-item icon="layout-dashboard" label="Dashboard" href="/" data-view="dashboard"></sui-rail-item>
+      <sui-rail-item icon="zap" label="Pipelines" href="/pipelines" data-view="pipelines"></sui-rail-item>
+      <sui-rail-item icon="bot" label="Agents" href="/agents" data-view="agents"></sui-rail-item>
+      <sui-rail-item icon="git-branch" label="Git" href="/git" data-view="git"></sui-rail-item>
+      <sui-rail-item icon="layers" label="UI Studio" href="/ship-ui-studio" data-view="ship-ui-studio"></sui-rail-item>
+      <sui-rail-item icon="palette" label="SUI Demo" href="/sui-demo" data-view="sui-demo"></sui-rail-item>
+    </sui-rail>
+
+    <!-- Main content: view mounts here -->
     <main id="ship-content" class="ship-content"></main>
 
-    <!-- S2 static-primitives demo — one of each new component, visible at all times.
-         Satisfies acceptance gate §4 (shell2 integration probe). -->
-    <footer id="sui-statics-demo" style="
-      padding: 16px 24px;
-      border-top: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      font-family: var(--font-body);
-    ">
-      <!-- sui-separator -->
-      <div>
-        <sui-label size="sm">sui-separator</sui-label>
-        <sui-separator orientation="horizontal" style="margin-top:4px"></sui-separator>
-      </div>
-
-      <!-- sui-label -->
-      <div style="display:flex;gap:12px;align-items:center">
-        <sui-label for="demo-input" required>sui-label</sui-label>
-        <input id="demo-input" type="text" placeholder="focus me" style="border:1px solid var(--border);padding:4px 8px;border-radius:4px;background:var(--background);color:var(--foreground)" />
-      </div>
-
-      <!-- sui-alert -->
-      <sui-alert tone="info">
-        <span slot="title">sui-alert</span>
-        Info banner — static, dismissible variant below
-      </sui-alert>
-      <sui-alert tone="warning" dismissible>
-        <span slot="title">Warning</span>
-        Dismissible alert. Click × to remove.
-      </sui-alert>
-
-      <!-- sui-tooltip -->
-      <div style="display:flex;gap:12px;align-items:center">
-        <sui-label>sui-tooltip</sui-label>
-        <sui-tooltip placement="top">
-          <button type="button" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Hover me</button>
-          <span slot="content">Tooltip text</span>
-        </sui-tooltip>
-        <sui-tooltip placement="right">
-          <button type="button" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Right</button>
-          <span slot="content">Right placement</span>
-        </sui-tooltip>
-      </div>
-
-      <!-- sui-collapsible -->
-      <sui-collapsible>
-        <button slot="trigger" type="button" style="width:100%;text-align:left;padding:6px 10px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">
-          sui-collapsible — click to expand ▾
-        </button>
-        <div style="padding:10px;border:1px solid var(--border);border-top:0;border-radius:0 0 4px 4px;color:var(--foreground)">
-          Collapsible content. Grid-based height animation, keyboard-accessible.
-        </div>
-      </sui-collapsible>
-    </footer>
+    <!-- Bottom status bar: connection, branch, theme -->
+    <sui-status-bar id="ship-status-bar" branch="" theme="" agents=""></sui-status-bar>
   </div>
+
   <sui-toast-container position="bottom-right" id="sui-toast-container"></sui-toast-container>
   <script type="module" src="/src/main.ts"></script>
 </body>
