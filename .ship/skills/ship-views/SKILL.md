@@ -133,6 +133,40 @@ Three blocks, each one job:
 - **`on:`** — multi-statement event handlers. The first arg is a writable proxy: `s.count = s.count + 1` mutates state.
 - **`mount:` / `unmount:`** — lifecycle. Runs after first attach / on disconnect.
 
+## Cross-component reactive context (shared / useShared)
+
+For complex components that split into a public outer + internal inner pieces, share signals from parent to descendants without prop-drilling.
+
+**Provider** wraps signals with `shared(...)` inside `scope:`:
+
+```ts
+// parent.controller.ts
+scope: () => {
+  const mode  = shared(signal<BarMode>('find'))
+  const value = shared(signal(''))
+  const local = signal(0)  // not shared
+  return { mode, value, local }
+}
+```
+
+The runtime auto-publishes the marked signals on the host element under the host's tag name.
+
+**Consumer** resolves the parent's scope inside its own `scope:`:
+
+```ts
+// child.controller.ts
+import type { Scope as ParentScope } from '../parent/parent.sui'
+
+scope: () => {
+  const bar = useShared<ParentScope>('parent-tag-name')
+  return { bar }
+}
+```
+
+Template binds `bar.mode()`, `bar.value`, etc. — same signal identity, two-way reactivity flows.
+
+`useShared` walks DOM ancestry crossing shadow boundaries. Returns `null` when no provider is found; descendant guards with `{#if bar}`.
+
 Tiers, smallest that fits:
 
 1. **No controller** — pure `.sui` with `<prop>` / `<data>` and single-expression inline handlers. No state, no derived, no hooks. Pure presentational.
