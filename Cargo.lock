@@ -3278,6 +3278,7 @@ dependencies = [
  "ship-jobs",
  "ship-kernel",
  "ship-pipelines",
+ "ship-primitives",
  "ship-substrate",
  "ship-types",
  "specta",
@@ -3704,6 +3705,50 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "specta",
+]
+
+[[package]]
+name = "ship-primitives"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "cron",
+ "flate2",
+ "globset",
+ "home",
+ "indexmap",
+ "jsonschema",
+ "libc",
+ "minijinja",
+ "nanoid",
+ "notify",
+ "reqwest 0.12.28",
+ "rmp-serde",
+ "sea-query",
+ "semver",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "ship-jobs",
+ "ship-kernel",
+ "ship-pipelines",
+ "ship-substrate",
+ "ship-types",
+ "specta",
+ "sqlx",
+ "sysinfo",
+ "tar",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "toml",
+ "tracing",
+ "ulid",
+ "ureq",
+ "walkdir",
 ]
 
 [[package]]

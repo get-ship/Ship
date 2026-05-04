@@ -8,6 +8,7 @@ publish = false
 [dependencies]
 compiler = { path = "../compiler", features = ["specta"] }
 ship-substrate = { path = "../ship-substrate" }
+ship-primitives = { path = "../ship-primitives" }
 ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }
 ship-jobs = { path = "../ship-jobs" }

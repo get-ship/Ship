@@ -34,8 +34,9 @@ pub use ship_substrate::services::server_session::{self};
 pub mod orchestrator;
 pub mod provider_adapter;
 pub mod providers;
+// sync service lives in ship-primitives and is re-exported here.
 #[cfg(feature = "unstable")]
-pub mod sync;
+pub use ship_primitives::services::sync;
 #[cfg(test)]
 #[path = "tests_provider_adapter.rs"]
 mod tests_provider_adapter;

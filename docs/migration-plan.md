@@ -66,11 +66,17 @@ Carve `crates/core/runtime/` into two crates:
 
 Compile-time barrier enforces what charter currently only asserts about layers. Substrate split is early because every later phase benefits from the boundary already existing.
 
-**Phase 2A done** (current commit): `crates/core/ship-substrate` created and compiles. Moved: events, persistence, db, actor, projections, supervisor, home, project (L0 surface), git, log, fs_util, env, errors, data, projects, trash, access, services/{mesh, dispatch_ports, human_gateway, process_tree_probe, server_session}. 385 tests pass. `runtime` now depends on `ship-substrate` and re-exports everything. Three L1 leaks repaired: `home/daemon.rs` port-pin (inline struct), `project/identity.rs` JSONC parse (use fs_util), `data.rs` startup hook (no-op in substrate).
+**Phase 2A done**: `crates/core/ship-substrate` created and compiles. Moved: events, persistence, db, actor, projections, supervisor, home, project (L0 surface), git, log, fs_util, env, errors, data, projects, trash, access, services/{mesh, dispatch_ports, human_gateway, process_tree_probe, server_session}. 385 tests pass. `runtime` now depends on `ship-substrate` and re-exports everything. Three L1 leaks repaired: `home/daemon.rs` port-pin (inline struct), `project/identity.rs` JSONC parse (use fs_util), `data.rs` startup hook (no-op in substrate).
+
+**Phase 2B done**: `runtime` rewritten as a re-export shim over `ship-substrate`. 688 tests pass.
+
+**Phase 2C done** (current): `crates/core/ship-primitives` created. Moved from runtime: agents, artifacts, collections, config, hooks, sync, services/sync. 304 tests pass. `compiler::jsonc::from_jsonc_str` replaced with `serde_json::from_str` + `fs_util::strip_jsonc_comments` (8 call sites). `runtime` now re-exports L1 from ship-primitives + keeps registry, sessions, orchestrator, providers (compiler deps).
 
 **Remaining Phase 2 work**:
-- sessions/ still in runtime — `session_lifecycle.rs` uses config hooks and compile; split requires extracting hook execution to a post-lifecycle callback or accepting sessions as L1 for now
-- `ship-primitives` crate not yet created — L1 modules (agents, collections, hooks, config, registry, services/{orchestrator,providers}) still live in runtime; Phase 2B creates that crate and enforces the L0→L1 direction
+- sessions/ still in runtime — `session_lifecycle.rs` uses config hooks and `compiler::list_providers()`
+- registry/ still in runtime — uses `compiler::manifest::ShipManifest::from_file`
+- services/{orchestrator, providers, provider_adapter} still in runtime — orchestrator uses `compiler::vars::resolve_template`
+- All three stall on compiler dependency; move them to ship-primitives once compiler deps are addressed or the calls are inlined
 
 ### Phase 3 — KV extraction + KvService (~1–2 weeks)
 

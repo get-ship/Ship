@@ -20,18 +20,23 @@ pub use ship_substrate::supervisor;
 pub use ship_substrate::trash;
 pub use ship_substrate::{gen_nanoid, gen_ulid};
 
-// ── L1 modules (live here in runtime / will move to ship-primitives) ─────────
-pub mod agents;
-pub mod artifacts;
-pub mod collections;
-pub mod config;
-pub mod hooks;
-pub mod registry;
+// ── L1 re-exports from ship-primitives ───────────────────────────────────────
+// These modules now live in ship-primitives; runtime re-exports them for
+// backward compatibility. Do not add L1 code here — it would bypass the
+// compile-time barrier.
+pub use ship_primitives::agents;
+pub use ship_primitives::artifacts;
+pub use ship_primitives::collections;
+pub use ship_primitives::config;
+pub use ship_primitives::hooks;
 pub mod services;
-pub mod sessions;
 
 #[cfg(feature = "unstable")]
-pub mod sync;
+pub use ship_primitives::sync;
+
+// ── L1 modules remaining in runtime (use compiler crate / sessions) ──────────
+pub mod registry;
+pub mod sessions;
 
 // ── project: L0 surface from substrate + L1 init ────────────────────────────
 // project/ submodules (discovery, global, etc.) live in ship-substrate.
