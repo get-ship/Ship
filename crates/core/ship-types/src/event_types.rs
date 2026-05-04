@@ -23,6 +23,12 @@ pub const JOB_FAILED: &str = "job.failed";
 pub const JOB_DISPATCHED: &str = "job.dispatched";
 pub const JOB_UPDATE: &str = "job.update";
 pub const CONFIG_CHANGED: &str = "config.changed";
+pub const AGENT_CHANGED: &str = "agent.changed";
+pub const SKILL_CHANGED: &str = "skill.changed";
+pub const VIEW_CHANGED: &str = "view.changed";
+pub const PIPELINE_CHANGED: &str = "pipeline.changed";
+pub const RULE_CHANGED: &str = "rule.changed";
+pub const PROJECT_CHANGED: &str = "project.changed";
 pub const PROJECT_LOG: &str = "project.log";
 pub const SKILL_STARTED: &str = "skill.started";
 pub const SKILL_COMPLETED: &str = "skill.completed";
@@ -94,6 +100,12 @@ pub const ALL: &[&str] = &[
     JOB_DISPATCHED,
     JOB_UPDATE,
     CONFIG_CHANGED,
+    AGENT_CHANGED,
+    SKILL_CHANGED,
+    VIEW_CHANGED,
+    PIPELINE_CHANGED,
+    RULE_CHANGED,
+    PROJECT_CHANGED,
     PROJECT_LOG,
     SKILL_STARTED,
     SKILL_COMPLETED,

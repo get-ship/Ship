@@ -156,6 +156,7 @@ pub async fn run_network(
     rt.start_artifact_gc();
     human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
+    rt.start_config_watcher();
 
     // Register the launch-time project (if any) into the project registry
     // so the launcher / shell sees it on first list. Idempotent.

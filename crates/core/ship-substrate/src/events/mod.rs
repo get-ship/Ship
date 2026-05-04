@@ -26,7 +26,7 @@ pub mod types {
             // 9 workspace.*, job.claimed, executor.session_created,
             // executor.window_created. Adjust this when adding/removing
             // event types.
-            assert_eq!(ALL.len(), 58, "exactly 58 event type constants required");
+            assert_eq!(ALL.len(), 64, "exactly 64 event type constants required");
         }
     }
 }

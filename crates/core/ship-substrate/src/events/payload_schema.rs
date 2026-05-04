@@ -77,8 +77,14 @@ fn schema_for_event_type(
         ship_types::event_types::JOB_CANCELLED => Some(check::<crate::events::job::JobCancelledPayload>),
         ship_types::event_types::JOB_MERGED => Some(check::<crate::events::job::JobMergedPayload>),
         ship_types::event_types::JOB_SPAWN_FAILED => Some(check::<crate::events::job::JobSpawnFailedPayload>),
-        // config
+        // config + declarative-tier domain events (Phase 4)
         "config.changed" => Some(check::<ConfigChanged>),
+        "agent.changed" => Some(check::<ConfigChanged>),
+        "skill.changed" => Some(check::<ConfigChanged>),
+        "view.changed" => Some(check::<ConfigChanged>),
+        "pipeline.changed" => Some(check::<ConfigChanged>),
+        "rule.changed" => Some(check::<ConfigChanged>),
+        "project.changed" => Some(check::<ConfigChanged>),
         // project
         "project.log" => Some(check::<ProjectLog>),
         // skill

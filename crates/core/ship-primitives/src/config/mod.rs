@@ -77,6 +77,7 @@ mod modes;
 mod project;
 mod runtime_settings;
 mod types;
+pub mod watcher;
 
 #[cfg(test)]
 mod tests_boundaries;
@@ -113,6 +114,7 @@ pub use crud::{
 };
 
 pub use discover::discover_projects;
+pub use watcher::{spawn_config_watcher, ConfigWatcher};
 
 pub use runtime_settings::{get_all_settings, get_setting, set_setting, setting_default};
 
