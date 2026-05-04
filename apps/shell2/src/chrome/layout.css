@@ -83,6 +83,18 @@ body.dock-open #ship-panel-dock {
   transform: none;
 }
 
+/* body.rail-collapsed mirrors [collapsed] on sui-rail — used by other layout
+   elements that need to know the rail state without querying the component. */
+body.rail-collapsed #ship-rail {
+  width: var(--ship-rail-w-collapsed, 48px);
+}
+
+/* body.edit-mode — sui-edit-overlay watches this via MutationObserver.
+   The class is toggled by ⌘⇧E and also by edit-overlay's own close button. */
+body.edit-mode {
+  cursor: crosshair;
+}
+
 body.dock-open.dock-popout #ship-panel-dock {
   height: calc(100vh - var(--ship-top-bar-h) - var(--ship-status-bar-h));
 }
