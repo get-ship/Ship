@@ -1,0 +1,56 @@
+<!--
+  <sui-breadcrumb-item> — co-located child element for <sui-breadcrumb>.
+  Renders a link when href is set (and current is not); otherwise a span.
+
+  Prop parity vs <ship-breadcrumb-item>
+  ──────────────────────────────────────────────────────────────
+  Lit              SUI               Notes
+  ──────────────────────────────────────────────────────────────
+  href (String)    href (string, '')  ✓ reflect
+  active (bool)    current (bool)     Renamed for clarity; reflects
+  ──────────────────────────────────────────────────────────────
+  parts: link      link               ✓
+         label     label              ✓
+  ──────────────────────────────────────────────────────────────
+  ARIA: aria-current="page" on      ✓
+    active/current item span
+  ──────────────────────────────────────────────────────────────
+-->
+
+<prop name="href" type="string" default="" reflect />
+<prop name="current" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: inline-flex;
+    align-items: center;
+    font-family: var(--font-body);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    color: var(--muted-foreground);
+  }
+  :host([current]) {
+    color: var(--foreground);
+    font-weight: var(--font-weight-medium);
+  }
+  a, .label {
+    display: inline-flex;
+    align-items: center;
+    color: inherit;
+    text-decoration: none;
+    padding: 2px 4px;
+    border-radius: var(--radius-sm);
+    transition: color var(--duration-fast);
+  }
+  a:hover { color: var(--foreground); }
+  a:focus-visible {
+    outline: var(--ring-width) solid var(--ring-color);
+    outline-offset: var(--ring-offset);
+  }
+</style>
+
+{#if href() && !current()}
+  <a href={href()} part="link"><slot></slot></a>
+{:else}
+  <span class="label" part="label" aria-current={current() ? 'page' : 'false'}><slot></slot></span>
+{/if}

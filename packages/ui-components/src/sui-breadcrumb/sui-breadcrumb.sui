@@ -1,0 +1,40 @@
+<!--
+  <sui-breadcrumb> — SUI port of <ship-breadcrumb>.
+  Path navigation with chevron/custom separators between items.
+
+  Prop parity vs <ship-breadcrumb>
+  ──────────────────────────────────────────────────────────────
+  Lit                   SUI                  Notes
+  ──────────────────────────────────────────────────────────────
+  (no separator prop)   separator (string,   New: custom separator
+                         '/', reflect)        glyph; default is the
+                                             Lucide chevron SVG
+  ──────────────────────────────────────────────────────────────
+  slots: (default)      (default) items      ✓
+  ──────────────────────────────────────────────────────────────
+  parts: nav            nav                  ✓
+  ──────────────────────────────────────────────────────────────
+  ARIA: nav with        nav aria-label=      ✓
+    aria-label           "Breadcrumb"
+  ──────────────────────────────────────────────────────────────
+  Separator rendered    controller injects   ✓ MutationObserver
+  via named slots        named slots +        watches children
+                         .sep spans
+  ──────────────────────────────────────────────────────────────
+-->
+
+<prop name="separator" type="string" default="/" reflect />
+
+<style>
+  :host { display: flex; align-items: center; }
+  nav { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+  .sep {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 12px; height: 12px;
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+  .sep svg { width: 12px; height: 12px; }
+</style>
+
+<nav bind:this={navEl} aria-label="Breadcrumb" part="nav"></nav>

@@ -1,0 +1,34 @@
+<!--
+  <sui-timestamp> — SUI port of <ship-timestamp>.
+  Renders a point-in-time, relative by default. Auto-ticks once per minute.
+
+  Prop parity vs <ship-timestamp>
+  ──────────────────────────────────────────────────────────────
+  Lit              SUI               Notes
+  ──────────────────────────────────────────────────────────────
+  value (String)   value (string,'') ✓ ISO datetime string, reflect
+  format (String)  format (union)    ✓ relative|absolute|both
+  ──────────────────────────────────────────────────────────────
+  ARIA: native <time> with datetime  ✓ controller renders it
+    attr; title = abs ISO string
+  ──────────────────────────────────────────────────────────────
+  Timer: setInterval every minute    ✓ clearInterval on disconnect
+  ──────────────────────────────────────────────────────────────
+  parts: time, abs                   new (not in Lit)
+  ──────────────────────────────────────────────────────────────
+-->
+
+<prop name="value" type="string" default="" reflect />
+<prop name="format" values="relative|absolute|both" default="relative" reflect />
+
+<style>
+  :host {
+    display: inline;
+    font-family: var(--font-body);
+    font-size: inherit;
+    color: inherit;
+  }
+  .abs { color: var(--muted-foreground); margin-left: 4px; }
+</style>
+
+<span bind:this={containerEl}></span>

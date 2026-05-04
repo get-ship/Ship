@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Display Components Demo — SUI</title>
+
+  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
+
+  <script type="importmap">
+    {
+      "imports": {
+        "@ship/ui-runtime":    "/_sui/runtime.js",
+        "@ship/ui-dom":        "/_sui/dom.js",
+        "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+      }
+    }
+  </script>
+
+  <script>
+    (function () {
+      var s = document.createElement('script');
+      s.type = 'module';
+      s.src = '/_sui/components.js';
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <style>
+    body {
+      font-family: var(--font-body, system-ui);
+      background: var(--background, #fff);
+      color: var(--foreground, #111);
+      padding: 32px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 24px; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 24px 0 12px; color: var(--muted-foreground, #666); }
+    .section { margin-bottom: 32px; padding: 20px; border: 1px solid var(--border, #e5e7eb); border-radius: 8px; }
+    .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Display Components — SUI Primitives</h1>
+
+  <!-- sui-breadcrumb -->
+  <div class="section">
+    <h2>sui-breadcrumb + sui-breadcrumb-item</h2>
+    <sui-breadcrumb data-testid="breadcrumb-default">
+      <sui-breadcrumb-item href="/">Home</sui-breadcrumb-item>
+      <sui-breadcrumb-item href="/projects">Projects</sui-breadcrumb-item>
+      <sui-breadcrumb-item current>Ship</sui-breadcrumb-item>
+    </sui-breadcrumb>
+    <br><br>
+    <sui-breadcrumb separator="›" data-testid="breadcrumb-custom-sep">
+      <sui-breadcrumb-item href="/">Dashboard</sui-breadcrumb-item>
+      <sui-breadcrumb-item href="/agents">Agents</sui-breadcrumb-item>
+      <sui-breadcrumb-item current>Configure</sui-breadcrumb-item>
+    </sui-breadcrumb>
+  </div>
+
+  <!-- sui-pagination -->
+  <div class="section">
+    <h2>sui-pagination</h2>
+    <sui-pagination
+      id="pager"
+      page="2"
+      total="250"
+      per-page="25"
+      data-testid="pagination"
+    ></sui-pagination>
+    <script type="module">
+      const pager = document.getElementById('pager')
+      pager.addEventListener('sui-page', (e) => {
+        pager.setAttribute('page', String(e.detail.page))
+      })
+    </script>
+  </div>
+
+  <!-- sui-timestamp -->
+  <div class="section">
+    <h2>sui-timestamp</h2>
+    <div class="row">
+      <span>Relative (default):</span>
+      <sui-timestamp
+        value="2026-05-03T10:00:00Z"
+        data-testid="timestamp-relative"
+      ></sui-timestamp>
+    </div>
+    <div class="row">
+      <span>Absolute:</span>
+      <sui-timestamp
+        value="2026-05-03T10:00:00Z"
+        format="absolute"
+        data-testid="timestamp-absolute"
+      ></sui-timestamp>
+    </div>
+    <div class="row">
+      <span>Both:</span>
+      <sui-timestamp
+        value="2026-05-03T10:00:00Z"
+        format="both"
+        data-testid="timestamp-both"
+      ></sui-timestamp>
+    </div>
+    <div class="row">
+      <span>Connected since:</span>
+      <sui-timestamp
+        id="live-ts"
+        data-testid="timestamp-live"
+      ></sui-timestamp>
+      <script>
+        document.getElementById('live-ts').setAttribute('value', new Date().toISOString())
+      </script>
+    </div>
+  </div>
+
+  <!-- sui-metachip -->
+  <div class="section">
+    <h2>sui-metachip</h2>
+    <div class="row" data-testid="metachip-row">
+      <sui-metachip label="Status" value="active" data-testid="metachip-status"></sui-metachip>
+      <sui-metachip label="Model" value="sonnet-4-6" data-testid="metachip-model"></sui-metachip>
+      <sui-metachip label="Agent" value="contributor" data-testid="metachip-agent"></sui-metachip>
+      <sui-metachip label="Branch">
+        <code>job/s2-port-display</code>
+      </sui-metachip>
+    </div>
+  </div>
+</body>
+</html>
