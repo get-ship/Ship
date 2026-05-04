@@ -4,8 +4,7 @@ packages:
   - "apps/site"
   - "apps/gateway"
   - "packages/*"
-  - "cloud/apps/actors/*"
-  - "cloud/tools/*"
+  - "apps/workers/*"
 
 catalog:
   drizzle-orm: "0.45.1"

@@ -1,12 +1,12 @@
 import { DurableObject } from 'cloudflare:workers';
 import { initializePlatformDB } from '../data/init.js';
 import { RepositoryFactory } from '../factories/index.js';
-import { SyncFacade, WorkspacesFacade, JobsFacade } from '../facades/index.js';
+import { SyncFacade, ProjectsFacade, JobsFacade } from '../facades/index.js';
 
 export class Platform extends DurableObject {
   private _repos?: RepositoryFactory;
   private _sync?: SyncFacade;
-  private _workspaces?: WorkspacesFacade;
+  private _projects?: ProjectsFacade;
   private _jobs?: JobsFacade;
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -26,11 +26,11 @@ export class Platform extends DurableObject {
     return this._sync;
   }
 
-  async workspaces() {
-    if (!this._workspaces) {
-      this._workspaces = new WorkspacesFacade(this.repos);
+  async projects() {
+    if (!this._projects) {
+      this._projects = new ProjectsFacade(this.repos);
     }
-    return this._workspaces;
+    return this._projects;
   }
 
   async jobs() {

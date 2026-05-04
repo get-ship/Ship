@@ -10,10 +10,10 @@ import {
   ACTOR_CRASHED,
 } from '@ship-cloud/types';
 import { actors } from '../data/schema/actors.js';
-import type { workspace_schema } from '../data/schema/index.js';
+import type { project_schema } from '../data/schema/index.js';
 
 export class ActorProjectionRepository {
-  constructor(private db: DrizzleSqliteDODatabase<typeof workspace_schema>) {}
+  constructor(private db: DrizzleSqliteDODatabase<typeof project_schema>) {}
 
   async applyEvent(event: EventEnvelope): Promise<Result<void>> {
     try {

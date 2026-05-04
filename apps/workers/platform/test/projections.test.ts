@@ -1,16 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { runInDurableObject, drizzle, platform_schema, makeEvent, createMigratedStub } from './helpers.js';
 import { EventRepository } from '../src/repositories/event.repository.js';
-import { WorkspaceProjectionRepository } from '../src/repositories/workspace-projection.repository.js';
+import { ProjectProjectionRepository } from '../src/repositories/project-projection.repository.js';
 import { JobProjectionRepository } from '../src/repositories/job-projection.repository.js';
 
-describe('Platform WorkspaceProjection', () => {
+describe('Platform ProjectProjection', () => {
   let stub: DurableObjectStub;
   beforeEach(async () => { stub = await createMigratedStub(); });
 
-  it('should create workspace from event', async () => {
+  it('should create project from event', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
-      const proj = new WorkspaceProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
+      const proj = new ProjectProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const wsId = crypto.randomUUID();
       await proj.applyEvent(makeEvent({
         event_type: 'workspace.created', entity_id: wsId,
@@ -26,7 +26,7 @@ describe('Platform WorkspaceProjection', () => {
 
   it('should transition: created -> activated -> archived -> deleted', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
-      const proj = new WorkspaceProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
+      const proj = new ProjectProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const wsId = crypto.randomUUID();
 
       await proj.applyEvent(makeEvent({ event_type: 'workspace.created', entity_id: wsId, payload_json: JSON.stringify({ name: 'ws' }) }));
@@ -45,7 +45,7 @@ describe('Platform WorkspaceProjection', () => {
 
   it('should ignore duplicate created events (idempotent)', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
-      const proj = new WorkspaceProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
+      const proj = new ProjectProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const wsId = crypto.randomUUID();
       const event = makeEvent({ event_type: 'workspace.created', entity_id: wsId, payload_json: JSON.stringify({ name: 'ws' }) });
       await proj.applyEvent(event);
@@ -54,9 +54,9 @@ describe('Platform WorkspaceProjection', () => {
     });
   });
 
-  it('should track multiple workspaces independently', async () => {
+  it('should track multiple projects independently', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
-      const proj = new WorkspaceProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
+      const proj = new ProjectProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const [ws1, ws2] = [crypto.randomUUID(), crypto.randomUUID()];
       await proj.applyEvent(makeEvent({ event_type: 'workspace.created', entity_id: ws1, payload_json: JSON.stringify({ name: 'alpha' }) }));
       await proj.applyEvent(makeEvent({ event_type: 'workspace.created', entity_id: ws2, payload_json: JSON.stringify({ name: 'beta' }) }));
@@ -70,7 +70,7 @@ describe('Platform WorkspaceProjection', () => {
 
   it('should ignore unrelated event types', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
-      const proj = new WorkspaceProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
+      const proj = new ProjectProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       await proj.applyEvent(makeEvent({ event_type: 'job.created', entity_id: crypto.randomUUID() }));
       expect((await proj.list()).value).toHaveLength(0);
     });
@@ -125,7 +125,7 @@ describe('Platform SyncFacade integration', () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const db = drizzle(state.storage, { schema: platform_schema });
       const eventRepo = new EventRepository(db);
-      const wsProj = new WorkspaceProjectionRepository(db);
+      const projectProj = new ProjectProjectionRepository(db);
       const jobProj = new JobProjectionRepository(db);
 
       const [wsId, jobId] = [crypto.randomUUID(), crypto.randomUUID()];
@@ -136,11 +136,11 @@ describe('Platform SyncFacade integration', () => {
 
       expect((await eventRepo.push(events)).value).toBe(2);
       for (const event of events) {
-        await wsProj.applyEvent(event);
+        await projectProj.applyEvent(event);
         await jobProj.applyEvent(event);
       }
 
-      expect((await wsProj.list()).value).toHaveLength(1);
+      expect((await projectProj.list()).value).toHaveLength(1);
       expect((await jobProj.list()).value[0]!.status).toBe('created');
       expect((await eventRepo.pull()).value.events).toHaveLength(2);
     });

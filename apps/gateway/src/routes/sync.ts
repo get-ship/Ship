@@ -58,8 +58,8 @@ sync.post('/workspace/:workspaceId/push', async (c) => {
     return c.json({ error: 'Missing events array' }, 400);
   }
 
-  const id = c.env.WORKSPACE.idFromName(workspaceId);
-  const stub = c.env.WORKSPACE.get(id);
+  const id = c.env.PROJECT.idFromName(workspaceId);
+  const stub = c.env.PROJECT.get(id);
   const syncFacade = await stub.sync();
   const result = await syncFacade.push(body.events);
 
@@ -75,8 +75,8 @@ sync.get('/workspace/:workspaceId/pull', async (c) => {
   const since = c.req.query('since');
   const limit = c.req.query('limit');
 
-  const id = c.env.WORKSPACE.idFromName(workspaceId);
-  const stub = c.env.WORKSPACE.get(id);
+  const id = c.env.PROJECT.idFromName(workspaceId);
+  const stub = c.env.PROJECT.get(id);
   const syncFacade = await stub.sync();
   const result = await syncFacade.pull(
     since || undefined,

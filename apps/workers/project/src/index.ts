@@ -1,7 +1,7 @@
-export { Workspace } from './workspace/workspace.js';
+export { Project } from './project/project.js';
 
 export default {
   fetch() {
-    return new Response('Workspace DO - Access via binding', { status: 404 });
+    return new Response('Project DO - Access via binding', { status: 404 });
   },
 };

@@ -1,5 +1,5 @@
 import { drizzle } from 'drizzle-orm/durable-sqlite';
-import { workspace_schema } from '../data/schema/index.js';
+import { project_schema } from '../data/schema/index.js';
 import { EventRepository } from '../repositories/event.repository.js';
 import { ActorProjectionRepository } from '../repositories/actor-projection.repository.js';
 import { SessionProjectionRepository } from '../repositories/session-projection.repository.js';
@@ -12,7 +12,7 @@ export class RepositoryFactory {
   constructor(private storage: DurableObjectStorage) {}
 
   private get db() {
-    return drizzle(this.storage, { schema: workspace_schema });
+    return drizzle(this.storage, { schema: project_schema });
   }
 
   get events(): EventRepository {

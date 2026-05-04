@@ -3,7 +3,7 @@ import { env, runInDurableObject } from 'cloudflare:test';
 import { drizzle } from 'drizzle-orm/durable-sqlite';
 import { migrate } from 'drizzle-orm/durable-sqlite/migrator';
 import { EventRepository } from '../src/repositories/event.repository.js';
-import { WorkspaceProjectionRepository } from '../src/repositories/workspace-projection.repository.js';
+import { ProjectProjectionRepository } from '../src/repositories/project-projection.repository.js';
 import { JobProjectionRepository } from '../src/repositories/job-projection.repository.js';
 import { platform_schema } from '../src/data/schema/index.js';
 import migrations from '../migrations/migrations.js';
@@ -244,7 +244,7 @@ describe('Platform EventRepository', () => {
   });
 });
 
-describe('Platform WorkspaceProjection', () => {
+describe('Platform ProjectProjection', () => {
   let stub: DurableObjectStub;
 
   beforeEach(async () => {
@@ -257,10 +257,10 @@ describe('Platform WorkspaceProjection', () => {
     });
   });
 
-  it('should create workspace projection from event', async () => {
+  it('should create project projection from event', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new WorkspaceProjectionRepository(db);
+      const projection = new ProjectProjectionRepository(db);
 
       const wsId = crypto.randomUUID();
       await projection.applyEvent(makeEvent({
@@ -281,7 +281,7 @@ describe('Platform WorkspaceProjection', () => {
   it('should transition through full lifecycle: created -> activated -> archived -> deleted', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new WorkspaceProjectionRepository(db);
+      const projection = new ProjectProjectionRepository(db);
 
       const wsId = crypto.randomUUID();
 
@@ -311,7 +311,7 @@ describe('Platform WorkspaceProjection', () => {
   it('should ignore duplicate created events (idempotent)', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new WorkspaceProjectionRepository(db);
+      const projection = new ProjectProjectionRepository(db);
 
       const wsId = crypto.randomUUID();
       const event = makeEvent({
@@ -327,10 +327,10 @@ describe('Platform WorkspaceProjection', () => {
     });
   });
 
-  it('should track multiple workspaces independently', async () => {
+  it('should track multiple projects independently', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new WorkspaceProjectionRepository(db);
+      const projection = new ProjectProjectionRepository(db);
 
       const ws1 = crypto.randomUUID();
       const ws2 = crypto.randomUUID();
@@ -360,7 +360,7 @@ describe('Platform WorkspaceProjection', () => {
   it('should ignore unrelated event types', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: platform_schema });
-      const projection = new WorkspaceProjectionRepository(db);
+      const projection = new ProjectProjectionRepository(db);
 
       await projection.applyEvent(makeEvent({
         event_type: 'job.created',
@@ -455,7 +455,7 @@ describe('Platform SyncFacade integration', () => {
       // Use the DO's own facade (through the repos factory) to verify integration
       const db = drizzle(state.storage, { schema: platform_schema });
       const eventRepo = new EventRepository(db);
-      const wsProjection = new WorkspaceProjectionRepository(db);
+      const projectProjection = new ProjectProjectionRepository(db);
       const jobProjection = new JobProjectionRepository(db);
 
       // Manually simulate what SyncFacade.push does
@@ -470,14 +470,14 @@ describe('Platform SyncFacade integration', () => {
       expect(pushResult.value).toBe(2);
 
       for (const event of events) {
-        await wsProjection.applyEvent(event);
+        await projectProjection.applyEvent(event);
         await jobProjection.applyEvent(event);
       }
 
       // Verify projections updated
-      const workspaces = await wsProjection.list();
-      expect(workspaces.value).toHaveLength(1);
-      expect(workspaces.value[0]!.name).toBe('ws-1');
+      const projectsList = await projectProjection.list();
+      expect(projectsList.value).toHaveLength(1);
+      expect(projectsList.value[0]!.name).toBe('ws-1');
 
       const jobs = await jobProjection.list();
       expect(jobs.value).toHaveLength(1);

@@ -1,3 +1,3 @@
 interface Env {
-  WORKSPACE: DurableObjectNamespace<import('./src/index').Workspace>;
+  PROJECT: DurableObjectNamespace<import('./src/index').Project>;
 }

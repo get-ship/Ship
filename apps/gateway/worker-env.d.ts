@@ -9,8 +9,8 @@ interface RateLimit {
 }
 
 interface Env {
-  PLATFORM: DurableObjectNamespace<import('../actors/platform/src/index').Platform>;
-  WORKSPACE: DurableObjectNamespace<import('../actors/workspace/src/index').Workspace>;
+  PLATFORM: DurableObjectNamespace<import('../workers/platform/src/index').Platform>;
+  PROJECT: DurableObjectNamespace<import('../workers/project/src/index').Project>;
   AUTH_DB: D1Database;
   REGISTRY_DB: D1Database;
   RATE_LIMITER_PUBLISH: RateLimit;

@@ -1,4 +1,4 @@
-import { createDurableObjectDrizzleConfig } from '../../../tools/drizzle/drizzle-config.factory';
+import { createDurableObjectDrizzleConfig } from '../drizzle/drizzle-config.factory';
 
 export default createDurableObjectDrizzleConfig({
   durableObjectClass: 'Platform',

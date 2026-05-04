@@ -1,20 +1,20 @@
 {
   "$schema": "../../../node_modules/wrangler/config-schema.json",
-  "name": "workspace-handler",
+  "name": "project-handler",
   "main": "src/index.ts",
   "compatibility_date": "2025-12-05",
   "compatibility_flags": ["nodejs_compat"],
   "durable_objects": {
     "bindings": [
       {
-        "class_name": "Workspace",
-        "name": "WORKSPACE"
+        "class_name": "Project",
+        "name": "PROJECT"
       }
     ]
   },
   "migrations": [
     {
-      "new_sqlite_classes": ["Workspace"],
+      "new_sqlite_classes": ["Project"],
       "tag": "v1"
     }
   ],

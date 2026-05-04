@@ -15,7 +15,7 @@ export class SyncFacade extends RpcTarget {
 
     // Apply projection updates for each accepted event
     for (const event of events) {
-      await this.repos.workspaceProjection.applyEvent(event);
+      await this.repos.projectProjection.applyEvent(event);
       await this.repos.jobProjection.applyEvent(event);
     }
 

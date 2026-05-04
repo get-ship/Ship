@@ -5,7 +5,7 @@ import { migrate } from 'drizzle-orm/durable-sqlite/migrator';
 import { EventRepository } from '../src/repositories/event.repository.js';
 import { ActorProjectionRepository } from '../src/repositories/actor-projection.repository.js';
 import { SessionProjectionRepository } from '../src/repositories/session-projection.repository.js';
-import { workspace_schema } from '../src/data/schema/index.js';
+import { project_schema } from '../src/data/schema/index.js';
 import migrations from '../migrations/migrations.js';
 import type { EventEnvelope } from '@ship-cloud/types';
 
@@ -23,15 +23,15 @@ function makeEvent(overrides: Partial<EventEnvelope> = {}): EventEnvelope {
   };
 }
 
-describe('Workspace EventRepository', () => {
+describe('Project EventRepository', () => {
   let stub: DurableObjectStub;
 
   beforeEach(async () => {
-    const id = env.WORKSPACE.idFromName(`test-${crypto.randomUUID()}`);
-    stub = env.WORKSPACE.get(id);
+    const id = env.PROJECT.idFromName(`test-${crypto.randomUUID()}`);
+    stub = env.PROJECT.get(id);
 
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       await migrate(db, migrations);
     });
   });
@@ -39,7 +39,7 @@ describe('Workspace EventRepository', () => {
   describe('push', () => {
     it('should accept and store events', async () => {
       await runInDurableObject(stub, async (_instance: any, state: any) => {
-        const db = drizzle(state.storage, { schema: workspace_schema });
+        const db = drizzle(state.storage, { schema: project_schema });
         const repo = new EventRepository(db);
 
         const events = [makeEvent(), makeEvent()];
@@ -52,7 +52,7 @@ describe('Workspace EventRepository', () => {
 
     it('should deduplicate by event ID', async () => {
       await runInDurableObject(stub, async (_instance: any, state: any) => {
-        const db = drizzle(state.storage, { schema: workspace_schema });
+        const db = drizzle(state.storage, { schema: project_schema });
         const repo = new EventRepository(db);
 
         const event = makeEvent();
@@ -66,7 +66,7 @@ describe('Workspace EventRepository', () => {
 
     it('should accept empty array', async () => {
       await runInDurableObject(stub, async (_instance: any, state: any) => {
-        const db = drizzle(state.storage, { schema: workspace_schema });
+        const db = drizzle(state.storage, { schema: project_schema });
         const repo = new EventRepository(db);
 
         const result = await repo.push([]);
@@ -79,7 +79,7 @@ describe('Workspace EventRepository', () => {
   describe('pull', () => {
     it('should return empty from empty store', async () => {
       await runInDurableObject(stub, async (_instance: any, state: any) => {
-        const db = drizzle(state.storage, { schema: workspace_schema });
+        const db = drizzle(state.storage, { schema: project_schema });
         const repo = new EventRepository(db);
 
         const result = await repo.pull();
@@ -92,7 +92,7 @@ describe('Workspace EventRepository', () => {
 
     it('should return all events when no cursor', async () => {
       await runInDurableObject(stub, async (_instance: any, state: any) => {
-        const db = drizzle(state.storage, { schema: workspace_schema });
+        const db = drizzle(state.storage, { schema: project_schema });
         const repo = new EventRepository(db);
 
         await repo.push([makeEvent(), makeEvent(), makeEvent()]);
@@ -106,7 +106,7 @@ describe('Workspace EventRepository', () => {
 
     it('should return events after cursor', async () => {
       await runInDurableObject(stub, async (_instance: any, state: any) => {
-        const db = drizzle(state.storage, { schema: workspace_schema });
+        const db = drizzle(state.storage, { schema: project_schema });
         const repo = new EventRepository(db);
 
         const first = makeEvent();
@@ -123,7 +123,7 @@ describe('Workspace EventRepository', () => {
 
     it('should respect limit', async () => {
       await runInDurableObject(stub, async (_instance: any, state: any) => {
-        const db = drizzle(state.storage, { schema: workspace_schema });
+        const db = drizzle(state.storage, { schema: project_schema });
         const repo = new EventRepository(db);
 
         await repo.push(Array.from({ length: 5 }, () => makeEvent()));
@@ -135,7 +135,7 @@ describe('Workspace EventRepository', () => {
 
     it('should maintain insertion order', async () => {
       await runInDurableObject(stub, async (_instance: any, state: any) => {
-        const db = drizzle(state.storage, { schema: workspace_schema });
+        const db = drizzle(state.storage, { schema: project_schema });
         const repo = new EventRepository(db);
 
         const a = makeEvent();
@@ -152,22 +152,22 @@ describe('Workspace EventRepository', () => {
   });
 });
 
-describe('Workspace ActorProjection', () => {
+describe('Project ActorProjection', () => {
   let stub: DurableObjectStub;
 
   beforeEach(async () => {
-    const id = env.WORKSPACE.idFromName(`test-${crypto.randomUUID()}`);
-    stub = env.WORKSPACE.get(id);
+    const id = env.PROJECT.idFromName(`test-${crypto.randomUUID()}`);
+    stub = env.PROJECT.get(id);
 
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       await migrate(db, migrations);
     });
   });
 
   it('should create actor from event', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       const projection = new ActorProjectionRepository(db);
 
       const actorId = crypto.randomUUID();
@@ -188,7 +188,7 @@ describe('Workspace ActorProjection', () => {
 
   it('should transition: created -> updated -> deleted', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       const projection = new ActorProjectionRepository(db);
 
       const actorId = crypto.randomUUID();
@@ -218,7 +218,7 @@ describe('Workspace ActorProjection', () => {
 
   it('should track multiple actors independently', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       const projection = new ActorProjectionRepository(db);
 
       const a1 = crypto.randomUUID();
@@ -240,7 +240,7 @@ describe('Workspace ActorProjection', () => {
 
   it('should ignore unrelated event types', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       const projection = new ActorProjectionRepository(db);
 
       await projection.applyEvent(makeEvent({
@@ -254,22 +254,22 @@ describe('Workspace ActorProjection', () => {
   });
 });
 
-describe('Workspace SessionProjection', () => {
+describe('Project SessionProjection', () => {
   let stub: DurableObjectStub;
 
   beforeEach(async () => {
-    const id = env.WORKSPACE.idFromName(`test-${crypto.randomUUID()}`);
-    stub = env.WORKSPACE.get(id);
+    const id = env.PROJECT.idFromName(`test-${crypto.randomUUID()}`);
+    stub = env.PROJECT.get(id);
 
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       await migrate(db, migrations);
     });
   });
 
   it('should create session from started event', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       const projection = new SessionProjectionRepository(db);
 
       const sessionId = crypto.randomUUID();
@@ -290,7 +290,7 @@ describe('Workspace SessionProjection', () => {
 
   it('should transition: started -> ended', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       const projection = new SessionProjectionRepository(db);
 
       const sessionId = crypto.randomUUID();
@@ -307,22 +307,22 @@ describe('Workspace SessionProjection', () => {
   });
 });
 
-describe('Workspace SyncFacade integration', () => {
+describe('Project SyncFacade integration', () => {
   let stub: DurableObjectStub;
 
   beforeEach(async () => {
-    const id = env.WORKSPACE.idFromName(`test-${crypto.randomUUID()}`);
-    stub = env.WORKSPACE.get(id);
+    const id = env.PROJECT.idFromName(`test-${crypto.randomUUID()}`);
+    stub = env.PROJECT.get(id);
 
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       await migrate(db, migrations);
     });
   });
 
   it('push should store events AND update projections', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
+      const db = drizzle(state.storage, { schema: project_schema });
       const eventRepo = new EventRepository(db);
       const actorProjection = new ActorProjectionRepository(db);
       const sessionProjection = new SessionProjectionRepository(db);

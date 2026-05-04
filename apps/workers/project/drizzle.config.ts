@@ -1,8 +1,8 @@
-import { createDurableObjectDrizzleConfig } from '../../../tools/drizzle/drizzle-config.factory';
+import { createDurableObjectDrizzleConfig } from '../drizzle/drizzle-config.factory';
 
 export default createDurableObjectDrizzleConfig({
-  durableObjectClass: 'Workspace',
-  workerName: 'workspace-handler',
+  durableObjectClass: 'Project',
+  workerName: 'project-handler',
   migrationsDir: './migrations',
   schemaPath: './src/data/schema/**/*',
 });

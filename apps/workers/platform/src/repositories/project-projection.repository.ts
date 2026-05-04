@@ -8,10 +8,10 @@ import {
   WORKSPACE_ARCHIVED,
   WORKSPACE_DELETED,
 } from '@ship-cloud/types';
-import { workspaces } from '../data/schema/workspaces.js';
+import { projects } from '../data/schema/projects.js';
 import type { platform_schema } from '../data/schema/index.js';
 
-export class WorkspaceProjectionRepository {
+export class ProjectProjectionRepository {
   constructor(private db: DrizzleSqliteDODatabase<typeof platform_schema>) {}
 
   async applyEvent(event: EventEnvelope): Promise<Result<void>> {
@@ -21,7 +21,7 @@ export class WorkspaceProjectionRepository {
       switch (event.event_type) {
         case WORKSPACE_CREATED: {
           const payload = JSON.parse(event.payload_json);
-          await this.db.insert(workspaces).values({
+          await this.db.insert(projects).values({
             id: event.entity_id,
             name: payload.name ?? null,
             status: 'created',
@@ -31,37 +31,37 @@ export class WorkspaceProjectionRepository {
           break;
         }
         case WORKSPACE_ACTIVATED:
-          await this.db.update(workspaces)
+          await this.db.update(projects)
             .set({ status: 'activated', updated_at: now })
-            .where(eq(workspaces.id, event.entity_id));
+            .where(eq(projects.id, event.entity_id));
           break;
         case WORKSPACE_ARCHIVED:
-          await this.db.update(workspaces)
+          await this.db.update(projects)
             .set({ status: 'archived', updated_at: now })
-            .where(eq(workspaces.id, event.entity_id));
+            .where(eq(projects.id, event.entity_id));
           break;
         case WORKSPACE_DELETED:
-          await this.db.update(workspaces)
+          await this.db.update(projects)
             .set({ status: 'deleted', updated_at: now })
-            .where(eq(workspaces.id, event.entity_id));
+            .where(eq(projects.id, event.entity_id));
           break;
       }
 
       return Result.ok();
     } catch (error) {
       return Result.fail(
-        new Error(`Failed to apply workspace event: ${error instanceof Error ? error.message : String(error)}`),
+        new Error(`Failed to apply project event: ${error instanceof Error ? error.message : String(error)}`),
       );
     }
   }
 
-  async list(): Promise<Result<typeof workspaces.$inferSelect[]>> {
+  async list(): Promise<Result<typeof projects.$inferSelect[]>> {
     try {
-      const rows = await this.db.select().from(workspaces);
+      const rows = await this.db.select().from(projects);
       return Result.ok(rows);
     } catch (error) {
       return Result.fail(
-        new Error(`Failed to list workspaces: ${error instanceof Error ? error.message : String(error)}`),
+        new Error(`Failed to list projects: ${error instanceof Error ? error.message : String(error)}`),
       );
     }
   }

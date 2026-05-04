@@ -6,4 +6,4 @@ import { events } from './events.js';
 import { actors } from './actors.js';
 import { sessions } from './sessions.js';
 
-export const workspace_schema = { events, actors, sessions };
+export const project_schema = { events, actors, sessions };

@@ -3,10 +3,10 @@ import type { DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite';
 import { Result } from '@ship-cloud/types';
 import type { EventEnvelope } from '@ship-cloud/types';
 import { events } from '../data/schema/events.js';
-import type { workspace_schema } from '../data/schema/index.js';
+import type { project_schema } from '../data/schema/index.js';
 
 export class EventRepository {
-  constructor(private db: DrizzleSqliteDODatabase<typeof workspace_schema>) {}
+  constructor(private db: DrizzleSqliteDODatabase<typeof project_schema>) {}
 
   async push(incoming: EventEnvelope[]): Promise<Result<number>> {
     try {

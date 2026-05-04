@@ -1,7 +1,7 @@
 import { sqliteTable, text, integer } from 'drizzle-orm/sqlite-core';
 
-/** Projection table built from workspace lifecycle events */
-export const workspaces = sqliteTable('workspaces', {
+/** Projection table built from project lifecycle events */
+export const projects = sqliteTable('projects', {
   id: text('id').primaryKey(),
   name: text('name'),
   status: text('status').notNull().default('created'), // created | activated | archived | deleted

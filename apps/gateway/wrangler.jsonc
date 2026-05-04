@@ -12,9 +12,9 @@
         "script_name": "platform-handler"
       },
       {
-        "class_name": "Workspace",
-        "name": "WORKSPACE",
-        "script_name": "workspace-handler"
+        "class_name": "Project",
+        "name": "PROJECT",
+        "script_name": "project-handler"
       }
     ]
   },

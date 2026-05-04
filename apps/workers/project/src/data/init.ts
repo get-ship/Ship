@@ -3,7 +3,7 @@ import { drizzle } from 'drizzle-orm/durable-sqlite';
 import migrations from '../../migrations/migrations.js';
 import * as schema from './schema/index.js';
 
-export async function initializeWorkspaceDB(storage: DurableObjectStorage) {
-  const db = drizzle<typeof schema.workspace_schema>(storage);
+export async function initializeProjectDB(storage: DurableObjectStorage) {
+  const db = drizzle<typeof schema.project_schema>(storage);
   await migrate(db, migrations);
 }

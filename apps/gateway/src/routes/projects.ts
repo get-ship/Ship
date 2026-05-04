@@ -14,7 +14,7 @@ projects.get('/', async (c) => {
 
   const id = c.env.PLATFORM.idFromName(projectId);
   const stub = c.env.PLATFORM.get(id);
-  const facade = await stub.workspaces();
+  const facade = await stub.projects();
   const result = await facade.list();
 
   return c.json(result);

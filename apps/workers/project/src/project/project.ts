@@ -1,9 +1,9 @@
 import { DurableObject } from 'cloudflare:workers';
-import { initializeWorkspaceDB } from '../data/init.js';
+import { initializeProjectDB } from '../data/init.js';
 import { RepositoryFactory } from '../factories/index.js';
 import { SyncFacade, ActorsFacade, SessionsFacade } from '../facades/index.js';
 
-export class Workspace extends DurableObject {
+export class Project extends DurableObject {
   private _repos?: RepositoryFactory;
   private _sync?: SyncFacade;
   private _actors?: ActorsFacade;
@@ -13,7 +13,7 @@ export class Workspace extends DurableObject {
     super(ctx, env);
 
     ctx.blockConcurrencyWhile(async () => {
-      await initializeWorkspaceDB(ctx.storage);
+      await initializeProjectDB(ctx.storage);
     });
   }
 

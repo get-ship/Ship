@@ -4,10 +4,10 @@ import { Result } from '@ship-cloud/types';
 import type { EventEnvelope } from '@ship-cloud/types';
 import { SESSION_STARTED, SESSION_ENDED } from '@ship-cloud/types';
 import { sessions } from '../data/schema/sessions.js';
-import type { workspace_schema } from '../data/schema/index.js';
+import type { project_schema } from '../data/schema/index.js';
 
 export class SessionProjectionRepository {
-  constructor(private db: DrizzleSqliteDODatabase<typeof workspace_schema>) {}
+  constructor(private db: DrizzleSqliteDODatabase<typeof project_schema>) {}
 
   async applyEvent(event: EventEnvelope): Promise<Result<void>> {
     try {

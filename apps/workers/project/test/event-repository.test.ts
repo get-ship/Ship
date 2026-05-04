@@ -1,15 +1,15 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { runInDurableObject, drizzle, workspace_schema, makeEvent, createMigratedStub } from './helpers.js';
+import { runInDurableObject, drizzle, project_schema, makeEvent, createMigratedStub } from './helpers.js';
 import { EventRepository } from '../src/repositories/event.repository.js';
 
-describe('Workspace EventRepository', () => {
+describe('Project EventRepository', () => {
   let stub: DurableObjectStub;
   beforeEach(async () => { stub = await createMigratedStub(); });
 
   describe('push', () => {
     it('should accept and store events', async () => {
       await runInDurableObject(stub, async (_: any, state: any) => {
-        const repo = new EventRepository(drizzle(state.storage, { schema: workspace_schema }));
+        const repo = new EventRepository(drizzle(state.storage, { schema: project_schema }));
         const result = await repo.push([makeEvent(), makeEvent()]);
         expect(result.isSuccess).toBe(true);
         expect(result.value).toBe(2);
@@ -18,7 +18,7 @@ describe('Workspace EventRepository', () => {
 
     it('should deduplicate by event ID', async () => {
       await runInDurableObject(stub, async (_: any, state: any) => {
-        const repo = new EventRepository(drizzle(state.storage, { schema: workspace_schema }));
+        const repo = new EventRepository(drizzle(state.storage, { schema: project_schema }));
         const event = makeEvent();
         await repo.push([event]);
         expect((await repo.push([event])).value).toBe(0);
@@ -27,7 +27,7 @@ describe('Workspace EventRepository', () => {
 
     it('should accept empty array', async () => {
       await runInDurableObject(stub, async (_: any, state: any) => {
-        const repo = new EventRepository(drizzle(state.storage, { schema: workspace_schema }));
+        const repo = new EventRepository(drizzle(state.storage, { schema: project_schema }));
         const result = await repo.push([]);
         expect(result.isSuccess).toBe(true);
         expect(result.value).toBe(0);
@@ -38,7 +38,7 @@ describe('Workspace EventRepository', () => {
   describe('pull', () => {
     it('should return empty from empty store', async () => {
       await runInDurableObject(stub, async (_: any, state: any) => {
-        const repo = new EventRepository(drizzle(state.storage, { schema: workspace_schema }));
+        const repo = new EventRepository(drizzle(state.storage, { schema: project_schema }));
         const result = await repo.pull();
         expect(result.value.events).toHaveLength(0);
         expect(result.value.cursor).toBeNull();
@@ -47,7 +47,7 @@ describe('Workspace EventRepository', () => {
 
     it('should return all events when no cursor', async () => {
       await runInDurableObject(stub, async (_: any, state: any) => {
-        const repo = new EventRepository(drizzle(state.storage, { schema: workspace_schema }));
+        const repo = new EventRepository(drizzle(state.storage, { schema: project_schema }));
         await repo.push([makeEvent(), makeEvent(), makeEvent()]);
         const result = await repo.pull();
         expect(result.value.events).toHaveLength(3);
@@ -57,7 +57,7 @@ describe('Workspace EventRepository', () => {
 
     it('should return events after cursor', async () => {
       await runInDurableObject(stub, async (_: any, state: any) => {
-        const repo = new EventRepository(drizzle(state.storage, { schema: workspace_schema }));
+        const repo = new EventRepository(drizzle(state.storage, { schema: project_schema }));
         const [first, second] = [makeEvent(), makeEvent()];
         await repo.push([first, second]);
         const result = await repo.pull(first.id);
@@ -68,7 +68,7 @@ describe('Workspace EventRepository', () => {
 
     it('should respect limit', async () => {
       await runInDurableObject(stub, async (_: any, state: any) => {
-        const repo = new EventRepository(drizzle(state.storage, { schema: workspace_schema }));
+        const repo = new EventRepository(drizzle(state.storage, { schema: project_schema }));
         await repo.push(Array.from({ length: 5 }, () => makeEvent()));
         expect((await repo.pull(undefined, 2)).value.events).toHaveLength(2);
       });
@@ -76,7 +76,7 @@ describe('Workspace EventRepository', () => {
 
     it('should maintain insertion order', async () => {
       await runInDurableObject(stub, async (_: any, state: any) => {
-        const repo = new EventRepository(drizzle(state.storage, { schema: workspace_schema }));
+        const repo = new EventRepository(drizzle(state.storage, { schema: project_schema }));
         const [a, b, c] = [makeEvent(), makeEvent(), makeEvent()];
         await repo.push([a]);
         await repo.push([b]);
