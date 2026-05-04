@@ -106,9 +106,8 @@ function showLanding(slot: HTMLElement): void {
 }
 
 function updateNav(r: Route | null): void {
-  const nav = document.getElementById('ship-top-nav')
-  if (!nav) return
-  nav.textContent = r ? `· ${r.view}${r.sub ? ' / ' + r.sub : ''}` : ''
+  const path = r ? routeToPath(r) : '/'
+  document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
 }
 
 // Mark the matching rail item active; clear all others.
@@ -178,10 +177,22 @@ function initRail(): void {
     if (localStorage.getItem(RAIL_COLLAPSED_KEY)) rail.setAttribute('collapsed', '')
   } catch { /* best-effort */ }
 
+  // sui-rail:toggle — fired by the rail's own collapse button
   rail.addEventListener('sui-rail:toggle', (e: Event) => {
     const collapsed = (e as CustomEvent<{ collapsed: boolean }>).detail?.collapsed
     try {
       if (collapsed) localStorage.setItem(RAIL_COLLAPSED_KEY, '1')
+      else localStorage.removeItem(RAIL_COLLAPSED_KEY)
+    } catch { /* best-effort */ }
+  })
+
+  // sui:rail:toggle — fired by sui-nav-top's menu button (toggle request)
+  document.addEventListener('sui:rail:toggle', () => {
+    const next = !rail.hasAttribute('collapsed')
+    if (next) rail.setAttribute('collapsed', '')
+    else rail.removeAttribute('collapsed')
+    try {
+      if (next) localStorage.setItem(RAIL_COLLAPSED_KEY, '1')
       else localStorage.removeItem(RAIL_COLLAPSED_KEY)
     } catch { /* best-effort */ }
   })
@@ -288,7 +299,6 @@ function dispatchDemoToast(): void {
 
 // ── Boot ────────────────────────────────────────────────────────────
 
-document.getElementById('ship-notify-btn')?.addEventListener('click', dispatchDemoToast)
 document.addEventListener('click', onAnchorClick)
 window.addEventListener('popstate', () => {
   const r = readRoute()
