@@ -59,15 +59,8 @@
 </head>
 <body>
   <div id="ship-app">
-    <!-- Top bar: brand, nav breadcrumb, search, theme picker -->
-    <header class="ship-top-bar" data-shell="top-bar">
-      <span class="ship-brand-mark" aria-hidden="true">◐</span>
-      <span class="ship-brand-title">Ship</span>
-      <nav class="ship-top-nav" id="ship-top-nav"></nav>
-      <sui-icon name="search" size="sm" label="Search" id="ship-search-icon"></sui-icon>
-      <button id="ship-notify-btn" class="ship-theme-toggle" type="button" title="Send demo notification">Notify</button>
-      <sui-theme-picker placement="bottom-end"></sui-theme-picker>
-    </header>
+    <!-- Top bar: brand, breadcrumbs, view actions, theme picker, chrome controls -->
+    <sui-nav-top id="ship-nav-top"></sui-nav-top>
 
     <!-- Left rail: vertical nav with collapse toggle -->
     <sui-rail id="ship-rail">
@@ -85,6 +78,9 @@
     <!-- Bottom status bar: connection, branch, theme -->
     <sui-status-bar id="ship-status-bar" branch="" theme="" agents=""></sui-status-bar>
   </div>
+
+  <!-- App launcher: floating panel, opened via sui:launcher:open event or the [open] attribute -->
+  <sui-launcher id="ship-launcher"></sui-launcher>
 
   <sui-toast-container position="bottom-right" id="sui-toast-container"></sui-toast-container>
 

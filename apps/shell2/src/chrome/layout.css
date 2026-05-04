@@ -29,17 +29,16 @@ html, body {
   overflow: hidden;
 }
 
+/* Legacy placeholder selector kept so existing inline styles degrade gracefully. */
 .ship-top-bar {
   grid-column: 1 / -1;
   grid-row: 1;
-  display: flex;
-  align-items: center;
-  gap: var(--space-3, 12px);
-  height: var(--ship-top-bar-h);
-  padding: 0 var(--space-4, 16px);
-  border-bottom: 1px solid var(--border, #e5e5e5);
-  background: var(--muted, #f6f6f6);
-  font-size: var(--text-sm, 13px);
+}
+
+/* sui-nav-top grid placement — intrinsic styles live in :host */
+#ship-nav-top {
+  grid-column: 1 / -1;
+  grid-row: 1;
 }
 
 #ship-rail {

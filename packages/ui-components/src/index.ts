@@ -67,5 +67,7 @@ import './sui-edit-overlay/sui-edit-overlay.compiled.js'
 import './sui-annotation/sui-annotation-layer.compiled.js'
 import './sui-annotation/sui-annotation-marker.compiled.js'
 import './sui-annotation/sui-annotation-list.compiled.js'
+import './sui-nav-top/sui-nav-top.compiled.js'
+import './sui-launcher/sui-launcher.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.
