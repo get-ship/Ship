@@ -1,0 +1,6 @@
+[package]
+name = "build-info"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "Shared build-time identity capture: git SHA, dirty flag, build timestamp, rustc version. Used by all Ship binaries to produce a consistent BuildInfo struct."

@@ -9,7 +9,7 @@ use rmcp::{
     service::{NotificationContext, RequestContext},
 };
 
-use crate::server::NetworkServer;
+use crate::transport::server::NetworkServer;
 
 impl ServerHandler for NetworkServer {
     fn get_info(&self) -> ServerInfo {

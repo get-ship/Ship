@@ -19,7 +19,11 @@ pub struct ShipMcpApp;
 #[async_trait]
 impl mcp_framework::McpApp for ShipMcpApp {
     fn metadata() -> mcp_framework::McpMetadata {
-        mcp_framework::McpMetadata::new("ship", "Ship MCP", env!("SHIP_MCP_VERSION_STRING"))
+        mcp_framework::McpMetadata::new(
+            "ship",
+            "Ship MCP",
+            concat!(env!("CARGO_PKG_VERSION"), "+", env!("BUILD_GIT_SHA")),
+        )
     }
 
     fn startup_banner(_metadata: mcp_framework::McpMetadata) -> Option<String> {

@@ -142,19 +142,12 @@ fn collect_types() -> TypeCollection {
     c.register::<runtime::collections::schema::FieldDef>();
     c.register::<runtime::collections::schema::FieldType>();
 
-    // workspace/types.rs
-    c.register::<runtime::Workspace>();
-    c.register::<runtime::WorkspaceStatus>();
-    c.register::<runtime::Environment>();
-    c.register::<runtime::Process>();
-    c.register::<runtime::ProcessStatus>();
-
-    // workspace/types_session.rs
-    c.register::<runtime::WorkspaceSession>();
-    c.register::<runtime::WorkspaceSessionStatus>();
-    c.register::<runtime::WorkspaceSessionRecord>();
-    c.register::<runtime::WorkspaceProviderMatrix>();
-    c.register::<runtime::WorkspaceRepairReport>();
+    // workspace/types_session.rs (the workspace primitive retired; only
+    // session-shaped types remain)
+    c.register::<runtime::Session>();
+    c.register::<runtime::SessionStatus>();
+    c.register::<runtime::ProviderMatrix>();
+    c.register::<runtime::ProviderMatrixRepairReport>();
 
     c
 }

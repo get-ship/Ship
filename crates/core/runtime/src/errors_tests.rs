@@ -52,21 +52,6 @@ fn kernel_error_display_is_readable() {
 // ── WorkspaceError ───────────────────────────────────────────────────────────
 
 #[test]
-fn workspace_not_found_via_get_provider_matrix() {
-    let tmp = tempdir().unwrap();
-    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    crate::db::ensure_db_at(&ship_dir).unwrap();
-
-    let err = crate::workspace::get_workspace_provider_matrix(&ship_dir, "nonexistent", None)
-        .unwrap_err();
-    assert!(
-        matches!(err, WorkspaceError::NotFound { ref branch } if branch == "nonexistent"),
-        "expected NotFound, got: {err:?}"
-    );
-}
-
-
 #[test]
 fn workspace_error_display_is_readable() {
     let err = WorkspaceError::NotFound { branch: "feat/x".into() };

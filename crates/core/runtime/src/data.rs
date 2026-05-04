@@ -41,35 +41,17 @@ impl DataService {
     /// that manages registration and migration itself (e.g. the migration
     /// module's own tests).
     pub fn open_raw(ship_dir: &Path) -> Result<Self> {
-        let db_path = ship_dir.join("data.db");
+        let db_path = crate::db::data_db_path(ship_dir);
+        if let Some(parent) = db_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         let conn = open_connection(&db_path)?;
         Ok(Self { conn, db_path })
     }
 
-    /// Register built-in schemas and run the platform-to-collections
-    /// migration. Idempotent — safe to call repeatedly.
-    pub fn run_startup(&mut self, ship_dir: &Path) -> Result<()> {
+    /// Register built-in schemas. Idempotent — safe to call on every open.
+    pub fn run_startup(&mut self, _ship_dir: &Path) -> Result<()> {
         crate::collections::builtin::register_builtin_schemas(self)?;
-        let platform_path = ship_dir.join("platform.db");
-        let report =
-            crate::collections::migration::migrate_platform_to_collections(self, &platform_path)?;
-        if !report.already_migrated && !report.source_missing {
-            tracing::info!(
-                notes = report.notes_migrated,
-                adrs = report.adrs_migrated,
-                specs = report.specs_migrated,
-                "collections: migrated legacy platform rows into data.db"
-            );
-        }
-        let prune = crate::collections::migration::prune_legacy_source_rows(self, &platform_path)?;
-        if !prune.already_pruned && !prune.skipped_not_migrated {
-            tracing::info!(
-                notes = prune.notes_deleted,
-                adrs = prune.adrs_deleted,
-                specs = prune.specs_deleted,
-                "collections: pruned legacy source rows from platform.db"
-            );
-        }
         Ok(())
     }
 

@@ -12,7 +12,5 @@ pub mod skills;
 pub mod view;
 pub mod view_errors;
 pub mod view_scaffold;
-pub mod workspace;
-pub mod workspace_ops;
 
 pub mod stability;

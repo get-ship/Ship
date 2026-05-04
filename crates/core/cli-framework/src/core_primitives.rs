@@ -1,10 +1,11 @@
 use anyhow::Result;
 use runtime::{
-    AgentProfile, McpServerConfig, McpServerType, SkillInstallScope, add_agent, add_mcp_server,
+    McpServerConfig, McpServerType, SkillInstallScope, add_mcp_server,
     autodetect_providers, create_skill, create_user_skill, delete_skill, delete_user_skill,
-    disable_provider, enable_provider, get_active_agent, get_config, get_effective_skill,
+    disable_provider, enable_provider, get_config, get_effective_skill,
+    import_from_provider, import_permissions_from_provider, import_skills_from_provider,
     list_effective_skills, list_mcp_servers, list_models, list_providers, list_skills,
-    list_user_skills, log_action, remove_agent, remove_mcp_server, set_active_agent, update_skill,
+    list_user_skills, log_action, remove_mcp_server, update_skill,
     update_user_skill,
 };
 use std::path::{Path, PathBuf};
@@ -53,16 +54,6 @@ pub enum SkillAction {
         id: String,
         scope: SkillWriteScope,
     },
-}
-
-#[derive(Debug, Clone)]
-pub enum ModeAction {
-    List,
-    Add { id: String, name: String },
-    Remove { id: String },
-    Set { id: String },
-    Clear,
-    Get,
 }
 
 #[derive(Debug, Clone)]
@@ -259,51 +250,6 @@ pub fn handle_skill_action(action: SkillAction, project_dir: Option<&Path>) -> R
     Ok(())
 }
 
-pub fn handle_mode_action(action: ModeAction, project_dir: Option<PathBuf>) -> Result<()> {
-    match action {
-        ModeAction::List => {
-            let cfg = get_config(project_dir)?;
-            let active_id = cfg.active_agent.as_deref().unwrap_or("");
-            if cfg.modes.is_empty() {
-                println!("No modes configured.");
-            } else {
-                for mode in &cfg.modes {
-                    let marker = if mode.id == active_id { " *" } else { "" };
-                    println!("  {}{} — {}", mode.id, marker, mode.name);
-                }
-            }
-        }
-        ModeAction::Add { id, name } => {
-            add_agent(
-                project_dir,
-                AgentProfile {
-                    id: id.clone(),
-                    name: name.clone(),
-                    ..Default::default()
-                },
-            )?;
-            println!("Agent added: {} ({})", id, name);
-        }
-        ModeAction::Remove { id } => {
-            remove_agent(project_dir, &id)?;
-            println!("Agent removed: {}", id);
-        }
-        ModeAction::Set { id } => {
-            set_active_agent(project_dir, Some(&id))?;
-            println!("Active agent set to: {}", id);
-        }
-        ModeAction::Clear => {
-            set_active_agent(project_dir, None)?;
-            println!("Active agent cleared (all tools available).");
-        }
-        ModeAction::Get => match get_active_agent(project_dir)? {
-            Some(agent) => println!("Active agent: {} ({})", agent.id, agent.name),
-            None => println!("No active agent set."),
-        },
-    }
-    Ok(())
-}
-
 pub fn handle_event_action(action: EventAction, project_dir: &Path) -> Result<()> {
     match action {
         EventAction::List { limit } => {
@@ -350,11 +296,27 @@ pub fn handle_mcp_action(action: McpAction, project_dir: &Path) -> Result<()> {
             }
         }
         McpAction::Export { target } => {
-            runtime::agents::export::export_to(project_dir.to_path_buf(), &target)?;
+            let project_root = project_dir.parent().unwrap_or(project_dir);
+            let status = std::process::Command::new("ship")
+                .arg("compile")
+                .arg("--provider")
+                .arg(&target)
+                .arg("--path")
+                .arg(project_root)
+                .status();
+            match status {
+                Ok(s) if s.success() => {}
+                Ok(s) => anyhow::bail!(
+                    "ship compile failed for provider '{}' (exit {})",
+                    target,
+                    s.code().unwrap_or(-1)
+                ),
+                Err(e) => anyhow::bail!("ship binary not found: {}", e),
+            }
             println!("Exported MCP server registry to {} config.", target);
         }
         McpAction::Import { provider } => {
-            let added = runtime::agents::export::import_from_provider(
+            let added = import_from_provider(
                 &provider,
                 project_dir.to_path_buf(),
             )?;
@@ -527,16 +489,10 @@ pub fn handle_provider_action(action: ProviderAction, project_dir: &Path) -> Res
 }
 
 fn import_provider_surface(project_dir: &Path, provider_id: &str) -> Result<ProviderImportSummary> {
-    let mcp_servers_added =
-        runtime::agents::export::import_from_provider(provider_id, project_dir.to_path_buf())?;
-    let skills_added = runtime::agents::export::import_skills_from_provider(
-        provider_id,
-        project_dir.to_path_buf(),
-    )?;
-    let permissions_imported = runtime::agents::export::import_permissions_from_provider(
-        provider_id,
-        project_dir.to_path_buf(),
-    )?;
+    let mcp_servers_added = import_from_provider(provider_id, project_dir.to_path_buf())?;
+    let skills_added = import_skills_from_provider(provider_id, project_dir.to_path_buf())?;
+    let permissions_imported =
+        import_permissions_from_provider(provider_id, project_dir.to_path_buf())?;
     Ok(ProviderImportSummary {
         mcp_servers_added,
         skills_added,

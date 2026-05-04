@@ -86,7 +86,10 @@ pub fn init_project(base_dir: PathBuf) -> Result<PathBuf> {
         &skills_dir(&ship_path).join("task-policy").join("SKILL.md"),
         r#"---
 name: task-policy
+stable-id: task-policy
 description: Ship workflow policy and execution guardrails for daily delivery.
+tags: [ship, workflow, builtin]
+authors: [ship]
 metadata:
   display_name: Ship Workflow Policy
   source: builtin

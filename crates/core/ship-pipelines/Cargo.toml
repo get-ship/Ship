@@ -1,0 +1,18 @@
+[package]
+name = "ship-pipelines"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+globset = "0.4"
+specta = { workspace = true, optional = true }
+
+[features]
+default = []
+specta = ["dep:specta"]
+
+[dev-dependencies]
+serde_yaml = "0.9"

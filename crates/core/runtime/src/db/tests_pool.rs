@@ -16,7 +16,7 @@ fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
 #[tokio::test(flavor = "multi_thread")]
 async fn pool_creates_and_acquires() {
     let (_tmp, ship_dir) = setup();
-    let db_path = ship_dir.join("platform.db");
+    let db_path = crate::db::platform_db_path(&ship_dir);
     let p = pool::create_pool(&db_path, 5).unwrap();
     let mut conn = p.acquire().await.unwrap();
 
@@ -43,7 +43,7 @@ async fn pool_handles_concurrent_reads() {
         store.append(&ev).unwrap();
     }
 
-    let db_path = ship_dir.join("platform.db");
+    let db_path = crate::db::platform_db_path(&ship_dir);
     let p = pool::create_pool(&db_path, 4).unwrap();
 
     // 10 concurrent reads through the pool.

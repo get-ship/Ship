@@ -43,7 +43,11 @@ SLUG="$(basename "$ROOT")"
 PORT="${SHIP_DAEMON_PORT:-9315}"
 LOG="/tmp/shipd-${SLUG}.log"
 SHIP_DIR="$ROOT/.ship"
-BIN="$ROOT/target/debug/shipd"
+# Resolve cargo target dir via metadata so a shared / redirected target
+# (e.g. .cargo/config.toml setting target-dir for cross-worktree cache)
+# still points at the right binary.
+TARGET_DIR="$(cd "$ROOT" && cargo metadata --format-version 1 --no-deps --offline 2>/dev/null | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)"
+BIN="${TARGET_DIR:-$ROOT/target}/debug/shipd"
 
 color() { printf '\033[%sm%s\033[0m' "$1" "$2"; }
 green() { color '32' "$1"; }
@@ -149,14 +153,17 @@ cmd_start() {
     : > "$LOG"
     # Three signals point project resolution at this worktree:
     #   - SHIP_DIR env: honored by runtime::project::get_project_dir()
-    #   - --workspace flag: bypasses CWD-walk discovery in main.rs
+    #   - --dev-worktree flag: bypasses CWD-walk discovery in main.rs
+    #     and routes the daemon into a per-worktree IPC dir + port so
+    #     parallel Ship-dev daemons don't collide. Dev-only by name —
+    #     users never set this.
     #   - SHIP_RESPECT_WORKTREE=1: opts the runtime out of the
     #     worktree-redirect-to-main behavior in discovery.rs, so this
     #     worktree's local .ship/views/, .ship/agents/, etc. are served
     #     instead of falling back to the main checkout's.
     SHIP_DIR="$SHIP_DIR" \
         SHIP_RESPECT_WORKTREE=1 \
-        nohup setsid "$BIN" --port "$PORT" --workspace "$ROOT" >>"$LOG" 2>&1 &
+        nohup setsid "$BIN" --port "$PORT" --dev-worktree "$ROOT" >>"$LOG" 2>&1 &
     local launched=$!
     echo "launched pid=$launched · binary=$BIN · SHIP_DIR=$SHIP_DIR"
     echo "log: $LOG"

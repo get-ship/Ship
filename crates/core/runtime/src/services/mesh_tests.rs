@@ -12,7 +12,7 @@ fn setup() -> (MeshService, mpsc::UnboundedReceiver<EventEnvelope>, ActorStore, 
     let svc = MeshService::new(tx);
     let tmp = tempdir().unwrap();
     crate::db::ensure_db_at(tmp.path()).unwrap();
-    let db_path = tmp.path().join("platform.db");
+    let db_path = crate::db::platform_db_path(tmp.path());
     let store = ActorStore::new("mesh", db_path, vec!["mesh.".into()], vec!["mesh.".into()]);
     (svc, rx, store, tmp)
 }

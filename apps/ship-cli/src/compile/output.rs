@@ -1,4 +1,4 @@
-//! File writing — emitting compiler output to the filesystem.
+//! File writing — emit compiler output to the filesystem with progress reporting.
 
 use anyhow::{Result, anyhow};
 use compiler::{CompileOutput, get_provider};
@@ -10,123 +10,55 @@ pub fn write_output(root: &Path, provider_id: &str, output: &CompileOutput) -> R
     let desc = get_provider(provider_id)
         .ok_or_else(|| anyhow!("unknown provider: {}", provider_id))?;
 
-    // Context file (CLAUDE.md, GEMINI.md, AGENTS.md)
-    if let (Some(content), Some(file_name)) =
-        (&output.context_content, desc.context_file.file_name())
+    // Delegate filesystem writes to the compiler's native output module.
+    compiler::write_output(root, provider_id, output)?;
+
+    // Progress reporting: announce each written file.
+    if let Some(file_name) = desc.context_file.file_name()
+        && output.context_content.is_some()
     {
-        let path = root.join(file_name);
-        std::fs::write(&path, content)?;
         println!("  {} {}", provider_id, file_name);
     }
-
-    // MCP config file
     if let Some(ref mcp_path) = output.mcp_config_path {
-        // Gemini: settings.json gets mcp_servers + hooks merged together
-        if provider_id == "gemini" {
-            let path = root.join(mcp_path);
-            ensure_parent(&path)?;
-            let mut patch = serde_json::json!({ desc.mcp_key.as_str(): &output.mcp_servers });
-            if let Some(hooks) = &output.gemini_settings_patch {
-                merge_json(&mut patch, hooks);
-            }
-            merge_json_file(&path, &patch)?;
-            println!("  {} {}", provider_id, mcp_path);
-        } else if provider_id == "codex" {
-            // Codex: TOML patch written separately — skip JSON write
-        } else {
-            let path = root.join(mcp_path);
-            ensure_parent(&path)?;
-            let content = serde_json::to_string_pretty(
-                &serde_json::json!({ desc.mcp_key.as_str(): &output.mcp_servers }),
-            )?;
-            std::fs::write(&path, content)?;
+        if provider_id != "codex" {
             println!("  {} {}", provider_id, mcp_path);
         }
     }
-
-    // Skill files
-    for (rel_path, content) in &output.skill_files {
-        let path = root.join(rel_path);
-        ensure_parent(&path)?;
-        std::fs::write(&path, content)?;
+    for path in output.skill_files.keys() {
+        println!("  {} {}", provider_id, path);
     }
-
-    // Rule files (Cursor .mdc)
-    for (rel_path, content) in &output.rule_files {
-        let path = root.join(rel_path);
-        ensure_parent(&path)?;
-        std::fs::write(&path, content)?;
-        println!("  {} {}", provider_id, rel_path);
+    for path in output.rule_files.keys() {
+        println!("  {} {}", provider_id, path);
     }
-
-    // Claude settings patch → .claude/settings.json
-    if let Some(patch) = &output.claude_settings_patch {
-        let path = root.join(".claude/settings.json");
-        ensure_parent(&path)?;
-        merge_json_file(&path, patch)?;
+    if output.claude_settings_patch.is_some() {
         println!("  {} .claude/settings.json", provider_id);
     }
-
-    // Provider agent files (e.g. .claude/agents/*.md for teams)
-    for (rel_path, content) in &output.agent_files {
-        let path = root.join(rel_path);
-        ensure_parent(&path)?;
-        std::fs::write(&path, content)?;
-        println!("  {} {}", provider_id, rel_path);
+    for path in output.agent_files.keys() {
+        println!("  {} {}", provider_id, path);
     }
-
-    // Codex TOML patch → .codex/config.toml
-    if let Some(toml_str) = &output.codex_config_patch {
-        let path = root.join(".codex/config.toml");
-        ensure_parent(&path)?;
-        std::fs::write(&path, toml_str)?;
+    if output.codex_config_patch.is_some() {
         println!("  {} .codex/config.toml", provider_id);
     }
-
-    // Codex hooks → .codex/hooks.json
-    if let Some(hooks) = &output.codex_hooks_json {
-        let path = root.join(".codex/hooks.json");
-        ensure_parent(&path)?;
-        std::fs::write(&path, serde_json::to_string_pretty(hooks)?)?;
+    if output.codex_hooks_json.is_some() {
         println!("  {} .codex/hooks.json", provider_id);
     }
-
-    // Gemini policy → .gemini/policies/ship.toml
-    if let Some(policy) = &output.gemini_policy_patch {
-        let path = root.join(".gemini/policies/ship.toml");
-        ensure_parent(&path)?;
-        std::fs::write(&path, policy)?;
+    match &output.codex_policy_content {
+        Some(_) => println!("  {} .codex/rules/ship.rules", provider_id),
+        None => {}
+    }
+    if output.gemini_policy_patch.is_some() {
         println!("  {} .gemini/policies/ship.toml", provider_id);
     }
-
-    // Cursor hooks → .cursor/hooks.json
-    if let Some(hooks) = &output.cursor_hooks_patch {
-        let path = root.join(".cursor/hooks.json");
-        ensure_parent(&path)?;
-        std::fs::write(&path, serde_json::to_string_pretty(hooks)?)?;
+    if output.cursor_hooks_patch.is_some() {
         println!("  {} .cursor/hooks.json", provider_id);
     }
-
-    // Cursor CLI permissions → .cursor/cli.json
-    if let Some(perms) = &output.cursor_cli_permissions {
-        let path = root.join(".cursor/cli.json");
-        ensure_parent(&path)?;
-        std::fs::write(&path, serde_json::to_string_pretty(perms)?)?;
+    if output.cursor_cli_permissions.is_some() {
         println!("  {} .cursor/cli.json", provider_id);
     }
-
-    // Cursor environment → .cursor/environment.json
-    if let Some(env) = &output.cursor_environment_json {
-        let path = root.join(".cursor/environment.json");
-        ensure_parent(&path)?;
-        std::fs::write(&path, serde_json::to_string_pretty(env)?)?;
+    if output.cursor_environment_json.is_some() {
         println!("  {} .cursor/environment.json", provider_id);
     }
-
-    // OpenCode config patch → opencode.json
-    if let Some(patch) = &output.opencode_config_patch {
-        let path = root.join("opencode.json");
-        std::fs::write(&path, serde_json::to_string_pretty(patch)?)?;
+    if output.opencode_config_patch.is_some() {
         println!("  {} opencode.json", provider_id);
     }
 
@@ -162,6 +94,10 @@ pub(crate) fn print_dry_run(provider_id: &str, output: &CompileOutput) {
     if output.codex_hooks_json.is_some() {
         println!("  would write .codex/hooks.json");
     }
+    match &output.codex_policy_content {
+        Some(_) => println!("  would write .codex/rules/ship.rules"),
+        None => println!("  would remove .codex/rules/ship.rules (no rules)"),
+    }
     if output.gemini_policy_patch.is_some() {
         println!("  would write .gemini/policies/ship.toml");
     }
@@ -179,38 +115,10 @@ pub(crate) fn print_dry_run(provider_id: &str, output: &CompileOutput) {
     }
 }
 
-// ── JSON merge helpers ───────────────────────────────────────────────────────
+// ── JSON merge helpers (re-exported from compiler for local use) ─────────────
 
-/// Recursively merge `patch` into `base` (patch wins on scalar conflict).
-pub(crate) fn merge_json(base: &mut serde_json::Value, patch: &serde_json::Value) {
-    match (base, patch) {
-        (serde_json::Value::Object(b), serde_json::Value::Object(p)) => {
-            for (k, v) in p {
-                merge_json(b.entry(k.clone()).or_insert(serde_json::Value::Null), v);
-            }
-        }
-        (base, patch) => *base = patch.clone(),
-    }
-}
-
-/// Read an existing JSON file (or start with `{}`), merge `patch` in, write back.
-pub(crate) fn merge_json_file(path: &Path, patch: &serde_json::Value) -> Result<()> {
-    let mut existing: serde_json::Value = if path.exists() {
-        serde_json::from_str(&std::fs::read_to_string(path)?).map_err(|e| anyhow!("failed to parse existing JSON at {}: {}", path.display(), e))?
-    } else {
-        serde_json::json!({})
-    };
-    merge_json(&mut existing, patch);
-    std::fs::write(path, serde_json::to_string_pretty(&existing)?)?;
-    Ok(())
-}
-
-pub(crate) fn ensure_parent(path: &Path) -> Result<()> {
-    if let Some(p) = path.parent() {
-        std::fs::create_dir_all(p)?;
-    }
-    Ok(())
-}
+#[allow(unused_imports)]
+pub(crate) use compiler::{ensure_parent, merge_json, merge_json_file};
 
 // ── Session scratch space ────────────────────────────────────────────────────
 

@@ -260,12 +260,11 @@ pub fn find_artifact_id_in_events(
     None
 }
 
-/// Parse a lane-scoped consume reference like `"lane-claude.draft"` into
-/// `Some(("lane-claude", "draft"))`. Returns `None` for plain names with no `.`.
-pub fn parse_lane_scoped_ref(name: &str) -> Option<(&str, &str)> {
-    let dot = name.find('.')?;
-    Some((&name[..dot], &name[dot + 1..]))
-}
+/// Re-export of `ship_pipelines::validate::parse_lane_scoped_ref`. Kept
+/// here under the previous name so existing callers
+/// (`pipeline_specs.rs::parse_lane_scoped_ref`) keep compiling without
+/// change.
+pub use ship_pipelines::validate::parse_lane_scoped_ref;
 
 /// Find the fanout step that owns a given lane_id.
 pub fn find_fanout_step_for_lane<'a>(

@@ -5,10 +5,7 @@ use runtime::project::{get_active_project_global, get_project_dir, set_active_pr
 use runtime::project::{get_project_name, list_registered_projects};
 use runtime::{
     get_config, read_log, read_recent_events,
-    workspace::{
-        get_active_workspace_session as runtime_get_active_workspace_session,
-        list_workspaces as runtime_list_workspaces,
-    },
+    sessions::get_active_session as runtime_get_active_session,
 };
 use tokio::sync::Mutex;
 
@@ -45,9 +42,26 @@ pub async fn open_project(
 }
 
 /// Resolve the effective project directory (parent of `.ship/`).
+///
+/// `actor_id` is the bridge-resolved actor for this MCP connection
+/// (see `ShipServer::resolve_actor_id`). When set and the actor has a
+/// `project_id`, that's the source of truth — per-actor scope replaces
+/// the legacy `active_project` singleton. Falls back to the singleton
+/// + cwd + global + single-registered chain for connections without an
+/// associated actor (external IDE clients etc).
 pub async fn get_effective_project_dir(
+    actor_id: &str,
     active_project: &Arc<Mutex<Option<PathBuf>>>,
 ) -> Result<PathBuf, String> {
+    if !actor_id.is_empty()
+        && let Ok(Some(actor)) = runtime::projections::actor::get_actor(actor_id)
+        && let Some(project_id) = actor.project_id.as_deref()
+        && let Ok(Some(project)) = runtime::projects::get(project_id)
+        && let Ok(dir) = get_project_dir(Some(PathBuf::from(&project.path)))
+    {
+        return Ok(resolve_project_root(dir));
+    }
+
     {
         let active = active_project.lock().await;
         if let Some(ref path) = *active {
@@ -76,7 +90,7 @@ pub async fn get_effective_project_dir(
         .map(resolve_project_root)
         .map_err(|e| {
             format!(
-                "No active project and auto-detection failed: {}. Checked process cwd, global active project, and registered projects.",
+                "No active project and auto-detection failed: {}. Checked actor scope, process cwd, global active project, and registered projects.",
                 e
             )
         })
@@ -98,22 +112,19 @@ pub async fn get_project_info(project_dir: &Path) -> String {
     let mut out = format!("# Project: {}\n\n", name);
     out.push_str("## Current Context\n");
 
-    let workspaces = runtime_list_workspaces(project_dir).unwrap_or_default();
-    let active_workspace = workspaces.first();
+    // Resolve current branch via git; show its session (if any).
+    let current_branch = std::process::Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .current_dir(project_dir)
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|s| !s.is_empty());
 
-    if let Some(ws) = active_workspace {
-        let status = runtime::workspace_status(ws);
-        out.push_str(&format!(
-            "- Workspace: {} [{:?}]",
-            ws.name, status
-        ));
-        if let Some(ref mode) = ws.active_agent {
-            out.push_str(&format!(" mode={}", mode));
-        }
-
-        out.push('\n');
-
-        match runtime_get_active_workspace_session(project_dir, &ws.name) {
+    if let Some(branch) = current_branch {
+        out.push_str(&format!("- Branch: {}\n", branch));
+        match runtime_get_active_session(project_dir, &branch) {
             Ok(Some(session)) => {
                 out.push_str(&format!("- Session: ACTIVE (id: {})", session.id));
                 if let Some(ref goal) = session.goal {
@@ -128,7 +139,7 @@ pub async fn get_project_info(project_dir: &Path) -> String {
             Err(_) => {}
         }
     } else {
-        out.push_str("- Workspace: none (call start_session to begin)\n");
+        out.push_str("- Session: none (call start_session to begin)\n");
     }
 
     if let Some(active_id) = config.active_agent.as_deref() {

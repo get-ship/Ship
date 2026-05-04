@@ -91,7 +91,13 @@ Run `ship validate` before compile to catch config errors early.
 const TOPIC_CONFIG: &str = "\
 Configuration
 
-User preferences live in ~/.ship/config.toml. Read and write them with:
+User preferences live in two JSONC files per the home-layout ADR:
+
+  ~/.ship/library/settings.jsonc   Portable: identity, defaults, cloud.
+  ~/.ship/machine/local.jsonc      Machine-local: worktrees.dir,
+                                   terminal.program, dispatch.confirm.
+
+Read and write them with:
 
   ship config get <key>       Read a value
   ship config set <key> <val> Write a value
@@ -102,7 +108,7 @@ Available keys:
 
   terminal.program    Terminal for dispatch: wt, iterm, tmux, gnome, vscode, manual
   dispatch.confirm    Show spec and ask y/n before launching agent (true/false)
-  worktrees.dir       Base directory for worktrees (default: ~/dev/ship-worktrees)
+  worktrees.dir       Base directory for worktrees (default: ~/dev/<project>-worktrees)
   defaults.provider   Default compilation provider (claude, gemini, codex, cursor)
   defaults.mode       Default agent permission mode
   identity.name       Your display name

@@ -2,14 +2,26 @@
 //! itself stays under the 300-line cap.
 //!
 //! These drive `scopes_from` + `*_with_scopes` variants directly so
-//! parallel tests don't race on the process-global `SHIP_DIR` env var.
+//! parallel tests don't race on the process-global `SHIP_DEV_PROJECT_DIR` env var.
 
 use super::*;
 use std::path::Path;
 use tempfile::tempdir;
 
+/// User-scope agents live at `<ship>/library/agents/` per the home-layout
+/// ADR. `scopes_from` resolves the global dir through `ShipHome::vector_dir`
+/// which knows the layout; tests must write to the same location.
 fn write_agent(ship_dir: &Path, id: &str, body: &str) {
-    let d = ship_dir.join("agents");
+    let d = ship_dir.join("library").join("agents");
+    std::fs::create_dir_all(&d).unwrap();
+    std::fs::write(d.join(format!("{id}.jsonc")), body).unwrap();
+}
+
+/// Project-scope agents (when caller passes a `project_ship_dir`) live at
+/// `<project>/.ship/agents/` (no `library/` prefix at project scope, see
+/// `scopes_from`). Tests that exercise the project scope use this helper.
+fn write_project_agent(project_ship_dir: &Path, id: &str, body: &str) {
+    let d = project_ship_dir.join("agents");
     std::fs::create_dir_all(&d).unwrap();
     std::fs::write(d.join(format!("{id}.jsonc")), body).unwrap();
 }
@@ -155,12 +167,12 @@ fn merges_project_and_global_scopes() {
     let project_ship = runtime::ShipHome::project_ship_dir(project_root);
     std::fs::create_dir_all(&project_ship).unwrap();
     std::fs::write(project_ship.join("ship.jsonc"), r#"{"id": "pr1"}"#).unwrap();
-    write_agent(
+    write_project_agent(
         &project_ship,
         "p-only",
         r#"{ "name": "Projector", "providers": ["codex"] }"#,
     );
-    write_agent(
+    write_project_agent(
         &project_ship,
         "shared",
         r#"{ "name": "SharedProject", "description": "project copy" }"#,

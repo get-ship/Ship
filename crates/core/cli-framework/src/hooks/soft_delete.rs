@@ -3,7 +3,7 @@
 //! This runs in the `before-tool` hook. Failures are logged but never block
 //! the tool from executing — the hook must not break the agent workflow.
 
-use runtime::workspace::trash;
+use runtime::trash;
 use std::path::Path;
 
 /// Inspect a tool call and trash any files about to be destroyed.

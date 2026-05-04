@@ -4,8 +4,6 @@
 //! stored in `.ship/data.db`, and can be queried by any surface.
 
 pub mod builtin;
-pub mod migration;
-mod migration_tables;
 pub mod query;
 pub mod schema;
 pub mod service;

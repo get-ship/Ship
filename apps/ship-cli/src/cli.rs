@@ -143,7 +143,7 @@ pub enum Commands {
     },
 
     // ── Publishing ───────────────────────────────────────────────────────────
-    /// Install all dependencies declared in .ship/ship.toml
+    /// Install all dependencies declared in .ship/ship.jsonc
     Install {
         /// Fail if the lockfile would change rather than updating it
         #[arg(long)]
@@ -287,6 +287,9 @@ pub enum Commands {
         action: DaemonCommands,
     },
 
+    /// Diagnose ship setup — build identity, daemon status, home layout
+    Doctor,
+
     /// Uninstall Ship from this machine (stops daemon, removes ~/.ship, scrubs PATH)
     Uninstall {
         /// Skip the confirmation prompt
@@ -371,6 +374,11 @@ pub enum DaemonCommands {
     },
     /// Show daemon status
     Status,
+    /// Print the daemon IPC directory for the current cwd. Per devx-04,
+    /// resolves to `<SHIP_HOME>/machine/daemons/<hash>/` when inside a
+    /// project root and `<SHIP_HOME>/machine/daemon/` otherwise. Used by
+    /// just recipes and scripts/dev/* to avoid hashing paths in shell.
+    Dir,
     /// Remove orphaned worktrees for merged and failed jobs
     Cleanup,
     /// Reconcile recorded migration checksums to the current files.

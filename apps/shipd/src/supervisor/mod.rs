@@ -18,12 +18,8 @@ pub(crate) mod orphan_cleanup;
 pub(crate) mod platform;
 pub(crate) mod registry;
 pub mod terminal_launcher;
-pub mod workspace_api;
-mod workspace_sync;
 
 pub(crate) use registry::graceful_shutdown;
-pub use workspace_api::{StartWorkspaceRequest, StartWorkspaceResponse, start_workspace};
-pub use workspace_sync::subscribe_workspace_events;
 
 #[cfg(test)]
 mod tests_service_architecture;

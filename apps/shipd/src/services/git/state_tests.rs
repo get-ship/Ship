@@ -269,27 +269,3 @@ fn checkout_unknown_ref_errors() {
     assert!(matches!(err, super::state::GitError::BadRef(_)));
 }
 
-// ── drafts (DB-backed) ───────────────────────────────────────────────────
-
-#[test]
-fn draft_crud_via_platform_db() {
-    let tmp = tempdir().unwrap();
-    runtime::project::init_project(tmp.path().to_path_buf()).unwrap();
-    runtime::db::ensure_db().unwrap();
-
-    assert!(runtime::db::git_drafts::get_draft("b").unwrap().is_none());
-
-    let d = runtime::db::git_drafts::CommitDraft {
-        branch: "b".into(),
-        subject: "feat: x".into(),
-        body: "...".into(),
-        by_agent: Some("rust-lane".into()),
-        by_pipeline: None,
-        drafted_at: chrono::Utc::now(),
-    };
-    runtime::db::git_drafts::upsert_draft(&d).unwrap();
-    let got = runtime::db::git_drafts::get_draft("b").unwrap().unwrap();
-    assert_eq!(got.subject, "feat: x");
-    runtime::db::git_drafts::delete_draft("b").unwrap();
-    assert!(runtime::db::git_drafts::get_draft("b").unwrap().is_none());
-}

@@ -6,5 +6,5 @@ pub mod snapshot;
 pub mod cursor;
 
 pub use actor_store::ActorStore;
-pub use event_store::{EventStore, SqliteEventStore, append_event_with_conn};
+pub use event_store::{EventStore, SqliteEventStore};
 pub use snapshot::ActorSnapshot;

@@ -45,7 +45,7 @@ fn committed_hooks_validate_against_trigger_schema() {
     let schema = load_json(&schema_path);
     let validator = validator_for(&schema).expect("trigger schema must compile");
 
-    let hooks_dir = crate::ShipHome::project_ship_dir(root).join("hooks");
+    let hooks_dir = crate::ShipHome::project_ship_dir(root).join("triggers");
     let entries = std::fs::read_dir(&hooks_dir)
         .unwrap_or_else(|e| panic!("cannot read {}: {e}", hooks_dir.display()));
 

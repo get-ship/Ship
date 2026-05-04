@@ -93,17 +93,16 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
 
 /// Read daemon connection info. Returns `(port, token)` if available.
 ///
-/// Hooks authenticate with the local `~/.ship/daemon.token` — the same trust
-/// boundary as every other CLI call. No separate hook-token class.
+/// Hooks authenticate with the same daemon token every CLI call uses.
+/// Discovery walks ProjectRoot::discover(cwd) → per-worktree daemon →
+/// singleton fallback (devx-04).
 ///
 /// For hooks, we don't auto-start — hooks must be fast and non-blocking.
 /// Use `crate::daemon::ensure_daemon()` for commands that can afford the wait.
 fn daemon_info() -> Option<(u16, String)> {
-    let home = runtime::ShipHome::project_ship_dir(dirs::home_dir()?);
-    let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;
-    let port = port_str.trim().parse::<u16>().ok()?;
-    let token = std::fs::read_to_string(home.join("daemon.token")).ok()?;
-    Some((port, token.trim().to_string()))
+    let cwd = std::env::current_dir().ok()?;
+    let handle = runtime::home::discover_running_daemon(&cwd)?;
+    Some((handle.port, handle.token))
 }
 
 /// POST a normalized hook event to the daemon. Returns the response body.
@@ -111,7 +110,7 @@ fn post_to_daemon(endpoint: &str, body: &serde_json::Value) -> Result<serde_json
     let (port, token) = daemon_info()
         .ok_or_else(|| anyhow!("daemon not running (no port/token file)"))?;
     let url = format!("http://127.0.0.1:{port}/api/v1/hooks/{endpoint}");
-    let client = reqwest::blocking::Client::new();
+    let client = crate::http::daemon_client();
     let resp = client
         .post(&url)
         .bearer_auth(&token)
@@ -119,6 +118,7 @@ fn post_to_daemon(endpoint: &str, body: &serde_json::Value) -> Result<serde_json
         .timeout(std::time::Duration::from_secs(5))
         .send()
         .map_err(|e| anyhow!("daemon request failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
     let status = resp.status();
     let body = resp.text().unwrap_or_default();
     if !status.is_success() {
@@ -215,22 +215,24 @@ pub fn run_session_end() -> Result<()> {
 /// Signal job completion to the daemon via REST API.
 /// Non-fatal — best-effort fallback for pipeline advancement.
 fn signal_job_completed(slug: &str) {
-    let home = runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap_or_default());
-    let port = match std::fs::read_to_string(home.join("daemon.port")) {
-        Ok(p) => p.trim().to_string(),
+    let cwd = match std::env::current_dir() {
+        Ok(c) => c,
         Err(_) => return,
     };
-    let token = match std::fs::read_to_string(home.join("daemon.token")) {
-        Ok(t) => t.trim().to_string(),
-        Err(_) => return,
+    let handle = match runtime::home::discover_running_daemon(&cwd) {
+        Some(h) => h,
+        None => return,
     };
-    let client = reqwest::blocking::Client::new();
-    let _ = client
-        .post(format!("http://127.0.0.1:{port}/api/v1/jobs/end"))
-        .bearer_auth(&token)
+    let client = crate::http::daemon_client();
+    if let Ok(resp) = client
+        .post(format!("http://127.0.0.1:{}/api/v1/jobs/end", handle.port))
+        .bearer_auth(&handle.token)
         .json(&serde_json::json!({"slug": slug}))
         .timeout(std::time::Duration::from_secs(5))
-        .send();
+        .send()
+    {
+        crate::http::check_skew(resp.headers());
+    }
 }
 
 #[cfg(test)]

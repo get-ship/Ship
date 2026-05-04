@@ -50,9 +50,7 @@ pub fn check_integrity(db_path: &std::path::Path) -> Result<IntegrityStatus> {
 
     // Check if corruption is limited to projection tables (recoverable).
     let projection_tables = [
-        "workspace",
-        "workspace_session",
-        "workspace_session_record",
+        "sessions",
         "actors",
     ];
     let all_projection_only = details.iter().all(|d| {
@@ -87,7 +85,7 @@ pub fn quick_check(db_path: &std::path::Path) -> Result<bool> {
 /// Run integrity check on platform.db at the given ship_dir.
 /// Convenience wrapper around `check_integrity`.
 pub fn check_platform_integrity(ship_dir: &std::path::Path) -> Result<IntegrityStatus> {
-    let db_path = ship_dir.join("platform.db");
+    let db_path = crate::db::platform_db_path(ship_dir);
     if !db_path.exists() {
         return Err(anyhow!(
             "platform.db not found at {}",

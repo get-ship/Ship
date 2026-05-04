@@ -15,20 +15,16 @@ pub fn global_dir() -> PathBuf {
 pub fn global_skills_dir() -> PathBuf {
     home().vector_dir(runtime::Scope::User, Vector::Skills, None)
 }
-pub fn global_mcp_dir() -> PathBuf {
-    home().vector_dir(runtime::Scope::User, Vector::Mcp, None)
+/// User-scope MCP config file: `~/.ship/library/mcp.jsonc`.
+pub fn global_mcp_file() -> PathBuf {
+    home().library_dir().join("mcp.jsonc")
 }
 pub fn global_cache_dir() -> PathBuf {
     home().machine_dir().join("cache")
 }
 
 pub fn ensure_global_dirs() -> anyhow::Result<()> {
-    for dir in [
-        global_dir(),
-        global_skills_dir(),
-        global_mcp_dir(),
-        global_cache_dir(),
-    ] {
+    for dir in [global_dir(), global_skills_dir(), global_cache_dir()] {
         fs::create_dir_all(dir)?;
     }
     Ok(())
@@ -48,16 +44,13 @@ pub fn rules_dir() -> PathBuf {
 pub fn skills_dir() -> PathBuf {
     ShipHome::from_env().vector_dir(runtime::Scope::Project, Vector::Skills, None)
 }
+/// Project-scope MCP config file: `<project>/.ship/mcp.jsonc`.
+///
+/// MCP is intentionally a file at every scope (per ADR cleanup; see
+/// `crates/core/runtime/src/home/vector.rs`). The directory-symmetry
+/// the original migrator wanted was overengineering.
 pub fn mcp_path() -> PathBuf {
-    // Project-scope MCP is still a single file (not yet promoted to a
-    // directory like the user library). Resolved through the typed
-    // accessor so the literal lives in one place.
-    ShipHome::from_env()
-        .vector_dir(runtime::Scope::Project, Vector::Mcp, None)
-        .with_extension("jsonc")
-}
-pub fn project_ship_toml() -> PathBuf {
-    project_dir().join("ship.toml")
+    project_dir().join("mcp.jsonc")
 }
 pub fn project_ship_jsonc() -> PathBuf {
     project_dir().join("ship.jsonc")
@@ -107,7 +100,8 @@ mod tests {
     fn global_paths_under_home_ship() {
         let g = global_dir();
         assert!(g.to_string_lossy().ends_with(".ship"));
-        assert_eq!(global_skills_dir(), g.join("skills"));
+        // Per home-layout ADR, user-scope vectors live under `library/`.
+        assert_eq!(global_skills_dir(), g.join("library").join("skills"));
     }
 
     #[test]

@@ -16,15 +16,18 @@
 //! curated Bash shapes + wildcards for every MCP server returned by
 //! `McpService::list()` (scope-agnostic).
 
+pub mod service;
 pub mod state;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
+use crate::access::RuntimeAccess;
 use crate::rest_api::ApiState;
-use super::files::{FilesService, Scope};
+use super::files::Scope;
+use service::{CreateArgs, PutArgs};
 
 #[derive(Debug, Deserialize)]
 pub struct ScopeQuery {
@@ -77,14 +80,9 @@ fn map_err(e: state::Error) -> Resp {
     }
 }
 
-fn files(state: &ApiState) -> FilesService {
-    FilesService::resolve_roots(state.ship_dir())
-}
-
 /// GET /api/v1/permissions
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let svc = files(&state);
-    let items = state::list(&svc);
+    let items = state.services().permissions().list();
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
@@ -95,13 +93,12 @@ pub async fn get(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let (resolved, entry) = state::load_entry(&svc, &id, scope).map_err(map_err)?;
+    let entry = state.services().permissions().get(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
-        "id": id,
-        "scope": state::ScopeTag::from(resolved),
-        "preset": entry,
+        "id": entry.id,
+        "scope": entry.scope,
+        "preset": entry.preset,
     })))
 }
 
@@ -113,15 +110,13 @@ pub async fn put(
     Json(body): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let explicit_scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let target_scope = match explicit_scope {
-        Some(s) => s,
-        None => state::find(&svc, &id).unwrap_or(Scope::Project),
-    };
-    state::write_entry(&svc, &id, target_scope, &body, true).map_err(map_err)?;
+    let target = state
+        .permissions()
+        .put(PutArgs { id: id.clone(), preset: body, scope: explicit_scope })
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(target_scope),
+        "scope": state::ScopeTag::from(target),
     })))
 }
 
@@ -135,8 +130,7 @@ pub async fn patch(
     let scope = parse_scope(&q)?;
     let patch: json_patch::Patch = serde_json::from_value(patch_body)
         .map_err(|e| err(StatusCode::BAD_REQUEST, "bad_patch", format!("bad patch shape: {e}")))?;
-    let svc = files(&state);
-    let resolved = state::patch_entry(&svc, &id, scope, &patch).map_err(map_err)?;
+    let resolved = state.services().permissions().patch(&id, scope, &patch).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -150,8 +144,7 @@ pub async fn delete(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let resolved = state::delete_entry(&svc, &id, scope).map_err(map_err)?;
+    let resolved = state.services().permissions().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -172,74 +165,26 @@ pub async fn create(
     Json(body): Json<CreateBody>,
 ) -> Result<Resp, Resp> {
     let target = match body.scope.as_deref() {
-        None | Some("") => Scope::Project,
-        Some(s) => parse_scope_required(s)?,
+        None | Some("") => None,
+        Some(s) => Some(parse_scope_required(s)?),
     };
-    let svc = files(&state);
-    state::write_entry(&svc, &body.id, target, &body.preset, false).map_err(map_err)?;
+    let scope = state
+        .permissions()
+        .create(CreateArgs { id: body.id.clone(), preset: body.preset, scope: target })
+        .map_err(map_err)?;
     Ok(created(serde_json::json!({
         "ok": true,
         "id": body.id,
-        "scope": state::ScopeTag::from(target),
+        "scope": state::ScopeTag::from(scope),
     })))
 }
-
-// ── tool-patterns — composed catalog ────────────────────────────────
-
-#[derive(Serialize)]
-pub struct ToolPattern {
-    pub pattern: String,
-    pub label: String,
-    /// "provider" | "bash" | "mcp-<server>"
-    pub source: String,
-}
-
-const PROVIDER_BUILTINS: &[&str] = &[
-    "Read", "Write", "Edit", "Glob", "Grep", "Bash",
-    "NotebookEdit", "WebFetch", "WebSearch", "Task",
-];
-
-const BASH_SHAPES: &[(&str, &str)] = &[
-    ("Bash(git *)", "Bash git — all git subcommands"),
-    ("Bash(git reset*)", "Bash git — reset (destructive)"),
-    ("Bash(git push --force*)", "Bash git — force push (destructive)"),
-    ("Bash(npm *)", "Bash npm — all npm subcommands"),
-    ("Bash(pnpm *)", "Bash pnpm"),
-    ("Bash(cargo *)", "Bash cargo"),
-    ("Bash(ship *)", "Bash ship — Ship CLI"),
-    ("Bash(just *)", "Bash just"),
-    ("Bash(rm -rf *)", "Bash rm — recursive delete (destructive)"),
-];
 
 /// GET /api/v1/permissions/tool-patterns
 ///
 /// Provider builtins + curated Bash shapes + wildcard entries for every
-/// MCP server known to the daemon. Service-to-service: calls
-/// `McpService::list` state function directly.
+/// MCP server known to the daemon. The cross-domain composition lives
+/// inside `PermissionsService::tool_patterns` — handler is just JSON.
 pub async fn tool_patterns(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let svc = files(&state);
-    let mut out: Vec<ToolPattern> = Vec::new();
-    for t in PROVIDER_BUILTINS {
-        out.push(ToolPattern {
-            pattern: (*t).into(),
-            label: (*t).into(),
-            source: "provider".into(),
-        });
-    }
-    for (p, l) in BASH_SHAPES {
-        out.push(ToolPattern {
-            pattern: (*p).into(),
-            label: (*l).into(),
-            source: "bash".into(),
-        });
-    }
-    for entry in super::mcp::state::list(&svc) {
-        let pattern = format!("mcp__{}__*", entry.id);
-        out.push(ToolPattern {
-            pattern,
-            label: format!("mcp · {} · all tools", entry.id),
-            source: format!("mcp-{}", entry.id),
-        });
-    }
-    Json(serde_json::json!({ "ok": true, "items": out }))
+    let items = state.services().permissions().tool_patterns();
+    Json(serde_json::json!({ "ok": true, "items": items }))
 }

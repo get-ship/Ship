@@ -28,7 +28,7 @@ mod session_tests {
             &serde_json::json!({
                 "goal": "test goal",
                 "workspace_id": ws_id,
-                "workspace_branch": "feature/proj-test",
+                "branch": "feature/proj-test",
                 "agent_id": "test-agent",
                 "primary_provider": "claude",
                 "config_generation_at_start": 1
@@ -74,7 +74,7 @@ mod session_tests {
 
     fn query_session_status(conn: &mut sqlx::SqliteConnection, id: &str) -> Option<String> {
         let rows: Vec<(String,)> = block_on(async {
-            sqlx::query_as("SELECT status FROM workspace_session WHERE id = ?")
+            sqlx::query_as("SELECT status FROM sessions WHERE id = ?")
                 .bind(id)
                 .fetch_all(&mut *conn)
                 .await
@@ -85,7 +85,7 @@ mod session_tests {
 
     fn query_session_summary(conn: &mut sqlx::SqliteConnection, id: &str) -> Option<String> {
         let rows: Vec<(Option<String>,)> = block_on(async {
-            sqlx::query_as("SELECT summary FROM workspace_session WHERE id = ?")
+            sqlx::query_as("SELECT summary FROM sessions WHERE id = ?")
                 .bind(id)
                 .fetch_all(&mut *conn)
                 .await
@@ -96,7 +96,7 @@ mod session_tests {
 
     fn query_session_goal(conn: &mut sqlx::SqliteConnection, id: &str) -> Option<String> {
         let rows: Vec<(Option<String>,)> = block_on(async {
-            sqlx::query_as("SELECT goal FROM workspace_session WHERE id = ?")
+            sqlx::query_as("SELECT goal FROM sessions WHERE id = ?")
                 .bind(id)
                 .fetch_all(&mut *conn)
                 .await
@@ -120,6 +120,67 @@ mod session_tests {
 
         let goal = query_session_goal(&mut conn, "sess-proj-1");
         assert_eq!(goal.as_deref(), Some("test goal"));
+    }
+
+    #[test]
+    fn started_payload_persists_project_id_and_kind_dimensions() {
+        let mut conn = setup();
+        let bus = bus();
+        let event = EventEnvelope::new(
+            event_types::SESSION_STARTED,
+            "sess-dim-1",
+            &serde_json::json!({
+                "goal": "pipeline step",
+                "workspace_id": "ws-dim",
+                "branch": "feat/dim",
+                "project_id": "proj-aaa",
+                "kind": "pipeline_step",
+                "pipeline_run_id": "run-1",
+                "agent_id": "rust-runtime",
+                "primary_provider": "codex"
+            }),
+        )
+        .unwrap()
+        .with_context(Some("ws-dim"), Some("sess-dim-1"))
+        .with_actor_id("sess-dim-1")
+        .elevate();
+
+        bus.dispatch(&event, &mut conn);
+
+        let row: Option<(Option<String>, String, Option<String>, Option<String>)> =
+            block_on(async {
+                sqlx::query_as(
+                    "SELECT project_id, kind, pipeline_run_id, chat_thread_id \
+                     FROM sessions WHERE id = ?",
+                )
+                .bind("sess-dim-1")
+                .fetch_optional(&mut conn)
+                .await
+            })
+            .unwrap();
+        let (project_id, kind, pipeline_run_id, chat_thread_id) =
+            row.expect("session row missing");
+        assert_eq!(project_id.as_deref(), Some("proj-aaa"));
+        assert_eq!(kind, "pipeline_step");
+        assert_eq!(pipeline_run_id.as_deref(), Some("run-1"));
+        assert!(chat_thread_id.is_none());
+    }
+
+    #[test]
+    fn started_payload_defaults_kind_to_direct_attach() {
+        let mut conn = setup();
+        let bus = bus();
+        let event = session_started_event("sess-default-kind", "ws-dim2");
+        bus.dispatch(&event, &mut conn);
+
+        let kind: Option<String> = block_on(async {
+            sqlx::query_scalar("SELECT kind FROM sessions WHERE id = ?")
+                .bind("sess-default-kind")
+                .fetch_optional(&mut conn)
+                .await
+        })
+        .unwrap();
+        assert_eq!(kind.as_deref(), Some("direct_attach"));
     }
 
     #[test]
@@ -214,7 +275,7 @@ mod session_tests {
         id: &str,
     ) -> Option<(String, Option<String>)> {
         let rows: Vec<(String, Option<String>)> = block_on(async {
-            sqlx::query_as("SELECT status, drained_at FROM workspace_session WHERE id = ?")
+            sqlx::query_as("SELECT status, drained_at FROM sessions WHERE id = ?")
                 .bind(id)
                 .fetch_all(&mut *conn)
                 .await
@@ -226,7 +287,7 @@ mod session_tests {
     fn query_tool_count(conn: &mut sqlx::SqliteConnection, id: &str) -> i64 {
         block_on(async {
             sqlx::query_scalar::<_, i64>(
-                "SELECT tool_call_count FROM workspace_session WHERE id = ?",
+                "SELECT tool_call_count FROM sessions WHERE id = ?",
             )
             .bind(id)
             .fetch_optional(&mut *conn)

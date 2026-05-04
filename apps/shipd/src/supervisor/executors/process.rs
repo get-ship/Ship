@@ -377,7 +377,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let base = runtime::ShipHome::project_ship_dir(dir.path());
         let router = KernelRouter::new(base.clone()).unwrap();
-        let db = base.join("platform.db");
+        let db = runtime::db::platform_db_path(&base);
         (dir, Arc::new(TokioMutex::new(router)), db)
     }
 

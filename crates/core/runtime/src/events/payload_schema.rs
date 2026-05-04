@@ -47,25 +47,12 @@ fn schema_for_event_type(
     match event_type {
         // workspace
         "workspace.created" => Some(check::<WorkspaceCreated>),
-        "workspace.deleted" => Some(check::<WorkspaceDeleted>),
-        "workspace.status_changed" => Some(check::<WorkspaceStatusChanged>),
         "workspace.activated" => Some(check::<WorkspaceActivated>),
-        "workspace.compiled" => Some(check::<WorkspaceCompiled>),
-        "workspace.compile_failed" => Some(check::<WorkspaceCompileFailed>),
         "workspace.archived" => Some(check::<WorkspaceArchived>),
-        "workspace.agent_changed" => Some(check::<WorkspaceAgentChanged>),
-        "workspace.reconciled" => Some(check::<WorkspaceReconciled>),
-        "workspace.tmux_assigned" => Some(check::<WorkspaceTmuxAssigned>),
-        "workspace.started" => Some(check::<WorkspaceStarted>),
-        "workspace.worktree_added" => Some(check::<WorkspaceWorktreeAdded>),
-        "workspace.worktree_removed" => Some(check::<WorkspaceWorktreeRemoved>),
-        "workspace.branch_switched" => Some(check::<WorkspaceBranchSwitched>),
-        "workspace.config_changed" => Some(check::<WorkspaceConfigChanged>),
         // session
         "session.started" => Some(check::<SessionStarted>),
         "session.progress" => Some(check::<SessionProgress>),
         "session.ended" => Some(check::<SessionEnded>),
-        "session.recorded" => Some(check::<SessionRecorded>),
         "session.drain_started" => Some(check::<SessionDrainStarted>),
         "session.drain_completed" => Some(check::<SessionDrainCompleted>),
         "session.drain_aborted" => Some(check::<SessionDrainAborted>),
@@ -82,7 +69,6 @@ fn schema_for_event_type(
         "gate.failed" => Some(check::<GateFailed>),
         // job
         "job.created" => Some(check::<JobCreated>),
-        "job.claimed" => Some(check::<JobClaimed>),
         "job.completed" => Some(check::<JobCompleted>),
         "job.failed" => Some(check::<JobFailed>),
         "job.dispatched" => Some(check::<JobDispatched>),
@@ -105,9 +91,7 @@ fn schema_for_event_type(
         "process.signal_sent" => Some(check::<crate::events::process::ProcessSignalSentPayload>),
         "process.orphaned" => Some(check::<crate::events::process::ProcessOrphanedPayload>),
         // executor
-        "executor.session_created" => Some(check::<crate::events::executor::ExecutorSessionCreatedPayload>),
         "executor.session_destroyed" => Some(check::<crate::events::executor::ExecutorSessionDestroyedPayload>),
-        "executor.window_created" => Some(check::<crate::events::executor::ExecutorWindowCreatedPayload>),
         "executor.window_destroyed" => Some(check::<crate::events::executor::ExecutorWindowDestroyedPayload>),
         // supervisor
         "supervisor.shutting_down" => Some(check::<SupervisorShuttingDown>),
@@ -153,9 +137,9 @@ mod tests {
     fn valid_payload_passes() {
         let v = PayloadSchemaValidator;
         let event = EventEnvelope::new(
-            "workspace.compiled",
+            "workspace.created",
             "ws-1",
-            &serde_json::json!({ "config_generation": 1, "duration_ms": 42 }),
+            &serde_json::json!({ "workspace_id": "ws-1" }),
         )
         .unwrap();
         let ctx = caller_ctx(CallerKind::Runtime);
@@ -166,7 +150,7 @@ mod tests {
     fn malformed_payload_rejected() {
         let v = PayloadSchemaValidator;
         let event = EventEnvelope::new(
-            "workspace.compiled",
+            "workspace.created",
             "ws-1",
             &serde_json::json!({ "garbage": true }),
         )
@@ -195,8 +179,15 @@ mod tests {
         // job.update has no dedicated payload struct — it's a generic update.
         // process.killed is declared but not yet emitted; deferred to a
         // follow-on slice where we wire the plumbing through the executor
-        // signal-send sites.
-        let exceptions = &["job.update", "session.attached", "process.killed"];
+        // signal-send sites. studio.chat_turn carries an ad-hoc {actor_id,
+        // text} payload; not yet a typed struct.
+        let exceptions = &[
+            "job.update",
+            "session.attached",
+            "process.killed",
+            "studio.chat_turn",
+            "studio.reply",
+        ];
         for &et in ALL {
             if exceptions.contains(&et) {
                 continue;

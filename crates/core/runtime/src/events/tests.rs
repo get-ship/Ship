@@ -76,7 +76,7 @@ fn test_filter_by_event_type() -> anyhow::Result<()> {
     let entity = "filter-type-entity";
     store.append(&EventEnvelope::new(event_types::WORKSPACE_ACTIVATED, entity, &WorkspaceActivated { agent_id: None, providers: vec![] })?)?;
     store.append(&EventEnvelope::new(event_types::SESSION_STARTED, entity, &SessionStarted { goal: None, ..Default::default() })?)?;
-    store.append(&EventEnvelope::new(event_types::WORKSPACE_COMPILED, entity, &WorkspaceCompiled { config_generation: 1, duration_ms: 50 })?)?;
+    store.append(&EventEnvelope::new(event_types::WORKSPACE_ARCHIVED, entity, &WorkspaceArchived {})?)?;
 
     let ws = store.query(&EventFilter { entity_id: Some(entity.into()), event_type: Some(event_types::WORKSPACE_ACTIVATED.into()), ..Default::default() })?;
     assert_eq!(ws.len(), 1);
@@ -148,8 +148,6 @@ fn test_payload_round_trip() -> anyhow::Result<()> {
     }
 
     rt!(event_types::WORKSPACE_ACTIVATED,   WorkspaceActivated { agent_id: Some("a1".into()), providers: vec!["claude".into()] });
-    rt!(event_types::WORKSPACE_COMPILED,    WorkspaceCompiled { config_generation: 3, duration_ms: 200 });
-    rt!(event_types::WORKSPACE_COMPILE_FAILED, WorkspaceCompileFailed { error: "bad syntax".into() });
     rt!(event_types::WORKSPACE_ARCHIVED,    WorkspaceArchived {});
     rt!(event_types::SESSION_STARTED,       SessionStarted { goal: Some("deploy".into()), ..Default::default() });
     rt!(event_types::SESSION_PROGRESS,      SessionProgress { message: "halfway".into(), escalation: None });

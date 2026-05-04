@@ -1,7 +1,15 @@
 use super::*;
 use runtime::project::init_project;
-use runtime::{AgentProfile, add_agent};
+use runtime::{AgentProfile, get_config, save_config};
 use tempfile::tempdir;
+
+fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
+    let mut config = get_config(Some(project_dir.to_path_buf())).expect("get config");
+    let id = agent.id.clone();
+    config.modes.push(agent);
+    config.active_agent = Some(id);
+    save_config(&config, Some(project_dir.to_path_buf())).expect("save config");
+}
 
 // ── role-based gating integration ──────────────────────────────────
 
@@ -10,8 +18,8 @@ fn worker_role_allows_worker_tools() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "worker-gate".to_string(),
             name: "Worker Gate".to_string(),
@@ -19,10 +27,7 @@ fn worker_role_allows_worker_tools() {
             active_tools: vec![],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("worker-gate"))
-        .expect("set active agent");
+    );
 
     ShipServer::enforce_mode_tool_gate(&project_dir, "log_progress")
         .expect("log_progress allowed for worker");
@@ -41,8 +46,8 @@ fn worker_role_blocks_lead_tools() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "worker-block".to_string(),
             name: "Worker Block".to_string(),
@@ -50,10 +55,7 @@ fn worker_role_blocks_lead_tools() {
             active_tools: vec![],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("worker-block"))
-        .expect("set active agent");
+    );
 
     let err = ShipServer::enforce_mode_tool_gate(&project_dir, "create_job")
         .expect_err("create_job should be blocked for worker");
@@ -68,8 +70,8 @@ fn lead_role_allows_create_job() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "lead-gate".to_string(),
             name: "Lead Gate".to_string(),
@@ -77,10 +79,7 @@ fn lead_role_allows_create_job() {
             active_tools: vec![],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("lead-gate"))
-        .expect("set active agent");
+    );
 
     ShipServer::enforce_mode_tool_gate(&project_dir, "create_job")
         .expect("create_job allowed for lead");
@@ -93,8 +92,8 @@ fn commander_role_allows_mesh_discovery() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "cmdr-gate".to_string(),
             name: "Commander Gate".to_string(),
@@ -102,10 +101,7 @@ fn commander_role_allows_mesh_discovery() {
             active_tools: vec![],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("cmdr-gate"))
-        .expect("set active agent");
+    );
 
     ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_discover")
         .expect("mesh_discover allowed for commander");
@@ -120,18 +116,15 @@ fn no_role_defaults_to_worker() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "no-role".to_string(),
             name: "No Role".to_string(),
             active_tools: vec![],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("no-role"))
-        .expect("set active agent");
+    );
 
     ShipServer::enforce_mode_tool_gate(&project_dir, "log_progress")
         .expect("log_progress allowed (defaults to worker)");
@@ -147,8 +140,8 @@ fn explicit_active_tools_overrides_role_defaults() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "override-test".to_string(),
             name: "Override".to_string(),
@@ -156,10 +149,7 @@ fn explicit_active_tools_overrides_role_defaults() {
             active_tools: vec!["create_job".to_string()],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("override-test"))
-        .expect("set active agent");
+    );
 
     ShipServer::enforce_mode_tool_gate(&project_dir, "create_job")
         .expect("create_job in explicit active_tools");
@@ -176,16 +166,16 @@ fn explicit_active_tools_overrides_role_defaults() {
 
 #[test]
 fn mesh_send_blocked_for_all_roles_without_explicit_active_tools() {
-    let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
-
     for (role, id) in &[
         ("worker", "mesh-w"),
         ("lead", "mesh-l"),
         ("commander", "mesh-c"),
     ] {
-        add_agent(
-            Some(project_dir.clone()),
+        let tmp = tempdir().expect("tempdir");
+        let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+
+        install_active_agent(
+            &project_dir,
             AgentProfile {
                 id: id.to_string(),
                 name: format!("Mesh {role}"),
@@ -193,10 +183,7 @@ fn mesh_send_blocked_for_all_roles_without_explicit_active_tools() {
                 active_tools: vec![],
                 ..Default::default()
             },
-        )
-        .expect("add agent");
-        runtime::set_active_agent(Some(project_dir.clone()), Some(id))
-            .expect("set active agent");
+        );
 
         ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_send")
             .expect_err(&format!("mesh_send should be blocked for {role}"));
@@ -210,8 +197,8 @@ fn mesh_send_allowed_with_explicit_active_tools() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "mesh-explicit".to_string(),
             name: "Mesh Explicit".to_string(),
@@ -222,10 +209,7 @@ fn mesh_send_allowed_with_explicit_active_tools() {
             ],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("mesh-explicit"))
-        .expect("set active agent");
+    );
 
     ShipServer::enforce_mode_tool_gate(&project_dir, "mesh_send")
         .expect("mesh_send allowed with explicit active_tools");
@@ -240,8 +224,8 @@ fn emit_event_is_core_and_callable_under_any_mode() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "event-explicit".to_string(),
             name: "Event Explicit".to_string(),
@@ -249,10 +233,7 @@ fn emit_event_is_core_and_callable_under_any_mode() {
             active_tools: vec!["log_progress".to_string()],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("event-explicit"))
-        .expect("set active agent");
+    );
 
     // emit_event is core — bypasses mode gating regardless of active_tools.
     ShipServer::enforce_mode_tool_gate(&project_dir, "emit_event")
@@ -268,8 +249,8 @@ fn emit_event_is_core_and_callable_under_any_mode() {
 fn worker_role_allows_view_tools_by_default() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "view-worker".into(),
             name: "View Worker".into(),
@@ -277,10 +258,7 @@ fn worker_role_allows_view_tools_by_default() {
             active_tools: vec![],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("view-worker"))
-        .expect("set active agent");
+    );
 
     for tool in &["open_view", "patch_view", "append_view", "signal_view", "close_view"] {
         ShipServer::enforce_mode_tool_gate(&project_dir, tool)
@@ -298,8 +276,8 @@ fn explicit_active_tools_without_view_blocks_view_tools() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
     // A "gate" mode declares its allowed tools explicitly — and omits view.*.
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "gate-mode".into(),
             name: "Gate Mode".into(),
@@ -307,10 +285,7 @@ fn explicit_active_tools_without_view_blocks_view_tools() {
             active_tools: vec!["log_progress".into(), "update_job".into()],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("gate-mode"))
-        .expect("set active agent");
+    );
 
     assert!(
         ShipServer::enforce_mode_tool_gate(&project_dir, "open_view").is_err(),

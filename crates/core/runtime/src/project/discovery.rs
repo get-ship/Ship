@@ -154,6 +154,11 @@ fn main_worktree_root_for(dir: &Path) -> Option<PathBuf> {
     parse_main_worktree_root(text, dir)
 }
 
+/// Filename of the optional sentinel that pins a directory as a project-root
+/// boundary. When present at `<root>/.ship/.boundary`, the resolver stops the
+/// walk-up at `<root>` and skips the linked-worktree → main redirect.
+pub const BOUNDARY_FILE: &str = ".boundary";
+
 fn resolve_project_dir_from_start(
     start_dir: &Path,
     migrate_legacy: bool,
@@ -164,14 +169,20 @@ fn resolve_project_dir_from_start(
     loop {
         let ship_path = current_dir.join(SHIP_DIR_NAME);
         if ship_path.exists() && ship_path.is_dir() {
+            // Boundary sentinel pins the walk: <root>/.ship/.boundary means
+            // "this directory IS the project root, don't redirect to main."
+            // Useful for worktrees that want isolated views / pipelines.
+            if ship_path.join(BOUNDARY_FILE).exists() {
+                return Ok(Some(canonicalize_lossy(&ship_path)));
+            }
+
             // Worktree dev opt-out: when SHIP_RESPECT_WORKTREE=1 (set by
             // scripts/dev-daemon.sh and other dev tooling), the worktree's
             // local .ship/ wins. This lets developers iterate on per-worktree
             // views/themes/agents without having every edit redirect to the
             // main checkout. Production / single-worktree dev: leave unset
             // and the redirect-to-main behavior below stays canonical.
-            let respect_worktree = std::env::var("SHIP_RESPECT_WORKTREE")
-                .ok()
+            let respect_worktree = crate::env::read(crate::env::Var::RespectWorktree)
                 .filter(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .is_some();
             if respect_worktree {
@@ -238,7 +249,7 @@ pub fn resolve_project_ship_dir(start_dir: &Path) -> Option<PathBuf> {
 /// Supports `SHIP_DIR` environment variable override.
 pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
     // 1. Check for environment variable override
-    if let Some(env_path) = crate::env::read(crate::env::Var::Dir) {
+    if let Some(env_path) = crate::env::read(crate::env::Var::DevProjectDir) {
         let path = PathBuf::from(env_path);
         if path.exists() && path.is_dir() {
             return Ok(path);

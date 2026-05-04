@@ -17,7 +17,7 @@ pub use app_state::{
     AppState, get_active_project_global, get_recent_projects_global, load_app_state,
     save_app_state, set_active_project_global,
 };
-pub use discovery::{get_project_dir, resolve_project_ship_dir, ship_dir_from_path};
+pub use discovery::{BOUNDARY_FILE, get_project_dir, resolve_project_ship_dir, ship_dir_from_path};
 pub use global::get_global_dir;
 pub use identity::{
     ensure_project_id, get_project_name, project_slug_from_ship_dir, sanitize_file_name,
@@ -29,7 +29,7 @@ pub use paths::{
     adrs_dir, agents_ns, features_dir, legacy_agents_skills_dir, legacy_project_skills_dir,
     legacy_project_skills_dir_candidates, mcp_config_path, modes_dir, notes_dir,
     permissions_config_path, project_ns, project_skills_dir, releases_dir, rules_dir, skills_dir,
-    specs_dir, teams_dir, upcoming_releases_dir, user_skills_dir, vision_doc_path,
+    teams_dir, upcoming_releases_dir, user_skills_dir, vision_doc_path,
     vision_template_path,
 };
 pub use registry::{

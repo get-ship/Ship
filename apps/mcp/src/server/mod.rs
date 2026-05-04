@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use crate::requests::*;
 use crate::tools::{
     artifacts as artifact_tools, dispatch as dispatch_tools, event, job as job_tools, project,
-    session, session_files, skills, stability, workspace, workspace_ops,
+    session, session_files, skills, stability,
 };
 use skills::set_skill_var_tool;
 
@@ -105,7 +105,8 @@ impl ShipServer {
     }
 
     async fn get_effective_project_dir(&self) -> Result<PathBuf, String> {
-        project::get_effective_project_dir(&self.active_project).await
+        let actor_id = self.resolve_actor_id().await;
+        project::get_effective_project_dir(&actor_id, &self.active_project).await
     }
 
     pub async fn store_peer(&self, peer: Peer<RoleServer>) {
@@ -134,15 +135,13 @@ impl ShipServer {
         // Hint id from env (daemon-spawned agents pre-mint and propagate
         // via SHIP_ACTOR_ID). Externally-launched MCPs have no env id;
         // the daemon mints in `actor_spawn` and we adopt the response.
-        let hint_id: Option<String> = std::env::var("SHIP_ACTOR_ID")
-            .ok()
-            .filter(|v| !v.is_empty());
+        let hint_id: Option<String> = runtime::env::read(runtime::env::Var::ActorId);
 
         // Compute skill-derived subscriptions
         let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
         let skills_list = runtime::list_skills(&ship_dir).unwrap_or_default();
         let skill_subs =
-            runtime::workspace::artifact_events::skill_event_subscriptions(&skills_list);
+            runtime::agents::skill::artifact_events::skill_event_subscriptions(&skills_list);
 
         // Default subscription set for an agent peer. The mesh's
         // subscribe_namespaces IS the filter — anything not declared
@@ -290,7 +289,7 @@ impl ShipServer {
         relay_state.peers = relay.peers();
 
         // Resolve workspace branch for scoping notifications.
-        let workspace_branch = self
+        let branch = self
             .get_effective_project_dir()
             .await
             .ok()
@@ -306,13 +305,13 @@ impl ShipServer {
                 crate::push::select_adapter(provider.as_deref(), peer);
             tracing::info!(
                 adapter = adapter.adapter_name(),
-                branch = ?workspace_branch,
+                branch = ?branch,
                 "push adapter selected"
             );
             let peer_handle = notification_relay::PeerHandle {
                 adapter,
                 allowed_events: std::collections::HashSet::new(),
-                workspace_branch,
+                branch,
             };
             relay.add_peer(peer_handle).await;
         }
@@ -372,12 +371,6 @@ impl ShipServer {
             Err(_) => return,
         };
 
-        // Reconcile worktree state against git before session creation.
-        let _ = runtime::reconcile_workspace(
-            &ship_dir,
-            &branch,
-        );
-
         let agent_id = runtime::get_active_agent(Some(ship_dir.clone()))
             .ok()
             .flatten()
@@ -399,7 +392,7 @@ impl ShipServer {
         }
 
         // Start a fresh session via the runtime.
-        match runtime::start_workspace_session(
+        match runtime::start_session(
             &ship_dir,
             &branch,
             None,
@@ -459,36 +452,6 @@ impl ShipServer {
             .into_iter()
             .map(|t| t.name.to_string())
             .collect()
-    }
-
-    // ---- Workspace ----
-
-    #[tool(
-        description = "Create a new workspace with a git worktree. For 'service' kind the worktree step is skipped."
-    )]
-    async fn create_workspace(
-        &self,
-        Parameters(req): Parameters<CreateWorkspaceRequest>,
-    ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        workspace::create_workspace(&project_dir, req)
-    }
-
-    #[tool(
-        description = "Complete a workspace: writes a handoff.md and optionally prunes the git worktree."
-    )]
-    async fn complete_workspace(
-        &self,
-        Parameters(req): Parameters<CompleteWorkspaceRequest>,
-    ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        workspace_ops::complete_workspace(&project_dir, req)
     }
 
     // ---- Session ----

@@ -1,24 +1,22 @@
 //! Event-sourced actor state writes.
 //!
-//! Each public function builds an EventEnvelope, persists it to platform.db
-//! via SqliteEventStore, and routes it through KernelRouter (when initialized)
-//! for delivery to actor mailboxes.
+//! Each public function builds an `EventEnvelope` and hands it to the
+//! canonical write path: `SqliteEventStore::append` persists the event
+//! row and applies the actor projection in a single transaction.
+//! When a kernel router is up we additionally deliver to actor mailboxes
+//! (sync, no re-persist).
 //!
 //! ADR GHihs2tn: all actor lifecycle events are elevated=1.
 
 use anyhow::Result;
 
 use crate::db::block_on_anyhow;
-use crate::persistence::event_store::EventStore;
 use crate::events::types::event_types;
-use crate::db::{block_on, open_db};
 use crate::events::types::{ActorCrashed, ActorCreated, ActorSlept, ActorStopped, ActorWoke};
-use crate::events::validator::{CallerKind, EmitContext};
 use crate::events::EventEnvelope;
-use crate::persistence::event_store::append_event_with_conn;
-use crate::projections::{ActorProjection, Projection};
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 
-fn run_tx<P: serde::Serialize>(
+fn emit_actor_event<P: serde::Serialize>(
     actor_id: &str,
     workspace_id: Option<&str>,
     parent_actor_id: Option<&str>,
@@ -33,34 +31,17 @@ fn run_tx<P: serde::Serialize>(
         envelope = envelope.with_parent_actor_id(parent);
     }
 
-    // Persist event + apply projection in one transaction, mirroring
-    // `workspace_events.rs` / `session_events.rs`. Kernel routing
-    // happens after commit (fire-and-forget) so the dashboard sees
-    // the actor row even if no kernel listener is up.
-    let mut conn = open_db()?;
-    block_on(async { sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await })?;
-    if let Err(e) = append_event_with_conn(&envelope, &mut conn) {
-        let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
-        return Err(e);
-    }
-    let proj = ActorProjection::new();
-    if let Err(e) = proj.apply(&envelope, &mut conn) {
-        let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
-        return Err(e);
-    }
-    block_on(async { sqlx::query("COMMIT").execute(&mut conn).await })?;
+    // Canonical write: event row + actor projection apply in one tx.
+    let store = SqliteEventStore::new()?;
+    store.append(&envelope)?;
 
-    // Route to actor mailboxes if the kernel router is running.
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: workspace_id.map(|s| s.to_string()),
-        session_id: None,
-    };
-    if let Some(kr) = crate::events::kernel_router()
-        && let Err(e) = block_on_anyhow(async { kr.lock().await.emit(envelope, &ctx).await })
-    {
-        tracing::warn!("db::actor_events: kernel route failed: {e}");
+    // Deliver to mailboxes if a kernel router is running. Persistence
+    // already happened above, so this is a delivery-only step.
+    if let Some(kr) = crate::events::kernel_router() {
+        let _ = block_on_anyhow(async {
+            kr.lock().await.deliver(&envelope);
+            Ok(())
+        });
     }
 
     Ok(())
@@ -74,7 +55,7 @@ pub fn emit_actor_created(
     workspace_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
-    run_tx(actor_id, workspace_id, parent_actor_id, event_types::ACTOR_CREATED, payload)
+    emit_actor_event(actor_id, workspace_id, parent_actor_id, event_types::ACTOR_CREATED, payload)
 }
 
 /// Convenience wrapper for pipeline / one-shot spawns: builds an `ActorCreated`
@@ -101,7 +82,7 @@ pub fn emit_actor_created_simple(
         persistence: Some("one-shot".to_string()),
         ..Default::default()
     };
-    run_tx(
+    emit_actor_event(
         actor_id,
         workspace_id,
         parent_actor_id,
@@ -115,7 +96,7 @@ pub fn emit_actor_woke(
     workspace_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
-    run_tx(id, workspace_id, parent_actor_id, event_types::ACTOR_WOKE, &ActorWoke {})
+    emit_actor_event(id, workspace_id, parent_actor_id, event_types::ACTOR_WOKE, &ActorWoke {})
 }
 
 pub fn emit_actor_slept(
@@ -124,7 +105,7 @@ pub fn emit_actor_slept(
     workspace_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
-    run_tx(
+    emit_actor_event(
         id,
         workspace_id,
         parent_actor_id,
@@ -139,7 +120,7 @@ pub fn emit_actor_stopped(
     workspace_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
-    run_tx(
+    emit_actor_event(
         id,
         workspace_id,
         parent_actor_id,
@@ -155,7 +136,7 @@ pub fn emit_actor_crashed(
     workspace_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
-    run_tx(
+    emit_actor_event(
         id,
         workspace_id,
         parent_actor_id,

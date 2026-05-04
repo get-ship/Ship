@@ -3,86 +3,55 @@
 //! Exposes `run_network` for starting the HTTP/SSE MCP daemon and
 //! `network_status` / `network_stop` for CLI subcommands.
 
-pub mod actor_api;
-pub mod actors_api;
-pub mod artifacts_api;
-pub mod collection_api;
-pub mod create_api;
-pub mod themes_api;
+pub mod access;
 pub mod sessions;
-pub mod projects_api;
 pub mod auth;
-mod connections;
-mod cors;
-mod view_morph_target;
+pub mod transport;
 mod daemon;
 mod first_run;
-pub mod scopes;
-pub mod session;
 mod handler;
-pub mod hooks_api;
-pub mod logs_api;
-pub mod sdk_manifest;
 pub mod services;
 pub mod human_webhook;
 mod human_gateway;
 pub mod managers;
-pub mod openapi;
-pub mod openapi_modifier;
-pub mod openapi_types;
 pub mod project_api;
-pub mod pty_handler;
-pub mod rest_api;
 pub mod routes;
 pub mod router;
-pub mod runtime_api;
-pub mod view_sessions_api;
-pub mod annotations_api;
-pub mod feedback_api;
-pub mod lint_api;
-pub mod view_errors_api;
-pub mod mcp_apps_bridge;
-pub mod mcp_registry;
-mod server;
-pub mod themes;
+pub mod mcp;
 pub mod views;
-pub mod views_raw;
-pub mod specs_api;
-pub mod settings_api;
-pub mod attest;
-pub mod pairing;
-pub mod shell_assets;
 pub mod ship_runtime;
 pub mod supervised;
 pub mod supervisor;
 pub mod webhook_ext;
+
+// Re-export per-domain handler modules at the crate root so existing
+// `crate::artifacts_api::*` etc. imports continue to resolve. mr-04
+// moves the source files under `routes/`; the import surface is
+// unchanged.
+pub use routes::{
+    actor_api, actors_api, annotations_api, artifacts_api, collection_api, create_api,
+    feedback_api, hooks_api, lint_api, logs_api, openapi, openapi_modifier, openapi_types,
+    projects_api, rest_api, runtime_api, sdk_manifest, settings_api, shell_assets, specs_api,
+    themes, themes_api, view_errors_api, view_sessions_api,
+};
 
 #[cfg(test)]
 pub mod test_harness;
 #[cfg(test)]
 mod integration_tests;
 #[cfg(test)]
-#[path = "auth_tests.rs"]
-mod auth_tests;
-#[cfg(test)]
-#[path = "scope_tests.rs"]
-mod scope_tests;
-#[cfg(test)]
 #[path = "ship_runtime_tests.rs"]
 mod ship_runtime_tests;
-#[cfg(test)]
-#[path = "pairing_integration_tests.rs"]
-mod pairing_integration_tests;
 
 pub use daemon::{network_status, network_stop};
-pub use server::NetworkServer;
+pub use transport::NetworkServer;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
 #[cfg(test)]
 pub fn test_cors_router() -> axum::Router {
     axum::Router::new()
         .route("/test", axum::routing::get(|| async { "ok" }))
-        .layer(axum::middleware::from_fn(cors::cors_middleware))
+        .layer(axum::middleware::from_fn(transport::cors::cors_middleware))
 }
 
 use anyhow::{Result, anyhow};
@@ -98,9 +67,16 @@ use tokio_util::sync::CancellationToken;
 ///
 /// `dev` enables relaxed auth for local development (auto-pair, localhost-only).
 /// Never set `dev = true` in production.
+///
+/// `port = None` means "auto-derive": pick the port via
+/// `runtime::home::worktree_port_for(project_root)`, which honors
+/// `~/.ship/machine/local.jsonc:worktrees.ports[<branch>]` pins and
+/// otherwise hashes the project root into `9315 + N % 100`. If the
+/// derived port is busy, increments up to 10 times before giving up.
+/// Outside any project, the default falls back to 9315.
 pub async fn run_network(
     host: String,
-    port: u16,
+    port: Option<u16>,
     dev: bool,
     workspace_dir: Option<std::path::PathBuf>,
 ) -> Result<()> {
@@ -121,29 +97,53 @@ pub async fn run_network(
     // Dev mode forces localhost bind. Agents can set SHIP_HOST env vars,
     // but they can't flip the --dev flag on the daemon process they didn't start.
     let host = if dev { "127.0.0.1".to_string() } else { host };
-    pairing::set_dev_mode(dev);
+    auth::pairing::set_dev_mode(dev);
     let global_dir = runtime::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
-    daemon::cleanup_stale_daemon_files(&global_dir).map_err(|e| {
+
+    // Per devx-04, pick the daemon IPC dir based on workspace cwd. A daemon
+    // launched from inside a project root writes to
+    // `<root>/machine/daemons/<hash>/`; bare/global startup writes to the
+    // singleton `<root>/machine/daemon/`.
+    let project_probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+    let project_root = project_probe
+        .as_ref()
+        .and_then(|p| runtime::home::ProjectRoot::discover(p));
+    let home = runtime::ShipHome::at(global_dir.clone());
+    let daemon_dir = match project_root.as_ref() {
+        Some(root) => home.worktree_daemon_dir(&runtime::home::path_hash(root.path())),
+        None => home.daemon_dir(),
+    };
+
+    daemon::cleanup_stale_daemon_files(&daemon_dir).map_err(|e| {
         eprintln!("\nshipd startup aborted: {e}\n");
         e
     })?;
     if let Some(ref w) = workspace_dir {
-        tracing::info!(workspace = %w.display(), "shipd: project-scoped mode");
+        tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
     } else {
-        tracing::info!("shipd: global-only mode (no --workspace given)");
+        tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
     }
+
+    // Resolve the desired port. Caller-supplied --port wins; otherwise we
+    // derive from the project root (path-hash + local.jsonc:worktrees.ports
+    // pin, see runtime::home::worktree_port_for). Outside any project, use
+    // the historical default.
+    let desired_port = port.unwrap_or_else(|| match project_root.as_ref() {
+        Some(root) => runtime::home::worktree_port_for(root.path()),
+        None => 9315,
+    });
+
     let meta = ship_runtime::AppMetadata {
         global_dir: global_dir.clone(),
         workspace_dir: workspace_dir.clone(),
     };
-    let config = ship_runtime::RuntimeConfig { host: host.clone(), port, ..Default::default() };
+    let config = ship_runtime::RuntimeConfig { host: host.clone(), port: desired_port, ..Default::default() };
     let mut runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
-    let mesh_registry = connections::spawn_mesh_service(runtime.kernel(), runtime.health_registry()).await?;
+    let mesh_registry = transport::connections::spawn_mesh_service(runtime.kernel(), runtime.health_registry()).await?;
     runtime.set_mesh_registry(mesh_registry);
     let rt = Arc::new(runtime);
 
-    supervisor::subscribe_workspace_events(rt.kernel().clone(), global_dir.clone(), rt.health_registry()).await;
     let job_mgr = managers::JobManager::init(rt.kernel().clone(), global_dir.clone(), rt.health_registry()).await;
     if let Some(dh) = job_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);
@@ -157,17 +157,28 @@ pub async fn run_network(
     human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
 
-    let token = match auth::read_token(&global_dir) {
+    // Register the launch-time project (if any) into the project registry
+    // so the launcher / shell sees it on first list. Idempotent.
+    if let Some(root) = project_root.as_ref() {
+        if let Err(e) = runtime::projects::register(root.path(), None) {
+            tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
+        }
+    }
+
+    let token = match auth::read_token(&daemon_dir) {
         Ok(existing) if !existing.is_empty() => Arc::new(existing),
         _ => {
             let new_token = auth::generate_token()
                 .map_err(|e| anyhow!("failed to generate daemon token: {e}"))?;
-            auth::write_token_file(&global_dir, &new_token).map_err(|e| anyhow!("write daemon.token: {e}"))?;
+            auth::write_token_file(&daemon_dir, &new_token).map_err(|e| anyhow!("write daemon.token: {e}"))?;
             Arc::new(new_token)
         }
     };
-    daemon::write_port_file(&global_dir, port)?;
-    daemon::write_pid_file(&global_dir)?;
+    daemon::write_pid_file(&daemon_dir)?;
+    if let Some(root) = project_root.as_ref() {
+        daemon::write_workspace_file(&daemon_dir, root.path())?;
+    }
+    daemon::write_sha_file(&daemon_dir, build_info::build_info!().git_sha)?;
 
     let ct = CancellationToken::new();
     let ct2 = ct.clone();
@@ -179,8 +190,8 @@ pub async fn run_network(
     if !dev {
         auth::hydrate_sessions(&session_registry).await;
     }
-    let pairing_registry = pairing::new_shared();
-    let attestation_verifier = attest::AttestationVerifier::new();
+    let pairing_registry = auth::pairing::new_shared();
+    let attestation_verifier = auth::attest::AttestationVerifier::new();
     // Log the `.ship` components discovered at startup. The compile cache
     // is lazy (first-request-per-tag); this scan is purely diagnostic so
     // operators can see at a glance whether the components dir is wired.
@@ -197,6 +208,63 @@ pub async fn run_network(
         attestation_verifier,
         ct.child_token(),
     );
+    // Bind the listener with collision retry. On EADDRINUSE we increment
+    // the port up to 9 times before giving up. The actually-bound port is
+    // what we write to <daemon_dir>/port — the derived port is just a hint.
+    let user_pinned = port.is_some();
+    let max_retries = if user_pinned { 1 } else { 10 };
+    let mut bound_port = desired_port;
+    let mut last_err: Option<std::io::Error> = None;
+    let listener = loop {
+        let addr = format!("{host}:{bound_port}");
+        match tokio::net::TcpListener::bind(&addr).await {
+            Ok(l) => break l,
+            Err(e) if e.kind() == std::io::ErrorKind::AddrInUse && !user_pinned => {
+                tracing::warn!(
+                    port = bound_port,
+                    "shipd: port busy, trying next"
+                );
+                last_err = Some(e);
+                bound_port += 1;
+                if bound_port - desired_port >= max_retries {
+                    let final_err = last_err.expect("at least one error recorded");
+                    let already_bound_by_pid = pidfile_pid_for_port(&global_dir, desired_port);
+                    emit_daemon_event(
+                        &global_dir,
+                        daemon_events::DAEMON_PORT_BIND_FAILED,
+                        "daemon",
+                        &PortBindFailedPayload {
+                            port: desired_port,
+                            already_bound_by_pid,
+                            error: final_err.to_string(),
+                        },
+                    );
+                    return Err(anyhow!(
+                        "bind {host}:{desired_port}..{}: {} (giving up after {max_retries} retries)",
+                        bound_port - 1,
+                        final_err,
+                    ));
+                }
+            }
+            Err(e) => {
+                let already_bound_by_pid = pidfile_pid_for_port(&global_dir, bound_port);
+                emit_daemon_event(
+                    &global_dir,
+                    daemon_events::DAEMON_PORT_BIND_FAILED,
+                    "daemon",
+                    &PortBindFailedPayload {
+                        port: bound_port,
+                        already_bound_by_pid,
+                        error: e.to_string(),
+                    },
+                );
+                return Err(anyhow!("bind {host}:{bound_port}: {e}"));
+            }
+        }
+    };
+    let port = bound_port;
+    daemon::write_port_file(&daemon_dir, port)?;
+
     let addr = format!("{host}:{port}");
     tracing::info!("shipd: listening on http://{addr}/mcp");
     tracing::info!("shipd: shell: http://{addr}/shell/");
@@ -210,40 +278,24 @@ pub async fn run_network(
         .workspace_dir()
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| format!("{} (global-only)", global_dir.display()));
+    let bi = build_info::build_info!();
     let identity = format!(
-        "shipd {}-{} listening on {} · SHIP_DIR={} · pid={}",
+        "shipd {}-{} listening on {} · ship_dir={} · pid={}",
         env!("CARGO_PKG_VERSION"),
-        env!("SHIPD_GIT_COMMIT"),
+        bi.short(),
         port,
         identity_ship_dir,
         std::process::id(),
     );
     tracing::info!("{identity}");
     eprintln!("{identity}");
-    let listener = match tokio::net::TcpListener::bind(&addr).await {
-        Ok(l) => l,
-        Err(e) => {
-            let already_bound_by_pid = pidfile_pid_for_port(&global_dir, port);
-            emit_daemon_event(
-                &global_dir,
-                daemon_events::DAEMON_PORT_BIND_FAILED,
-                "daemon",
-                &PortBindFailedPayload {
-                    port,
-                    already_bound_by_pid,
-                    error: e.to_string(),
-                },
-            );
-            return Err(anyhow!("bind {addr}: {e}"));
-        }
-    };
 
     let summary = runtime::db::event_log_summary(&global_dir);
     let startup = StartupCompletedPayload {
         pid: std::process::id(),
         port,
         version: env!("CARGO_PKG_VERSION").to_string(),
-        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("unknown").to_string(),
+        commit_sha: build_info::build_info!().git_sha.to_string(),
         event_count_at_startup: summary.event_count,
         latest_event_id: summary.latest_event_id,
         init_duration_ms: init_started_at.elapsed().as_millis() as u64,
@@ -291,9 +343,10 @@ pub async fn run_network(
 }
 
 #[cfg(test)]
+#[path = "routes/collection_tests.rs"]
 mod collection_tests;
 #[cfg(test)]
-#[path = "artifacts_api_tests.rs"]
+#[path = "routes/artifacts_api_tests.rs"]
 mod artifacts_api_tests;
 
 /// Append a daemon.* event directly to platform.db.
@@ -330,7 +383,10 @@ fn emit_daemon_event<P: serde::Serialize>(
 /// supervisor's lock-based pidfile. Returns None if the file is missing,
 /// unparseable, or records a different port.
 fn pidfile_pid_for_port(global_dir: &std::path::Path, port: u16) -> Option<u32> {
-    let path = global_dir.join("shipd.pid");
+    let path = runtime::ShipHome::at(global_dir.to_path_buf())
+        .machine_dir()
+        .join("daemon")
+        .join("shipd.pid");
     let data = std::fs::read_to_string(&path).ok()?;
     let v: serde_json::Value = serde_json::from_str(data.trim()).ok()?;
     let recorded_port = v.get("port")?.as_u64()? as u16;

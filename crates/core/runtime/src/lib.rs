@@ -1,3 +1,4 @@
+pub mod access;
 pub mod actor;
 pub mod agents;
 pub mod collections;
@@ -7,6 +8,7 @@ pub mod db;
 pub mod artifacts;
 pub mod env;
 pub mod errors;
+pub mod git;
 pub mod events;
 pub mod home;
 pub mod fs_util;
@@ -14,9 +16,11 @@ pub mod hooks;
 pub mod log;
 pub mod persistence;
 pub mod project;
+pub mod projects;
 pub mod registry;
 pub mod projections;
-pub mod workspace;
+pub mod sessions;
+pub mod trash;
 pub mod supervisor;
 
 #[cfg(feature = "unstable")]
@@ -30,7 +34,7 @@ pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
 // Backward-compatible module aliases.
 // Canonical implementation lives under `runtime::agents::*`.
 pub use agents::config as agent_config;
-pub use agents::export as agent_export;
+pub use agents::providers as agent_export;
 pub use agents::permissions;
 pub use agents::rule;
 pub use agents::skill;
@@ -45,17 +49,19 @@ pub use agent_config::{
 };
 pub use agent_export::{
     ModelInfo, ProviderInfo, autodetect_providers, detect_binary, detect_version, disable_provider,
-    enable_provider, export_to, import_from_claude, list_models, list_providers, sync_active_agent,
+    enable_provider, list_models, list_providers,
+};
+pub use agents::import::{
+    import_from_provider, import_permissions_from_provider, import_skills_from_provider,
 };
 pub use config::catalog::{CatalogEntry, CatalogKind, list_catalog, list_catalog_by_kind, search_catalog};
-pub use config::hooks::{DefaultRuntimeHooks, RuntimeHooks};
 pub use config::{
     AgentLayerConfig, AgentProfile, AiConfig, GitConfig, HookConfig, HookTrigger, McpServerConfig,
-    McpServerType, NamespaceConfig, PermissionConfig, ProjectConfig, StatusConfig, add_agent,
+    McpServerType, NamespaceConfig, PermissionConfig, ProjectConfig, StatusConfig,
     add_hook, add_mcp_server, add_status, ensure_registered_namespaces, generate_gitignore,
     get_active_agent, get_all_settings, get_config, get_effective_config, get_git_config,
     get_project_statuses, get_setting, is_category_committed, list_hooks, list_mcp_servers,
-    remove_agent, remove_hook, remove_mcp_server, remove_status, save_config, set_active_agent,
+    remove_hook, remove_mcp_server, remove_status, save_config,
     set_category_committed, set_git_config, set_setting, setting_default,
 };
 
@@ -83,27 +89,15 @@ pub use skill_vars::{
 };
 
 // ─── Re-exports from db (formerly state_db) ────────────────────────────────
-pub use db::artifact_registry::{
-    get_compiled_asset_cache_by_external_id_db, get_compiled_asset_cache_by_uuid_db,
-    upsert_compiled_asset_cache_db,
-};
 pub use db::managed_state::{get_managed_state_db, set_managed_state_db};
-pub use db::session::get_workspace_session_record_db;
-pub use db::types::{
-    AgentArtifactRegistryDb, WorkspaceSessionDb, WorkspaceSessionRecordDb,
-};
+pub use db::types::SessionDb;
 pub use errors::{KernelError, WorkspaceError};
 
-pub use workspace::{
-    CreateWorkspaceRequest, EndWorkspaceSessionRequest, Environment, Process, ProcessStatus,
-    TrashEntry, Workspace, WorkspaceProviderMatrix, WorkspaceRepairReport, WorkspaceSession,
-    WorkspaceSessionRecord, WorkspaceSessionStatus, WorkspaceStatus,
-    create_workspace, delete_workspace, end_workspace_session, get_active_workspace_session,
-    get_workspace, get_workspace_provider_matrix, get_workspace_session_record,
-    list_trash, list_workspace_sessions, list_workspaces, purge_old_trash,
-    reconcile_workspace, record_workspace_session_progress, repair_workspace,
-    restore_file, set_workspace_active_agent, set_workspace_started, start_workspace_session,
-    trash_file, workspace_status,
+pub use trash::{TrashEntry, list_trash, purge_old_trash, restore_file, trash_file};
+
+pub use sessions::{
+    EndSessionRequest, ProviderMatrix, ProviderMatrixRepairReport, Session, SessionStatus,
+    end_session, get_active_session, list_sessions, record_session_progress, start_session,
 };
 
 /// Generate a monotonic ULID string. Thread-safe via thread-local generator.
@@ -454,12 +448,12 @@ mod tests {
         let override_dir = tmp.path().join("override");
         fs::create_dir_all(&override_dir)?;
         unsafe {
-            std::env::set_var("SHIP_DIR", override_dir.to_str().unwrap());
+            std::env::set_var("SHIP_DEV_PROJECT_DIR", override_dir.to_str().unwrap());
         }
         let project_dir = get_project_dir(None)?;
         assert_eq!(project_dir, override_dir);
         unsafe {
-            std::env::remove_var("SHIP_DIR");
+            std::env::remove_var("SHIP_DEV_PROJECT_DIR");
         }
         Ok(())
     }

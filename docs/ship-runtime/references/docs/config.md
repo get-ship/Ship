@@ -31,15 +31,16 @@ config/
 
 ## The primary file
 
-`.ship/ship.jsonc` (constant `PRIMARY_CONFIG_FILE`). Legacy `config.json` is still read-migrated once if the primary is absent; subsequent saves go to the JSONC path. Legacy is for prior users who initialized before the rename.
+`.ship/ship.jsonc` (constant `PRIMARY_CONFIG_FILE`). JSONC only; legacy `config.json` / `ship.toml` paths have been removed.
 
 Separate files siblings to `ship.jsonc`:
 
 - `.ship/mcp.jsonc` — MCP server definitions.
 - `.ship/modes.jsonc` — mode/agent profile overlays.
 - `.ship/permissions.jsonc` — permission presets.
-- `.ship/schemas/*.jsonc` — collection schemas (see Data DB).
 - `.ship/.gitignore` — generated, lists everything not in `git.commit`.
+
+Collection schemas at user scope live under `~/.ship/library/collections/`; project-scope under `<project>/.ship/collections/`. See the [home-layout reference](./home-layout.md) for the full picture.
 
 ## ProjectConfig
 

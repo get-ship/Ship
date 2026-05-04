@@ -34,7 +34,7 @@ pub struct AgentMeta {
     #[serde(default = "default_version")]
     pub version: String,
     pub description: Option<String>,
-    /// Provider targets for this agent (overrides project ship.toml providers).
+    /// Provider targets for this agent (overrides project ship.jsonc providers).
     #[serde(default)]
     pub providers: Vec<String>,
 }

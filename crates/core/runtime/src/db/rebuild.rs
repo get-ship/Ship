@@ -11,9 +11,7 @@ use std::time::Instant;
 use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, ensure_db_at, open_db_at};
 use ship_types::envelope::EventEnvelope;
-use crate::projections::{
-    ActorProjection, EventBus, SessionProjection, WorkspaceProjection,
-};
+use crate::projections::{ActorProjection, EventBus, SessionProjection};
 
 /// Report returned by a projection rebuild.
 pub struct RebuildReport {
@@ -31,7 +29,7 @@ pub struct RebuildReport {
 pub fn rebuild_projections(ship_dir: &Path) -> Result<RebuildReport> {
     let start = Instant::now();
     ensure_db_at(ship_dir)?;
-    let db_path = ship_dir.join("platform.db");
+    let db_path = crate::db::platform_db_path(ship_dir);
     let mut conn = open_db_at(&db_path)?;
 
     const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
@@ -50,7 +48,6 @@ pub fn rebuild_projections(ship_dir: &Path) -> Result<RebuildReport> {
         .collect::<Result<_>>()?;
 
     let mut bus = EventBus::new();
-    bus.register(Box::new(WorkspaceProjection::new()));
     bus.register(Box::new(SessionProjection::new()));
     bus.register(Box::new(ActorProjection::new()));
 

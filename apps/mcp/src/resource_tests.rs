@@ -1,7 +1,7 @@
 use crate::resource_resolver::resolve_resource_uri;
 use runtime::db::ensure_db;
 use runtime::db::ensure_db_at;
-use runtime::events::store::append_event_with_conn;
+use runtime::events::{EventStore, SqliteEventStore};
 use runtime::project::init_project;
 use runtime::EventEnvelope;
 use std::future;
@@ -25,51 +25,12 @@ fn setup_with_db() -> (tempfile::TempDir, std::path::PathBuf) {
 }
 
 fn append_event(ship_dir: &std::path::Path, event: &EventEnvelope) {
-    let db_path = ship_dir.join("platform.db");
-    let mut conn = runtime::db::open_db_at(&db_path).unwrap();
-    append_event_with_conn(event, &mut conn).unwrap();
+    let store = SqliteEventStore::new_at(ship_dir).unwrap();
+    store.append(event).unwrap();
 }
 
 async fn resolve(uri: &str, dir: &std::path::Path) -> Option<String> {
     resolve_resource_uri(uri, dir, future::ready(String::new())).await
-}
-
-// ── Spec resources (file-based) ───────────────────────────────────
-
-#[tokio::test(flavor = "multi_thread")]
-async fn specs_list_empty() {
-    let (_tmp, _ship_dir, project_dir) = setup();
-    let result = resolve("ship://specs", &project_dir).await.unwrap();
-    assert_eq!(result, "No specs found.");
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn specs_list_and_get_round_trip() {
-    let (_tmp, ship_dir, project_dir) = setup();
-    let specs_path = runtime::project::specs_dir(&ship_dir);
-    std::fs::create_dir_all(&specs_path).unwrap();
-    std::fs::write(
-        specs_path.join("design-v1.md"),
-        "# Design V1\n\nSpec content here.",
-    )
-    .unwrap();
-
-    let list = resolve("ship://specs", &project_dir).await.unwrap();
-    assert!(list.contains("design-v1"), "spec list: {list}");
-
-    let detail = resolve("ship://specs/design-v1", &project_dir).await.unwrap();
-    assert!(detail.contains("# Design V1"));
-    assert!(detail.contains("Spec content here."));
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn spec_get_nonexistent_returns_none() {
-    let (_tmp, _ship_dir, project_dir) = setup();
-    assert!(
-        resolve("ship://specs/nonexistent", &project_dir)
-            .await
-            .is_none()
-    );
 }
 
 // ── Job resources (event-sourced) ────────────────────────────────
@@ -174,7 +135,7 @@ fn write_skill(ship_dir: &std::path::Path, skill_id: &str, content: &str) {
     std::fs::write(
         skill_dir.join("SKILL.md"),
         format!(
-            "---\nname: {skill_id}\ndescription: Test skill\n---\n{content}"
+            "---\nname: {skill_id}\nstable-id: {skill_id}\ndescription: Test skill\ntags: [test]\nauthors: [test]\n---\n{content}"
         ),
     )
     .unwrap();

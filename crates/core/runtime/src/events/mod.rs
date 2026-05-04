@@ -22,7 +22,11 @@ pub mod types {
 
         #[test]
         fn all_constants_have_expected_count() {
-            assert_eq!(ALL.len(), 72, "exactly 72 event type constants required");
+            // F1 (substrate-cleanup slice 01) deleted 12 unused constants:
+            // 9 workspace.*, job.claimed, executor.session_created,
+            // executor.window_created. Adjust this when adding/removing
+            // event types.
+            assert_eq!(ALL.len(), 58, "exactly 58 event type constants required");
         }
     }
 }
@@ -35,7 +39,6 @@ pub use ship_kernel::Mailbox;
 // Persistence (re-exported from crate::persistence)
 pub use crate::persistence::{
     ActorStore, EventStore, SqliteEventStore, ActorSnapshot,
-    append_event_with_conn,
 };
 // Backward-compatible module aliases for consumers.
 pub use crate::persistence::event_store as store;
@@ -96,8 +99,6 @@ mod scoped_delivery_tests;
 mod directed_delivery_tests;
 #[cfg(test)]
 mod cursor_tests;
-#[cfg(test)]
-mod integration_tests;
 #[cfg(test)]
 mod validator_tests;
 #[cfg(test)]

@@ -6,7 +6,6 @@
 //! `persistence::actor_store` for the namespace-scoped write/read handle.
 
 pub mod actor_events;
-pub mod artifact_registry;
 pub mod envelope;
 pub mod events;
 pub mod integrity;
@@ -19,17 +18,12 @@ pub mod kv;
 pub mod managed_state;
 pub mod pool;
 pub mod rebuild;
-pub mod schema;
 pub mod session;
 pub mod session_drain;
 pub mod session_events;
-pub mod specs;
-pub mod git_drafts;
 #[cfg(test)]
 pub mod session_events_testutil;
 pub mod types;
-pub mod workspace_events;
-pub mod workspace_state;
 
 #[cfg(test)]
 mod tests_integrity;
@@ -56,7 +50,7 @@ pub struct EventLogSummary {
 /// error returns a summary with count=-1 to signal "unavailable" so startup
 /// proceeds.
 pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
-    let path = ship_dir.join("platform.db");
+    let path = platform_db_path(ship_dir);
     let Ok(mut conn) = open_db_at(&path) else {
         return EventLogSummary { event_count: -1, latest_event_id: None };
     };
@@ -75,13 +69,25 @@ pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
     EventLogSummary { event_count: count, latest_event_id: latest }
 }
 
-/// Platform database path: `~/.ship/platform.db`.
+/// Platform database path: `~/.ship/machine/db/platform.db`.
 ///
 /// Never inside a project directory. Per-actor event stores are managed
 /// separately by `KernelRouter`. Tests get automatic isolation
 /// via `get_global_dir()`'s test-binary detection (per-thread temp dir).
 pub fn db_path() -> Result<PathBuf> {
-    Ok(crate::project::get_global_dir()?.join("platform.db"))
+    Ok(platform_db_path(&crate::project::get_global_dir()?))
+}
+
+/// Resolve the platform database path under a given ship-home root.
+/// Routes through `ShipHome::db_path(Db::Platform)` so callers can't
+/// accidentally land at the legacy `<root>/platform.db` location.
+pub fn platform_db_path(ship_dir: &Path) -> PathBuf {
+    crate::ShipHome::at(ship_dir.to_path_buf()).db_path(crate::Db::Platform)
+}
+
+/// Resolve the data database path under a given ship-home root.
+pub fn data_db_path(ship_dir: &Path) -> PathBuf {
+    crate::ShipHome::at(ship_dir.to_path_buf()).db_path(crate::Db::Data)
 }
 
 /// Open a connection, ensuring schema exists first.
@@ -137,7 +143,7 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
 /// `get_global_dir()`. Use this in tests and handlers that receive `ship_dir`
 /// through `ApiState` to avoid env-var races.
 pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
-    ensure_db_at_path(&ship_dir.join("platform.db"))
+    ensure_db_at_path(&platform_db_path(ship_dir))
 }
 
 /// Open a connection to a specific database path (no migration run).

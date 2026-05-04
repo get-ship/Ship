@@ -85,7 +85,15 @@ fn rewrite_inside(value: &str, tag: &str, signals: &[String]) -> String {
                 let prev = if i > 0 { bytes[i - 1] } else { 0 };
                 let prev_ok = !(prev.is_ascii_alphanumeric() || prev == b'_' || prev == b'$');
                 if prev_ok && signals.iter().any(|s| s == name) {
-                    out.push_str(&format!("$_{tag}___SHIP_INST___{name}"));
+                    // Lowercase the name segment to match the JS-side
+                    // __sigKey lowercase. HTML attribute NAMES (where
+                    // signals live as `data-signals:<key>`) are
+                    // case-folded by the DOM; their VALUES preserve case
+                    // (where the signal reference lives in expressions).
+                    // If we kept camelCase here the lookup would miss
+                    // the lowercased storage key.
+                    let lc = name.to_lowercase();
+                    out.push_str(&format!("$_{tag}___SHIP_INST___{lc}"));
                     i = j;
                     continue;
                 }
@@ -202,6 +210,21 @@ mod tests {
         let out = rewrite_signals(html, "tag", &signals(&["query", "open"]));
         assert!(out.contains("$_tag___SHIP_INST___query"));
         assert!(out.contains("$_tag___SHIP_INST___open"));
+    }
+
+    #[test]
+    fn camelcase_signal_names_lowercase_to_match_attribute_storage() {
+        // Regression: HTML attribute names are case-folded by the DOM;
+        // the signal storage key (`data-signals:<key>`) ends up
+        // lowercase. The rewritten reference in attribute VALUES must
+        // also lowercase so Datastar's expression-eval finds the right
+        // signal. If we keep camelCase, lookups silently miss.
+        let html = r#"<div data-show="$pickerOpen"></div>"#;
+        let out = rewrite_signals(html, "app-agent-modal", &signals(&["pickerOpen"]));
+        assert!(
+            out.contains(r#"data-show="$_app_agent_modal___SHIP_INST___pickeropen""#),
+            "camelCase name segment must lowercase to match __sigKey; got: {out}"
+        );
     }
 
     #[test]

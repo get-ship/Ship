@@ -15,15 +15,9 @@ pub mod spawn;
 pub mod actor;
 mod registry;
 mod session;
-mod workspace;
-mod workspace_handlers;
 
 #[cfg(test)]
-mod tests;
-#[cfg(test)]
 mod tests_actor;
-#[cfg(test)]
-mod tests_async;
 #[cfg(test)]
 mod tests_daemon_events;
 #[cfg(test)]
@@ -36,4 +30,3 @@ pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
 pub use session::SessionProjection;
 pub use spawn::{ProjectionHandle, spawn_with_failure_counter};
-pub use workspace::WorkspaceProjection;

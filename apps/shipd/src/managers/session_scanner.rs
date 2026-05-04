@@ -69,7 +69,7 @@ fn scan_abandoned_sessions() {
                 Ok(()) => {
                     tracing::info!(
                         session_id = %session.id,
-                        workspace = %session.workspace_branch,
+                        workspace = %session.branch,
                         "session scanner: ended abandoned session"
                     );
                 }

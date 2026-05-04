@@ -1,0 +1,77 @@
+<script>
+  // Single pipeline step card. Shows id, status, exit code, duration.
+  // Click → emits `select` so the parent board can focus output.
+  //
+  // Props:
+  //   step-id   — DAG node id (e.g. "spec", "implement")
+  //   status    — "queued" | "running" | "done" | "failed" | "skipped"
+  //   exit-code — optional exit code (string for prop attr safety)
+  //   duration  — optional duration label
+  //   active    — selected (highlights)
+  const {
+    stepId = '',
+    status = 'queued',
+    exitCode = '',
+    duration = '',
+    active = false,
+  } = props
+
+  function pick() {
+    emit('select', { stepId: props.stepId })
+  }
+
+  onConnect(host => {
+    host.addEventListener('click', () => pick())
+  })
+</script>
+
+<button type="button" class="step"
+        data-attr:data-status="props.status"
+        data-attr:data-active="props.active ? 'true' : 'false'"
+        aria-label="step">
+  <span class="dot" aria-hidden="true"></span>
+  <span class="id">{{ props.stepId }}</span>
+  <span class="meta">
+    <span class="status">{{ props.status }}</span>
+    {% if props.exitCode %}<span class="exit"> · exit {{ props.exitCode }}</span>{% endif %}
+    {% if props.duration %}<span class="dur"> · {{ props.duration }}</span>{% endif %}
+  </span>
+</button>
+
+<style>
+  :host { display: block; }
+  .step { width: 100%; }
+  .step {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: var(--ship-space-2);
+    padding: var(--ship-space-2) var(--ship-space-3);
+    border: 1px solid var(--ship-color-border);
+    border-radius: var(--ship-radius-md, 6px);
+    background: var(--ship-color-surface);
+    color: var(--ship-color-foreground);
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.1s ease;
+  }
+  .step:hover { background: var(--ship-color-accent-soft, var(--ship-color-surface)); }
+  .step[data-active="true"] { border-color: var(--ship-color-accent); }
+  .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--ship-color-muted);
+  }
+  .step[data-status="running"] .dot { background: var(--ship-color-accent); animation: pulse 1.2s ease-in-out infinite; }
+  .step[data-status="done"] .dot    { background: var(--ship-color-success, #4caf50); }
+  .step[data-status="failed"] .dot  { background: var(--ship-color-danger, #f44); }
+  .step[data-status="skipped"] .dot { background: var(--ship-color-muted); opacity: 0.5; }
+  .id { font-weight: 500; }
+  .meta { color: var(--ship-color-muted); font-size: 0.8125rem; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+  }
+</style>

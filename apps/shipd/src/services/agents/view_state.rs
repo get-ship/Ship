@@ -75,7 +75,7 @@ pub struct Permissions {
 
 /// Source label for project-scoped agents (enclosing `.ship/` of cwd).
 pub const SOURCE_PROJECT: &str = "PROJECT AGENTS";
-/// Source label for global-scoped agents (`~/.ship/agents/`).
+/// Source label for user-scope agents (`~/.ship/library/agents/`).
 pub const SOURCE_GLOBAL: &str = "USER AGENTS";
 
 /// Resolved search roots for the two scopes.
@@ -92,12 +92,17 @@ fn resolve_scopes(ship_dir: &Path) -> AgentScopes {
 }
 
 /// Build scopes for an explicit (global, project) pair. Tests call this to
-/// inject both sides without touching the process-global `SHIP_DIR` env var.
+/// inject both sides without touching the process-global `SHIP_DEV_PROJECT_DIR` env var.
+///
+/// `ship_dir` is the user-scope home (`~/.ship/`); user-scope agents live
+/// at `library/agents/` per the home-layout ADR. `project_ship_dir` is the
+/// project-scope `.ship/` directly (no `library/` prefix at project scope).
 pub(crate) fn scopes_from(
     ship_dir: &Path,
     project_ship_dir: Option<&Path>,
 ) -> AgentScopes {
-    let global_dir = ship_dir.join("agents");
+    let global_dir = runtime::ShipHome::at(ship_dir.to_path_buf())
+        .vector_dir(runtime::Scope::User, runtime::Vector::Agents, None);
     let project_dir = project_ship_dir
         .filter(|p| *p != ship_dir)
         .map(|p| p.join("agents"));

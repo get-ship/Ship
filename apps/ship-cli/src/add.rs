@@ -22,26 +22,18 @@ use runtime::registry::{
 ///
 /// 1. Parse package spec (path[@version]).
 /// 2. Check dep not already in ship.toml.
-/// 3. Backup ship.toml.
-/// 4. Append dep to ship.toml [dependencies].
+/// 3. Backup ship.jsonc.
+/// 4. Append dep to ship.jsonc dependencies.
 /// 5. Resolve + fetch the new dep only.
 /// 6. Update ship.lock.
 /// 7. Compile.
 /// 8. On error after step 3, restore backup.
 pub fn run_add(project_root: &Path, package_spec: &str) -> Result<()> {
     let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
-    // Prefer ship.jsonc over ship.toml
-    let jsonc_path = ship_dir.join("ship.jsonc");
-    let manifest_path = if jsonc_path.exists() {
-        jsonc_path
-    } else {
-        ship_dir.join("ship.toml")
-    };
+    let manifest_path = ship_dir.join("ship.jsonc");
 
     if !manifest_path.exists() {
-        anyhow::bail!(
-            "No .ship/ship.jsonc or .ship/ship.toml found. Run `ship init` first."
-        );
+        anyhow::bail!("No .ship/ship.jsonc found. Run `ship init` first.");
     }
 
     let (pkg_path, version) = parse_package_spec(package_spec);
@@ -149,13 +141,7 @@ pub(crate) fn append_dependency(raw: &str, path: &str, version: &str) -> String 
 /// Resolve, fetch, lock, and compile after modifying the manifest.
 fn do_add(project_root: &Path, pkg_path: &str, _version: &str) -> Result<()> {
     let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
-    // Prefer ship.jsonc over ship.toml
-    let jsonc_path = ship_dir.join("ship.jsonc");
-    let manifest_path = if jsonc_path.exists() {
-        jsonc_path
-    } else {
-        ship_dir.join("ship.toml")
-    };
+    let manifest_path = ship_dir.join("ship.jsonc");
     let lock_path = ship_dir.join("ship.lock");
 
     // Re-parse updated manifest.

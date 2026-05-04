@@ -1,7 +1,7 @@
 //! Daemon pidfile + advisory lock. The OS-enforced singleton.
 //!
 //! The supervisor (`ship daemon supervise`) acquires an exclusive `flock(2)`
-//! on `$SHIP_GLOBAL_DIR/shipd.pid` and writes a JSON record identifying
+//! on `$SHIP_HOME/machine/daemon/shipd.pid` and writes a JSON record identifying
 //! itself. Subsequent supervise invocations find the lock held and exit
 //! cleanly. If the supervisor dies (even via SIGKILL), the kernel releases
 //! the lock — the next startup takes over.
@@ -54,9 +54,14 @@ impl Drop for PidfileGuard {
     }
 }
 
-/// Full path to the pidfile inside `global_dir`.
-pub fn pidfile_path(global_dir: &Path) -> PathBuf {
-    global_dir.join(PIDFILE_NAME)
+/// Full path to the supervisor pidfile inside `daemon_dir`.
+///
+/// Co-located with the daemon's IPC files (port/token/pid). Per devx-04,
+/// `daemon_dir` may be the singleton `<root>/machine/daemon/` or a
+/// per-worktree `<root>/machine/daemons/<hash>/`. The supervisor pidfile
+/// enforces "one supervisor per daemon dir" via flock(2).
+pub fn pidfile_path(daemon_dir: &Path) -> PathBuf {
+    daemon_dir.join(PIDFILE_NAME)
 }
 
 /// Outcome of [`acquire`]. `Fresh` and `StaleTaken` both yield a held lock;
@@ -79,10 +84,12 @@ pub enum AcquireResult {
 ///
 /// Returns [`AcquireResult`] so callers can distinguish a fresh lock from
 /// a stale-pidfile takeover and emit the right `daemon.pidfile_*` event.
-pub fn acquire(global_dir: &Path, mut record: PidfileRecord) -> Result<AcquireResult> {
-    std::fs::create_dir_all(global_dir)
-        .with_context(|| format!("cannot create directory {}", global_dir.display()))?;
-    let path = pidfile_path(global_dir);
+pub fn acquire(daemon_dir: &Path, mut record: PidfileRecord) -> Result<AcquireResult> {
+    let path = pidfile_path(daemon_dir);
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("cannot create directory {}", parent.display()))?;
+    }
     record.pidfile_path = path.display().to_string();
 
     let mut file = OpenOptions::new()
@@ -138,8 +145,8 @@ pub fn acquire(global_dir: &Path, mut record: PidfileRecord) -> Result<AcquireRe
 /// Returns the parsed record plus a flag indicating whether the exclusive
 /// lock is currently held by some process. `Ok(None)` when the pidfile does
 /// not exist.
-pub fn read(global_dir: &Path) -> Result<Option<(PidfileRecord, bool)>> {
-    let path = pidfile_path(global_dir);
+pub fn read(daemon_dir: &Path) -> Result<Option<(PidfileRecord, bool)>> {
+    let path = pidfile_path(daemon_dir);
     if !path.exists() {
         return Ok(None);
     }

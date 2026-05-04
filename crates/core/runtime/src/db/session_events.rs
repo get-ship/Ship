@@ -1,25 +1,24 @@
 //! Typed session event emission.
 //!
-//! Each function builds an EventEnvelope, persists the event and applies the
-//! session projection in a single SQLite transaction on one connection.
-//! Kernel routing happens after commit (fire-and-forget).
+//! Each function builds an `EventEnvelope` and hands it to the canonical
+//! write path: `SqliteEventStore::append` persists the event row and
+//! applies the session projection in a single transaction. When a kernel
+//! router is up we additionally deliver to actor mailboxes (sync, no
+//! re-persist).
 //!
-//! session.progress is non-elevated so it goes to kernel routing only;
-//! it is still persisted to platform.db by the transactional path.
+//! `session.progress` is non-elevated; otherwise the same path.
 //!
 //! ADR GHihs2tn: all session lifecycle transitions must emit typed events.
 
 use anyhow::Result;
 
-use crate::db::{block_on, block_on_anyhow, open_db};
-use crate::persistence::event_store::append_event_with_conn;
+use crate::db::block_on_anyhow;
 use crate::events::types::event_types;
 use crate::events::types::{
-    SessionAttached, SessionEnded, SessionProgress, SessionRecorded, SessionStarted,
+    SessionAttached, SessionEnded, SessionProgress, SessionStarted,
 };
-use crate::events::validator::{CallerKind, EmitContext};
 use crate::events::EventEnvelope;
-use crate::projections::{Projection, SessionProjection};
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -36,36 +35,18 @@ fn session_envelope<P: serde::Serialize>(
         .elevate())
 }
 
-/// Persist event + apply projection in one transaction, then route to kernel.
-fn emit_session(envelope: EventEnvelope, workspace_id: &str) -> Result<EventEnvelope> {
-    let mut conn = open_db()?;
-    block_on(async { sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await })?;
+/// Canonical write: event row + session projection apply in one tx via
+/// `SqliteEventStore::append`. Mailbox delivery is best-effort if a
+/// kernel router is up.
+fn emit_session(envelope: EventEnvelope, _workspace_id: &str) -> Result<EventEnvelope> {
+    let store = SqliteEventStore::new()?;
+    store.append(&envelope)?;
 
-    if let Err(e) = append_event_with_conn(&envelope, &mut conn) {
-        let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
-        return Err(e);
-    }
-
-    let proj = SessionProjection::new();
-    if let Err(e) = proj.apply(&envelope, &mut conn) {
-        let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
-        return Err(e);
-    }
-
-    block_on(async { sqlx::query("COMMIT").execute(&mut conn).await })?;
-
-    // Route to actor mailboxes after commit. Event is already durable; a
-    // failed delivery just means live subscribers will catch up on replay.
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: Some(workspace_id.to_string()),
-        session_id: envelope.session_id.clone(),
-    };
-    if let Some(kr) = crate::events::kernel_router()
-        && let Err(e) = block_on_anyhow(async { kr.lock().await.emit(envelope.clone(), &ctx).await })
-    {
-        tracing::warn!("db::session_events: kernel route after commit failed: {e}");
+    if let Some(kr) = crate::events::kernel_router() {
+        let _ = block_on_anyhow(async {
+            kr.lock().await.deliver(&envelope);
+            Ok(())
+        });
     }
 
     Ok(envelope)
@@ -116,21 +97,7 @@ pub fn insert_session_progress_event(
         envelope = envelope.elevate();
     }
 
-    let mut conn = open_db()?;
-    append_event_with_conn(&envelope, &mut conn)?;
-
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: Some(workspace_id.to_string()),
-        session_id: Some(session_id.to_string()),
-    };
-    if let Some(kr) = crate::events::kernel_router()
-        && let Err(e) = block_on_anyhow(async { kr.lock().await.emit(envelope, &ctx).await })
-    {
-        tracing::warn!("db::session_events: kernel route of progress failed: {e}");
-    }
-
+    emit_session(envelope, workspace_id)?;
     Ok(())
 }
 
@@ -148,19 +115,6 @@ pub fn update_session_with_ended_event(
     emit_session(envelope, workspace_id)
 }
 
-pub fn insert_session_recorded_event(
-    session_id: &str,
-    workspace_id: &str,
-    payload: &SessionRecorded,
-) -> Result<EventEnvelope> {
-    let envelope = session_envelope(
-        event_types::SESSION_RECORDED,
-        session_id,
-        workspace_id,
-        payload,
-    )?;
-    emit_session(envelope, workspace_id)
-}
 
 /// Emit a session drain/tool-count event transactionally.
 pub fn emit_session_drain_event<P: serde::Serialize>(

@@ -4,7 +4,7 @@ use std::path::Path;
 use compiler::manifest::ShipManifest;
 use runtime::registry::hash::{ExportHashes, compute_export_hashes};
 
-use crate::config::Credentials;
+use crate::config::{Credentials, DiskBackedConfig};
 
 /// Filter manifest exports to a single export path.
 ///
@@ -162,7 +162,7 @@ pub fn run_publish(
     }
 
     let creds = Credentials::load();
-    let token = creds.token().ok_or_else(|| {
+    let token = creds.account_token().ok_or_else(|| {
         anyhow::anyhow!("Not authenticated. Run `ship login` first, then retry `ship publish`.")
     })?;
 

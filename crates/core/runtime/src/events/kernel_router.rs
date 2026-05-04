@@ -117,7 +117,7 @@ impl KernelRouter {
             std::fs::create_dir_all(&base_dir)?;
         }
         crate::db::ensure_db_at(&base_dir)?;
-        let kernel_store_path = base_dir.join("platform.db");
+        let kernel_store_path = crate::db::platform_db_path(&base_dir);
         #[cfg(feature = "unstable")]
         crate::persistence::cursor::init_cursor_table(&kernel_store_path)?;
 
@@ -157,7 +157,7 @@ impl KernelRouter {
     ) -> Result<(ActorStore, Mailbox), KernelError> {
         // Every actor queries the shared platform.db events table filtered
         // by its own actor_id. No per-actor file is created.
-        let db_path = self.base_dir.join("platform.db");
+        let db_path = crate::db::platform_db_path(&self.base_dir);
 
         #[cfg(feature = "unstable")]
         self.actor_cursors.remove(actor_id);
@@ -227,6 +227,17 @@ impl KernelRouter {
             // inner.route() = persist via sink + deliver to mailboxes.
             self.inner.route(event).await
         }
+    }
+
+    /// Deliver an already-persisted event to actor mailboxes.
+    ///
+    /// Used by callers that have written through `SqliteEventStore::append`
+    /// (or another canonical writer) and want the kernel to push the event
+    /// to subscribed actor mailboxes without re-persisting. No validators
+    /// run — the caller already established the event's legitimacy by
+    /// persisting it.
+    pub fn deliver(&self, event: &EventEnvelope) {
+        self.inner.deliver(event);
     }
 
     /// Delivery-only path — **deprecated**.
@@ -303,7 +314,7 @@ impl KernelRouter {
     /// always returns platform.db — actor isolation is by `actor_id` column,
     /// not by file.
     pub(crate) fn actor_db_path(&self, _actor_id: &str) -> PathBuf {
-        self.base_dir.join("platform.db")
+        crate::db::platform_db_path(&self.base_dir)
     }
 
     /// Enforce write namespace permissions.

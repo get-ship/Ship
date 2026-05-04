@@ -941,8 +941,35 @@
 
     <!-- Toast host: listens for ship:notify, forwards to ship-toast-container. -->
     <ship-toast-host position="bottom-right"></ship-toast-host>
+
+    <!-- Agent modal: cmdk-style chat surface. Listens for ship:chat:*
+         window events. With no default-agent / default-provider attrs,
+         the picker (app-agent-picker) opens first; explicit defaults
+         can be set on this element to skip the picker. -->
+    <app-agent-modal></app-agent-modal>
     </ship-shell>
 
     <script type="module" src="/src/main.ts"></script>
+    <!-- Agent UI single-file components. The auto-loader is future
+         work in the SDK; until then each component used here lists
+         its module URL. Injected via runtime IIFE (not <script src>)
+         so Vite's build step doesn't try to resolve daemon-served
+         URLs at compile time — same pattern the inline-loader at the
+         top of <head> uses for /api/assets/. -->
+    <script>
+      (function() {
+        var tags = [
+          'app-agent-thread', 'app-agent-composer', 'app-agent-picker',
+          'app-pty-attach', 'app-agent-modal',
+          'app-pipeline-step', 'app-pipeline-board',
+        ];
+        tags.forEach(function(tag) {
+          var s = document.createElement('script');
+          s.type = 'module';
+          s.src = '/_ship/components/' + tag + '.js';
+          document.body.appendChild(s);
+        });
+      })();
+    </script>
   </body>
 </html>

@@ -13,10 +13,10 @@ use assert_cmd::Command;
 use predicates::prelude::*;
 use tempfile::TempDir;
 
-/// CLI command with SHIP_GLOBAL_DIR isolated to `tmp`.
+/// CLI command with SHIP_HOME isolated to `tmp`.
 fn ship_in(tmp: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("ship").unwrap();
-    cmd.env("SHIP_GLOBAL_DIR", tmp.path());
+    cmd.env("SHIP_HOME", tmp.path());
     cmd
 }
 

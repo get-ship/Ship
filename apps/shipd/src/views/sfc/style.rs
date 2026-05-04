@@ -127,15 +127,62 @@ fn emit_prefixed_selector(out: &mut String, sel: &str, prefix: &str) {
     // comments from the selector text first.
     let s_no_comments = strip_css_comments(s);
     let s_check = s_no_comments.trim();
-    if s_check.starts_with(":host") || s_check.starts_with('&') || s_check.starts_with(prefix) {
-        // Emit the original (with comments preserved) so authors keep
-        // their notes; just don't prefix.
+    if s_check.starts_with('&') || s_check.starts_with(prefix) {
         out.push_str(s);
+        return;
+    }
+    if s_check.starts_with(":host") {
+        // SFC components are light DOM (no shadow root); `:host` must
+        // be rewritten to `[data-component="<tag>"]` so the rule
+        // actually targets the host element. `:host(.foo)` becomes
+        // `[data-component="..."].foo`. `:host` alone becomes
+        // `[data-component="..."]`.
+        let rewritten = rewrite_host_pseudo(s_check, prefix);
+        // Preserve any leading comments / whitespace from the original.
+        let leading_len = s.len() - s.trim_start().len();
+        out.push_str(&s[..leading_len]);
+        out.push_str(&rewritten);
         return;
     }
     out.push_str(prefix);
     out.push(' ');
     out.push_str(s);
+}
+
+/// `:host` → prefix; `:host(<inner>)` → prefix + inner (whitespace-glued
+/// like a compound selector). Anything after the `:host[...]` segment is
+/// appended unchanged so descendant + state selectors keep working
+/// (`:host(.x) > .y` → `[data-component="..."].x > .y`).
+fn rewrite_host_pseudo(s: &str, prefix: &str) -> String {
+    let bytes = s.as_bytes();
+    debug_assert!(s.starts_with(":host"));
+    let mut i = 5usize; // length of ":host"
+    let mut compound = String::new();
+    if bytes.get(i) == Some(&b'(') {
+        // Find matching close paren.
+        let start = i + 1;
+        let mut depth = 1;
+        let mut j = start;
+        while j < bytes.len() && depth > 0 {
+            match bytes[j] {
+                b'(' => depth += 1,
+                b')' => depth -= 1,
+                _ => {}
+            }
+            if depth == 0 { break; }
+            j += 1;
+        }
+        if depth == 0 {
+            compound.push_str(&s[start..j]);
+            i = j + 1;
+        }
+    }
+    let rest = &s[i..];
+    if compound.is_empty() {
+        format!("{prefix}{rest}")
+    } else {
+        format!("{prefix}{compound}{rest}")
+    }
 }
 
 /// Strip `/* ... */` comments from a string. Preserves everything else
@@ -165,28 +212,53 @@ mod tests {
     use super::*;
 
     #[test]
-    fn host_with_preceding_comment_is_not_prefixed() {
-        // Regression: a CSS comment before a `:host` rule used to confuse
-        // the scoper into treating the comment as the selector head, which
-        // failed the `:host` predicate and prefixed the whole thing — emitting
-        // invalid CSS like `[data-component="x"] /* ... */ :host(...)`.
+    fn host_with_preceding_comment_rewrites_to_prefix() {
+        // SFC light DOM: `:host` rewrites to `[data-component="<tag>"]`
+        // so the rule actually targets the host element. Compound
+        // attribute selectors like `:host([active])` become
+        // `[data-component="..."][active]`.
         let css = "/* note */ :host([active]) { display: block; }";
         let out = scope_css(css, "ship-tab-panel");
-        // `:host(...)` selector is preserved verbatim (with comment) because
-        // we don't add the `[data-component]` prefix in front of it.
         assert!(
-            !out.contains("[data-component=\"ship-tab-panel\"] /*"),
-            "comment must not appear between the prefix and the rule: {out}"
+            out.contains("[data-component=\"ship-tab-panel\"][active]"),
+            "host pseudo must rewrite to compound selector: {out}"
         );
-        assert!(out.contains(":host([active])"), "out: {out}");
+        assert!(!out.contains(":host"), ":host literal must not survive: {out}");
     }
 
     #[test]
-    fn host_selector_alone_is_not_prefixed() {
+    fn host_selector_alone_rewrites_to_component_prefix() {
+        // SFC components are light DOM. `:host` doesn't match anything
+        // there; it must rewrite to the component prefix so authors'
+        // host-level styles (display, font-family, theme tokens) apply.
         let css = ":host { display: none; }";
         let out = scope_css(css, "x-y");
-        assert!(!out.contains("[data-component=\"x-y\"] :host"), "out: {out}");
-        assert!(out.contains(":host { display: none; }"));
+        assert!(
+            out.contains("[data-component=\"x-y\"] {") ||
+            out.contains("[data-component=\"x-y\"]{"),
+            "host alone must rewrite to bare prefix: {out}"
+        );
+        assert!(!out.contains(":host"), ":host literal must not survive: {out}");
+    }
+
+    #[test]
+    fn host_with_attribute_compounds_correctly() {
+        let css = ":host([disabled]) { opacity: 0.5; }";
+        let out = scope_css(css, "my-tag");
+        assert!(
+            out.contains("[data-component=\"my-tag\"][disabled]"),
+            "compound rewrite: {out}"
+        );
+    }
+
+    #[test]
+    fn host_with_descendant_combines() {
+        let css = ":host(.expanded) > .body { display: block; }";
+        let out = scope_css(css, "my-tag");
+        assert!(
+            out.contains("[data-component=\"my-tag\"].expanded > .body"),
+            "compound + descendant: {out}"
+        );
     }
 
     #[test]

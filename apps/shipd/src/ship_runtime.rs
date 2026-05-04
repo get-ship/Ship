@@ -73,6 +73,9 @@ pub struct ShipRuntime {
     agent_mailboxes: AgentMailboxes,
     pty_connections: PtyConnections,
     ship_dir: PathBuf,
+    /// Daemon IPC directory — `<root>/machine/daemon/` or
+    /// `<root>/machine/daemons/<hash>/` per devx-04.
+    daemon_dir: PathBuf,
     mesh: tokio::sync::OnceCell<MeshManager>,
     jobs: tokio::sync::OnceCell<JobManager>,
     dispatch_handle: std::sync::OnceLock<DispatchHandle>,
@@ -81,8 +84,11 @@ pub struct ShipRuntime {
     session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
     health_registry: HealthRegistry,
-    /// Shared data service for collections and extensions.
-    data_service: tokio::sync::Mutex<Option<runtime::data::DataService>>,
+    /// Shared data service for collections and extensions. Arc-wrapped
+    /// so trait-bound service impls (`CollectionsService`,
+    /// `ArtifactsService`) can hold a clone of the same handle and see
+    /// the same lazily-opened DataService.
+    data_service: Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>>,
     /// Agent-owned view sessions (Phase 1 canvas framework).
     view_sessions: crate::views::session::SharedViewSessionRegistry,
     /// PTY session registry — chat, pipelines, dock terminal all go
@@ -99,6 +105,32 @@ pub struct ShipRuntime {
     started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
     hook_engine: std::sync::OnceLock<std::sync::Arc<runtime::hooks::engine::HookEngine>>,
+    /// `RulesService` impl — pilot for the modular-runtime spec 02
+    /// service-layer pattern. HTTP handlers in `services::rules` go
+    /// through this trait so the cloud worker / browser embed / unit
+    /// tests can swap implementations without standing up an HTTP server.
+    rules: std::sync::Arc<dyn crate::services::rules::service::RulesService>,
+    /// `PermissionsService` impl — second mr-02 pilot, includes the
+    /// cross-domain `tool_patterns` composition.
+    permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService>,
+    /// `McpService` impl — third mr-02 pilot.
+    mcp: std::sync::Arc<dyn crate::services::mcp::service::McpService>,
+    /// `SkillsService` impl — fourth mr-02 migration.
+    skills: std::sync::Arc<dyn crate::services::skills::service::SkillsService>,
+    /// `AgentsService` impl — fifth mr-02 migration.
+    agents: std::sync::Arc<dyn crate::services::agents::service::AgentsService>,
+    /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
+    /// dispatch / cancel / runs still flow through `runtime_api`).
+    pipelines: std::sync::Arc<dyn crate::services::pipelines::service::PipelinesService>,
+    /// `GitService` impl — seventh mr-02 migration. Project-bound; the
+    /// SSE handler in `git/mod.rs` stays separate.
+    git: std::sync::Arc<dyn crate::services::git::service::GitService>,
+    /// `CollectionsService` impl — eighth mr-02 migration. Db-bound;
+    /// shares the `data_service` Arc with the runtime.
+    collections: std::sync::Arc<dyn crate::services::collections::service::CollectionsService>,
+    /// `ArtifactsService` impl — ninth mr-02 migration. Db-bound;
+    /// shares the `data_service` Arc with the runtime.
+    artifacts: std::sync::Arc<dyn crate::services::artifacts::service::ArtifactsService>,
 }
 
 impl ShipRuntime {
@@ -114,7 +146,7 @@ impl ShipRuntime {
         // the event log, replay events into fresh projection tables. If the
         // event log itself is corrupt, refuse to start — the user needs to
         // intervene rather than lose data silently.
-        if global_dir.join("platform.db").exists() {
+        if runtime::db::platform_db_path(global_dir).exists() {
             match runtime::db::integrity::check_platform_integrity(global_dir) {
                 Ok(runtime::db::integrity::IntegrityStatus::Ok) => {
                     tracing::info!("shipd: platform.db integrity check passed");
@@ -171,11 +203,11 @@ impl ShipRuntime {
         // which requires the multi-threaded runtime. spawn_blocking works in both.
         let dir = global_dir.clone();
         let kernel = tokio::task::spawn_blocking(move || {
-            // Phase 3: one-shot home-layout migrator. Idempotent; runs before
-            // any DB open so the canonical `~/.ship/library` + `~/.ship/machine`
-            // shape is in place when callers resolve paths.
-            runtime::home::migrate::migrate_home(&runtime::ShipHome::at(dir.clone()))
-                .context("home-layout migration")?;
+            // Ensure the canonical `~/.ship/library` + `~/.ship/machine`
+            // dir tree exists before any DB open or daemon write. Idempotent
+            // mkdir -p; no migration logic (pre-launch, no installed base).
+            runtime::home::ensure_layout(&runtime::ShipHome::at(dir.clone()))
+                .context("ensure ship home layout")?;
             // Open data.db + run collections migration first.
             let _ = runtime::data::DataService::open(&dir)?;
             runtime::db::ensure_db_at(&dir)?;
@@ -191,7 +223,7 @@ impl ShipRuntime {
         log_event_log_summary(global_dir);
 
         // Best-effort auto-purge: remove trash entries older than 24 hours.
-        match runtime::workspace::trash::purge_old_trash(std::time::Duration::from_secs(86400)) {
+        match runtime::trash::purge_old_trash(std::time::Duration::from_secs(86400)) {
             Ok(0) => {}
             Ok(n) => tracing::info!("auto-purged {n} expired trash entries"),
             Err(e) => tracing::warn!("trash auto-purge failed: {e}"),
@@ -221,6 +253,22 @@ impl ShipRuntime {
         // Uses spawn_blocking because the DB layer uses block_in_place.
         let _ = tokio::task::spawn_blocking(cleanup_active_sessions_on_startup).await;
 
+        // Build db-bound service impls before the struct literal so they
+        // can share the same `data_service` Arc.
+        let data_service: Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>> =
+            Arc::new(tokio::sync::Mutex::new(None));
+        let collections =
+            crate::services::collections::service::CollectionsServiceImpl::arc(
+                global_dir.clone(),
+                kernel.clone(),
+                data_service.clone(),
+            );
+        let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
+            global_dir.clone(),
+            kernel.clone(),
+            data_service.clone(),
+        );
+
         Ok(Self {
             config,
             kernel,
@@ -231,16 +279,51 @@ impl ShipRuntime {
             // attachment does NOT fork a second db into <workspace>/.ship/.
             // See crates/core/runtime/src/db/mod.rs:77 ("Never inside a project directory").
             ship_dir: global_dir.clone(),
+            daemon_dir: {
+                // Pick the worktree daemon dir if launched from inside a
+                // project root, else the singleton. Mirrors lib.rs::run_network.
+                let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
+                let root = probe
+                    .as_ref()
+                    .and_then(|p| runtime::home::ProjectRoot::discover(p));
+                let home = runtime::ShipHome::at(global_dir.clone());
+                match root.as_ref() {
+                    Some(r) => home.worktree_daemon_dir(&runtime::home::path_hash(r.path())),
+                    None => home.daemon_dir(),
+                }
+            },
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
-            data_service: tokio::sync::Mutex::new(None),
+            data_service: Arc::new(tokio::sync::Mutex::new(None)),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
+            rules: crate::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
+            permissions: {
+                // PermissionsServiceImpl needs an Arc<dyn McpService> for
+                // tool_patterns; build the same impl the runtime exposes
+                // so HTTP and trait-to-trait paths see one catalog.
+                let mcp_for_perms =
+                    crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
+                std::sync::Arc::new(
+                    crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                        global_dir.clone(),
+                        None,
+                        mcp_for_perms,
+                    ),
+                )
+            },
+            mcp: crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
+            skills: crate::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
+            agents: crate::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
+            pipelines: crate::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
+            git: crate::services::git::service::GitServiceImpl::arc(global_dir.clone()),
+            collections,
+            artifacts,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -276,6 +359,60 @@ impl ShipRuntime {
 
     pub fn ship_dir(&self) -> &Path {
         &self.ship_dir
+    }
+
+    /// `RulesService` accessor — pilot for the modular-runtime spec 02
+    /// service-layer pattern. HTTP handlers in `services::rules::*`
+    /// call through this rather than reaching into runtime state.
+    pub fn rules(&self) -> &dyn crate::services::rules::service::RulesService {
+        &*self.rules
+    }
+
+    /// `PermissionsService` accessor — second mr-02 pilot.
+    pub fn permissions(
+        &self,
+    ) -> &dyn crate::services::permissions::service::PermissionsService {
+        &*self.permissions
+    }
+
+    /// `McpService` accessor — third mr-02 pilot.
+    pub fn mcp(&self) -> &dyn crate::services::mcp::service::McpService {
+        &*self.mcp
+    }
+
+    /// `SkillsService` accessor.
+    pub fn skills(&self) -> &dyn crate::services::skills::service::SkillsService {
+        &*self.skills
+    }
+
+    /// `AgentsService` accessor.
+    pub fn agents(&self) -> &dyn crate::services::agents::service::AgentsService {
+        &*self.agents
+    }
+
+    /// `PipelinesService` accessor — definition CRUD; dispatch / cancel /
+    /// runs still go through `runtime_api`.
+    pub fn pipelines(&self) -> &dyn crate::services::pipelines::service::PipelinesService {
+        &*self.pipelines
+    }
+
+    /// `GitService` accessor — every git op except SSE goes through this.
+    pub fn git(&self) -> &dyn crate::services::git::service::GitService {
+        &*self.git
+    }
+
+    /// `CollectionsService` accessor — db-bound CRUD + query.
+    pub fn collections(
+        &self,
+    ) -> &dyn crate::services::collections::service::CollectionsService {
+        &*self.collections
+    }
+
+    /// `ArtifactsService` accessor — db-bound CRUD + scope promotion.
+    pub fn artifacts(
+        &self,
+    ) -> &dyn crate::services::artifacts::service::ArtifactsService {
+        &*self.artifacts
     }
 
     pub fn mesh_registry(&self) -> &SharedMeshRegistry {
@@ -321,14 +458,17 @@ impl ShipRuntime {
     /// On first call, registers built-in collections (currently `artifacts`)
     /// so they are guaranteed present without requiring a schema file.
     pub async fn data_service(&self) -> Result<tokio::sync::MutexGuard<'_, Option<runtime::data::DataService>>> {
-        let mut guard = self.data_service.lock().await;
-        if guard.is_none() {
-            let mut svc = runtime::data::DataService::open(&self.ship_dir)?;
-            runtime::artifacts::ensure_artifacts_collection(&mut svc)
-                .context("registering built-in artifacts collection")?;
-            *guard = Some(svc);
-        }
-        Ok(guard)
+        ensure_data_service(&self.data_service, &self.ship_dir).await
+    }
+
+    /// Arc handle to the shared `DataService` mutex — passed to service
+    /// impls (`CollectionsService`, `ArtifactsService`) so they can lock
+    /// the same mutex the runtime holds. Lazy-init is shared via
+    /// `ensure_data_service`.
+    pub fn data_service_arc(
+        &self,
+    ) -> Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>> {
+        self.data_service.clone()
     }
 
     pub fn health_registry(&self) -> &HealthRegistry {
@@ -443,9 +583,13 @@ impl ShipRuntime {
         if self.hook_engine.get().is_some() {
             return;
         }
+        // Pass the user-scope library/ dir; engine joins `triggers/` for the
+        // user-scope vector. Project-scope triggers are loaded by the hook
+        // engine when a project workspace activates.
+        let library_dir = runtime::ShipHome::at(self.ship_dir.clone()).library_dir();
         match runtime::hooks::engine::spawn_hook_service(
             self.kernel.clone(),
-            self.ship_dir.clone(),
+            library_dir,
         )
         .await
         {
@@ -500,6 +644,38 @@ impl ShipRuntime {
     #[cfg(test)]
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
+        let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
+        let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
+        let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let pipelines =
+            crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
+        let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());
+        let data_service: Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>> =
+            Arc::new(tokio::sync::Mutex::new(None));
+        let collections =
+            crate::services::collections::service::CollectionsServiceImpl::arc(
+                ship_dir.clone(),
+                kernel.clone(),
+                data_service.clone(),
+            );
+        let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
+            ship_dir.clone(),
+            kernel.clone(),
+            data_service.clone(),
+        );
+        // Permissions reaches into Mcp via the trait for tool_patterns.
+        // Wire the same arc both places so HTTP and trait-to-trait paths
+        // observe the same catalog.
+        let permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService> =
+            std::sync::Arc::new(
+                crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                    ship_dir.clone(),
+                    None,
+                    mcp.clone(),
+                ),
+            );
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -507,16 +683,26 @@ impl ShipRuntime {
             agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
             ship_dir,
+            daemon_dir,
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
-            data_service: tokio::sync::Mutex::new(None),
+            data_service,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
+            rules,
+            permissions,
+            mcp,
+            skills,
+            agents,
+            pipelines,
+            git,
+            collections,
+            artifacts,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -531,6 +717,38 @@ impl ShipRuntime {
         mesh_registry: SharedMeshRegistry,
     ) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
+        let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
+        let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
+        let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let pipelines =
+            crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
+        let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());
+        let data_service: Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>> =
+            Arc::new(tokio::sync::Mutex::new(None));
+        let collections =
+            crate::services::collections::service::CollectionsServiceImpl::arc(
+                ship_dir.clone(),
+                kernel.clone(),
+                data_service.clone(),
+            );
+        let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
+            ship_dir.clone(),
+            kernel.clone(),
+            data_service.clone(),
+        );
+        // Permissions reaches into Mcp via the trait for tool_patterns.
+        // Wire the same arc both places so HTTP and trait-to-trait paths
+        // observe the same catalog.
+        let permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService> =
+            std::sync::Arc::new(
+                crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                    ship_dir.clone(),
+                    None,
+                    mcp.clone(),
+                ),
+            );
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -538,16 +756,26 @@ impl ShipRuntime {
             agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
             ship_dir,
+            daemon_dir,
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
-            data_service: tokio::sync::Mutex::new(None),
+            data_service,
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
+            rules,
+            permissions,
+            mcp,
+            skills,
+            agents,
+            pipelines,
+            git,
+            collections,
+            artifacts,
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -592,13 +820,31 @@ impl ShipRuntime {
         // Drain — allow managers to finish in-flight work.
         tracing::info!("shipd: drain complete, cleaning up daemon files");
 
-        // Remove PID and port (liveness indicators) but keep the token.
+        // Remove pid and port (liveness indicators) but keep the token.
         // Preserving the token across restarts means CLI clients that cached
         // it don't need to re-handshake after a daemon restart.
-        let _ = std::fs::remove_file(self.ship_dir.join("daemon.port"));
-        let _ = std::fs::remove_file(self.ship_dir.join("daemon.pid"));
+        crate::daemon::remove_liveness_files(&self.daemon_dir);
         tracing::info!("shipd: shutdown complete");
     }
+}
+
+/// Lazy-init helper for the shared `DataService` handle.
+///
+/// `data_service_arc` and `ShipRuntime::data_service` both go through
+/// here so the registration of the built-in artifacts collection happens
+/// exactly once regardless of who holds the mutex first.
+pub(crate) async fn ensure_data_service<'a>(
+    handle: &'a Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>>,
+    ship_dir: &Path,
+) -> Result<tokio::sync::MutexGuard<'a, Option<runtime::data::DataService>>> {
+    let mut guard = handle.lock().await;
+    if guard.is_none() {
+        let mut svc = runtime::data::DataService::open(ship_dir)?;
+        runtime::artifacts::ensure_artifacts_collection(&mut svc)
+            .context("registering built-in artifacts collection")?;
+        *guard = Some(svc);
+    }
+    Ok(guard)
 }
 
 /// End all previously-active sessions on daemon startup.
@@ -627,7 +873,7 @@ fn cleanup_active_sessions_on_startup() {
             Ok(()) => {
                 tracing::info!(
                     session_id = %session.id,
-                    workspace = %session.workspace_branch,
+                    workspace = %session.branch,
                     "startup cleanup: ended stale session"
                 );
             }
@@ -646,7 +892,7 @@ fn cleanup_active_sessions_on_startup() {
 /// count ever drops between restarts without a reset, that's the first
 /// thing to investigate.
 fn log_event_log_summary(global_dir: &Path) {
-    if !global_dir.join("platform.db").exists() {
+    if !runtime::db::platform_db_path(global_dir).exists() {
         tracing::info!("shipd: fresh install, no events yet");
         return;
     }

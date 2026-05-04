@@ -1,14 +1,11 @@
-//! `runtime::supervisor` — single spawn primitive.
+//! `runtime::supervisor` — the single spawn primitive.
 //!
-//! The substrate today has two competing supervisors: `apps/shipd/src/
-//! sessions/lifecycle.rs::spawn_command` (chat agents + shells, PTY-attached)
-//! and `apps/shipd/src/supervisor/executors/*` (pipeline jobs, mixed
-//! transports). They duplicate spawn / hold / reap mechanics with subtly
-//! different event emission, identity, and cleanup semantics.
-//!
-//! This module establishes ONE spawn primitive — `spawn_actor(profile)` —
-//! and one transport trait. Callers migrate to it incrementally; old paths
-//! delete only when their last consumer flips. Currently exposed:
+//! All supervised processes flow through `spawn_actor(profile)` and one
+//! transport trait. The legacy `spawn_command` path in
+//! `apps/shipd/src/sessions/lifecycle.rs` was removed in mr-05; shell
+//! sessions go via `shell_actor::spawn_shell`, agent sessions via
+//! `agent_actor::*`, and pipeline jobs via `ProcessExecutor` — every
+//! one of them eventually calls `spawn_actor` here. Currently exposed:
 //!
 //!   - [`Transport`] — how a child process is held. PTY today; headless,
 //!     tmux, server-session arrive as the migration progresses.
@@ -76,6 +73,10 @@ impl ActorHandle {
 
     pub fn try_exit(&self) -> Option<i32> {
         self.child.try_exit()
+    }
+
+    pub fn resize(&self, cols: u16, rows: u16) -> Result<()> {
+        self.child.resize(cols, rows)
     }
 }
 
@@ -146,10 +147,17 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
     let emit_profile = profile.clone();
     let emit_pid = child.pid();
     std::thread::spawn(move || {
+        let cwd = emit_profile.work_dir.to_string_lossy().to_string();
+        let project_id = crate::projects::find_by_path(&emit_profile.work_dir)
+            .ok()
+            .flatten()
+            .map(|p| p.id);
         let payload = crate::events::types::ActorCreated {
             kind: emit_profile.kind.as_str().to_string(),
             environment_type: "local".to_string(),
             workspace_id: emit_profile.workspace_id.clone(),
+            project_id,
+            cwd: Some(cwd),
             agent_id: emit_profile.agent_id.clone(),
             provider: emit_profile.provider.clone(),
             transport: Some(emit_profile.transport.as_str().to_string()),

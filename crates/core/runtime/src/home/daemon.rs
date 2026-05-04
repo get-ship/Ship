@@ -3,8 +3,17 @@
 //! The daemon writes all four files atomically on start into `machine/daemon/`
 //! and removes them on clean stop. Stale files signal a crash. This module
 //! names the files; path resolution lives in `ship_home.rs`.
+//!
+//! Per devx-04, multi-daemon mode also lays out per-worktree daemons under
+//! `machine/daemons/<hash>/` — each worktree gets its own port/token/pid set.
+//! `DaemonHandle::load` and `discover_running_daemon` read these layouts.
+
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+
+use crate::config::DiskBackedConfig;
 
 /// One of the four well-known daemon handshake files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
@@ -32,9 +41,189 @@ impl DaemonFile {
     }
 }
 
+// ── Multi-daemon discovery (devx-04) ─────────────────────────────────────────
+
+/// First 8 hex chars of `sha256(canonical_path)`. Stable across processes;
+/// short enough to type. Used as the directory key under `machine/daemons/`.
+pub fn path_hash(path: &Path) -> String {
+    let canonical = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+    let mut hasher = Sha256::new();
+    hasher.update(canonical.to_string_lossy().as_bytes());
+    let digest = hasher.finalize();
+    let mut out = String::with_capacity(8);
+    for byte in digest.iter().take(4) {
+        use std::fmt::Write;
+        let _ = write!(out, "{byte:02x}");
+    }
+    out
+}
+
+/// Loaded view of one daemon's IPC handshake — port, token, pid (and
+/// optional workspace path / build SHA on multi-daemon installs).
+#[derive(Debug, Clone)]
+pub struct DaemonHandle {
+    /// Directory the handle was loaded from (`machine/daemon/` or a
+    /// `machine/daemons/<hash>/` sibling).
+    pub dir: PathBuf,
+    pub port: u16,
+    pub token: String,
+    pub pid: Option<u32>,
+    pub workspace: Option<PathBuf>,
+    pub build_sha: Option<String>,
+}
+
+impl DaemonHandle {
+    /// Read `port`, `token`, `pid`, `workspace`, `sha` from `dir`. Returns
+    /// `None` when the directory is missing or the handshake is incomplete
+    /// (e.g. port file absent).
+    pub fn load(dir: &Path) -> Option<Self> {
+        let port = read_trim(dir.join("port")).and_then(|s| s.parse::<u16>().ok())?;
+        let token = read_trim(dir.join("token"))?;
+        let pid = read_trim(dir.join("pid")).and_then(|s| s.parse::<u32>().ok());
+        let workspace = read_trim(dir.join("workspace")).map(PathBuf::from);
+        let build_sha = read_trim(dir.join("sha"));
+        Some(Self {
+            dir: dir.to_path_buf(),
+            port,
+            token,
+            pid,
+            workspace,
+            build_sha,
+        })
+    }
+
+    /// True when `pid` is recorded AND the process is currently alive.
+    /// Best-effort — a `false` result also covers "no pid file at all".
+    pub fn is_alive(&self) -> bool {
+        match self.pid {
+            Some(pid) => pid_alive(pid),
+            None => false,
+        }
+    }
+}
+
+/// Discover the running daemon for `from`. Order:
+///
+/// 1. If `from` resolves to a project root, look for a per-worktree daemon
+///    at `machine/daemons/<hash(project_root)>/`.
+/// 2. Fall back to the global `machine/daemon/`.
+///
+/// Returns `None` when neither location holds a complete handshake.
+pub fn discover_running_daemon(from: &Path) -> Option<DaemonHandle> {
+    let home = crate::ShipHome::from_env();
+    if let Some(root) = crate::home::ProjectRoot::discover(from) {
+        let hash = path_hash(root.path());
+        let dir = home.worktree_daemon_dir(&hash);
+        if let Some(handle) = DaemonHandle::load(&dir) {
+            return Some(handle);
+        }
+    }
+    DaemonHandle::load(&home.daemon_dir())
+}
+
+/// The directory the daemon serving `from` should write its IPC files to.
+///
+/// Resolution mirrors `discover_running_daemon`: if `from` lives under a
+/// project root, returns `machine/daemons/<hash(project_root)>/` (creating
+/// the dir is the caller's responsibility). Otherwise returns the singleton
+/// `machine/daemon/`.
+pub fn daemon_dir_for(from: &Path) -> PathBuf {
+    let home = crate::ShipHome::from_env();
+    match crate::home::ProjectRoot::discover(from) {
+        Some(root) => home.worktree_daemon_dir(&path_hash(root.path())),
+        None => home.daemon_dir(),
+    }
+}
+
+/// Same as `daemon_dir_for(cwd)` — convenience wrapper for callers that
+/// don't already have a path in hand.
+pub fn current_daemon_dir() -> PathBuf {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    daemon_dir_for(&cwd)
+}
+
+/// Default-derived port for a per-worktree daemon: `9315 + N % 100`
+/// where `N` is the first 16 bits of the path hash (interpreted as
+/// big-endian). Gives a stable port per project root across restarts;
+/// collisions in the mod-100 window get resolved by bind-retry.
+pub fn derive_worktree_port(hash: &str) -> u16 {
+    const BASE: u16 = 9315;
+    let prefix = hash.get(..4).unwrap_or("0000");
+    let n = u32::from_str_radix(prefix, 16).unwrap_or(0);
+    BASE + ((n % 100) as u16)
+}
+
+/// Resolve the port shipd should bind for a given project root.
+///
+/// Lookup order:
+/// 1. `~/.ship/machine/local.jsonc:worktrees.ports[<current_branch>]` —
+///    user-pinned override; useful for stable browser-extension ports.
+/// 2. `derive_worktree_port(path_hash(project_root))` — hash-derived default.
+///
+/// `current_branch` is the branch checked out at `project_root`; resolved
+/// via `git symbolic-ref --short HEAD`. A detached HEAD or non-git tree
+/// skips the pin and falls through to derivation.
+pub fn worktree_port_for(project_root: &Path) -> u16 {
+    if let Some(branch) = current_branch(project_root) {
+        let local = crate::config::LocalSettings::load();
+        if let Some(wt) = local.worktrees.as_ref()
+            && let Some(port) = wt.ports.get(&branch)
+        {
+            return *port;
+        }
+    }
+    derive_worktree_port(&path_hash(project_root))
+}
+
+fn current_branch(project_root: &Path) -> Option<String> {
+    let out = std::process::Command::new("git")
+        .args(["symbolic-ref", "--short", "HEAD"])
+        .current_dir(project_root)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let s = String::from_utf8(out.stdout).ok()?;
+    let trimmed = s.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+fn read_trim<P: AsRef<Path>>(path: P) -> Option<String> {
+    std::fs::read_to_string(path.as_ref()).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
+}
+
+#[cfg(unix)]
+fn pid_alive(pid: u32) -> bool {
+    // SAFETY: kill(pid, 0) is the standard liveness probe; signal 0 doesn't
+    // deliver, just checks whether the process exists and is signalable.
+    unsafe { libc::kill(pid as libc::pid_t, 0) == 0 }
+}
+
+#[cfg(windows)]
+fn pid_alive(pid: u32) -> bool {
+    use std::process::Command;
+    Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}")])
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
+        .unwrap_or(false)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn pid_alive(_pid: u32) -> bool {
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tempfile::TempDir;
 
     #[test]
     fn file_names_are_stable() {
@@ -42,5 +231,77 @@ mod tests {
         assert_eq!(DaemonFile::Token.as_str(), "token");
         assert_eq!(DaemonFile::Pid.as_str(), "pid");
         assert_eq!(DaemonFile::Socket.as_str(), "socket");
+    }
+
+    #[test]
+    fn path_hash_is_stable() {
+        let tmp = TempDir::new().unwrap();
+        let a = path_hash(tmp.path());
+        let b = path_hash(tmp.path());
+        assert_eq!(a, b);
+        assert_eq!(a.len(), 8);
+        assert!(a.chars().all(|c| c.is_ascii_hexdigit()));
+    }
+
+    #[test]
+    fn path_hash_differs_across_paths() {
+        let tmp1 = TempDir::new().unwrap();
+        let tmp2 = TempDir::new().unwrap();
+        assert_ne!(path_hash(tmp1.path()), path_hash(tmp2.path()));
+    }
+
+    #[test]
+    fn handle_load_reads_full_handshake() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("port"), "9315\n").unwrap();
+        std::fs::write(tmp.path().join("token"), "tok-abc\n").unwrap();
+        std::fs::write(tmp.path().join("pid"), "12345\n").unwrap();
+        std::fs::write(tmp.path().join("workspace"), "/proj\n").unwrap();
+        std::fs::write(tmp.path().join("sha"), "abc1234\n").unwrap();
+
+        let handle = DaemonHandle::load(tmp.path()).unwrap();
+        assert_eq!(handle.port, 9315);
+        assert_eq!(handle.token, "tok-abc");
+        assert_eq!(handle.pid, Some(12345));
+        assert_eq!(handle.workspace.unwrap(), PathBuf::from("/proj"));
+        assert_eq!(handle.build_sha.unwrap(), "abc1234");
+    }
+
+    #[test]
+    fn handle_load_returns_none_when_port_missing() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("token"), "x").unwrap();
+        assert!(DaemonHandle::load(tmp.path()).is_none());
+    }
+
+    #[test]
+    fn derive_worktree_port_is_in_window() {
+        for hash in &["00000000", "abcd1234", "ffffffff", "deadbeef"] {
+            let p = derive_worktree_port(hash);
+            assert!((9315..=9414).contains(&p), "{hash} → {p} outside window");
+        }
+    }
+
+    #[test]
+    fn derive_worktree_port_is_stable() {
+        let h = "ab12cd34";
+        assert_eq!(derive_worktree_port(h), derive_worktree_port(h));
+    }
+
+    #[test]
+    fn handle_is_alive_reflects_pid_state() {
+        let tmp = TempDir::new().unwrap();
+        std::fs::write(tmp.path().join("port"), "9315").unwrap();
+        std::fs::write(tmp.path().join("token"), "x").unwrap();
+
+        // Stale handle (no pid file) → not alive.
+        let handle = DaemonHandle::load(tmp.path()).unwrap();
+        assert!(!handle.is_alive());
+
+        // Use our own pid — it must be alive (we're running this code).
+        let my_pid = std::process::id();
+        std::fs::write(tmp.path().join("pid"), my_pid.to_string()).unwrap();
+        let handle = DaemonHandle::load(tmp.path()).unwrap();
+        assert!(handle.is_alive());
     }
 }

@@ -27,6 +27,9 @@ pub enum DaemonCommand {
     Stop,
     Restart { host: String, dev: bool },
     Status,
+    /// Print the daemon IPC directory for cwd. Powers `just status` /
+    /// `scripts/dev/*` without those reaching into ShipHome internals.
+    Dir,
     Cleanup,
     RepairMigrations { mark_applied: Option<i64> },
     Run { host: String, port: u16, dev: bool },
@@ -42,16 +45,18 @@ pub enum DaemonCommand {
 const SHIPD_PORT: u16 = 9315;
 
 fn ship_dir() -> Result<PathBuf> {
-    let home = dirs::home_dir().context("cannot determine home directory")?;
-    Ok(runtime::ShipHome::project_ship_dir(home))
+    Ok(runtime::ShipHome::from_env().root().to_path_buf())
 }
 
 fn pid_file() -> Result<PathBuf> {
-    Ok(ship_dir()?.join("daemon.pid"))
+    Ok(runtime::home::current_daemon_dir().join("pid"))
 }
 
 fn log_file() -> Result<PathBuf> {
-    Ok(ship_dir()?.join("shipd.log"))
+    Ok(runtime::ShipHome::from_env()
+        .machine_dir()
+        .join("logs")
+        .join("shipd.log"))
 }
 
 /// Read a PID from the pid file. Returns None if the file does not exist.
@@ -100,6 +105,10 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
             supervision::select().restart(&ctx)
         }
         DaemonCommand::Status => daemon_status(),
+        DaemonCommand::Dir => {
+            println!("{}", runtime::home::current_daemon_dir().display());
+            Ok(())
+        }
         DaemonCommand::Cleanup => daemon_cleanup(),
         DaemonCommand::RepairMigrations { mark_applied } => daemon_repair_migrations(mark_applied),
         DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
@@ -202,10 +211,12 @@ pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
 
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
 
-    // Ensure ~/.ship/ and crashes dir exist.
+    // Ensure ~/.ship/ and machine/crashes/ exist.
     std::fs::create_dir_all(&global_dir).context("cannot create ~/.ship/ directory")?;
-    let crashes_dir = global_dir.join("crashes");
-    std::fs::create_dir_all(&crashes_dir).context("cannot create ~/.ship/crashes/ directory")?;
+    let crashes_dir = runtime::ShipHome::at(global_dir.clone())
+        .machine_dir()
+        .join("crashes");
+    std::fs::create_dir_all(&crashes_dir).context("cannot create ~/.ship/machine/crashes/ directory")?;
 
     // Fork the supervisor into the background.
     // The supervisor process watches the daemon child and restarts on crash.
@@ -249,7 +260,14 @@ pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
 fn daemon_supervise(host: String, dev: bool) -> Result<()> {
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
     let global_dir = ship_dir()?;
-    let crashes_dir = global_dir.join("crashes");
+    // Per devx-04, the supervisor co-locates with its daemon — picks the
+    // per-worktree daemons/<hash>/ when launched from a project root, else
+    // falls back to the singleton. Crashes still live under machine/crashes
+    // because they're not per-worktree.
+    let daemon_dir = runtime::home::current_daemon_dir();
+    let crashes_dir = runtime::ShipHome::at(global_dir.clone())
+        .machine_dir()
+        .join("crashes");
     // Dev mode forces localhost bind.
     let host = if dev { "127.0.0.1".to_string() } else { host };
 
@@ -259,15 +277,15 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
         pid: std::process::id(),
         port: SHIPD_PORT,
         version: env!("CARGO_PKG_VERSION").to_string(),
-        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("unknown").to_string(),
+        commit_sha: build_info::build_info!().git_sha.to_string(),
         started_at: chrono::Utc::now().to_rfc3339(),
         pidfile_path: String::new(),
         socket_path: String::new(),
         role: PidfileRole::Supervisor,
     };
     let supervisor_pid = record.pid;
-    let pidfile_path = pidfile::pidfile_path(&global_dir).display().to_string();
-    let _pidfile_guard = match pidfile::acquire(&global_dir, record)? {
+    let pidfile_path = pidfile::pidfile_path(&daemon_dir).display().to_string();
+    let _pidfile_guard = match pidfile::acquire(&daemon_dir, record)? {
         AcquireResult::Fresh(guard) => {
             emit_supervisor_event(
                 &global_dir,
@@ -559,7 +577,7 @@ fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
         .enable_all()
         .build()
         .context("cannot build tokio runtime")?;
-    rt.block_on(shipd::run_network(host, port, dev, None))
+    rt.block_on(shipd::run_network(host, Some(port), dev, None))
 }
 
 /// Legacy stop path wired to the pidfile adapter. Reads the supervisor
@@ -568,13 +586,20 @@ fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
 /// Only the pidfile adapter invokes this — systemd-managed installations
 /// go through `systemctl --user stop`.
 pub(super) fn daemon_stop_inner() -> Result<()> {
-    stop::daemon_stop_at(&ship_dir()?)
+    // Stop targets the daemon serving cwd. discover_running_daemon walks
+    // ProjectRoot::discover → per-worktree → singleton. If nothing is live,
+    // fall back to current_daemon_dir so we still tidy stale pidfiles.
+    let cwd = std::env::current_dir().context("cannot determine cwd")?;
+    let daemon_dir = runtime::home::discover_running_daemon(&cwd)
+        .map(|h| h.dir)
+        .unwrap_or_else(runtime::home::current_daemon_dir);
+    stop::daemon_stop_at(&daemon_dir)
 }
 
 fn daemon_status() -> Result<()> {
-    let global_dir = ship_dir()?;
+    let daemon_dir = runtime::home::current_daemon_dir();
     let adapter = supervision::select();
-    let supervision_status = adapter.status(&global_dir)?;
+    let supervision_status = adapter.status(&daemon_dir)?;
 
     // Try the live REST endpoint first — that's the daemon's own status,
     // richer than what a supervisor adapter can see from outside.
@@ -730,7 +755,7 @@ fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
 
     let global_dir = runtime::project::get_global_dir()
         .context("resolve global ship dir")?;
-    let db_path = global_dir.join("platform.db");
+    let db_path = runtime::db::platform_db_path(&global_dir);
     if !db_path.exists() {
         println!("no platform.db at {} — nothing to repair", db_path.display());
         return Ok(());
@@ -783,22 +808,18 @@ fn daemon_cleanup() -> Result<()> {
 
     let jobs = load_jobs().context("failed to load job projection")?;
 
-    let worktrees_base = {
-        if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::WorktreeDir) {
-            PathBuf::from(dir)
-        } else {
-            let home = std::env::var("HOME")
-                .or_else(|_| std::env::var("USERPROFILE"))
-                .unwrap_or_else(|_| "/tmp".to_string());
-            PathBuf::from(home).join("dev").join("ship-worktrees")
-        }
-    };
-
     let repo_dir = if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::RepoDir) {
         PathBuf::from(dir)
     } else {
         std::env::current_dir().context("cannot determine working directory")?
     };
+
+    let project_name = repo_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "ship".to_string());
+    let worktrees_base = runtime::config::worktrees_dir(&project_name);
 
     let orphans: Vec<_> = jobs
         .values()
@@ -911,19 +932,20 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
 
 /// Try to read daemon info and verify it responds to /api/v1/health.
 fn daemon_info_if_healthy() -> Option<(u16, String)> {
-    let home = runtime::ShipHome::project_ship_dir(dirs::home_dir()?);
-    let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;
-    let port = port_str.trim().parse::<u16>().ok()?;
-    let token = std::fs::read_to_string(home.join("daemon.token")).ok()?;
-    let token = token.trim().to_string();
+    let cwd = std::env::current_dir().ok()?;
+    let handle = runtime::home::discover_running_daemon(&cwd)?;
+    let port = handle.port;
+    let token = handle.token.clone();
 
     // Quick health probe — 1 second timeout.
     let url = format!("http://127.0.0.1:{port}/api/health");
-    let resp = reqwest::blocking::Client::new()
+    let resp = crate::http::daemon_client()
         .get(&url)
         .timeout(std::time::Duration::from_secs(1))
         .send()
         .ok()?;
+
+    crate::http::check_skew(resp.headers());
 
     if resp.status().is_success() {
         Some((port, token))

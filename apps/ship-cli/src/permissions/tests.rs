@@ -92,7 +92,7 @@ fn load_local_settings_parses_allow_deny() {
 fn sync_writes_new_allows_to_agent() {
     let tmp = TempDir::new().unwrap();
     let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
-    write(tmp.path(), ".ship/ship.toml", "id = \"test-proj\"\nname = \"test\"\n");
+    write(tmp.path(), ".ship/ship.jsonc", "{ \"id\": \"test-proj\", \"name\": \"test\" }\n");
     // Write workspace state with active agent via platform.db
     let mut state = WorkspaceState::default();
     state.active_agent = Some("test".to_string());
@@ -124,7 +124,7 @@ providers = ["claude"]
 fn sync_warns_deny_that_shadows_allow_but_does_not_import() {
     let tmp = TempDir::new().unwrap();
     let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
-    write(tmp.path(), ".ship/ship.toml", "id = \"test-proj\"\nname = \"test\"\n");
+    write(tmp.path(), ".ship/ship.jsonc", "{ \"id\": \"test-proj\", \"name\": \"test\" }\n");
     // Write workspace state with active agent via platform.db
     let mut state = WorkspaceState::default();
     state.active_agent = Some("test".to_string());

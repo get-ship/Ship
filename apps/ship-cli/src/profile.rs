@@ -1,7 +1,9 @@
 //! Agent activation — `ship use [<agent-id>]`.
-//! Workspace state (active_agent, compiled_at, plugins_installed) is stored
-//! in platform.db kv_state (namespace='workspace'). ship.lock is reserved for
-//! the registry lockfile format.
+//! Profile state (active_agent, compiled_at, plugins_installed) is stored
+//! in platform.db kv_state under a per-project namespace
+//! (`workspace:<hash(.ship/)>`). The `workspace:` prefix is a vestige of the
+//! retired workspace primitive; the storage shape is project-scoped.
+//! ship.lock is reserved for the registry lockfile format.
 
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
@@ -49,14 +51,6 @@ impl WorkspaceState {
         }
         let ns = workspace_ns(ship_dir);
         if let Ok(Some(v)) = runtime::db::kv::get(&ns, KEY_ACTIVE_AGENT) {
-            state.active_agent = v.as_str().map(str::to_string);
-        }
-        // Compat: check the old global namespace for projects that haven't re-activated yet
-        if state.active_agent.is_none()
-            && let Ok(Some(v)) = runtime::db::kv::get("workspace", KEY_ACTIVE_AGENT)
-        {
-            // Only use the old value if this looks like it could be for this project
-            // (i.e. no project-scoped state exists yet). On next save, it will be scoped.
             state.active_agent = v.as_str().map(str::to_string);
         }
         if let Ok(Some(v)) = runtime::db::kv::get(&ns, KEY_COMPILED_AT) {

@@ -89,11 +89,8 @@ pub async fn index_handler() -> Response {
 }
 
 fn has_any_workspace() -> bool {
-    let Ok(ship_dir) = runtime::project::get_global_dir() else {
-        return false;
-    };
-    runtime::workspace::list_workspaces(&ship_dir)
-        .map(|ws| !ws.is_empty())
+    runtime::projects::list()
+        .map(|projects| !projects.is_empty())
         .unwrap_or(false)
 }
 

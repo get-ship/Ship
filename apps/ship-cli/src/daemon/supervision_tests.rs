@@ -71,7 +71,7 @@ fn pidfile_adapter_status_when_lock_held() {
 fn pidfile_adapter_status_when_stale_file_no_lock() {
     let tmp = TempDir::new().unwrap();
     let path = pidfile::pidfile_path(tmp.path());
-    std::fs::create_dir_all(tmp.path()).unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, serde_json::to_vec_pretty(&sample_record(9001)).unwrap()).unwrap();
 
     let status = PidfileAdapter.status(tmp.path()).unwrap();
@@ -114,7 +114,7 @@ fn version_check_skipped_when_pidfile_stale() {
     // over the stale pidfile. This mirrors prior pidfile semantics.
     let tmp = TempDir::new().unwrap();
     let path = pidfile::pidfile_path(tmp.path());
-    std::fs::create_dir_all(tmp.path()).unwrap();
+    std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(
         &path,
         serde_json::to_vec_pretty(&record_with_version(9001, "0.99.0")).unwrap(),
@@ -173,7 +173,7 @@ fn pidfile_adapter_start_stop_round_trip() {
     let ctx = StartContext {
         host: "127.0.0.1".to_string(),
         dev: true,
-        global_dir: runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap()),
+        global_dir: runtime::ShipHome::from_env().root().to_path_buf(),
     };
     PidfileAdapter.start(&ctx).expect("start");
     PidfileAdapter.stop().expect("stop");

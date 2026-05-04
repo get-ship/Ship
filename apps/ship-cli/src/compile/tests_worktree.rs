@@ -57,7 +57,7 @@ fn compile_worktree_output_root_separates_from_project_root() {
         .collect();
     assert_eq!(args, vec!["mcp", "serve"], "ship args must be [mcp, serve]");
     assert!(ship["env"].is_object(), "env section must be present in ship server entry");
-    let global_dir = ship["env"]["SHIP_GLOBAL_DIR"].as_str()
-        .expect("SHIP_GLOBAL_DIR must be set in ship server env");
-    assert!(global_dir.ends_with("/.ship"), "SHIP_GLOBAL_DIR must end with /.ship, got: {global_dir}");
+    let global_dir = ship["env"]["SHIP_HOME"].as_str()
+        .expect("SHIP_HOME must be set in ship server env");
+    assert!(global_dir.ends_with("/.ship"), "SHIP_HOME must end with /.ship, got: {global_dir}");
 }

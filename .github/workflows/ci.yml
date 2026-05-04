@@ -29,7 +29,7 @@ jobs:
       - name: Build daemon asset bundles
         run: pnpm build:bundles
       - name: Check silent-error patterns
-        run: bash scripts/check-silent-errors.sh
+        run: bash scripts/lint/check-silent-errors.sh
       - name: Check OpenAPI drift
         run: cd apps/docs && pnpm run openapi:check-drift
       - name: Collect skill docs

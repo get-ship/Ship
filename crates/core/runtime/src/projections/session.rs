@@ -1,6 +1,6 @@
 //! Session state projection — derived from session.* events.
 //!
-//! This projection maintains the `workspace_session` table in platform.db as a
+//! This projection maintains the `sessions` table in platform.db as a
 //! read model. It handles session.started (INSERT) and session.ended (UPDATE).
 //! session.progress is deliberately not handled — progress events don't affect
 //! the session row.
@@ -14,7 +14,7 @@ use crate::db::block_on;
 use crate::events::types::event_types;
 use crate::events::EventEnvelope;
 
-/// Projection that maintains the workspace_session table from session.* events.
+/// Projection that maintains the sessions table from session.* events.
 #[derive(Default)]
 pub struct SessionProjection;
 
@@ -28,7 +28,6 @@ const HANDLED: &[&str] = &[
     event_types::SESSION_STARTED,
     event_types::SESSION_ATTACHED,
     event_types::SESSION_ENDED,
-    event_types::SESSION_RECORDED,
     event_types::SESSION_DRAIN_STARTED,
     event_types::SESSION_DRAIN_COMPLETED,
     event_types::SESSION_DRAIN_ABORTED,
@@ -50,7 +49,6 @@ impl Projection for SessionProjection {
             event_types::SESSION_STARTED => apply_started(event, conn),
             event_types::SESSION_ATTACHED => Ok(()), // no-op: session row already exists
             event_types::SESSION_ENDED => apply_ended(event, conn),
-            event_types::SESSION_RECORDED => apply_recorded(event, conn),
             event_types::SESSION_DRAIN_STARTED => apply_drain_started(event, conn),
             event_types::SESSION_DRAIN_COMPLETED => apply_drain_completed(event, conn),
             event_types::SESSION_DRAIN_ABORTED => apply_drain_aborted(event, conn),
@@ -62,7 +60,7 @@ impl Projection for SessionProjection {
 
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()> {
         block_on(async {
-            sqlx::query("DELETE FROM workspace_session")
+            sqlx::query("DELETE FROM sessions")
                 .execute(conn)
                 .await?;
             Ok(())
@@ -92,51 +90,60 @@ struct StartedPayload {
     #[serde(default)]
     goal: Option<String>,
     workspace_id: String,
-    workspace_branch: String,
+    branch: String,
+    #[serde(default)]
+    project_id: Option<String>,
+    #[serde(default)]
+    kind: Option<String>,
+    #[serde(default)]
+    pipeline_run_id: Option<String>,
+    #[serde(default)]
+    chat_thread_id: Option<String>,
     #[serde(default)]
     agent_id: Option<String>,
     #[serde(default)]
     primary_provider: Option<String>,
-    #[serde(default)]
-    config_generation_at_start: Option<i64>,
-    #[serde(default)]
-    compiled_at: Option<String>,
 }
 
 fn apply_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
     let p: StartedPayload = serde_json::from_str(&event.payload_json)?;
     let now = event.created_at.to_rfc3339();
     let session_id = &event.entity_id;
+    let kind = p.kind.unwrap_or_else(|| "direct_attach".to_string());
 
     block_on(async {
         sqlx::query(
-            "INSERT INTO workspace_session \
-             (id, workspace_id, workspace_branch, status, started_at, ended_at, \
+            "INSERT INTO sessions \
+             (id, workspace_id, branch, project_id, kind, \
+              pipeline_run_id, chat_thread_id, status, started_at, ended_at, \
               agent_id, primary_provider, goal, summary, \
-              updated_workspace_ids_json, compiled_at, compile_error, \
-              config_generation_at_start, created_at, updated_at) \
-             VALUES (?, ?, ?, 'active', ?, NULL, ?, ?, ?, NULL, '[]', ?, NULL, ?, ?, ?) \
+              updated_workspace_ids_json, created_at, updated_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, 'active', ?, NULL, ?, ?, ?, NULL, '[]', ?, ?) \
              ON CONFLICT(id) DO UPDATE SET \
                workspace_id = excluded.workspace_id, \
-               workspace_branch = excluded.workspace_branch, \
+               branch = excluded.branch, \
+               project_id = excluded.project_id, \
+               kind = excluded.kind, \
+               pipeline_run_id = excluded.pipeline_run_id, \
+               chat_thread_id = excluded.chat_thread_id, \
                status = excluded.status, \
                started_at = excluded.started_at, \
                agent_id = excluded.agent_id, \
                primary_provider = excluded.primary_provider, \
                goal = excluded.goal, \
-               compiled_at = excluded.compiled_at, \
-               config_generation_at_start = excluded.config_generation_at_start, \
                updated_at = excluded.updated_at",
         )
         .bind(session_id)
         .bind(&p.workspace_id)
-        .bind(&p.workspace_branch)
+        .bind(&p.branch)
+        .bind(&p.project_id)
+        .bind(&kind)
+        .bind(&p.pipeline_run_id)
+        .bind(&p.chat_thread_id)
         .bind(&now)
         .bind(&p.agent_id)
         .bind(&p.primary_provider)
         .bind(&p.goal)
-        .bind(&p.compiled_at)
-        .bind(p.config_generation_at_start)
         .bind(&now)
         .bind(&now)
         .execute(conn)
@@ -150,66 +157,15 @@ struct EndedPayload {
     #[serde(default)]
     summary: Option<String>,
     #[serde(default)]
-    #[allow(dead_code)]
     duration_secs: Option<u64>,
     #[serde(default)]
-    #[allow(dead_code)]
     gate_result: Option<String>,
     #[serde(default)]
     updated_workspace_ids: Vec<String>,
-    #[serde(default)]
-    compile_error: Option<String>,
-}
-
-fn apply_ended(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let p: EndedPayload = serde_json::from_str(&event.payload_json)?;
-    let now = event.created_at.to_rfc3339();
-    let session_id = &event.entity_id;
-    let updated_ids_json = serde_json::to_string(&p.updated_workspace_ids)?;
-
-    block_on(async {
-        sqlx::query(
-            "UPDATE workspace_session SET \
-             status = 'ended', \
-             ended_at = ?, \
-             summary = ?, \
-             updated_workspace_ids_json = ?, \
-             compile_error = ?, \
-             updated_at = ? \
-             WHERE id = ?",
-        )
-        .bind(&now)
-        .bind(&p.summary)
-        .bind(&updated_ids_json)
-        .bind(&p.compile_error)
-        .bind(&now)
-        .bind(session_id)
-        .execute(conn)
-        .await?;
-        Ok(())
-    })
-}
-
-#[derive(serde::Deserialize)]
-struct RecordedPayload {
-    record_id: String,
-    #[serde(default)]
-    summary: Option<String>,
-    #[serde(default)]
-    updated_workspace_ids: Vec<String>,
-    #[serde(default)]
-    duration_secs: Option<i64>,
-    #[serde(default)]
-    provider: Option<String>,
     #[serde(default)]
     model: Option<String>,
     #[serde(default)]
-    agent_id: Option<String>,
-    #[serde(default)]
     files_changed: Option<i64>,
-    #[serde(default)]
-    gate_result: Option<String>,
-    workspace_branch: String,
     #[serde(default)]
     lines_added: Option<i64>,
     #[serde(default)]
@@ -220,53 +176,43 @@ struct RecordedPayload {
     exit_reason: Option<String>,
 }
 
-fn apply_recorded(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
-    let p: RecordedPayload = serde_json::from_str(&event.payload_json)?;
+fn apply_ended(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
+    let p: EndedPayload = serde_json::from_str(&event.payload_json)?;
     let now = event.created_at.to_rfc3339();
     let session_id = &event.entity_id;
-    let workspace_id = event.workspace_id.as_deref().unwrap_or("");
     let updated_ids_json = serde_json::to_string(&p.updated_workspace_ids)?;
 
     block_on(async {
         sqlx::query(
-            "INSERT INTO workspace_session_record \
-             (id, session_id, workspace_id, workspace_branch, summary, \
-              updated_workspace_ids_json, duration_secs, provider, model, \
-              agent_id, files_changed, gate_result, \
-              lines_added, lines_removed, tool_calls, exit_reason, \
-              created_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
-             ON CONFLICT(session_id) DO UPDATE SET \
-               summary = excluded.summary, \
-               updated_workspace_ids_json = excluded.updated_workspace_ids_json, \
-               duration_secs = excluded.duration_secs, \
-               provider = excluded.provider, \
-               model = excluded.model, \
-               agent_id = excluded.agent_id, \
-               files_changed = excluded.files_changed, \
-               gate_result = excluded.gate_result, \
-               lines_added = excluded.lines_added, \
-               lines_removed = excluded.lines_removed, \
-               tool_calls = excluded.tool_calls, \
-               exit_reason = excluded.exit_reason",
+            "UPDATE sessions SET \
+             status = 'ended', \
+             ended_at = ?, \
+             summary = ?, \
+             updated_workspace_ids_json = ?, \
+             duration_secs = ?, \
+             model = ?, \
+             files_changed = ?, \
+             lines_added = ?, \
+             lines_removed = ?, \
+             tool_calls = ?, \
+             gate_result = ?, \
+             exit_reason = ?, \
+             updated_at = ? \
+             WHERE id = ?",
         )
-        .bind(&p.record_id)
-        .bind(session_id)
-        .bind(workspace_id)
-        .bind(&p.workspace_branch)
+        .bind(&now)
         .bind(&p.summary)
         .bind(&updated_ids_json)
-        .bind(p.duration_secs)
-        .bind(&p.provider)
+        .bind(p.duration_secs.map(|v| v as i64))
         .bind(&p.model)
-        .bind(&p.agent_id)
         .bind(p.files_changed)
-        .bind(&p.gate_result)
         .bind(p.lines_added)
         .bind(p.lines_removed)
         .bind(p.tool_calls)
+        .bind(&p.gate_result)
         .bind(&p.exit_reason)
         .bind(&now)
+        .bind(session_id)
         .execute(conn)
         .await?;
         Ok(())
@@ -282,7 +228,7 @@ fn apply_drain_started(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
     let now = event.created_at.to_rfc3339();
     block_on(async {
         sqlx::query(
-            "UPDATE workspace_session SET status = 'draining', drained_at = ?, updated_at = ? \
+            "UPDATE sessions SET status = 'draining', drained_at = ?, updated_at = ? \
              WHERE id = ? AND status IN ('active', 'draining')",
         )
         .bind(&p.drained_at)
@@ -301,7 +247,7 @@ fn apply_drain_completed(event: &EventEnvelope, conn: &mut SqliteConnection) -> 
     let now = event.created_at.to_rfc3339();
     block_on(async {
         sqlx::query(
-            "UPDATE workspace_session SET status = 'ended', ended_at = ?, updated_at = ? \
+            "UPDATE sessions SET status = 'ended', ended_at = ?, updated_at = ? \
              WHERE id = ? AND status = 'draining'",
         )
         .bind(&p.ended_at)
@@ -317,7 +263,7 @@ fn apply_drain_aborted(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
     let now = event.created_at.to_rfc3339();
     block_on(async {
         sqlx::query(
-            "UPDATE workspace_session SET status = 'active', drained_at = NULL, updated_at = ? \
+            "UPDATE sessions SET status = 'active', drained_at = NULL, updated_at = ? \
              WHERE id = ? AND status IN ('draining', 'active')",
         )
         .bind(&now)
@@ -331,7 +277,7 @@ fn apply_drain_aborted(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
 fn apply_tool_count_incremented(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
     block_on(async {
         sqlx::query(
-            "UPDATE workspace_session SET tool_call_count = tool_call_count + 1 WHERE id = ?",
+            "UPDATE sessions SET tool_call_count = tool_call_count + 1 WHERE id = ?",
         )
         .bind(&event.entity_id)
         .execute(conn)
@@ -349,7 +295,7 @@ fn apply_heartbeat(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result
     let now = event.created_at.to_rfc3339();
     block_on(async {
         sqlx::query(
-            "UPDATE workspace_session SET last_activity_at = ?, updated_at = ? WHERE id = ?",
+            "UPDATE sessions SET last_activity_at = ?, updated_at = ? WHERE id = ?",
         )
         .bind(&p.last_activity_at)
         .bind(&now)

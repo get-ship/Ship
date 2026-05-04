@@ -1,5 +1,9 @@
 -- Ship platform schema — single-file, pre-launch.
--- When the schema changes, update this file and delete the DB.
+--
+-- Project convention while we're pre-launch: all schema changes go here,
+-- and the database is wiped + recreated rather than evolved through an
+-- incremental migration chain. Keeps the surface honest and the storage
+-- layer free of "drop table that we never should have created" debt.
 
 -- ═══════════════════════════════════════════════════════════════════
 -- Platform layer — portable runtime
@@ -13,106 +17,55 @@ CREATE TABLE IF NOT EXISTS kv_state (
   PRIMARY KEY(namespace, key)
 );
 
-CREATE TABLE IF NOT EXISTS workspace (
-  branch             TEXT PRIMARY KEY,
-  id                 TEXT,
-  workspace_type     TEXT NOT NULL DEFAULT 'feature',
-  active_agent       TEXT,
-  active_preset      TEXT,
-  providers_json     TEXT NOT NULL DEFAULT '[]',
-  mcp_servers_json   TEXT NOT NULL DEFAULT '[]',
-  skills_json        TEXT NOT NULL DEFAULT '[]',
-  path               TEXT,
-  context_hash       TEXT,
-  config_generation  INTEGER NOT NULL DEFAULT 0,
-  compiled_at        TEXT,
-  compile_error      TEXT,
-  tmux_session_name  TEXT,
-  created_at         TEXT,
-  updated_at         TEXT
-);
+-- The workspace primitive retired. Worktrees are a git feature, queried
+-- on demand via `runtime::git`; the runtime stores no worktree state.
 
-CREATE TABLE IF NOT EXISTS workspace_session (
+CREATE TABLE IF NOT EXISTS sessions (
   id                          TEXT PRIMARY KEY,
+  -- workspace_id is a session-grouping key (slug-derived from branch).
+  -- The "workspace" name is a vestige of the retired primitive and will
+  -- rename in a follow-up. Do NOT add a workspaces table for it.
   workspace_id                TEXT NOT NULL,
-  workspace_branch            TEXT NOT NULL,
+  branch                      TEXT NOT NULL,
+  project_id                  TEXT,
+  kind                        TEXT NOT NULL DEFAULT 'direct_attach',
+  pipeline_run_id             TEXT,
+  chat_thread_id              TEXT,
   status                      TEXT NOT NULL DEFAULT 'active',
   started_at                  TEXT NOT NULL,
   ended_at                    TEXT,
   agent_id                    TEXT,
-  preset_id                   TEXT,
   primary_provider            TEXT,
   goal                        TEXT,
   summary                     TEXT,
   updated_workspace_ids_json  TEXT NOT NULL DEFAULT '[]',
-  compiled_at                 TEXT,
-  compile_error               TEXT,
-  config_generation_at_start  INTEGER,
   tool_call_count             INTEGER NOT NULL DEFAULT 0,
   drained_at                  TEXT,
-  mcp_provider                TEXT,
   last_activity_at            TEXT,
+  -- End-of-session telemetry (set on session.ended; null while active).
+  duration_secs               INTEGER,
+  model                       TEXT,
+  files_changed               INTEGER,
+  lines_added                 INTEGER,
+  lines_removed               INTEGER,
+  tool_calls                  INTEGER,
+  gate_result                 TEXT,
+  exit_reason                 TEXT,
   created_at                  TEXT NOT NULL,
   updated_at                  TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS workspace_session_workspace_idx
-  ON workspace_session(workspace_id, started_at DESC);
+  ON sessions(workspace_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS workspace_session_project_idx
+  ON sessions(project_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS workspace_session_status_idx
-  ON workspace_session(status, started_at DESC);
+  ON sessions(status, started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_ws_session_drain
-  ON workspace_session(status, workspace_id, agent_id);
+  ON sessions(status, workspace_id, agent_id);
 
-CREATE TABLE IF NOT EXISTS workspace_session_record (
-  id                         TEXT PRIMARY KEY,
-  session_id                 TEXT NOT NULL UNIQUE,
-  workspace_id               TEXT NOT NULL,
-  workspace_branch           TEXT NOT NULL,
-  summary                    TEXT,
-  updated_workspace_ids_json TEXT NOT NULL DEFAULT '[]',
-  duration_secs              INTEGER,
-  provider                   TEXT,
-  model                      TEXT,
-  agent_id                   TEXT,
-  files_changed              INTEGER,
-  gate_result                TEXT,
-  lines_added                INTEGER,
-  lines_removed              INTEGER,
-  tool_calls                 INTEGER,
-  exit_reason                TEXT,
-  created_at                 TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS workspace_session_record_workspace_idx
-  ON workspace_session_record(workspace_id, created_at DESC);
-
-CREATE TABLE IF NOT EXISTS branch_config (
-  branch       TEXT PRIMARY KEY,
-  preset_id    TEXT NOT NULL,
-  workspace_id TEXT,
-  plugins_json TEXT NOT NULL DEFAULT '[]',
-  compiled_at  TEXT NOT NULL,
-  updated_at   TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS event_log (
-  id             TEXT PRIMARY KEY NOT NULL,
-  actor          TEXT NOT NULL DEFAULT 'ship',
-  entity_type    TEXT NOT NULL,
-  entity_id      TEXT,
-  action         TEXT NOT NULL,
-  detail         TEXT,
-  workspace_id   TEXT,
-  session_id     TEXT,
-  job_id         TEXT,
-  created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-  version        INTEGER,
-  correlation_id TEXT,
-  causation_id   TEXT,
-  synced_at      TEXT
-);
-CREATE INDEX IF NOT EXISTS idx_event_workspace ON event_log(workspace_id);
-CREATE INDEX IF NOT EXISTS idx_event_session ON event_log(session_id);
-CREATE INDEX IF NOT EXISTS idx_event_job ON event_log(job_id);
-CREATE INDEX IF NOT EXISTS idx_event_entity ON event_log(entity_type, entity_id);
+-- Session telemetry lives on sessions itself (set at
+-- session.ended). The earlier workspace_session_record table was a
+-- duplicate write site; collapsed in slice 04 of workspace-retirement.
 
 CREATE TABLE IF NOT EXISTS events (
   id               TEXT PRIMARY KEY NOT NULL,
@@ -129,7 +82,6 @@ CREATE TABLE IF NOT EXISTS events (
   elevated         INTEGER NOT NULL DEFAULT 0,
   job_id           TEXT,
   agent_id         TEXT,
-  agent_version    TEXT,
   target_actor_id  TEXT,
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -145,69 +97,58 @@ BEGIN
   SELECT RAISE(FAIL, 'events table is immutable -- use append only');
 END;
 
+-- Actors — one row per running or terminated kernel actor (chat, pipeline,
+-- service, shell). The dashboard renders every running thing from this
+-- table; recency comes from `last_event_at` which is bumped by triggers
+-- on every event correlated to the actor (either emitted by it via
+-- `actor_id` or directed at it via `target_actor_id`).
 CREATE TABLE IF NOT EXISTS actors (
-  id               TEXT PRIMARY KEY NOT NULL,
-  kind             TEXT NOT NULL,
-  environment_type TEXT NOT NULL DEFAULT 'local',
-  status           TEXT NOT NULL DEFAULT 'created',
-  workspace_id     TEXT,
-  parent_actor_id  TEXT,
-  restart_count    INTEGER NOT NULL DEFAULT 0,
-  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+  id                  TEXT PRIMARY KEY NOT NULL,
+  kind                TEXT NOT NULL,
+  environment_type    TEXT NOT NULL DEFAULT 'local',
+  status              TEXT NOT NULL DEFAULT 'created',
+  workspace_id        TEXT,
+  project_id          TEXT,
+  cwd                 TEXT,
+  parent_actor_id     TEXT,
+  restart_count       INTEGER NOT NULL DEFAULT 0,
+  agent_id            TEXT,
+  provider            TEXT,
+  model               TEXT,
+  transport           TEXT,
+  persistence         TEXT,
+  provider_session_id TEXT,
+  system_prompt_hash  TEXT,
+  pid                 INTEGER,
+  capabilities_json   TEXT NOT NULL DEFAULT '[]',
+  exit_code           INTEGER,
+  exit_reason         TEXT,
+  duration_ms         INTEGER,
+  last_event_at       TEXT,
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
 );
-CREATE INDEX IF NOT EXISTS idx_actors_workspace ON actors(workspace_id);
-CREATE INDEX IF NOT EXISTS idx_actors_status    ON actors(status);
+CREATE INDEX IF NOT EXISTS idx_actors_workspace  ON actors(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_actors_project    ON actors(project_id);
+CREATE INDEX IF NOT EXISTS idx_actors_status     ON actors(status);
+CREATE INDEX IF NOT EXISTS idx_actors_provider   ON actors(provider);
+CREATE INDEX IF NOT EXISTS idx_actors_agent_id   ON actors(agent_id);
+CREATE INDEX IF NOT EXISTS idx_actors_last_event ON actors(last_event_at);
 
-CREATE TABLE IF NOT EXISTS agent_artifact_registry (
-  uuid         TEXT PRIMARY KEY,
-  kind         TEXT NOT NULL,
-  external_id  TEXT NOT NULL,
-  name         TEXT NOT NULL,
-  source_path  TEXT NOT NULL,
-  content_hash TEXT NOT NULL,
-  updated_at   TEXT NOT NULL,
-  UNIQUE(kind, external_id)
-);
-CREATE INDEX IF NOT EXISTS agent_artifact_kind_idx
-  ON agent_artifact_registry(kind);
+CREATE TRIGGER IF NOT EXISTS bump_actor_last_event_on_actor_id
+AFTER INSERT ON events
+WHEN NEW.actor_id IS NOT NULL
+BEGIN
+  UPDATE actors SET last_event_at = NEW.created_at WHERE id = NEW.actor_id;
+END;
 
-CREATE TABLE IF NOT EXISTS managed_mcp_state (
-  provider         TEXT PRIMARY KEY,
-  server_ids_json  TEXT NOT NULL DEFAULT '[]',
-  last_mode        TEXT,
-  updated_at       TEXT NOT NULL
-);
+CREATE TRIGGER IF NOT EXISTS bump_actor_last_event_on_target
+AFTER INSERT ON events
+WHEN NEW.target_actor_id IS NOT NULL
+BEGIN
+  UPDATE actors SET last_event_at = NEW.created_at WHERE id = NEW.target_actor_id;
+END;
 
--- ═══════════════════════════════════════════════════════════════════
--- Workflow layer — opinionated planning
--- ═══════════════════════════════════════════════════════════════════
-
-CREATE TABLE IF NOT EXISTS jobs (
-  id            TEXT PRIMARY KEY,
-  kind          TEXT NOT NULL,
-  status        TEXT NOT NULL DEFAULT 'pending',
-  branch        TEXT,
-  payload_json  TEXT NOT NULL DEFAULT '{}',
-  created_by    TEXT,
-  claimed_by    TEXT,
-  touched_files TEXT NOT NULL DEFAULT '[]',
-  assigned_to   TEXT,
-  priority      INTEGER NOT NULL DEFAULT 0,
-  blocked_by    TEXT,
-  file_scope    TEXT NOT NULL DEFAULT '[]',
-  capability_id TEXT,
-  created_at    TEXT NOT NULL,
-  updated_at    TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS jobs_status_idx ON jobs(status, created_at DESC);
-CREATE INDEX IF NOT EXISTS jobs_branch_idx ON jobs(branch, status);
-CREATE INDEX IF NOT EXISTS idx_jobs_assigned ON jobs(assigned_to, status);
-
-CREATE TABLE IF NOT EXISTS file_claim (
-  path         TEXT PRIMARY KEY,
-  job_id       TEXT NOT NULL,
-  workspace_id TEXT,
-  claimed_at   TEXT NOT NULL
-);
-CREATE INDEX IF NOT EXISTS idx_file_claim_job ON file_claim(job_id);
+-- Job state lives entirely in the event log. `runtime::projections::job::
+-- load_jobs()` folds `job.*` / `step.*` events into JobRecords on demand;
+-- there is no `jobs` projection table.

@@ -110,7 +110,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
     // 3. Resolve (mode filtering, provider selection)
     let mut resolved = resolve_library(&library, None, opts.active_agent);
     // Inject the resolved ship home so the compiler can emit MCP entries
-    // with `SHIP_GLOBAL_DIR` without reading env directly (it is WASM-safe).
+    // with `SHIP_HOME` without reading env directly (it is WASM-safe).
     let ship_home: runtime::ShipHome = runtime::ShipHome::from_env();
     resolved.ship_home_dir = Some(ship_home.root().to_string_lossy().into_owned());
 

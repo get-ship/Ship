@@ -1,9 +1,12 @@
-//! View-shaped builders for the Specs view. Consumes the raw `Spec`
-//! records from `runtime::db::specs` and shapes them into rail + detail
-//! payloads that templates consume directly (minijinja 2.x can't mutate
-//! maps, so all shaping must land here).
+//! View-shaped builders for the Studio specs view. Take pre-loaded
+//! `Spec` records and shape them into rail + detail payloads that
+//! templates consume directly (minijinja 2.x can't mutate maps, so all
+//! shaping must land here).
+//!
+//! Pure functions. Callers (HTTP routes, `specs.*` registry) own the
+//! query against the `specs` collection.
 
-use runtime::db::specs::{self, Spec};
+use crate::services::specs::shape::Spec;
 use serde::Serialize;
 
 use super::parse::{
@@ -167,27 +170,20 @@ fn list_pipelines() -> Vec<String> {
 }
 
 /// Build the rail context for `ship.specs.summaries(q?, selected?)`.
-pub fn build_summaries(q: &str, selected: Option<&str>) -> SummariesCtx {
-    let all = specs::list_specs().unwrap_or_default();
+pub fn build_summaries(specs: &[Spec], q: &str, selected: Option<&str>) -> SummariesCtx {
     SummariesCtx {
         selected_id: selected.map(|s| s.to_string()),
         q: q.to_string(),
-        counts: counts_of(&all),
-        groups: groups_of(&all, q),
-        total: all.len(),
+        counts: counts_of(specs),
+        groups: groups_of(specs, q),
+        total: specs.len(),
         pipelines: list_pipelines(),
     }
 }
 
-/// Build the editor-pane context for `ship.specs.detail(id)`. Returns
-/// `None` when `id` is missing from the spec store.
-pub fn build_detail(id: &str) -> Option<SpecDetail> {
-    let spec = specs::get_spec(id).ok().flatten()?;
-    Some(to_detail(&spec))
-}
-
-fn to_detail(s: &Spec) -> SpecDetail {
-    let body = specs::load_body(&s.body_path).unwrap_or_default();
+/// Build the editor-pane context for `ship.specs.detail(id)`.
+pub fn build_detail(spec: &Spec, body: &str) -> SpecDetail {
+    let body = body.to_string();
     let (sections, prelude) = split_sections(&body);
 
     let goal_md = sections.get("goal").cloned().unwrap_or(prelude);
@@ -197,17 +193,17 @@ fn to_detail(s: &Spec) -> SpecDetail {
     let acceptance = parse_acceptance(&acceptance_md);
     let other_md = glue_other_sections(&sections, &["goal", "acceptance", "scope", "linked"]);
 
-    let pipeline_label = s.pipeline.clone().unwrap_or_else(|| "—".to_string());
-    let (_steps, first_agent) = match s.pipeline.as_deref() {
+    let pipeline_label = spec.pipeline.clone().unwrap_or_else(|| "—".to_string());
+    let (_steps, first_agent) = match spec.pipeline.as_deref() {
         Some(name) => pipeline_step_count(name),
         None => (0, None),
     };
     let agent = first_agent.clone().unwrap_or_else(|| "—".to_string());
 
-    let vars_display = if s.vars.is_empty() {
+    let vars_display = if spec.vars.is_empty() {
         "—".to_string()
     } else {
-        s.vars
+        spec.vars
             .iter()
             .map(|(k, v)| format!("{k}={v}"))
             .collect::<Vec<_>>()
@@ -215,34 +211,33 @@ fn to_detail(s: &Spec) -> SpecDetail {
     };
 
     SpecDetail {
-        id: s.id.clone(),
-        title: s.title.clone(),
+        id: spec.id.clone(),
+        title: spec.title.clone(),
         body: body.clone(),
-        status: s.status.clone(),
-        status_label: status_label(&s.status),
-        pipeline: s.pipeline.clone(),
+        status: spec.status.clone(),
+        status_label: status_label(&spec.status),
+        pipeline: spec.pipeline.clone(),
         pipeline_label,
         agent,
         vars_display,
         branch: "auto".into(),
-        tone: tone_for(&s.status),
+        tone: tone_for(&spec.status),
         goal_md,
         scope_md,
         linked_md,
         acceptance,
         other_md,
-        launch_label: launch_label(s.pipeline.as_deref(), first_agent.as_deref()),
-        launch_hint: launch_hint(s.pipeline.as_deref(), first_agent.as_deref()),
-        title_js: js_escape(&s.title),
+        launch_label: launch_label(spec.pipeline.as_deref(), first_agent.as_deref()),
+        launch_hint: launch_hint(spec.pipeline.as_deref(), first_agent.as_deref()),
+        title_js: js_escape(&spec.title),
         body_js: js_escape(&body),
-        pipeline_js: js_escape(s.pipeline.as_deref().unwrap_or("")),
+        pipeline_js: js_escape(spec.pipeline.as_deref().unwrap_or("")),
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use runtime::db::specs::Spec;
 
     fn sample(id: &str, status: &str, title: &str) -> Spec {
         Spec {

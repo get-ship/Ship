@@ -205,9 +205,12 @@ fn exit_command_is_slash_exit() {
 // ── Output parsing (stream-json) ────────────────────────────────────────────
 
 #[test]
-fn parse_message_start_extracts_session_id() {
+fn parse_system_init_extracts_session_id() {
     let adapter = ClaudeAdapter;
-    let line = r#"{"type":"stream_event","event":{"type":"message_start","message":{"id":"msg_1","role":"assistant","content":[],"model":"claude-sonnet-4-6","usage":{"input_tokens":100,"output_tokens":0}}},"uuid":"u1","session_id":"sess-xyz-789"}"#;
+    // Current stream-json format: a `system` event with `subtype: init`
+    // carries the session id (replaces the legacy `stream_event/message_start`
+    // shape; see commit 8158d5a0).
+    let line = r#"{"type":"system","subtype":"init","session_id":"sess-xyz-789"}"#;
     match adapter.parse_output(line) {
         Some(ProviderEvent::SessionStarted { session_id }) => {
             assert_eq!(session_id, "sess-xyz-789");
@@ -219,7 +222,9 @@ fn parse_message_start_extracts_session_id() {
 #[test]
 fn parse_tool_use_extracts_tool_name() {
     let adapter = ClaudeAdapter;
-    let line = r#"{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"tu_1","name":"Read","input":{}}},"uuid":"u2","session_id":"s1"}"#;
+    // Current format: tool_use blocks come inside an `assistant` envelope,
+    // not the legacy `stream_event/content_block_start` wrapper.
+    let line = r#"{"type":"assistant","message":{"content":[{"type":"tool_use","id":"tu_1","name":"Read","input":{}}]}}"#;
     match adapter.parse_output(line) {
         Some(ProviderEvent::ToolUse { tool, .. }) => {
             assert_eq!(tool, "Read");

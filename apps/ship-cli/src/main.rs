@@ -15,7 +15,9 @@ mod events_cmd;
 #[cfg(feature = "unstable")]
 mod top;
 mod help_topics;
+mod doctor;
 mod hook;
+mod http;
 mod init;
 mod install;
 mod job;
@@ -37,7 +39,7 @@ mod ship_run;
 mod validate;
 mod vars;
 mod openapi;
-mod workspace_cmd;
+mod trash_cmd;
 
 use anyhow::Result;
 use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, LintCommands, McpCommands, OpenapiCommands, WorkspaceCommands};
@@ -51,12 +53,19 @@ fn try_init_kernel_router() {
     }
 }
 
+/// Static version string for clap. Uses the canonical `BUILD_GIT_SHA` env
+/// var emitted by `build.rs`; clap requires `&'static str`.
 pub fn build_version() -> &'static str {
     if cfg!(feature = "unstable") {
-        concat!(env!("CARGO_PKG_VERSION"), "+unstable.", env!("GIT_COMMIT_SHORT"))
+        concat!(env!("CARGO_PKG_VERSION"), "+unstable.", env!("BUILD_GIT_SHA"))
     } else {
         env!("CARGO_PKG_VERSION")
     }
+}
+
+/// Compile-time build identity for this CLI binary.
+pub fn ship_build_info() -> build_info::BuildInfo {
+    build_info::build_info!()
 }
 
 fn main() {
@@ -66,7 +75,7 @@ fn main() {
     if let Err(e) = dispatch(cli.command) {
         eprintln!("Error: {:#}", e);
         eprintln!();
-        eprintln!("  Logs:   ~/.ship/logs/ship.log");
+        eprintln!("  Logs:   ~/.ship/machine/logs/ship.log");
         eprintln!("  Events: ship events list --since 5m");
         std::process::exit(1);
     }
@@ -189,6 +198,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Stop => DaemonCommand::Stop,
                     DaemonCommands::Restart { host, dev } => DaemonCommand::Restart { host, dev },
                     DaemonCommands::Status => DaemonCommand::Status,
+                    DaemonCommands::Dir => DaemonCommand::Dir,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
                     DaemonCommands::RepairMigrations { mark_applied } => {
                         DaemonCommand::RepairMigrations { mark_applied }
@@ -202,6 +212,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 };
                 run_daemon(cmd)
             }
+            Commands::Doctor => doctor::run(),
             Commands::Uninstall { yes } => uninstall::run(yes),
             Commands::Help => {
                 use clap::CommandFactory;
@@ -372,13 +383,13 @@ fn dispatch_workspace(action: WorkspaceCommands) -> Result<()> {
     match action {
         WorkspaceCommands::Trash { purge } => {
             if purge {
-                workspace_cmd::run_trash_purge()
+                trash_cmd::run_trash_purge()
             } else {
-                workspace_cmd::run_trash_list()
+                trash_cmd::run_trash_list()
             }
         }
         WorkspaceCommands::Restore { filename, dest } => {
-            workspace_cmd::run_restore(&filename, dest)
+            trash_cmd::run_restore(&filename, dest)
         }
     }
 }

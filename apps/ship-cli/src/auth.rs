@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::mpsc;
 
-use crate::config::{Credentials, CredentialsAccount, ShipConfig};
+use crate::config::{Credentials, CredentialsAccount, DiskBackedConfig, ShipConfig};
 
 /// Open `url` in the system's default browser.
 fn open_browser(url: &str) {
@@ -133,6 +133,7 @@ pub fn run_login() -> Result<()> {
     let mut creds = Credentials::load();
     creds.account = Some(CredentialsAccount { token: Some(token.clone()) });
     creds.save()?;
+    let creds_path = Credentials::path();
 
     // Bind this machine's daemon to the logged-in user. Enables zero-click
     // browser auth via server attestation (Studio → daemon) while ensuring
@@ -148,7 +149,7 @@ pub fn run_login() -> Result<()> {
             println!("Logged in. (Daemon binding failed: {e})");
         }
     }
-    println!("Token stored in ~/.ship/credentials (0600).");
+    println!("Token stored in {} (0600).", creds_path.display());
     Ok(())
 }
 
@@ -170,8 +171,12 @@ fn bind_daemon_owner(token: &str) -> Result<Option<String>> {
         .map(String::from);
     if let Some(ref id) = user_id {
         let value = serde_json::Value::String(id.clone());
-        runtime::db::kv::set("auth.daemon_owner", "user_id", &value)
-            .map_err(|e| anyhow::anyhow!("write daemon owner: {e}"))?;
+        runtime::db::kv::set(
+            shipd::auth::attest::DAEMON_OWNER_NAMESPACE,
+            shipd::auth::attest::DAEMON_OWNER_KEY,
+            &value,
+        )
+        .map_err(|e| anyhow::anyhow!("write daemon owner: {e}"))?;
     }
     Ok(user_id)
 }
@@ -187,7 +192,7 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
     }
     let (port, token) = daemon_connect()?;
     let url = format!("http://127.0.0.1:{port}/api/auth/pair/confirm");
-    let resp = reqwest::blocking::Client::new()
+    let resp = crate::http::daemon_client()
         .post(&url)
         .bearer_auth(&token)
         .json(&serde_json::json!({ "code": code }))
@@ -195,6 +200,7 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
         .send()
         .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
 
+    crate::http::check_skew(resp.headers());
     let status = resp.status();
     let body_text = resp.text().unwrap_or_default();
 
@@ -213,17 +219,14 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
 
 /// Read daemon connection info (port + daemon.token) from ~/.ship/.
 fn daemon_connect() -> Result<(u16, String)> {
-    let home = runtime::ShipHome::project_ship_dir(
-        dirs::home_dir()
-            .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?,
-    );
-    let port: u16 = std::fs::read_to_string(home.join("daemon.port"))
+    let home = runtime::ShipHome::from_env();
+    let port: u16 = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Port))
         .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?
         .trim()
         .parse()
-        .map_err(|_| anyhow::anyhow!("invalid daemon.port file"))?;
-    let token = std::fs::read_to_string(home.join("daemon.token"))
-        .map_err(|_| anyhow::anyhow!("daemon.token not readable — is the daemon running?"))?
+        .map_err(|_| anyhow::anyhow!("invalid daemon port file"))?;
+    let token = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Token))
+        .map_err(|_| anyhow::anyhow!("daemon token not readable — is the daemon running?"))?
         .trim()
         .to_string();
     Ok((port, token))
@@ -233,12 +236,13 @@ fn daemon_connect() -> Result<(u16, String)> {
 pub fn run_auth_status() -> Result<()> {
     let (port, token) = daemon_connect()?;
     let url = format!("http://127.0.0.1:{port}/api/auth/sessions");
-    let resp = reqwest::blocking::Client::new()
+    let resp = crate::http::daemon_client()
         .get(&url)
         .bearer_auth(&token)
         .timeout(std::time::Duration::from_secs(5))
         .send()
         .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
     let status = resp.status();
     let body: serde_json::Value = resp.json()
         .map_err(|e| anyhow::anyhow!("invalid daemon response: {e}"))?;
@@ -289,13 +293,14 @@ pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
         "token_prefix": token,
         "all": all,
     });
-    let resp = reqwest::blocking::Client::new()
+    let resp = crate::http::daemon_client()
         .post(&url)
         .bearer_auth(&daemon_token)
         .json(&body)
         .timeout(std::time::Duration::from_secs(5))
         .send()
         .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+    crate::http::check_skew(resp.headers());
     let status = resp.status();
     let body_text = resp.text().unwrap_or_default();
     if !status.is_success() {
@@ -310,14 +315,17 @@ pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
 /// `ship logout` — remove the stored auth token.
 pub fn run_logout() -> Result<()> {
     let mut creds = Credentials::load();
-    if creds.token().is_none() {
+    if creds.account_token().is_none() {
         println!("Not logged in.");
         return Ok(());
     }
     creds.account = None;
     creds.save()?;
     // Clear the daemon-owner binding so the next ship login can bind fresh.
-    let _ = runtime::db::kv::delete("auth.daemon_owner", "user_id");
+    let _ = runtime::db::kv::delete(
+        shipd::auth::attest::DAEMON_OWNER_NAMESPACE,
+        shipd::auth::attest::DAEMON_OWNER_KEY,
+    );
     println!("Logged out.");
     Ok(())
 }
@@ -326,7 +334,7 @@ pub fn run_logout() -> Result<()> {
 /// Tries to fetch user info from getship.dev; falls back to local config.
 pub fn run_whoami() -> Result<()> {
     let creds = Credentials::load();
-    match creds.token() {
+    match creds.account_token() {
         Some(token) => {
             // Try the remote API first.
             match fetch_me(token) {
@@ -348,11 +356,13 @@ pub fn run_whoami() -> Result<()> {
 
 fn print_local_identity() {
     let cfg = ShipConfig::load();
-    match cfg.identity {
-        Some(ref id) if !id.name.is_empty() => {
-            println!("{}", id.name);
-            if let Some(ref email) = id.email {
-                println!("{}", email);
+    match cfg.library.identity.as_ref() {
+        Some(id) if id.name.as_deref().map(|n| !n.is_empty()).unwrap_or(false) => {
+            if let Some(name) = id.name.as_deref() {
+                println!("{name}");
+            }
+            if let Some(email) = id.email.as_deref() {
+                println!("{email}");
             }
         }
         _ => println!("(no identity — run: ship init --global)"),

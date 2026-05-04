@@ -18,21 +18,24 @@
 //! functions emit the correct events already; duplicating them would
 //! fork the write path.
 
-pub mod state;
-pub mod view_state;
-pub mod shape;
-pub mod summaries;
 pub mod focus;
-pub mod run_detail;
 pub mod history;
+pub mod run_detail;
+pub mod service;
+pub mod shape;
+pub mod state;
+pub mod summaries;
+pub mod view_state;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
 
+use crate::access::RuntimeAccess;
 use crate::rest_api::ApiState;
-use super::files::{FilesService, Scope};
+use super::files::Scope;
+use service::PutArgs;
 
 // ── URL scope parsing ────────────────────────────────────────────────
 
@@ -77,17 +80,11 @@ fn map_err(e: state::Error) -> Resp {
     }
 }
 
-fn files(state: &ApiState) -> FilesService {
-    FilesService::resolve_roots(state.ship_dir())
-}
-
 // ── Definition CRUD ──────────────────────────────────────────────────
 
 /// GET /api/v1/pipelines
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let svc = files(&state);
-    let items = state::list(&svc);
-    Json(serde_json::json!({ "ok": true, "items": items }))
+    Json(serde_json::json!({ "ok": true, "items": state.services().pipelines().list() }))
 }
 
 /// GET /api/v1/pipelines/{name}
@@ -97,14 +94,13 @@ pub async fn get(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let (resolved, format, doc) = state::load_doc(&svc, &name, scope).map_err(map_err)?;
+    let entry = state.services().pipelines().get(&name, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
-        "name": name,
-        "scope": state::ScopeTag::from(resolved),
-        "format": format,
-        "doc": doc,
+        "name": entry.name,
+        "scope": entry.scope,
+        "format": entry.format,
+        "doc": entry.doc,
     })))
 }
 
@@ -116,18 +112,13 @@ pub async fn put(
     Json(doc): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let explicit_scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let target_scope = match explicit_scope {
-        Some(s) => s,
-        None => match state::find(&svc, &name) {
-            Some((s, _, _)) => s,
-            None => Scope::Project,
-        },
-    };
-    state::write_doc(&svc, &name, target_scope, &doc, true).map_err(map_err)?;
+    let target = state
+        .pipelines()
+        .put(PutArgs { name: name.clone(), doc, scope: explicit_scope })
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "name": name,
-        "scope": state::ScopeTag::from(target_scope),
+        "scope": state::ScopeTag::from(target),
     })))
 }
 
@@ -142,8 +133,7 @@ pub async fn patch(
     let patch: json_patch::Patch = serde_json::from_value(patch_body).map_err(|e| {
         err(StatusCode::BAD_REQUEST, "bad_patch", format!("bad patch shape: {e}"))
     })?;
-    let svc = files(&state);
-    let resolved = state::patch_doc(&svc, &name, scope, &patch).map_err(map_err)?;
+    let resolved = state.services().pipelines().patch(&name, scope, &patch).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "name": name,
         "scope": state::ScopeTag::from(resolved),
@@ -157,8 +147,7 @@ pub async fn delete(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let resolved = state::delete_doc(&svc, &name, scope).map_err(map_err)?;
+    let resolved = state.services().pipelines().delete(&name, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "name": name,
         "scope": state::ScopeTag::from(resolved),

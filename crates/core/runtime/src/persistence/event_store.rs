@@ -1,11 +1,13 @@
 use anyhow::Result;
 use sqlx::QueryBuilder;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, db_path, ensure_db, ensure_db_at, open_db_at};
 use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
+use crate::projections::{ActorProjection, EventBus, SessionProjection};
 use ship_kernel::EventSink;
 
 pub trait EventStore: Send + Sync {
@@ -15,9 +17,9 @@ pub trait EventStore: Send + Sync {
     fn query_aggregate(&self, entity_id: &str) -> Result<Vec<EventEnvelope>>;
 }
 
-/// Append an event using an existing connection (no new connection opened).
-/// Used by transactional callers that need event+projection in one tx.
-pub fn append_event_with_conn(
+/// INSERT an event row using an existing connection — no transaction
+/// management, no projection dispatch. Building block for `append`.
+fn insert_event_row(
     event: &EventEnvelope,
     conn: &mut sqlx::SqliteConnection,
 ) -> Result<()> {
@@ -50,9 +52,21 @@ pub fn append_event_with_conn(
     Ok(())
 }
 
+/// Build the default projection bus — `ActorProjection` + `SessionProjection`.
+/// Every `SqliteEventStore` constructed via `new*()` carries this bus, and
+/// `append` dispatches matching events to it in the same transaction as the
+/// row insert.
+fn default_bus() -> Arc<EventBus> {
+    let mut bus = EventBus::new();
+    bus.register(Box::new(ActorProjection::new()));
+    bus.register(Box::new(SessionProjection::new()));
+    Arc::new(bus)
+}
+
 pub struct SqliteEventStore {
     db_path: PathBuf,
     pool: Option<sqlx::SqlitePool>,
+    bus: Arc<EventBus>,
 }
 
 impl SqliteEventStore {
@@ -61,6 +75,7 @@ impl SqliteEventStore {
         Ok(Self {
             db_path: db_path()?,
             pool: None,
+            bus: default_bus(),
         })
     }
 
@@ -70,8 +85,9 @@ impl SqliteEventStore {
     pub fn new_at(ship_dir: &Path) -> Result<Self> {
         ensure_db_at(ship_dir)?;
         Ok(Self {
-            db_path: ship_dir.join("platform.db"),
+            db_path: crate::db::platform_db_path(ship_dir),
             pool: None,
+            bus: default_bus(),
         })
     }
 
@@ -81,11 +97,12 @@ impl SqliteEventStore {
     /// event operations. Falls back to per-call connections if pool acquire fails.
     pub fn new_pooled(ship_dir: &Path) -> Result<Self> {
         ensure_db_at(ship_dir)?;
-        let db_path = ship_dir.join("platform.db");
+        let db_path = crate::db::platform_db_path(ship_dir);
         let pool = crate::db::pool::create_pool(&db_path, 5)?;
         Ok(Self {
             db_path,
             pool: Some(pool),
+            bus: default_bus(),
         })
     }
 }
@@ -135,63 +152,33 @@ fn query_one_db(path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>>
 }
 
 impl EventStore for SqliteEventStore {
+    /// Persist an event row and apply registered projections in a single
+    /// transaction. This is the canonical event write path; `kernel.emit`
+    /// reaches it via `EventSink::persist`.
+    ///
+    /// Atomicity: the event row and any matching projection writes commit
+    /// together, or roll back together. Projection-dispatch errors do
+    /// fail the transaction (consistent with the documented persist
+    /// contract) — see `EventBus::dispatch` for handler-error semantics.
     fn append(&self, event: &EventEnvelope) -> Result<()> {
-        if let Some(ref pool) = self.pool {
-            let created_at = event.created_at.to_rfc3339();
-            return block_on(async {
-                sqlx::query(
-                    "INSERT INTO events \
-                     (id, event_type, entity_id, actor, payload_json, version, \
-                      causation_id, workspace_id, session_id, \
-                      actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
-                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                )
-                .bind(&event.id)
-                .bind(&event.event_type)
-                .bind(&event.entity_id)
-                .bind(&event.actor)
-                .bind(&event.payload_json)
-                .bind(event.version as i64)
-                .bind(&event.causation_id)
-                .bind(&event.workspace_id)
-                .bind(&event.session_id)
-                .bind(&event.actor_id)
-                .bind(&event.parent_actor_id)
-                .bind(event.elevated as i64)
-                .bind(&created_at)
-                .bind(&event.target_actor_id)
-                .execute(pool)
-                .await
-            })
-            .map(|_| ());
+        let mut conn = if let Some(ref pool) = self.pool {
+            // Acquire a connection from the pool so we can run the tx
+            // (event row + projection apply) on a single connection.
+            block_on(async { pool.acquire().await })?.detach()
+        } else {
+            open_db_at(&self.db_path)?
+        };
+
+        block_on(async { sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await })?;
+
+        if let Err(e) = insert_event_row(event, &mut conn) {
+            let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
+            return Err(e);
         }
-        let mut conn = open_db_at(&self.db_path)?;
-        let created_at = event.created_at.to_rfc3339();
-        block_on(async {
-            sqlx::query(
-                "INSERT INTO events \
-                 (id, event_type, entity_id, actor, payload_json, version, \
-                  causation_id, workspace_id, session_id, \
-                  actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            )
-            .bind(&event.id)
-            .bind(&event.event_type)
-            .bind(&event.entity_id)
-            .bind(&event.actor)
-            .bind(&event.payload_json)
-            .bind(event.version as i64)
-            .bind(&event.causation_id)
-            .bind(&event.workspace_id)
-            .bind(&event.session_id)
-            .bind(&event.actor_id)
-            .bind(&event.parent_actor_id)
-            .bind(event.elevated as i64)
-            .bind(&created_at)
-            .bind(&event.target_actor_id)
-            .execute(&mut conn)
-            .await
-        })?;
+
+        self.bus.dispatch(event, &mut conn);
+
+        block_on(async { sqlx::query("COMMIT").execute(&mut conn).await })?;
         Ok(())
     }
 

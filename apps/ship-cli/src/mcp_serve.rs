@@ -4,7 +4,7 @@
 //! HTTP mode (--http):   a long-running daemon for CI/CD or remote agents.
 //!
 //! Logging is already initialised by the CLI before this is called;
-//! everything writes to ~/.ship/logs/ship.log via the tracing subscriber.
+//! everything writes to ~/.ship/machine/logs/ship.log via the tracing subscriber.
 
 use anyhow::Result;
 

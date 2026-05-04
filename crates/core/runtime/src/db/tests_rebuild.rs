@@ -44,40 +44,13 @@ fn workspace_archived_event(branch: &str) -> EventEnvelope {
     .elevate()
 }
 
-fn query_workspace_count(ship_dir: &std::path::Path) -> i64 {
-    let mut conn = open_db_at(&ship_dir.join("platform.db")).unwrap();
-    let (count,): (i64,) = block_on(async {
-        sqlx::query_as("SELECT COUNT(*) FROM workspace")
-            .fetch_one(&mut conn)
-            .await
-    })
-    .unwrap();
-    count
-}
-
-fn query_workspace_exists(
-    ship_dir: &std::path::Path,
-    branch: &str,
-) -> bool {
-    let mut conn = open_db_at(&ship_dir.join("platform.db")).unwrap();
-    let (count,): (i64,) = block_on(async {
-        sqlx::query_as("SELECT COUNT(*) FROM workspace WHERE branch = ?")
-            .bind(branch)
-            .fetch_one(&mut conn)
-            .await
-    })
-    .unwrap();
-    count > 0
-}
-
 #[test]
-fn rebuild_from_events_produces_correct_state() {
+fn rebuild_replays_events_without_panic() {
     let (_tmp, ship_dir) = setup();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
-    // Emit events through the store (bypassing projections).
-    // workspace.archived is now a no-op (status removed), so both workspaces
-    // survive rebuild — we just verify they exist.
+    // Workspace projection is now a no-op (events still flow through);
+    // verify rebuild completes cleanly with workspace events present.
     let events = vec![
         workspace_created_event("feature/rebuild-a"),
         workspace_created_event("feature/rebuild-b"),
@@ -90,37 +63,8 @@ fn rebuild_from_events_produces_correct_state() {
     let report = rebuild::rebuild_projections(&ship_dir).unwrap();
 
     assert_eq!(report.events_replayed, 3);
-    assert!(report.projections_rebuilt.len() >= 3);
+    assert!(report.projections_rebuilt.len() >= 2);
     assert!(report.duration_ms < 10_000);
-
-    assert!(query_workspace_exists(&ship_dir, "feature/rebuild-a"));
-    assert!(query_workspace_exists(&ship_dir, "feature/rebuild-b"));
-}
-
-#[test]
-fn rebuild_is_idempotent() {
-    let (_tmp, ship_dir) = setup();
-    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
-
-    let events = vec![
-        workspace_created_event("feature/idem-a"),
-        workspace_created_event("feature/idem-b"),
-    ];
-    for ev in &events {
-        store.append(ev).unwrap();
-    }
-
-    // First rebuild.
-    rebuild::rebuild_projections(&ship_dir).unwrap();
-    let count_before = query_workspace_count(&ship_dir);
-
-    // Second rebuild — state must be identical.
-    rebuild::rebuild_projections(&ship_dir).unwrap();
-    let count_after = query_workspace_count(&ship_dir);
-
-    assert_eq!(count_before, count_after, "row count must not change");
-    assert!(query_workspace_exists(&ship_dir, "feature/idem-a"));
-    assert!(query_workspace_exists(&ship_dir, "feature/idem-b"));
 }
 
 #[test]
@@ -128,7 +72,7 @@ fn rebuild_empty_event_log() {
     let (_tmp, ship_dir) = setup();
     let report = rebuild::rebuild_projections(&ship_dir).unwrap();
     assert_eq!(report.events_replayed, 0);
-    assert!(report.projections_rebuilt.len() >= 3);
+    assert!(report.projections_rebuilt.len() >= 2);
 }
 
 #[test]
@@ -136,10 +80,6 @@ fn rebuild_report_lists_all_projections() {
     let (_tmp, ship_dir) = setup();
     let report = rebuild::rebuild_projections(&ship_dir).unwrap();
     let names = &report.projections_rebuilt;
-    assert!(
-        names.contains(&"workspace_state".to_string()),
-        "report must include workspace_state"
-    );
     assert!(
         names.contains(&"session_state".to_string()),
         "report must include session_state"

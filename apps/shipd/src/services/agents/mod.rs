@@ -16,20 +16,23 @@
 //! Runtime actions (invoke/stop/steer) already live in `runtime_api` and
 //! stay there — that module is the runtime-state side of the domain.
 
+pub mod create;
+pub mod service;
+pub mod settings_view;
 pub mod state;
 pub mod view_state;
 pub mod wire;
-pub mod create;
-pub mod settings_view;
 
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
+use crate::access::RuntimeAccess;
 use crate::rest_api::ApiState;
-use super::files::{FilesService, Scope};
+use super::files::Scope;
+use service::{CreateArgs, DuplicateArgs, PutArgs};
 
 // ── URL scope parsing ────────────────────────────────────────────────
 
@@ -94,17 +97,11 @@ fn map_err(e: state::Error) -> Resp {
     }
 }
 
-fn files(state: &ApiState) -> FilesService {
-    FilesService::resolve_roots(state.ship_dir())
-}
-
 // ── Handlers ─────────────────────────────────────────────────────────
 
 /// GET /api/v1/agents
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let svc = files(&state);
-    let items = state::list(&svc);
-    Json(serde_json::json!({ "ok": true, "items": items }))
+    Json(serde_json::json!({ "ok": true, "items": state.services().agents().list() }))
 }
 
 /// GET /api/v1/agents/{id}
@@ -114,13 +111,12 @@ pub async fn get(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let (resolved, doc) = state::load_doc(&svc, &id, scope).map_err(map_err)?;
+    let entry = state.services().agents().get(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
-        "id": id,
-        "scope": state::ScopeTag::from(resolved),
-        "doc": doc,
+        "id": entry.id,
+        "scope": entry.scope,
+        "doc": entry.doc,
     })))
 }
 
@@ -132,16 +128,13 @@ pub async fn put(
     Json(doc): Json<serde_json::Value>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let explicit_scope = parse_scope(&q)?;
-    let svc = files(&state);
-    // Resolve scope: explicit wins; else existing file; else project.
-    let target_scope = match explicit_scope {
-        Some(s) => s,
-        None => match state::find(&svc, &id) { Some((s, _)) => s, None => Scope::Project },
-    };
-    state::write_doc(&svc, &id, target_scope, &doc, true).map_err(map_err)?;
+    let target = state
+        .agents()
+        .put(PutArgs { id: id.clone(), doc, scope: explicit_scope })
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(target_scope),
+        "scope": state::ScopeTag::from(target),
     })))
 }
 
@@ -156,8 +149,7 @@ pub async fn patch(
     let scope = parse_scope(&q)?;
     let patch: json_patch::Patch = serde_json::from_value(patch_body)
         .map_err(|e| err(StatusCode::BAD_REQUEST, "bad_patch", format!("bad patch shape: {e}")))?;
-    let svc = files(&state);
-    let resolved = state::patch_doc(&svc, &id, scope, &patch).map_err(map_err)?;
+    let resolved = state.services().agents().patch(&id, scope, &patch).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -171,8 +163,7 @@ pub async fn delete(
     Query(q): Query<ScopeQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let resolved = state::delete_doc(&svc, &id, scope).map_err(map_err)?;
+    let resolved = state.services().agents().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(resolved),
@@ -197,18 +188,17 @@ pub async fn create(
     Json(body): Json<CreateBody>,
 ) -> Result<Resp, Resp> {
     let target = match body.scope.as_deref() {
-        None | Some("") => Scope::Project,
-        Some(s) => parse_scope_required(s)?,
+        None | Some("") => None,
+        Some(s) => Some(parse_scope_required(s)?),
     };
-    let svc = files(&state);
-    // Force agent.id to match the filename; templates don't need to
-    // duplicate the id across body + slot.
-    let doc = force_agent_id(body.doc, &body.id);
-    state::write_doc(&svc, &body.id, target, &doc, false).map_err(map_err)?;
+    let scope = state
+        .agents()
+        .create(CreateArgs { id: body.id.clone(), doc: body.doc, scope: target })
+        .map_err(map_err)?;
     Ok(created(serde_json::json!({
         "ok": true,
         "id": body.id,
-        "scope": state::ScopeTag::from(target),
+        "scope": state::ScopeTag::from(scope),
     })))
 }
 
@@ -222,8 +212,7 @@ pub async fn rename(
     Json(body): Json<RenameBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    let resolved = state::rename(&svc, &id, &body.new_id, scope).map_err(map_err)?;
+    let resolved = state.services().agents().rename(&id, &body.new_id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": body.new_id,
         "scope": state::ScopeTag::from(resolved),
@@ -244,19 +233,23 @@ pub async fn duplicate(
     Query(q): Query<ScopeQuery>,
     Json(body): Json<DuplicateBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let scope = parse_scope(&q)?;
-    let svc = files(&state);
-    // Load first so we know which scope we're duplicating FROM.
-    let (from_scope, doc) = state::load_doc(&svc, &id, scope).map_err(map_err)?;
+    let source_scope = parse_scope(&q)?;
     let to = match body.to_scope.as_deref() {
-        None | Some("") => from_scope,
-        Some(s) => parse_scope_required(s)?,
+        None | Some("") => None,
+        Some(s) => Some(parse_scope_required(s)?),
     };
-    let doc = force_agent_id(doc, &body.new_id);
-    state::write_doc(&svc, &body.new_id, to, &doc, false).map_err(map_err)?;
+    let scope = state
+        .agents()
+        .duplicate(DuplicateArgs {
+            source_id: id,
+            source_scope,
+            new_id: body.new_id.clone(),
+            to_scope: to,
+        })
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": body.new_id,
-        "scope": state::ScopeTag::from(to),
+        "scope": state::ScopeTag::from(scope),
     })))
 }
 
@@ -274,29 +267,11 @@ pub async fn move_scope(
         "source scope is required on move — pass ?scope=project or ?scope=user",
     ))?;
     let to = parse_scope_required(&body.to_scope)?;
-    let svc = files(&state);
-    state::move_scope(&svc, &id, from_scope, to).map_err(map_err)?;
+    state.services().agents().move_scope(&id, from_scope, to).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
         "scope": state::ScopeTag::from(to),
     })))
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────
-
-fn force_agent_id(mut doc: serde_json::Value, id: &str) -> serde_json::Value {
-    if let Some(obj) = doc.as_object_mut() {
-        let agent_entry = obj
-            .entry("agent".to_string())
-            .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
-        if let Some(agent) = agent_entry.as_object_mut() {
-            agent.insert("id".into(), serde_json::Value::String(id.into()));
-            if !agent.contains_key("name") {
-                agent.insert("name".into(), serde_json::Value::String(id.into()));
-            }
-        }
-    }
-    doc
 }
 
 // Result type alias so axum accepts our error tuples via impl IntoResponse.
@@ -308,5 +283,3 @@ impl axum::response::IntoResponse for state::Error {
     }
 }
 
-#[derive(Serialize)]
-struct _TypeMarker;

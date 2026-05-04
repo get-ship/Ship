@@ -33,6 +33,37 @@
 
 #![allow(dead_code)] // Variants without handlers are still used by codegen.
 
+// ── Route handler submodules ────────────────────────────────────────────
+//
+// modular-runtime-04 PR 4: handler files live at `routes/<x>_api.rs`.
+// They are re-exported at the crate root from `lib.rs` so existing
+// imports (`crate::artifacts_api`, etc.) continue to resolve.
+
+pub mod actor_api;
+pub mod actors_api;
+pub mod annotations_api;
+pub mod artifacts_api;
+pub mod collection_api;
+pub mod create_api;
+pub mod feedback_api;
+pub mod hooks_api;
+pub mod lint_api;
+pub mod logs_api;
+pub mod openapi;
+pub mod openapi_modifier;
+pub mod openapi_types;
+pub mod projects_api;
+pub mod rest_api;
+pub mod runtime_api;
+pub mod sdk_manifest;
+pub mod settings_api;
+pub mod shell_assets;
+pub mod specs_api;
+pub mod themes;
+pub mod themes_api;
+pub mod view_errors_api;
+pub mod view_sessions_api;
+
 // The build script writes generated impls into OUT_DIR. We include them here
 // so `Route::full_path()`, `Route::method()`, and `ShipRouterExt` are
 // visible to the rest of the crate.
@@ -308,6 +339,9 @@ pub enum Route {
     /// @route POST "/api/v1/sessions/{id}/input"
     PtySessionInput { id: String },
 
+    /// @route POST "/api/v1/sessions/{id}/resize"
+    PtySessionResize { id: String },
+
     /// @route POST "/api/v1/sessions/{id}/message"
     PtySessionMessage { id: String },
 
@@ -532,15 +566,6 @@ pub enum Route {
 
     /// @route POST "/api/v1/git/checkout"
     GitCheckout,
-
-    /// @route GET "/api/v1/git/commit-draft"
-    GitCommitDraftGet,
-
-    /// @route PUT "/api/v1/git/commit-draft"
-    GitCommitDraftPut,
-
-    /// @route DELETE "/api/v1/git/commit-draft"
-    GitCommitDraftDelete,
 
     /// @route GET "/api/v1/git/sse"
     GitSse,

@@ -23,14 +23,14 @@ fn healthy_db_passes_check() {
 #[test]
 fn quick_check_passes_on_healthy_db() {
     let (_tmp, ship_dir) = setup();
-    let db_path = ship_dir.join("platform.db");
+    let db_path = crate::db::platform_db_path(&ship_dir);
     assert!(integrity::quick_check(&db_path).unwrap());
 }
 
 #[test]
 fn corrupted_db_detected() {
     let (_tmp, ship_dir) = setup();
-    let db_path = ship_dir.join("platform.db");
+    let db_path = crate::db::platform_db_path(&ship_dir);
 
     // Read the file and corrupt internal pages (keep the 100-byte SQLite header
     // so the file opens, but damage data pages so integrity_check fails).

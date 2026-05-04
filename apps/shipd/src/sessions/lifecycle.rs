@@ -58,30 +58,14 @@ pub fn spawn_agent(
         });
     }
 
-    let adapter = adapter_for(provider).map_err(|e| anyhow!(e))?;
+    let _ = adapter_for(provider).map_err(|e| anyhow!(e))?;
 
-    // Channels-capable providers (Claude today) get a long-lived PTY-backed
-    // process at spawn. User turns are delivered via `studio.chat_turn`
-    // kernel events that the MCP `EventRelay` pushes to the connected
-    // peer; the agent responds via `chat_reply`. No per-turn subprocess
-    // spawn — same provider session for the lifetime of the chat.
-    //
-    // `spawn_command` is the same primitive `spawn_shell` uses, so chat
-    // and shell sessions share the PTY-holding lifecycle. Pipeline
-    // executors stay one-shot for now; future consolidation can route
-    // them through this primitive too.
-    if adapter.caps().persistent_session {
-        return spawn_long_lived_agent(
-            registry,
-            workspace_id,
-            agent_id,
-            provider,
-            adapter.as_ref(),
-            work_dir,
-            log_dir,
-        )
-        .map(|session| SpawnOutcome { session, attached: false });
-    }
+    // Persistent-session providers are intercepted in `api::spawn_session`
+    // and routed to `agent_actor::spawn_or_attach`, which uses the
+    // unified supervisor primitive. By the time we get here, this is the
+    // per-turn fallback for non-persistent providers — agent metadata
+    // only, no spawn. `send_agent_message` will spawn the headless turn
+    // child via `agent_actor::run_headless_turn` when a turn arrives.
 
     // Per-turn fallback: agent metadata only. `send_agent_message` spawns
     // a fresh headless provider run per turn and parses stream-json. Used
@@ -127,59 +111,6 @@ pub fn spawn_agent(
         session: PtySession(inner),
         attached: false,
     })
-}
-
-/// Long-lived agent spawn for channels-capable providers (J2 Phase 2).
-///
-/// Mirrors `spawn_shell`: builds a `LaunchCommand` from the adapter's
-/// `build_interactive` and hands it to `spawn_command`, which holds the
-/// writer + master for the lifetime of the session. The reader thread
-/// tees PTY output to a log + raw broadcast channel so subscribers can
-/// inspect TUI state during debugging — but the chat UI consumes
-/// structured events from `event_tx` (driven by `chat_reply` MCP tool
-/// calls), not the raw byte stream.
-fn spawn_long_lived_agent(
-    registry: &SessionRegistry,
-    workspace_id: &str,
-    agent_id: &str,
-    provider: &str,
-    adapter: &dyn runtime::services::provider_adapter::ProviderAdapter,
-    work_dir: PathBuf,
-    log_dir: PathBuf,
-) -> Result<PtySession> {
-    let slug = format!("agent-{agent_id}-{}", runtime::gen_ulid());
-    let append_system_prompt = load_agent_rules(&work_dir, agent_id);
-    let profile = LaunchProfile {
-        provider: Some(provider.to_string()),
-        persist_session: true,
-        structured_output: true,
-        append_system_prompt,
-        ..LaunchProfile::default()
-    };
-    let launch = adapter.build_interactive(&slug, &profile);
-    let extras = ActorSpawnExtras {
-        transport: Some("pty".to_string()),
-        persistence: Some("long-lived".to_string()),
-        ..Default::default()
-    };
-    let session = spawn_command(
-        registry,
-        SessionKind::Agent,
-        workspace_id.to_string(),
-        Some(agent_id.to_string()),
-        Some(provider.to_string()),
-        launch,
-        work_dir,
-        log_dir,
-        &slug,
-        extras,
-    )?;
-
-    // The dev-channels confirmation menu is auto-dismissed by the
-    // reader_loop when it sees the menu pattern in the PTY output —
-    // state-aware, fires exactly once per session. No timer here.
-
-    Ok(session)
 }
 
 /// Send a user turn to an agent session. Spawns the provider headless
@@ -270,38 +201,8 @@ pub fn send_agent_message(
     Ok(())
 }
 
-/// Spawn a plain shell session (dock terminal). No agent, no provider,
-/// no parsing — raw PTY.
-pub fn spawn_shell(
-    registry: &SessionRegistry,
-    workspace_id: &str,
-    work_dir: PathBuf,
-    log_dir: PathBuf,
-) -> Result<PtySession> {
-    let shell = std::env::var("SHELL").unwrap_or_else(|_| "/bin/bash".to_string());
-    let launch = LaunchCommand {
-        bin: shell,
-        args: vec!["-l".to_string()],
-        env: Default::default(),
-    };
-    let slug = format!("shell-{}", runtime::gen_ulid());
-    let outcome = spawn_command(
-        registry,
-        SessionKind::Shell,
-        workspace_id.to_string(),
-        None,
-        None,
-        launch,
-        work_dir,
-        log_dir,
-        &slug,
-        ActorSpawnExtras::default(),
-    )?;
-    Ok(outcome)
-}
-
 /// Caller-supplied actor metadata recorded into `actor.created` payload.
-/// `kind` and the basics come from spawn_command; this carries the
+/// `kind` and the basics come from the spawn primitive; this carries the
 /// agent-flavored fields the projection / dashboard cares about.
 #[derive(Default, Clone)]
 pub struct ActorSpawnExtras {
@@ -310,6 +211,8 @@ pub struct ActorSpawnExtras {
     pub persistence: Option<String>,
     pub system_prompt_hash: Option<String>,
     pub capabilities: Vec<String>,
+    pub project_id: Option<String>,
+    pub cwd: Option<String>,
 }
 
 /// Emit `actor.created` for a freshly spawned PtySession. Reads metadata
@@ -338,6 +241,8 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
         system_prompt_hash: extras.system_prompt_hash.clone(),
         pid: m.pid.map(|p| p as u32),
         capabilities: extras.capabilities.clone(),
+        project_id: extras.project_id.clone(),
+        cwd: extras.cwd.clone(),
     };
     let actor_id = m.id.clone();
     let workspace_id = m.workspace_id.clone();
@@ -354,267 +259,6 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
     });
 }
 
-/// Internal: actually spawn a PTY child and register it.
-#[allow(clippy::too_many_arguments)]
-fn spawn_command(
-    registry: &SessionRegistry,
-    kind: SessionKind,
-    workspace_id: String,
-    agent_id: Option<String>,
-    provider: Option<String>,
-    launch: LaunchCommand,
-    work_dir: PathBuf,
-    log_dir: PathBuf,
-    slug: &str,
-    extras: ActorSpawnExtras,
-) -> Result<PtySession> {
-    std::fs::create_dir_all(&log_dir)
-        .with_context(|| format!("create log dir {}", log_dir.display()))?;
-    let log_path = log_dir.join(format!("{slug}.log"));
-    let log_file = std::fs::File::create(&log_path)
-        .with_context(|| format!("create log file {}", log_path.display()))?;
-
-    let pty_system = native_pty_system();
-    let pair = pty_system
-        .openpty(PtySize {
-            rows: 24,
-            cols: 120,
-            pixel_width: 0,
-            pixel_height: 0,
-        })
-        .map_err(|e| anyhow!("openpty failed: {e}"))?;
-
-    // Generate the registry id up front so SHIP_ACTOR_ID matches the
-    // id the daemon and clients use to address this session. The MCP
-    // peer registers its `PeerHandle.session_id` from this env var; the
-    // relay's session-scoping filter only delivers `studio.chat_turn`
-    // events whose `session_id` equals the peer's. Mismatched values
-    // (e.g. exporting the slug) silently drop every chat turn.
-    let id: SessionId = runtime::gen_ulid();
-
-    let mut cmd = CommandBuilder::new(&launch.bin);
-    for arg in &launch.args {
-        cmd.arg(arg);
-    }
-    cmd.cwd(&work_dir);
-    for (k, v) in &launch.env {
-        cmd.env(k, v);
-    }
-    if let Some(a) = agent_id.as_deref() {
-        cmd.env("SHIP_AGENT_ID", a);
-    }
-    cmd.env("SHIP_ACTOR_ID", &id);
-
-    let child = pair
-        .slave
-        .spawn_command(cmd)
-        .with_context(|| format!("spawn {}", launch.bin))?;
-    drop(pair.slave);
-
-    let pid = child.process_id();
-    let reader = pair
-        .master
-        .try_clone_reader()
-        .map_err(|e| anyhow!("pty clone_reader failed: {e}"))?;
-
-    let (output_tx, _) = broadcast::channel(OUTPUT_CHANNEL_CAP);
-    let (event_tx, _) = broadcast::channel(256);
-
-    let now = Utc::now();
-    let meta = SessionMeta {
-        id: id.clone(),
-        kind,
-        workspace_id,
-        agent_id,
-        provider,
-        pid,
-        status: SessionStatus::Spawning,
-        log_path: log_path.display().to_string(),
-        spawned_at: now,
-        last_activity: now,
-        exit_code: None,
-        provider_session_id: None,
-    };
-
-    // portable-pty's `take_writer()` is single-use on the master,
-    // so take it once here and hold the resulting writer for every
-    // subsequent input call.
-    let writer = pair
-        .master
-        .take_writer()
-        .map_err(|e| anyhow!("take pty writer: {e}"))?;
-
-    let agent_id_for_kernel = meta.agent_id.clone();
-
-    let inner = Arc::new(Inner {
-        meta: StdMutex::new(meta),
-        writer: StdMutex::new(Some(writer)),
-        _master: StdMutex::new(Some(pair.master)),
-        output_tx: output_tx.clone(),
-        event_tx: event_tx.clone(),
-        child: StdMutex::new(Some(child)),
-        log_path: log_path.clone(),
-    });
-
-    registry.insert(id.clone(), inner.clone());
-
-    // Register Shell + Pipeline kinds with the kernel router so they
-    // appear on the mesh. Agents register via their MCP child's
-    // `actor_spawn` HTTP call (which also captures the mailbox in
-    // state.agent_mailboxes for SSE drain) — registering again here
-    // would orphan the mailbox between paths and silently drop
-    // channel pushes. Daemon-side registration is for kinds that
-    // DON'T have an MCP-bridge child of their own.
-    if !matches!(kind, SessionKind::Agent) {
-        register_with_kernel(&id, kind, agent_id_for_kernel.as_deref());
-    }
-
-    // Reader thread: bytes → log file + broadcast. Updates status on
-    // activity + quiet-timeout. Cleans up on child exit.
-    let reader_inner = inner.clone();
-    let reader_registry = registry.clone();
-    let reader_id = id.clone();
-    let reader_provider = inner.meta.lock().unwrap().provider.clone();
-    std::thread::spawn(move || {
-        reader_loop(
-            reader,
-            log_file,
-            reader_inner,
-            reader_registry,
-            reader_id,
-            reader_provider,
-        );
-    });
-
-    Ok(PtySession(inner))
-}
-
-/// Distinctive unbroken byte sequence in Claude's dev-channels
-/// warning. The visible "Enter to confirm" prompt has cursor-movement
-/// escape sequences between words; this string is contiguous in the
-/// byte stream and uniquely identifies the menu's presence.
-const NEEDLE: &[u8] = b"dangerously-load-development-channels";
-
-fn reader_loop(
-    mut reader: Box<dyn Read + Send>,
-    mut log_file: std::fs::File,
-    inner: SessionHandle,
-    registry: SessionRegistry,
-    id: SessionId,
-    provider: Option<String>,
-) {
-    set_status(&inner, SessionStatus::Idle);
-
-    // Optional provider adapter for parsing agent output line-by-line.
-    // Shell sessions leave this None and skip the parse path.
-    let adapter = provider
-        .as_deref()
-        .and_then(|p| runtime::services::provider_adapter::adapter_for(p).ok());
-
-    let mut buf = [0u8; 4096];
-    let mut line_buf = String::new();
-    // Detect Claude's `--dangerously-load-development-channels` menu
-    // pattern in the rendered TUI bytes. When seen, send a single CR
-    // to dismiss it. State-aware: fires once per session; we don't
-    // brute-force keystrokes that can land at the main prompt and
-    // submit empty inputs (which under some conditions causes early
-    // exit).
-    let mut menu_dismissed = false;
-    let mut menu_buf: Vec<u8> = Vec::with_capacity(4096);
-    loop {
-        match reader.read(&mut buf) {
-            Ok(0) => break,
-            Ok(n) => {
-                let chunk = &buf[..n];
-                let _ = log_file.write_all(chunk);
-                let _ = log_file.flush();
-                let _ = inner.output_tx.send(chunk.to_vec());
-
-                if !menu_dismissed {
-                    menu_buf.extend_from_slice(chunk);
-                    if menu_buf.len() > 16_384 {
-                        // Bound: if we haven't seen the menu in ~16KB
-                        // of TUI output, claude isn't going to show it.
-                        menu_dismissed = true;
-                    } else if menu_buf.windows(NEEDLE.len()).any(|w| w == NEEDLE) {
-                        // Menu rendered. Single CR accepts the
-                        // pre-selected first option. Match against the
-                        // unbroken token in the warning header — the
-                        // visible "Enter to confirm" prompt has cursor-
-                        // movement escapes between words and isn't a
-                        // contiguous byte match.
-                        let _ = write_input(&PtySession(inner.clone()), b"\r");
-                        menu_dismissed = true;
-                    }
-                }
-                if let Some(ref adapter) = adapter {
-                    // Accumulate into a line buffer and flush on \n so
-                    // parse_output sees whole lines. ANSI codes pass
-                    // through — adapters know their own provider's
-                    // output formatting.
-                    line_buf.push_str(&String::from_utf8_lossy(chunk));
-                    while let Some(nl) = line_buf.find('\n') {
-                        let line: String = line_buf.drain(..=nl).collect();
-                        let trimmed = line.trim_end_matches(['\n', '\r']);
-                        if !trimmed.is_empty() {
-                            if let Some(ev) = adapter.parse_output(trimmed) {
-                                let _ = inner.event_tx.send(ev);
-                            }
-                        }
-                    }
-                }
-                {
-                    let mut m = inner.meta.lock().unwrap();
-                    m.last_activity = Utc::now();
-                    // Any output → assume thinking; idle-reaper below
-                    // will flip back after a quiet window.
-                    m.status = SessionStatus::Thinking;
-                }
-            }
-            Err(e) => {
-                tracing::warn!(session = %id, error = %e, "pty read error — ending session");
-                break;
-            }
-        }
-    }
-
-    // Child exited. Capture exit code and mark Ended.
-    let exit_code = {
-        let mut guard = inner.child.lock().unwrap();
-        guard.as_mut().and_then(|c| c.try_wait().ok().flatten()).map(|s| s.exit_code() as i32)
-    };
-    let (workspace_id, spawned_at) = {
-        let mut m = inner.meta.lock().unwrap();
-        m.status = SessionStatus::Ended;
-        m.exit_code = exit_code;
-        m.last_activity = Utc::now();
-        (m.workspace_id.clone(), m.spawned_at)
-    };
-    tracing::info!(session = %id, exit = ?exit_code, "session ended");
-
-    // Emit lifecycle event so the actors projection flips status and
-    // captures duration + exit code.
-    let duration_ms = (Utc::now() - spawned_at).num_milliseconds().max(0) as u64;
-    let payload = runtime::events::types::ActorStopped {
-        reason: "process_exit".to_string(),
-        exit_code,
-        duration_ms: Some(duration_ms),
-    };
-    let stopped_id = id.clone();
-    let stopped_ws = workspace_id.clone();
-    std::thread::spawn(move || {
-        let _ = runtime::db::actor_events::emit_actor_stopped(
-            &stopped_id,
-            &payload,
-            Some(&stopped_ws),
-            None,
-        );
-    });
-    // Keep in registry for history/list purposes; caller can remove
-    // explicitly. A future eviction pass can clean up Ended entries
-    // older than N.
-    let _ = registry;
-}
 
 fn set_status(inner: &SessionHandle, status: SessionStatus) {
     let mut m = inner.meta.lock().unwrap();
@@ -681,49 +325,6 @@ pub fn stop(registry: &SessionRegistry, id: &str) -> bool {
     std::thread::sleep(Duration::from_millis(50));
     registry.remove(id);
     true
-}
-
-/// Register the freshly-spawned PtySession with the kernel router so
-/// it appears on the mesh. Different session kinds get different
-/// subscription sets — agents listen for chat turns, shells/pipelines
-/// don't subscribe to anything by default (still receive directed
-/// events via target_actor_id). Failures are logged, not propagated;
-/// process visibility doesn't depend on mesh registration succeeding.
-fn register_with_kernel(actor_id: &str, kind: SessionKind, agent_id: Option<&str>) {
-    let subscribe_namespaces: Vec<String> = match kind {
-        SessionKind::Agent => vec![
-            "studio.chat_turn".to_string(),
-            "studio.reply".to_string(),
-            "inbox.".to_string(),
-            "human.".to_string(),
-            "mesh.message".to_string(),
-        ],
-        SessionKind::Pipeline | SessionKind::Shell => vec![],
-    };
-    let config = runtime::events::ActorConfig {
-        namespace: actor_id.to_string(),
-        write_namespaces: vec!["".to_string()],
-        read_namespaces: vec!["agent.".to_string()],
-        subscribe_namespaces,
-    };
-    let actor_id_owned = actor_id.to_string();
-    let _ = agent_id; // reserved for future per-agent subscription extensions
-    if let Some(kr) = runtime::events::kernel_router() {
-        let res = runtime::db::block_on_anyhow(async move {
-            let mut kernel = kr.lock().await;
-            if !kernel.has_actor(&actor_id_owned) {
-                kernel
-                    .spawn_actor(&actor_id_owned, config)
-                    .map(|_| ())
-                    .map_err(|e| anyhow!("{e}"))
-            } else {
-                Ok(())
-            }
-        });
-        if let Err(e) = res {
-            tracing::warn!(actor_id, "register_with_kernel failed: {e}");
-        }
-    }
 }
 
 /// Load an agent's `rules.inline` from `.ship/agents/<agent_id>.jsonc` in

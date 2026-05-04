@@ -1,7 +1,3 @@
-use super::artifact_registry::{
-    ARTIFACT_KIND_MCP, ARTIFACT_KIND_RULE, ARTIFACT_KIND_SKILL, resolve_external_ids_to_refs,
-    resolve_refs_to_external_ids, sync_compiled_asset_cache,
-};
 use super::project::AgentProfile;
 use super::types::{HookConfig, PermissionConfig};
 use super::runtime_settings::project_ns;
@@ -10,6 +6,19 @@ use anyhow::Result;
 use std::path::Path;
 
 const KEY: &str = "modes";
+
+/// Strip the optional `NNNN-` numeric prefix and `.md` suffix from a rule
+/// reference so callers see canonical IDs (`rust` rather than `0001-rust.md`).
+fn normalize_rule_external_id(id: &str) -> String {
+    let normalized = id.trim().trim_end_matches(".md");
+    if let Some((prefix, rest)) = normalized.split_once('-')
+        && !prefix.is_empty()
+        && prefix.chars().all(|ch| ch.is_ascii_digit())
+    {
+        return rest.to_string();
+    }
+    normalized.to_string()
+}
 
 /// Intermediate row stored in kv_state — mirrors the old agent_config columns.
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -30,10 +39,8 @@ struct ModeRow {
     target_agents_json: String,
 }
 
-pub(super) fn get_modes_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    sync_compiled_asset_cache(ship_dir)?;
-
-    let ns = project_ns(ship_dir);
+pub(super) fn get_modes_config(_ship_dir: &Path) -> Result<Vec<AgentProfile>> {
+    let ns = project_ns(_ship_dir);
     let rows: Vec<ModeRow> = match kv::get(&ns, KEY)? {
         Some(v) => serde_json::from_value(v).unwrap_or_default(),
         None => return Ok(Vec::new()),
@@ -43,10 +50,11 @@ pub(super) fn get_modes_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
     for row in rows {
         let active_tools: Vec<String> =
             serde_json::from_str(&row.active_tools_json).unwrap_or_default();
-        let mcp_refs: Vec<String> = serde_json::from_str(&row.mcp_refs_json).unwrap_or_default();
-        let skill_refs: Vec<String> =
+        let mcp_servers: Vec<String> =
+            serde_json::from_str(&row.mcp_refs_json).unwrap_or_default();
+        let skills: Vec<String> =
             serde_json::from_str(&row.skill_refs_json).unwrap_or_default();
-        let rule_refs: Vec<String> = serde_json::from_str(&row.rule_refs_json).unwrap_or_default();
+        let rules: Vec<String> = serde_json::from_str(&row.rule_refs_json).unwrap_or_default();
         let hooks: Vec<HookConfig> = serde_json::from_str(&row.hooks_json).unwrap_or_default();
         let permissions: PermissionConfig =
             serde_json::from_str(&row.permissions_json).unwrap_or_default();
@@ -60,9 +68,9 @@ pub(super) fn get_modes_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
             role: row.role,
             tools_preset: row.tools_preset,
             active_tools,
-            mcp_servers: resolve_refs_to_external_ids(ship_dir, ARTIFACT_KIND_MCP, &mcp_refs)?,
-            skills: resolve_refs_to_external_ids(ship_dir, ARTIFACT_KIND_SKILL, &skill_refs)?,
-            rules: resolve_refs_to_external_ids(ship_dir, ARTIFACT_KIND_RULE, &rule_refs)?,
+            mcp_servers,
+            skills,
+            rules,
             prompt_id: row.prompt_id,
             hooks,
             permissions,
@@ -74,10 +82,13 @@ pub(super) fn get_modes_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
 }
 
 pub(super) fn save_modes_config(ship_dir: &Path, modes: &[AgentProfile]) -> Result<()> {
-    sync_compiled_asset_cache(ship_dir)?;
-
     let mut rows = Vec::with_capacity(modes.len());
     for mode in modes {
+        let normalized_rules: Vec<String> = mode
+            .rules
+            .iter()
+            .map(|id| normalize_rule_external_id(id))
+            .collect();
         rows.push(ModeRow {
             id: mode.id.clone(),
             name: mode.name.clone(),
@@ -85,21 +96,9 @@ pub(super) fn save_modes_config(ship_dir: &Path, modes: &[AgentProfile]) -> Resu
             role: mode.role.clone(),
             tools_preset: mode.tools_preset.clone(),
             active_tools_json: serde_json::to_string(&mode.active_tools)?,
-            mcp_refs_json: serde_json::to_string(&resolve_external_ids_to_refs(
-                ship_dir,
-                ARTIFACT_KIND_MCP,
-                &mode.mcp_servers,
-            )?)?,
-            skill_refs_json: serde_json::to_string(&resolve_external_ids_to_refs(
-                ship_dir,
-                ARTIFACT_KIND_SKILL,
-                &mode.skills,
-            )?)?,
-            rule_refs_json: serde_json::to_string(&resolve_external_ids_to_refs(
-                ship_dir,
-                ARTIFACT_KIND_RULE,
-                &mode.rules,
-            )?)?,
+            mcp_refs_json: serde_json::to_string(&mode.mcp_servers)?,
+            skill_refs_json: serde_json::to_string(&mode.skills)?,
+            rule_refs_json: serde_json::to_string(&normalized_rules)?,
             prompt_id: mode.prompt_id.clone(),
             hooks_json: serde_json::to_string(&mode.hooks)?,
             permissions_json: serde_json::to_string(&mode.permissions)?,

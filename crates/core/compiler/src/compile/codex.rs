@@ -1,5 +1,5 @@
 use crate::resolve::ResolvedConfig;
-use crate::types::McpServerType;
+use crate::types::{McpServerType, Permissions};
 use serde_json::Value as Json;
 
 // ── Sandbox translation ───────────────────────────────────────────────────────
@@ -239,6 +239,60 @@ pub(super) fn build_codex_hooks_json() -> Json {
 }
 
 // ── JSON → TOML value conversion ─────────────────────────────────────────────
+
+// ── Codex execpolicy (.codex/rules/ship.rules) ───────────────────────────────
+
+/// Build Starlark prefix_rule() content for `.codex/rules/ship.rules`.
+///
+/// Returns `None` when there are no rules to emit (file should be deleted).
+pub(super) fn build_codex_execpolicy(permissions: &Permissions) -> Option<String> {
+    let mut entries: Vec<(Vec<String>, &str)> = Vec::new();
+
+    for pattern in &permissions.commands.deny {
+        if let Some(words) = pattern_to_starlark_words(pattern) {
+            entries.push((words, "forbidden"));
+        }
+    }
+    for pattern in &permissions.agent.require_confirmation {
+        if let Some(words) = pattern_to_starlark_words(pattern) {
+            entries.push((words, "prompt"));
+        }
+    }
+    for pattern in &permissions.commands.allow {
+        if let Some(words) = pattern_to_starlark_words(pattern) {
+            entries.push((words, "allow"));
+        }
+    }
+
+    if entries.is_empty() {
+        return None;
+    }
+
+    let mut content =
+        String::from("# managed by ship\n# source: .ship/agents/permissions.toml\n\n");
+    for (words, decision) in &entries {
+        let quoted: Vec<String> = words.iter().map(|w| format!("\"{}\"", w)).collect();
+        content.push_str(&format!(
+            "prefix_rule(\n    pattern = [{}],\n    decision = \"{}\",\n)\n\n",
+            quoted.join(", "),
+            decision
+        ));
+    }
+    Some(content.trim_end_matches('\n').to_string() + "\n")
+}
+
+fn pattern_to_starlark_words(pattern: &str) -> Option<Vec<String>> {
+    let trimmed = pattern.trim();
+    if !trimmed.ends_with('*') {
+        return None;
+    }
+    let prefix = trimmed.trim_end_matches('*').trim();
+    if prefix.is_empty() {
+        return None;
+    }
+    let words: Vec<String> = prefix.split_whitespace().map(str::to_string).collect();
+    if words.is_empty() { None } else { Some(words) }
+}
 
 fn json_to_toml(v: &serde_json::Value) -> Option<toml::Value> {
     match v {

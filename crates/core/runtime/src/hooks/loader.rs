@@ -20,12 +20,13 @@ pub struct LoadReport {
     pub errors: Vec<LoadError>,
 }
 
-/// Load every `*.jsonc` / `*.json` hook under `<ship_dir>/hooks/`.
+/// Load every `*.jsonc` / `*.json` trigger definition under
+/// `<ship_dir>/triggers/`.
 ///
 /// Invalid hooks are collected in `errors` — the loader never panics. Missing
 /// directory is not an error; it returns an empty report.
 pub fn load_hooks_dir(ship_dir: &Path) -> LoadReport {
-    let hooks_dir = ship_dir.join("hooks");
+    let hooks_dir = ship_dir.join("triggers");
     let mut report = LoadReport::default();
     let entries = match std::fs::read_dir(&hooks_dir) {
         Ok(it) => it,

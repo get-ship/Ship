@@ -14,12 +14,16 @@ use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
 
 use crate::{
-    NetworkServer, actor_api, actors_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
-    human_webhook, lint_api, logs_api, mcp_registry, openapi, pairing, project_api, pty_handler,
-    rest_api, runtime_api, sdk_manifest, services, session, settings_api, shell_assets,
-    ship_runtime, specs_api, supervisor, view_errors_api, view_morph_target, view_sessions_api,
-    views, collection_api, create_api, themes_api, sessions, projects_api, views_raw, webhook_ext,
+    NetworkServer, actor_api, actors_api, annotations_api, artifacts_api, auth, feedback_api, hooks_api,
+    human_webhook, lint_api, logs_api, openapi, project_api,
+    rest_api, runtime_api, sdk_manifest, services, settings_api, shell_assets,
+    ship_runtime, specs_api, supervisor, view_errors_api, view_sessions_api,
+    views, collection_api, create_api, themes_api, sessions, projects_api, webhook_ext,
 };
+use crate::auth::{attest, pairing, scopes, session};
+use crate::transport::{cors, pty as pty_handler};
+use crate::mcp::registry as mcp_registry;
+use crate::views::{morph_target as view_morph_target, raw as views_raw};
 use axum::routing;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -216,6 +220,9 @@ pub fn build_router(
     // everything else uses. The shell IS the app; it always mounts.
     root = root.merge(shell_assets::router(shell_registry));
     root
+        // X-Shipd-Build header on every response: build SHA + dirty flag.
+        // CLI/shell/browser read this to detect daemon-vs-client skew.
+        .layer(axum::middleware::from_fn(build_header_middleware))
         .layer(axum::middleware::from_fn(cors::cors_middleware))
         // Tag view responses with Datastar morph-target headers so cross-view
         // navigation inside the shell doesn't wipe shell chrome.
@@ -228,6 +235,48 @@ pub fn build_router(
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
+}
+
+/// Stamp `X-Shipd-Build` on every response so clients can detect daemon
+/// version skew. On the way in, also log a one-time WARN per distinct
+/// `X-Shipd-Client-Build` value when the client's SHA diverges from
+/// ours — daemon-side proof that a stale CLI is talking to us.
+async fn build_header_middleware(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> axum::response::Response {
+    let bi = build_info::build_info!();
+
+    // Inbound: warn once per distinct client SHA on skew.
+    if let Some(client_value) = req
+        .headers()
+        .get("x-shipd-client-build")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_string())
+    {
+        let server_short = bi.short();
+        let client_sha = client_value.split('+').next().unwrap_or("").to_string();
+        if client_value != server_short && client_sha != bi.git_sha {
+            static WARNED: std::sync::OnceLock<
+                std::sync::Mutex<std::collections::HashSet<String>>,
+            > = std::sync::OnceLock::new();
+            let warned = WARNED.get_or_init(|| std::sync::Mutex::new(Default::default()));
+            let mut set = warned.lock().unwrap();
+            if set.insert(client_value.clone()) {
+                tracing::warn!(
+                    client = %client_value,
+                    server = %server_short,
+                    "client build differs from daemon — restart the client to avoid API skew"
+                );
+            }
+        }
+    }
+
+    let mut response = next.run(req).await;
+    if let Ok(value) = axum::http::HeaderValue::from_str(&bi.short()) {
+        response.headers_mut().insert("X-Shipd-Build", value);
+    }
+    response
 }
 
 /// All enumerated routes, registered via `ShipRouterExt::ship_route` against
@@ -294,6 +343,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
         .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
         .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
+        .ship_route(Route::PtySessionResize_template(), sessions::api::session_resize)
         .ship_route(Route::PtySessionMessage_template(), sessions::api::session_message)
         .ship_route(Route::PtySessionReply_template(), sessions::api::session_reply)
         .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
@@ -394,14 +444,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::UpdateSetting, settings_api::update_setting)
         .ship_route(Route::GetSetting_template(), settings_api::get_setting)
         .ship_route(Route::ListProviders, settings_api::list_providers)
-        // Supervisor
-        .ship_route(Route::StartWorkspace_template(), supervisor::start_workspace)
         // Project
         .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
         .ship_route(Route::ListWorkspaceAgents_template(), project_api::list_agents)
         .ship_route(Route::WriteWorkspaceAgent_template(), project_api::write_agent)
-        .ship_route(Route::DeleteWorkspace_template(), project_api::delete_workspace)
-        .ship_route(Route::ActivateWorkspace_template(), project_api::activate_workspace)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
         .ship_route(Route::GitStatus, services::git::status_handler)
@@ -416,14 +462,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::GitPull, services::git::pull_handler)
         .ship_route(Route::GitCheckout, services::git::checkout_handler)
         .ship_route(Route::GitSse, services::git::sse_handler)
-        // commit-draft — GET/PUT/DELETE merged on one path (canonical path
-        // matches `Route::GitCommitDraft{Get,Put,Delete}` in the enum).
-        .route(
-            "/api/v1/git/commit-draft",
-            axum::routing::get(services::git::draft_get_handler)
-                .put(services::git::draft_put_handler)
-                .delete(services::git::draft_delete_handler),
-        )
         .ship_route(Route::EmitEvent, project_api::emit_event)
         // Artifacts platform (three-scope)
         .merge(
@@ -535,11 +573,13 @@ pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<ser
         .workspace_dir()
         .map(|p| p.display().to_string())
         .unwrap_or_else(|| rt.ship_dir().display().to_string());
+    let bi = build_info::build_info!();
     Json(serde_json::json!({
         "ok": all_healthy,
         "healthy": all_healthy,
         "version": env!("CARGO_PKG_VERSION"),
-        "commit": env!("SHIPD_GIT_COMMIT"),
+        "commit": bi.short(),
+        "build": bi.full(),
         "ship_dir": ship_dir,
         "pid": std::process::id(),
         "dev_mode": pairing::is_dev_mode(),

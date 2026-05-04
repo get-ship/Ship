@@ -31,14 +31,14 @@ const STOP_POLL: std::time::Duration = std::time::Duration::from_millis(50);
 /// flock after SIGKILL — essentially "one scheduling tick, rounded up".
 const KILL_SETTLE: std::time::Duration = std::time::Duration::from_secs(1);
 
-/// Core stop logic, parameterised on the global dir so unit tests can
+/// Core stop logic, parameterised on the daemon dir so unit tests can
 /// run against a temp directory without mutating the developer's
-/// `~/.ship/`. The production entry point (`daemon_stop_inner`) passes
-/// `ship_dir()`.
-pub fn daemon_stop_at(global_dir: &Path) -> Result<()> {
-    let legacy_pid_path = global_dir.join("daemon.pid");
+/// `~/.ship/`. The production entry point (`daemon_stop_inner`) calls
+/// `discover_running_daemon` and passes its `dir`.
+pub fn daemon_stop_at(daemon_dir: &Path) -> Result<()> {
+    let legacy_pid_path = daemon_dir.join("pid");
 
-    let (pid, source) = match resolve_supervisor_pid(global_dir)? {
+    let (pid, source) = match resolve_supervisor_pid(daemon_dir)? {
         Some(v) => v,
         None => {
             println!("shipd not running");
@@ -52,7 +52,7 @@ pub fn daemon_stop_at(global_dir: &Path) -> Result<()> {
         let _ = std::fs::remove_file(&legacy_pid_path);
         // A dead supervisor still leaves its pidfile on disk; remove it so
         // the next start is not confused by the artefact.
-        let _ = std::fs::remove_file(pidfile::pidfile_path(global_dir));
+        let _ = std::fs::remove_file(pidfile::pidfile_path(daemon_dir));
         return Ok(());
     }
 
@@ -65,7 +65,7 @@ pub fn daemon_stop_at(global_dir: &Path) -> Result<()> {
     // step: returning before the flock is released lets a follow-up
     // `ship daemon start` race the dying supervisor and refuse with
     // "already running".
-    if wait_supervisor_gone(pid, global_dir, STOP_GRACE) {
+    if wait_supervisor_gone(pid, daemon_dir, STOP_GRACE) {
         let _ = std::fs::remove_file(&legacy_pid_path);
         println!("shipd stopped (supervisor pid {pid})");
         return Ok(());
@@ -73,7 +73,7 @@ pub fn daemon_stop_at(global_dir: &Path) -> Result<()> {
 
     // Supervisor refused to exit in time. Escalate to SIGKILL on the
     // supervisor and any still-live child to stop the respawn loop.
-    let child_pid = pidfile_child_pid(global_dir);
+    let child_pid = pidfile_child_pid(daemon_dir);
     let _ = send_signal(pid, libc::SIGKILL);
     if let Some(cp) = child_pid {
         if cp != pid && is_process_alive(cp) {
@@ -81,10 +81,10 @@ pub fn daemon_stop_at(global_dir: &Path) -> Result<()> {
         }
     }
 
-    let _ = wait_supervisor_gone(pid, global_dir, KILL_SETTLE);
+    let _ = wait_supervisor_gone(pid, daemon_dir, KILL_SETTLE);
 
     let _ = std::fs::remove_file(&legacy_pid_path);
-    let _ = std::fs::remove_file(pidfile::pidfile_path(global_dir));
+    let _ = std::fs::remove_file(pidfile::pidfile_path(daemon_dir));
     println!("shipd stopped (supervisor pid {pid}, escalated to SIGKILL)");
     Ok(())
 }
@@ -92,10 +92,10 @@ pub fn daemon_stop_at(global_dir: &Path) -> Result<()> {
 /// Poll until the supervisor pid is gone and the pidfile lock is released,
 /// or the deadline expires. Returns true if both conditions held before
 /// the deadline.
-fn wait_supervisor_gone(pid: u32, global_dir: &Path, grace: std::time::Duration) -> bool {
+fn wait_supervisor_gone(pid: u32, daemon_dir: &Path, grace: std::time::Duration) -> bool {
     let deadline = std::time::Instant::now() + grace;
     while std::time::Instant::now() < deadline {
-        if !is_process_alive(pid) && !pidfile_lock_held(global_dir) {
+        if !is_process_alive(pid) && !pidfile_lock_held(daemon_dir) {
             return true;
         }
         std::thread::sleep(STOP_POLL);
@@ -107,29 +107,29 @@ fn wait_supervisor_gone(pid: u32, global_dir: &Path, grace: std::time::Duration)
 /// the lock is held, because that record is the OS-enforced singleton
 /// identity; falls back to the legacy `daemon.pid` only when no pidfile
 /// record or lock is present (e.g. partial install or pre-upgrade state).
-fn resolve_supervisor_pid(global_dir: &Path) -> Result<Option<(u32, &'static str)>> {
-    if let Some((record, lock_held)) = pidfile::read(global_dir)? {
+fn resolve_supervisor_pid(daemon_dir: &Path) -> Result<Option<(u32, &'static str)>> {
+    if let Some((record, lock_held)) = pidfile::read(daemon_dir)? {
         if lock_held {
             return Ok(Some((record.pid, "supervisor")));
         }
     }
-    let legacy_pid_path = global_dir.join("daemon.pid");
-    if let Some(pid) = read_pid(&legacy_pid_path)? {
+    let pid_path = daemon_dir.join("pid");
+    if let Some(pid) = read_pid(&pid_path)? {
         return Ok(Some((pid, "daemon.pid")));
     }
     Ok(None)
 }
 
 /// Non-blocking probe: is the pidfile lock currently held by any process?
-fn pidfile_lock_held(global_dir: &Path) -> bool {
-    matches!(pidfile::read(global_dir), Ok(Some((_, true))))
+fn pidfile_lock_held(daemon_dir: &Path) -> bool {
+    matches!(pidfile::read(daemon_dir), Ok(Some((_, true))))
 }
 
 /// Read the child pid that shipd wrote to `daemon.pid`, if it is still alive.
 /// Used only by the SIGKILL escalation path to ensure we do not leave
 /// orphaned shipd processes behind when the supervisor refuses to exit.
-fn pidfile_child_pid(global_dir: &Path) -> Option<u32> {
-    let pid = read_pid(&global_dir.join("daemon.pid")).ok().flatten()?;
+fn pidfile_child_pid(daemon_dir: &Path) -> Option<u32> {
+    let pid = read_pid(&daemon_dir.join("pid")).ok().flatten()?;
     if is_process_alive(pid) { Some(pid) } else { None }
 }
 

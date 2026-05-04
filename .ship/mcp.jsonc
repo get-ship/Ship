@@ -82,20 +82,6 @@
         "disabled": true,
         "env": {},
       },
-      "shadcn": {
-        "id": "",
-        "name": "shadcn/ui",
-        "command": "pnpm",
-        "args": [
-          "dlx",
-          "shadcn@latest",
-          "mcp",
-        ],
-        "scope": "project",
-        "server_type": "stdio",
-        "disabled": false,
-        "env": {},
-      },
     },
   },
 }

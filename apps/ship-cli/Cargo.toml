@@ -3,42 +3,47 @@ name = "ship-cli"
 version = "0.2.0"
 edition = "2024"
 publish = false
+build = "build.rs"
+
+[build-dependencies]
+build-info = { path = "../../crates/core/build-info" }
 
 [[bin]]
 name = "ship"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4.0", features = ["derive"] }
+build-info = { path = "../../crates/core/build-info" }
+clap = { workspace = true }
 mcp = { path = "../mcp" }
 shipd = { path = "../shipd" }
-tokio = { version = "1.0", features = ["rt", "rt-multi-thread"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread"] }
 cli-framework = { path = "../../crates/core/cli-framework" }
 lint = { path = "../../crates/core/lint" }
 lsp = { path = "../../crates/lsp" }
 compiler = { path = "../../crates/core/compiler" }
 runtime = { path = "../../crates/core/runtime" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }
-anyhow = "1.0"
-toml = "0.8"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-serde_yaml = "0.9"
-dirs = "5"
-chrono = { version = "0.4", features = ["serde"] }
-libc = "0.2"
-ureq = { version = "3", features = ["json"] }
-rmcp = { version = "0.16.0", features = [
+anyhow = { workspace = true }
+toml = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+dirs = { workspace = true }
+chrono = { workspace = true }
+libc = { workspace = true }
+ureq = { workspace = true, features = ["json"] }
+rmcp = { workspace = true, features = [
     "client", "transport-streamable-http-client", "transport-streamable-http-client-reqwest",
 ] }
-reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "blocking", "json"] }
-sha2 = "0.10"
-getrandom = "0.2"
-base64 = "0.22"
-tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-appender = "0.2"
-regex = "1"
+reqwest = { workspace = true, features = ["rustls-tls", "blocking", "json"] }
+sha2 = { workspace = true }
+getrandom = { workspace = true }
+base64 = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-appender = { workspace = true }
+regex = { workspace = true }
 ratatui = "0.29"
 crossterm = "0.28"
 
@@ -110,13 +115,13 @@ set -eu
 # gets installed alongside the docs so admins can re-run it manually.
 
 [dev-dependencies]
-tempfile = "3"
+tempfile = { workspace = true }
 assert_cmd = "2"
 predicates = "3"
 mockito = "1"
-rmcp = { version = "0.16.0", features = [
+rmcp = { workspace = true, features = [
     "server", "transport-streamable-http-server",
 ] }
-axum = { version = "0.8", features = ["http1", "tokio"] }
-tokio-util = { version = "0.7", features = ["full"] }
+axum = { workspace = true, features = ["http1", "tokio"] }
+tokio-util = { workspace = true, features = ["full"] }
 schemars = "1"

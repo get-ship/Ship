@@ -18,39 +18,16 @@ use crate::services::orchestrator::emit::persist_and_route;
 use crate::services::orchestrator::step_io::get_step_outputs_from_events;
 use crate::services::orchestrator::{FanoutLaneRef, LaneOutcome, OrchestratorContext};
 
-/// Reserved output name used for a failed-lane marker. The judge step's
-/// `consumes: [<lane_id>.failed]` resolves against a sentinel artifact that
-/// carries the failure reason.
-pub const FAILED_MARKER_NAME: &str = "failed";
+// `AggregateDecision` + `aggregate_lane_outcomes` moved to
+// `ship-pipelines::fanout` per modular-runtime-01. Re-exported here so
+// `fanout.rs`, integration tests, etc. keep importing from the legacy
+// path without churn.
+pub use ship_pipelines::fanout::{AggregateDecision, aggregate_lane_outcomes};
 
-/// Decision produced by the aggregator after every lane has reported.
-/// Extracted as a pure function so integration tests can exercise the
-/// "all fail" branch without running a real tokio dispatch.
-#[derive(Debug, PartialEq, Eq)]
-pub enum AggregateDecision {
-    Advance { ok_count: usize },
-    Fail { ok_count: usize, reason: String },
-}
-
-/// Decide whether the fanout step should advance or fail given the lane
-/// outcomes and the `min_successful_lanes` threshold.
-pub fn aggregate_lane_outcomes(
-    outcomes: &[LaneOutcome],
-    min_ok: usize,
-    total: usize,
-) -> AggregateDecision {
-    let ok_count = outcomes.iter().filter(|o| o.success).count();
-    if ok_count < min_ok {
-        AggregateDecision::Fail {
-            ok_count,
-            reason: format!(
-                "fanout: {ok_count}/{min_ok} required lanes succeeded (of {total} total)"
-            ),
-        }
-    } else {
-        AggregateDecision::Advance { ok_count }
-    }
-}
+/// Reserved output name used for a failed-lane marker. Source-of-truth
+/// is `ship-pipelines::validate::FAILED_MARKER_NAME`; re-exported here
+/// for the daemon-side fanout machinery that runs the marker emission.
+pub use ship_pipelines::validate::FAILED_MARKER_NAME;
 
 /// Resolve a lane's `LaneOutcome` from the router when its `step.observed`
 /// arrives. Reads lane outputs from the event store and sends through the

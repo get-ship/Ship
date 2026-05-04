@@ -1,29 +1,30 @@
 use super::*;
 use runtime::project::init_project;
-use runtime::workspace::{
-    CreateWorkspaceRequest as RuntimeCreateWorkspaceRequest,
-    create_workspace as runtime_create_workspace,
-};
-use runtime::{AgentProfile, add_agent};
+use runtime::{AgentProfile, get_config, save_config};
 use tempfile::tempdir;
+
+fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
+    let mut config = get_config(Some(project_dir.to_path_buf())).expect("get config");
+    let id = agent.id.clone();
+    config.modes.push(agent);
+    config.active_agent = Some(id);
+    save_config(&config, Some(project_dir.to_path_buf())).expect("save config");
+}
 
 #[test]
 fn mode_gate_normalizes_and_blocks_disallowed_tools() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
-    add_agent(
-        Some(project_dir.clone()),
+    install_active_agent(
+        &project_dir,
         AgentProfile {
             id: "mode-gate-test".to_string(),
             name: "Mode Gate Test".to_string(),
             active_tools: vec!["ship_list_notes".to_string()],
             ..Default::default()
         },
-    )
-    .expect("add agent");
-    runtime::set_active_agent(Some(project_dir.clone()), Some("mode-gate-test"))
-        .expect("set active agent");
+    );
 
     ShipServer::enforce_mode_tool_gate(&project_dir, "list_notes").expect("list_notes allowed");
     ShipServer::enforce_mode_tool_gate(&project_dir, "ship_list_notes_tool")
@@ -45,42 +46,18 @@ fn mode_gate_normalizes_and_blocks_disallowed_tools() {
 }
 
 #[tokio::test(flavor = "multi_thread")]
-async fn mcp_workspace_control_plane_round_trip() {
+async fn mcp_sessions_resource_returns_empty_for_unknown_branch() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
     let server = ShipServer::new();
     *server.active_project.lock().await = Some(project_dir.clone());
 
-    runtime_create_workspace(
-        &project_dir,
-        RuntimeCreateWorkspaceRequest {
-            branch: "feature/mode-control-plane".to_string(),
-            ..Default::default()
-        },
-    )
-    .expect("create workspace for test");
-
-    let fetched = server
-        .resolve_resource_uri("ship://workspaces/feature/mode-control-plane", &project_dir)
-        .await
-        .expect("workspace resource");
-    assert!(
-        fetched.contains("\"id\": \"feature-mode-control-plane\""),
-        "unexpected get workspace response: {}",
-        fetched
-    );
-
-    let sessions_before = server
+    let sessions = server
         .resolve_resource_uri("ship://sessions/feature/mode-control-plane", &project_dir)
         .await
         .expect("sessions resource");
-    assert_eq!(
-        sessions_before.trim(),
-        "[]",
-        "expected no sessions before start, got {}",
-        sessions_before
-    );
+    assert_eq!(sessions.trim(), "[]");
 }
 
 // ── notification peer lifecycle ─────────────────────────────────────

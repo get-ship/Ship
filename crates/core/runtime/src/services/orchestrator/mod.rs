@@ -88,13 +88,9 @@ pub enum StepActivity {
     TurnEnded,
 }
 
-/// Outcome from a single fanout lane after its step monitor fires.
-#[derive(Debug, Clone)]
-pub struct LaneOutcome {
-    pub lane_id: String,
-    pub success: bool,
-    pub outputs: std::collections::BTreeMap<String, String>,
-}
+// `LaneOutcome` moved to `ship-pipelines::fanout` per modular-runtime-01.
+// Re-exported here so existing call sites compile unchanged.
+pub use ship_pipelines::fanout::LaneOutcome;
 
 /// Reference that links a lane slug back to its parent fanout step.
 #[derive(Debug, Clone)]

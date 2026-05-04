@@ -20,7 +20,7 @@ fn ship() -> Command {
 /// All calls within the same test share state; different tests are isolated.
 fn ship_in(tmp: &TempDir) -> Command {
     let mut cmd = Command::cargo_bin("ship").unwrap();
-    cmd.env("SHIP_GLOBAL_DIR", tmp.path());
+    cmd.env("SHIP_HOME", tmp.path());
     cmd
 }
 
@@ -901,7 +901,7 @@ fn e2e_compile_with_dependency_skills() {
     );
 
     // Use ship_in for DB isolation and set HOME for cache resolution.
-    // Both SHIP_GLOBAL_DIR (for platform.db) and HOME (for cache) point to tmp.
+    // Both SHIP_HOME (for platform.db) and HOME (for cache) point to tmp.
     ship_in(&tmp)
         .env("HOME", tmp.path())
         .args(["use", "with-deps", "--path", p])

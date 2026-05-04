@@ -3,16 +3,24 @@ use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::Subscribe
 fn main() -> anyhow::Result<()> {
     let global_dir = runtime::project::get_global_dir()?;
 
+    // Logs live in machine/logs/ per the home-layout ADR. Eagerly create the
+    // directory so the file appender can attach before the migrator runs in
+    // ship_runtime startup.
+    let logs_dir = runtime::ShipHome::at(global_dir.clone())
+        .machine_dir()
+        .join("logs");
+    let _ = std::fs::create_dir_all(&logs_dir);
+
     // Rotate log file if >10 MB.
-    let log_path = global_dir.join("shipd.log");
+    let log_path = logs_dir.join("shipd.log");
     if let Ok(meta) = std::fs::metadata(&log_path) {
         if meta.len() > 10 * 1024 * 1024 {
-            let _ = std::fs::rename(&log_path, global_dir.join("shipd.log.old"));
+            let _ = std::fs::rename(&log_path, logs_dir.join("shipd.log.old"));
         }
     }
 
     // File appender — JSON-structured logs for crash forensics.
-    let file_appender = tracing_appender::rolling::never(&global_dir, "shipd.log");
+    let file_appender = tracing_appender::rolling::never(&logs_dir, "shipd.log");
     let file_layer = tracing_subscriber::fmt::layer()
         .json()
         .with_writer(file_appender)
@@ -28,13 +36,22 @@ fn main() -> anyhow::Result<()> {
         .init();
 
     let args: Vec<String> = std::env::args().collect();
-    let port = extract_u16_arg(&args, "--port").unwrap_or(9315);
+    // --port is optional — None means "auto-derive from path_hash, honoring
+    // local.jsonc:worktrees.ports pins". See `runtime::home::worktree_port_for`.
+    let port = extract_u16_arg(&args, "--port");
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dev = args.iter().any(|a| a == "--dev");
-    // Workspace resolution: explicit flag wins; otherwise walk up from CWD
-    // looking for `.ship/` like git discovers the repo root. Only fall back
-    // to global-only when the daemon genuinely isn't inside a project.
-    let workspace = extract_str_arg(&args, "--workspace")
+    // Project resolution:
+    //   1. `--dev-worktree <path>` (dev-only; routes the daemon into a
+    //      per-worktree IPC dir + hash-derived port so multiple Ship-dev
+    //      worktrees can run side-by-side without colliding). Hidden
+    //      behind the `dev` semantics — not a user-facing flag.
+    //   2. `--workspace <path>` is the deprecated alias kept for the
+    //      handful of dev scripts that still pass it.
+    //   3. Otherwise walk up from CWD looking for `.ship/`, like git
+    //      discovers the repo root.
+    let workspace = extract_str_arg(&args, "--dev-worktree")
+        .or_else(|| extract_str_arg(&args, "--workspace"))
         .map(std::path::PathBuf::from)
         .or_else(discover_workspace);
 
@@ -57,23 +74,12 @@ fn extract_str_arg(args: &[String], flag: &str) -> Option<String> {
 }
 
 /// Walk up from CWD looking for a `.ship/` directory. Returns the project
-/// root (the dir containing `.ship/`), not `.ship/` itself. Stops at the
-/// filesystem root or the home directory — the latter prevents `~/.ship/`
-/// from being auto-selected as a "project" for global contexts.
+/// root (the dir containing `.ship/`), not `.ship/` itself. Delegates to
+/// the runtime's canonical resolver so worktree handling, env overrides,
+/// and `~/.ship/` exclusion all behave consistently.
 fn discover_workspace() -> Option<std::path::PathBuf> {
-    let home = dirs::home_dir();
     let cwd = std::env::current_dir().ok()?;
-    let mut cur = cwd.as_path();
-    loop {
-        if Some(cur) == home.as_deref() {
-            return None;
-        }
-        if runtime::ShipHome::project_ship_dir(&cur).is_dir() {
-            return Some(cur.to_path_buf());
-        }
-        match cur.parent() {
-            Some(p) => cur = p,
-            None => return None,
-        }
-    }
+    let ship_dir = runtime::project::resolve_project_ship_dir(&cwd)?;
+    // resolver returns the .ship dir; we want its parent (the project root).
+    ship_dir.parent().map(std::path::Path::to_path_buf)
 }

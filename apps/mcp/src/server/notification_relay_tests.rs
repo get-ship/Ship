@@ -36,7 +36,7 @@ fn system_peer(_id: &str, adapter: MockAdapter) -> PeerHandle {
     PeerHandle {
         adapter: Box::new(adapter),
         allowed_events: HashSet::new(),
-        workspace_branch: None,
+        branch: None,
     }
 }
 
@@ -44,7 +44,7 @@ fn scoped_peer(_id: &str, adapter: MockAdapter, branch: &str) -> PeerHandle {
     PeerHandle {
         adapter: Box::new(adapter),
         allowed_events: HashSet::new(),
-        workspace_branch: Some(branch.to_string()),
+        branch: Some(branch.to_string()),
     }
 }
 
@@ -52,7 +52,7 @@ fn skill_peer(_id: &str, adapter: MockAdapter, events: Vec<&str>) -> PeerHandle 
     PeerHandle {
         adapter: Box::new(adapter),
         allowed_events: events.into_iter().map(String::from).collect(),
-        workspace_branch: None,
+        branch: None,
     }
 }
 
@@ -283,6 +283,6 @@ async fn unscoped_peer_receives_all_workspace_events() {
     let relay = EventRelay::new();
     relay.add_peer(system_peer("p1", adapter)).await;
     run_relay(relay, vec![envelope("workspace.activated")]).await;
-    // Unscoped peer (workspace_branch: None) should receive everything
+    // Unscoped peer (branch: None) should receive everything
     assert_eq!(log.lock().await.len(), 1);
 }

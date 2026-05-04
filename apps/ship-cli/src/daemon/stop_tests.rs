@@ -51,11 +51,17 @@ fn sample_supervisor_record(pid: u32) -> PidfileRecord {
     }
 }
 
-/// Write the legacy `daemon.pid` file as the shipd child does after startup:
-/// a bare integer with its own pid. This is the state `daemon.pid` lands in
-/// once the child has run — the supervisor's initial write is clobbered.
-fn write_daemon_pid(dir: &Path, pid: u32) {
-    std::fs::write(dir.join("daemon.pid"), format!("{pid}\n")).unwrap();
+/// Write the legacy `daemon.pid` file (now at `machine/daemon/pid` per
+/// home-layout ADR) as the shipd child does after startup: a bare integer
+/// with its own pid. This is the state `pid` lands in once the child has
+/// run — the supervisor's initial write is clobbered.
+fn write_daemon_pid(daemon_dir: &Path, pid: u32) {
+    std::fs::create_dir_all(daemon_dir).unwrap();
+    std::fs::write(daemon_dir.join("pid"), format!("{pid}\n")).unwrap();
+}
+
+fn legacy_pid_path(daemon_dir: &Path) -> std::path::PathBuf {
+    daemon_dir.join("pid")
 }
 
 /// Spawn a bash subprocess that grabs the exclusive flock on `shipd.pid`,
@@ -237,7 +243,7 @@ fn stop_targets_supervisor_not_child_pid_in_daemon_pid() {
 
     // Legacy daemon.pid must be cleared so stale state doesn't leak.
     assert!(
-        !dir.path().join("daemon.pid").exists(),
+        !legacy_pid_path(dir.path()).exists(),
         "daemon.pid must be removed after stop"
     );
 
@@ -253,7 +259,7 @@ fn stop_targets_supervisor_not_child_pid_in_daemon_pid() {
 fn stop_is_noop_when_no_supervisor_and_no_pidfile() {
     let dir = TempDir::new().unwrap();
     daemon_stop_at(dir.path()).expect("stop on empty dir should succeed");
-    assert!(!dir.path().join("daemon.pid").exists());
+    assert!(!legacy_pid_path(dir.path()).exists());
     assert!(!pidfile::pidfile_path(dir.path()).exists());
 }
 
@@ -275,7 +281,7 @@ fn stop_cleans_stale_legacy_pid_file() {
 
     daemon_stop_at(dir.path()).expect("stop should succeed with stale legacy pid");
     assert!(
-        !dir.path().join("daemon.pid").exists(),
+        !legacy_pid_path(dir.path()).exists(),
         "stale daemon.pid must be removed"
     );
 }
@@ -289,11 +295,13 @@ fn stop_falls_back_from_released_pidfile_to_legacy_pid() {
 
     // Write a pidfile without acquiring the lock — this is the state left
     // behind by a crashed supervisor: file on disk, no kernel flock.
+    let pidfile_path = pidfile::pidfile_path(dir.path());
+    std::fs::create_dir_all(pidfile_path.parent().unwrap()).unwrap();
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .create(true)
         .truncate(true)
-        .open(pidfile::pidfile_path(dir.path()))
+        .open(&pidfile_path)
         .unwrap();
     let record = sample_supervisor_record(999_999);
     file.write_all(&serde_json::to_vec_pretty(&record).unwrap())

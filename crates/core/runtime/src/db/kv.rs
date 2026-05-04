@@ -1,9 +1,4 @@
 //! Key-value state store — namespaced, JSON values.
-//!
-//! The base functions (`set`, `get`, etc.) operate on raw namespaces.
-//! The `scoped_*` variants enforce workspace isolation by prefixing the
-//! namespace with `{workspace_id}::`. A caller cannot read another
-//! workspace's data without providing that workspace's ID.
 
 use anyhow::Result;
 use chrono::Utc;
@@ -11,42 +6,20 @@ use sqlx::Row;
 
 use crate::db::{block_on, open_db};
 
-/// Build a workspace-scoped namespace: `{workspace_id}::{namespace}`.
-fn scoped_ns(workspace_id: &str, namespace: &str) -> String {
-    format!("{workspace_id}::{namespace}")
+pub fn set(namespace: &str, key: &str, value: &serde_json::Value) -> Result<()> {
+    let mut conn = open_db()?;
+    set_with_conn(&mut conn, namespace, key, value)
 }
 
-/// Set a workspace-scoped KV entry.
-pub fn scoped_set(
-    workspace_id: &str,
+/// Same as [`set`] but reuses an existing connection. Use this when called
+/// inside a projection transaction to avoid SQLite's "database is locked"
+/// from a parallel writer.
+pub fn set_with_conn(
+    conn: &mut sqlx::SqliteConnection,
     namespace: &str,
     key: &str,
     value: &serde_json::Value,
 ) -> Result<()> {
-    set(&scoped_ns(workspace_id, namespace), key, value)
-}
-
-/// Get a workspace-scoped KV entry.
-pub fn scoped_get(
-    workspace_id: &str,
-    namespace: &str,
-    key: &str,
-) -> Result<Option<serde_json::Value>> {
-    get(&scoped_ns(workspace_id, namespace), key)
-}
-
-/// Delete a workspace-scoped KV entry.
-pub fn scoped_delete(workspace_id: &str, namespace: &str, key: &str) -> Result<()> {
-    delete(&scoped_ns(workspace_id, namespace), key)
-}
-
-/// List keys in a workspace-scoped namespace.
-pub fn scoped_list_keys(workspace_id: &str, namespace: &str) -> Result<Vec<String>> {
-    list_keys(&scoped_ns(workspace_id, namespace))
-}
-
-pub fn set(namespace: &str, key: &str, value: &serde_json::Value) -> Result<()> {
-    let mut conn = open_db()?;
     let now = Utc::now().to_rfc3339();
     let value_json = serde_json::to_string(value)?;
     block_on(async {
@@ -61,7 +34,7 @@ pub fn set(namespace: &str, key: &str, value: &serde_json::Value) -> Result<()> 
         .bind(key)
         .bind(&value_json)
         .bind(&now)
-        .execute(&mut conn)
+        .execute(conn)
         .await
     })?;
     Ok(())
@@ -87,11 +60,20 @@ pub fn get(namespace: &str, key: &str) -> Result<Option<serde_json::Value>> {
 
 pub fn delete(namespace: &str, key: &str) -> Result<()> {
     let mut conn = open_db()?;
+    delete_with_conn(&mut conn, namespace, key)
+}
+
+/// Same as [`delete`] but reuses an existing connection.
+pub fn delete_with_conn(
+    conn: &mut sqlx::SqliteConnection,
+    namespace: &str,
+    key: &str,
+) -> Result<()> {
     block_on(async {
         sqlx::query("DELETE FROM kv_state WHERE namespace = ? AND key = ?")
             .bind(namespace)
             .bind(key)
-            .execute(&mut conn)
+            .execute(conn)
             .await
     })?;
     Ok(())
@@ -192,36 +174,4 @@ mod tests {
         assert_eq!(keys, vec!["alpha", "beta"]);
     }
 
-    #[test]
-    fn scoped_workspace_isolation() {
-        let (_tmp, _ship_dir) = setup();
-        scoped_set("feature/auth", "cache", "token", &json!("secret")).unwrap();
-
-        // Same workspace can read its own data.
-        let val = scoped_get("feature/auth", "cache", "token").unwrap();
-        assert_eq!(val, Some(json!("secret")));
-
-        // Different workspace sees empty — its namespace is separate.
-        let val = scoped_get("main", "cache", "token").unwrap();
-        assert_eq!(val, None, "workspace 'main' must not see 'feature/auth' data");
-    }
-
-    #[test]
-    fn scoped_delete_and_list() {
-        let (_tmp, _ship_dir) = setup();
-        scoped_set("ws-1", "ns", "a", &json!(1)).unwrap();
-        scoped_set("ws-1", "ns", "b", &json!(2)).unwrap();
-        scoped_set("ws-2", "ns", "a", &json!(3)).unwrap();
-
-        let keys = scoped_list_keys("ws-1", "ns").unwrap();
-        assert_eq!(keys, vec!["a", "b"]);
-
-        scoped_delete("ws-1", "ns", "a").unwrap();
-        let keys = scoped_list_keys("ws-1", "ns").unwrap();
-        assert_eq!(keys, vec!["b"]);
-
-        // ws-2 data unaffected.
-        let val = scoped_get("ws-2", "ns", "a").unwrap();
-        assert_eq!(val, Some(json!(3)));
-    }
 }

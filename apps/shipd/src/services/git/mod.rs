@@ -22,11 +22,14 @@
 //! via `state::resolve_root`. Optional `?workspace_id=` query param lets
 //! callers pin a specific worktree.
 
-pub mod state;
-pub mod read;
-pub mod write;
-pub mod diff;
 pub mod annotations;
+pub mod diff;
+pub mod read;
+pub mod service;
+pub mod state;
+pub mod write;
+
+use service::{CheckoutArgs, CommitArgs, PushArgs};
 
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -35,6 +38,7 @@ use serde::Deserialize;
 use std::path::Path;
 use std::time::Duration;
 
+use crate::access::RuntimeAccess;
 use crate::rest_api::ApiState;
 use crate::views::stream::{ViewSse, ViewStream};
 use state::GitError;
@@ -141,18 +145,6 @@ pub struct CheckoutBody {
     pub refname: String,
 }
 
-#[derive(Deserialize)]
-pub struct DraftBody {
-    #[serde(default)]
-    pub workspace_id: Option<String>,
-    pub subject: String,
-    #[serde(default)]
-    pub body: String,
-    #[serde(default)]
-    pub by_agent: Option<String>,
-    #[serde(default)]
-    pub by_pipeline: Option<String>,
-}
 
 // ── helpers ──────────────────────────────────────────────────────────────
 
@@ -172,20 +164,18 @@ pub async fn status_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, q.workspace_id.as_deref())?;
-    let buckets = read::load_status_buckets(&root);
-    let (ahead, behind) = read::load_ahead_behind(&root).unwrap_or((0, 0));
+    let r = state.services().git().status(q.workspace_id.as_deref()).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
-        "branch": read::load_branch(&root),
-        "head": read::load_head_short(&root),
-        "ahead": ahead,
-        "behind": behind,
-        "clean": buckets.clean,
-        "total": buckets.total,
-        "staged": buckets.staged,
-        "modified": buckets.modified,
-        "untracked": buckets.untracked,
+        "branch": r.branch,
+        "head": r.head,
+        "ahead": r.ahead,
+        "behind": r.behind,
+        "clean": r.clean,
+        "total": r.total,
+        "staged": r.staged,
+        "modified": r.modified,
+        "untracked": r.untracked,
     })))
 }
 
@@ -194,18 +184,15 @@ pub async fn diff_handler(
     State(state): State<ApiState>,
     Query(q): Query<DiffQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, q.workspace_id.as_deref())?;
-    let commit = q.commit.as_deref().unwrap_or("WORKING");
-    let text = if commit.eq_ignore_ascii_case("WORKING") {
-        read::load_working_diff(&root)
-    } else {
-        read::load_commit_diff(&root, commit)
-    };
+    let r = state
+        .git()
+        .diff(q.workspace_id.as_deref(), q.commit.as_deref(), q.path.as_deref())
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true,
-        "commit": commit,
-        "path": q.path,
-        "diff": text,
+        "commit": r.commit,
+        "path": r.path,
+        "diff": r.diff,
     })))
 }
 
@@ -214,9 +201,11 @@ pub async fn log_handler(
     State(state): State<ApiState>,
     Query(q): Query<LogQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, q.workspace_id.as_deref())?;
-    let limit = q.limit.unwrap_or(read::DEFAULT_LOG_LIMIT).clamp(1, 500);
-    let commits = read::load_log(&root, q.branch.as_deref(), limit);
+    let limit = q.limit.unwrap_or(read::DEFAULT_LOG_LIMIT);
+    let commits = state
+        .git()
+        .log(q.workspace_id.as_deref(), q.branch.as_deref(), limit)
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "commits": commits })))
 }
 
@@ -225,11 +214,8 @@ pub async fn branches_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, q.workspace_id.as_deref())?;
-    Ok(Json(serde_json::json!({
-        "ok": true,
-        "branches": read::load_branches(&root),
-    })))
+    let branches = state.services().git().branches(q.workspace_id.as_deref()).map_err(map_err)?;
+    Ok(Json(serde_json::json!({ "ok": true, "branches": branches })))
 }
 
 // ── write handlers ───────────────────────────────────────────────────────
@@ -239,8 +225,7 @@ pub async fn stage_handler(
     State(state): State<ApiState>,
     Json(body): Json<PathsBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, body.workspace_id.as_deref())?;
-    let n = write::stage_paths(&root, &body.paths).map_err(map_err)?;
+    let n = state.services().git().stage(body.workspace_id.as_deref(), &body.paths).map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "staged": n })))
 }
 
@@ -249,8 +234,7 @@ pub async fn unstage_handler(
     State(state): State<ApiState>,
     Json(body): Json<PathsBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, body.workspace_id.as_deref())?;
-    let n = write::unstage_paths(&root, &body.paths).map_err(map_err)?;
+    let n = state.services().git().unstage(body.workspace_id.as_deref(), &body.paths).map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "unstaged": n })))
 }
 
@@ -259,13 +243,14 @@ pub async fn commit_handler(
     State(state): State<ApiState>,
     Json(body): Json<CommitBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, body.workspace_id.as_deref())?;
-    let res = write::commit_staged(&root, &body.message, body.author.as_deref())
+    let res = state
+        .git()
+        .commit(CommitArgs {
+            workspace_id: body.workspace_id,
+            message: body.message,
+            author: body.author,
+        })
         .map_err(map_err)?;
-    // Clear any draft for this branch on success.
-    if let Some(ref branch) = res.branch {
-        let _ = runtime::db::git_drafts::delete_draft(branch);
-    }
     Ok(Json(serde_json::json!({
         "ok": true,
         "sha": res.sha,
@@ -278,10 +263,16 @@ pub async fn push_handler(
     State(state): State<ApiState>,
     Json(body): Json<PushBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, body.workspace_id.as_deref())?;
-    let remote = write::push_current_branch(&root, body.remote.as_deref(), body.force)
+    let force = body.force;
+    let remote = state
+        .git()
+        .push(PushArgs {
+            workspace_id: body.workspace_id,
+            remote: body.remote,
+            force,
+        })
         .map_err(map_err)?;
-    Ok(Json(serde_json::json!({ "ok": true, "remote": remote, "force": body.force })))
+    Ok(Json(serde_json::json!({ "ok": true, "remote": remote, "force": force })))
 }
 
 /// POST /api/v1/git/fetch
@@ -289,8 +280,10 @@ pub async fn fetch_handler(
     State(state): State<ApiState>,
     Json(body): Json<RemoteBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, body.workspace_id.as_deref())?;
-    let remote = write::fetch(&root, body.remote.as_deref()).map_err(map_err)?;
+    let remote = state
+        .git()
+        .fetch(body.workspace_id.as_deref(), body.remote.as_deref())
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "remote": remote })))
 }
 
@@ -299,8 +292,10 @@ pub async fn pull_handler(
     State(state): State<ApiState>,
     Json(body): Json<RemoteBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, body.workspace_id.as_deref())?;
-    let sha = write::pull_ff_only(&root, body.remote.as_deref()).map_err(map_err)?;
+    let sha = state
+        .git()
+        .pull(body.workspace_id.as_deref(), body.remote.as_deref())
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({ "ok": true, "head": sha })))
 }
 
@@ -309,61 +304,17 @@ pub async fn checkout_handler(
     State(state): State<ApiState>,
     Json(body): Json<CheckoutBody>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, body.workspace_id.as_deref())?;
-    let resolved = write::checkout(&root, &body.refname).map_err(map_err)?;
+    let refname = body.refname.clone();
+    let resolved = state
+        .git()
+        .checkout(CheckoutArgs {
+            workspace_id: body.workspace_id,
+            refname: refname.clone(),
+        })
+        .map_err(map_err)?;
     Ok(Json(serde_json::json!({
-        "ok": true, "ref": body.refname, "resolved": resolved,
+        "ok": true, "ref": refname, "resolved": resolved,
     })))
-}
-
-// ── commit draft CRUD ────────────────────────────────────────────────────
-
-/// GET /api/v1/git/commit-draft
-pub async fn draft_get_handler(
-    State(state): State<ApiState>,
-    Query(q): Query<WorkspaceQuery>,
-) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, q.workspace_id.as_deref())?;
-    let Some(branch) = current_branch(&root) else {
-        return Ok(Json(serde_json::json!({ "ok": true, "draft": null })));
-    };
-    let draft = runtime::db::git_drafts::get_draft(&branch)
-        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "db", e.to_string()))?;
-    Ok(Json(serde_json::json!({ "ok": true, "draft": draft })))
-}
-
-/// PUT /api/v1/git/commit-draft
-pub async fn draft_put_handler(
-    State(state): State<ApiState>,
-    Json(body): Json<DraftBody>,
-) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, body.workspace_id.as_deref())?;
-    let branch = current_branch(&root)
-        .ok_or_else(|| err(StatusCode::CONFLICT, "detached", "detached HEAD — no branch to key draft"))?;
-    let d = runtime::db::git_drafts::CommitDraft {
-        branch: branch.clone(),
-        subject: body.subject,
-        body: body.body,
-        by_agent: body.by_agent,
-        by_pipeline: body.by_pipeline,
-        drafted_at: chrono::Utc::now(),
-    };
-    runtime::db::git_drafts::upsert_draft(&d)
-        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "db", e.to_string()))?;
-    Ok(Json(serde_json::json!({ "ok": true, "branch": branch })))
-}
-
-/// DELETE /api/v1/git/commit-draft
-pub async fn draft_delete_handler(
-    State(state): State<ApiState>,
-    Query(q): Query<WorkspaceQuery>,
-) -> Result<Json<serde_json::Value>, Resp> {
-    let root = resolve(&state, q.workspace_id.as_deref())?;
-    if let Some(branch) = current_branch(&root) {
-        runtime::db::git_drafts::delete_draft(&branch)
-            .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "db", e.to_string()))?;
-    }
-    Ok(Json(serde_json::json!({ "ok": true })))
 }
 
 // ── change stream ────────────────────────────────────────────────────────
