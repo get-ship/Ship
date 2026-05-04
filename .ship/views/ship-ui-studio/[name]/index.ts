@@ -22,6 +22,18 @@ export default controller<Scope>({
       const e = (entry() as CatalogEntry | null)
       return e !== null && (e.props ?? []).length > 0
     },
+    currentName: ({ route }) => route.params.name() ?? '',
+    filteredCatalog: ({ allCatalog, filterKind, filterText }) => {
+      const kind = filterKind()
+      const text = filterText().toLowerCase()
+      return (allCatalog() as CatalogEntry[]).filter(e => {
+        const kindMatch = kind === 'all' || e.kind === kind
+        const textMatch = !text || e.id.toLowerCase().includes(text)
+        return kindMatch && textMatch
+      })
+    },
+    totalCount: ({ allCatalog }) => (allCatalog() as CatalogEntry[]).length,
+    filteredCount: ({ filteredCatalog }) => (filteredCatalog() as CatalogEntry[]).length,
   },
 
   on: {
@@ -49,10 +61,15 @@ export default controller<Scope>({
       return
     }
 
-    // Seed prop defaults
+    // Seed prop defaults. For size props, prefer the largest enum variant
+    // so small components (badge, kbd, status-dot) are legible in the preview.
     const initVals: Record<string, unknown> = {}
     for (const prop of (entry.props ?? []) as PropEntry[]) {
-      if (prop.default !== undefined) initVals[prop.name] = prop.default
+      if (prop.name === 'size' && prop.values && prop.values.length > 0) {
+        initVals[prop.name] = prop.values[prop.values.length - 1]
+      } else if (prop.default !== undefined) {
+        initVals[prop.name] = prop.default
+      }
     }
     state.propValues = initVals
     state.loading = false
@@ -86,6 +103,13 @@ export default controller<Scope>({
     // tags like sui-button that reflect-empty into `data-icon-only`.
     node.appendChild(document.createTextNode('example'))
     slot.appendChild(node)
+
+    // Components with intrinsic size < 64px are scaled up for legibility.
+    const ZOOM_TAGS = new Set(['sui-status-dot', 'sui-kbd', 'sui-badge', 'sui-chip', 'sui-spinner'])
+    if (ZOOM_TAGS.has(entry.tag)) {
+      node.style.transform = 'scale(3)'
+      node.style.transformOrigin = 'center'
+    }
 
     // <select> ignores its `value` attribute — the matching <option>
     // must be marked `selected`, or the select.value property must be

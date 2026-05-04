@@ -9,17 +9,17 @@
     <div class="studio-sidebar-header">
       <span class="studio-brand-mark" aria-hidden="true">◐</span>
       <span class="studio-sidebar-title">SUI Studio</span>
+      <sui-theme-picker label-style="compact" class="studio-theme-picker"></sui-theme-picker>
     </div>
 
-    <input
-      class="studio-search"
+    <sui-input
       type="search"
       placeholder="Search components…"
       value={filterText()}
-      on:input={(e) => filterText.set(e.target.value)}
+      on:sui-input={(e) => filterText.set(e.detail.value)}
+      size="sm"
       autocomplete="off"
-      spellcheck="false"
-    />
+    ></sui-input>
 
     <div class="studio-filter" role="tablist">
       <button class="studio-filter-pill" data-active={filterKind() === 'all'} on:click={() => filterKind.set('all')}>All</button>
@@ -27,8 +27,30 @@
       <button class="studio-filter-pill" data-active={filterKind() === 'view'} on:click={() => filterKind.set('view')}>Views</button>
     </div>
 
+    <nav class="studio-catalog-nav" aria-label="Component catalog">
+      {#if loading()}
+        <div class="studio-catalog-loading">
+          <sui-spinner size="sm"></sui-spinner>
+        </div>
+      {:else if filtered().length === 0}
+        <p class="studio-catalog-empty">No matches</p>
+      {:else}
+        {#for item of filtered() key={item.id}}
+          <a
+            class="catalog-item"
+            href={'/ship-ui-studio/' + item.id}
+            data-test="catalog-item"
+          >
+            <code class="catalog-item-name">{item.id}</code>
+            <sui-badge tone={item.kind === 'sui' ? 'primary' : 'info'} variant="soft" size="sm">{item.kind}</sui-badge>
+          </a>
+        {/for}
+      {/if}
+    </nav>
+
     <div class="studio-sidebar-counts">
       <span class="studio-count-text">{filteredCount()} of {totalCount()}</span>
+      <span class="studio-search-hint"><sui-kbd>/</sui-kbd></span>
     </div>
   </aside>
 
@@ -38,24 +60,12 @@
         <sui-spinner size="md"></sui-spinner>
         <p class="studio-loading-text">Loading catalog</p>
       </div>
-    {:else if filtered().length === 0}
-      <sui-empty-state size="lg">
-        <span slot="title">Nothing matches</span>
-        <span slot="description">Try a different filter or search term.</span>
-      </sui-empty-state>
     {:else}
-      <div class="tile-grid" data-test="grid">
-        {#for item of filtered() key={item.id}}
-          <a class="tile" href={'/ship-ui-studio/' + item.id} data-test="tile">
-            <div class="tile-head">
-              <code class="tile-name">{item.id}</code>
-              <sui-badge tone={item.kind === 'sui' ? 'primary' : 'info'} variant="soft" size="sm">{item.kind}</sui-badge>
-            </div>
-            {#if item.description}
-              <p class="tile-desc">{item.description}</p>
-            {/if}
-          </a>
-        {/for}
+      <div class="studio-welcome">
+        <div class="studio-welcome-mark" aria-hidden="true">◐</div>
+        <h2 class="studio-welcome-title">SUI Studio</h2>
+        <p class="studio-welcome-desc">Select a component from the sidebar to preview it.</p>
+        <p class="studio-welcome-stats">{totalCount()} components available</p>
       </div>
     {/if}
   </main>
