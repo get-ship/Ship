@@ -89,6 +89,55 @@ pub fn data_db_path(ship_dir: &Path) -> PathBuf {
     crate::ShipHome::at(ship_dir.to_path_buf()).db_path(crate::Db::Data)
 }
 
+/// Resolve the KV database path under a given ship-home root.
+pub fn kv_db_path(ship_dir: &Path) -> PathBuf {
+    crate::ShipHome::at(ship_dir.to_path_buf()).db_path(crate::Db::Kv)
+}
+
+/// Ensure the KV schema is up to date at the derived global path.
+pub fn ensure_kv_db() -> Result<()> {
+    let ship_dir = crate::project::get_global_dir()?;
+    ensure_kv_db_at(&ship_dir)
+}
+
+/// Ensure the KV schema is up to date for a database at an explicit ship-dir.
+pub fn ensure_kv_db_at(ship_dir: &Path) -> Result<()> {
+    ensure_kv_db_at_path(&kv_db_path(ship_dir))
+}
+
+fn ensure_kv_db_at_path(path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let url = sqlite_url(path);
+    let opts = SqliteConnectOptions::from_str(&url)
+        .with_context(|| format!("invalid sqlite url: {url}"))?
+        .create_if_missing(true);
+    let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
+
+    block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
+    block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
+    block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
+
+    if let Err(e) = block_on_migrate(async {
+        sqlx::migrate!("./migrations_kv").run(&mut conn).await
+    }) {
+        return Err(anyhow!("kv migration failed on {}: {e}", path.display()));
+    }
+    Ok(())
+}
+
+/// Open a connection to kv.db, ensuring schema exists first.
+pub fn open_kv_db() -> Result<SqliteConnection> {
+    let ship_dir = crate::project::get_global_dir()?;
+    open_kv_db_at(&kv_db_path(&ship_dir))
+}
+
+/// Open a raw connection to kv.db at an explicit path (schema must already exist).
+pub fn open_kv_db_at(path: &Path) -> Result<SqliteConnection> {
+    connect(path)
+}
+
 /// Open a connection, ensuring schema exists first.
 pub fn open_db() -> Result<SqliteConnection> {
     ensure_db()?;

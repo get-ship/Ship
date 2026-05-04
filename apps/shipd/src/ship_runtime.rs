@@ -105,6 +105,8 @@ pub struct ShipRuntime {
     started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
     hook_engine: std::sync::OnceLock<std::sync::Arc<runtime::hooks::engine::HookEngine>>,
+    /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
+    config_watcher: std::sync::OnceLock<runtime::config::ConfigWatcher>,
     /// `RulesService` impl — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
@@ -192,24 +194,22 @@ impl ShipRuntime {
 
         // Ensure DB exists and init kernel.
         //
-        // Ordering matters: open `data.db` (which runs the collections
-        // migration that copies legacy user-content rows out of
-        // `platform.db`) BEFORE `ensure_db_at` applies sqlx migrations —
-        // migration 0006 drops the legacy tables, so any data left there
-        // would be lost. `DataService::open` reads platform.db through a
-        // raw connection that does not touch sqlx migrations.
+        // Ordering matters:
+        // 1. Open data.db (collections migration copies legacy rows out of platform.db)
+        //    BEFORE ensure_db_at — migration 0006 drops those legacy tables.
+        // 2. Ensure kv.db schema and copy any rows from platform.db kv_state BEFORE
+        //    ensure_db_at — migration 0002 drops kv_state from platform.db.
         //
-        // Use spawn_blocking because the DB layer uses block_in_place internally,
-        // which requires the multi-threaded runtime. spawn_blocking works in both.
+        // Use spawn_blocking because the DB layer uses block_in_place internally.
         let dir = global_dir.clone();
         let kernel = tokio::task::spawn_blocking(move || {
-            // Ensure the canonical `~/.ship/library` + `~/.ship/machine`
-            // dir tree exists before any DB open or daemon write. Idempotent
-            // mkdir -p; no migration logic (pre-launch, no installed base).
             runtime::home::ensure_layout(&runtime::ShipHome::at(dir.clone()))
                 .context("ensure ship home layout")?;
             // Open data.db + run collections migration first.
             let _ = runtime::data::DataService::open(&dir)?;
+            // Migrate kv rows from platform.db to kv.db before migration 0002 drops them.
+            runtime::db::kv::migrate_from_platform_db(&dir)
+                .context("kv migration from platform.db")?;
             runtime::db::ensure_db_at(&dir)?;
             runtime::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
@@ -327,6 +327,7 @@ impl ShipRuntime {
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
+            config_watcher: std::sync::OnceLock::new(),
         })
     }
 
@@ -619,6 +620,27 @@ impl ShipRuntime {
         self.hook_engine.get()?.webhook_source()
     }
 
+    /// Start the declarative-tier config watcher (Phase 4).
+    ///
+    /// Watches agents, skills, views, pipelines, and rules under both the
+    /// user-scope library dir and the active project scope (if set). Idempotent.
+    pub fn start_config_watcher(&self) {
+        if self.config_watcher.get().is_some() {
+            return;
+        }
+        match runtime::config::spawn_config_watcher(
+            self.kernel.clone(),
+            self.ship_dir.clone(),
+            self.workspace_dir.clone(),
+        ) {
+            Ok(w) => {
+                let _ = self.config_watcher.set(w);
+                tracing::info!("config watcher: started");
+            }
+            Err(e) => tracing::warn!("config watcher: failed to start: {e}"),
+        }
+    }
+
     /// Persist event to platform.db and deliver through the kernel.
     ///
     /// Delegates to `KernelRouter::emit` — the single write path. A successful
@@ -706,6 +728,7 @@ impl ShipRuntime {
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
+            config_watcher: std::sync::OnceLock::new(),
         }
     }
 
@@ -779,6 +802,7 @@ impl ShipRuntime {
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
+            config_watcher: std::sync::OnceLock::new(),
         }
     }
 

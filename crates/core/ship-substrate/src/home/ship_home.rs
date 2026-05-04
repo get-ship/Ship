@@ -30,6 +30,8 @@ pub enum Db {
     Platform,
     /// `data.db` — collection / content data.
     Data,
+    /// `kv.db` — durable key-value store (separated from event log in Phase 3).
+    Kv,
 }
 
 impl Db {
@@ -38,6 +40,7 @@ impl Db {
         match self {
             Db::Platform => "platform.db",
             Db::Data => "data.db",
+            Db::Kv => "kv.db",
         }
     }
 }

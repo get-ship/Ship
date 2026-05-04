@@ -79,13 +79,31 @@ Compile-time barrier enforces what charter currently only asserts about layers. 
 - `ship-primitives` (L1): agents, collections, config, hooks, artifacts, sync, registry, sessions, services (orchestrator, providers, provider_adapter)
 - `runtime`: pure shim — `pub use ship_substrate::*` + `pub use ship_primitives::*` + `project/init.rs`
 
-### Phase 3 — KV extraction + KvService (~1–2 weeks)
+### Phase 3 — KV extraction ✓
 
-Move KV out of `platform.db` into its own durable store. `KvService` trait gates writes. Namespaces declared, not ad-hoc. Writes emit `kv.<namespace>.changed` events. Skill vars and runtime config migrate. Backend choice (sled vs separate sqlite) is decided in this phase.
+KV physically separated from `platform.db` into `kv.db` (separate SQLite file under `machine/db/`). Changes:
 
-### Phase 4 — Event-derived signals on L1 declarative writes (~3–4 weeks)
+- `ShipHome::Db::Kv` variant + `kv_db_path()`/`ensure_kv_db()`/`ensure_kv_db_at()` in `db/mod.rs`
+- `migrations_kv/0001_schema.sql` — kv.db schema (kv_state table)
+- `migrations/0002_drop_kv_state.sql` — drops kv_state from platform.db
+- `db/kv.rs` rewritten to open kv.db; `set/get/delete/list_keys/list_all` self-initialize via `ensure_kv_db()`
+- `db::kv::migrate_from_platform_db(ship_dir)` — one-time upgrade path for existing installs; called at daemon startup before platform.db migrations drop kv_state
+- Startup ordering in `ship_runtime.rs`: `migrate_from_platform_db` → `ensure_db_at` (so rows are copied before migration 0002 runs)
+- Backend choice: separate SQLite (kv.db). KV writes no longer compete with event-log WAL locks.
 
-Filesystem watcher emits `<domain>.changed` events for every config-file write. Operational state (sessions, jobs, KV, files, collections) is already event-sourced; this phase covers the declarative tier. After this, the event log is the universal sync substrate — every meaningful state change in any storage tier flows through it.
+Post-Phase 3 deferred: `KvService` trait, namespace registry, `kv.<namespace>.changed` events. Mechanical separation is done; the service layer gates are Phase 4+.
+
+### Phase 4 — Event-derived signals on L1 declarative writes ✓
+
+Filesystem watcher emits `<domain>.changed` events when declarative config files change on disk. Covers agents, skills, views, pipelines, and rules; both user-scope (`~/.ship/library/`) and project-scope (`<workspace>/.ship/`) dirs are watched. Changes:
+
+- Six new event type constants: `agent.changed`, `skill.changed`, `view.changed`, `pipeline.changed`, `rule.changed`, `project.changed` in `ship-types`
+- Payload schema validation wired for all six (reuses `ConfigChanged { subject, detail }`)
+- `ship-primitives/src/config/watcher.rs` — `spawn_config_watcher(kernel, ship_dir, workspace_dir)` returns a RAII `ConfigWatcher`; per-domain 200 ms debounce; skills and views watched recursively
+- `start_config_watcher()` called at daemon startup after hook engine
+- 3 tests: file write → event emitted; recursive subdirectory; 5 rapid writes coalesce to 1 event
+
+After this phase, the event log is the universal sync substrate — every meaningful state change in any storage tier flows through it.
 
 ### Phase 5 — First-party views migrated to content (~2–3 weeks)
 
