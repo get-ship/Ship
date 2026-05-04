@@ -1,0 +1,218 @@
+<!--
+  <sui-list-tile> — SUI port of <ship-list-tile>.
+  Generic row/card tile primitive with leading/trailing/meta slots,
+  interactive and navigable modes, density scale, and tone accent.
+
+  Prop parity vs <ship-list-tile>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  variant ('row'|'card',       variant (string, 'row',  ✓
+    'row')                       reflect)
+  interactive (bool, false)    interactive (bool,       ✓
+                                 reflect)
+  navigable (string|null)      navigable (string, '',   ✓ empty string = not set
+                                 reflect)
+  selected (bool, false)       selected (bool, reflect) ✓
+  disabled (bool, false)       disabled (bool, reflect) ✓
+  density ('compact'|'normal'| density (string,         ✓
+    'relaxed', 'normal')         'normal', reflect)
+  tone (string, 'default')     tone (string, 'default', ✓
+                                 reflect)
+  (host attrs: target, rel)    target (string, ''),     ✓ anchor pass-through
+                               rel (string, '')
+  ─────────────────────────────────────────────────────────────────────────────
+  ship-select → {}             sui-select → {}          event renamed
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: leading, (default),   leading, (default),      ✓
+         meta, trailing         meta, trailing
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: button, row, primary, button, row, primary,    ✓
+         secondary, trailing    secondary, trailing
+  ─────────────────────────────────────────────────────────────────────────────
+  divider rule (adopted sheet) controller installs same ✓
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="variant" type="string" default="row" reflect />
+<prop name="interactive" type="bool" default="false" reflect />
+<prop name="navigable" type="string" default="" reflect />
+<prop name="selected" type="bool" default="false" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="density" type="string" default="normal" reflect />
+<prop name="tone" type="string" default="default" reflect />
+<prop name="target" type="string" default="" reflect />
+<prop name="rel" type="string" default="" reflect />
+
+<style>
+  :host {
+    display: block;
+    --pad-y: 10px;
+    --pad-x: 10px;
+  }
+  :host([density='compact']) { --pad-y: 6px;  --pad-x: 8px; }
+  :host([density='relaxed']) { --pad-y: 16px; --pad-x: 14px; }
+  :host([hidden]) { display: none; }
+
+  .tile {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
+    padding: var(--pad-y) var(--pad-x);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    color: inherit;
+    font: inherit;
+    text-decoration: none;
+    box-sizing: border-box;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+  a.tile { display: flex; }
+
+  :host([variant='card']) { height: 100%; box-sizing: border-box; }
+  :host([variant='card']) .tile {
+    min-height: 100%;
+    box-sizing: border-box;
+  }
+  :host([variant='card']) .row { flex: 1; align-items: stretch; }
+  :host([variant='card']) ::slotted([slot='leading']) { align-self: flex-start; }
+  :host([variant='card']) .primary {
+    display: flex;
+    flex-direction: column;
+    align-self: stretch;
+  }
+
+  :host([variant='row']) .tile:hover,
+  :host(:not([variant])) .tile:hover {
+    background: var(--muted);
+    border-color: var(--border);
+  }
+
+  :host([variant='card']) .tile {
+    background: var(--card);
+    border-color: var(--border-subtle);
+    box-shadow: var(--shadow-card-rest);
+    backdrop-filter: var(--card-backdrop-filter);
+    -webkit-backdrop-filter: var(--card-backdrop-filter);
+    position: relative;
+  }
+  :host([variant='card']) .tile::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: var(--card-texture);
+    mix-blend-mode: var(--card-texture-blend);
+    opacity: var(--card-texture-opacity);
+    border-radius: inherit;
+    z-index: 0;
+  }
+  :host([variant='card']) .tile > * { position: relative; z-index: 1; }
+  @media (prefers-reduced-motion: reduce) {
+    :host([variant='card']) .tile::after { background: none; }
+  }
+  :host([variant='card']) .tile:hover {
+    border-color: var(--primary);
+    box-shadow: var(--shadow-hover);
+    transform: translateY(-1px);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :host([variant='card']) .tile:hover { transform: none; }
+  }
+  :host([variant='card'][interactive]) .tile:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-card-rest);
+    transition-duration: 60ms;
+  }
+
+  .tile:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+  }
+  @media (forced-colors: active) {
+    .tile:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+  }
+
+  :host([selected]) .tile {
+    background: var(--muted);
+    border-color: var(--primary);
+  }
+
+  :host([disabled]) .tile {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  :host([interactive]) .tile { cursor: pointer; }
+
+  :host([tone]:not([tone='default'])) .tile {
+    border-left: 3px solid var(--tone-fg);
+    padding-left: calc(var(--pad-x) - 2px);
+  }
+
+  /* tone-fg mapping */
+  :host { --tone-fg: var(--foreground); }
+  :host([tone='primary'])     { --tone-fg: var(--primary); }
+  :host([tone='info'])        { --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone-fg: var(--accent-foreground); }
+  :host([tone='muted'])       { --tone-fg: var(--muted-foreground); }
+
+  .row { display: flex; align-items: center; gap: 8px; }
+  .primary {
+    flex: 1;
+    min-width: 0;
+    font-weight: var(--font-weight-medium);
+    font-size: var(--text-base);
+  }
+  .secondary {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    font-size: 10px;
+    color: var(--muted-foreground);
+  }
+  .secondary:empty { display: none; }
+
+  ::slotted([slot='leading']),
+  ::slotted([slot='trailing']) {
+    display: inline-flex;
+    align-items: center;
+  }
+</style>
+
+{#if navigable()}
+  <a class="tile" part="button" bind:this={tileEl}
+     href={navigable()}
+     target={target() || null}
+     rel={rel() || null}>
+    <div class="row" part="row">
+      <slot name="leading"></slot>
+      <span class="primary" part="primary"><slot></slot></span>
+      <span part="trailing"><slot name="trailing"></slot></span>
+    </div>
+    <div class="secondary" part="secondary"><slot name="meta"></slot></div>
+  </a>
+{:else}
+  <div class="tile" part="button" bind:this={tileEl}>
+    <div class="row" part="row">
+      <slot name="leading"></slot>
+      <span class="primary" part="primary"><slot></slot></span>
+      <span part="trailing"><slot name="trailing"></slot></span>
+    </div>
+    <div class="secondary" part="secondary"><slot name="meta"></slot></div>
+  </div>
+{/if}

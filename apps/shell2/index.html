@@ -123,6 +123,116 @@
           Collapsible content. Grid-based height animation, keyboard-accessible.
         </div>
       </sui-collapsible>
+
+      <!-- sui-accordion -->
+      <div>
+        <sui-label size="sm">sui-accordion</sui-label>
+        <sui-accordion type="single" style="margin-top:6px">
+          <sui-accordion-item value="q1">
+            <span slot="trigger">What is Ship?</span>
+            Ship is a developer platform for building and deploying AI agents.
+          </sui-accordion-item>
+          <sui-accordion-item value="q2">
+            <span slot="trigger">How do I get started?</span>
+            Run <code>ship init</code> to scaffold a new project.
+          </sui-accordion-item>
+          <sui-accordion-item value="q3" disabled>
+            <span slot="trigger">Disabled item</span>
+            This item cannot be toggled.
+          </sui-accordion-item>
+        </sui-accordion>
+      </div>
+
+      <!-- sui-list-tile -->
+      <div>
+        <sui-label size="sm">sui-list-tile</sui-label>
+        <div style="margin-top:6px;border:1px solid var(--border);border-radius:var(--radius-md)">
+          <sui-list-tile interactive>
+            <sui-icon slot="leading" name="cpu" size="sm"></sui-icon>
+            Agent Alpha
+            <span slot="meta" style="color:var(--muted-foreground)">Running · 2m ago</span>
+            <sui-badge slot="trailing" tone="success">Live</sui-badge>
+          </sui-list-tile>
+          <sui-list-tile interactive selected>
+            <sui-icon slot="leading" name="git-branch" size="sm"></sui-icon>
+            Agent Beta
+            <span slot="meta" style="color:var(--muted-foreground)">Idle · 10m ago</span>
+            <sui-badge slot="trailing" tone="muted">Idle</sui-badge>
+          </sui-list-tile>
+          <sui-list-tile interactive tone="warning">
+            <sui-icon slot="leading" name="alert-triangle" size="sm"></sui-icon>
+            Agent Gamma
+            <span slot="meta" style="color:var(--muted-foreground)">Warning · 1h ago</span>
+            <sui-badge slot="trailing" tone="warning">Warn</sui-badge>
+          </sui-list-tile>
+          <sui-list-tile disabled>
+            <sui-icon slot="leading" name="pause-circle" size="sm"></sui-icon>
+            Agent Delta (disabled)
+          </sui-list-tile>
+        </div>
+      </div>
+
+      <!-- sui-error-state -->
+      <div>
+        <sui-label size="sm">sui-error-state</sui-label>
+        <sui-error-state
+          title="Failed to load agents"
+          body="Check your network connection and try again."
+          style="margin-top:6px"
+        >
+          <pre slot="details">Error: ECONNREFUSED 127.0.0.1:7080</pre>
+          <button slot="action" type="button" style="padding:6px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--primary);color:var(--primary-foreground);cursor:pointer;font:inherit">
+            Retry
+          </button>
+        </sui-error-state>
+        <sui-error-state
+          variant="inline"
+          title="Build failed"
+          style="margin-top:6px"
+        ></sui-error-state>
+      </div>
+
+      <!-- sui-stepper -->
+      <div>
+        <sui-label size="sm">sui-stepper</sui-label>
+        <div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:var(--text-sm);color:var(--muted-foreground)">Step 2 of 5</span>
+            <sui-stepper total="5" current="2"></sui-stepper>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:var(--text-sm);color:var(--muted-foreground)">Step 4 of 4 (success)</span>
+            <sui-stepper total="4" current="4" tone="success"></sui-stepper>
+          </div>
+          <div style="display:flex;align-items:center;gap:12px">
+            <span style="font-size:var(--text-sm);color:var(--muted-foreground)">Large size</span>
+            <sui-stepper total="3" current="1" size="lg" tone="info"></sui-stepper>
+          </div>
+        </div>
+      </div>
+
+      <!-- sui-timeline -->
+      <div>
+        <sui-label size="sm">sui-timeline</sui-label>
+        <sui-timeline style="margin-top:6px;max-width:380px">
+          <sui-timeline-item tone="success" at="Just now">
+            <span slot="title" style="font-size:var(--text-sm);font-weight:600">Deployment complete</span>
+            All 3 services healthy and serving traffic.
+          </sui-timeline-item>
+          <sui-timeline-item tone="info" at="2m ago">
+            <span slot="title" style="font-size:var(--text-sm);font-weight:600">Build finished</span>
+            Bundle size: 42 KB gzipped.
+          </sui-timeline-item>
+          <sui-timeline-item tone="warning" at="5m ago" interactive>
+            <span slot="title" style="font-size:var(--text-sm);font-weight:600">Test flake detected (interactive)</span>
+            Click to view report.
+          </sui-timeline-item>
+          <sui-timeline-item tone="muted" at="12m ago">
+            <span slot="title" style="font-size:var(--text-sm);font-weight:600">Build started</span>
+            Triggered by push to main.
+          </sui-timeline-item>
+        </sui-timeline>
+      </div>
     </footer>
   </div>
   <sui-toast-container position="bottom-right" id="sui-toast-container"></sui-toast-container>

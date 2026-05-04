@@ -187,7 +187,7 @@ const seedSignal = (
 const buildSchema = (def: ComponentDef): ComponentSchema => {
   const observedAttrs: string[] = []
   const props: ComponentSchema['props'] = {}
-  for (const [attr, propDef] of Object.entries(def.props)) {
+  for (const [attr, propDef] of Object.entries(def.props ?? {})) {
     observedAttrs.push(attr)
     props[attr] = { camel: camelOf(attr), decode: decoderFor(propDef) }
   }
@@ -232,7 +232,7 @@ export function component<Bindings>(
   def: ComponentDef<Bindings>,
 ): void {
   const schema = buildSchema(def as ComponentDef)
-  const propEntries = Object.entries(def.props)
+  const propEntries = Object.entries(def.props ?? {})
 
   defineComponent(tag, schema, (host, propSignals, internals) => {
     let shadowAttached: ShadowRoot | null = null
