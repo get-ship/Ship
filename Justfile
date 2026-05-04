@@ -171,6 +171,17 @@ shell-dev:
 shell2-dev:
     pnpm --filter shell2 dev
 
+# Full SUI dev stack — restart daemon, then start shell2 on top.
+# After this finishes booting, open http://127.0.0.1:3200/ship-ui-studio
+# in your browser. Ctrl-C kills shell2; daemon keeps running.
+[group('daily')]
+sui-dev:
+    @just dev-restart
+    @echo ""
+    @echo "→ shell2 → http://127.0.0.1:3200/"
+    @echo "→ studio → http://127.0.0.1:3200/ship-ui-studio"
+    @just shell2-dev
+
 # Build CLI + MCP + shipd (unstable dev build).
 [group('occasional')]
 build:
