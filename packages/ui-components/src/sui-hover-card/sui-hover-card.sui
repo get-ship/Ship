@@ -1,0 +1,70 @@
+<!--
+  <sui-hover-card> — SUI port of <ship-hover-card>.
+  Hover-triggered rich content overlay. Richer than a tooltip: supports
+  arbitrary slotted content. Uses native popover API (popover="auto") for
+  top-layer rendering. Shows after show-delay, hides after hide-delay.
+  Panel is positioned via getBoundingClientRect (anchor positioning fallback).
+
+  Prop / event / method parity vs <ship-hover-card>
+  ────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                          Notes
+  ────────────────────────────────────────────────────────────────────────
+  open (bool, false)           open (bool, false, reflect)  ✓
+  placement (top|btm|l|r)      placement (union, ref)       ✓
+  show-delay (300ms)           show-delay (number, 300)     ✓
+  hide-delay (100ms)           hide-delay (number, 100)     ✓
+  ────────────────────────────────────────────────────────────────────────
+  Events: ship-open/close      sui-open/close               ✓ renamed
+  Methods: show(), hide()      show(), hide()               ✓
+  Slots: trigger, (default)    trigger, (default)           ✓
+  Parts: card                  panel                        ✓
+  ────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="open" type="bool" default="false" reflect />
+<prop name="placement" values="top|bottom|left|right" default="bottom" reflect />
+<prop name="show-delay" type="number" default="300" />
+<prop name="hide-delay" type="number" default="100" />
+
+<style>
+  :host { display: inline-flex; position: relative; }
+  :host([hidden]) { display: none; }
+
+  .panel {
+    inset: auto;
+    margin: 0;
+    min-width: 240px;
+    max-width: 340px;
+    padding: 16px;
+    background: var(--popover, var(--card, #fff));
+    color: var(--popover-foreground, var(--card-foreground, #111));
+    border: 1px solid var(--border, #e5e5e5);
+    border-radius: var(--radius-lg, 8px);
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.12));
+    font-family: var(--font-body, system-ui);
+    font-size: var(--text-base, 14px);
+    line-height: var(--leading-normal, 1.5);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition:
+      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
+      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
+  }
+  .panel:popover-open {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .panel::backdrop { background: transparent; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel { transition: none; transform: none !important; }
+  }
+  @media (forced-colors: active) {
+    .panel { border: 1px solid CanvasText; }
+  }
+</style>
+
+<slot name="trigger" bind:this={triggerSlot}></slot>
+<div class="panel" part="panel" popover="auto" bind:this={panelEl}>
+  <slot></slot>
+</div>

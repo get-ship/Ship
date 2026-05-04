@@ -48,3 +48,80 @@ if (typeof requestAnimationFrame !== 'undefined') {
       try { cb(...args) } catch { /* suppress third-party init errors in JSDOM */ }
     })
 }
+
+// ── Overlay component polyfills (jsdom 25 lacks these) ────────────────────
+
+// ToggleEvent — fired by dialog and popover on open/close transitions.
+if (typeof ToggleEvent === 'undefined') {
+  // @ts-expect-error — JSDOM stub
+  globalThis.ToggleEvent = class ToggleEvent extends Event {
+    newState: string
+    oldState: string
+    constructor(type: string, init: EventInit & { newState?: string; oldState?: string } = {}) {
+      super(type, init)
+      this.newState = init.newState ?? ''
+      this.oldState = init.oldState ?? ''
+    }
+  }
+}
+
+// Popover API — showPopover / hidePopover / togglePopover on HTMLElement.
+if (typeof HTMLElement !== 'undefined' && !('showPopover' in HTMLElement.prototype)) {
+  const _openPopovers = new WeakSet<HTMLElement>()
+
+  Object.defineProperty(HTMLElement.prototype, 'showPopover', {
+    value(this: HTMLElement) {
+      if (_openPopovers.has(this)) return
+      _openPopovers.add(this)
+      const ev = new (globalThis as Record<string, typeof ToggleEvent>).ToggleEvent(
+        'toggle', { newState: 'open', oldState: 'closed', bubbles: false },
+      )
+      this.dispatchEvent(ev)
+    },
+    writable: true, configurable: true,
+  })
+
+  Object.defineProperty(HTMLElement.prototype, 'hidePopover', {
+    value(this: HTMLElement) {
+      if (!_openPopovers.has(this)) return
+      _openPopovers.delete(this)
+      const ev = new (globalThis as Record<string, typeof ToggleEvent>).ToggleEvent(
+        'toggle', { newState: 'closed', oldState: 'open', bubbles: false },
+      )
+      this.dispatchEvent(ev)
+    },
+    writable: true, configurable: true,
+  })
+
+  Object.defineProperty(HTMLElement.prototype, 'togglePopover', {
+    value(this: HTMLElement) {
+      if (_openPopovers.has(this)) (this as HTMLElement & { hidePopover(): void }).hidePopover()
+      else (this as HTMLElement & { showPopover(): void }).showPopover()
+    },
+    writable: true, configurable: true,
+  })
+}
+
+// HTMLDialogElement.showModal / close — jsdom 25 does not implement them.
+if (typeof HTMLElement !== 'undefined') {
+  const dlgProto = (typeof HTMLDialogElement !== 'undefined')
+    ? HTMLDialogElement.prototype
+    : null
+  if (dlgProto && typeof dlgProto.showModal !== 'function') {
+    Object.defineProperty(dlgProto, 'showModal', {
+      value(this: HTMLDialogElement) { this.setAttribute('open', '') },
+      writable: true, configurable: true,
+    })
+    Object.defineProperty(dlgProto, 'show', {
+      value(this: HTMLDialogElement) { this.setAttribute('open', '') },
+      writable: true, configurable: true,
+    })
+    Object.defineProperty(dlgProto, 'close', {
+      value(this: HTMLDialogElement) {
+        this.removeAttribute('open')
+        this.dispatchEvent(new Event('close', { bubbles: false }))
+      },
+      writable: true, configurable: true,
+    })
+  }
+}
