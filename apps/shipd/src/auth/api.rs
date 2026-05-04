@@ -276,8 +276,6 @@ pub async fn pair_status(
 
 // ---- Audit log ----
 
-const AUDIT_NAMESPACE: &str = "auth.audit";
-
 /// Write an auth audit row to platform.db's kv_state.
 ///
 /// Keys are timestamp-sortable: `{unix_ts}-{token_prefix}`.
@@ -293,7 +291,7 @@ pub(crate) fn write_audit_log(event: &str, token: &str, agent_id: Option<&str>) 
         "token_prefix": token_prefix,
         "agent_id": agent_id,
     });
-    if let Err(e) = runtime::db::kv::set(AUDIT_NAMESPACE, &key, &value) {
+    if let Err(e) = runtime::db::kv::set(runtime::db::kv::KvNamespace::AuthAudit, &key, &value) {
         tracing::warn!("auth audit: write failed: {e}");
     }
 }

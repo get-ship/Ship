@@ -11,12 +11,11 @@ use cron::Schedule;
 use serde_json::json;
 use tokio::sync::mpsc::UnboundedSender;
 
+use ship_substrate::db::kv::KvNamespace;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
 use super::super::def::{HookDef, TriggerSourceDef};
 use super::TriggerSource;
-
-const CRON_KV_NS: &str = "cron.last_fire";
 
 struct CronEntry {
     def: HookDef,
@@ -171,14 +170,14 @@ async fn emit_cron_event(
 }
 
 fn load_last_fire(hook_name: &str) -> Option<DateTime<Utc>> {
-    let val = ship_substrate::db::kv::get(CRON_KV_NS, hook_name).ok()??;
+    let val = ship_substrate::db::kv::get(KvNamespace::CronState, hook_name).ok()??;
     let ts = val.as_str()?;
     ts.parse::<DateTime<Utc>>().ok()
 }
 
 fn save_last_fire(hook_name: &str, fired_at: DateTime<Utc>) {
     let val = serde_json::Value::String(fired_at.to_rfc3339());
-    if let Err(e) = ship_substrate::db::kv::set(CRON_KV_NS, hook_name, &val) {
+    if let Err(e) = ship_substrate::db::kv::set(KvNamespace::CronState, hook_name, &val) {
         tracing::warn!(hook = hook_name, "cron-source: persist last_fire failed: {e}");
     }
 }

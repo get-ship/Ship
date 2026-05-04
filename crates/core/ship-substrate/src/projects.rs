@@ -20,9 +20,8 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 use crate::db::kv;
+use crate::db::kv::KvNamespace;
 use crate::home::path_hash;
-
-const NAMESPACE: &str = "project";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProjectRecord {
@@ -55,13 +54,13 @@ pub fn register(path: &Path, name: Option<&str>) -> Result<ProjectRecord> {
         },
     };
     let value = serde_json::to_value(&record).context("serialize project record")?;
-    kv::set(NAMESPACE, &id, &value)?;
+    kv::set(KvNamespace::Project, &id, &value)?;
     Ok(record)
 }
 
 /// Get a project by id.
 pub fn get(id: &str) -> Result<Option<ProjectRecord>> {
-    let Some(value) = kv::get(NAMESPACE, id)? else {
+    let Some(value) = kv::get(KvNamespace::Project, id)? else {
         return Ok(None);
     };
     let record: ProjectRecord =
@@ -80,7 +79,7 @@ pub fn find_by_path(path: &Path) -> Result<Option<ProjectRecord>> {
 
 /// List all known projects, sorted by `last_seen_at` desc.
 pub fn list() -> Result<Vec<ProjectRecord>> {
-    let entries = kv::list_all(NAMESPACE)?;
+    let entries = kv::list_all(KvNamespace::Project)?;
     let mut out: Vec<ProjectRecord> = entries
         .into_iter()
         .filter_map(|(_, v)| serde_json::from_value(v).ok())
@@ -92,7 +91,7 @@ pub fn list() -> Result<Vec<ProjectRecord>> {
 /// Remove a project from the registry. Does not touch the on-disk
 /// project; only forgets the daemon's record of having seen it.
 pub fn forget(id: &str) -> Result<()> {
-    kv::delete(NAMESPACE, id)
+    kv::delete(KvNamespace::Project, id)
 }
 
 /// Update only the `last_seen_at` for an existing project. Returns
@@ -103,7 +102,7 @@ pub fn touch(id: &str) -> Result<bool> {
     };
     existing.last_seen_at = Utc::now().to_rfc3339();
     let value = serde_json::to_value(&existing)?;
-    kv::set(NAMESPACE, id, &value)?;
+    kv::set(KvNamespace::Project, id, &value)?;
     Ok(true)
 }
 

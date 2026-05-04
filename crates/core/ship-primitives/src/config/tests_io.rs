@@ -97,33 +97,32 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     // loader path was removed in the home-layout restructure.
 
     // Verify runtime settings stored in kv_state (project-scoped namespace)
-    let ns = super::runtime_settings::project_ns(&ship_dir);
-    let providers: Vec<String> = ship_substrate::db::kv::get(&ns, "providers")?
+    let providers: Vec<String> = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "providers")?
         .map(|v| serde_json::from_value(v).unwrap())
         .unwrap_or_default();
     assert_eq!(providers, vec!["claude".to_string(), "codex".to_string()]);
 
-    let active_agent: Option<String> = ship_substrate::db::kv::get(&ns, "active_agent")?
+    let active_agent: Option<String> = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "active_agent")?
         .and_then(|v| serde_json::from_value(v).ok());
     assert_eq!(active_agent.as_deref(), Some("planning"));
 
-    let hooks_json = ship_substrate::db::kv::get(&ns, "hooks")?.unwrap().to_string();
+    let hooks_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "hooks")?.unwrap().to_string();
     assert!(hooks_json.contains("\"audit\""));
 
-    let statuses_json = ship_substrate::db::kv::get(&ns, "statuses")?.unwrap().to_string();
+    let statuses_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "statuses")?.unwrap().to_string();
     assert!(statuses_json.contains("\"backlog\""));
 
-    let ai_json = ship_substrate::db::kv::get(&ns, "ai")?.unwrap().to_string();
+    let ai_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "ai")?.unwrap().to_string();
     assert!(ai_json.contains("\"codex\""));
 
-    let git_json = ship_substrate::db::kv::get(&ns, "git")?.unwrap().to_string();
+    let git_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "git")?.unwrap().to_string();
     assert!(git_json.contains("\"ship.jsonc\""));
 
-    let ns_json = ship_substrate::db::kv::get(&ns, "namespaces")?.unwrap().to_string();
+    let ns_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "namespaces")?.unwrap().to_string();
     assert!(ns_json.contains("\"project\""));
 
     // Verify modes stored in kv_state
-    let modes_val = ship_substrate::db::kv::get(&ns, "modes")?.expect("expected modes in kv");
+    let modes_val = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "modes")?.expect("expected modes in kv");
     let modes: Vec<serde_json::Value> = serde_json::from_value(modes_val)?;
     assert_eq!(modes.len(), 1);
     assert_eq!(modes[0]["id"], "planning");

@@ -40,8 +40,7 @@ struct ModeRow {
 }
 
 pub(super) fn get_modes_config(_ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    let ns = project_ns(_ship_dir);
-    let rows: Vec<ModeRow> = match kv::get(&ns, KEY)? {
+    let rows: Vec<ModeRow> = match kv::get(project_ns(_ship_dir), KEY)? {
         Some(v) => serde_json::from_value(v).unwrap_or_default(),
         None => return Ok(Vec::new()),
     };
@@ -106,7 +105,6 @@ pub(super) fn save_modes_config(ship_dir: &Path, modes: &[AgentProfile]) -> Resu
         });
     }
 
-    let ns = project_ns(ship_dir);
-    kv::set(&ns, KEY, &serde_json::to_value(&rows)?)?;
+    kv::set(project_ns(ship_dir), KEY, &serde_json::to_value(&rows)?)?;
     Ok(())
 }

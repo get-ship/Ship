@@ -9,8 +9,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use super::kv;
-
-const NAMESPACE: &str = "mcp.managed";
+use super::kv::KvNamespace;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 struct ManagedState {
@@ -22,7 +21,7 @@ struct ManagedState {
 
 /// Returns `(server_ids, last_mode)` for the given provider, or empty defaults.
 pub fn get_managed_state_db(provider: &str) -> Result<(Vec<String>, Option<String>)> {
-    let Some(value) = kv::get(NAMESPACE, provider)? else {
+    let Some(value) = kv::get(KvNamespace::McpManaged, provider)? else {
         return Ok((Vec::new(), None));
     };
     let state: ManagedState = serde_json::from_value(value).unwrap_or_default();
@@ -40,5 +39,5 @@ pub fn set_managed_state_db(
         last_mode: last_mode.map(str::to_string),
     };
     let value = serde_json::to_value(&state)?;
-    kv::set(NAMESPACE, provider, &value)
+    kv::set(KvNamespace::McpManaged, provider, &value)
 }

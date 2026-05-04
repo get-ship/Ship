@@ -193,9 +193,6 @@ struct PersistedSession {
     expires_at_unix: i64,
 }
 
-/// KV namespace for paired session tokens.
-pub(crate) const SESSIONS_NAMESPACE: &str = "auth.sessions";
-
 fn now_unix() -> i64 {
     chrono::Utc::now().timestamp()
 }
@@ -225,14 +222,14 @@ pub fn persist_session(session: &DaemonSession) {
             return;
         }
     };
-    if let Err(e) = runtime::db::kv::set(SESSIONS_NAMESPACE, &session.token, &value) {
+    if let Err(e) = runtime::db::kv::set(runtime::db::kv::KvNamespace::AuthSession, &session.token, &value) {
         tracing::warn!("session persist: kv write failed: {e}");
     }
 }
 
 /// Remove a session from KV.
 pub fn remove_persisted_session(token: &str) {
-    if let Err(e) = runtime::db::kv::delete(SESSIONS_NAMESPACE, token) {
+    if let Err(e) = runtime::db::kv::delete(runtime::db::kv::KvNamespace::AuthSession, token) {
         tracing::warn!("session remove: kv delete failed: {e}");
     }
 }
@@ -240,7 +237,7 @@ pub fn remove_persisted_session(token: &str) {
 /// Load all non-expired persisted sessions from KV into the registry.
 /// Expired sessions are deleted from KV on the way through.
 pub async fn hydrate_sessions(registry: &SessionRegistry) {
-    let entries = match runtime::db::kv::list_all(SESSIONS_NAMESPACE) {
+    let entries = match runtime::db::kv::list_all(runtime::db::kv::KvNamespace::AuthSession) {
         Ok(rows) => rows,
         Err(e) => {
             tracing::warn!("session hydrate: list_all failed: {e}");
@@ -256,13 +253,13 @@ pub async fn hydrate_sessions(registry: &SessionRegistry) {
             Ok(p) => p,
             Err(e) => {
                 tracing::warn!(token = %token, "session hydrate: deserialize failed: {e}");
-                let _ = runtime::db::kv::delete(SESSIONS_NAMESPACE, &token);
+                let _ = runtime::db::kv::delete(runtime::db::kv::KvNamespace::AuthSession, &token);
                 continue;
             }
         };
         if persisted.expires_at_unix <= now {
             expired += 1;
-            let _ = runtime::db::kv::delete(SESSIONS_NAMESPACE, &token);
+            let _ = runtime::db::kv::delete(runtime::db::kv::KvNamespace::AuthSession, &token);
             continue;
         }
         // Approximate created_at Instant: we lose absolute time on restart, but

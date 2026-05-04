@@ -5,8 +5,7 @@
 
 use anyhow::Result;
 use serde_json::json;
-
-const NAMESPACE: &str = "sync";
+use ship_substrate::db::kv::KvNamespace;
 
 fn cursor_key(scope: &str) -> String {
     format!("cursor:{scope}")
@@ -16,13 +15,13 @@ fn cursor_key(scope: &str) -> String {
 ///
 /// Scope should be `platform:{project_id}` or `workspace:{workspace_id}`.
 pub fn get_cursor(scope: &str) -> Result<Option<String>> {
-    let val = ship_substrate::db::kv::get(NAMESPACE, &cursor_key(scope))?;
+    let val = ship_substrate::db::kv::get(KvNamespace::SyncCursor, &cursor_key(scope))?;
     Ok(val.and_then(|v| v.as_str().map(String::from)))
 }
 
 /// Set the last-synced cursor for a scope.
 pub fn set_cursor(scope: &str, cursor: &str) -> Result<()> {
-    ship_substrate::db::kv::set(NAMESPACE, &cursor_key(scope), &json!(cursor))
+    ship_substrate::db::kv::set(KvNamespace::SyncCursor, &cursor_key(scope), &json!(cursor))
 }
 
 #[cfg(test)]

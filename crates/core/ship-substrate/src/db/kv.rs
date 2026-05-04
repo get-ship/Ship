@@ -9,11 +9,63 @@ use sqlx::Row;
 
 use crate::db::{block_on, ensure_kv_db, open_kv_db};
 
-pub fn set(namespace: &str, key: &str, value: &serde_json::Value) -> Result<()> {
+/// Approved KV namespaces. Adding a new variant here is the required
+/// code-review gate for introducing a new KV namespace. Raw string
+/// namespaces are not accepted; use this enum instead.
+#[derive(Debug, Clone)]
+pub enum KvNamespace {
+    /// Push/pull sync position cursors — ephemeral
+    SyncCursor,
+    /// Auth session tokens — ephemeral
+    AuthSession,
+    /// Auth daemon-owner binding — ephemeral
+    AuthDaemonOwner,
+    /// Auth audit log entries — ephemeral
+    AuthAudit,
+    /// Cron hook next-fire timestamps — ephemeral
+    CronState,
+    /// User-facing settings (defaults.provider, defaults.model, daemon.port…)
+    Settings,
+    /// Skill variable state — global (machine-wide) scope; inner = skill_id
+    SkillVarsGlobal(String),
+    /// Skill variable state — local scope; inner = "{ctx}:{skill_id}"
+    SkillVarsLocal(String),
+    /// Skill variable state — project scope; inner = "{ctx}:{skill_id}"
+    SkillVarsProject(String),
+    /// Runtime project config cache (providers, active_agent, hooks, ai, git,
+    /// namespaces, modes). Inner = `format!("runtime::{}", ship_dir.display())`
+    ProjectConfig(String),
+    /// MCP managed-server state (server IDs, last mode) — per provider
+    McpManaged,
+    /// Project registry — daemon's record of seen project paths
+    Project,
+}
+
+impl KvNamespace {
+    fn as_str(&self) -> std::borrow::Cow<'_, str> {
+        match self {
+            Self::SyncCursor        => "sync".into(),
+            Self::AuthSession       => "auth.sessions".into(),
+            Self::AuthDaemonOwner   => "auth.daemon_owner".into(),
+            Self::AuthAudit         => "auth.audit".into(),
+            Self::CronState         => "cron.last_fire".into(),
+            Self::Settings          => "settings".into(),
+            Self::SkillVarsGlobal(s)   => format!("skill_vars:{s}").into(),
+            Self::SkillVarsLocal(s)    => format!("skill_vars.local:{s}").into(),
+            Self::SkillVarsProject(s)  => format!("skill_vars.project:{s}").into(),
+            Self::ProjectConfig(s)     => s.as_str().into(),
+            Self::McpManaged           => "mcp.managed".into(),
+            Self::Project              => "project".into(),
+        }
+    }
+}
+
+pub fn set(ns: KvNamespace, key: &str, value: &serde_json::Value) -> Result<()> {
     ensure_kv_db()?;
     let mut conn = open_kv_db()?;
     let now = Utc::now().to_rfc3339();
     let value_json = serde_json::to_string(value)?;
+    let namespace = ns.as_str();
     block_on(async {
         sqlx::query(
             "INSERT INTO kv_state (namespace, key, value_json, updated_at)
@@ -22,7 +74,7 @@ pub fn set(namespace: &str, key: &str, value: &serde_json::Value) -> Result<()> 
                value_json = excluded.value_json,
                updated_at = excluded.updated_at",
         )
-        .bind(namespace)
+        .bind(&*namespace)
         .bind(key)
         .bind(&value_json)
         .bind(&now)
@@ -32,12 +84,13 @@ pub fn set(namespace: &str, key: &str, value: &serde_json::Value) -> Result<()> 
     Ok(())
 }
 
-pub fn get(namespace: &str, key: &str) -> Result<Option<serde_json::Value>> {
+pub fn get(ns: KvNamespace, key: &str) -> Result<Option<serde_json::Value>> {
     ensure_kv_db()?;
     let mut conn = open_kv_db()?;
+    let namespace = ns.as_str();
     let row = block_on(async {
         sqlx::query("SELECT value_json FROM kv_state WHERE namespace = ? AND key = ?")
-            .bind(namespace)
+            .bind(&*namespace)
             .bind(key)
             .fetch_optional(&mut conn)
             .await
@@ -51,12 +104,13 @@ pub fn get(namespace: &str, key: &str) -> Result<Option<serde_json::Value>> {
     }
 }
 
-pub fn delete(namespace: &str, key: &str) -> Result<()> {
+pub fn delete(ns: KvNamespace, key: &str) -> Result<()> {
     ensure_kv_db()?;
     let mut conn = open_kv_db()?;
+    let namespace = ns.as_str();
     block_on(async {
         sqlx::query("DELETE FROM kv_state WHERE namespace = ? AND key = ?")
-            .bind(namespace)
+            .bind(&*namespace)
             .bind(key)
             .execute(&mut conn)
             .await
@@ -64,12 +118,13 @@ pub fn delete(namespace: &str, key: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn list_keys(namespace: &str) -> Result<Vec<String>> {
+pub fn list_keys(ns: KvNamespace) -> Result<Vec<String>> {
     ensure_kv_db()?;
     let mut conn = open_kv_db()?;
+    let namespace = ns.as_str();
     let rows = block_on(async {
         sqlx::query("SELECT key FROM kv_state WHERE namespace = ? ORDER BY key")
-            .bind(namespace)
+            .bind(&*namespace)
             .fetch_all(&mut conn)
             .await
     })?;
@@ -77,12 +132,13 @@ pub fn list_keys(namespace: &str) -> Result<Vec<String>> {
 }
 
 /// Return all (key, value) pairs in a namespace.
-pub fn list_all(namespace: &str) -> Result<Vec<(String, serde_json::Value)>> {
+pub fn list_all(ns: KvNamespace) -> Result<Vec<(String, serde_json::Value)>> {
     ensure_kv_db()?;
     let mut conn = open_kv_db()?;
+    let namespace = ns.as_str();
     let rows = block_on(async {
         sqlx::query("SELECT key, value_json FROM kv_state WHERE namespace = ? ORDER BY key")
-            .bind(namespace)
+            .bind(&*namespace)
             .fetch_all(&mut conn)
             .await
     })?;
@@ -186,50 +242,50 @@ mod tests {
     #[test]
     fn test_set_and_get() {
         let (_tmp, _ship_dir) = setup();
-        set("agent", "active_workspace", &json!("ws-001")).unwrap();
-        let val = get("agent", "active_workspace").unwrap().unwrap();
+        set(KvNamespace::SkillVarsGlobal("agent".to_string()), "active_workspace", &json!("ws-001")).unwrap();
+        let val = get(KvNamespace::SkillVarsGlobal("agent".to_string()), "active_workspace").unwrap().unwrap();
         assert_eq!(val, json!("ws-001"));
     }
 
     #[test]
     fn test_set_overwrites() {
         let (_tmp, _ship_dir) = setup();
-        set("config", "theme", &json!("dark")).unwrap();
-        set("config", "theme", &json!("light")).unwrap();
-        let val = get("config", "theme").unwrap().unwrap();
+        set(KvNamespace::Settings, "theme", &json!("dark")).unwrap();
+        set(KvNamespace::Settings, "theme", &json!("light")).unwrap();
+        let val = get(KvNamespace::Settings, "theme").unwrap().unwrap();
         assert_eq!(val, json!("light"));
     }
 
     #[test]
     fn test_get_missing_returns_none() {
         let (_tmp, _ship_dir) = setup();
-        assert!(get("ns", "missing").unwrap().is_none());
+        assert!(get(KvNamespace::SyncCursor, "missing").unwrap().is_none());
     }
 
     #[test]
     fn test_delete() {
         let (_tmp, _ship_dir) = setup();
-        set("ns", "key", &json!(42)).unwrap();
-        delete("ns", "key").unwrap();
-        assert!(get("ns", "key").unwrap().is_none());
+        set(KvNamespace::SyncCursor, "key", &json!(42)).unwrap();
+        delete(KvNamespace::SyncCursor, "key").unwrap();
+        assert!(get(KvNamespace::SyncCursor, "key").unwrap().is_none());
     }
 
     #[test]
     fn test_namespaces_are_isolated() {
         let (_tmp, _ship_dir) = setup();
-        set("ns1", "key", &json!("a")).unwrap();
-        set("ns2", "key", &json!("b")).unwrap();
-        assert_eq!(get("ns1", "key").unwrap().unwrap(), json!("a"));
-        assert_eq!(get("ns2", "key").unwrap().unwrap(), json!("b"));
+        set(KvNamespace::SkillVarsGlobal("ns1".to_string()), "key", &json!("a")).unwrap();
+        set(KvNamespace::SkillVarsGlobal("ns2".to_string()), "key", &json!("b")).unwrap();
+        assert_eq!(get(KvNamespace::SkillVarsGlobal("ns1".to_string()), "key").unwrap().unwrap(), json!("a"));
+        assert_eq!(get(KvNamespace::SkillVarsGlobal("ns2".to_string()), "key").unwrap().unwrap(), json!("b"));
     }
 
     #[test]
     fn test_list_keys() {
         let (_tmp, _ship_dir) = setup();
-        set("app", "alpha", &json!(1)).unwrap();
-        set("app", "beta", &json!(2)).unwrap();
-        set("other", "gamma", &json!(3)).unwrap();
-        let keys = list_keys("app").unwrap();
+        set(KvNamespace::ProjectConfig("app".to_string()), "alpha", &json!(1)).unwrap();
+        set(KvNamespace::ProjectConfig("app".to_string()), "beta", &json!(2)).unwrap();
+        set(KvNamespace::ProjectConfig("other".to_string()), "gamma", &json!(3)).unwrap();
+        let keys = list_keys(KvNamespace::ProjectConfig("app".to_string())).unwrap();
         assert_eq!(keys, vec!["alpha", "beta"]);
     }
 
@@ -250,7 +306,7 @@ mod tests {
 
         // Verify no rows in kv.db (nothing to copy).
         ensure_kv_db_at_with_ship_dir(&ship_dir);
-        let keys = list_keys("test_ns").unwrap();
+        let keys = list_keys(KvNamespace::ProjectConfig("test_ns".to_string())).unwrap();
         assert!(keys.is_empty());
     }
 

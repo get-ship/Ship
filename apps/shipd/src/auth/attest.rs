@@ -202,14 +202,11 @@ impl std::fmt::Display for VerifyError {
     }
 }
 
-/// KV namespace for the daemon-owner user ID. Set by `ship login`, checked
-/// on every attestation.
-pub const DAEMON_OWNER_NAMESPACE: &str = "auth.daemon_owner";
 pub const DAEMON_OWNER_KEY: &str = "user_id";
 
 /// Return the user ID that owns this daemon, or None if not yet bound.
 pub fn daemon_owner() -> Option<String> {
-    runtime::db::kv::get(DAEMON_OWNER_NAMESPACE, DAEMON_OWNER_KEY)
+    runtime::db::kv::get(runtime::db::kv::KvNamespace::AuthDaemonOwner, DAEMON_OWNER_KEY)
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(String::from))
@@ -218,7 +215,7 @@ pub fn daemon_owner() -> Option<String> {
 /// Bind this daemon to a specific user ID. Called by `ship login`.
 pub fn set_daemon_owner(user_id: &str) -> anyhow::Result<()> {
     let value = serde_json::Value::String(user_id.to_string());
-    runtime::db::kv::set(DAEMON_OWNER_NAMESPACE, DAEMON_OWNER_KEY, &value)?;
+    runtime::db::kv::set(runtime::db::kv::KvNamespace::AuthDaemonOwner, DAEMON_OWNER_KEY, &value)?;
     Ok(())
 }
 
