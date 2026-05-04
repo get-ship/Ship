@@ -1,0 +1,102 @@
+<!--
+  <sui-segmented> — SUI port of <ship-segmented>.
+  Segmented control backed by <sui-segmented-option> children. Renders
+  buttons in shadow DOM via controller; arrow-key navigation, Enter/Space
+  activation.
+
+  Prop parity vs <ship-segmented>
+  ────────────────────────────────────────────────────────────────────────
+  value (string, '')      ✓ reflect — selected option value
+  size (sm|md, 'md')      ✓ reflect
+  disabled (bool, false)  ✓ reflect
+  name (string, '')       ✓ — form field name
+  ────────────────────────────────────────────────────────────────────────
+  Events: ship-change → sui-change { detail: { value: string } }
+  ────────────────────────────────────────────────────────────────────────
+  ARIA: role="radiogroup" on host; role="radio" + aria-checked on buttons
+  Parts: container
+-->
+
+<prop name="value" type="string" default="" reflect />
+<prop name="size" values="sm|md" default="md" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="name" type="string" default="" />
+
+<style>
+  :host {
+    display: inline-flex;
+  }
+  :host([hidden]) { display: none; }
+
+  .container {
+    display: inline-flex;
+    padding: 2px;
+    background: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 6px);
+    gap: 1px;
+  }
+
+  .btn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    border-radius: var(--radius-sm, 4px);
+    font-family: var(--font-body);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1, 4px);
+    transition:
+      background var(--duration-fast, 150ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 150ms) var(--ease-out, ease-out),
+      box-shadow var(--duration-fast, 150ms) var(--ease-out, ease-out);
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  :host(:not([size])) .btn,
+  :host([size='md']) .btn {
+    padding: 5px var(--space-3, 12px);
+    font-size: var(--text-sm, 13px);
+  }
+  :host([size='sm']) .btn {
+    padding: 4px var(--space-2, 8px);
+    font-size: var(--text-xs, 11px);
+  }
+
+  .btn[aria-checked='true'] {
+    background: var(--card);
+    color: var(--foreground);
+    box-shadow: var(--shadow-xs);
+  }
+
+  .btn:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--background),
+      0 0 0 4px color-mix(in oklch, var(--primary) 60%, transparent);
+  }
+
+  .btn[disabled],
+  :host([disabled]) .btn {
+    opacity: 0.5;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    width: 14px;
+    height: 14px;
+  }
+  :host(:not([size='sm'])) .btn-icon { width: 16px; height: 16px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div class="container" part="container" bind:this={containerEl}></div>

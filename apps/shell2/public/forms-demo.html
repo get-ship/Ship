@@ -133,6 +133,109 @@
                     value="This is read-only text."></sui-textarea>
     </div>
 
+    <!-- Radio Group -->
+    <h2>Radio Group</h2>
+    <div class="stack">
+      <sui-field id="plan-field">
+        <span slot="label">Billing plan</span>
+        <sui-radio-group name="plan" value="pro" label="Billing plan">
+          <sui-radio value="free">Free</sui-radio>
+          <sui-radio value="pro">Pro</sui-radio>
+          <sui-radio value="enterprise">Enterprise</sui-radio>
+        </sui-radio-group>
+      </sui-field>
+
+      <div class="row">
+        <sui-radio-group name="theme" value="system" size="sm" label="Theme">
+          <sui-radio value="light">Light</sui-radio>
+          <sui-radio value="dark">Dark</sui-radio>
+          <sui-radio value="system">System</sui-radio>
+        </sui-radio-group>
+      </div>
+
+      <div class="row">
+        <sui-radio-group name="tone_demo" label="Tones" disabled>
+          <sui-radio value="a" tone="success">Success</sui-radio>
+          <sui-radio value="b" tone="destructive">Destructive</sui-radio>
+        </sui-radio-group>
+      </div>
+    </div>
+
+    <!-- Slider -->
+    <h2>Slider</h2>
+    <div class="stack">
+      <sui-field id="volume-field">
+        <span slot="label">Volume</span>
+        <sui-slider name="volume" value="40" label="Volume"></sui-slider>
+      </sui-field>
+
+      <div class="row">
+        <sui-slider name="brightness" value="70" label="Brightness" tone="accent" size="lg"></sui-slider>
+      </div>
+
+      <div class="row">
+        <sui-slider name="quality" value="3" min="1" max="5" step="1" label="Quality" size="sm"></sui-slider>
+        <sui-slider name="disabled_slider" value="50" disabled label="Disabled"></sui-slider>
+      </div>
+    </div>
+
+    <!-- Segmented -->
+    <h2>Segmented</h2>
+    <div class="stack">
+      <sui-field id="view-field">
+        <span slot="label">View mode</span>
+        <sui-segmented name="view" value="rows">
+          <sui-segmented-option value="rows">Rows</sui-segmented-option>
+          <sui-segmented-option value="schema">Schema</sui-segmented-option>
+          <sui-segmented-option value="chart">Chart</sui-segmented-option>
+        </sui-segmented>
+      </sui-field>
+
+      <div class="row">
+        <sui-segmented name="density" value="comfortable" size="sm">
+          <sui-segmented-option value="compact">Compact</sui-segmented-option>
+          <sui-segmented-option value="comfortable">Comfortable</sui-segmented-option>
+          <sui-segmented-option value="spacious">Spacious</sui-segmented-option>
+        </sui-segmented>
+      </div>
+
+      <div class="row">
+        <sui-segmented name="seg_disabled" value="a" disabled>
+          <sui-segmented-option value="a">A</sui-segmented-option>
+          <sui-segmented-option value="b">B</sui-segmented-option>
+        </sui-segmented>
+      </div>
+    </div>
+
+    <!-- Toggle Group -->
+    <h2>Toggle Group</h2>
+    <div class="stack">
+      <sui-field id="format-field">
+        <span slot="label">Text formatting</span>
+        <sui-toggle-group name="format" type="multiple">
+          <sui-toggle value="bold"><strong>B</strong></sui-toggle>
+          <sui-toggle value="italic"><em>I</em></sui-toggle>
+          <sui-toggle value="underline"><u>U</u></sui-toggle>
+        </sui-toggle-group>
+      </sui-field>
+
+      <div class="row">
+        <sui-toggle-group name="align" type="single" value="left">
+          <sui-toggle value="left">Left</sui-toggle>
+          <sui-toggle value="center">Center</sui-toggle>
+          <sui-toggle value="right">Right</sui-toggle>
+        </sui-toggle-group>
+      </div>
+
+      <div class="row">
+        <sui-toggle-group name="size_sel" type="single" size="sm" variant="ghost">
+          <sui-toggle value="sm">SM</sui-toggle>
+          <sui-toggle value="md">MD</sui-toggle>
+          <sui-toggle value="lg">LG</sui-toggle>
+        </sui-toggle-group>
+      </div>
+    </div>
+
     <button type="submit" class="submit-btn">Submit form</button>
   </form>
 
@@ -145,6 +248,13 @@
       customElements.whenDefined('sui-switch'),
       customElements.whenDefined('sui-textarea'),
       customElements.whenDefined('sui-field'),
+      customElements.whenDefined('sui-radio-group'),
+      customElements.whenDefined('sui-radio'),
+      customElements.whenDefined('sui-slider'),
+      customElements.whenDefined('sui-segmented'),
+      customElements.whenDefined('sui-segmented-option'),
+      customElements.whenDefined('sui-toggle-group'),
+      customElements.whenDefined('sui-toggle'),
     ])
 
     const form = document.getElementById('demo-form')

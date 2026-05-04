@@ -1,0 +1,95 @@
+<!--
+  <sui-toggle> — child element of <sui-toggle-group> or standalone.
+  Pressed/unpressed button that participates in single or multiple selection.
+
+  Prop parity vs <ship-toggle>
+  ────────────────────────────────────────────────────────────────────────
+  pressed (bool, false)             ✓ reflect
+  disabled (bool, false)            ✓ reflect
+  value (string, '')                ✓ reflect — identifier for group selection
+  size (sm|md|lg, 'md')             ✓ reflect
+  variant (outline|ghost, 'outline') ✓ reflect
+  ────────────────────────────────────────────────────────────────────────
+  Events: ship-toggle → sui-toggle { detail: { pressed, value } }
+  ────────────────────────────────────────────────────────────────────────
+  Slots: (default) — button content
+  Parts: button
+-->
+
+<prop name="pressed" type="bool" default="false" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="value" type="string" default="" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="variant" values="outline|ghost" default="outline" reflect />
+
+<style>
+  :host { display: inline-flex; }
+  :host([hidden]) { display: none; }
+
+  :host(:not([size])), :host([size='md']) {
+    --tgl-h: 36px; --tgl-px: 12px; --tgl-fs: var(--text-base, 14px);
+  }
+  :host([size='sm']) {
+    --tgl-h: 28px; --tgl-px: 8px; --tgl-fs: var(--text-sm, 13px);
+  }
+  :host([size='lg']) {
+    --tgl-h: 42px; --tgl-px: 16px; --tgl-fs: var(--text-base, 14px);
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    height: var(--tgl-h);
+    padding: 0 var(--tgl-px);
+    font-family: var(--font-body);
+    font-size: var(--tgl-fs);
+    font-weight: var(--font-weight-medium, 500);
+    line-height: 1;
+    color: var(--muted-foreground);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius, 6px);
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 150ms) var(--ease-out, ease-out),
+      border-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
+  }
+  :host([variant='ghost']) button { border-color: transparent; }
+  button:hover { background: var(--muted); color: var(--foreground); }
+  :host([pressed]) button {
+    background: var(--muted);
+    color: var(--foreground);
+    border-color: var(--border);
+  }
+  :host([disabled]) button { cursor: not-allowed; opacity: 0.5; pointer-events: none; }
+
+  button:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 var(--ring-offset, 2px) var(--background),
+      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
+        color-mix(in oklch, var(--primary) 50%, transparent);
+  }
+
+  @media (forced-colors: active) {
+    button:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+    :host([pressed]) button { outline: 2px solid CanvasText; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<button
+  part="button"
+  type="button"
+  aria-pressed={pressed() ? 'true' : 'false'}
+  disabled={disabled()}
+  bind:this={buttonEl}
+>
+  <slot></slot>
+</button>
