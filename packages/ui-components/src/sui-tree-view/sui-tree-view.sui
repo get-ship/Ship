@@ -1,0 +1,28 @@
+<!--
+  <sui-tree-view> — SUI port of <ship-tree-view>.
+  Container for a recursive expandable hierarchy. Pairs with <sui-tree-item>.
+
+  Prop parity vs <ship-tree-view>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                         SUI                         Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  (no props)                  (no props)                  ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  role=tree set via           controller sets on host     ✓
+    connectedCallback
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots: (default) sui-tree-item children
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<style>
+  :host {
+    display: block;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--foreground);
+  }
+  :host([hidden]) { display: none; }
+</style>
+
+<slot></slot>
