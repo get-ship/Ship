@@ -13,7 +13,6 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 
-use crate::config::DiskBackedConfig;
 
 /// One of the four well-known daemon handshake files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
@@ -163,13 +162,31 @@ pub fn derive_worktree_port(hash: &str) -> u16 {
 /// `current_branch` is the branch checked out at `project_root`; resolved
 /// via `git symbolic-ref --short HEAD`. A detached HEAD or non-git tree
 /// skips the pin and falls through to derivation.
+/// Minimal local-settings shape for port-pin lookup only.
+/// Full `LocalSettings` lives in `config::local` (L1); this avoids that dep.
+#[derive(Default, Deserialize)]
+struct PortPinSettings {
+    worktrees: Option<PortPinWorktrees>,
+}
+
+#[derive(Default, Deserialize)]
+struct PortPinWorktrees {
+    #[serde(default)]
+    ports: std::collections::HashMap<String, u16>,
+}
+
 pub fn worktree_port_for(project_root: &Path) -> u16 {
     if let Some(branch) = current_branch(project_root) {
-        let local = crate::config::LocalSettings::load();
-        if let Some(wt) = local.worktrees.as_ref()
-            && let Some(port) = wt.ports.get(&branch)
-        {
-            return *port;
+        let home = crate::ShipHome::from_env();
+        if let Ok(raw) = std::fs::read_to_string(home.local_path()) {
+            let stripped = crate::fs_util::strip_jsonc_comments(&raw);
+            if let Ok(s) = serde_json::from_str::<PortPinSettings>(&stripped) {
+                if let Some(wt) = s.worktrees
+                    && let Some(&port) = wt.ports.get(&branch)
+                {
+                    return port;
+                }
+            }
         }
     }
     derive_worktree_port(&path_hash(project_root))

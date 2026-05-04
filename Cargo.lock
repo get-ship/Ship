@@ -3278,6 +3278,7 @@ dependencies = [
  "ship-jobs",
  "ship-kernel",
  "ship-pipelines",
+ "ship-substrate",
  "ship-types",
  "specta",
  "sqlx",
@@ -3703,6 +3704,40 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "specta",
+]
+
+[[package]]
+name = "ship-substrate"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "home",
+ "indexmap",
+ "libc",
+ "nanoid",
+ "portable-pty",
+ "reqwest 0.12.28",
+ "rmp-serde",
+ "sea-query",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "ship-jobs",
+ "ship-kernel",
+ "ship-pipelines",
+ "ship-types",
+ "specta",
+ "sqlx",
+ "sysinfo",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "toml",
+ "tracing",
+ "ulid",
 ]
 
 [[package]]

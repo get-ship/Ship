@@ -7,6 +7,7 @@ members = [
     "crates/lsp",
     "crates/core/mcp-framework",
     "crates/core/runtime",
+    "crates/core/ship-substrate",
     "crates/core/ship-jobs",
     "crates/core/ship-kernel",
     "crates/core/ship-pipelines",

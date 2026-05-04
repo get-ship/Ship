@@ -57,7 +57,7 @@ Deleted `crates/core/runtime/src/agents/export/` (~5,500 LOC). Migrated to compi
 - Provider registry moved to `runtime::agents::providers`; import functions to `runtime::agents::import`
 - `ship compile` is now the single emit path
 
-### Phase 2 — Substrate split (~2–3 weeks)
+### Phase 2 — Substrate split (~2–3 weeks) [in progress]
 
 Carve `crates/core/runtime/` into two crates:
 
@@ -65,6 +65,12 @@ Carve `crates/core/runtime/` into two crates:
 - `ship-primitives` (L1) — agents, collections, hooks-engine, artifacts, package-registry. Imports `ship-substrate`. Imports nothing else.
 
 Compile-time barrier enforces what charter currently only asserts about layers. Substrate split is early because every later phase benefits from the boundary already existing.
+
+**Phase 2A done** (current commit): `crates/core/ship-substrate` created and compiles. Moved: events, persistence, db, actor, projections, supervisor, home, project (L0 surface), git, log, fs_util, env, errors, data, projects, trash, access, services/{mesh, dispatch_ports, human_gateway, process_tree_probe, server_session}. 385 tests pass. `runtime` now depends on `ship-substrate` and re-exports everything. Three L1 leaks repaired: `home/daemon.rs` port-pin (inline struct), `project/identity.rs` JSONC parse (use fs_util), `data.rs` startup hook (no-op in substrate).
+
+**Remaining Phase 2 work**:
+- sessions/ still in runtime — `session_lifecycle.rs` uses config hooks and compile; split requires extracting hook execution to a post-lifecycle callback or accepting sessions as L1 for now
+- `ship-primitives` crate not yet created — L1 modules (agents, collections, hooks, config, registry, services/{orchestrator,providers}) still live in runtime; Phase 2B creates that crate and enforces the L0→L1 direction
 
 ### Phase 3 — KV extraction + KvService (~1–2 weeks)
 

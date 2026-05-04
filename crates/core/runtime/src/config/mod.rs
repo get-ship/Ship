@@ -30,7 +30,7 @@ pub trait DiskBackedConfig: Sized + Default + Serialize + DeserializeOwned {
 
     /// Strip JSONC comments and parse.
     fn parse(raw: &str) -> Result<Self> {
-        let stripped = crate::config::local::strip_jsonc_comments(raw);
+        let stripped = crate::fs_util::strip_jsonc_comments(raw);
         Ok(serde_json::from_str(&stripped)?)
     }
 

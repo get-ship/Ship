@@ -1,0 +1,41 @@
+[package]
+name = "ship-substrate"
+version = "0.1.0"
+edition = "2024"
+license-file = "LICENSE"
+publish = false
+
+[dependencies]
+ship-kernel = { path = "../ship-kernel" }
+ship-types = { path = "../ship-types" }
+ship-jobs = { path = "../ship-jobs" }
+ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }
+serde = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+nanoid = { workspace = true }
+ulid = { workspace = true }
+specta = { workspace = true, features = ["chrono", "serde_json"] }
+sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
+tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
+portable-pty = "0.9"
+async-trait = { workspace = true }
+sha2 = { workspace = true }
+tempfile = { workspace = true }
+tracing = { workspace = true }
+sea-query = { version = "0.32.7", features = ["backend-sqlite"] }
+indexmap = { workspace = true, features = ["serde"] }
+rmp-serde = "1"
+home = "0.5"
+toml = { workspace = true, features = ["preserve_order"] }
+reqwest = { workspace = true, features = ["json", "rustls-tls"] }
+sysinfo = { version = "0.38", default-features = false, features = ["system"] }
+serde_yaml = { workspace = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }

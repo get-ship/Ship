@@ -4,6 +4,32 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// Strip JSONC comments (`//` line, `/* */` block) from a string.
+/// Respects string literals so URLs like `"http://"` are not mangled.
+pub fn strip_jsonc_comments(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    let mut in_string = false;
+    let mut escape = false;
+    while let Some(c) = chars.next() {
+        if in_string {
+            out.push(c);
+            if escape { escape = false; } else if c == '\\' { escape = true; } else if c == '"' { in_string = false; }
+            continue;
+        }
+        if c == '"' { in_string = true; out.push(c); continue; }
+        if c == '/' {
+            match chars.peek() {
+                Some('/') => { while let Some(&nc) = chars.peek() { chars.next(); if nc == '\n' { out.push('\n'); break; } } continue; }
+                Some('*') => { chars.next(); while let Some(nc) = chars.next() { if nc == '*' && chars.peek() == Some(&'/') { chars.next(); break; } } continue; }
+                _ => {}
+            }
+        }
+        out.push(c);
+    }
+    out
+}
+
 /// Write `content` to `path` atomically by writing to a sibling temp file first,
 /// then renaming into place. On POSIX, rename(2) is atomic; on Windows it uses
 /// MoveFileExW which replaces the destination atomically.

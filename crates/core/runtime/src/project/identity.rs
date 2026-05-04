@@ -64,7 +64,7 @@ fn read_project_identity(ship_dir: &Path) -> Option<ProjectIdentity> {
     };
     let content = fs::read_to_string(path).ok()?;
     let parsed: serde_json::Value = if is_jsonc {
-        compiler::jsonc::from_jsonc_str(&content).ok()?
+        serde_json::from_str(&crate::fs_util::strip_jsonc_comments(&content)).ok()?
     } else {
         let tv: toml::Value = toml::from_str(&content).ok()?;
         serde_json::to_value(&tv).ok()?
@@ -221,7 +221,7 @@ pub fn ensure_project_id(ship_dir: &Path) -> Result<String> {
     })?;
 
     let mut parsed: serde_json::Value =
-        compiler::jsonc::from_jsonc_str(&content).with_context(|| {
+        serde_json::from_str(&crate::fs_util::strip_jsonc_comments(&content)).with_context(|| {
             format!(
                 "Project at {} has an invalid ship.jsonc. Re-run `ship init` or fix the file.",
                 ship_dir.display()

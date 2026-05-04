@@ -80,62 +80,7 @@ pub(crate) fn expand_tilde(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-/// Strip JSONC comments (`//` line, `/* */` block) without parsing.
-/// Strings are respected so that `"http://"` doesn't get truncated.
-pub(crate) fn strip_jsonc_comments(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut chars = input.chars().peekable();
-    let mut in_string = false;
-    let mut escape = false;
-
-    while let Some(c) = chars.next() {
-        if in_string {
-            out.push(c);
-            if escape {
-                escape = false;
-            } else if c == '\\' {
-                escape = true;
-            } else if c == '"' {
-                in_string = false;
-            }
-            continue;
-        }
-        if c == '"' {
-            in_string = true;
-            out.push(c);
-            continue;
-        }
-        if c == '/' {
-            match chars.peek() {
-                Some('/') => {
-                    // Line comment — skip to newline.
-                    while let Some(&nc) = chars.peek() {
-                        chars.next();
-                        if nc == '\n' {
-                            out.push('\n');
-                            break;
-                        }
-                    }
-                    continue;
-                }
-                Some('*') => {
-                    // Block comment — skip to */.
-                    chars.next(); // consume '*'
-                    while let Some(nc) = chars.next() {
-                        if nc == '*' && chars.peek() == Some(&'/') {
-                            chars.next();
-                            break;
-                        }
-                    }
-                    continue;
-                }
-                _ => {}
-            }
-        }
-        out.push(c);
-    }
-    out
-}
+pub(crate) use crate::fs_util::strip_jsonc_comments;
 
 /// Canonical worktrees-dir resolver. Order:
 ///   1. `~/.ship/machine/local.jsonc:worktrees.dir`
