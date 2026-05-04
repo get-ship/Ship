@@ -12,6 +12,7 @@ members = [
     "crates/core/ship-types",
     "crates/sui-compiler",
     "crates/sui-signals",
+    "crates/ship-ui-framework",
     "crates/xtask",
     "grammars/tree-sitter-sui",
     "apps/mcp",

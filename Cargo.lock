@@ -3705,6 +3705,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-ui-framework"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "datastar",
+ "futures-util",
+ "notify",
+ "runtime",
+ "serde",
+ "serde_json",
+ "sui-compiler",
+ "sui-signals",
+ "tempfile",
+ "tokio",
+ "tokio-stream",
+ "tracing",
+]
+
+[[package]]
 name = "shipd"
 version = "0.2.0"
 dependencies = [

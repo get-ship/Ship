@@ -2,12 +2,14 @@ import { controller, effect, defineRoutes } from '@ship/ui-runtime'
 import type { Scope } from './index.sui'
 import { loadCatalog, type CatalogEntry, type PropEntry } from '../partials/catalog'
 
-// Canonical shell route. The bare `/sui/ship-ui-studio/:name` URL is a
-// daemon-level dev affordance for fragment probing — not a parallel
-// public route, and not registered with the controller's reactive
-// route signal. Standalone access still works because mount() falls
-// back to parsing the last path segment.
-defineRoutes([{ pattern: '/ship-ui-studio/:name' }])
+// Until shell 2.0 ports the studio in, the canonical access path is
+// /sui/ship-ui-studio/:name (view-host static mount). Both patterns
+// are registered so route.params.name resolves under either prefix.
+// When shell 2.0 lands, the /sui/ prefix entry can drop.
+defineRoutes([
+  { pattern: '/ship-ui-studio/:name' },
+  { pattern: '/sui/ship-ui-studio/:name' },
+])
 
 export default controller<Scope>({
   derived: {
