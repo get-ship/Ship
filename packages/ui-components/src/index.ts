@@ -67,5 +67,12 @@ import './sui-edit-overlay/sui-edit-overlay.compiled.js'
 import './sui-annotation/sui-annotation-layer.compiled.js'
 import './sui-annotation/sui-annotation-marker.compiled.js'
 import './sui-annotation/sui-annotation-list.compiled.js'
+import './sui-radio-group/sui-radio.compiled.js'
+import './sui-radio-group/sui-radio-group.compiled.js'
+import './sui-slider/sui-slider.compiled.js'
+import './sui-segmented/sui-segmented-option.compiled.js'
+import './sui-segmented/sui-segmented.compiled.js'
+import './sui-toggle-group/sui-toggle.compiled.js'
+import './sui-toggle-group/sui-toggle-group.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.
