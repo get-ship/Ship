@@ -1,0 +1,33 @@
+<!--
+  <sui-annotation-list> — SUI port of <ship-annotation-list>.
+  Compact list of staged AnnotationEvents with per-item remove controls.
+
+  API surface
+  ──────────────────────────────────────────────────────────────────────────────
+  JS property:
+    staged: AnnotationEvent[]  — set to re-render the list (not attribute-backed;
+                                  set the property directly from the parent layer)
+  ──────────────────────────────────────────────────────────────────────────────
+  Events:
+    sui-annotation-remove  { detail: { id: string } }  bubbles, composed
+      Fired when the user clicks Remove on an item.
+  ──────────────────────────────────────────────────────────────────────────────
+  Parts: list, item, empty
+  ──────────────────────────────────────────────────────────────────────────────
+  Parity vs <ship-annotation-list>:
+    staged property           → staged JS property (same)
+    ship-annotation-remove    → sui-annotation-remove (renamed)
+    attributeChangedCallback JSON parsing → controller setAttribute interception
+-->
+
+<style>
+  :host {
+    display: block;
+    font-family: var(--font-body);
+    font-size: var(--text-sm);
+    color: var(--foreground);
+  }
+  :host([hidden]) { display: none; }
+</style>
+
+<div bind:this={containerEl}></div>
