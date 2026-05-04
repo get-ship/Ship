@@ -1,0 +1,92 @@
+<!--
+  <sui-devtools-components> — SUI port of <ship-devtools-components>.
+  Browsable catalog of ship-elements from /api/assets/custom-elements.json (CEM).
+  Read-only. Supports filter + copy-to-clipboard snippet.
+-->
+
+<style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    font-size: var(--text-sm);
+  }
+  :host([hidden]) { display: none; }
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 4px var(--space-3, 12px);
+    border-bottom: 1px solid var(--border);
+    background: var(--sidebar);
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    flex-shrink: 0;
+  }
+  .toolbar input {
+    appearance: none;
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
+    padding: 2px 8px;
+    font: inherit;
+    flex: 1;
+    max-width: 280px;
+  }
+  .body { flex: 1; overflow: auto; }
+  details { border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent); }
+  summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 6px var(--space-3, 12px);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: var(--space-3, 12px);
+    align-items: baseline;
+    font-size: var(--text-xs);
+  }
+  summary::-webkit-details-marker { display: none; }
+  .tag { font-family: var(--font-mono); color: var(--primary); }
+  .desc { color: var(--muted-foreground); }
+  .copy {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
+    padding: 1px 8px;
+    font: inherit;
+    font-size: 10px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+  }
+  .copy:hover { color: var(--foreground); }
+  .panel {
+    padding: 0 var(--space-3, 12px) 10px calc(var(--space-3, 12px) + 14px);
+    display: grid;
+    gap: 8px;
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .panel pre {
+    margin: 0;
+    padding: 6px 10px;
+    background: var(--muted);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm, 4px);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    overflow-x: auto;
+  }
+  .attrs { display: grid; grid-template-columns: auto 1fr; gap: 2px 12px; }
+  .attrs dt { font-family: var(--font-mono); color: var(--foreground); }
+  .attrs dd { margin: 0; }
+</style>
+
+<div class="toolbar">
+  <input type="text" placeholder="Filter components…" bind:this={filterInput} />
+  <span bind:this={countEl}></span>
+</div>
+<div class="body" bind:this={bodyEl}></div>

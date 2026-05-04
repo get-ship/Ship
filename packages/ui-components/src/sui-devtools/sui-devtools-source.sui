@@ -1,0 +1,85 @@
+<!--
+  <sui-devtools-source> — SUI port of <ship-devtools-source>.
+  Shows the mounted view's template + manifest. Editable for user-scoped views.
+  Requires the code-editor pack (<ship-code-editor>) to be loaded before first render.
+  Read-only for project-scoped; shows Fork affordance for project scope.
+-->
+
+<style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    font-size: var(--text-sm);
+  }
+  :host([hidden]) { display: none; }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-bottom: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    flex-shrink: 0;
+  }
+  .split {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .pane { min-height: 0; display: flex; flex-direction: column; flex: 1; }
+  .pane-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 4px var(--space-3, 12px);
+    background: var(--sidebar);
+    border-bottom: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+  }
+  .pane-head.manifest { border-top: 1px solid var(--border); }
+  .pane-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .pane-editor ship-code-editor { flex: 1; min-height: 0; }
+  .diagnostics {
+    padding: 4px var(--space-3, 12px);
+    background: color-mix(in oklch, var(--destructive) 10%, transparent);
+    color: var(--destructive);
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    border-top: 1px solid var(--destructive);
+    max-height: 120px;
+    overflow: auto;
+    flex-shrink: 0;
+  }
+  .dirty-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--primary);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .edit-action {
+    appearance: none;
+    font: inherit;
+    font-size: var(--text-xs);
+    padding: 2px 10px;
+    border-radius: var(--radius-sm, 4px);
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    cursor: pointer;
+  }
+  .edit-action.primary { background: var(--primary); color: var(--primary-foreground, #fff); border-color: var(--primary); }
+  .edit-action:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+
+<div class="header" bind:this={headerEl}></div>
+<div class="split" bind:this={splitEl}></div>
+<div class="diagnostics" style="display:none" bind:this={diagEl}></div>

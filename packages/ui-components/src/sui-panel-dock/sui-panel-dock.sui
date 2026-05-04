@@ -1,0 +1,188 @@
+<!--
+  <sui-panel-dock> — SUI port of <ship-panel-dock>.
+  Bottom chrome panel with a tab strip.
+
+  Prop / event / method parity vs <ship-panel-dock>
+  ─────────────────────────────────────────────────────────────────────────────
+  active-tab   (string, 'terminal', reflect) — active tab id
+  storage-key  (string, 'ship-dock')         — localStorage prefix
+  resizing     (bool, false, reflect)        — set during resize drag
+  tabs         (JS property only)            — DockTabDef[]; overrides defaults
+  ─────────────────────────────────────────────────────────────────────────────
+  Events: sui:dock:activate {tab}, sui:dock:close, sui:dock:clear {tab},
+          sui:dock:popout {tab}, sui:dock:resize {height}   (bubbles, composed)
+  ─────────────────────────────────────────────────────────────────────────────
+  Methods: show(), hide(), toggle(), activate(tab)
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots: <id> — body for tab id (terminal, source, signals, lint, schema, components)
+         toolbar:<id> — slim toolbar row for tab id (optional)
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="active-tab" type="string" default="terminal" reflect />
+<prop name="storage-key" type="string" default="ship-dock" />
+<prop name="resizing" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    position: relative;
+    background: var(--card);
+    box-shadow: var(--shadow-edge-top);
+  }
+  :host([hidden]) { display: none; }
+
+  .resize {
+    position: absolute;
+    top: -3px;
+    left: 0;
+    right: 0;
+    height: 6px;
+    cursor: ns-resize;
+    z-index: 2;
+    touch-action: none;
+  }
+  .resize::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 2px;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--muted-foreground);
+    opacity: 0.45;
+    transition: opacity var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+  }
+  .resize:hover::before,
+  :host([resizing]) .resize::before { opacity: 0.95; background: var(--foreground); }
+
+  .tabstrip {
+    display: flex;
+    align-items: stretch;
+    padding-left: var(--space-2);
+    border-bottom: 1px solid var(--border-subtle, var(--border));
+    background: var(--card);
+    font-size: var(--text-xs);
+    user-select: none;
+    height: 30px;
+    flex: none;
+  }
+
+  .tab {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--muted-foreground);
+    font: inherit;
+    font-size: 11.5px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    position: relative;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out);
+  }
+  .tab:hover { color: var(--foreground); }
+  .tab[aria-selected="true"] {
+    color: var(--foreground);
+    background: color-mix(in oklab, var(--primary) 12%, transparent);
+    border-bottom-color: var(--primary);
+    font-weight: var(--font-weight-medium, 500);
+  }
+  .tab:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--ring);
+    border-radius: var(--radius-sm);
+  }
+  .live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--success, #22c55e);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--success, #22c55e) 25%, transparent);
+  }
+  .count {
+    font-family: var(--mono-font, var(--font-mono));
+    font-size: 9.5px;
+    background: var(--muted);
+    color: var(--muted-foreground);
+    border-radius: var(--radius-sm);
+    padding: 1px 5px;
+    min-width: 18px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
+  .tab[aria-selected="true"] .count {
+    background: color-mix(in oklab, var(--primary) 14%, transparent);
+    color: var(--foreground);
+  }
+
+  .tools {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    padding-right: 4px;
+  }
+  .tool {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    width: 24px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--radius-sm);
+    transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  }
+  .tool:hover { background: var(--hover-bg, var(--sidebar-accent)); color: var(--foreground); }
+  .tool:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring); }
+
+  .toolbar {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-subtle, var(--border));
+    background: color-mix(in oklab, var(--background) 50%, var(--card));
+    flex: none;
+    min-height: 30px;
+  }
+  .toolbar.has-content { display: flex; }
+  .toolbar[hidden] { display: none !important; }
+
+  .bodies { flex: 1; min-height: 0; position: relative; overflow: hidden; background: var(--background); }
+  ::slotted(*) { display: none; height: 100%; overflow: auto; }
+  slot[data-active]::slotted(*) { display: block; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tab, .tool, .resize::before { transition: none; }
+  }
+</style>
+
+<div class="resize" role="separator" aria-orientation="horizontal" aria-label="Resize panel" bind:this={resizeHandle}></div>
+<div class="tabstrip" role="tablist" bind:this={tabstrip}></div>
+<div class="toolbar" data-toolbar="terminal"><slot name="toolbar:terminal"></slot></div>
+<div class="toolbar" data-toolbar="source"><slot name="toolbar:source"></slot></div>
+<div class="toolbar" data-toolbar="signals"><slot name="toolbar:signals"></slot></div>
+<div class="toolbar" data-toolbar="lint"><slot name="toolbar:lint"></slot></div>
+<div class="toolbar" data-toolbar="schema"><slot name="toolbar:schema"></slot></div>
+<div class="toolbar" data-toolbar="components"><slot name="toolbar:components"></slot></div>
+<div class="bodies" bind:this={bodies}>
+  <slot name="terminal"></slot>
+  <slot name="source"></slot>
+  <slot name="signals"></slot>
+  <slot name="lint"></slot>
+  <slot name="schema"></slot>
+  <slot name="components"></slot>
+</div>

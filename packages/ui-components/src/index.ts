@@ -79,5 +79,11 @@ import './sui-copy-button/sui-copy-button.compiled.js'
 import './sui-json-view/sui-json-view.compiled.js'
 import './sui-diff/sui-diff.compiled.js'
 import './sui-markdown/sui-markdown.compiled.js'
+import './sui-panel-dock/sui-panel-dock.compiled.js'
+import './sui-devtools/sui-devtools-source.compiled.js'
+import './sui-devtools/sui-devtools-components.compiled.js'
+import './sui-devtools/sui-devtools-lint.compiled.js'
+import './sui-devtools/sui-devtools-schema.compiled.js'
+import './sui-devtools/sui-devtools-signals.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.

@@ -5,6 +5,7 @@
   --ship-status-bar-h: 24px;
   --ship-rail-w: 200px;
   --ship-rail-w-collapsed: 48px;
+  --ship-dock-height: 240px;
 }
 
 html, body {
@@ -16,15 +17,16 @@ html, body {
   font-family: var(--font-body, system-ui, sans-serif);
 }
 
-/* Four-area chrome grid:
+/* Five-area chrome grid:
      cols: [rail] [content]
-     rows: [top-bar] [main] [status-bar]
-   Top bar and status bar span full width (1/-1).
-   Rail sits in row 2, col 1. Content in row 2, col 2. */
+     rows: [top-bar] [main] [dock] [status-bar]
+   Top bar, dock, and status bar span full width (1/-1).
+   Rail sits in row 2, col 1. Content in row 2, col 2.
+   Dock is row 3, spanning both columns; height 0 unless body.dock-open. */
 #ship-app {
   display: grid;
   grid-template-columns: auto 1fr;
-  grid-template-rows: var(--ship-top-bar-h) 1fr var(--ship-status-bar-h);
+  grid-template-rows: var(--ship-top-bar-h) 1fr auto var(--ship-status-bar-h);
   height: 100vh;
   overflow: hidden;
 }
@@ -62,9 +64,40 @@ html, body {
   min-height: 0;
 }
 
-#ship-status-bar {
+#ship-panel-dock {
   grid-column: 1 / -1;
   grid-row: 3;
+  height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(8px);
+  transition:
+    height var(--duration-normal, 200ms) var(--ease-out),
+    opacity var(--duration-normal, 200ms) var(--ease-out),
+    transform var(--duration-normal, 200ms) var(--ease-out);
+}
+
+body.dock-open #ship-panel-dock {
+  height: var(--ship-dock-height, 240px);
+  border-top: 1px solid var(--border);
+  opacity: 1;
+  transform: none;
+}
+
+body.dock-open.dock-popout #ship-panel-dock {
+  height: calc(100vh - var(--ship-top-bar-h) - var(--ship-status-bar-h));
+}
+
+/* Suppress height transition during interactive resize drag. */
+#ship-panel-dock[resizing] { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  #ship-panel-dock { transition: none; transform: none; }
+}
+
+#ship-status-bar {
+  grid-column: 1 / -1;
+  grid-row: 4;
 }
 
 .ship-brand-mark {

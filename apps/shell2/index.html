@@ -82,6 +82,16 @@
     <!-- Main content: view mounts here -->
     <main id="ship-content" class="ship-content"></main>
 
+    <!-- Bottom panel dock: terminal + devtools tabs -->
+    <sui-panel-dock id="ship-panel-dock" active-tab="terminal">
+      <!-- slot="terminal" left empty — terminal loads as island bundle on demand -->
+      <sui-devtools-source slot="source"></sui-devtools-source>
+      <sui-devtools-signals slot="signals"></sui-devtools-signals>
+      <sui-devtools-lint slot="lint"></sui-devtools-lint>
+      <sui-devtools-schema slot="schema"></sui-devtools-schema>
+      <sui-devtools-components slot="components"></sui-devtools-components>
+    </sui-panel-dock>
+
     <!-- Bottom status bar: connection, branch, theme -->
     <sui-status-bar id="ship-status-bar" branch="" theme="" agents=""></sui-status-bar>
   </div>
