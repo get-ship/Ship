@@ -223,7 +223,7 @@ pub async fn event_route(
     let ctx = EmitContext {
         caller_kind: auth.caller_kind,
         skill_id: None,
-        workspace_id: req.workspace_id.or(auth.workspace_id),
+        project_id: req.workspace_id.or(auth.workspace_id),
         session_id: req.session_id.or(auth.session_id),
     };
     match state.kernel().lock().await.emit(req.envelope, &ctx).await {

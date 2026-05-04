@@ -51,7 +51,7 @@ pub async fn spawn_human_gateway(
         let ctx = runtime::events::EmitContext {
             caller_kind: runtime::events::CallerKind::Mcp,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         };
         while let Some(event) = outbox_rx.recv().await {

@@ -15,10 +15,10 @@ const KEY_ACTIVE_AGENT: &str = "active_agent";
 const KEY_COMPILED_AT: &str = "compiled_at";
 const KEY_PLUGINS_INSTALLED: &str = "plugins_installed";
 
-/// Build a project-scoped namespace for workspace state.
-/// Uses the canonical path of .ship/ to differentiate projects so that
-/// `ship status` in one project doesn't show another project's active agent.
-fn workspace_ns(ship_dir: &Path) -> String {
+/// Build a project-scoped KV namespace for CLI state.
+/// Uses a stable hex hash of the canonical .ship/ path so `ship status` in
+/// one project doesn't show another project's active agent.
+fn workspace_ns(ship_dir: &Path) -> runtime::db::kv::KvNamespace {
     let canonical = std::fs::canonicalize(ship_dir)
         .unwrap_or_else(|_| ship_dir.to_path_buf());
     let hash = {
@@ -27,7 +27,7 @@ fn workspace_ns(ship_dir: &Path) -> String {
         canonical.hash(&mut hasher);
         format!("{:016x}", hasher.finish())
     };
-    format!("workspace:{}", hash)
+    runtime::db::kv::KvNamespace::CliProjectState(hash)
 }
 
 // ── WorkspaceState ────────────────────────────────────────────────────────────
@@ -50,13 +50,13 @@ impl WorkspaceState {
             return state;
         }
         let ns = workspace_ns(ship_dir);
-        if let Ok(Some(v)) = runtime::db::kv::get(&ns, KEY_ACTIVE_AGENT) {
+        if let Ok(Some(v)) = runtime::db::kv::get(ns.clone(), KEY_ACTIVE_AGENT) {
             state.active_agent = v.as_str().map(str::to_string);
         }
-        if let Ok(Some(v)) = runtime::db::kv::get(&ns, KEY_COMPILED_AT) {
+        if let Ok(Some(v)) = runtime::db::kv::get(ns.clone(), KEY_COMPILED_AT) {
             state.compiled_at = v.as_str().map(str::to_string);
         }
-        if let Ok(Some(v)) = runtime::db::kv::get(&ns, KEY_PLUGINS_INSTALLED)
+        if let Ok(Some(v)) = runtime::db::kv::get(ns.clone(), KEY_PLUGINS_INSTALLED)
             && let Some(arr) = v.as_array()
         {
             state.plugins_installed = arr
@@ -72,13 +72,13 @@ impl WorkspaceState {
         runtime::db::ensure_db().context("failed to open platform.db")?;
         let ns = workspace_ns(ship_dir);
         if let Some(ref p) = self.active_agent {
-            runtime::db::kv::set(&ns, KEY_ACTIVE_AGENT, &serde_json::json!(p))?;
+            runtime::db::kv::set(ns.clone(), KEY_ACTIVE_AGENT, &serde_json::json!(p))?;
         }
         if let Some(ref t) = self.compiled_at {
-            runtime::db::kv::set(&ns, KEY_COMPILED_AT, &serde_json::json!(t))?;
+            runtime::db::kv::set(ns.clone(), KEY_COMPILED_AT, &serde_json::json!(t))?;
         }
         runtime::db::kv::set(
-            &ns,
+            ns,
             KEY_PLUGINS_INSTALLED,
             &serde_json::json!(self.plugins_installed),
         )?;

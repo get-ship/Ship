@@ -51,7 +51,7 @@ pub async fn handle_job_update(
     let ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
     match kernel.lock().await.emit(mesh_envelope, &ctx).await {

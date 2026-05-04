@@ -84,7 +84,7 @@ pub async fn telegram_webhook(
     let ctx = EmitContext {
         caller_kind: CallerKind::Mcp,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
 

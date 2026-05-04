@@ -118,7 +118,7 @@ impl EventRelay {
             // Broadcast event: apply workspace scoping so cross-workspace
             // peers don't see each other's traffic.
             if let (Some(event_ws), Some(peer_ws)) =
-                (&event.workspace_id, &peer.branch)
+                (&event.project_id, &peer.branch)
                 && event_ws != peer_ws
             {
                 return false;

@@ -26,7 +26,7 @@ mod kernel_security {
         EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         }
     }
@@ -35,7 +35,7 @@ mod kernel_security {
         EmitContext {
             caller_kind: CallerKind::Cli,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         }
     }
@@ -44,7 +44,7 @@ mod kernel_security {
         EmitContext {
             caller_kind: CallerKind::Mcp,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         }
     }
@@ -520,7 +520,7 @@ mod kernel_security_edge_cases {
         EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         }
     }
@@ -529,7 +529,7 @@ mod kernel_security_edge_cases {
         EmitContext {
             caller_kind: CallerKind::Mcp,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         }
     }

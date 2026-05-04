@@ -6,7 +6,7 @@ CREATE TABLE `events` (
   `payload_json` text NOT NULL,
   `version` integer NOT NULL,
   `causation_id` text,
-  `workspace_id` text,
+  `project_id` text,
   `session_id` text,
   `actor_id` text,
   `parent_actor_id` text,

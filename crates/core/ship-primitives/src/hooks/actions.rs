@@ -134,7 +134,7 @@ async fn event_emit(
     let emit_ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: envelope.workspace_id.clone(),
+        project_id: envelope.project_id.clone(),
         session_id: envelope.session_id.clone(),
     };
     // Inject the hook depth so the engine sees a chain even when events
@@ -190,7 +190,7 @@ async fn pipeline_trigger(
     let emit_ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
     ctx.kernel.lock().await.emit(envelope.clone(), &emit_ctx).await?;

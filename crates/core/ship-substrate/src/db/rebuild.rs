@@ -33,7 +33,7 @@ pub fn rebuild_projections(ship_dir: &Path) -> Result<RebuildReport> {
     let mut conn = open_db_at(&db_path)?;
 
     const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-        causation_id, workspace_id, session_id, \
+        causation_id, project_id, session_id, \
         actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
     let rows = block_on(async {

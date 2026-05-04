@@ -112,7 +112,7 @@ impl NetworkServer {
         let ctx = EmitContext {
             caller_kind: CallerKind::Mcp,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         };
         match self.kernel.lock().await.emit(envelope.clone(), &ctx).await {

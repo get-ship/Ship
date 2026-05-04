@@ -111,7 +111,7 @@ async fn studio_event_reaches_agent_via_push_adapter() {
     let ctx = runtime::events::EmitContext {
         caller_kind: runtime::events::CallerKind::Mcp,
         skill_id: None,
-        workspace_id: Some("v0.2.0".to_string()),
+        project_id: Some("v0.2.0".to_string()),
         session_id: None,
     };
     kr.route(event.clone(), &ctx).await.unwrap();
@@ -166,7 +166,7 @@ async fn mesh_message_reaches_target_agent() {
     let ctx = runtime::events::EmitContext {
         caller_kind: runtime::events::CallerKind::Mcp,
         skill_id: None,
-        workspace_id: Some("v0.2.0".to_string()),
+        project_id: Some("v0.2.0".to_string()),
         session_id: None,
     };
     kr.route(msg, &ctx).await.unwrap();
@@ -243,7 +243,7 @@ async fn studio_event_fans_out_to_multiple_agents() {
     let ctx = runtime::events::EmitContext {
         caller_kind: runtime::events::CallerKind::Mcp,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
     kr.route(event, &ctx).await.unwrap();
@@ -396,7 +396,7 @@ async fn escalated_progress_event_reaches_push_adapter() {
     let ctx = runtime::events::EmitContext {
         caller_kind: runtime::events::CallerKind::Runtime,
         skill_id: None,
-        workspace_id: Some("feature/arch".to_string()),
+        project_id: Some("feature/arch".to_string()),
         session_id: Some("sess-escalation-test".to_string()),
     };
     kr.route(event, &ctx).await.unwrap();
@@ -455,7 +455,7 @@ async fn agents_auto_register_discover_and_communicate() {
     let ctx = runtime::events::EmitContext {
         caller_kind: runtime::events::CallerKind::Mcp,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
 

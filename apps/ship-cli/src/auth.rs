@@ -172,7 +172,7 @@ fn bind_daemon_owner(token: &str) -> Result<Option<String>> {
     if let Some(ref id) = user_id {
         let value = serde_json::Value::String(id.clone());
         runtime::db::kv::set(
-            shipd::auth::attest::DAEMON_OWNER_NAMESPACE,
+            runtime::db::kv::KvNamespace::AuthDaemonOwner,
             shipd::auth::attest::DAEMON_OWNER_KEY,
             &value,
         )
@@ -323,7 +323,7 @@ pub fn run_logout() -> Result<()> {
     creds.save()?;
     // Clear the daemon-owner binding so the next ship login can bind fresh.
     let _ = runtime::db::kv::delete(
-        shipd::auth::attest::DAEMON_OWNER_NAMESPACE,
+        runtime::db::kv::KvNamespace::AuthDaemonOwner,
         shipd::auth::attest::DAEMON_OWNER_KEY,
     );
     println!("Logged out.");

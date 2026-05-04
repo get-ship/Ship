@@ -40,7 +40,7 @@ fn actor_config(id: &str) -> ActorConfig {
 }
 
 fn cli_ctx() -> EmitContext {
-    EmitContext { caller_kind: CallerKind::Cli, skill_id: None, workspace_id: None, session_id: None }
+    EmitContext { caller_kind: CallerKind::Cli, skill_id: None, project_id: None, session_id: None }
 }
 
 // ── KernelRouter primitives ─────────────────────────────────────────────────

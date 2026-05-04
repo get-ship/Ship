@@ -138,7 +138,7 @@ pub(crate) async fn graceful_shutdown(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {

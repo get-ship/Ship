@@ -68,7 +68,7 @@ pub async fn send_message(
     let ctx = runtime::events::EmitContext {
         caller_kind: runtime::events::CallerKind::Cli,
         skill_id: None,
-        workspace_id: req.workspace_id.clone(),
+        project_id: req.workspace_id.clone(),
         session_id: None,
     };
     if let Err(e) = state.kernel().lock().await.route(envelope, &ctx).await {

@@ -101,7 +101,7 @@ fn make_kernel() -> Arc<Mutex<KernelRouter>> {
 async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, slug: &str) {
     use ship_substrate::events::job::{event_types, JobCreatedPayload, JobDispatchedPayload};
     use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
-    let ctx = EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, workspace_id: None, session_id: None };
+    let ctx = EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, project_id: None, session_id: None };
     let created = JobCreatedPayload {
         job_id: job_id.to_string(),
         slug: slug.to_string(),

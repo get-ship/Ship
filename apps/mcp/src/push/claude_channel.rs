@@ -54,8 +54,8 @@ impl PushAdapter for ClaudeChannelAdapter {
         if let Some(reply_to) = reply_to {
             meta.insert("actor_id".into(), reply_to.into());
         }
-        if let Some(ref workspace_id) = event.workspace_id {
-            meta.insert("workspace_id".into(), workspace_id.clone().into());
+        if let Some(ref project_id) = event.project_id {
+            meta.insert("project_id".into(), project_id.clone().into());
         }
         if let Some(ref session_id) = event.session_id {
             meta.insert("session_id".into(), session_id.clone().into());
@@ -124,7 +124,7 @@ pub fn format_event_content(event: &EventEnvelope, payload: &serde_json::Value) 
         }
         "session.ended" => {
             let summary = payload["summary"].as_str().unwrap_or("no summary");
-            let branch = event.workspace_id.as_deref().unwrap_or("unknown");
+            let branch = event.project_id.as_deref().unwrap_or("unknown");
             format!("Session ended on {branch}: {summary}")
         }
         "workspace.compiled" => {

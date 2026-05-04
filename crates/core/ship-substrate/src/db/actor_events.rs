@@ -18,13 +18,13 @@ use crate::persistence::event_store::{EventStore, SqliteEventStore};
 
 fn emit_actor_event<P: serde::Serialize>(
     actor_id: &str,
-    workspace_id: Option<&str>,
+    project_id: Option<&str>,
     parent_actor_id: Option<&str>,
     event_type: &'static str,
     payload: &P,
 ) -> Result<()> {
     let mut envelope = EventEnvelope::new(event_type, actor_id, payload)?
-        .with_context(workspace_id, None)
+        .with_context(project_id, None)
         .with_actor_id(actor_id)
         .elevate();
     if let Some(parent) = parent_actor_id {
@@ -52,10 +52,10 @@ fn emit_actor_event<P: serde::Serialize>(
 pub fn emit_actor_created(
     actor_id: &str,
     payload: &ActorCreated,
-    workspace_id: Option<&str>,
+    project_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
-    emit_actor_event(actor_id, workspace_id, parent_actor_id, event_types::ACTOR_CREATED, payload)
+    emit_actor_event(actor_id, project_id, parent_actor_id, event_types::ACTOR_CREATED, payload)
 }
 
 /// Convenience wrapper for pipeline / one-shot spawns: builds an `ActorCreated`
@@ -64,7 +64,7 @@ pub fn emit_actor_created(
 pub fn emit_actor_created_simple(
     actor_id: &str,
     kind: &str,
-    workspace_id: Option<&str>,
+    project_id: Option<&str>,
     agent_id: Option<&str>,
     provider: Option<&str>,
     transport: Option<&str>,
@@ -73,7 +73,7 @@ pub fn emit_actor_created_simple(
     let payload = ActorCreated {
         kind: kind.to_string(),
         environment_type: "local".to_string(),
-        workspace_id: workspace_id.map(str::to_string),
+        workspace_id: project_id.map(str::to_string),
         parent_actor_id: parent_actor_id.map(str::to_string),
         restart_count: 0,
         agent_id: agent_id.map(str::to_string),
@@ -84,7 +84,7 @@ pub fn emit_actor_created_simple(
     };
     emit_actor_event(
         actor_id,
-        workspace_id,
+        project_id,
         parent_actor_id,
         event_types::ACTOR_CREATED,
         &payload,
@@ -93,21 +93,21 @@ pub fn emit_actor_created_simple(
 
 pub fn emit_actor_woke(
     id: &str,
-    workspace_id: Option<&str>,
+    project_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
-    emit_actor_event(id, workspace_id, parent_actor_id, event_types::ACTOR_WOKE, &ActorWoke {})
+    emit_actor_event(id, project_id, parent_actor_id, event_types::ACTOR_WOKE, &ActorWoke {})
 }
 
 pub fn emit_actor_slept(
     id: &str,
     idle_secs: u64,
-    workspace_id: Option<&str>,
+    project_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
     emit_actor_event(
         id,
-        workspace_id,
+        project_id,
         parent_actor_id,
         event_types::ACTOR_SLEPT,
         &ActorSlept { idle_secs },
@@ -117,12 +117,12 @@ pub fn emit_actor_slept(
 pub fn emit_actor_stopped(
     id: &str,
     payload: &ActorStopped,
-    workspace_id: Option<&str>,
+    project_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
     emit_actor_event(
         id,
-        workspace_id,
+        project_id,
         parent_actor_id,
         event_types::ACTOR_STOPPED,
         payload,
@@ -133,12 +133,12 @@ pub fn emit_actor_crashed(
     id: &str,
     error: &str,
     restart_count: u32,
-    workspace_id: Option<&str>,
+    project_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
     emit_actor_event(
         id,
-        workspace_id,
+        project_id,
         parent_actor_id,
         event_types::ACTOR_CRASHED,
         &ActorCrashed { error: error.to_string(), restart_count },

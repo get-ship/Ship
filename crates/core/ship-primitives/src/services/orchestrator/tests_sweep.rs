@@ -171,7 +171,7 @@ async fn seed_dispatched_job(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
 
@@ -226,7 +226,7 @@ async fn seed_dispatched_job_with_pipeline(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
 
@@ -308,7 +308,7 @@ async fn seed_failed_job(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
 

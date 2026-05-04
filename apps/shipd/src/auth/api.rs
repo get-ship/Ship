@@ -620,7 +620,7 @@ mod tests {
         };
         let ctx = auth.to_emit_context();
         assert_eq!(ctx.caller_kind, CallerKind::Mcp);
-        assert_eq!(ctx.workspace_id, Some("ws-1".into()));
+        assert_eq!(ctx.project_id, Some("ws-1".into()));
         assert_eq!(ctx.session_id, Some("sess-1".into()));
     }
 

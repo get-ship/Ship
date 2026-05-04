@@ -74,7 +74,7 @@ impl AuthContext {
         runtime::events::EmitContext {
             caller_kind: self.caller_kind.clone(),
             skill_id: None,
-            workspace_id: self.workspace_id.clone(),
+            project_id: self.workspace_id.clone(),
             session_id: self.session_id.clone(),
         }
     }
@@ -94,7 +94,7 @@ impl AuthContext {
         runtime::events::EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            workspace_id: self.workspace_id.clone(),
+            project_id: self.workspace_id.clone(),
             session_id: self.session_id.clone(),
         }
     }

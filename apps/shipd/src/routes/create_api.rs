@@ -140,7 +140,7 @@ pub async fn create_surface(
                 let ctx = runtime::events::EmitContext {
                     caller_kind: runtime::events::CallerKind::Cli,
                     skill_id: None,
-                    workspace_id: None,
+                    project_id: None,
                     session_id: None,
                 };
                 let _ = state.kernel().lock().await.route(envelope, &ctx).await;

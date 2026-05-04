@@ -30,7 +30,7 @@ fn emit_config_event(subject: &str, detail: Option<String>) -> Result<()> {
     let ctx = EmitContext {
         caller_kind: CallerKind::Cli,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
     if let Some(kr) = ship_substrate::events::kernel_router()

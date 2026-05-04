@@ -132,7 +132,7 @@ impl KernelRouter {
             match sub.scope {
                 DeliveryScope::Global => return Some(true),
                 DeliveryScope::Workspace => {
-                    if event.workspace_id.as_deref() == meta.workspace_id.as_deref() {
+                    if event.project_id.as_deref() == meta.workspace_id.as_deref() {
                         return Some(true);
                     }
                 }

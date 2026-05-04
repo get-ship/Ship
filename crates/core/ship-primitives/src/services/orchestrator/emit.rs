@@ -333,7 +333,7 @@ pub async fn persist_and_route(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: envelope.workspace_id.clone(),
+        project_id: envelope.project_id.clone(),
         session_id: envelope.session_id.clone(),
     };
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {

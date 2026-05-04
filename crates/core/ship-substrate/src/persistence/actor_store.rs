@@ -18,7 +18,7 @@ use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
 
 const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-    causation_id, workspace_id, session_id, \
+    causation_id, project_id, session_id, \
     actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
 /// A scoped event handle bound to a single actor's SQLite DB.
@@ -151,7 +151,7 @@ pub(crate) fn raw_append(db_path: &Path, event: &EventEnvelope) -> Result<()> {
         sqlx::query(
             "INSERT INTO events \
              (id, event_type, entity_id, actor, payload_json, version, \
-              causation_id, workspace_id, session_id, \
+              causation_id, project_id, session_id, \
               actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
@@ -162,7 +162,7 @@ pub(crate) fn raw_append(db_path: &Path, event: &EventEnvelope) -> Result<()> {
         .bind(&event.payload_json)
         .bind(event.version as i64)
         .bind(&event.causation_id)
-        .bind(&event.workspace_id)
+        .bind(&event.project_id)
         .bind(&event.session_id)
         .bind(&event.actor_id)
         .bind(&event.parent_actor_id)
@@ -186,8 +186,8 @@ fn query_db(db_path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>> 
     if let Some(ref v) = filter.event_type {
         qb.push(" AND event_type = ").push_bind(v.clone());
     }
-    if let Some(ref v) = filter.workspace_id {
-        qb.push(" AND workspace_id = ").push_bind(v.clone());
+    if let Some(ref v) = filter.project_id {
+        qb.push(" AND project_id = ").push_bind(v.clone());
     }
     if let Some(ref v) = filter.session_id {
         qb.push(" AND session_id = ").push_bind(v.clone());

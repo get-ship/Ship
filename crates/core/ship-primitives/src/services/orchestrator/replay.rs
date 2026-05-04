@@ -249,7 +249,7 @@ async fn emit_step_failed(
     let ctx = ship_substrate::events::EmitContext {
         caller_kind: ship_substrate::events::CallerKind::Runtime,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
     if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {

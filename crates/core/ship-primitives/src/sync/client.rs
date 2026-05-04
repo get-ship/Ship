@@ -129,7 +129,7 @@ mod tests {
             payload_json: "{}".to_string(),
             version: 1,
             causation_id: None,
-            workspace_id: Some("ws-1".to_string()),
+            project_id: Some("ws-1".to_string()),
             session_id: None,
             actor_id: None,
             parent_actor_id: None,

@@ -75,7 +75,7 @@ async fn sse_delivers_routed_event_to_registered_agent() {
         let ctx = runtime::events::EmitContext {
             caller_kind: runtime::events::CallerKind::Mcp,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         };
         daemon.kernel.lock().await.emit(envelope, &ctx).await.unwrap();
@@ -358,7 +358,7 @@ async fn broadcast_routes_to_subscribed_actors() {
     let ctx = runtime::events::EmitContext {
         caller_kind: runtime::events::CallerKind::Mcp,
         skill_id: None,
-        workspace_id: None,
+        project_id: None,
         session_id: None,
     };
     kernel.emit(ev.clone(), &ctx).await.unwrap();

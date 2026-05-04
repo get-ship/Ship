@@ -161,7 +161,7 @@ impl Drop for ConnectionGuard {
                 let ctx = runtime::events::EmitContext {
                     caller_kind: runtime::events::CallerKind::Mcp,
                     skill_id: None,
-                    workspace_id: None,
+                    project_id: None,
                     session_id: None,
                 };
                 if let Err(e) = kernel.lock().await.emit(env, &ctx).await {
@@ -221,7 +221,7 @@ pub async fn spawn_mesh_service(
         let ctx = runtime::events::EmitContext {
             caller_kind: runtime::events::CallerKind::Mcp,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         };
         while let Some(event) = outbox_rx.recv().await {

@@ -134,7 +134,7 @@ mod tests {
         EmitContext {
             caller_kind: kind,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         }
     }

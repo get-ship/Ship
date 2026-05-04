@@ -27,7 +27,7 @@ pub struct EventEnvelope {
     pub payload_json: String,
     pub version: u32,
     pub causation_id: Option<String>,
-    pub workspace_id: Option<String>,
+    pub project_id: Option<String>,
     pub session_id: Option<String>,
     pub actor_id: Option<String>,
     pub parent_actor_id: Option<String>,
@@ -51,7 +51,7 @@ impl EventEnvelope {
             payload_json,
             version: 1,
             causation_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
             actor_id: None,
             parent_actor_id: None,
@@ -66,8 +66,8 @@ impl EventEnvelope {
         self
     }
 
-    pub fn with_context(mut self, workspace_id: Option<&str>, session_id: Option<&str>) -> Self {
-        self.workspace_id = workspace_id.map(str::to_string);
+    pub fn with_context(mut self, project_id: Option<&str>, session_id: Option<&str>) -> Self {
+        self.project_id = project_id.map(str::to_string);
         self.session_id = session_id.map(str::to_string);
         self
     }

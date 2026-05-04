@@ -8,7 +8,7 @@ use crate::db::{block_on, db_path, ensure_db, open_db_at};
 use ship_types::envelope::EventEnvelope;
 
 const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
-    causation_id, workspace_id, session_id, \
+    causation_id, project_id, session_id, \
     actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
 pub fn list_all_events() -> Result<Vec<EventEnvelope>> {

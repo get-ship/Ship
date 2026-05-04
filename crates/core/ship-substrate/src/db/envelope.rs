@@ -20,7 +20,7 @@ pub fn envelope_from_row(
     has_target_actor: bool,
 ) -> Result<EventEnvelope> {
     // Columns: id(0) event_type(1) entity_id(2) actor(3) payload_json(4) version(5)
-    //          causation_id(6) workspace_id(7) session_id(8)
+    //          causation_id(6) project_id(7) session_id(8)
     //          actor_id(9) parent_actor_id(10) elevated(11) created_at(12)
     //          [target_actor_id(13)]
     let created_at_str: String = row.get(12);
@@ -46,7 +46,7 @@ pub fn envelope_from_row(
         payload_json: row.get(4),
         version: row.get::<i64, _>(5) as u32,
         causation_id: row.get(6),
-        workspace_id: row.get(7),
+        project_id: row.get(7),
         session_id: row.get(8),
         actor_id: row.get(9),
         parent_actor_id: row.get(10),

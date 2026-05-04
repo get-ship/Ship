@@ -75,7 +75,7 @@ CREATE TABLE IF NOT EXISTS events (
   payload_json     TEXT NOT NULL DEFAULT '{}',
   version          INTEGER NOT NULL DEFAULT 1,
   causation_id     TEXT,
-  workspace_id     TEXT,
+  project_id       TEXT,
   session_id       TEXT,
   actor_id         TEXT,
   parent_actor_id  TEXT,
@@ -86,7 +86,7 @@ CREATE TABLE IF NOT EXISTS events (
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_events_entity    ON events(entity_id, event_type);
-CREATE INDEX IF NOT EXISTS idx_events_workspace ON events(workspace_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_project ON events(project_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_events_session   ON events(session_id);
 CREATE INDEX IF NOT EXISTS idx_events_actor     ON events(actor_id, elevated);
 CREATE INDEX IF NOT EXISTS idx_events_job       ON events(job_id);

@@ -14,7 +14,7 @@ export function makeEvent(overrides: Partial<EventEnvelope> = {}): EventEnvelope
     payload_json: JSON.stringify({ name: 'test-actor' }),
     version: 1,
     causation_id: null,
-    workspace_id: null,
+    project_id: null,
     session_id: null,
     actor_id: null,
     parent_actor_id: null,

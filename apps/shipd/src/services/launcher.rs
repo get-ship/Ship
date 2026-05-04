@@ -87,7 +87,7 @@ pub async fn launch_collection_item(
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: envelope.workspace_id.clone(),
+        project_id: envelope.project_id.clone(),
         session_id: envelope.session_id.clone(),
     };
     kernel

@@ -295,7 +295,7 @@ pub async fn emit_event(
         runtime::events::EmitContext {
             caller_kind: runtime::events::CallerKind::Cli,
             skill_id: None,
-            workspace_id: body.workspace_id.clone(),
+            project_id: body.workspace_id.clone(),
             session_id: None,
         }
     };

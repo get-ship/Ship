@@ -57,7 +57,7 @@ pub fn set_category_committed(project_dir: &Path, category: &str, commit: bool) 
         let ctx = EmitContext {
             caller_kind: CallerKind::Cli,
             skill_id: None,
-            workspace_id: None,
+            project_id: None,
             session_id: None,
         };
         if let Some(kr) = ship_substrate::events::kernel_router()

@@ -650,7 +650,7 @@ impl ShipRuntime {
         let ctx = EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            workspace_id: envelope.workspace_id.clone(),
+            project_id: envelope.project_id.clone(),
             session_id: envelope.session_id.clone(),
         };
         self.kernel
@@ -822,7 +822,7 @@ impl ShipRuntime {
             let ctx = EmitContext {
                 caller_kind: CallerKind::Runtime,
                 skill_id: None,
-                workspace_id: None,
+                project_id: None,
                 session_id: None,
             };
             let kernel = self.kernel.clone();

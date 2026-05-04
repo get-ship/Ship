@@ -39,6 +39,9 @@ pub enum KvNamespace {
     McpManaged,
     /// Project registry — daemon's record of seen project paths
     Project,
+    /// Per-project CLI state (active_agent, compiled_at, plugins_installed).
+    /// Inner = stable hex hash of canonical ship_dir path.
+    CliProjectState(String),
 }
 
 impl KvNamespace {
@@ -56,6 +59,7 @@ impl KvNamespace {
             Self::ProjectConfig(s)     => s.as_str().into(),
             Self::McpManaged           => "mcp.managed".into(),
             Self::Project              => "project".into(),
+            Self::CliProjectState(h)   => format!("workspace:{h}").into(),
         }
     }
 }
