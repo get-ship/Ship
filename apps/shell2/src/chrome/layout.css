@@ -1,7 +1,10 @@
-/* Shell 2.0 chrome layout — minimal top bar + content area. */
+/* Shell 2.0 chrome layout — top bar + rail + content + status bar. */
 
 :root {
   --ship-top-bar-h: 40px;
+  --ship-status-bar-h: 24px;
+  --ship-rail-w: 200px;
+  --ship-rail-w-collapsed: 48px;
 }
 
 html, body {
@@ -13,13 +16,22 @@ html, body {
   font-family: var(--font-body, system-ui, sans-serif);
 }
 
+/* Four-area chrome grid:
+     cols: [rail] [content]
+     rows: [top-bar] [main] [status-bar]
+   Top bar and status bar span full width (1/-1).
+   Rail sits in row 2, col 1. Content in row 2, col 2. */
 #ship-app {
   display: grid;
-  grid-template-rows: var(--ship-top-bar-h) 1fr;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: var(--ship-top-bar-h) 1fr var(--ship-status-bar-h);
   height: 100vh;
+  overflow: hidden;
 }
 
 .ship-top-bar {
+  grid-column: 1 / -1;
+  grid-row: 1;
   display: flex;
   align-items: center;
   gap: var(--space-3, 12px);
@@ -28,6 +40,31 @@ html, body {
   border-bottom: 1px solid var(--border, #e5e5e5);
   background: var(--muted, #f6f6f6);
   font-size: var(--text-sm, 13px);
+}
+
+#ship-rail {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.ship-content {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  background: var(--background, #fff);
+}
+
+.ship-content > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+#ship-status-bar {
+  grid-column: 1 / -1;
+  grid-row: 3;
 }
 
 .ship-brand-mark {
@@ -66,19 +103,6 @@ html, body {
 
 .ship-theme-toggle:hover {
   background: var(--muted, #f0f0f0);
-}
-
-.ship-content {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  overflow: auto;
-  background: var(--background, #fff);
-}
-
-.ship-content > * {
-  flex: 1 1 auto;
-  min-height: 0;
 }
 
 .shell-error {
