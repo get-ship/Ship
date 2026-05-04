@@ -35,7 +35,7 @@ export default controller<Scope>({
     if (!host.hasAttribute('aria-live')) host.setAttribute('aria-live', 'polite')
 
     const slotVersion = signal(0)
-    const defaultSlotEl = (scope as unknown as Record<string, () => unknown>).defaultSlotEl?.() as HTMLSlotElement | null
+    const defaultSlotEl = scope.defaultSlotEl()
 
     const getToasts = (): HTMLElement[] => {
       if (defaultSlotEl) {

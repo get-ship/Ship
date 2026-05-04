@@ -108,7 +108,7 @@ export default controller<Scope>({
     const hasSlottedIcon = signal(false)
     let autoIconSvg: SVGSVGElement | null = null
 
-    const iconSlotEl = (scope as unknown as Record<string, () => unknown>).iconSlotEl?.() as HTMLSlotElement | null
+    const iconSlotEl = scope.iconSlotEl()
     if (iconSlotEl) {
       autoIconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement
       autoIconSvg.setAttribute('viewBox', '0 0 24 24')
@@ -131,8 +131,8 @@ export default controller<Scope>({
     }
 
     // Slot detection for title and actions
-    const titleSlotEl = (scope as unknown as Record<string, () => unknown>).titleSlotEl?.() as HTMLSlotElement | null
-    const actionsSlotEl = (scope as unknown as Record<string, () => unknown>).actionsSlotEl?.() as HTMLSlotElement | null
+    const titleSlotEl = scope.titleSlotEl()
+    const actionsSlotEl = scope.actionsSlotEl()
 
     if (titleSlotEl) {
       const onTitleChange = () => {
@@ -180,7 +180,7 @@ export default controller<Scope>({
 
     // Close button click — re-query inside effect since the button is conditional
     const stopCloseEffect = effect(() => {
-      const btn = (scope as unknown as Record<string, () => unknown>).closeBtn?.() as HTMLButtonElement | null
+      const btn = scope.closeBtn()
       if (!btn) return
       const onClick = () => dismiss('manual')
       btn.addEventListener('click', onClick)
