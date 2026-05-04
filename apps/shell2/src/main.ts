@@ -9,7 +9,7 @@
 //   3. mount(content, payload) → MountHandle.
 //   4. On internal anchor clicks → history.pushState + re-mount.
 //   5. On popstate → re-mount.
-//   6. Theme toggle: flip data-theme on <html>.
+//   6. Theme: <sui-theme-picker> owns it (mounted in the top bar).
 //
 // No daemon dependency beyond the F1 contract: /_sui/views/* JSON +
 // /_sui/{runtime,dom,sdk-client,components}.js. Daemon-coupled SUI
@@ -146,19 +146,10 @@ function readRouteFromUrl(pathname: string): Route | null {
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
-// ── Theme toggle ────────────────────────────────────────────────────
-
-function toggleTheme(): void {
-  const cur = document.documentElement.dataset.theme === 'ship-dark' ? 'ship-light' : 'ship-dark'
-  document.documentElement.dataset.theme = cur
-  try { localStorage.setItem('ship-theme', cur) } catch { /* private mode */ }
-}
-
-function restoreTheme(): void {
-  let saved: string | null = null
-  try { saved = localStorage.getItem('ship-theme') } catch { /* ignore */ }
-  document.documentElement.dataset.theme = saved ?? 'ship-light'
-}
+// Theme is owned by <sui-theme-picker>. The picker reads the persisted
+// theme from localStorage and calls applyTheme() on mount, which sets
+// data-theme + the canonical .dark class on <html>. No shell-side
+// scaffolding needed beyond mounting the picker in the top bar.
 
 // ── Toast bridge ────────────────────────────────────────────────────
 
@@ -220,8 +211,6 @@ function dispatchDemoToast(): void {
 
 // ── Boot ────────────────────────────────────────────────────────────
 
-restoreTheme()
-document.getElementById('ship-theme-toggle')?.addEventListener('click', toggleTheme)
 document.getElementById('ship-notify-btn')?.addEventListener('click', dispatchDemoToast)
 document.addEventListener('click', onAnchorClick)
 window.addEventListener('popstate', () => {

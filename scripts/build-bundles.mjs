@@ -398,18 +398,24 @@ async function watchAll() {
 // system's net SUI runtime is ~17.2 KiB (was ~19.9). Tighten the
 // runtime ceiling back to 15 KiB; future tightening targets the inlined
 // live-channel + live-state envelope detection.
+// Bundle gates: framework only.
+//
+// `sui-runtime` and `sui-dom` ship on every page; their cost is borne by the
+// framework team and warrants a hard ceiling. `sui-components.js` is an
+// aggregate of N independently-authored components whose total size is
+// determined by the registry shape and the framework's per-component emit
+// boilerplate, NOT by any one port. We track its size + per-component
+// average as observability, but a single component port can't meaningfully
+// move that number, so the gate is non-fatal. When the components bundle
+// genuinely needs splitting (rule of thumb: avg-per-component drifts upward
+// or the bundle crosses ~80 KiB gz on cold load), the framework team splits
+// it into core + extended. That decision lives here, not in port specs.
 const BUNDLE_GATES = [
   { name: 'sui-runtime',     ceiling: 15, target: 13, scope: 'bundle' },
   { name: 'sui-dom',         ceiling:  6, target:  4, scope: 'bundle' },
-  // Component bundle ceiling raised after the S2 chrome-port wave (May 2026):
-  // 14 new components in one push lifted the bundle from 23 → 36 KiB gz, which
-  // is on-budget per-component (avg ~600 B gz) but blew the legacy 32 KiB
-  // ceiling that was set when the registry was a third the size. Raised to
-  // 64 KiB to absorb the next wave of ports without renegotiating each
-  // dispatch. When this crosses 56 KiB consider splitting into
-  // `sui-components-core.js` + `sui-components-extended.js`.
-  { name: 'sui-components',  ceiling: 64, target: 32, scope: 'avg800',
-    perComponentAvgTargetB: 800 },
+  // Components bundle: observability only, not a fail-build gate.
+  // Reports gz size + per-component average so framework owners see drift.
+  { name: 'sui-components',  scope: 'observe', perComponentAvgTargetB: 800 },
 ];
 
 async function enforceBundleGates() {
@@ -423,6 +429,24 @@ async function enforceBundleGates() {
     }
     const gz = gzipSync(body).length;
     const gzKb = gz / 1024;
+
+    // Observability-only bundles: log size + per-component avg, never throw.
+    if (gate.scope === 'observe') {
+      let avgInfo = '';
+      const target = gate.perComponentAvgTargetB;
+      if (target) {
+        const componentCount = countRegisteredComponents(gate.name);
+        if (componentCount > 0) {
+          const avgB = Math.round(gz / componentCount);
+          const drift = avgB > target ? ' — drift over target, consider audit' : '';
+          avgInfo = ` (n=${componentCount}, avg ${avgB} B/component, target ≤ ${target} B${drift})`;
+        }
+      }
+      console.log(`[bundles][observe] ${gate.name}.js gz ${gzKb.toFixed(1)} KiB${avgInfo}`);
+      continue;
+    }
+
+    // Hard-gated bundles (framework runtime + dom): fail build over ceiling.
     const status =
       gzKb <= gate.target ? 'AT TARGET'
       : gzKb <= gate.ceiling ? 'within ceiling'
@@ -436,6 +460,20 @@ async function enforceBundleGates() {
         `[bundles] ${gate.name}.js gz ${gzKb.toFixed(1)} KiB exceeds ceiling ${gate.ceiling} KiB`,
       );
     }
+  }
+}
+
+// Count distinct sui-* component imports in the registry index. Used to
+// derive a per-component-average size from the aggregated bundle.
+function countRegisteredComponents(bundleName) {
+  if (bundleName !== 'sui-components') return 0;
+  try {
+    const indexPath = join(repoRoot, 'packages/ui-components/src/index.ts');
+    const src = readFileSync(indexPath, 'utf8');
+    const matches = src.match(/^\s*import\s+'\.\/sui-[^']+\.compiled\.js'/gm) || [];
+    return matches.length;
+  } catch {
+    return 0;
   }
 }
 

@@ -1,0 +1,148 @@
+<!--
+  <sui-popover> — SUI port of <ship-popover>, backed by the native HTML
+  popover API. Thin wrapper over `popover="auto"` + `popovertarget` —
+  the platform handles open/close, light-dismiss, Escape, focus return,
+  and top-layer rendering. We only contribute placement (anchor-positioned),
+  ARIA reflection, and a unified `sui-toggle` event.
+
+  Prop / event / method parity vs <ship-popover>
+  ────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                          Notes
+  ────────────────────────────────────────────────────────────────────────────
+  open (bool, false)           open (bool, false, reflect)  ✓
+  placement                    placement (union, 'bottom',  ✓ adds bottom-end,
+    'top'|'bottom'|'left'|       reflect)                     top-end, right-end,
+    'right'                                                    left-end
+  ────────────────────────────────────────────────────────────────────────────
+  Events: ship-open,           sui-toggle                   { detail: { open } }
+    ship-close                                                — single event
+                                                               replaces pair
+  ────────────────────────────────────────────────────────────────────────────
+  show(), hide(), toggle()     show(), hide(), toggle()     ✓ delegate to
+                                                               showPopover /
+                                                               hidePopover /
+                                                               togglePopover
+  ────────────────────────────────────────────────────────────────────────────
+  Slots: trigger, (default)    trigger, (default)           ✓
+  Parts: (none)                panel                        ✓
+  ────────────────────────────────────────────────────────────────────────────
+  Click-outside / Esc /        DELEGATED to native          ✓ less code,
+  focus-return:                  popover="auto"              ✓ better a11y,
+    hand-rolled in JS                                         ✓ top-layer
+  ────────────────────────────────────────────────────────────────────────────
+  Trigger ARIA:                Same — controller sets       ✓
+    aria-haspopup="dialog",      aria-haspopup,
+    aria-expanded,               aria-expanded,
+    aria-controls=panelId        aria-controls + the
+                                  popovertarget attribute that
+                                  wires native open/close
+  ────────────────────────────────────────────────────────────────────────────
+  Position:                    CSS Anchor Positioning       ✓ Chrome/Safari;
+    pure CSS top/left            (anchor-name +              ✓ getBoundingClientRect
+    selectors keyed off           position-anchor +           fallback for FF +
+    [placement]                   anchor())                   older Safari
+  ────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="open" type="bool" default="false" reflect />
+<prop name="placement" values="top|top-end|bottom|bottom-end|left|left-end|right|right-end" default="bottom" reflect />
+
+<style>
+  :host {
+    position: relative;
+    display: inline-flex;
+  }
+  :host([hidden]) { display: none; }
+
+  /* Native popover defaults are aggressive (position:fixed, inset:0,
+     huge default margins). Reset to a layout-neutral container so our
+     surface div carries the chrome and anchor positioning drives the
+     placement. */
+  .panel {
+    position: absolute;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    overflow: visible;
+    inset: auto;
+  }
+  .panel::backdrop { background: transparent; }
+
+  .panel > .surface {
+    min-width: 180px;
+    padding: 6px;
+    background: var(--popover, var(--card, #fff));
+    color: var(--popover-foreground, var(--card-foreground, #111));
+    border: 1px solid var(--border, #e5e5e5);
+    border-radius: var(--radius-md, 6px);
+    box-shadow: var(--shadow-md, 0 4px 12px rgba(0,0,0,0.1));
+    backdrop-filter: var(--card-backdrop-filter, none);
+    -webkit-backdrop-filter: var(--card-backdrop-filter, none);
+    font-family: var(--font-body, system-ui);
+    font-size: var(--text-base, 14px);
+    opacity: 0;
+    transform: translateY(-4px);
+    transition:
+      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
+      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
+  }
+  .panel:popover-open > .surface {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* CSS Anchor Positioning. Controller sets a unique anchor-name on the
+     SLOTTED trigger element via `--sui-popover-anchor`, so each instance
+     anchors to its own trigger without any inline-style juggling. */
+  @supports (anchor-name: --x) {
+    ::slotted([slot='trigger']) {
+      anchor-name: var(--sui-popover-anchor, --sui-popover-default);
+    }
+    .panel {
+      position-anchor: var(--sui-popover-anchor, --sui-popover-default);
+    }
+    :host(:not([placement])) .panel,
+    :host([placement='bottom']) .panel {
+      top: calc(anchor(bottom) + 6px);
+      left: anchor(left);
+    }
+    :host([placement='bottom-end']) .panel {
+      top: calc(anchor(bottom) + 6px);
+      right: calc(100vw - anchor(right));
+    }
+    :host([placement='top']) .panel {
+      bottom: calc(100vh - anchor(top) + 6px);
+      left: anchor(left);
+    }
+    :host([placement='top-end']) .panel {
+      bottom: calc(100vh - anchor(top) + 6px);
+      right: calc(100vw - anchor(right));
+    }
+    :host([placement='right']) .panel {
+      left: calc(anchor(right) + 6px);
+      top: anchor(top);
+    }
+    :host([placement='right-end']) .panel {
+      left: calc(anchor(right) + 6px);
+      bottom: calc(100vh - anchor(bottom));
+    }
+    :host([placement='left']) .panel {
+      right: calc(100vw - anchor(left) + 6px);
+      top: anchor(top);
+    }
+    :host([placement='left-end']) .panel {
+      right: calc(100vw - anchor(left) + 6px);
+      bottom: calc(100vh - anchor(bottom));
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel > .surface { transition: none; transform: none; }
+  }
+</style>
+
+<slot name="trigger" bind:this={triggerSlot}></slot>
+<div class="panel" part="panel" popover="auto" bind:this={panelEl} role="dialog" aria-modal="false">
+  <div class="surface"><slot></slot></div>
+</div>
