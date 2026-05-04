@@ -160,10 +160,16 @@ docs-regen:
 docs-check-drift:
     cd apps/docs && pnpm run docs:check-drift
 
-# Frontend dev server (Vite). Daemon must be running separately.
+# Frontend dev server (Vite) — legacy Lit shell. Daemon must be running.
 [group('occasional')]
 shell-dev:
     pnpm --filter shell dev
+
+# Frontend dev server (Vite) — SUI-native shell (S1+). Daemon must be running.
+# Runs at http://127.0.0.1:3200 (offset by daemon port for parallel worktrees).
+[group('occasional')]
+shell2-dev:
+    pnpm --filter shell2 dev
 
 # Build CLI + MCP + shipd (unstable dev build).
 [group('occasional')]

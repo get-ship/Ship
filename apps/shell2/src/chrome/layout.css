@@ -1,0 +1,108 @@
+/* Shell 2.0 chrome layout — minimal top bar + content area. */
+
+:root {
+  --ship-top-bar-h: 40px;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--background, #fff);
+  color: var(--foreground, #111);
+  font-family: var(--font-body, system-ui, sans-serif);
+}
+
+#ship-app {
+  display: grid;
+  grid-template-rows: var(--ship-top-bar-h) 1fr;
+  height: 100vh;
+}
+
+.ship-top-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  height: var(--ship-top-bar-h);
+  padding: 0 var(--space-4, 16px);
+  border-bottom: 1px solid var(--border, #e5e5e5);
+  background: var(--muted, #f6f6f6);
+  font-size: var(--text-sm, 13px);
+}
+
+.ship-brand-mark {
+  font-size: 18px;
+  color: var(--primary, #c46);
+  line-height: 1;
+}
+
+.ship-brand-title {
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.ship-top-nav {
+  flex: 1;
+  display: flex;
+  gap: var(--space-2, 8px);
+  align-items: center;
+}
+
+.ship-theme-toggle {
+  appearance: none;
+  border: 1px solid var(--border, #e5e5e5);
+  background: var(--background, #fff);
+  color: var(--foreground, #111);
+  font: inherit;
+  font-size: 13px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md, 6px);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ship-theme-toggle:hover {
+  background: var(--muted, #f0f0f0);
+}
+
+.ship-content {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+  background: var(--background, #fff);
+}
+
+.ship-content > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.shell-error {
+  padding: 2rem;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  color: var(--destructive-foreground, #fff);
+  background: var(--destructive, #c33);
+  white-space: pre-wrap;
+}
+
+.shell-empty {
+  padding: 2rem;
+  text-align: center;
+  color: var(--muted-foreground, #666);
+}
+.shell-empty h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  color: var(--foreground, #111);
+}
+.shell-empty a {
+  color: var(--primary, #c46);
+  text-decoration: none;
+}
+.shell-empty a:hover {
+  text-decoration: underline;
+}

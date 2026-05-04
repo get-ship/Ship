@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ship</title>
+
+  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
+  <link rel="stylesheet" href="/src/chrome/layout.css" />
+
+  <!-- Importmap MUST come before any module script — browsers freeze it
+       at first module fetch. Vite's HMR client injects module scripts
+       early, so the importmap lives at the very top to win the race. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@ship/ui-runtime":    "/_sui/runtime.js",
+        "@ship/ui-dom":        "/_sui/dom.js",
+        "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+      }
+    }
+  </script>
+
+  <!-- Components.js side-effect import — registers <sui-*> custom elements
+       before any view template tries to instantiate one. Loaded via
+       runtime IIFE so Vite's import-analysis doesn't try to resolve it
+       as a local module. -->
+  <script>
+    (function () {
+      var s = document.createElement('script');
+      s.type = 'module';
+      s.src = '/_sui/components.js';
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <!-- Bootstrap @ship/ui-runtime onto window before main.ts runs. The
+       IIFE-injected script is opaque to Vite's import-analysis (which
+       would otherwise rewrite the bare specifier or append `?import`,
+       creating a SECOND runtime instance separate from the one compiled
+       view modules import). The browser's importmap resolves the bare
+       specifier to /_sui/runtime.js — same URL view modules use — so
+       all SUI code shares ONE runtime universe.
+
+       `window.__suiRuntimeReady` is the gate main.ts awaits before
+       calling mount(). Same pattern as apps/shell. -->
+  <script>
+    (function () {
+      window.__suiRuntimeReady = new Promise(function (res) {
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.textContent =
+          "import * as r from '@ship/ui-runtime'; window.__suiRuntime = r; window.dispatchEvent(new Event('sui-runtime-ready'));";
+        document.head.appendChild(s);
+        window.addEventListener('sui-runtime-ready', function () { res(window.__suiRuntime); }, { once: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+  <div id="ship-app">
+    <header class="ship-top-bar" data-shell="top-bar">
+      <span class="ship-brand-mark" aria-hidden="true">◐</span>
+      <span class="ship-brand-title">Ship</span>
+      <nav class="ship-top-nav" id="ship-top-nav"></nav>
+      <button id="ship-theme-toggle" class="ship-theme-toggle" type="button" title="Toggle theme">◐</button>
+    </header>
+    <main id="ship-content" class="ship-content"></main>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
