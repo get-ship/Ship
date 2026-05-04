@@ -28,5 +28,10 @@ import './sui-tab/sui-tab.compiled.js'
 import './sui-empty-state/sui-empty-state.compiled.js'
 import './sui-input/sui-input.compiled.js'
 import './sui-icon/sui-icon.compiled.js'
+import './sui-separator/sui-separator.compiled.js'
+import './sui-label/sui-label.compiled.js'
+import './sui-alert/sui-alert.compiled.js'
+import './sui-tooltip/sui-tooltip.compiled.js'
+import './sui-collapsible/sui-collapsible.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.
