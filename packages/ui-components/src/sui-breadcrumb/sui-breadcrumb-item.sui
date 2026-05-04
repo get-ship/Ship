@@ -1,24 +1,24 @@
 <!--
   <sui-breadcrumb-item> — co-located child element for <sui-breadcrumb>.
-  Renders a link when href is set (and current is not); otherwise a span.
+  Renders a link when href is set (and active is not); otherwise a span.
 
   Prop parity vs <ship-breadcrumb-item>
   ──────────────────────────────────────────────────────────────
   Lit              SUI               Notes
   ──────────────────────────────────────────────────────────────
   href (String)    href (string, '')  ✓ reflect
-  active (bool)    current (bool)     Renamed for clarity; reflects
+  active (bool)    active (bool)      ✓ reflect (parity)
   ──────────────────────────────────────────────────────────────
   parts: link      link               ✓
          label     label              ✓
   ──────────────────────────────────────────────────────────────
   ARIA: aria-current="page" on      ✓
-    active/current item span
+    active item span
   ──────────────────────────────────────────────────────────────
 -->
 
 <prop name="href" type="string" default="" reflect />
-<prop name="current" type="bool" default="false" reflect />
+<prop name="active" type="bool" default="false" reflect />
 
 <style>
   :host {
@@ -29,7 +29,7 @@
     line-height: var(--leading-normal);
     color: var(--muted-foreground);
   }
-  :host([current]) {
+  :host([active]) {
     color: var(--foreground);
     font-weight: var(--font-weight-medium);
   }
@@ -49,8 +49,8 @@
   }
 </style>
 
-{#if href() && !current()}
+{#if href() && !active()}
   <a href={href()} part="link"><slot></slot></a>
 {:else}
-  <span class="label" part="label" aria-current={current() ? 'page' : 'false'}><slot></slot></span>
+  <span class="label" part="label" aria-current={active() ? 'page' : 'false'}><slot></slot></span>
 {/if}

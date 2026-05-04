@@ -32,7 +32,7 @@ describe('<sui-breadcrumb>', () => {
     const el = mountBreadcrumb(`
       <sui-breadcrumb-item href="/">Home</sui-breadcrumb-item>
       <sui-breadcrumb-item href="/a">A</sui-breadcrumb-item>
-      <sui-breadcrumb-item current>B</sui-breadcrumb-item>
+      <sui-breadcrumb-item active>B</sui-breadcrumb-item>
     `)
     await flush()
     const seps = shadow(el).querySelectorAll('.sep')
@@ -116,7 +116,7 @@ describe('<sui-breadcrumb-item>', () => {
     expect(shadow(el).querySelector('a')).toBeNull()
   })
 
-  it('renders an <a> when href is provided and current is not set', () => {
+  it('renders an <a> when href is provided and active is not set', () => {
     const { el } = mount(reg, 'sui-breadcrumb-item', { href: '/page' }, 'Page')
     const link = shadow(el).querySelector('a')
     expect(link).not.toBeNull()
@@ -124,15 +124,15 @@ describe('<sui-breadcrumb-item>', () => {
     expect(link!.getAttribute('part')).toBe('link')
   })
 
-  it('renders a <span> (not <a>) when current is set, even with href', () => {
-    const { el } = mount(reg, 'sui-breadcrumb-item', { href: '/page', current: true }, 'Page')
+  it('renders a <span> (not <a>) when active is set, even with href', () => {
+    const { el } = mount(reg, 'sui-breadcrumb-item', { href: '/page', active: true }, 'Page')
     expect(shadow(el).querySelector('a')).toBeNull()
     const span = shadow(el).querySelector('.label')
     expect(span).not.toBeNull()
   })
 
   it('active item span has aria-current="page"', () => {
-    const { el } = mount(reg, 'sui-breadcrumb-item', { current: true }, 'Current')
+    const { el } = mount(reg, 'sui-breadcrumb-item', { active: true }, 'Current')
     const span = shadow(el).querySelector('.label')!
     expect(span.getAttribute('aria-current')).toBe('page')
   })
@@ -158,15 +158,15 @@ describe('<sui-breadcrumb-item>', () => {
     expect(el.getAttribute('href')).toBe('/about')
   })
 
-  it('current reflects to host attribute', () => {
-    const { el } = mount(reg, 'sui-breadcrumb-item', { current: true })
-    expect(el.hasAttribute('current')).toBe(true)
+  it('active reflects to host attribute', () => {
+    const { el } = mount(reg, 'sui-breadcrumb-item', { active: true })
+    expect(el.hasAttribute('active')).toBe(true)
   })
 
-  it('toggling current updates the rendered element type', async () => {
+  it('toggling active updates the rendered element type', async () => {
     const { el } = mount(reg, 'sui-breadcrumb-item', { href: '/page' }, 'Page')
     expect(shadow(el).querySelector('a')).not.toBeNull()
-    el.setAttribute('current', '')
+    el.setAttribute('active', '')
     await flush()
     expect(shadow(el).querySelector('a')).toBeNull()
     expect(shadow(el).querySelector('.label')).not.toBeNull()
@@ -179,7 +179,7 @@ describe('<sui-breadcrumb> + <sui-breadcrumb-item> integration', () => {
   it('separator is hidden from AT (aria-hidden)', async () => {
     const el = mountBreadcrumb(`
       <sui-breadcrumb-item href="/">Home</sui-breadcrumb-item>
-      <sui-breadcrumb-item current>Page</sui-breadcrumb-item>
+      <sui-breadcrumb-item active>Page</sui-breadcrumb-item>
     `)
     await flush()
     const seps = shadow(el).querySelectorAll('.sep')
@@ -192,7 +192,7 @@ describe('<sui-breadcrumb> + <sui-breadcrumb-item> integration', () => {
     const el = mountBreadcrumb(`
       <sui-breadcrumb-item href="/">Home</sui-breadcrumb-item>
       <sui-breadcrumb-item href="/a">A</sui-breadcrumb-item>
-      <sui-breadcrumb-item current>Active</sui-breadcrumb-item>
+      <sui-breadcrumb-item active>Active</sui-breadcrumb-item>
     `)
     await flush()
     const items = el.querySelectorAll('sui-breadcrumb-item')
