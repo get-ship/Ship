@@ -324,12 +324,22 @@ function getDock(): PanelDock | null {
 
 // ── Keyboard map ────────────────────────────────────────────────────
 //
-// ⌘K/Ctrl+K  → command-bar toggle   (deferred: sui-command-bar not yet landed)
-// ⌘P/Ctrl+P  → command-bar search   (deferred: sui-command-bar not yet landed)
+// ⌘K/Ctrl+K  → command-bar toggle (find mode)
+// ⌘P/Ctrl+P  → command-bar search (find mode)
 // ⌘J/Ctrl+J  → panel-dock toggle
 // ⌘⇧E/Ctrl+Shift+E → body.edit-mode toggle (sui-edit-overlay listens)
 // ⌘B/Ctrl+B  → rail toggle (via sui:rail:toggle)
 // Esc        → close open sui-dialog / sui-drawer (backstop)
+
+interface CommandBar extends HTMLElement {
+  show(mode?: string, query?: string): void
+  hide(): void
+  toggle(mode?: string): void
+  setMode(mode: string): void
+}
+function getCommandBar(): CommandBar | null {
+  return document.getElementById('ship-command-bar') as CommandBar | null
+}
 
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   const mod = e.metaKey || e.ctrlKey
@@ -342,15 +352,13 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 
   if (mod && e.key === 'k') {
     e.preventDefault()
-    // sui-command-bar has not landed yet — stub until it merges.
-    console.warn('[shell2] ⌘K: sui-command-bar not loaded')
+    getCommandBar()?.toggle('find')
     return
   }
 
   if (mod && e.key === 'p') {
     e.preventDefault()
-    // sui-command-bar has not landed yet — stub until it merges.
-    console.warn('[shell2] ⌘P: sui-command-bar not loaded')
+    getCommandBar()?.show('find')
     return
   }
 
