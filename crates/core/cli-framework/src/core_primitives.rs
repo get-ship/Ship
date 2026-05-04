@@ -3,6 +3,7 @@ use runtime::{
     McpServerConfig, McpServerType, SkillInstallScope, add_mcp_server,
     autodetect_providers, create_skill, create_user_skill, delete_skill, delete_user_skill,
     disable_provider, enable_provider, get_config, get_effective_skill,
+    import_from_provider, import_permissions_from_provider, import_skills_from_provider,
     list_effective_skills, list_mcp_servers, list_models, list_providers, list_skills,
     list_user_skills, log_action, remove_mcp_server, update_skill,
     update_user_skill,
@@ -295,11 +296,27 @@ pub fn handle_mcp_action(action: McpAction, project_dir: &Path) -> Result<()> {
             }
         }
         McpAction::Export { target } => {
-            runtime::agents::export::export_to(project_dir.to_path_buf(), &target)?;
+            let project_root = project_dir.parent().unwrap_or(project_dir);
+            let status = std::process::Command::new("ship")
+                .arg("compile")
+                .arg("--provider")
+                .arg(&target)
+                .arg("--path")
+                .arg(project_root)
+                .status();
+            match status {
+                Ok(s) if s.success() => {}
+                Ok(s) => anyhow::bail!(
+                    "ship compile failed for provider '{}' (exit {})",
+                    target,
+                    s.code().unwrap_or(-1)
+                ),
+                Err(e) => anyhow::bail!("ship binary not found: {}", e),
+            }
             println!("Exported MCP server registry to {} config.", target);
         }
         McpAction::Import { provider } => {
-            let added = runtime::agents::export::import_from_provider(
+            let added = import_from_provider(
                 &provider,
                 project_dir.to_path_buf(),
             )?;
@@ -472,16 +489,10 @@ pub fn handle_provider_action(action: ProviderAction, project_dir: &Path) -> Res
 }
 
 fn import_provider_surface(project_dir: &Path, provider_id: &str) -> Result<ProviderImportSummary> {
-    let mcp_servers_added =
-        runtime::agents::export::import_from_provider(provider_id, project_dir.to_path_buf())?;
-    let skills_added = runtime::agents::export::import_skills_from_provider(
-        provider_id,
-        project_dir.to_path_buf(),
-    )?;
-    let permissions_imported = runtime::agents::export::import_permissions_from_provider(
-        provider_id,
-        project_dir.to_path_buf(),
-    )?;
+    let mcp_servers_added = import_from_provider(provider_id, project_dir.to_path_buf())?;
+    let skills_added = import_skills_from_provider(provider_id, project_dir.to_path_buf())?;
+    let permissions_imported =
+        import_permissions_from_provider(provider_id, project_dir.to_path_buf())?;
     Ok(ProviderImportSummary {
         mcp_servers_added,
         skills_added,

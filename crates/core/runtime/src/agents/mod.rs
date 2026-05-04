@@ -1,6 +1,7 @@
 pub mod config;
-pub mod export;
+pub mod import;
 pub mod permissions;
+pub mod providers;
 pub mod rule;
 pub mod skill;
 pub mod skill_paths;

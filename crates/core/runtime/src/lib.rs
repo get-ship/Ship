@@ -34,7 +34,7 @@ pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
 // Backward-compatible module aliases.
 // Canonical implementation lives under `runtime::agents::*`.
 pub use agents::config as agent_config;
-pub use agents::export as agent_export;
+pub use agents::providers as agent_export;
 pub use agents::permissions;
 pub use agents::rule;
 pub use agents::skill;
@@ -49,7 +49,10 @@ pub use agent_config::{
 };
 pub use agent_export::{
     ModelInfo, ProviderInfo, autodetect_providers, detect_binary, detect_version, disable_provider,
-    enable_provider, export_to, import_from_claude, list_models, list_providers, sync_active_agent,
+    enable_provider, list_models, list_providers,
+};
+pub use agents::import::{
+    import_from_provider, import_permissions_from_provider, import_skills_from_provider,
 };
 pub use config::catalog::{CatalogEntry, CatalogKind, list_catalog, list_catalog_by_kind, search_catalog};
 pub use config::{

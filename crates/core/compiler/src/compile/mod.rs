@@ -112,6 +112,10 @@ pub struct CompileOutput {
     /// Only populated for the `codex` provider.
     pub codex_hooks_json: Option<Json>,
 
+    /// Codex-only: Starlark execpolicy content for `.codex/rules/ship.rules`.
+    /// `None` means no rules to emit; the file should be deleted if it exists.
+    pub codex_policy_content: Option<String>,
+
     /// Resolved actor event subscription namespaces for this agent.
     ///
     /// Combines:
@@ -186,6 +190,7 @@ pub fn compile(resolved: &ResolvedConfig, provider_id: &str) -> Option<CompileOu
     if provider_id == "codex" {
         out.codex_config_patch = codex::build_codex_config_patch(resolved);
         out.codex_hooks_json = Some(codex::build_codex_hooks_json());
+        out.codex_policy_content = codex::build_codex_execpolicy(&resolved.permissions);
     }
 
     if provider_id == "gemini" {

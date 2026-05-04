@@ -50,9 +50,9 @@ pub(crate) fn build_session_provider_matrix(
     let resolved = resolve_session_agent_config(ship_dir, agent_id)?;
     let providers = resolved.providers;
 
-    let supported_providers = crate::agents::export::list_providers(ship_dir)?
+    let supported_providers = compiler::list_providers()
         .into_iter()
-        .map(|provider| provider.id)
+        .map(|desc| desc.id.to_string())
         .collect::<Vec<_>>();
 
     let resolution_error = if providers.is_empty() {
@@ -103,9 +103,15 @@ pub(crate) fn missing_provider_configs_for_session(
     providers
         .iter()
         .filter_map(|provider| {
-            let desc = crate::agents::export::get_provider(provider)?;
-            let target = context_root.join(desc.project_config);
-            if target.exists() {
+            let config_path = match provider.as_str() {
+                "claude" => ".mcp.json",
+                "gemini" => ".gemini/settings.json",
+                "codex" => ".codex/config.toml",
+                "cursor" => ".cursor/mcp.json",
+                "opencode" => "opencode.json",
+                _ => return None,
+            };
+            if context_root.join(config_path).exists() {
                 None
             } else {
                 Some(provider.clone())
@@ -116,10 +122,11 @@ pub(crate) fn missing_provider_configs_for_session(
 
 // ---- Compile session context ---------------------------------------------
 
-/// Compile session context and return the resolved provider list.
+/// Ensure provider config files exist in the project root before session launch.
 ///
-/// Writes provider config files to the worktree as a side effect. Returns the
-/// providers that were exported.
+/// Runs `ship compile` as a subprocess — best-effort. Compilation errors are
+/// logged as warnings but do not block session start (configs may already exist
+/// from a prior compile run). Returns the resolved provider list.
 pub(crate) fn compile_session_context(
     ship_dir: &Path,
     branch: &str,
@@ -129,43 +136,32 @@ pub(crate) fn compile_session_context(
     let agent_id = agent_id_override
         .map(|a| a.to_string())
         .and_then(|value| normalize_optional_text(Some(value)));
-    let resolved_agent =
-        resolve_session_agent_config(ship_dir, agent_id.as_deref())?;
-    let providers = resolved_agent.providers.clone();
-    if providers.is_empty() {
-        return Err(anyhow!(
-            "No valid providers resolved for session on branch '{}'",
-            branch
-        ));
-    }
-
-    let mcp_server_filter = resolved_agent
-        .mcp_servers
-        .iter()
-        .map(|server| server.id.clone())
-        .collect::<Vec<_>>();
-    let skill_filter = resolved_agent
-        .skills
-        .iter()
-        .map(|skill| skill.id.clone())
-        .collect::<Vec<_>>();
+    let providers = resolve_session_providers(ship_dir, branch, agent_id.as_deref())?;
 
     let context_root = resolve_session_context_root(ship_dir, cwd);
-    for provider in &providers {
-        crate::agents::export::export_to_filtered_with_mode_override_and_skills_at_root(
-            ship_dir.to_path_buf(),
-            provider,
-            Some(mcp_server_filter.as_slice()),
-            Some(skill_filter.as_slice()),
-            agent_id.as_deref(),
-            &context_root,
-        )
-        .map_err(|error| {
-            error.context(format!(
-                "Failed to compile provider '{}' for branch '{}'",
-                provider, branch
-            ))
-        })?;
+    let project_root = ship_dir.parent().unwrap_or(ship_dir);
+
+    let mut cmd = std::process::Command::new("ship");
+    cmd.arg("compile")
+        .arg("--path")
+        .arg(project_root)
+        .current_dir(&context_root);
+    match cmd.output() {
+        Ok(output) if output.status.success() => {}
+        Ok(output) => {
+            tracing::warn!(
+                "ship compile failed for session on branch '{}': {}",
+                branch,
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+        }
+        Err(e) => {
+            tracing::debug!(
+                "ship binary not found at session start for branch '{}': {}",
+                branch,
+                e
+            );
+        }
     }
 
     Ok(providers)

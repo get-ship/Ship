@@ -5,6 +5,7 @@ pub mod events;
 pub mod jsonc;
 pub mod lockfile;
 pub mod manifest;
+pub mod output;
 pub mod permissions;
 pub mod resolve;
 pub mod schemas;
@@ -12,6 +13,9 @@ pub mod types;
 pub mod vars;
 
 // ─── Top-level re-exports ─────────────────────────────────────────────────────
+
+#[cfg(not(target_arch = "wasm32"))]
+pub use output::{ensure_parent, merge_json, merge_json_file, write_output};
 
 pub use compile::{
     AgentsDir, CURSOR_PERMISSIVE_ALLOW, CompileOutput, ContextFile, McpKey, ProviderDescriptor,

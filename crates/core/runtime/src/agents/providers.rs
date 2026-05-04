@@ -1,12 +1,8 @@
-use crate::config::{
-    HookConfig, HookTrigger, McpServerConfig, McpServerType, get_config, get_effective_config,
-};
-use crate::permissions::{Permissions, get_permissions};
+use crate::config::get_config;
 use crate::project::{SHIP_DIR_NAME, ship_dir_from_path};
-use crate::skill::list_effective_skills;
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -350,7 +346,7 @@ pub fn list_models(provider_id: &str) -> Result<Vec<ModelInfo>> {
     Ok(discover_models(d, resolve_project_dir_for_models().as_deref()))
 }
 
-fn require_provider(id: &str) -> Result<&'static ProviderDescriptor> {
+pub(crate) fn require_provider(id: &str) -> Result<&'static ProviderDescriptor> {
     get_provider(id).ok_or_else(|| {
         let known: Vec<&str> = PROVIDERS.iter().map(|p| p.id).collect();
         anyhow!("Unknown provider '{}'. Known: {}", id, known.join(", "))
