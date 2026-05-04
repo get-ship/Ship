@@ -36,9 +36,16 @@ cleanup_one() {
   echo "── cleanup: ${slug} ──"
 
   # 1. Worktree (--force tolerates untracked files left by the agent).
-  if [[ -d "$wt" ]]; then
-    git -C "$(git rev-parse --show-toplevel 2>/dev/null || echo .)" worktree remove --force "$wt" 2>&1 \
+  # `git worktree list` shows registered worktrees; presence of the path
+  # in that list is the authoritative signal — a bare directory at the
+  # path may exist as detritus after a previous incomplete remove.
+  local repo_root
+  repo_root="$(git rev-parse --show-toplevel 2>/dev/null || echo .)"
+  if git -C "$repo_root" worktree list --porcelain 2>/dev/null | grep -q "^worktree ${wt}$"; then
+    git -C "$repo_root" worktree remove --force "$wt" 2>&1 \
       && echo "  worktree removed"
+  elif [[ -d "$wt" ]]; then
+    rm -rf "$wt" && echo "  worktree dir (orphan) rm -rf'd"
   else
     echo "  worktree absent"
   fi
