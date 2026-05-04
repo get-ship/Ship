@@ -16,6 +16,11 @@ pub struct ModelInfo {
     pub recommended: bool,
 }
 
+/// Static list of provider IDs that Ship can compile configs for.
+/// Mirrors the PROVIDERS table in the compiler crate; kept in sync manually.
+pub const SUPPORTED_PROVIDER_IDS: &[&str] =
+    &["claude", "gemini", "codex", "cursor", "opencode"];
+
 // ─── Provider registry ────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

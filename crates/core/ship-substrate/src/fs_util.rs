@@ -4,28 +4,59 @@ use std::io::Write;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-/// Strip JSONC comments (`//` line, `/* */` block) from a string.
+/// Strip JSONC extensions from a string: `//` line comments, `/* */` block
+/// comments, and trailing commas before `]` or `}`. The result is valid JSON.
 /// Respects string literals so URLs like `"http://"` are not mangled.
 pub fn strip_jsonc_comments(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
+    // Phase 1: strip comments.
+    let mut stage = String::with_capacity(input.len());
     let mut chars = input.chars().peekable();
     let mut in_string = false;
     let mut escape = false;
     while let Some(c) = chars.next() {
         if in_string {
-            out.push(c);
+            stage.push(c);
             if escape { escape = false; } else if c == '\\' { escape = true; } else if c == '"' { in_string = false; }
             continue;
         }
-        if c == '"' { in_string = true; out.push(c); continue; }
+        if c == '"' { in_string = true; stage.push(c); continue; }
         if c == '/' {
             match chars.peek() {
-                Some('/') => { while let Some(&nc) = chars.peek() { chars.next(); if nc == '\n' { out.push('\n'); break; } } continue; }
+                Some('/') => { while let Some(&nc) = chars.peek() { chars.next(); if nc == '\n' { stage.push('\n'); break; } } continue; }
                 Some('*') => { chars.next(); while let Some(nc) = chars.next() { if nc == '*' && chars.peek() == Some(&'/') { chars.next(); break; } } continue; }
                 _ => {}
             }
         }
+        stage.push(c);
+    }
+    // Phase 2: remove trailing commas (`,` followed only by whitespace then `]` or `}`).
+    let mut out = String::with_capacity(stage.len());
+    let bytes = stage.as_bytes();
+    let mut i = 0;
+    in_string = false;
+    escape = false;
+    while i < bytes.len() {
+        let c = bytes[i] as char;
+        if in_string {
+            out.push(c);
+            if escape { escape = false; } else if c == '\\' { escape = true; } else if c == '"' { in_string = false; }
+            i += 1;
+            continue;
+        }
+        if c == '"' { in_string = true; out.push(c); i += 1; continue; }
+        if c == ',' {
+            // Look ahead past whitespace — if we hit `]` or `}`, drop the comma.
+            let mut j = i + 1;
+            while j < bytes.len() && (bytes[j] == b' ' || bytes[j] == b'\t' || bytes[j] == b'\r' || bytes[j] == b'\n') {
+                j += 1;
+            }
+            if j < bytes.len() && (bytes[j] == b']' || bytes[j] == b'}') {
+                i += 1;
+                continue;
+            }
+        }
         out.push(c);
+        i += 1;
     }
     out
 }

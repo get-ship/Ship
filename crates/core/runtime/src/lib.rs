@@ -29,14 +29,12 @@ pub use ship_primitives::artifacts;
 pub use ship_primitives::collections;
 pub use ship_primitives::config;
 pub use ship_primitives::hooks;
+pub use ship_primitives::registry;
 pub mod services;
+pub use ship_primitives::sessions;
 
 #[cfg(feature = "unstable")]
 pub use ship_primitives::sync;
-
-// ── L1 modules remaining in runtime (use compiler crate / sessions) ──────────
-pub mod registry;
-pub mod sessions;
 
 // ── project: L0 surface from substrate + L1 init ────────────────────────────
 // project/ submodules (discovery, global, etc.) live in ship-substrate.

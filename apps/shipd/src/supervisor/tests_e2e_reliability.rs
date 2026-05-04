@@ -74,7 +74,7 @@ fn project_detection_handles_worktrees() {
 /// not rely on in-memory state that may not exist after a restart.
 #[test]
 fn cleanup_resolves_slug_from_event_payload() {
-    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/handlers.rs");
+    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/handlers.rs");
     assert!(
         source.contains("slug") && source.contains("payload"),
         "cleanup must resolve slug from event payload, not in-memory state"
@@ -254,7 +254,7 @@ fn all_non_terminal_states_recoverable() {
 /// The reconciliation loop must exist and handle all three phases.
 #[test]
 fn reconciliation_loop_handles_three_phases() {
-    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
+    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/router.rs");
     assert!(source.contains("reconcile"), "must reconcile stale dispatched jobs");
     assert!(source.contains("replay"), "must replay stale completions");
     assert!(
@@ -394,7 +394,7 @@ fn auth_token_is_per_instance() {
 /// elapses. Either signal is sufficient — nothing is swallowed silently.
 #[test]
 fn dead_process_recovery_is_observable() {
-    let replay = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs");
+    let replay = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/replay.rs");
     let liveness = include_str!("liveness.rs");
     assert!(
         replay.contains("emit_executor_session_destroyed"),
@@ -409,7 +409,7 @@ fn dead_process_recovery_is_observable() {
 /// Pipeline spawn failure must log and continue, not panic.
 #[test]
 fn pipeline_spawn_failure_does_not_panic() {
-    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/pipeline.rs");
+    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/pipeline.rs");
     assert!(
         source.contains("Err(e)") && source.contains("continue"),
         "pipeline spawn failure must log and continue to next step"
@@ -419,7 +419,7 @@ fn pipeline_spawn_failure_does_not_panic() {
 /// Cleanup failure must not prevent other cleanup operations.
 #[test]
 fn cleanup_failure_does_not_block_other_cleanup() {
-    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/handlers.rs");
+    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/handlers.rs");
     // Cleanup is delegated to AgentPlatform::cleanup_job — a single call that
     // internally runs tmux kill, worktree removal, and branch deletion independently.
     assert!(

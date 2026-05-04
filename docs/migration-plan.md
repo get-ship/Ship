@@ -70,13 +70,14 @@ Compile-time barrier enforces what charter currently only asserts about layers. 
 
 **Phase 2B done**: `runtime` rewritten as a re-export shim over `ship-substrate`. 688 tests pass.
 
-**Phase 2C done** (current): `crates/core/ship-primitives` created. Moved from runtime: agents, artifacts, collections, config, hooks, sync, services/sync. 304 tests pass. `compiler::jsonc::from_jsonc_str` replaced with `serde_json::from_str` + `fs_util::strip_jsonc_comments` (8 call sites). `runtime` now re-exports L1 from ship-primitives + keeps registry, sessions, orchestrator, providers (compiler deps).
+**Phase 2C done**: `crates/core/ship-primitives` created. Moved from runtime: agents, artifacts, collections, config, hooks, sync, services/sync. 304 tests pass. `compiler::jsonc::from_jsonc_str` replaced with `serde_json::from_str` + `fs_util::strip_jsonc_comments` (8 call sites — also added trailing-comma handling to `strip_jsonc_comments`). `runtime` now re-exports L1 from ship-primitives + keeps registry, sessions, orchestrator, providers (compiler deps).
 
-**Remaining Phase 2 work**:
-- sessions/ still in runtime — `session_lifecycle.rs` uses config hooks and `compiler::list_providers()`
-- registry/ still in runtime — uses `compiler::manifest::ShipManifest::from_file`
-- services/{orchestrator, providers, provider_adapter} still in runtime — orchestrator uses `compiler::vars::resolve_template`
-- All three stall on compiler dependency; move them to ship-primitives once compiler deps are addressed or the calls are inlined
+**Phase 2D done** (current): All remaining runtime modules moved to ship-primitives. Three compiler:: call sites eliminated: `compiler::list_providers()` → `SUPPORTED_PROVIDER_IDS` const in agents::providers, `compiler::manifest::ShipManifest::from_file` → inline minimal dep parser, `compiler::vars::resolve_template` → inlined minijinja call. `runtime` is now a pure re-export shim over ship-substrate + ship-primitives. 652 tests pass in ship-primitives.
+
+**Phase 2 complete.** Dependency graph:
+- `ship-substrate` (L0): events, persistence, db, actor, projections, supervisor, home, project, git, log, fs_util, env, errors, data, projects, trash, access, services (L0 traits + mesh/dispatch/etc.)
+- `ship-primitives` (L1): agents, collections, config, hooks, artifacts, sync, registry, sessions, services (orchestrator, providers, provider_adapter)
+- `runtime`: pure shim — `pub use ship_substrate::*` + `pub use ship_primitives::*` + `project/init.rs`
 
 ### Phase 3 — KV extraction + KvService (~1–2 weeks)
 

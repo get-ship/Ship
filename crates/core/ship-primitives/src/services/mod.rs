@@ -8,5 +8,10 @@ pub use ship_substrate::services::human_gateway::{self};
 pub use ship_substrate::services::process_tree_probe::{self};
 pub use ship_substrate::services::server_session::{self};
 
+// L1 service actors.
+pub mod orchestrator;
+pub mod provider_adapter;
+pub mod providers;
+
 #[cfg(feature = "unstable")]
 pub mod sync;

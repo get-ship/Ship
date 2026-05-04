@@ -52,7 +52,7 @@ fn completed(job_id: &str) -> EventEnvelope {
 /// The dispatch replay module must enforce a concurrency limit.
 #[test]
 fn concurrency_limit_is_enforced() {
-    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/pending.rs");
+    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/pending.rs");
     assert!(
         source.contains("MAX_CONCURRENT"),
         "dispatch_replay must define a MAX_CONCURRENT limit"
@@ -62,7 +62,7 @@ fn concurrency_limit_is_enforced() {
 /// The concurrency check must count currently dispatched jobs.
 #[test]
 fn concurrency_counts_dispatched_jobs() {
-    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/pending.rs");
+    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/pending.rs");
     assert!(
         source.contains("Dispatched") && source.contains("running_count"),
         "concurrency check must count jobs in Dispatched status"
