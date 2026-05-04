@@ -18,8 +18,26 @@ import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = resolve(fileURLToPath(import.meta.url), '..', '..');
-const assetsDir = join(repoRoot, 'apps/shipd/assets');
+// Assets split between two destinations:
+//   - apps/shipd/assets/      — non-SUI bundles (Lit ship-elements, datastar, etc.)
+//   - crates/ship-ui-framework/assets/ — every SUI bundle + the view-host static
+// The split mirrors the D1 module extraction (sui-framework owns SUI hosting;
+// shipd owns Lit/REST/auth/static-Lit-assets).
+const litAssetsDir = join(repoRoot, 'apps/shipd/assets');
+const suiAssetsDir = join(repoRoot, 'crates/ship-ui-framework/assets');
 const cacheDir = join(repoRoot, 'apps/shipd/assets/.cache');
+
+function assetsDirFor(name) {
+  if (
+    name === 'sui-custom-elements' ||
+    name.startsWith('sui-') ||
+    name.startsWith('sui-islands/') ||
+    name.startsWith('views/') // baked SUI views: counter/agents/git → SUI bundle
+  ) {
+    return suiAssetsDir;
+  }
+  return litAssetsDir;
+}
 
 // Discover non-island SUI components: each subdirectory of src/ that is not
 // `islands/` and contains a matching `<name>.sui` file.
@@ -109,12 +127,12 @@ function aggregateSuiCem() {
       // ignore malformed CEMs — they show up as warnings during the next build
     }
   }
-  const target = join(assetsDir, 'sui-custom-elements.json');
+  const target = join(suiAssetsDir, 'sui-custom-elements.json');
   const next = JSON.stringify(out);
   let prev = '';
   try { prev = readFileSync(target, 'utf8'); } catch {}
   if (prev !== next) {
-    mkdirSync(assetsDir, { recursive: true });
+    mkdirSync(suiAssetsDir, { recursive: true });
     writeFileSync(target, next);
     console.log(`[bundles] write  sui-custom-elements.json  (${out.modules.length} modules)`);
   }
@@ -224,7 +242,7 @@ async function buildOne(t) {
   // Island targets use a synthesised stdin entry instead of a real file.
   const isIsland = Boolean(t.islandTag);
   const entryAbs = isIsland ? null : join(repoRoot, t.entry);
-  const outfile = join(assetsDir, `${t.name}.js`);
+  const outfile = join(assetsDirFor(t.name), `${t.name}.js`);
   const cacheFile = join(cacheDir, `${t.name.replace(/[\\/]/g, '__')}.inputs.json`);
   mkdirSync(dirname(outfile), { recursive: true });
 
@@ -352,7 +370,7 @@ async function watchAll() {
       context({
         ...baseOpts,
         entryPoints: [join(repoRoot, t.entry)],
-        outfile: join(assetsDir, `${t.name}.js`),
+        outfile: join(assetsDirFor(t.name), `${t.name}.js`),
       }),
     ),
   );
@@ -380,7 +398,7 @@ const BUNDLE_GATES = [
 
 async function enforceBundleGates() {
   for (const gate of BUNDLE_GATES) {
-    const outfile = join(assetsDir, `${gate.name}.js`);
+    const outfile = join(assetsDirFor(gate.name), `${gate.name}.js`);
     let body;
     try {
       body = readFileSync(outfile);
@@ -406,7 +424,8 @@ async function enforceBundleGates() {
 }
 
 async function main() {
-  mkdirSync(assetsDir, { recursive: true });
+  mkdirSync(litAssetsDir, { recursive: true });
+  mkdirSync(suiAssetsDir, { recursive: true });
   if (watch) {
     await watchAll();
     return;

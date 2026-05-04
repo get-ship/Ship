@@ -24,7 +24,7 @@ use sui_compiler::{
     render::{self, RenderOutput},
 };
 
-use super::sui_render_helpers::view_source as bake_source;
+use crate::render_helpers::view_source as bake_source;
 
 /// Resolved view: source + captured params + (when on disk) the canonical
 /// source path the resolver landed on. Bake-list hits return

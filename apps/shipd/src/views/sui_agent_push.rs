@@ -54,9 +54,9 @@ use serde::Serialize;
 
 use crate::auth::AuthContext;
 use crate::scopes::Scope;
-use crate::views::sui_patch_channel;
-use crate::views::sui_patches::{PatchElements, format_patch_elements};
-use super::sui_render_helpers::is_valid_view_name;
+use super::sui_patch_channel;
+use super::sui_patches::{PatchElements, format_patch_elements};
+use ship_ui_framework::render_helpers::is_valid_view_name;
 
 /// Response body for a successful patch-elements publish.
 #[derive(Debug, Serialize)]

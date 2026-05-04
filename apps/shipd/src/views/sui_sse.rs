@@ -30,11 +30,11 @@ use tokio_stream::wrappers::ReceiverStream;
 use sui_signals;
 
 use crate::rest_api::ApiState;
-use crate::views::sui_data_resolvers::{parse_expr, resolve as resolve_value, subscribe_namespaces};
-use crate::views::sui_patch_channel;
-use crate::views::sui_patches::format_patch_signals;
-use crate::views::git_signal;
-use super::sui_render_helpers::{is_valid_view_name, render_view_source};
+use super::sui_data_resolvers::{parse_expr, resolve as resolve_value, subscribe_namespaces};
+use super::sui_patch_channel;
+use super::sui_patches::format_patch_signals;
+use super::git_signal;
+use ship_ui_framework::render_helpers::{is_valid_view_name, render_view_source};
 
 /// Buffer for SSE events across all spawned data-source tasks.
 const CHANNEL_BUFFER: usize = 64;
@@ -222,7 +222,7 @@ async fn run_data_source(
 /// Falls back to `{"kind":"loading"}` on error so the runtime never sees
 /// a transport-level failure for an authoring mistake.
 fn resolve_initial(
-    parsed: &crate::views::sui_data_resolvers::ParsedExpr,
+    parsed: &super::sui_data_resolvers::ParsedExpr,
     state: &ApiState,
     expr: &str,
 ) -> serde_json::Value {

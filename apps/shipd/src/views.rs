@@ -34,22 +34,21 @@ pub mod events_state;
 pub mod sdk_macros;
 pub mod sfc;
 pub mod components;
-pub mod sui;
+// Daemon-coupled SUI handlers — still here because they reach into
+// ApiState, services::registry, auth, and scopes (all daemon-internal).
+// Moving them needs a `ship-runtime` extraction first; tracked separately.
+// Truly framework-level pieces (view_payload, view_host, asset bundles,
+// resolver, render_helpers, bundle, runtime asset) live in
+// crates/ship-ui-framework/.
 pub mod sui_data;
 pub mod sui_data_resolvers;
 pub mod sui_hmr;
-pub mod sui_view;
-pub mod sui_view_host;
-pub mod sui_view_payload;
 pub mod sui_mutation;
-pub mod sui_resolver;
-pub mod sui_bundle;
 pub mod sui_sse;
 pub mod git_signal;
 pub mod sui_patches;
 pub mod sui_patch_channel;
 pub mod sui_agent_push;
-mod sui_render_helpers;
 pub mod setup;
 pub mod templates;
 pub mod session;

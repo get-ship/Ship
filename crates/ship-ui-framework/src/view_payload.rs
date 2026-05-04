@@ -34,7 +34,7 @@ use axum::{
 use serde::Serialize;
 use sui_compiler::{bindings, islands, parse, render};
 
-use super::sui_resolver::resolve;
+use crate::resolver::resolve;
 
 /// Shape returned by `GET /_sui/views/<name>[/<sub>]`. Keep in sync with
 /// the `ViewPayload` TS interface in `@ship/ui-runtime`.
@@ -165,9 +165,9 @@ fn collect_view_css(name: &str, source_path: Option<&std::path::Path>) -> String
     buf
 }
 
-const AGENTS_VIEW_CSS: &str = include_str!("../../../../views/agents/view.css");
-const GIT_VIEW_CSS: &str = include_str!("../../../../views/git/view.css");
-const COUNTER_VIEW_CSS: &str = include_str!("../../../../views/counter/view.css");
+const AGENTS_VIEW_CSS: &str = include_str!("../../../views/agents/view.css");
+const GIT_VIEW_CSS: &str = include_str!("../../../views/git/view.css");
+const COUNTER_VIEW_CSS: &str = include_str!("../../../views/counter/view.css");
 
 fn baked_css(name: &str) -> Option<&'static str> {
     match name {

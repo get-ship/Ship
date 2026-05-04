@@ -35,8 +35,8 @@ use axum::{
 };
 use sui_compiler::{CompileOpts, compile, islands::SUI_ISLANDS};
 
-use super::sui_bundle::bundle_view;
-use super::sui_resolver::{ResolvedView, resolve};
+use crate::bundle::bundle_view;
+use crate::resolver::{ResolvedView, resolve};
 
 // ── Compile-time embedded view assets ────────────────────────────────
 
@@ -45,26 +45,26 @@ use super::sui_resolver::{ResolvedView, resolve};
 // ride directly off `include_str!` here — on-disk views go through
 // `sui_compiler::compile` at request time and re-read sibling
 // `view.css`.
-const AGENTS_VIEW_CSS: &str = include_str!("../../../../views/agents/view.css");
+const AGENTS_VIEW_CSS: &str = include_str!("../../../views/agents/view.css");
 const AGENTS_VIEW_JS: &str =
-    include_str!("../../assets/views/agents/view.js");
+    include_str!("../assets/views/agents/view.js");
 
-const GIT_VIEW_CSS: &str = include_str!("../../../../views/git/view.css");
+const GIT_VIEW_CSS: &str = include_str!("../../../views/git/view.css");
 const GIT_VIEW_JS: &str =
-    include_str!("../../assets/views/git/view.js");
+    include_str!("../assets/views/git/view.js");
 
 const COUNTER_VIEW_CSS: &str =
-    include_str!("../../../../views/counter/view.css");
+    include_str!("../../../views/counter/view.css");
 const COUNTER_VIEW_JS: &str =
-    include_str!("../../assets/views/counter/view.js");
+    include_str!("../assets/views/counter/view.js");
 
 // ── Bundled framework modules ────────────────────────────────────────
 
-const SUI_DOM_JS: &str = include_str!("../../assets/sui-dom.js");
+const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str =
-    include_str!("../../assets/sui-sdk-client.js");
+    include_str!("../assets/sui-sdk-client.js");
 const SUI_COMPONENTS_JS: &str =
-    include_str!("../../assets/sui-components.js");
+    include_str!("../assets/sui-components.js");
 
 /// `GET /_sui/dom.js` — bundled `@ship/ui-dom` ESM module.
 pub async fn serve_sui_dom() -> Response {
@@ -84,7 +84,7 @@ pub async fn serve_sui_components() -> Response {
 }
 
 const SUI_TERMINAL_ISLAND_JS: &str =
-    include_str!("../../assets/sui-islands/sui-terminal.js");
+    include_str!("../assets/sui-islands/sui-terminal.js");
 
 /// `GET /_sui/islands/{tag}/island.js` — per-island SUI component bundle.
 ///

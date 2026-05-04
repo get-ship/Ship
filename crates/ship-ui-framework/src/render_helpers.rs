@@ -9,16 +9,16 @@ use axum::{
 };
 
 const AGENTS_VIEW_HTML_SET: &str =
-    include_str!("../../../../views/agents/view.sui");
+    include_str!("../../../views/agents/view.sui");
 const GIT_VIEW_HTML_SET: &str =
-    include_str!("../../../../views/git/view.sui");
+    include_str!("../../../views/git/view.sui");
 const COUNTER_VIEW_HTML_SET: &str =
-    include_str!("../../../../views/counter/view.sui");
+    include_str!("../../../views/counter/view.sui");
 
 /// Baked SUI view set — `include_str!`'d at compile time. Used by the
 /// resolver's "bake list" path (where Some(_) means: this is baked,
 /// don't look on disk for source_path).
-pub(super) fn view_source(name: &str) -> Option<&'static str> {
+pub fn view_source(name: &str) -> Option<&'static str> {
     match name {
         "agents" => Some(AGENTS_VIEW_HTML_SET),
         "git" => Some(GIT_VIEW_HTML_SET),
@@ -31,7 +31,7 @@ pub(super) fn view_source(name: &str) -> Option<&'static str> {
 /// falls back to per-worktree `.ship/views/<name>/index.sui` so
 /// project-defined SUI views (e.g. ship-ui-studio) are still
 /// reachable. Used by the SSE channel handler.
-pub(super) fn render_view_source(name: &str) -> Option<String> {
+pub fn render_view_source(name: &str) -> Option<String> {
     if let Some(baked) = view_source(name) {
         return Some(baked.to_string());
     }
@@ -43,13 +43,13 @@ pub(super) fn render_view_source(name: &str) -> Option<String> {
 
 /// Lowercase ASCII + hyphens only. Mirrors `ship_set_view::is_valid_view_name`
 /// so the path segment can't escape the embedded view set.
-pub(super) fn is_valid_view_name(s: &str) -> bool {
+pub fn is_valid_view_name(s: &str) -> bool {
     !s.is_empty()
         && s.len() <= 64
         && s.chars().all(|c| c.is_ascii_lowercase() || c == '-')
 }
 
-pub(super) fn not_found(msg: &str) -> Response {
+pub fn not_found(msg: &str) -> Response {
     Response::builder()
         .status(StatusCode::NOT_FOUND)
         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")

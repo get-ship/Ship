@@ -2,7 +2,7 @@
 //!
 //! The `<data live />` SSE channel (`/_sui/views/{name}/sse`) historically
 //! carried only `patch-signals` events sourced from the kernel-event loop
-//! inside [`crate::views::sui_sse`]. Phase 0.5 adds `patch-elements`:
+//! inside [`crate::sse`]. Phase 0.5 adds `patch-elements`:
 //! agents and SDK methods POST surgical HTML patches to
 //! `/_sui/views/{name}/patch-elements` and the daemon needs a way to fan
 //! those frames out to every open SSE connection on the same view.

@@ -3763,6 +3763,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-jobs",
+ "ship-ui-framework",
  "sui-compiler",
  "sui-signals",
  "syn",

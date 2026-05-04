@@ -151,57 +151,57 @@ pub fn build_router(
         )
         .route(
             "/_sui/runtime.js",
-            axum::routing::get(views::sui::serve_sui_runtime),
+            axum::routing::get(ship_ui_framework::serve_sui_runtime),
         )
         .route(
             "/_sui/dom.js",
-            axum::routing::get(views::sui_view::serve_sui_dom),
+            axum::routing::get(ship_ui_framework::serve_sui_dom),
         )
         .route(
             "/_sui/sdk-client.js",
-            axum::routing::get(views::sui_view::serve_sui_sdk_client),
+            axum::routing::get(ship_ui_framework::serve_sui_sdk_client),
         )
         .route(
             "/_sui/components.js",
-            axum::routing::get(views::sui_view::serve_sui_components),
+            axum::routing::get(ship_ui_framework::serve_sui_components),
         )
         .route(
             "/_sui/islands/{tag}/island.js",
-            axum::routing::get(views::sui_view::serve_sui_island),
+            axum::routing::get(ship_ui_framework::serve_sui_island),
         )
         .route(
             "/_sui/views/{name}/view.sui",
-            axum::routing::get(views::sui_view::serve_sui_view_template),
+            axum::routing::get(ship_ui_framework::serve_sui_view_template),
         )
         .route(
             "/_sui/views/{name}/view.js",
-            axum::routing::get(views::sui_view::serve_sui_view_setup),
+            axum::routing::get(ship_ui_framework::serve_sui_view_setup),
         )
         // F1: canonical view payload endpoint. JSON-only data — no HTML
         // rendering, no boot scripts. Hosts call the runtime's mount()
         // with this payload. Top-level + sub-path variants.
         .route(
             "/_sui/views/{name}",
-            axum::routing::get(views::sui_view_payload::serve_view_payload),
+            axum::routing::get(ship_ui_framework::serve_view_payload),
         )
         .route(
             "/_sui/views/{name}/{*sub_path}",
-            axum::routing::get(views::sui_view_payload::serve_view_payload_subpath),
+            axum::routing::get(ship_ui_framework::serve_view_payload_subpath),
         )
         // F1: static view-host page. Same HTML for every view — the page
         // reads its URL and mounts the matching payload. F1.5 will route
         // /sui/<name> here too; for now this stands on its own.
         .route(
             "/view-host",
-            axum::routing::get(views::sui_view_host::serve_view_host),
+            axum::routing::get(ship_ui_framework::serve_view_host),
         )
         .route(
             "/view-host/{*rest}",
-            axum::routing::get(views::sui_view_host::serve_view_host),
+            axum::routing::get(ship_ui_framework::serve_view_host),
         )
         .route(
             "/_sui/views/{name}/view.css",
-            axum::routing::get(views::sui_view::serve_sui_view_css),
+            axum::routing::get(ship_ui_framework::serve_sui_view_css),
         )
         .route(
             "/_sui/views/{name}/sse",
@@ -215,11 +215,11 @@ pub fn build_router(
         // dynamic per-view HTML endpoints this replaced.
         .route(
             "/sui/{name}",
-            axum::routing::get(views::sui_view_host::serve_view_host),
+            axum::routing::get(ship_ui_framework::serve_view_host),
         )
         .route(
             "/sui/{name}/{*sub_path}",
-            axum::routing::get(views::sui_view_host::serve_view_host),
+            axum::routing::get(ship_ui_framework::serve_view_host),
         )
         .route(
             "/_sui/data",

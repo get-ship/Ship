@@ -16,7 +16,7 @@ use axum::{
 /// Bundled `@ship/ui-runtime` ESM. Built by `pnpm -F @ship/ui-runtime bundle`
 /// (esbuild). Embedded at compile time so the daemon serves a self-contained
 /// runtime without depending on a build artifact path at runtime.
-const SUI_RUNTIME_JS: &str = include_str!("../../assets/sui-runtime.js");
+const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
 
 /// `GET /_sui/runtime.js` — serves the bundled `@ship/ui-runtime` module.
 pub async fn serve_sui_runtime() -> Response {

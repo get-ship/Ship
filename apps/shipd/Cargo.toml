@@ -22,8 +22,14 @@ runtime = { path = "../../crates/core/runtime" }
 sui-signals = { path = "../../crates/sui-signals" }
 lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
-# SUI compiler — used by the render endpoint to run the SSR
-# walker against compiled `.sui` views for inspection.
+# SUI framework — owns view payload, view-host static, runtime asset
+# bundles. Daemon nests its router. Daemon-coupled SUI handlers
+# (sui_data, sui_sse, sui_mutation, sui_agent_push) still live here
+# because they reach into ApiState/services/auth — moving them needs
+# a `ship-runtime` extraction first.
+ship-ui-framework = { path = "../../crates/ship-ui-framework" }
+# SUI compiler — used directly by the daemon-coupled handlers
+# above. Once those move, this dependency goes too.
 sui-compiler = { path = "../../crates/sui-compiler" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }
 build-info = { path = "../../crates/core/build-info" }

@@ -27,6 +27,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 notify = { workspace = true }
 datastar = { version = "=0.3.1", features = ["axum"] }
+tempfile = "3"
 
 [dev-dependencies]
 tempfile = "3"

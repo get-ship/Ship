@@ -26,7 +26,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use sui_compiler::{bindings, keys::BindingKind, parse};
 
-use super::sui_render_helpers::{is_valid_view_name, not_found, view_source};
+use ship_ui_framework::render_helpers::{is_valid_view_name, not_found, view_source};
 use crate::rest_api::ApiState;
 use crate::services::registry;
 

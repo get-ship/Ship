@@ -132,12 +132,14 @@ apps/shipd/assets/ship-markdown-editor.js
 apps/shipd/assets/ship-terminal.js
 apps/shipd/assets/custom-elements.json
 apps/shipd/assets/ship-elements.md
-apps/shipd/assets/sui-runtime.js
-apps/shipd/assets/sui-dom.js
-apps/shipd/assets/sui-sdk-client.js
-apps/shipd/assets/sui-components.js
-apps/shipd/assets/sui-custom-elements.json
-apps/shipd/assets/sui-islands/
+# SUI framework assets — built by scripts/build-bundles.mjs into the
+# ship-ui-framework crate. Embedded into the binary via include_str!.
+crates/ship-ui-framework/assets/sui-runtime.js
+crates/ship-ui-framework/assets/sui-dom.js
+crates/ship-ui-framework/assets/sui-sdk-client.js
+crates/ship-ui-framework/assets/sui-components.js
+crates/ship-ui-framework/assets/sui-custom-elements.json
+crates/ship-ui-framework/assets/sui-islands/
 apps/shipd/assets/.cache/
 
 # Legacy shell vendor dir — shell now loads bundles via /api/runtime/assets/*.

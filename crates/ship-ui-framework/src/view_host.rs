@@ -14,7 +14,7 @@ use axum::{
     response::Response,
 };
 
-const VIEW_HOST_HTML: &str = include_str!("../../../view-host/index.html");
+const VIEW_HOST_HTML: &str = include_str!("../assets/view-host.html");
 
 /// `GET /view-host`, `GET /view-host/<name>`, `GET /view-host/<name>/<sub>`,
 /// etc. Same bytes for every URL — the JS in the page parses the path.

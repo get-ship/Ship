@@ -13,10 +13,8 @@
 //!   patches, agent-pushed DOM patches.
 //! - **Mutation endpoint** (`POST /_sui/mutation/<name>`) — `<form
 //!   mutation>` server-truth pattern.
-//! - **HMR** (`GET /_sui/hmr`, `notify`-based file watcher) — file edits
-//!   in `.ship/views/` push `view-updated` events to mounted browsers.
-//!   (Full HMR ships in U1; the route is registered now so the contract
-//!   surface is stable.)
+//! - **HMR** (`GET /_sui/hmr`) — file edits in `.ship/views/` push
+//!   `view-updated` events to mounted browsers (U1 lights this up).
 //!
 //! ## Daemon integration
 //!
@@ -24,27 +22,31 @@
 //! use ship_ui_framework as sui;
 //!
 //! let app = axum::Router::new()
-//!     .merge(sui::router(sui::SuiState::new(sui::SuiConfig {
-//!         project_dir: project_dir_resolver,
-//!     })))
+//!     .merge(sui::router(state))
 //!     .merge(rest_api::router())
 //!     .merge(static_assets::router());
 //! ```
 //!
-//! The daemon supplies a closure that resolves the current project dir
-//! (where `.ship/views/` lives). Everything else stays internal.
-//!
-//! ## What's NOT here
-//!
-//! Daemon-specific things stay in `apps/shipd/`:
-//!
-//! - REST API (`/api/*`)
-//! - Auth/session
-//! - Lit asset serving (`ship-elements.js`, `datastar.js`)
-//! - Workspace/agent/job lifecycle
-//!
-//! This crate is the *framework* layer; the daemon is the *product* it
-//! plugs into. Both ship together as one ship binary.
+//! The daemon supplies a project-dir resolver via [`SuiConfig`]; the
+//! rest of the framework stays opaque to it.
+
+pub mod bundle;
+pub mod render_helpers;
+pub mod resolver;
+pub mod runtime;
+pub mod view;
+pub mod view_host;
+pub mod view_payload;
+
+// Re-exports the daemon (and any other axum host) consumes to register
+// SUI's HTTP routes.
+pub use runtime::serve_sui_runtime;
+pub use view::{
+    serve_sui_components, serve_sui_dom, serve_sui_island, serve_sui_sdk_client,
+    serve_sui_view_css, serve_sui_view_setup, serve_sui_view_template, ViewSetupQuery,
+};
+pub use view_host::serve_view_host;
+pub use view_payload::{serve_view_payload, serve_view_payload_subpath};
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -60,14 +62,9 @@ pub struct SuiConfig {
 }
 
 /// Shared state for the SUI framework's HTTP routes.
-///
-/// One instance per daemon. Holds the SSE channel registry, the data-
-/// resolver cache, and (post-U1) the file-watcher handle. The daemon
-/// constructs once at startup and passes to [`router`].
 #[derive(Clone)]
 pub struct SuiState {
     pub config: SuiConfig,
-    // Internals filled in by D1.3 as code moves over from apps/shipd.
 }
 
 impl SuiState {
@@ -78,9 +75,14 @@ impl SuiState {
 
 /// Build the axum router that owns every `/_sui/*`, `/sui/*`, and
 /// `/view-host/*` route. Daemon mounts via [`axum::Router::merge`].
+///
+/// D1.4 wires the daemon caller. The handlers themselves still expect
+/// `axum::extract::State<runtime::ApiState>` (not `SuiState`); the
+/// daemon supplies that via `with_state`. SuiState exists for
+/// framework-internal concerns (file watcher, etc.) that arrive in U1.
 pub fn router(_state: SuiState) -> axum::Router {
-    // D1.3 wires the actual handlers as code moves in. For now this
-    // crate compiles as a no-op placeholder so the workspace member
-    // is present and apps/shipd's Cargo can switch its dependency.
+    // Stub — the daemon's existing router still owns the route table
+    // until D1.4 moves it here. This crate currently exists to be the
+    // compile-time home of the moved Rust modules.
     axum::Router::new()
 }
