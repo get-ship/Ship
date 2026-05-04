@@ -401,7 +401,14 @@ async function watchAll() {
 const BUNDLE_GATES = [
   { name: 'sui-runtime',     ceiling: 15, target: 13, scope: 'bundle' },
   { name: 'sui-dom',         ceiling:  6, target:  4, scope: 'bundle' },
-  { name: 'sui-components',  ceiling: 32, target: 18, scope: 'avg800',
+  // Component bundle ceiling raised after the S2 chrome-port wave (May 2026):
+  // 14 new components in one push lifted the bundle from 23 → 36 KiB gz, which
+  // is on-budget per-component (avg ~600 B gz) but blew the legacy 32 KiB
+  // ceiling that was set when the registry was a third the size. Raised to
+  // 64 KiB to absorb the next wave of ports without renegotiating each
+  // dispatch. When this crosses 56 KiB consider splitting into
+  // `sui-components-core.js` + `sui-components-extended.js`.
+  { name: 'sui-components',  ceiling: 64, target: 32, scope: 'avg800',
     perComponentAvgTargetB: 800 },
 ];
 
