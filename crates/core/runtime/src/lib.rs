@@ -1,31 +1,42 @@
-pub mod access;
-pub mod actor;
+// ── L0 re-exports from ship-substrate ──────────────────────────────────────
+// These modules now live in ship-substrate; runtime re-exports them for
+// backward compatibility. Do not add L1 code here — it would bypass the
+// compile-time barrier.
+pub use ship_substrate::access;
+pub use ship_substrate::actor;
+pub use ship_substrate::data;
+pub use ship_substrate::db;
+pub use ship_substrate::env;
+pub use ship_substrate::errors;
+pub use ship_substrate::events;
+pub use ship_substrate::fs_util;
+pub use ship_substrate::git;
+pub use ship_substrate::home;
+pub use ship_substrate::log;
+pub use ship_substrate::persistence;
+pub use ship_substrate::projections;
+pub use ship_substrate::projects;
+pub use ship_substrate::supervisor;
+pub use ship_substrate::trash;
+pub use ship_substrate::{gen_nanoid, gen_ulid};
+
+// ── L1 modules (live here in runtime / will move to ship-primitives) ─────────
 pub mod agents;
+pub mod artifacts;
 pub mod collections;
 pub mod config;
-pub mod data;
-pub mod db;
-pub mod artifacts;
-pub mod env;
-pub mod errors;
-pub mod git;
-pub mod events;
-pub mod home;
-pub mod fs_util;
 pub mod hooks;
-pub mod log;
-pub mod persistence;
-pub mod project;
-pub mod projects;
 pub mod registry;
-pub mod projections;
+pub mod services;
 pub mod sessions;
-pub mod trash;
-pub mod supervisor;
 
 #[cfg(feature = "unstable")]
 pub mod sync;
-pub mod services;
+
+// ── project: L0 surface from substrate + L1 init ────────────────────────────
+// project/ submodules (discovery, global, etc.) live in ship-substrate.
+// init.rs (which uses config + registry) stays in runtime.
+pub mod project;
 
 // Re-export typed home accessors at the crate root so callers can write
 // `runtime::ShipHome::project_ship_dir(&p)` without going through `home::`.
@@ -74,9 +85,6 @@ pub use permissions::{
     AgentLimits, CommandPermissions, FsPermissions, NetworkPermissions, NetworkPolicy, Permissions,
     ToolPermissions, get_permissions, permission_tool_ids_for_provider, save_permissions,
 };
-// NOTE: ship-specific project primitives stay under `runtime::project`.
-// Do not re-export them from the runtime root; this keeps the root API closer
-// to domain-agnostic runtime/engine concerns.
 pub use rule::{Rule, create_rule, delete_rule, get_rule, list_rules, update_rule};
 pub use skill::{
     Skill, SkillInstallScope, SkillSource, create_skill, create_user_skill, delete_skill,
@@ -100,39 +108,12 @@ pub use sessions::{
     end_session, get_active_session, list_sessions, record_session_progress, start_session,
 };
 
-/// Generate a monotonic ULID string. Thread-safe via thread-local generator.
-pub fn gen_ulid() -> String {
-    use std::cell::RefCell;
-    use std::time::SystemTime;
-    thread_local! {
-        static GEN: RefCell<ulid::Generator> = const { RefCell::new(ulid::Generator::new()) };
-    }
-    GEN.with(|g| {
-        g.borrow_mut()
-            .generate_from_datetime(SystemTime::now())
-            .expect("ULID generation failed")
-            .to_string()
-    })
-}
-
-pub fn gen_nanoid() -> String {
-    let alphabet: [char; 56] = [
-        '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K',
-        'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
-        'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
-        'y', 'z',
-    ];
-    nanoid::format(nanoid::rngs::default, &alphabet, 8)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::project::{get_project_dir, init_project, sanitize_file_name};
     use std::fs;
     use tempfile::tempdir;
-
-    // ── Config tests ────────────────────────────────────────────────────────────
 
     #[test]
     fn test_add_and_remove_status() -> anyhow::Result<()> {
@@ -141,7 +122,6 @@ mod tests {
         add_status(Some(project_dir.clone()), "testing")?;
         let statuses = get_project_statuses(Some(project_dir.clone()))?;
         assert!(statuses.contains(&"testing".to_string()));
-
         remove_status(Some(project_dir.clone()), "testing")?;
         let statuses = get_project_statuses(Some(project_dir))?;
         assert!(!statuses.contains(&"testing".to_string()));
@@ -174,13 +154,11 @@ mod tests {
     fn test_legacy_agents_category_maps_to_rules_mcp_permissions() -> anyhow::Result<()> {
         let tmp = tempdir()?;
         let project_dir = init_project(tmp.path().to_path_buf())?;
-
         set_category_committed(&project_dir, "agents", false)?;
         let gitignore = fs::read_to_string(project_dir.join(".gitignore"))?;
         assert!(gitignore.contains("\nrules\n") || gitignore.contains("\nrules"));
         assert!(gitignore.contains("mcp.jsonc"));
         assert!(gitignore.contains("permissions.jsonc"));
-
         set_category_committed(&project_dir, "agents", true)?;
         let gitignore = fs::read_to_string(project_dir.join(".gitignore"))?;
         assert!(!gitignore.contains("\nrules\n") && !gitignore.contains("\nrules"));
@@ -193,7 +171,6 @@ mod tests {
     fn test_agent_layer_is_not_file_backed() -> anyhow::Result<()> {
         let tmp = tempdir()?;
         let project_dir = init_project(tmp.path().to_path_buf())?;
-
         let mut config = get_config(Some(project_dir.clone()))?;
         config.ai = Some(AiConfig {
             provider: Some("codex".into()),
@@ -204,7 +181,6 @@ mod tests {
         config.agent.prompts = vec!["Summarize risks first".into()];
         config.agent.context = vec!["AGENTS.md".into(), "specs/".into()];
         save_config(&config, Some(project_dir.clone()))?;
-
         let loaded = get_config(Some(project_dir))?;
         assert_eq!(loaded.ai.and_then(|ai| ai.provider), Some("codex".into()));
         assert!(loaded.agent.skills.is_empty());
@@ -234,8 +210,6 @@ mod tests {
         assert!(!gitignore.contains("log.md"));
         Ok(())
     }
-
-    // ── Log tests ───────────────────────────────────────────────────────────────
 
     #[test]
     fn test_log_action() -> anyhow::Result<()> {
@@ -271,8 +245,6 @@ mod tests {
         Ok(())
     }
 
-    // ── Project tests ───────────────────────────────────────────────────────────
-
     #[test]
     fn test_init_project() -> anyhow::Result<()> {
         let tmp = tempdir()?;
@@ -290,10 +262,7 @@ mod tests {
         assert!(ship_path.join("project/features/TEMPLATE.md").is_file());
         assert!(ship_path.join("project/notes/TEMPLATE.md").is_file());
         let cfg = crate::config::get_config(Some(ship_path.clone()))?;
-        assert!(
-            cfg.modes.is_empty(),
-            "new projects should not seed legacy planning/code/config modes by default"
-        );
+        assert!(cfg.modes.is_empty());
         assert!(!ship_path.join("events.ndjson").is_file());
         assert!(ship_path.join("ship.jsonc").is_file());
         assert!(project_skills_dir.join("task-policy/SKILL.md").is_file());
@@ -396,7 +365,6 @@ mod tests {
         let worktree_git = common_git.join("worktrees").join("feature-auth");
         let worktree_root = tmp.path().join("worktrees").join("feature-auth");
         let worktree_nested = worktree_root.join("src").join("ui");
-
         fs::create_dir_all(&main_ship)?;
         fs::create_dir_all(&worktree_git)?;
         fs::create_dir_all(&worktree_nested)?;
@@ -404,7 +372,6 @@ mod tests {
             worktree_root.join(".git"),
             format!("gitdir: {}\n", worktree_git.display()),
         )?;
-
         let resolved = get_project_dir(Some(worktree_nested))?;
         assert_eq!(
             fs::canonicalize(resolved)?,
@@ -423,7 +390,6 @@ mod tests {
         let worktree_git = common_git.join("worktrees").join("feature-auth");
         let worktree_root = tmp.path().join("worktrees").join("feature-auth");
         let worktree_nested = worktree_root.join("src").join("ui");
-
         fs::create_dir_all(&main_ship)?;
         fs::create_dir_all(&worktree_git)?;
         fs::create_dir_all(crate::ShipHome::project_ship_dir(&worktree_root))?;
@@ -432,12 +398,10 @@ mod tests {
             worktree_root.join(".git"),
             format!("gitdir: {}\n", worktree_git.display()),
         )?;
-
         let resolved = get_project_dir(Some(worktree_nested))?;
         assert_eq!(
             fs::canonicalize(resolved)?,
             fs::canonicalize(main_ship)?,
-            "worktree paths should resolve to the main checkout .ship even when the worktree has a local .ship copy"
         );
         Ok(())
     }

@@ -5,8 +5,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
-use super::SHIP_DIR_NAME;
-use super::paths::{skills_dir, vision_doc_path};
+use ship_substrate::project::{SHIP_DIR_NAME, skills_dir, vision_doc_path};
 
 pub fn register_ship_namespace(
     ship_path: &Path,

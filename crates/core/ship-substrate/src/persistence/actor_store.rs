@@ -35,7 +35,7 @@ pub struct ActorStore {
 }
 
 impl ActorStore {
-    pub(crate) fn new(
+    pub fn new(
         actor_id: impl Into<String>,
         db_path: PathBuf,
         write_namespaces: Vec<String>,
