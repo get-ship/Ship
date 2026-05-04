@@ -39,5 +39,10 @@ import './sui-textarea/sui-textarea.compiled.js'
 import './sui-field/sui-field.compiled.js'
 import './sui-toast/sui-toast.compiled.js'
 import './sui-toast/sui-toast-container.compiled.js'
+import './sui-breadcrumb/sui-breadcrumb.compiled.js'
+import './sui-breadcrumb/sui-breadcrumb-item.compiled.js'
+import './sui-pagination/sui-pagination.compiled.js'
+import './sui-timestamp/sui-timestamp.compiled.js'
+import './sui-metachip/sui-metachip.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.

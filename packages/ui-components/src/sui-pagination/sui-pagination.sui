@@ -1,0 +1,96 @@
+<!--
+  <sui-pagination> — SUI port of <ship-pagination>.
+  Pagination bar with prev / next buttons and page info text.
+
+  Prop parity vs <ship-pagination>
+  ──────────────────────────────────────────────────────────────
+  Lit              SUI               Notes
+  ──────────────────────────────────────────────────────────────
+  page (Number)    page (number,1)   ✓ reflect
+  total (Number)   total (number,0)  ✓ reflect
+  per-page (Num)   per-page (num,25) ✓ reflect, camel: perPage
+  tone (String)    (removed)         Ship-pagination uses tone on
+                                     inner buttons; SUI uses native
+                                     buttons with CSS directly
+  ──────────────────────────────────────────────────────────────
+  events: ship-change → sui-page     ✓ { detail: { page: number } }
+  ──────────────────────────────────────────────────────────────
+  parts: prev, next, info            ✓
+  ──────────────────────────────────────────────────────────────
+  ARIA: nav aria-label="Pagination"; ✓
+    prev/next aria-label + aria-disabled;
+    aria-current="page" on active page btn
+  ──────────────────────────────────────────────────────────────
+-->
+
+<state name="totalPages" value="1" />
+<state name="info" value="''" />
+
+<prop name="page" type="number" default="1" reflect />
+<prop name="total" type="number" default="0" reflect />
+<prop name="per-page" type="number" default="25" reflect />
+
+<style>
+  :host { display: block; }
+  nav.bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.8125rem;
+    font-family: var(--font-body);
+  }
+  .info {
+    color: var(--muted-foreground);
+    user-select: none;
+    white-space: nowrap;
+  }
+  .spacer { flex: 1; }
+  .pg-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--foreground);
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: background-color var(--duration-fast);
+  }
+  .pg-btn:hover:not(:disabled) {
+    background: var(--muted);
+    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+  }
+  .pg-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .pg-btn:focus-visible {
+    outline: var(--ring-width) solid var(--ring-color);
+    outline-offset: var(--ring-offset);
+  }
+</style>
+
+<nav class="bar" aria-label="Pagination">
+  <button
+    bind:this={prevBtn}
+    class="pg-btn"
+    part="prev"
+    disabled={page() <= 1}
+    aria-label="Previous page"
+    aria-disabled={page() <= 1 ? 'true' : 'false'}
+  >Prev</button>
+  <span class="info" part="info">{info()}</span>
+  <span class="spacer"></span>
+  <button
+    bind:this={nextBtn}
+    class="pg-btn"
+    part="next"
+    disabled={page() >= totalPages()}
+    aria-label="Next page"
+    aria-disabled={page() >= totalPages() ? 'true' : 'false'}
+  >Next</button>
+</nav>
