@@ -40,15 +40,24 @@ function assetsDirFor(name) {
 }
 
 // Discover non-island SUI components: each subdirectory of src/ that is not
-// `islands/` and contains a matching `<name>.sui` file.
+// `islands/` and contains one or more `<name>.sui` files. Directories may
+// host sibling components (e.g. sui-toast + sui-toast-container co-located
+// in sui-toast/); all .sui files in the directory are compiled.
 function discoverComponentSources() {
   const srcDir = join(repoRoot, 'packages/ui-components/src');
   const results = [];
   for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name === 'islands') continue;
-    const suiFile = join(srcDir, entry.name, `${entry.name}.sui`);
-    if (existsSync(suiFile)) {
+    // Always include the primary file matching the directory name (if present).
+    const primaryFile = join(srcDir, entry.name, `${entry.name}.sui`);
+    if (existsSync(primaryFile)) {
       results.push({ htmlSet: `packages/ui-components/src/${entry.name}/${entry.name}.sui` });
+    }
+    // Also include any sibling .sui files in the same directory.
+    const dirEntries = readdirSync(join(srcDir, entry.name), { withFileTypes: true });
+    for (const f of dirEntries) {
+      if (!f.isFile() || !f.name.endsWith('.sui') || f.name === `${entry.name}.sui`) continue;
+      results.push({ htmlSet: `packages/ui-components/src/${entry.name}/${f.name}` });
     }
   }
   return results;

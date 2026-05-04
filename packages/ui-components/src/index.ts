@@ -37,5 +37,7 @@ import './sui-checkbox/sui-checkbox.compiled.js'
 import './sui-switch/sui-switch.compiled.js'
 import './sui-textarea/sui-textarea.compiled.js'
 import './sui-field/sui-field.compiled.js'
+import './sui-toast/sui-toast.compiled.js'
+import './sui-toast/sui-toast-container.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.

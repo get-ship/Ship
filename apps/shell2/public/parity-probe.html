@@ -74,17 +74,22 @@
     const tbody = document.getElementById('rows')
     function attrsHtml(rec) {
       return Object.entries(rec)
+        .filter(([, v]) => v !== false)
         .map(([k, v]) => v === true ? k : `${k}="${String(v).replace(/"/g, '&quot;')}"`)
         .join(' ')
     }
 
     variants.forEach((v, i) => {
+      // Keys prefixed with '--' are special directives, not HTML attributes.
+      // '--inner': raw HTML injected as children into both lit and sui elements.
+      const inner = v['--inner'] || ''
+      const attrsRec = Object.fromEntries(Object.entries(v).filter(([k]) => !k.startsWith('--')))
       const tr = document.createElement('tr')
       tr.dataset.variant = String(i)
       tr.innerHTML = `
-        <td class="label">${JSON.stringify(v)}</td>
-        <td class="lit-cell"><${lit} ${attrsHtml(v)}></${lit}></td>
-        <td class="sui-cell"><${sui} ${attrsHtml(v)}></${sui}></td>
+        <td class="label">${JSON.stringify(attrsRec)}</td>
+        <td class="lit-cell"><${lit} ${attrsHtml(attrsRec)}>${inner}</${lit}></td>
+        <td class="sui-cell"><${sui} ${attrsHtml(attrsRec)}>${inner}</${sui}></td>
       `
       tbody.appendChild(tr)
     })

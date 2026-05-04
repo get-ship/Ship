@@ -160,10 +160,69 @@ function restoreTheme(): void {
   document.documentElement.dataset.theme = saved ?? 'ship-light'
 }
 
+// ── Toast bridge ────────────────────────────────────────────────────
+
+interface SuiNotifyDetail {
+  tone?: string
+  title?: string
+  message?: string
+  description?: string
+  duration?: number
+  dismissible?: boolean
+  showProgress?: boolean
+  actionHtml?: string
+}
+
+interface ToastContainer extends HTMLElement {
+  show(opts: {
+    tone?: string
+    title?: string
+    description?: string
+    duration?: number
+    dismissible?: boolean
+    showProgress?: boolean
+    actionHtml?: string
+  }): HTMLElement
+}
+
+function getToastContainer(): ToastContainer | null {
+  return document.getElementById('sui-toast-container') as ToastContainer | null
+}
+
+function onSuiNotify(e: Event): void {
+  const detail = ((e as CustomEvent).detail ?? {}) as SuiNotifyDetail
+  const container = getToastContainer()
+  if (!container) return
+  container.show({
+    tone: detail.tone,
+    title: detail.title ?? detail.message,
+    description: detail.description,
+    duration: detail.duration,
+    dismissible: detail.dismissible,
+    showProgress: detail.showProgress,
+    actionHtml: detail.actionHtml,
+  })
+}
+
+document.addEventListener('sui:notify', onSuiNotify)
+
+function dispatchDemoToast(): void {
+  document.dispatchEvent(new CustomEvent('sui:notify', {
+    detail: {
+      tone: 'success',
+      title: 'Ship notification',
+      description: 'Toast bridge is working end to end.',
+      duration: 5000,
+    },
+    bubbles: true,
+  }))
+}
+
 // ── Boot ────────────────────────────────────────────────────────────
 
 restoreTheme()
 document.getElementById('ship-theme-toggle')?.addEventListener('click', toggleTheme)
+document.getElementById('ship-notify-btn')?.addEventListener('click', dispatchDemoToast)
 document.addEventListener('click', onAnchorClick)
 window.addEventListener('popstate', () => {
   const r = readRoute()
