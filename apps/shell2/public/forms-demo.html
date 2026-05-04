@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>SUI Form Atoms — Demo</title>
+
+  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
+
+  <script type="importmap">
+    {
+      "imports": {
+        "@ship/ui-runtime":    "/_sui/runtime.js",
+        "@ship/ui-dom":        "/_sui/dom.js",
+        "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+      }
+    }
+  </script>
+
+  <!-- SUI components (registers <sui-*> custom elements). -->
+  <script>
+    (function () {
+      var s = document.createElement('script');
+      s.type = 'module';
+      s.src = '/_sui/components.js';
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <style>
+    body {
+      font-family: var(--font-body, system-ui, sans-serif);
+      padding: 32px;
+      background: var(--background, #fff);
+      color: var(--foreground, #111);
+      max-width: 600px;
+    }
+
+    h1 { font-size: 20px; font-weight: 600; margin: 0 0 24px; }
+    h2 { font-size: 14px; font-weight: 600; margin: 24px 0 8px; color: var(--muted-foreground, #666); text-transform: uppercase; letter-spacing: 0.05em; }
+
+    .stack { display: flex; flex-direction: column; gap: 16px; }
+    .row { display: flex; align-items: center; gap: 16px; }
+
+    #result {
+      margin-top: 24px;
+      padding: 12px 16px;
+      background: var(--muted, #f5f5f5);
+      border-radius: var(--radius-md, 6px);
+      font-family: ui-monospace, monospace;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    .submit-btn {
+      margin-top: 16px;
+      padding: 8px 20px;
+      background: var(--primary, #0f172a);
+      color: var(--primary-foreground, #fff);
+      border: none;
+      border-radius: var(--radius-md, 6px);
+      font: inherit;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .submit-btn:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+  <h1>SUI Form Atoms Demo</h1>
+
+  <form id="demo-form" novalidate>
+    <!-- Checkbox -->
+    <h2>Checkbox</h2>
+    <div class="stack">
+      <sui-field id="agree-field">
+        <span slot="label">Accept terms</span>
+        <sui-checkbox name="accept" value="yes" label="Accept terms of service"></sui-checkbox>
+        <span slot="hint">Required to continue</span>
+        <span slot="error">You must accept the terms</span>
+      </sui-field>
+
+      <div class="row">
+        <sui-checkbox name="newsletter" value="subscribe" label="Newsletter">Subscribe to newsletter</sui-checkbox>
+        <sui-checkbox name="notifications" value="on" checked label="Notifications">Notifications</sui-checkbox>
+        <sui-checkbox name="mixed-ex" indeterminate label="Indeterminate">Mixed</sui-checkbox>
+      </div>
+
+      <div class="row">
+        <sui-checkbox disabled label="Disabled">Disabled</sui-checkbox>
+        <sui-checkbox tone="success" checked label="Success">Success</sui-checkbox>
+        <sui-checkbox tone="destructive" invalid label="Error">Error</sui-checkbox>
+      </div>
+    </div>
+
+    <!-- Switch -->
+    <h2>Switch</h2>
+    <div class="stack">
+      <sui-field id="darkmode-field">
+        <span slot="label">Dark mode</span>
+        <sui-switch name="dark_mode" value="on" label="Dark mode"></sui-switch>
+      </sui-field>
+
+      <div class="row">
+        <sui-switch name="wifi" value="on" checked>Wi-Fi</sui-switch>
+        <sui-switch name="bluetooth" value="on">Bluetooth</sui-switch>
+        <sui-switch name="airplane" value="on" disabled>Airplane mode</sui-switch>
+      </div>
+
+      <div class="row">
+        <sui-switch tone="success" name="active" value="on" checked>Active</sui-switch>
+        <sui-switch size="sm" name="sm_toggle" value="on">Small</sui-switch>
+        <sui-switch size="lg" name="lg_toggle" value="on">Large</sui-switch>
+      </div>
+    </div>
+
+    <!-- Textarea -->
+    <h2>Textarea</h2>
+    <div class="stack">
+      <sui-field id="bio-field">
+        <span slot="label">Bio</span>
+        <sui-textarea name="bio" placeholder="Tell us about yourself..." rows="4"></sui-textarea>
+        <span slot="hint">Up to 500 characters</span>
+      </sui-field>
+
+      <sui-field invalid id="code-field">
+        <span slot="label">Code snippet</span>
+        <sui-textarea name="code" variant="code" placeholder="function hello() {}" rows="4"
+                      invalid></sui-textarea>
+        <span slot="error">Invalid syntax</span>
+      </sui-field>
+
+      <sui-textarea name="readonly_note" readonly rows="2"
+                    value="This is read-only text."></sui-textarea>
+    </div>
+
+    <button type="submit" class="submit-btn">Submit form</button>
+  </form>
+
+  <div id="result">FormData will appear here after submit…</div>
+
+  <script type="module">
+    // Wait for all SUI components to register
+    await Promise.all([
+      customElements.whenDefined('sui-checkbox'),
+      customElements.whenDefined('sui-switch'),
+      customElements.whenDefined('sui-textarea'),
+      customElements.whenDefined('sui-field'),
+    ])
+
+    const form = document.getElementById('demo-form')
+    const result = document.getElementById('result')
+
+    // Live event log
+    form.addEventListener('sui-change', (e) => {
+      console.log('[sui-change]', e.type, e.target?.tagName, e.detail)
+    })
+    form.addEventListener('sui-input', (e) => {
+      console.log('[sui-input]', e.target?.tagName, e.detail)
+    })
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault()
+      const data = new FormData(form)
+      const entries = {}
+      for (const [k, v] of data.entries()) {
+        entries[k] = v
+      }
+      result.textContent = JSON.stringify(entries, null, 2)
+      console.log('[submit] FormData:', entries)
+    })
+
+    document.body.setAttribute('data-forms-demo-ready', '1')
+    console.log('[forms-demo] ready — all components registered')
+  </script>
+</body>
+</html>
