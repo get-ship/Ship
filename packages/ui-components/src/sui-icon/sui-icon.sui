@@ -1,0 +1,65 @@
+<!--
+  <sui-icon> — SUI port of <ship-icon>.
+  Canonical inline SVG icon. Resolves `name` against the curated
+  Lucide registry. Names not in the registry fall through to the
+  default slot — provide raw SVG there for one-off glyphs.
+
+  Prop / event / method parity vs <ship-icon>
+  ────────────────────────────────────────────────────────────────────────────
+  Lit                             SUI                      Notes
+  ────────────────────────────────────────────────────────────────────────────
+  name (String, '')               name (string, '', reflect) ✓ kebab-case id
+  size ('sm'|'md'|'lg', 'md')    size (union, 'md', reflect) ✓ sm=12 md=16 lg=20
+  tone (Tone, 'default')          tone (union, 'default',    ✓ drives --tone-fg
+                                   reflect)                    via suiTonesSheet
+  label (String, '')              label (string, '', reflect) ✓ → role=img +
+                                                               aria-label; else
+                                                               aria-hidden=true
+  ────────────────────────────────────────────────────────────────────────────
+  (no events)                     (no events)                ✓
+  ────────────────────────────────────────────────────────────────────────────
+  slots: (default)                (default)                  ✓ SVG passthrough /
+                                                               fallback
+  ────────────────────────────────────────────────────────────────────────────
+  parts: svg                      part="svg"                 ✓ the inner SVG
+  ────────────────────────────────────────────────────────────────────────────
+  ARIA: host gets role=img +      controller sets same       ✓ parity
+    aria-label when label set;     attrs on host
+    aria-hidden=true otherwise
+  ────────────────────────────────────────────────────────────────────────────
+  Lucide registry is shared       ✓ import from ship-set     no copy
+  alias map inlined               ✓ in controller            git→git-branch etc.
+  ────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="name" type="string" default="" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="tone" values="default|info|success|warning|destructive|accent|muted|primary" default="default" reflect />
+<prop name="label" type="string" default="" reflect />
+
+<style>
+  :host {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    /* default tone; suiTonesSheet (adopted by compiler) overrides per [tone] */
+    --tone-fg: var(--foreground);
+    color: var(--tone-fg);
+  }
+  :host([hidden]) { display: none; }
+
+  /* Size matrix — applies to the controller-injected SVG */
+  svg.sui-icon-svg {
+    display: block;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 auto;
+  }
+  :host([size='sm']) svg.sui-icon-svg { width: 12px; height: 12px; }
+  :host([size='lg']) svg.sui-icon-svg { width: 20px; height: 20px; }
+
+  /* Slot passthrough: user-provided SVG fills the icon box */
+  ::slotted(svg) { width: 100%; height: 100%; }
+</style>
+
+<slot bind:this={slotEl}></slot>
