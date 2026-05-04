@@ -1,0 +1,87 @@
+<!--
+  <sui-tooltip> — SUI port of <ship-tooltip>.
+  CSS-positioned tooltip shown on hover/focus-within. Wraps the trigger
+  as light-DOM children; `content` slot provides the bubble body.
+
+  Prop parity vs <ship-tooltip>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  placement                    placement (reflect)      ✓ top|bottom|left|right
+    'top'|'bottom'|'left'|
+    'right'
+  ─────────────────────────────────────────────────────────────────────────────
+  (no events)                  (no events)              ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: (default) trigger     (default) trigger        ✓
+         content  tooltip body  content  tooltip body   ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  ARIA: aria-describedby set   controller sets same     ✓ on first slotted
+    on first slotted element     on first slotted el       element via
+                                                           slotchange
+  Esc key blurs host           Esc key blurs host       ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: (none)                part="bubble"            SUI adds bubble part
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="placement" values="top|bottom|left|right" default="top" reflect />
+
+<style>
+  :host {
+    position: relative;
+    display: inline-flex;
+  }
+  :host([hidden]) { display: none; }
+
+  .bubble {
+    position: absolute;
+    z-index: var(--z-popover, 50);
+    padding: 4px 8px;
+    background: var(--foreground);
+    color: var(--background);
+    font-family: var(--font-body);
+    font-size: 11px;
+    font-weight: var(--font-weight-medium, 500);
+    border-radius: var(--radius-sm);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--duration-fast, 120ms) var(--ease-out, ease-out);
+    box-shadow: var(--shadow-sm);
+  }
+
+  :host(:hover) .bubble,
+  :host(:focus-within) .bubble {
+    opacity: 1;
+  }
+
+  /* Placement: top (default) */
+  :host(:not([placement])) .bubble,
+  :host([placement='top']) .bubble {
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  :host([placement='bottom']) .bubble {
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  :host([placement='left']) .bubble {
+    right: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  :host([placement='right']) .bubble {
+    left: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+  }
+</style>
+
+<slot bind:this={defaultSlot}></slot>
+<span class="bubble" role="tooltip" part="bubble" bind:this={bubbleEl}><slot name="content"></slot></span>

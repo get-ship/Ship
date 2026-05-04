@@ -67,6 +67,62 @@
       <button id="ship-theme-toggle" class="ship-theme-toggle" type="button" title="Toggle theme">◐</button>
     </header>
     <main id="ship-content" class="ship-content"></main>
+
+    <!-- S2 static-primitives demo — one of each new component, visible at all times.
+         Satisfies acceptance gate §4 (shell2 integration probe). -->
+    <footer id="sui-statics-demo" style="
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      font-family: var(--font-body);
+    ">
+      <!-- sui-separator -->
+      <div>
+        <sui-label size="sm">sui-separator</sui-label>
+        <sui-separator orientation="horizontal" style="margin-top:4px"></sui-separator>
+      </div>
+
+      <!-- sui-label -->
+      <div style="display:flex;gap:12px;align-items:center">
+        <sui-label for="demo-input" required>sui-label</sui-label>
+        <input id="demo-input" type="text" placeholder="focus me" style="border:1px solid var(--border);padding:4px 8px;border-radius:4px;background:var(--background);color:var(--foreground)" />
+      </div>
+
+      <!-- sui-alert -->
+      <sui-alert tone="info">
+        <span slot="title">sui-alert</span>
+        Info banner — static, dismissible variant below
+      </sui-alert>
+      <sui-alert tone="warning" dismissible>
+        <span slot="title">Warning</span>
+        Dismissible alert. Click × to remove.
+      </sui-alert>
+
+      <!-- sui-tooltip -->
+      <div style="display:flex;gap:12px;align-items:center">
+        <sui-label>sui-tooltip</sui-label>
+        <sui-tooltip placement="top">
+          <button type="button" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Hover me</button>
+          <span slot="content">Tooltip text</span>
+        </sui-tooltip>
+        <sui-tooltip placement="right">
+          <button type="button" style="padding:4px 10px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Right</button>
+          <span slot="content">Right placement</span>
+        </sui-tooltip>
+      </div>
+
+      <!-- sui-collapsible -->
+      <sui-collapsible>
+        <button slot="trigger" type="button" style="width:100%;text-align:left;padding:6px 10px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">
+          sui-collapsible — click to expand ▾
+        </button>
+        <div style="padding:10px;border:1px solid var(--border);border-top:0;border-radius:0 0 4px 4px;color:var(--foreground)">
+          Collapsible content. Grid-based height animation, keyboard-accessible.
+        </div>
+      </sui-collapsible>
+    </footer>
   </div>
   <script type="module" src="/src/main.ts"></script>
 </body>
