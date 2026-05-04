@@ -284,7 +284,7 @@ async fn build_header_middleware(
 /// only binds handlers.
 ///
 /// Two preserved non-enum `.route()` paths:
-/// - `/api/v1/workspaces/{id}/session-files/{*path}` — glob param, specific to
+/// - `/api/v1/projects/{id}/session-files/{*path}` — glob param, specific to
 ///   project_api's recursive file handler. Kept alongside the enum variant
 ///   that exposes the non-glob listing endpoint.
 /// - `/api/v1/skills/{id}/files/{*path}` — same reason (SkillService sub-file route).
@@ -311,7 +311,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
         // Runtime
-        .ship_route(Route::ListWorkspaces, runtime_api::list_workspaces)
         .ship_route(Route::ListSessions, runtime_api::list_sessions)
         .ship_route(Route::ListAgents, runtime_api::list_agents)
         .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
@@ -413,8 +412,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::PermissionsDelete_template(), services::permissions::delete)
         .ship_route(Route::PermissionsCreate, services::permissions::create)
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
-        // the workspace-scoped skill endpoints that used to hang off
-        // /api/v1/workspaces/{id}/skills/*.
+        // the project-scoped skill endpoints that used to hang off
+        // /api/v1/projects/{id}/skills/*.
         .ship_route(Route::SkillsList, services::skills::list)
         .ship_route(Route::SkillsGet_template(), services::skills::get)
         .ship_route(Route::SkillsCreate, services::skills::create)
@@ -438,7 +437,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Events / projections
         .ship_route(Route::EventStream, runtime_api::event_stream)
         .ship_route(Route::RebuildProjections, runtime_api::rebuild_projections)
-        .ship_route(Route::WorkspacePty_template(), pty_handler::workspace_pty)
+        .ship_route(Route::ProjectPty_template(), pty_handler::workspace_pty)
         // Settings
         .ship_route(Route::ListSettings, settings_api::list_settings)
         .ship_route(Route::UpdateSetting, settings_api::update_setting)
@@ -446,8 +445,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ListProviders, settings_api::list_providers)
         // Project
         .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
-        .ship_route(Route::ListWorkspaceAgents_template(), project_api::list_agents)
-        .ship_route(Route::WriteWorkspaceAgent_template(), project_api::write_agent)
+        .ship_route(Route::ListProjectAgents_template(), project_api::list_agents)
+        .ship_route(Route::WriteProjectAgent_template(), project_api::write_agent)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
         .ship_route(Route::GitStatus, services::git::status_handler)
@@ -514,7 +513,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Glob-param file handlers (not in enum — glob syntax is project_api
         // internal; keep flat).
         .route(
-            "/api/v1/workspaces/{id}/session-files/{*path}",
+            "/api/v1/projects/{id}/session-files/{*path}",
             axum::routing::get(project_api::read_session_file)
                 .put(project_api::write_session_file)
                 .delete(project_api::delete_session_file),

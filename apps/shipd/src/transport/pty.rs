@@ -1,9 +1,9 @@
 //! PTY WebSocket endpoint — bridges a tmux attach-session process to a WS client.
 //!
-//! Route: GET /api/v1/workspaces/:id/pty
+//! Route: GET /api/v1/projects/:id/pty
 //! Upgrades to WebSocket, then spawns `tmux attach-session -t <name>` with stdin/stdout
 //! bridged to the WS frame stream. Multiple clients may attach concurrently (tmux handles
-//! multiplexing). Limit: 5 concurrent attachments per workspace.
+//! multiplexing). Limit: 5 concurrent attachments per project.
 
 use axum::{
     Json,
@@ -27,22 +27,22 @@ use crate::rest_api::ApiState;
 /// Maximum concurrent tmux attach processes per workspace.
 const MAX_PTY_CONNECTIONS: usize = 5;
 
-/// GET /api/v1/workspaces/:id/pty
+/// GET /api/v1/projects/:id/pty
 ///
 /// Upgrades to WebSocket or returns 404/429 before the upgrade.
 /// WebSocketUpgrade is extracted manually after validation so tests can reach
 /// the 404/429 paths without a live HTTP connection (which axum requires for
 /// upgrade state — without it the extractor returns 426 before the handler runs).
 #[utoipa::path(
-    operation_id = "workspacePty",
+    operation_id = "projectPty",
     get,
-    path = "/api/v1/workspaces/{id}/pty",
-    params(("id" = String, Path, description = "Workspace id")),
+    path = "/api/v1/projects/{id}/pty",
+    params(("id" = String, Path, description = "Project id")),
     responses(
         (status = 101, description = "WebSocket upgrade; bidirectional PTY stream"),
         (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
         (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Project not found", body = crate::openapi_types::ErrorResponse),
         (status = 429, description = "Max PTY connections reached", body = crate::openapi_types::ErrorResponse),
     ),
     tag = "project"

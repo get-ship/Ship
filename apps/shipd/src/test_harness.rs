@@ -92,8 +92,8 @@ impl TestDaemon {
 
         let runtime_routes = Router::new()
             .route(
-                "/workspaces",
-                axum::routing::get(crate::runtime_api::list_workspaces),
+                "/projects",
+                axum::routing::get(crate::projects_api::list_projects),
             )
             .route(
                 "/sessions",

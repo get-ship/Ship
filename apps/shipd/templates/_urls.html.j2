@@ -109,7 +109,6 @@
 {%- macro view_session_raw(id) -%}/api/v1/view-sessions/{{ id }}/raw{%- endmacro -%}
 {%- macro post_feedback() -%}/api/v1/feedback{%- endmacro -%}
 {%- macro post_annotation() -%}/api/v1/annotations{%- endmacro -%}
-{%- macro list_workspaces() -%}/api/v1/workspaces{%- endmacro -%}
 {%- macro list_sessions() -%}/api/v1/sessions{%- endmacro -%}
 {%- macro list_agents() -%}/api/v1/agents/active{%- endmacro -%}
 {%- macro stop_agent(slug) -%}/api/v1/agents/{{ slug }}/stop{%- endmacro -%}
@@ -133,17 +132,14 @@
 {%- macro launch_spec(id) -%}/api/v1/specs/{{ id }}/launch{%- endmacro -%}
 {%- macro event_stream() -%}/api/v1/events/stream{%- endmacro -%}
 {%- macro rebuild_projections() -%}/api/v1/rebuild-projections{%- endmacro -%}
-{%- macro workspace_pty(id) -%}/api/v1/workspaces/{{ id }}/pty{%- endmacro -%}
+{%- macro project_pty(id) -%}/api/v1/projects/{{ id }}/pty{%- endmacro -%}
 {%- macro list_settings() -%}/api/v1/settings{%- endmacro -%}
 {%- macro update_setting() -%}/api/v1/settings{%- endmacro -%}
 {%- macro get_setting(key) -%}/api/v1/settings/{{ key }}{%- endmacro -%}
 {%- macro list_providers() -%}/api/v1/providers{%- endmacro -%}
-{%- macro start_workspace(id) -%}/api/v1/supervisor/workspaces/{{ id }}/start{%- endmacro -%}
-{%- macro list_session_files(id) -%}/api/v1/workspaces/{{ id }}/session-files{%- endmacro -%}
-{%- macro list_workspace_agents(id) -%}/api/v1/workspaces/{{ id }}/agents{%- endmacro -%}
-{%- macro write_workspace_agent(id) -%}/api/v1/workspaces/{{ id }}/agents{%- endmacro -%}
-{%- macro delete_workspace(id) -%}/api/v1/workspaces/{{ id }}{%- endmacro -%}
-{%- macro activate_workspace(id) -%}/api/v1/workspaces/{{ id }}/activate{%- endmacro -%}
+{%- macro list_session_files(id) -%}/api/v1/projects/{{ id }}/session-files{%- endmacro -%}
+{%- macro list_project_agents(id) -%}/api/v1/projects/{{ id }}/agents{%- endmacro -%}
+{%- macro write_project_agent(id) -%}/api/v1/projects/{{ id }}/agents{%- endmacro -%}
 {%- macro git_status() -%}/api/v1/git/status{%- endmacro -%}
 {%- macro git_diff() -%}/api/v1/git/diff{%- endmacro -%}
 {%- macro git_log() -%}/api/v1/git/log{%- endmacro -%}

@@ -1,3 +1,3 @@
 export { syncRoutes } from './sync.js';
-export { workspaceRoutes } from './workspaces.js';
+export { projectRoutes } from './projects.js';
 export { jobRoutes } from './jobs.js';

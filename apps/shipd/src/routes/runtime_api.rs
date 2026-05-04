@@ -27,60 +27,6 @@ pub struct SessionsQuery {
 
 // ---- Handlers ----
 
-/// GET /api/v1/runtime/workspaces
-///
-/// Returns only active workspaces. Archived/dead workspaces are excluded
-/// from the API surface — the reconciler handles cleanup internally.
-#[utoipa::path(
-    operation_id = "listWorkspaces",
-    get,
-    path = "/api/v1/workspaces",
-    responses(
-        (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
-    ),
-    tag = "runtime"
-)]
-pub async fn list_workspaces(
-    State(state): State<ApiState>,
-    Extension(auth): Extension<AuthContext>,
-) -> impl IntoResponse {
-    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
-        return e.into_response();
-    }
-    // Source of truth: git worktrees. DB rows overlay metadata when present.
-    let mut workspaces: Vec<serde_json::Value> = Vec::new();
-    let mut seen_names: std::collections::HashSet<String> = std::collections::HashSet::new();
-
-    // 1. Git worktrees (one per branch checked out).
-    if let Some(wt) = git_worktrees() {
-        for (branch, path) in wt {
-            if seen_names.contains(&branch) { continue; }
-            seen_names.insert(branch.clone());
-            workspaces.push(serde_json::json!({
-                "id": branch.replace('/', "-"),
-                "name": branch,
-                "path": path,
-                "active_agent": null,
-                "created_at": chrono::Utc::now().to_rfc3339(),
-            }));
-        }
-    }
-
-    let _ = state;
-    let _ = seen_names;
-
-    (
-        StatusCode::OK,
-        Json(MeshResponse {
-            ok: true,
-            data: serde_json::json!({ "workspaces": workspaces }),
-        }),
-    )
-        .into_response()
-}
-
 /// Resolve HEAD SHA of the active project root. Used at `job.created` time
 /// to capture the pipeline's baseline — the point every future worktree
 /// branches from, and the `from` end of gate diff evaluation. `None` when
@@ -90,41 +36,6 @@ pub(super) fn resolve_project_head_sha() -> Option<String> {
     let project_ship = runtime::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
     runtime::services::orchestrator::git_helpers::resolve_head_sha(project_root)
-}
-
-/// Parse `git worktree list --porcelain` from the active project root.
-/// Returns (branch, path) pairs, skipping detached and bare entries.
-pub(super) fn git_worktrees() -> Option<Vec<(String, String)>> {
-    let project_ship = runtime::project::get_project_dir(None).ok()?;
-    let project_root = project_ship.parent()?;
-    let output = std::process::Command::new("git")
-        .args(["worktree", "list", "--porcelain"])
-        .current_dir(project_root)
-        .output()
-        .ok()?;
-    if !output.status.success() { return None; }
-
-    let text = String::from_utf8_lossy(&output.stdout);
-    let mut out = Vec::new();
-    for block in text.split("\n\n") {
-        let mut path: Option<String> = None;
-        let mut branch: Option<String> = None;
-        let mut skip = false;
-        for line in block.lines() {
-            if let Some(p) = line.strip_prefix("worktree ") {
-                path = Some(p.trim().to_string());
-            } else if let Some(b) = line.strip_prefix("branch refs/heads/") {
-                branch = Some(b.trim().to_string());
-            } else if line == "bare" || line == "detached" {
-                skip = true;
-            }
-        }
-        if skip { continue; }
-        if let (Some(p), Some(b)) = (path, branch) {
-            out.push((b, p));
-        }
-    }
-    Some(out)
 }
 
 /// GET /api/v1/runtime/sessions[?workspace_id=<id>]
@@ -257,17 +168,6 @@ mod tests {
         use http_body_util::BodyExt;
         let bytes = response.into_body().collect().await.unwrap().to_bytes();
         serde_json::from_slice(&bytes).unwrap()
-    }
-
-    #[tokio::test(flavor = "multi_thread")]
-    async fn list_workspaces_returns_ok_with_array() {
-        let dir = TempDir::new().unwrap();
-        let state = make_api_state(&dir);
-        let response = list_workspaces(State(state), test_auth()).await.into_response();
-        assert_eq!(response.status(), axum::http::StatusCode::OK);
-        let val = collect_body(response).await;
-        assert_eq!(val["ok"], serde_json::json!(true));
-        assert!(val["data"]["workspaces"].is_array(), "expected workspaces array");
     }
 
     #[tokio::test(flavor = "multi_thread")]

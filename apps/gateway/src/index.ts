@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { errorHandler } from './middleware/on-error.js';
-import { syncRoutes, workspaceRoutes, jobRoutes } from './routes/index.js';
+import { syncRoutes, projectRoutes, jobRoutes } from './routes/index.js';
 import { authRoutes } from './routes/auth.js';
 import { githubRoutes } from './routes/github.js';
 import { registryRoutes } from './routes/registry.js';
@@ -19,14 +19,14 @@ const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
       credentials: true,
     }),
   )
-  // Platform routes (workspace/job proxy to Durable Objects — require x-project-id)
+  // Platform routes (project/job proxy to Durable Objects — require x-project-id)
   .use('/api/sync/*', async (c, next) => {
     const projectId = c.req.header('x-project-id');
     if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
     c.set('projectId', projectId);
     return next();
   })
-  .use('/api/workspaces/*', async (c, next) => {
+  .use('/api/projects/*', async (c, next) => {
     const projectId = c.req.header('x-project-id');
     if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
     c.set('projectId', projectId);
@@ -39,7 +39,7 @@ const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
     return next();
   })
   .route('/api/sync', syncRoutes)
-  .route('/api/workspaces', workspaceRoutes)
+  .route('/api/projects', projectRoutes)
   .route('/api/jobs', jobRoutes)
   // Auth, GitHub, registry routes (no x-project-id middleware)
   .route('/', authRoutes)
@@ -47,5 +47,3 @@ const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
   .route('/', registryRoutes);
 
 export default app;
-
-export type AppType = typeof app;

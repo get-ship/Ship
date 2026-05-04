@@ -1,15 +1,15 @@
 import { Hono } from 'hono';
 
-const workspaces = new Hono<{
+const projects = new Hono<{
   Bindings: Env;
   Variables: { projectId: string };
 }>();
 
 /**
- * List workspaces for a project
- * GET /api/workspaces
+ * List projects
+ * GET /api/projects
  */
-workspaces.get('/', async (c) => {
+projects.get('/', async (c) => {
   const projectId = c.get('projectId');
 
   const id = c.env.PLATFORM.idFromName(projectId);
@@ -20,4 +20,4 @@ workspaces.get('/', async (c) => {
   return c.json(result);
 });
 
-export { workspaces as workspaceRoutes };
+export { projects as projectRoutes };

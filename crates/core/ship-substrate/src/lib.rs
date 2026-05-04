@@ -6,7 +6,6 @@
 //! config schemas, or any L1 primitives.
 
 pub mod access;
-pub mod actor;
 pub mod data;
 pub mod db;
 pub mod env;

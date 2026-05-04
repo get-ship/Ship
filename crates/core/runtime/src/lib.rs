@@ -3,7 +3,6 @@
 // backward compatibility. Do not add L1 code here — it would bypass the
 // compile-time barrier.
 pub use ship_substrate::access;
-pub use ship_substrate::actor;
 pub use ship_substrate::data;
 pub use ship_substrate::db;
 pub use ship_substrate::env;

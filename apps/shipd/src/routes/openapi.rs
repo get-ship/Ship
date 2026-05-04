@@ -44,7 +44,6 @@ impl Modify for SecurityAndServer {
         crate::rest_api::mesh_status_update,
         crate::rest_api::mesh_events,
         crate::rest_api::capabilities,
-        crate::runtime_api::list_workspaces,
         crate::runtime_api::list_sessions,
         crate::runtime_api::agents::list_agents,
         crate::runtime_api::jobs::list_jobs,

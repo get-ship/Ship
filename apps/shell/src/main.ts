@@ -830,14 +830,14 @@ let daemonConnected = false;
 async function updateStatus() {
   statusTheme.textContent = document.documentElement.dataset.theme ?? "ship-light";
   try {
-    const res = await fetch("/api/v1/workspaces", {
+    const res = await fetch("/api/v1/projects", {
       credentials: SAME_ORIGIN ? "include" : "omit",
       headers: !SAME_ORIGIN && TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
     });
     if (res.ok) {
-      const envelope = await res.json();
-      const ws = envelope?.data?.workspaces?.[0];
-      statusBranch.textContent = ws?.name || ws?.id || "no workspace";
+      const data = await res.json();
+      const ws = data?.projects?.[0];
+      statusBranch.textContent = ws?.name || ws?.id || "no project";
       statusAgents.textContent = ws?.active_agent ? `agent: ${ws.active_agent}` : "";
       statusDot.classList.remove("disconnected");
       daemonConnected = true;

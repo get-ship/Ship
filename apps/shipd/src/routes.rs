@@ -413,9 +413,6 @@ pub enum Route {
 
     // ── Runtime listings ─────────────────────────────────────────────────
 
-    /// @route GET "/api/v1/workspaces"
-    ListWorkspaces,
-
     /// @route GET "/api/v1/sessions"
     ListSessions,
 
@@ -493,8 +490,8 @@ pub enum Route {
     /// @route POST "/api/v1/rebuild-projections"
     RebuildProjections,
 
-    /// @route GET "/api/v1/workspaces/{id}/pty"
-    WorkspacePty { id: String },
+    /// @route GET "/api/v1/projects/{id}/pty"
+    ProjectPty { id: String },
 
     // ── Settings / providers ─────────────────────────────────────────────
 
@@ -512,25 +509,16 @@ pub enum Route {
 
     // ── Supervisor ───────────────────────────────────────────────────────
 
-    /// @route POST "/api/v1/supervisor/workspaces/{id}/start"
-    StartWorkspace { id: String },
+    // ── Project-scoped ───────────────────────────────────────────────────
 
-    // ── Project / workspace scoped ───────────────────────────────────────
-
-    /// @route GET "/api/v1/workspaces/{id}/session-files"
+    /// @route GET "/api/v1/projects/{id}/session-files"
     ListSessionFiles { id: String },
 
-    /// @route GET "/api/v1/workspaces/{id}/agents"
-    ListWorkspaceAgents { id: String },
+    /// @route GET "/api/v1/projects/{id}/agents"
+    ListProjectAgents { id: String },
 
-    /// @route POST "/api/v1/workspaces/{id}/agents"
-    WriteWorkspaceAgent { id: String },
-
-    /// @route DELETE "/api/v1/workspaces/{id}"
-    DeleteWorkspace { id: String },
-
-    /// @route POST "/api/v1/workspaces/{id}/activate"
-    ActivateWorkspace { id: String },
+    /// @route POST "/api/v1/projects/{id}/agents"
+    WriteProjectAgent { id: String },
 
     // ── GitService — canonical `/api/git/*` surface ──────────────────────
 
