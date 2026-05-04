@@ -92,5 +92,6 @@ import './sui-devtools/sui-devtools-components.compiled.js'
 import './sui-devtools/sui-devtools-lint.compiled.js'
 import './sui-devtools/sui-devtools-schema.compiled.js'
 import './sui-devtools/sui-devtools-signals.compiled.js'
+import './sui-command-bar/sui-command-bar.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.
