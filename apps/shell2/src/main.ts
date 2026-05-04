@@ -177,7 +177,10 @@ function initRail(): void {
 
   // Restore persisted collapsed state before first paint.
   try {
-    if (localStorage.getItem(RAIL_COLLAPSED_KEY)) rail.setAttribute('collapsed', '')
+    if (localStorage.getItem(RAIL_COLLAPSED_KEY)) {
+      rail.setAttribute('collapsed', '')
+      document.body.classList.add('rail-collapsed')
+    }
   } catch { /* best-effort */ }
 
   // sui-rail:toggle — fired by the rail's own collapse button
@@ -194,6 +197,7 @@ function initRail(): void {
     const next = !rail.hasAttribute('collapsed')
     if (next) rail.setAttribute('collapsed', '')
     else rail.removeAttribute('collapsed')
+    document.body.classList.toggle('rail-collapsed', next)
     try {
       if (next) localStorage.setItem(RAIL_COLLAPSED_KEY, '1')
       else localStorage.removeItem(RAIL_COLLAPSED_KEY)
@@ -318,15 +322,75 @@ function getDock(): PanelDock | null {
   return document.getElementById('ship-panel-dock') as PanelDock | null
 }
 
+// ── Keyboard map ────────────────────────────────────────────────────
+//
+// ⌘K/Ctrl+K  → command-bar toggle   (deferred: sui-command-bar not yet landed)
+// ⌘P/Ctrl+P  → command-bar search   (deferred: sui-command-bar not yet landed)
+// ⌘J/Ctrl+J  → panel-dock toggle
+// ⌘⇧E/Ctrl+Shift+E → body.edit-mode toggle (sui-edit-overlay listens)
+// ⌘B/Ctrl+B  → rail toggle (via sui:rail:toggle)
+// Esc        → close open sui-dialog / sui-drawer (backstop)
+
 document.addEventListener('keydown', (e: KeyboardEvent) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+  const mod = e.metaKey || e.ctrlKey
+
+  if (mod && e.key === 'j') {
     e.preventDefault()
     getDock()?.toggle()
+    return
+  }
+
+  if (mod && e.key === 'k') {
+    e.preventDefault()
+    // sui-command-bar has not landed yet — stub until it merges.
+    console.warn('[shell2] ⌘K: sui-command-bar not loaded')
+    return
+  }
+
+  if (mod && e.key === 'p') {
+    e.preventDefault()
+    // sui-command-bar has not landed yet — stub until it merges.
+    console.warn('[shell2] ⌘P: sui-command-bar not loaded')
+    return
+  }
+
+  if (mod && e.shiftKey && e.key === 'E') {
+    e.preventDefault()
+    document.body.classList.toggle('edit-mode')
+    return
+  }
+
+  if (mod && e.key === 'b') {
+    e.preventDefault()
+    document.dispatchEvent(new CustomEvent('sui:rail:toggle', { bubbles: true }))
+    return
+  }
+
+  if (e.key === 'Escape') {
+    // Native <dialog> handles Esc already. Backstop: close any open
+    // sui-dialog or sui-drawer that may not be using the native dialog element.
+    for (const el of document.querySelectorAll<HTMLElement & { close(): void }>(
+      'sui-dialog[open], sui-drawer[open]',
+    )) {
+      try { el.close() } catch { /* ignore — native handles it */ }
+    }
   }
 })
 
 // Wire close event from dock.
 document.addEventListener('sui:dock:close', () => getDock()?.hide(), true)
+
+// ── Event bridges ────────────────────────────────────────────────────
+//
+// Reflect chrome component state into body classes so layout.css rules
+// (and any third-party CSS) can key off predictable class names.
+
+// sui-rail:toggle → body.rail-collapsed
+document.addEventListener('sui-rail:toggle', (e: Event) => {
+  const collapsed = (e as CustomEvent<{ collapsed: boolean }>).detail?.collapsed
+  document.body.classList.toggle('rail-collapsed', collapsed)
+})
+
 document.addEventListener('click', onAnchorClick)
 window.addEventListener('popstate', () => {
   const r = readRoute()
