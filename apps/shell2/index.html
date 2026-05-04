@@ -180,6 +180,31 @@
     <button onclick="document.getElementById('sui-toolbar-demo').style.display='none'" style="margin-top:16px;display:block;padding:6px 12px;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--foreground)">Close</button>
   </div>
 
+  <!-- sui-graph-canvas: 4-node agent→skill topology demo -->
+  <div id="sui-graph-canvas-demo" style="display:none;position:fixed;inset:0;z-index:8600;background:var(--background);padding:40px;overflow:auto">
+    <h2 style="font:var(--text-base)/1.4 var(--font-body);margin:0 0 16px;color:var(--foreground)">sui-graph-canvas demo</h2>
+    <p style="font-size:var(--text-xs);color:var(--muted-foreground);margin:0 0 16px">Click a node to select it. Dashed edge = optional dependency.</p>
+    <sui-graph-canvas
+      id="demo-graph"
+      style="height:360px"
+      nodes='[{"id":"a1","kind":"agent","title":"Orchestrator","sub":"primary","x":180,"y":180},{"id":"a2","kind":"agent","title":"Worker","sub":"secondary","x":180,"y":360},{"id":"sk1","kind":"skill","title":"Build","x":620,"y":120},{"id":"sk2","kind":"skill","title":"Deploy","x":620,"y":300},{"id":"mc1","kind":"mcp","title":"FileSystem","x":620,"y":450}]'
+      edges='[{"from":"a1","to":"sk1","kind":"skill"},{"from":"a1","to":"sk2","kind":"skill"},{"from":"a2","to":"sk2","kind":"skill"},{"from":"a2","to":"mc1","kind":"mcp","dashed":true}]'
+    ></sui-graph-canvas>
+    <p id="demo-graph-status" style="margin-top:12px;font-size:var(--text-xs);color:var(--muted-foreground)">No node selected.</p>
+    <script>
+      (function () {
+        var g = document.getElementById('demo-graph');
+        var s = document.getElementById('demo-graph-status');
+        if (g && s) {
+          g.addEventListener('sui-node-select', function (e) {
+            s.textContent = 'Selected: ' + e.detail.kind + ' / ' + e.detail.id;
+          });
+        }
+      })();
+    </script>
+    <button onclick="document.getElementById('sui-graph-canvas-demo').style.display='none'" style="margin-top:16px;display:block;padding:6px 12px;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--foreground)">Close</button>
+  </div>
+
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>
