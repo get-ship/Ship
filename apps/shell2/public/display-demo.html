@@ -127,5 +127,100 @@
       </sui-metachip>
     </div>
   </div>
+
+  <!-- sui-code -->
+  <div class="section">
+    <h2>sui-code</h2>
+    <div class="row">
+      <span>Inline:</span>
+      <sui-code data-testid="code-inline">navigator.clipboard.writeText(value)</sui-code>
+    </div>
+    <sui-code block lang="typescript" data-testid="code-block">
+function greet(name: string): string {
+  return `Hello, ${name}!`
+}
+    </sui-code>
+    <br>
+    <sui-code block data-testid="code-block-no-lang">
+# no language label
+plain monospace block
+    </sui-code>
+  </div>
+
+  <!-- sui-copy-button -->
+  <div class="section">
+    <h2>sui-copy-button</h2>
+    <div class="row">
+      <sui-copy-button value="pnpm -F @ship/ui-components test" data-testid="copy-default"></sui-copy-button>
+      <sui-copy-button value="cargo test -p sui-compiler" label="Copy command" data-testid="copy-labeled"></sui-copy-button>
+    </div>
+  </div>
+
+  <!-- sui-json-view -->
+  <div class="section">
+    <h2>sui-json-view</h2>
+    <sui-json-view
+      data-testid="json-view"
+      data='{"name":"Ship","version":"0.1.0","features":{"chrome":true,"studio":true,"agents":["contributor","reviewer"]},"config":{"port":8080,"debug":false,"tags":null}}'
+      depth="2"
+    ></sui-json-view>
+  </div>
+
+  <!-- sui-diff -->
+  <div class="section">
+    <h2>sui-diff (from/to)</h2>
+    <sui-diff
+      data-testid="diff-from-to"
+      from="fn greet(name: &str) -> String {
+    format!(&quot;Hello, {}!&quot;, name)
+}"
+      to="fn greet(name: &str) -> String {
+    let msg = format!(&quot;Hello, {}!&quot;, name);
+    println!(&quot;{}&quot;, msg);
+    msg
+}"
+    ></sui-diff>
+    <br>
+    <h2>sui-diff (unified)</h2>
+    <sui-diff
+      data-testid="diff-unified"
+      value="@@ -1,3 +1,5 @@
+ fn greet(name: &amp;str) -> String {
+-    format!(&quot;Hello, {}!&quot;, name)
++    let msg = format!(&quot;Hello, {}!&quot;, name);
++    println!(&quot;{}&quot;, msg);
++    msg
+ }"
+    ></sui-diff>
+  </div>
+
+  <!-- sui-markdown -->
+  <div class="section">
+    <h2>sui-markdown</h2>
+    <sui-markdown
+      data-testid="markdown"
+      value="# Ship UI Components
+
+A set of **display-heavy** primitives for the Ship Studio.
+
+## Features
+
+- `sui-code` — monospace inline and block code
+- `sui-copy-button` — click-to-copy with checkmark feedback
+- `sui-json-view` — collapsible JSON tree
+- `sui-diff` — unified and from/to diff renderer
+- `sui-markdown` — this very renderer
+
+## Usage
+
+\`\`\`typescript
+import '@ship/ui-components'
+\`\`\`
+
+> Components are registered globally when the bundle loads.
+
+Visit [the docs](https://ship.example.com) for full API reference."
+    ></sui-markdown>
+  </div>
 </body>
 </html>
