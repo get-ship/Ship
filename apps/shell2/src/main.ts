@@ -70,6 +70,9 @@ async function mountRoute(r: Route): Promise<void> {
   currentHandle?.dispose()
   currentHandle = null
 
+  // Notify devtools tabs of navigation.
+  document.dispatchEvent(new Event('sui:navigate'))
+
   if (!r) return showLanding(slot)
 
   const w = window as WindowWithSui
@@ -299,6 +302,31 @@ function dispatchDemoToast(): void {
 
 // ── Boot ────────────────────────────────────────────────────────────
 
+// ── Panel dock ──────────────────────────────────────────────────────
+//
+// ⌘J / Ctrl+J toggles the dock. The dock element exposes show/hide/toggle
+// as imperative methods; the shell owns open/closed state via body.dock-open.
+
+interface PanelDock extends HTMLElement {
+  show(): void
+  hide(): void
+  toggle(): void
+  activate(tab: string): void
+}
+
+function getDock(): PanelDock | null {
+  return document.getElementById('ship-panel-dock') as PanelDock | null
+}
+
+document.addEventListener('keydown', (e: KeyboardEvent) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'j') {
+    e.preventDefault()
+    getDock()?.toggle()
+  }
+})
+
+// Wire close event from dock.
+document.addEventListener('sui:dock:close', () => getDock()?.hide(), true)
 document.addEventListener('click', onAnchorClick)
 window.addEventListener('popstate', () => {
   const r = readRoute()

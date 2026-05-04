@@ -86,5 +86,11 @@ import './sui-app-icon/sui-app-icon.compiled.js'
 import './sui-tree-view/sui-tree-view.compiled.js'
 import './sui-tree-view/sui-tree-item.compiled.js'
 import './sui-table/sui-table.compiled.js'
+import './sui-panel-dock/sui-panel-dock.compiled.js'
+import './sui-devtools/sui-devtools-source.compiled.js'
+import './sui-devtools/sui-devtools-components.compiled.js'
+import './sui-devtools/sui-devtools-lint.compiled.js'
+import './sui-devtools/sui-devtools-schema.compiled.js'
+import './sui-devtools/sui-devtools-signals.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.
