@@ -1,0 +1,71 @@
+<!--
+  <sui-json-view> — SUI port of <ship-json-view>.
+  Collapsible JSON tree with toggle-per-level behavior.
+  Uses {@ html} to render the controller-generated tree markup.
+
+  Prop parity vs <ship-json-view>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  data (String, '')            data (string, reflect)   ✓ JSON string to render
+  expanded (Boolean, false)    expanded (bool, reflect) ✓ force-expand all
+  depth (Number, 1)            depth (number, 1,        ✓ initial expand depth
+                                reflect)
+  ─────────────────────────────────────────────────────────────────────────────
+  (no events)                  (no events)              ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  (no slots)                   (no slots)               ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: root, error           root, error              ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  ARIA: host role=tree +       controller sets on       ✓
+    aria-label="JSON tree"       host if absent
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="data" type="string" default="" reflect />
+<prop name="expanded" type="bool" default="false" reflect />
+<prop name="depth" type="number" default="1" reflect />
+
+<style>
+  :host {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: var(--leading-normal);
+    color: var(--foreground);
+  }
+  :host([hidden]) { display: none; }
+
+  .node { display: block; }
+  .branch {
+    margin-left: 12px;
+    border-left: 1px dashed var(--border);
+    padding-left: 10px;
+  }
+  details > summary {
+    list-style: none;
+    cursor: pointer;
+    user-select: none;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  details > summary::-webkit-details-marker { display: none; }
+  .caret {
+    display: inline-block;
+    width: 10px;
+    color: var(--muted-foreground);
+    transition: transform var(--duration-fast) var(--ease-out);
+  }
+  details[open] > summary .caret { transform: rotate(90deg); }
+  .key { color: var(--primary); font-weight: var(--font-weight-medium); }
+  .s { color: var(--success); }
+  .n { color: var(--info); }
+  .b { color: var(--accent); font-weight: var(--font-weight-medium); }
+  .null { color: var(--muted-foreground); font-style: italic; }
+  .meta { color: var(--muted-foreground); font-size: var(--text-xs); margin-left: 4px; }
+  .error { color: var(--destructive); }
+</style>
+
+<div class="json-root" bind:this={contentEl}></div>

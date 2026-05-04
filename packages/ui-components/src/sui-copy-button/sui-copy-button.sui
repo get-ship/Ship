@@ -1,0 +1,90 @@
+<!--
+  <sui-copy-button> — SUI port of <ship-copy-button>.
+  Click-to-copy with 1.2s checkmark feedback. Uses sui-icon for glyphs.
+
+  Prop parity vs <ship-copy-button>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  value (String, '')           value (string, reflect)  ✓ text to copy
+  label (String, 'Copy')       label (string, reflect)  ✓ accessible + fallback
+  copied (Boolean, false)      copied (bool, reflect)   ✓ feedback state
+  ─────────────────────────────────────────────────────────────────────────────
+  ship-copy → {value}          sui-copy → {value}       ✓ renamed
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: (default) label body  (default) label body     ✓ overrides default text
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: button                button                   ✓
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="value" type="string" default="" reflect />
+<prop name="label" type="string" default="Copy" reflect />
+<prop name="copied" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: inline-flex;
+  }
+  :host([hidden]) { display: none; }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-body);
+    font-size: var(--text-xs);
+    font-weight: var(--font-weight-medium);
+    padding: 4px 8px;
+    color: var(--muted-foreground);
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out);
+  }
+  button:hover {
+    color: var(--foreground);
+    background: var(--muted);
+  }
+  button:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 var(--ring-offset, 2px) var(--background),
+      0 0 0 calc(var(--ring-offset, 2px) + var(--ring-width, 2px))
+        color-mix(in oklch, var(--ring-color, var(--primary)) var(--ring-opacity, 50%), transparent);
+  }
+  @media (forced-colors: active) {
+    button:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+  }
+  :host([copied]) button {
+    color: var(--success);
+    border-color: var(--success);
+  }
+
+  /* Show default label when slot is empty (JSDOM always reports empty, so tests see this) */
+  .default-label { display: inline; }
+  :host(:not([data-empty])) .default-label { display: none; }
+
+  sui-icon {
+    flex: 0 0 auto;
+  }
+</style>
+
+<button
+  part="button"
+  type="button"
+  aria-label={label()}
+  bind:this={buttonEl}
+>
+  {#if copied()}
+  <sui-icon name="check" size="sm" aria-hidden="true"></sui-icon>
+  {:else}
+  <sui-icon name="copy" size="sm" aria-hidden="true"></sui-icon>
+  {/if}
+  <slot reflect-empty="data-empty"></slot>
+  <span class="default-label">{copied() ? 'Copied' : label()}</span>
+</button>

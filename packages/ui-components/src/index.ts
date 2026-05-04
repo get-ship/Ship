@@ -74,5 +74,10 @@ import './sui-segmented/sui-segmented-option.compiled.js'
 import './sui-segmented/sui-segmented.compiled.js'
 import './sui-toggle-group/sui-toggle.compiled.js'
 import './sui-toggle-group/sui-toggle-group.compiled.js'
+import './sui-code/sui-code.compiled.js'
+import './sui-copy-button/sui-copy-button.compiled.js'
+import './sui-json-view/sui-json-view.compiled.js'
+import './sui-diff/sui-diff.compiled.js'
+import './sui-markdown/sui-markdown.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.
