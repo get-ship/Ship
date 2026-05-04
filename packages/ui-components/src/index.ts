@@ -81,5 +81,10 @@ import './sui-diff/sui-diff.compiled.js'
 import './sui-markdown/sui-markdown.compiled.js'
 import './sui-nav-top/sui-nav-top.compiled.js'
 import './sui-launcher/sui-launcher.compiled.js'
+import './sui-toolbar/sui-toolbar.compiled.js'
+import './sui-app-icon/sui-app-icon.compiled.js'
+import './sui-tree-view/sui-tree-view.compiled.js'
+import './sui-tree-view/sui-tree-item.compiled.js'
+import './sui-table/sui-table.compiled.js'
 // sui-terminal is an island bundle — loaded only by views that use it.
 // See packages/ui-components/src/islands/sui-terminal/.

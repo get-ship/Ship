@@ -1,0 +1,121 @@
+<!--
+  <sui-app-icon> — SUI port of <ship-app-icon>.
+  Identity glyph for a Ship app surface — rail, dock, launcher, breadcrumbs.
+
+  Prop / event parity vs <ship-app-icon>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                        SUI                        Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  name (AppName|string, '')  name (string, '', reflect) ✓ same app registry
+  variant (glyph|tile|solid, variant (union, 'glyph',   ✓
+    'glyph')                   reflect)
+  size (sm|md|lg, 'md')      size (union, 'md', reflect)✓
+  radius (sm|md|lg|full, '') radius (string, '', reflect)✓
+  label (string, '')         label (string, '', reflect) ✓ → role=img+aria-label
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots: (default) custom     (default)                  ✓ escape hatch
+    glyph override
+  ─────────────────────────────────────────────────────────────────────────────
+  Parts: frame, glyph        frame, glyph               ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  ARIA: role=img + aria-label  controller sets on host  ✓
+    when label present;          via effect
+    aria-hidden otherwise
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="name" type="string" default="" reflect />
+<prop name="variant" values="glyph|tile|solid" default="glyph" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="radius" type="string" default="" reflect />
+<prop name="label" type="string" default="" reflect />
+
+<style>
+  :host {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    vertical-align: middle;
+
+    --app-accent: var(--foreground);
+    --tile-size: 20px;
+    --glyph-size: 14px;
+    --tile-radius: var(--radius-md);
+
+    width: var(--tile-size);
+    height: var(--tile-size);
+    color: var(--app-accent);
+  }
+  :host([hidden]) { display: none; }
+
+  :host([name='dashboard'])   { --app-accent: var(--app-accent-dashboard); }
+  :host([name='pipelines'])   { --app-accent: var(--app-accent-pipelines); }
+  :host([name='agents'])      { --app-accent: var(--app-accent-agents); }
+  :host([name='skills'])      { --app-accent: var(--app-accent-skills); }
+  :host([name='git'])         { --app-accent: var(--app-accent-git); }
+  :host([name='collections']) { --app-accent: var(--app-accent-collections); }
+  :host([name='canvas'])      { --app-accent: var(--app-accent-canvas); }
+  :host([name='settings'])    { --app-accent: var(--app-accent-settings); }
+  :host([name='chat'])        { --app-accent: var(--app-accent-chat); }
+  :host([name='events'])      { --app-accent: var(--app-accent-events); }
+  :host([name='specs'])       { --app-accent: var(--app-accent-specs); }
+  :host([name='theme'])       { --app-accent: var(--app-accent-theme); }
+  :host([name='setup'])       { --app-accent: var(--app-accent-setup); }
+  :host([name='overview'])    { --app-accent: var(--app-accent-overview); }
+  :host([name='mesh'])        { --app-accent: var(--app-accent-mesh); }
+  :host([name='theme-studio']) { --app-accent: var(--app-accent-theme); }
+
+  :host([size='sm']) { --tile-size: 16px; --glyph-size: 12px; --tile-radius: var(--radius-sm); }
+  :host([size='md']) { --tile-size: 20px; --glyph-size: 14px; --tile-radius: var(--radius-md); }
+  :host([size='lg']) { --tile-size: 28px; --glyph-size: 18px; --tile-radius: var(--radius-lg); }
+
+  :host([radius='sm'])   { --tile-radius: var(--radius-sm); }
+  :host([radius='md'])   { --tile-radius: var(--radius-md); }
+  :host([radius='lg'])   { --tile-radius: var(--radius-lg); }
+  :host([radius='full']) { --tile-radius: var(--radius-full); }
+
+  .frame {
+    width: 100%;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--tile-radius);
+    transition: background-color var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out);
+  }
+
+  :host(:not([variant])) .frame,
+  :host([variant='glyph']) .frame {
+    background: transparent;
+    color: var(--app-accent);
+  }
+
+  :host([variant='tile']) .frame {
+    background: color-mix(in oklab, var(--app-accent) 16%, transparent);
+    color: var(--app-accent);
+  }
+
+  :host([variant='solid']) .frame {
+    background: var(--app-accent);
+    color: var(--background);
+    box-shadow: var(--shadow-xs);
+  }
+
+  sui-icon {
+    width: var(--glyph-size);
+    height: var(--glyph-size);
+  }
+  ::slotted(*) {
+    width: var(--glyph-size);
+    height: var(--glyph-size);
+    display: block;
+  }
+</style>
+
+<span class="frame" part="frame">
+  <slot>
+    <sui-icon bind:this={glyphEl} part="glyph" aria-hidden="true"></sui-icon>
+  </slot>
+</span>
