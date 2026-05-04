@@ -123,9 +123,79 @@
           Collapsible content. Grid-based height animation, keyboard-accessible.
         </div>
       </sui-collapsible>
+
+      <!-- sui-dialog -->
+      <div style="display:flex;gap:8px;align-items:center">
+        <sui-label size="sm">sui-dialog</sui-label>
+        <button type="button" id="open-dialog-btn" style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Open dialog</button>
+      </div>
+      <sui-dialog id="demo-dialog" size="md">
+        <span slot="header">Dialog title</span>
+        <p style="margin:0">This is the dialog body. Press Escape or click × to close.</p>
+        <div slot="footer">
+          <button type="button" onclick="document.getElementById('demo-dialog').close()" style="padding:6px 14px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Cancel</button>
+          <button type="button" onclick="document.getElementById('demo-dialog').close()" style="padding:6px 14px;border:0;border-radius:4px;background:var(--primary);color:var(--primary-foreground);cursor:pointer">Confirm</button>
+        </div>
+      </sui-dialog>
+
+      <!-- sui-drawer -->
+      <div style="display:flex;gap:8px;align-items:center">
+        <sui-label size="sm">sui-drawer</sui-label>
+        <button type="button" id="open-drawer-btn" style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Open drawer</button>
+      </div>
+      <sui-drawer id="demo-drawer" side="right" size="md">
+        <span slot="title">Drawer title</span>
+        <span slot="description">Side-panel with focus trap and scroll lock</span>
+        <p style="margin:0;color:var(--foreground)">Drawer body content. Tab stays within the drawer. ESC closes it.</p>
+        <div slot="footer">
+          <button type="button" onclick="document.getElementById('demo-drawer').close()" style="padding:6px 14px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Close</button>
+        </div>
+      </sui-drawer>
+
+      <!-- sui-dropdown-menu -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <sui-label size="sm">sui-dropdown-menu</sui-label>
+        <sui-dropdown-menu>
+          <button slot="trigger" type="button" style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Actions ▾</button>
+          <button data-value="rename">Rename</button>
+          <button data-value="duplicate">Duplicate</button>
+          <button data-value="delete">Delete</button>
+        </sui-dropdown-menu>
+      </div>
+
+      <!-- sui-context-menu -->
+      <div style="display:flex;gap:8px;align-items:center">
+        <sui-label size="sm">sui-context-menu</sui-label>
+        <sui-context-menu>
+          <div slot="trigger" style="padding:8px 16px;border:1px dashed var(--border);border-radius:4px;color:var(--muted-foreground);font-size:12px;cursor:context-menu;user-select:none">Right-click here</div>
+          <button data-value="cut">Cut</button>
+          <button data-value="copy">Copy</button>
+          <button data-value="paste">Paste</button>
+        </sui-context-menu>
+      </div>
+
+      <!-- sui-hover-card -->
+      <div style="display:flex;gap:8px;align-items:center">
+        <sui-label size="sm">sui-hover-card</sui-label>
+        <sui-hover-card placement="bottom" show-delay="200">
+          <button slot="trigger" type="button" style="padding:4px 12px;border:1px solid var(--border);border-radius:4px;background:var(--background);color:var(--foreground);cursor:pointer">Hover for card</button>
+          <div>
+            <strong style="display:block;margin-bottom:4px;color:var(--foreground)">Hover Card</strong>
+            <p style="margin:0;font-size:12px;color:var(--muted-foreground)">Rich content overlay with delayed show/hide and top-layer rendering.</p>
+          </div>
+        </sui-hover-card>
+      </div>
     </footer>
   </div>
   <sui-toast-container position="bottom-right" id="sui-toast-container"></sui-toast-container>
   <script type="module" src="/src/main.ts"></script>
+  <script>
+    document.getElementById('open-dialog-btn')?.addEventListener('click', function() {
+      document.getElementById('demo-dialog').show();
+    });
+    document.getElementById('open-drawer-btn')?.addEventListener('click', function() {
+      document.getElementById('demo-drawer').show();
+    });
+  </script>
 </body>
 </html>

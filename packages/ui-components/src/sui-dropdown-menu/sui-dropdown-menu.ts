@@ -1,0 +1,158 @@
+import { controller, effect } from '@ship/ui-runtime'
+import type { Scope } from './sui-dropdown-menu.sui'
+
+let _seq = 0
+
+type PopoverEl = HTMLElement & {
+  showPopover?: () => void
+  hidePopover?: () => void
+}
+
+export default controller<Scope>({
+  mount(state, host) {
+    const scope = state as unknown as Scope
+    const panelId = `sui-dropdown-menu-panel-${++_seq}`
+
+    const triggerWrap = scope.triggerWrap() as HTMLElement | null
+    const triggerSlot = scope.triggerSlot() as HTMLSlotElement | null
+    const panelEl = scope.panelEl() as PopoverEl | null
+
+    if (!panelEl) return
+    panelEl.id = panelId
+
+    // ── Typeahead state ──────────────────────────────────────────────────
+    let typeaheadBuf = ''
+    let typeaheadTimer: ReturnType<typeof setTimeout> | null = null
+
+    function pushTypeahead(key: string): number {
+      if (typeaheadTimer) clearTimeout(typeaheadTimer)
+      typeaheadBuf += key.toLowerCase()
+      typeaheadTimer = setTimeout(() => { typeaheadBuf = '' }, 350)
+      const items = getItems()
+      const i = items.indexOf(document.activeElement as HTMLElement)
+      for (let j = 0; j < items.length; j++) {
+        const idx = (i + 1 + j) % items.length
+        const label = (items[idx].textContent ?? '').trim().toLowerCase()
+        if (label.startsWith(typeaheadBuf)) return idx
+      }
+      return -1
+    }
+
+    // ── Item management ──────────────────────────────────────────────────
+    function getItems(): HTMLElement[] {
+      return Array.from(
+        host.querySelectorAll<HTMLElement>('[role="menuitem"], button[data-value], [data-value]'),
+      ).filter(el => !el.hasAttribute('disabled'))
+    }
+
+    function focusItem(index: number) {
+      const items = getItems()
+      if (!items.length) return
+      const i = ((index % items.length) + items.length) % items.length
+      for (const it of items) it.setAttribute('tabindex', '-1')
+      items[i].setAttribute('tabindex', '0')
+      items[i].focus()
+    }
+
+    function currentIndex(): number {
+      return getItems().indexOf(document.activeElement as HTMLElement)
+    }
+
+    function setupItems() {
+      getItems().forEach((el, idx) => {
+        if (!el.hasAttribute('role')) el.setAttribute('role', 'menuitem')
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', idx === 0 ? '0' : '-1')
+      })
+    }
+
+    function setupTrigger() {
+      const els = triggerSlot?.assignedElements({ flatten: true }) as HTMLElement[] ?? []
+      for (const el of els) {
+        el.setAttribute('aria-haspopup', 'menu')
+        el.setAttribute('aria-controls', panelId)
+        el.setAttribute('aria-expanded', scope.open() ? 'true' : 'false')
+      }
+    }
+
+    // ── Open/close ───────────────────────────────────────────────────────
+    function openPanel() {
+      const trigger = (triggerSlot?.assignedElements({ flatten: true }) as HTMLElement[])?.[0]
+      if (trigger && panelEl) {
+        const r = trigger.getBoundingClientRect()
+        panelEl.style.top = `${r.bottom + 4}px`
+        panelEl.style.left = `${r.left}px`
+      }
+      panelEl?.showPopover?.()
+    }
+
+    function closePanel() {
+      panelEl?.hidePopover?.()
+    }
+
+    // ── Events ───────────────────────────────────────────────────────────
+    const onTriggerClick = () => {
+      if (scope.open()) closePanel()
+      else openPanel()
+    }
+
+    const onToggle = (ev: Event) => {
+      const te = ev as ToggleEvent
+      const nowOpen = te.newState === 'open'
+      if (nowOpen !== scope.open()) scope.open.set(nowOpen)
+      host.setAttribute('data-state', nowOpen ? 'open' : 'closed')
+      setupTrigger()
+      if (nowOpen) queueMicrotask(() => { setupItems(); focusItem(0) })
+    }
+
+    const onItemClick = (e: Event) => {
+      const target = (e.target as HTMLElement).closest('[data-value]') as HTMLElement | null
+      if (!target) return
+      host.dispatchEvent(new CustomEvent('sui-select', {
+        detail: { value: target.dataset.value ?? '' },
+        bubbles: true, composed: true,
+      }))
+      closePanel()
+    }
+
+    const onKeydown = (e: KeyboardEvent) => {
+      if (!scope.open()) return
+      const items = getItems()
+      if (!items.length) return
+      const i = currentIndex()
+      if (e.key === 'ArrowDown') { e.preventDefault(); focusItem(i + 1) }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); focusItem(i - 1) }
+      else if (e.key === 'Home') { e.preventDefault(); focusItem(0) }
+      else if (e.key === 'End') { e.preventDefault(); focusItem(items.length - 1) }
+      else if (e.key === 'Escape') { e.preventDefault(); closePanel() }
+      else if (e.key === 'Tab') { closePanel() }
+      else if ((e.key === 'Enter' || e.key === ' ') && i >= 0) { e.preventDefault(); items[i].click() }
+      else if (e.key.length === 1 && !e.ctrlKey && !e.metaKey) {
+        const next = pushTypeahead(e.key)
+        if (next >= 0) { e.preventDefault(); focusItem(next) }
+      }
+    }
+
+    triggerWrap?.addEventListener('click', onTriggerClick)
+    panelEl.addEventListener('toggle', onToggle)
+    panelEl.addEventListener('click', onItemClick)
+    host.addEventListener('keydown', onKeydown)
+    triggerSlot?.addEventListener('slotchange', setupTrigger)
+    panelEl?.addEventListener('slotchange' as unknown as 'click', setupItems)
+
+    const stopSync = effect(() => {
+      const wantOpen = scope.open()
+      host.setAttribute('data-state', wantOpen ? 'open' : 'closed')
+      setupTrigger()
+    })
+
+    return () => {
+      triggerWrap?.removeEventListener('click', onTriggerClick)
+      panelEl.removeEventListener('toggle', onToggle)
+      panelEl.removeEventListener('click', onItemClick)
+      host.removeEventListener('keydown', onKeydown)
+      triggerSlot?.removeEventListener('slotchange', setupTrigger)
+      if (typeaheadTimer) clearTimeout(typeaheadTimer)
+      stopSync()
+    }
+  },
+})

@@ -1,0 +1,159 @@
+<!--
+  <sui-dialog> — SUI port of <ship-dialog>.
+  Modal dialog on the native <dialog> element. showModal() puts it in the
+  top layer; the browser handles ::backdrop, ESC key, and focus return.
+
+  Prop / event / method parity vs <ship-dialog>
+  ────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                          Notes
+  ────────────────────────────────────────────────────────────────────────
+  open (bool, false)           open (bool, false, reflect)  ✓
+  size (sm|md|lg|full, 'md')   size (union, 'md', reflect)  ✓
+  backdrop (dflt|blur|solid)   backdrop (union, reflect)    ✓
+  dismissible (bool, true)     dismissible (bool, true)     ✓ no reflect — JS only
+  no-close-button (bool)       no-close-button (bool, ref)  ✓
+  no-header / no-footer        no-header / no-footer        ✓
+  role-override (dlg|alertdlg) role-override (union, ref)   ✓
+  ────────────────────────────────────────────────────────────────────────
+  Events: ship-open/close/dismiss → sui-open/close/dismiss              ✓
+  Methods: show(), showModal(), close()                                  ✓
+  Slots: header, (default), footer                                       ✓
+  Parts: dialog, header, body, footer, close                             ✓
+  Focus trap: sentinel divs + collectFocusables across shadow+light DOM  ✓
+  Scroll lock: acquireScrollLock / releaseScrollLock                     ✓
+  ────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="open" type="bool" default="false" reflect />
+<prop name="size" values="sm|md|lg|full" default="md" reflect />
+<prop name="backdrop" values="default|blur|solid" default="default" reflect />
+<prop name="dismissible" type="bool" default="true" />
+<prop name="no-close-button" type="bool" default="false" reflect />
+<prop name="no-header" type="bool" default="false" reflect />
+<prop name="no-footer" type="bool" default="false" reflect />
+<prop name="role-override" values="dialog|alertdialog" default="dialog" reflect />
+
+<style>
+  :host { display: contents; }
+  :host([hidden]) { display: none; }
+
+  :host(:not([size])), :host([size='md']) { --dlg-max-w: 500px; --dlg-px: 24px; --dlg-hpy: 18px; --dlg-bpy: 16px; --dlg-fpy: 16px; }
+  :host([size='sm']) { --dlg-max-w: 400px; --dlg-px: 20px; --dlg-hpy: 16px; --dlg-bpy: 14px; --dlg-fpy: 14px; }
+  :host([size='lg']) { --dlg-max-w: 700px; --dlg-px: 28px; --dlg-hpy: 20px; --dlg-bpy: 20px; --dlg-fpy: 18px; }
+  :host([size='full']) { --dlg-max-w: 90vw; --dlg-px: 28px; --dlg-hpy: 20px; --dlg-bpy: 20px; --dlg-fpy: 18px; }
+
+  dialog {
+    position: fixed;
+    inset: 0;
+    margin: auto;
+    padding: 0;
+    border: 1px solid var(--border, #e5e5e5);
+    border-radius: var(--radius-lg, 8px);
+    background: var(--card, #fff);
+    color: var(--card-foreground, #111);
+    width: calc(100vw - 32px);
+    max-width: var(--dlg-max-w, 500px);
+    max-height: min(calc(100vh - 32px), 85vh);
+    box-shadow: var(--shadow-xl, 0 20px 60px rgba(0,0,0,0.3));
+    font-family: var(--font-body, system-ui);
+    overflow: visible;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+    transition:
+      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
+      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
+  }
+  :host([size='full']) dialog { max-height: 90vh; }
+  dialog[open] { opacity: 1; transform: translateY(0) scale(1); }
+
+  dialog::backdrop {
+    background: hsl(0 0% 0% / 0.5);
+    opacity: 0;
+    transition: opacity var(--duration-medium, 200ms) var(--ease-out, ease-out);
+  }
+  dialog[open]::backdrop { opacity: 1; }
+  :host([backdrop='blur']) dialog::backdrop { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+  :host([backdrop='solid']) dialog::backdrop { background: var(--background, #fff); }
+
+  .sentinel { position: fixed; width: 1px; height: 1px; pointer-events: none; opacity: 0; }
+
+  .header {
+    padding: var(--dlg-hpy, 18px) var(--dlg-px, 24px);
+    padding-right: calc(var(--dlg-px, 24px) + 36px);
+    flex: 0 0 auto;
+    font-size: var(--text-lg, 16px);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground, #111);
+  }
+  :host([no-header]) .header { display: none; }
+
+  .body {
+    padding: var(--dlg-bpy, 16px) var(--dlg-px, 24px);
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    font-size: var(--text-base, 14px);
+    line-height: var(--leading-normal, 1.5);
+    scrollbar-width: thin;
+  }
+
+  .footer {
+    padding: var(--dlg-fpy, 16px) var(--dlg-px, 24px);
+    border-top: 1px solid var(--border, #e5e5e5);
+    display: flex;
+    gap: var(--space-2, 8px);
+    justify-content: flex-end;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+  :host([no-footer]) .footer { display: none; }
+
+  .close {
+    position: absolute;
+    top: 12px;
+    inset-inline-end: 12px;
+    width: 28px; height: 28px;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-md, 6px);
+    color: var(--muted-foreground, #888);
+    cursor: pointer; padding: 0; font: inherit; z-index: 1;
+    transition: background-color var(--duration-fast, 120ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 120ms) var(--ease-out, ease-out);
+  }
+  .close:hover { background: var(--muted, #f5f5f5); color: var(--foreground, #111); }
+  .close svg { width: 14px; height: 14px; display: block; }
+  :host([no-close-button]) .close { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    dialog { transition: none; transform: none !important; opacity: 1; }
+    dialog::backdrop { transition: none; }
+  }
+  @media (forced-colors: active) {
+    dialog { border: 1px solid CanvasText; }
+  }
+</style>
+
+<dialog part="dialog" bind:this={dialogEl}>
+  <span tabindex="0" class="sentinel" aria-hidden="true" bind:this={sentinelStart}></span>
+  <button class="close" part="close" type="button" aria-label="Close dialog" bind:this={closeBtn}>
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.75"
+      stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+      <path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/>
+    </svg>
+  </button>
+  <div class="header" part="header" bind:this={headerEl}>
+    <slot name="header"></slot>
+  </div>
+  <div class="body" part="body" bind:this={bodyEl}>
+    <slot></slot>
+  </div>
+  <div class="footer" part="footer">
+    <slot name="footer"></slot>
+  </div>
+  <span tabindex="0" class="sentinel" aria-hidden="true" bind:this={sentinelEnd}></span>
+</dialog>
