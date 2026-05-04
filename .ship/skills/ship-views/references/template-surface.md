@@ -1,25 +1,25 @@
-# SUI view authoring
+# SUI template surface
 
-`.sui` templates, optional paired `.ts` controllers, AOT-compiled, server-rendered first, attach() runtime hydrates leaf bindings. New views land here; j2 is fix-only.
+Depth reference for `ship-views`. The contract lives in `../SKILL.md`.
 
 ## File layout
 
 ```
-.ship/views/<name>/         # extension-point views (project-local, daemon resolves on disk)
-  index.sui                 # template
-  index.ts                  # paired controller (optional)
-  manifest.yaml             # name, type: sui, rail: { label, icon }, events
-  [param]/index.sui         # parameterized sub-routes
-  partials/                 # reusable fragments
+.ship/views/<name>/                # project-local extension-point view
+  index.sui                        # template
+  index.controller.ts              # paired controller (optional)
+  manifest.yaml                    # name, type: sui, rail, events
+  [param]/index.sui                # parameterised sub-routes
+  partials/                        # reusable fragments
 
-views/<name>/               # first-party views baked into shipd
-  view.sui                  # template
-  view.ts                   # controller (optional)
-  view.css                  # styles (daemon auto-links)
+views/<name>/                      # first-party view, baked into shipd
+  view.sui                         # template
+  view.controller.ts               # paired controller (optional)
+  view.css                         # styles (daemon auto-links)
   package.json
 ```
 
-Reference views: `views/counter/` (tier-1, no controller), `views/agents/` (tier-2 with paired controller), `views/git/` (live data + control flow + hooks).
+Reference views: `views/counter/` (no controller), `views/agents/` (object-literal controller), `views/git/` (live data + control flow + hooks).
 
 ## Template surface
 
@@ -77,7 +77,7 @@ Reference views: `views/counter/` (tier-1, no controller), `views/agents/` (tier
 
 File IS the component / view — no `<component>` wrapper. Top-level directives (`<state>`, `<data>`, `<prop>`, `<use-*>`) declare scope; the rest is the body.
 
-## Controller (paired `view.ts`, five sections)
+## Controller (paired `view.controller.ts`, five sections)
 
 ```ts
 import { controller, unwrap, useFilteredList } from '@ship/ui-runtime'
@@ -95,10 +95,10 @@ export default controller<Scope>({
 Three tiers, smallest that fits:
 
 1. **Tier 1 — no controller.** Pure `.sui` with `<state>` and single-expression inline handlers.
-2. **Tier 2 — object-literal controller.** Most coordinated views. Multi-statement handlers require a paired `.ts`.
+2. **Tier 2 — object-literal controller.** Most coordinated views. Multi-statement handlers require a paired `.controller.ts`.
 3. **Tier 3 — function-form controller.** When setup needs closure-scoped variables.
 
-A multi-statement `on:event` handler in a tier-1 file (no `.ts`) is a compile error: *multi-statement handler — paired controller required for tier-2 work*. Enforced by `crates/sui-compiler/src/check/handler_complexity.rs`.
+A multi-statement `on:event` handler in a tier-1 file (no `.controller.ts`) is a compile error. Enforced by `crates/sui-compiler/src/check/handler_complexity.rs`.
 
 ## Controller hooks (compose via `use:`)
 
@@ -157,7 +157,7 @@ The `sui-compiler` Rust crate emits one ESM per `.sui`:
 
 ```js
 import { signal, on, bindText, view, … } from "@ship/ui-runtime"
-import setup from "./view.ts"               // when paired
+import setup from "./view.controller.ts"   // when paired
 export default view((ctx) => { /* scope + bindings */ })
 export const bindings = [ … ]               // manifest read by attach()
 ```
@@ -190,25 +190,4 @@ Production never imports `@ship/ui-dom/legacy` — that pulls in the parser (~5 
 
 ## Shell chrome
 
-The shell owns topbar, breadcrumb, status bar. Views contribute metadata + slotted actions via `<ship-view-chrome>` (same element used by j2 views — see `j2-authoring.md` for the slot/attribute reference). Don't reimplement chrome inside the view body.
-
-## Hard rules
-
-1. **Mutations in `on.*` handlers only.** `s.x = v` in a derived or template expression is a type error.
-2. **Subscriptions in `<data>` elements.** Never call `ship.*` outside `<data>`.
-3. **Templates declare; controllers do.** Declarative → template; imperative → controller.
-4. **No `<script>` blocks in templates.** Logic in paired `.ts`.
-5. **No `customElements.define` in view code.**
-6. **Read signals by call:** `count()` reads, `count.set(n)` writes.
-7. **Block syntax for control flow.** Element forms (`<while-loading>`, etc.) are gone.
-
-## Components
-
-SUI views compose Lit `<ship-*>` (current production) and SUI `<sui-*>` (in-flight) — both are real custom elements. Mixing is allowed during the SUI port: use `<ship-*>` until a `<sui-*>` parity exists. See the `ship-components` skill for the component charter.
-
-## What's phased out
-
-- `<component>` wrapper element. Gone. File IS the component.
-- `<while-loading>` / `<while-error>` element forms. Replaced by block syntax `{#while-loading}…{/while-loading}` / `{#while-error err}…{/while-error}`.
-- Client-side parser / `hydrate()` in production. AOT + `attach()` only.
-- `.html.j2` for new views. Fix-only.
+The shell owns topbar, breadcrumb, status bar. Views contribute metadata + slotted actions via `<ship-view-chrome>`. Don't reimplement chrome inside the view body.

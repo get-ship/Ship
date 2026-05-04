@@ -37,6 +37,13 @@ export interface ResolverContext {
    * (since `<data>` signals are also writable in shape).
    */
   stateKeys?: ReadonlySet<string>
+  /**
+   * The custom-element host. When present, signals marked
+   * `shared(...)` in the controller's `scope:` block are auto-
+   * published on this element under the host's tag name, reachable
+   * by descendants via `useShared(host, '<tag>')`.
+   */
+  host?: Element
 }
 
 /**

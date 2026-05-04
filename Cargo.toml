@@ -11,6 +11,7 @@ members = [
     "crates/core/ship-kernel",
     "crates/core/ship-types",
     "crates/sui-compiler",
+    "crates/sui-lint",
     "crates/sui-signals",
     "crates/ship-ui-framework",
     "crates/xtask",

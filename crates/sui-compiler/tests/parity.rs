@@ -85,14 +85,14 @@ fn hello_compiles_to_valid_js() {
 
 #[test]
 fn counter_compiles_to_valid_js() {
-    let js = compile_fixture("counter", CompileMode::View, Some("./counter.ts"));
+    let js = compile_fixture("counter", CompileMode::View, Some("./counter.controller.ts"));
     let p = write_mjs("counter", &js);
     node_check(&p);
 }
 
 #[test]
 fn agents_compiles_to_valid_js() {
-    let js = compile_fixture("agents", CompileMode::View, Some("./agents.ts"));
+    let js = compile_fixture("agents", CompileMode::View, Some("./agents.controller.ts"));
     let p = write_mjs("agents", &js);
     node_check(&p);
 }
@@ -111,8 +111,8 @@ fn ship_button_compiles_to_valid_js() {
 fn compile_is_deterministic() {
     for (name, mode, setup) in [
         ("hello", CompileMode::View, None),
-        ("counter", CompileMode::View, Some("./counter.ts")),
-        ("agents", CompileMode::View, Some("./agents.ts")),
+        ("counter", CompileMode::View, Some("./counter.controller.ts")),
+        ("agents", CompileMode::View, Some("./agents.controller.ts")),
         ("ship-button", CompileMode::Component, None),
     ] {
         let a = compile_fixture(name, mode, setup);
@@ -131,7 +131,7 @@ fn compile_is_deterministic() {
 /// see the IIFE's parameter binding.
 #[test]
 fn for_iteration_emit_has_no_scope_tdz() {
-    let js = compile_fixture("agents", CompileMode::View, Some("./agents.ts"));
+    let js = compile_fixture("agents", CompileMode::View, Some("./agents.controller.ts"));
     // The view's setup body legitimately declares the outer scope
     // exactly once: `const $scope = Object.create(null);`. Any
     // additional `const $scope = …` is the TDZ-shadow pattern.

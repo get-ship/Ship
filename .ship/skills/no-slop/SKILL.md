@@ -27,3 +27,5 @@ authors: [ship]
 9. **Don't trust. Verify.** Test the behavior, not the claim. Code that "should work" doesn't.
 
 10. **Don't shoehorn.** Recent conversation, recent commits, and recent context are not relevant to every task. Do the work that was asked for, not a remix of what you just saw.
+
+11. **Document the present, not the past.** Code, comments, and skills describe what is — not what was tried, what was rejected, or how the design evolved. The next agent never saw your conversation. No "previously," no "we used to," no "now" (which implies a past it can't see), no narration of the alternatives you considered. State the rule. State what the code does. Move on.

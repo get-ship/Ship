@@ -67,6 +67,14 @@ pub fn write_output(root: &Path, provider_id: &str, output: &CompileOutput) -> R
         println!("  {} .claude/settings.json", provider_id);
     }
 
+    // Claude LSP plugin manifest → .claude/lsp.json
+    if let Some(lsp) = &output.claude_lsp_config {
+        let path = root.join(".claude/lsp.json");
+        ensure_parent(&path)?;
+        std::fs::write(&path, serde_json::to_string_pretty(lsp)?)?;
+        println!("  {} .claude/lsp.json", provider_id);
+    }
+
     // Provider agent files (e.g. .claude/agents/*.md for teams)
     for (rel_path, content) in &output.agent_files {
         let path = root.join(rel_path);
@@ -152,6 +160,9 @@ pub(crate) fn print_dry_run(provider_id: &str, output: &CompileOutput) {
     }
     if output.claude_settings_patch.is_some() {
         println!("  would merge .claude/settings.json");
+    }
+    if output.claude_lsp_config.is_some() {
+        println!("  would write .claude/lsp.json");
     }
     for path in output.agent_files.keys() {
         println!("  would write {}", path);

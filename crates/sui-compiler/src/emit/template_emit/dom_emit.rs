@@ -174,6 +174,22 @@ impl TemplateEmitter {
                     ));
                 }
             }
+            AttrInstr::Prop { name, expr, .. } => {
+                let key = self.next_key();
+                let rw = rewrite_for_scope(&expr.source, &[]);
+                w.line(&format!(
+                    "{cleanups_var}.push(bindProp({el_var}, {n}, () => ({rw})));",
+                    n = js_string(name)
+                ));
+                if self.is_view && self.boundary_depth == 0 {
+                    self.hydrate_uses_markers = true;
+                    self.hydrate_calls.line(&format!(
+                        "if (__m[{k}]) __cleanups.push(hydrateProp(__m[{k}], {n}, () => ({rw})));",
+                        k = js_string(&key),
+                        n = js_string(name),
+                    ));
+                }
+            }
             AttrInstr::Mutation { expr, .. } => {
                 let key = self.next_key();
                 let chain = js_string(&expr.source);

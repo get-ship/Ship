@@ -25,6 +25,7 @@ import type {
   ReadonlyView,
 } from './controller'
 import { resolveHook } from './controller-hook-resolver'
+import { pickShared, provide } from './context'
 import type {
   ResolverContext,
   ResolvedBindings,
@@ -67,7 +68,16 @@ export function resolveController(
     navigate: ctx.navigate ?? ((_path: string) => {}),
     ...(ctx.scope ?? {}),
   }
-  const stateSignals = pickStateSignals(ctx.scope ?? {}, ctx.stateKeys)
+
+  // `scope:` factory runs first — its returned entries become part of
+  // the merged scope before any other section. Idiomatic TypeScript
+  // closure: signals, derived, hooks, shared wrappers all live here.
+  const scopeAdds = shape.scope
+    ? (shape.scope as (s: unknown) => Record<string, unknown>)(baseScope)
+    : {}
+  Object.assign(baseScope, scopeAdds)
+
+  const stateSignals = pickStateSignals(baseScope, ctx.stateKeys)
   const writableProxy = buildWritableProxy(stateSignals, baseScope)
 
   const declScope: Record<string, unknown> = { ...baseScope }
@@ -83,9 +93,22 @@ export function resolveController(
   const onHandlers = buildOnHandlers(shape, writableProxy)
 
   const bindings: ResolvedBindings = {
+    ...scopeAdds,
     ...deriveds,
     ...onHandlers,
     ...useResults,
+  }
+
+  // Auto-publish any signals marked with `shared(...)` to the host so
+  // descendant components can resolve via `useShared(host, '<tag>')`.
+  // The host element is the custom element itself (provided via ctx).
+  if (Object.keys(scopeAdds).length > 0 && ctx.host) {
+    const sharedEntries = pickShared(scopeAdds)
+    if (Object.keys(sharedEntries).length > 0) {
+      const hostEl = ctx.host as Element
+      const tag = hostEl.tagName.toLowerCase()
+      provide(hostEl, tag, sharedEntries)
+    }
   }
 
   if (shape.mount || shape.unmount) {

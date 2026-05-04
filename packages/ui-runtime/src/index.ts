@@ -37,6 +37,8 @@
 export { signal, derived, effect, batch, untrack } from './signal'
 export type { Signal, Derived } from './signal'
 
+export { shared, isShared, provide, useShared, pickShared } from './context'
+
 export type { Ref } from './ref'
 
 export { bindSlotEmpty } from './slot-empty'
@@ -49,6 +51,7 @@ export {
   bindProp,
   bindValue,
   bindChecked,
+  bindHtml,
 } from './bind'
 export type { Disposer } from './bind'
 

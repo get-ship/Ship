@@ -138,6 +138,10 @@ impl<'r> Walker<'r> {
                 let key = self.next_key();
                 self.push_marker(&format!("style:{name}"), &key);
             }
+            AttrInstr::Prop { name, .. } => {
+                let key = self.next_key();
+                self.push_marker(&format!("prop:{name}"), &key);
+            }
             AttrInstr::BindValue { expr, .. } => {
                 let key = self.next_key();
                 if let Ok(v) = eval(&expr.source, &self.scope) {

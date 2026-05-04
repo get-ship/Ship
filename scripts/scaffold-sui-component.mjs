@@ -6,11 +6,11 @@
  *   node scripts/scaffold-sui-component.mjs <tag> [--controller]
  *
  *   <tag> must start with `sui-` and match /^sui-[a-z][a-z0-9-]*$/.
- *   `--controller` also writes a paired `<tag>.ts` with controller(def).
+ *   `--controller` also writes a paired `<tag>.controller.ts` with controller(def).
  *
  * Creates:
  *   - packages/ui-components/src/<tag>/<tag>.sui
- *   - packages/ui-components/src/<tag>/<tag>.ts (only with --controller)
+ *   - packages/ui-components/src/<tag>/<tag>.controller.ts (only with --controller)
  *
  * Convention is the contract: directory IS the component, file extension
  * `.sui` is the contract, paired `.ts` is auto-detected by the compiler.
@@ -93,7 +93,7 @@ export default controller<Scope>({
   },
 })
 `
-  writeFileSync(join(baseDir, `${tag}.ts`), ts)
+  writeFileSync(join(baseDir, `${tag}.controller.ts`), ts)
 }
 
 console.log(`[scaffold] created packages/ui-components/src/${tag}/`)

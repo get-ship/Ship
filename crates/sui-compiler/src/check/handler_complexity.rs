@@ -1,15 +1,17 @@
 //! Handler-complexity check — condition (1) of the tier-1/tier-2 threshold.
 //!
 //! Emits a build-time error when an `on:event` handler body is a block
-//! expression with more than one statement and no paired `.ts` controller.
+//! expression with more than one statement and no paired
+//! `<stem>.controller.ts` controller.
 
 use std::path::Path;
 
 use crate::diagnostics::CompileError;
 use crate::ir::{AttrInstr, Instr, Program};
 
-/// Entry point. Skipped entirely when a `<stem>.ts` file exists alongside
-/// the source (the controller is responsible for complex handler logic).
+/// Entry point. Skipped entirely when a `<stem>.controller.ts` file
+/// exists alongside the source (the controller is responsible for
+/// complex handler logic).
 pub fn check(program: &Program, source_path: Option<&Path>) -> Result<(), CompileError> {
     if has_paired_ts(source_path) {
         return Ok(());
@@ -21,7 +23,7 @@ fn has_paired_ts(source_path: Option<&Path>) -> bool {
     let Some(p) = source_path else { return false; };
     let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else { return false; };
     let dir = p.parent().unwrap_or(Path::new("."));
-    dir.join(format!("{stem}.ts")).exists()
+    dir.join(format!("{stem}.controller.ts")).exists()
 }
 
 fn check_instrs(instrs: &[Instr]) -> Result<(), CompileError> {

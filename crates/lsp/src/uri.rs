@@ -1,4 +1,4 @@
-//! `lsp_types::Url` <-> `PathBuf` conversion.
+//! `lsp_types::Url` <-> `PathBuf` conversion + authoring-stack detection.
 //!
 //! Kept in its own module because path/URI round-tripping is the easiest
 //! place to break Windows clients. Every helper here has a unit test in
@@ -8,6 +8,21 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, anyhow};
 use lsp_types::Url;
+
+/// Which authoring stack a file belongs to. Drives the LSP's lint
+/// dispatch — different stacks have different lint engines.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Stack {
+    /// SUI authoring: `*.sui` templates and `*.controller.ts` paired
+    /// controllers. Linted by `sui-lint`.
+    Sui,
+    /// j2 authoring: `*.html.j2` under `.ship/views/` and `*.ship`
+    /// SFCs. Linted by `lint`.
+    J2,
+    /// Not a Ship authoring source — LSP clears any stale diagnostics
+    /// and otherwise ignores the document.
+    None,
+}
 
 /// Convert an absolute filesystem path to a `file://` URL.
 ///
@@ -25,29 +40,37 @@ pub fn url_to_path(url: &Url) -> Result<PathBuf> {
         .context("URL must be file:// scheme with an absolute path")
 }
 
-/// True if a path looks like a Ship view source we should lint.
+/// Classify `path` by authoring stack. Drives lint dispatch in the
+/// server's `publish_for` path.
 ///
 /// Recognised:
-/// - `**/*.html.j2` under any `.ship/views/` directory (legacy layout).
-/// - `**/*.ship` anywhere — single-file component format. v1 lint
-///   treats the entire file body as Jinja; block-aware lint is v2.
-pub fn is_view_source(path: &Path) -> bool {
-    let s = match path.to_str() {
-        Some(s) => s,
-        None => return false,
-    };
+/// - SUI: `**/*.sui` anywhere; `**/*.controller.ts` anywhere.
+/// - J2:  `**/*.html.j2` under any `.ship/views/` directory; `**/*.ship`.
+/// - None: anything else.
+pub fn detect_stack(path: &Path) -> Stack {
+    let Some(s) = path.to_str() else { return Stack::None };
+    if s.ends_with(".sui") || s.ends_with(".controller.ts") {
+        return Stack::Sui;
+    }
     if s.ends_with(".ship") {
-        return true;
+        return Stack::J2;
     }
     if !s.ends_with(".html.j2") {
-        return false;
+        return Stack::None;
     }
     // Walk components looking for the `.ship/views/` segment pair.
     let comps: Vec<_> = path
         .components()
         .filter_map(|c| c.as_os_str().to_str())
         .collect();
-    comps
-        .windows(2)
-        .any(|w| w[0] == ".ship" && w[1] == "views")
+    if comps.windows(2).any(|w| w[0] == ".ship" && w[1] == "views") {
+        Stack::J2
+    } else {
+        Stack::None
+    }
+}
+
+/// Convenience: true iff `detect_stack(path) != Stack::None`.
+pub fn is_view_source(path: &Path) -> bool {
+    !matches!(detect_stack(path), Stack::None)
 }

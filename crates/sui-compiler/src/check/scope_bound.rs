@@ -287,7 +287,8 @@ fn visit_attr(attr: &AttrInstr, v: &mut Visitor) {
         | AttrInstr::BindValue { expr, .. }
         | AttrInstr::BindChecked { expr, .. }
         | AttrInstr::Class { expr, .. }
-        | AttrInstr::Style { expr, .. } => check_expr(expr, v, &[]),
+        | AttrInstr::Style { expr, .. }
+        | AttrInstr::Prop { expr, .. } => check_expr(expr, v, &[]),
         AttrInstr::DynamicAttr { name_expr, expr, .. } => {
             check_expr(name_expr, v, &[]);
             if v.error.is_none() {

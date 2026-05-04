@@ -60,6 +60,9 @@ fn compile_attr(
     if let Some(rest) = name.strip_prefix("attr:") {
         return compile_dynamic_attr(rest, value, value_span, loc);
     }
+    if let Some(rest) = name.strip_prefix("prop:") {
+        return compile_prop(rest, value, value_span, loc);
+    }
     if is_expr_value(value) {
         let inner = strip_braces(value).to_string();
         expr::validate_at(&inner, false, loc, value_span)?;
@@ -284,6 +287,31 @@ fn compile_style(
     let inner = strip_braces(value).to_string();
     expr::validate_at(&inner, false, loc, value_span)?;
     Ok(AttrInstr::Style {
+        name: name.to_string(),
+        expr: Expr::new(inner, value_span, false),
+        span: value_span,
+    })
+}
+
+fn compile_prop(
+    name: &str,
+    value: &str,
+    value_span: Span,
+    loc: &str,
+) -> Result<AttrInstr, CompileError> {
+    if name.is_empty() {
+        return Err(CompileError::new("prop: requires a property name")
+            .with_span(value_span)
+            .with_category(loc.to_string()));
+    }
+    if !is_expr_value(value) {
+        return Err(CompileError::new(format!("prop:{name} expects {{expr}}"))
+            .with_span(value_span)
+            .with_category(loc.to_string()));
+    }
+    let inner = strip_braces(value).to_string();
+    expr::validate_at(&inner, false, loc, value_span)?;
+    Ok(AttrInstr::Prop {
         name: name.to_string(),
         expr: Expr::new(inner, value_span, false),
         span: value_span,

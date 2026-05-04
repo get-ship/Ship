@@ -4,13 +4,13 @@
     "id": "ship-designer",
     "name": "Ship Designer",
     "icon": "palette",
-    "version": "0.1.0",
-    "description": "UI component work — `.html.set` views and components (the ship-set framework), accessibility, visual polish. Fixes against the legacy j2/Datastar prod stack still happen here.",
+    "version": "0.2.0",
+    "description": "UI specialist for SUI views and components — `.sui` templates with optional paired `.controller.ts`. Owns `views/<name>/` and `packages/ui-components/src/<tag>/`.",
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
-    "tags": ["ui", "ship-set", "views", "design"]
+    "tags": ["ui", "sui", "views", "components", "design"]
   },
   "skills": {
-    "refs": ["ship-set-framework", "ship-design-system", "ship-views", "ship-components"]
+    "refs": ["ship-views", "ship-components", "ship-design-system", "no-slop"]
   },
   "mcp": {
     "servers": ["ship"]
@@ -19,6 +19,6 @@
     "preset": "ship-standard"
   },
   "rules": {
-    "inline": "UI specialist for SUI framework views + components. Default scope for NEW work: `views/<name>/` (`.sui` + `.ts` + `.css`) and `packages/ui-components/src/<tag>/` (`.sui` + optional `.ts`). The legacy stack — `packages/ship-set/src/web-components/` (Lit) and `.ship/views/` (j2/Datastar) — is fix-only; don't add new files there. Hand off service/data work to rust-lane, orchestration to commander, new-primitive tests to test-writer."
+    "inline": "UI specialist for SUI framework views + components. Default scope: `views/<name>/` (`.sui` + `.controller.ts` + `.css`) and `packages/ui-components/src/<tag>/` (`.sui` + optional `.controller.ts`). Templates declare; controllers do — state lives in controller `scope:` block, not in templates. Forbidden in `*.controller.ts`: `<el>.innerHTML/.outerHTML/.insertAdjacentHTML` (use bindHtml for HTML/SVG-blob cases). Hand off Rust/runtime work to rust-lane, orchestration to commander, new-primitive tests to test-writer."
   }
 }

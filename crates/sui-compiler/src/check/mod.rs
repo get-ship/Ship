@@ -9,6 +9,7 @@ pub mod closed_sections;
 pub mod controller_parse;
 #[cfg(test)]
 mod controller_parse_tests;
+pub mod controller_purity;
 pub mod expr_subset;
 pub mod handler_complexity;
 pub(crate) mod js_scan;
@@ -36,6 +37,7 @@ pub fn run(program: &Program, source_path: Option<&Path>) -> Result<(), CompileE
     })?;
     check_mutations(program)?;
     handler_complexity::check(program, source_path)?;
+    controller_purity::check(source_path)?;
     let controller = controller_parse::read_paired_controller(source_path);
     if let Some(c) = controller.as_ref() {
         closed_sections::check(c)?;
@@ -194,7 +196,9 @@ where
         AttrInstr::BindValue { expr, .. } | AttrInstr::BindChecked { expr, .. } => f(expr)?,
         AttrInstr::BindThis { .. } | AttrInstr::SlotReflectEmpty { .. } => {}
         AttrInstr::On { handler, .. } => f(handler)?,
-        AttrInstr::Class { expr, .. } | AttrInstr::Style { expr, .. } => f(expr)?,
+        AttrInstr::Class { expr, .. }
+        | AttrInstr::Style { expr, .. }
+        | AttrInstr::Prop { expr, .. } => f(expr)?,
         AttrInstr::Mutation { .. } => {}
     }
     Ok(())

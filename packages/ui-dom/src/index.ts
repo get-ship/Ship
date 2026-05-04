@@ -28,6 +28,7 @@ export {
   hydrateAttr,
   hydrateClass,
   hydrateStyle,
+  hydrateProp,
   hydrateOn,
   hydrateBindValue,
   hydrateBindChecked,

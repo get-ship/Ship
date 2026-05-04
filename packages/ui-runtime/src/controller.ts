@@ -168,6 +168,18 @@ export type UnmountSection<Scope> = (state: MutableState<Scope>) => void
  *   `<use-* as=>`) plus `use:` hook contributions.
  */
 export interface ControllerShape<Scope = object> {
+  /**
+   * Factory that produces typed scope contributions: signals,
+   * derived, hooks, shared-provider/consumer wrappers. The returned
+   * object is merged into the template's scope. Runs before any
+   * other section so derived/on/use can reference its entries.
+   *
+   * Replaces the historical `state:` + `derived:` + `use:` split for
+   * tier-2+ controllers. Author writes idiomatic TypeScript inside
+   * the factory; types flow through inference.
+   */
+  scope?: (init: ViewScope<Scope>) => Record<string, unknown>
+
   /** Pure memos. Each key is a function `(scope) => T`. */
   derived?: DerivedSection<Scope>
 

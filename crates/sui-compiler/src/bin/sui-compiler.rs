@@ -171,9 +171,10 @@ fn compile_one(
     let source = fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
     let mode = mode.map(|m| m.into()).unwrap_or(CompileMode::Auto);
-    // Paired controller is auto-detected: if `<stem>.ts` exists next to
-    // the source, the compiler emits `import setup from "./<stem>.ts"`.
-    // Authors who want template-only just don't write the .ts file.
+    // Paired controller is auto-detected: if `<stem>.controller.ts`
+    // exists next to the source, the compiler emits
+    // `import setup from "./<stem>.controller.ts"`. Authors who want
+    // template-only just don't write the .controller.ts file.
     let setup_url = paired_setup(path);
     let opts = CompileOpts {
         setup_url,
@@ -236,9 +237,9 @@ fn paired_setup(path: &Path) -> Option<String> {
         .strip_suffix(".html.set")
         .or_else(|| file_name.strip_suffix(".sui"))?;
     let parent = path.parent()?;
-    let candidate = parent.join(format!("{stem}.ts"));
+    let candidate = parent.join(format!("{stem}.controller.ts"));
     if candidate.exists() {
-        Some(format!("./{stem}.ts"))
+        Some(format!("./{stem}.controller.ts"))
     } else {
         None
     }

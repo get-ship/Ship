@@ -1,9 +1,15 @@
+---
+name: ship-views-j2
+stable-id: ship-views-j2
+description: Author Ship views in the j2 / Datastar stack — `.html.j2` templates served by the daemon. Maintenance-only.
+tags: [views, jinja, datastar, legacy]
+authors: [ship]
+audience: agent
+---
 
-# Ship Views — The Extension Authoring Surface
+# Ship Views — j2 / Datastar
 
-A Ship view is a server-rendered reactive HTML page that updates live via SSE, responds to user actions via Datastar attributes, and is composed from the Ship component library (ship-elements). You author it as a single `.html.j2` file in `.ship/views/<name>/`. No build step. No framework. Edit the file, refresh the browser, see your changes.
-
-**This is how you build extensions on Ship today.** A new template-language successor (`.html.set` + paired `.ts`) is in development — once it lands, this skill will document the migration path. For now, all production views are `.html.j2`.
+A Ship view in the j2 stack is a server-rendered reactive HTML page that updates live via SSE, responds to user actions via Datastar attributes, and is composed from the Ship component library (ship-elements). Authored as a single `.html.j2` file in `.ship/views/<name>/`. No build step. Edit the file, refresh the browser, see your changes.
 
 ## Quick start — a minimal view in 30 seconds
 

@@ -181,6 +181,7 @@ pub(crate) fn marker_attr_name(attr: &AttrInstr) -> Option<String> {
         AttrInstr::On { event, .. } => Some(format!("on:{event}")),
         AttrInstr::Class { name, .. } => Some(format!("class:{name}")),
         AttrInstr::Style { name, .. } => Some(format!("style:{name}")),
+        AttrInstr::Prop { name, .. } => Some(format!("prop:{name}")),
         AttrInstr::Mutation { .. } => Some("mutation".to_string()),
     }
 }

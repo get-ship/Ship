@@ -8,6 +8,7 @@ import {
   bindProp,
   bindValue,
   bindChecked,
+  bindHtml,
 } from '../src/bind'
 
 describe('bindText', () => {
@@ -267,5 +268,43 @@ describe('bindChecked', () => {
     el.checked = true
     el.dispatchEvent(new Event('change'))
     expect($on()).toBe(true)
+  })
+})
+
+describe('bindHtml', () => {
+  it('renders initial html and updates on signal change', () => {
+    const el = document.createElement('div')
+    const $html = signal('<p>hi</p>')
+    bindHtml(el, () => $html())
+    expect(el.querySelector('p')?.textContent).toBe('hi')
+    $html.set('<span>bye</span>')
+    expect(el.querySelector('p')).toBeNull()
+    expect(el.querySelector('span')?.textContent).toBe('bye')
+  })
+
+  it('preserves focus on input children across update', () => {
+    const el = document.createElement('div')
+    el.innerHTML = '<input type="text" />'
+    document.body.appendChild(el)
+    const input = el.querySelector('input')!
+    input.focus()
+    expect(document.activeElement).toBe(input)
+
+    const $html = signal('<input type="text" /><span>added</span>')
+    bindHtml(el, () => $html())
+    // morph should keep the same input instance — focus survives
+    expect(document.activeElement).toBe(el.querySelector('input'))
+    expect(el.querySelector('span')?.textContent).toBe('added')
+    document.body.removeChild(el)
+  })
+
+  it('handles SVG namespace correctly', () => {
+    const SVG_NS = 'http://www.w3.org/2000/svg'
+    const svg = document.createElementNS(SVG_NS, 'svg')
+    const $paths = signal('<path d="M1 1h2v2h-2z" />')
+    bindHtml(svg, () => $paths())
+    const path = svg.querySelector('path')
+    expect(path).not.toBeNull()
+    expect(path?.namespaceURI).toBe(SVG_NS)
   })
 })

@@ -75,6 +75,13 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered, is_view: bool, dep
                 out.dom_imports.insert("hydrateStyle");
             }
         }
+        AttrInstr::Prop { .. } => {
+            out.runtime_imports.insert("bindProp");
+            if direct_emit {
+                out.dom_imports.insert("collectElementMarkers");
+                out.dom_imports.insert("hydrateProp");
+            }
+        }
         AttrInstr::Mutation { .. } => {
             out.runtime_imports.insert("wireFormMutation");
             if direct_emit {

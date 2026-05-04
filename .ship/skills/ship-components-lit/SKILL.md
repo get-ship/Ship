@@ -1,6 +1,15 @@
+---
+name: ship-components-lit
+stable-id: ship-components-lit
+description: Lit `<ship-*>` component charter. Maintenance-only.
+tags: [ui, components, web-components, lit, legacy]
+authors: [ship]
+audience: agent
+---
+
 # Lit component charter
 
-The Lit `<ship-*>` library is a strategic surface — extremely easy to understand, sensibly named, compositionally consistent. Every component in `packages/ship-set/src/web-components/` follows the rules below.
+The Lit `<ship-*>` library lives in `packages/ship-set/src/web-components/`. Every component follows the rules below.
 
 ## Purpose
 

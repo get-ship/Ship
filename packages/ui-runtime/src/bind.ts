@@ -5,6 +5,7 @@
 // See .artifacts/specs/ship-set/03-runtime-architecture.md § Bindings.
 
 import { effect, type Signal } from './signal'
+import { morph } from './morph'
 
 /**
  * Cleanup function returned by every `bind*` helper and `effect`. Calling
@@ -262,4 +263,45 @@ export function bindChecked(
     dispose()
     el.removeEventListener('change', onChange)
   }
+}
+
+/**
+ * Bind a reactive HTML/SVG string to an element's contents. The string
+ * is parsed once and morphed into `el` via `morph()` — DOM identity
+ * preserved where possible, so focus/scroll/selection survive updates.
+ *
+ * Use this when the markup is produced by an external generator
+ * (markdown renderer, SVG library, code highlighter) and putting the
+ * shape in the `.sui` template would mean re-encoding the generator's
+ * output by hand. Reach for `{#if}` / `{#for}` / `{#match}` first;
+ * `bindHtml` is the escape hatch when those don't fit.
+ *
+ * `<el>.innerHTML = …` from inside an effect is forbidden by
+ * `sui-controller-purity` — use this instead. The `morph()` step
+ * preserves identity that a raw `innerHTML =` would destroy.
+ *
+ * @param el Element whose children are reconciled.
+ * @param get Reactive read of the markup string.
+ * @returns Disposer that stops the binding.
+ *
+ * @example
+ * ```ts
+ * const html = signal('<p>hello</p>')
+ * bindHtml(slotEl, () => html())
+ * ```
+ *
+ * @see morph for the patcher; bindText for plain text targets.
+ */
+export function bindHtml(el: Element, get: () => string): Disposer {
+  const SVG_NS = 'http://www.w3.org/2000/svg'
+  const isSvg = el.namespaceURI === SVG_NS
+  const tag = el.tagName.toLowerCase()
+  return effect(() => {
+    const html = get()
+    const tmp = isSvg
+      ? el.ownerDocument.createElementNS(SVG_NS, tag)
+      : el.ownerDocument.createElement(tag)
+    tmp.innerHTML = html
+    morph(el, tmp)
+  })
 }

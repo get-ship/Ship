@@ -17,8 +17,8 @@ struct Fixture {
 fn fixtures() -> Vec<Fixture> {
     vec![
         Fixture { name: "hello",       setup_url: None,               mode: CompileMode::View,      component_meta: None },
-        Fixture { name: "counter",     setup_url: Some("./counter.ts"), mode: CompileMode::View,     component_meta: None },
-        Fixture { name: "agents",      setup_url: Some("./agents.ts"),  mode: CompileMode::View,     component_meta: None },
+        Fixture { name: "counter",     setup_url: Some("./counter.controller.ts"), mode: CompileMode::View,     component_meta: None },
+        Fixture { name: "agents",      setup_url: Some("./agents.controller.ts"),  mode: CompileMode::View,     component_meta: None },
         Fixture { name: "ship-button", setup_url: None,               mode: CompileMode::Component,
             component_meta: Some(ComponentMeta { name: "ship-button-test".into(), shadow: false }) },
         Fixture { name: "bind-this-button", setup_url: None,           mode: CompileMode::View,      component_meta: None },

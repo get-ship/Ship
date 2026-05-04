@@ -85,6 +85,8 @@ pub enum BindingKind {
     Class(String),
     /// `style:NAME={value}`.
     Style(String),
+    /// `prop:NAME={expr}` — JS property assignment on the element.
+    Prop(String),
     /// `{#if}` boundary.
     If,
     /// `{#for}` boundary.
@@ -116,6 +118,7 @@ impl BindingKind {
             BindingKind::AttrDynamic => "attr-dynamic".into(),
             BindingKind::Class(n) => format!("class:{n}"),
             BindingKind::Style(n) => format!("style:{n}"),
+            BindingKind::Prop(n) => format!("prop:{n}"),
             BindingKind::If => "if".into(),
             BindingKind::For => "for".into(),
             BindingKind::Match => "match".into(),

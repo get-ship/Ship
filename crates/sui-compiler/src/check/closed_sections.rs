@@ -8,7 +8,7 @@
 use crate::check::controller_parse::ParsedController;
 use crate::diagnostics::CompileError;
 
-const ALLOWED: &[&str] = &["derived", "on", "use", "mount", "unmount"];
+const ALLOWED: &[&str] = &["scope", "derived", "on", "use", "mount", "unmount"];
 
 pub fn check(controller: &ParsedController) -> Result<(), CompileError> {
     for section in &controller.sections {

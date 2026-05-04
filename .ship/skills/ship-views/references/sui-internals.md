@@ -1,6 +1,41 @@
 # Working on the SUI codebase
 
-Read this when changing `crates/sui-compiler/`, `packages/ui-runtime/`, `packages/ui-dom/`, `packages/ui-lsp/`, the daemon's SUI handlers (`apps/shipd/src/views/sui_*.rs`), or any `views/<name>/`. Authoring views? Use `sui-authoring.md`. This page is for framework internals.
+Read this when changing `crates/sui-compiler/`, `crates/sui-lint/`, `crates/lsp/`, `packages/ui-runtime/`, `packages/ui-dom/`, the daemon's SUI handlers (`apps/shipd/src/views/sui_*.rs`), or any `views/<name>/`. Authoring views? Use `template-surface.md`. This page is for framework internals.
+
+## Crate map
+
+| Crate | Role |
+|---|---|
+| `crates/sui-compiler` | Parses `.sui` → IR → emits `.compiled.js` + `.sui.d.ts`. Owns the `check/` phase (build-time hard walls). |
+| `crates/sui-lint` | Lints `*.controller.ts`. Same rule walker drives editor diagnostics and the compiler check. |
+| `crates/lsp` | Single LSP for both stacks. Dispatches by `Stack` enum — j2 → `lint`, SUI → `sui-lint`. Distributed as `ship lsp`. |
+| `packages/ui-runtime` | Signal engine (`signal`/`derived`/`effect`/`untrack`/`batch`), bindings (`bindText`/`bindAttr`/`bindClass`/`bindValue`/`bindHtml`/`bindIf`/`bindFor`), template hooks. |
+| `packages/ui-dom` | `attach()` — turns SSR markers into live bindings against the compiler-emitted manifest. |
+| `crates/core/lint` | j2 stack lint engine. |
+| `crates/core/compiler` | Agent-config compiler — emits provider-specific configs (`.claude/settings.json`, `.claude/lsp.json`, `.codex/config.toml`, …). |
+
+## Adding a SUI lint rule
+
+Rules live in `crates/sui-lint/src/rules/`. The same rule definition powers two consumers: the LSP serves it live to the editor and the agent; the sui-compiler check phase makes it a build-time hard wall.
+
+1. **Create the module** at `crates/sui-lint/src/rules/<rule_id>.rs`. Export `RULE_ID: &str` and `check(path: &Path, source: &str) -> Vec<Finding>`. Parse with `oxc_parser`, walk via `oxc_ast_visit::Visit`. Skip parse errors silently — the compiler reports those.
+
+2. **Register** in `crates/sui-lint/src/rules/mod.rs`:
+
+   ```rust
+   pub mod <rule_id>;
+
+   pub const CONTROLLER_RULES: &[(&str, RuleFn)] = &[
+       (controller_purity::RULE_ID, controller_purity::check),
+       (<rule_id>::RULE_ID, <rule_id>::check),  // append
+   ];
+   ```
+
+3. **Test** in `crates/sui-lint/src/tests.rs` — positive (clean code passes), negative (slop reports), edge cases, and a smoke fired against a real offender in the repo to keep the rule honest.
+
+4. **Verify** with `cargo test -p sui-lint -p sui-compiler -p lsp`. Dispatch is registry-driven; no other call sites need changes.
+
+5. **Document** in the relevant authoring skill if the rule changes the contract. Diagnostic messages always include `suggest:` pointing at what TO do.
 
 ## Dev loop — three steps, all required
 
@@ -26,7 +61,7 @@ Skipping any step ships stale bytes. The `include_str!` call sites are `apps/shi
 
 Don't commit. Don't be surprised by:
 
-- `views/<name>/view.js` — sui-compiler emit; the paired controller is `view.ts`. Vitest prefers `.ts` via `packages/ui-dom/vitest.config.ts::resolve.extensions`.
+- `views/<name>/view.js` — sui-compiler emit; the paired controller is `view.controller.ts`. Vitest prefers `.ts` via `packages/ui-dom/vitest.config.ts::resolve.extensions`.
 - `packages/ui-components/src/<tag>/<tag>.compiled.js` — component emit; `index.ts` side-effect-imports each one to register the custom element.
 - `**/*.sui.d.ts` — type declarations the compiler emits alongside source.
 
@@ -37,12 +72,12 @@ Each public symbol gets its own file in `packages/ui-runtime/src/<name>.ts` (mir
 ## Compile shape contract — don't conflate
 
 - `view(setup)` from `@ship/ui-runtime`: the compiler emits `export default view((ctx) => {...})` for every `.sui` view module. Wraps a setup function as `{ setup }` so `attach()` can call `module.default.setup(ctx)`.
-- `controller(def)`: the paired `view.ts` exports `controller<Scope>({ derived, on, use, mount, unmount })` for tier-2/3 logic. Resolved by the compiled view's setup.
+- `controller(def)`: the paired `view.controller.ts` exports `controller<Scope>({ derived, on, use, mount, unmount })` for tier-2/3 logic. Resolved by the compiled view's setup.
 - They coexist. `view` ≠ `controller`.
 
 ## Marker contract
 
-The SSR walker emits author-syntax markers (preserved attribute names + comment-bracketed text + custom-element boundary wrappers). attach() walks them and wires bindings against the manifest exported alongside `default`. Reference: `sui-authoring.md` § "SSR + attach pipeline" for the table of constructs → markers.
+The SSR walker emits author-syntax markers (preserved attribute names + comment-bracketed text + custom-element boundary wrappers). attach() walks them and wires bindings against the manifest exported alongside `default`. Reference: `template-surface.md` § "SSR + attach pipeline" for the table of constructs → markers.
 
 When adding a new control-flow construct: parse → IR → lower → render walker (emit `<sui-<name> key="bN">` boundary) → bindings manifest entry → attach() boundary wirer dispatches via the runtime helper. Mirror `{#if}` exactly.
 
