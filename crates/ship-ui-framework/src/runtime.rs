@@ -20,10 +20,14 @@ const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
 
 /// `GET /_sui/runtime.js` — serves the bundled `@ship/ui-runtime` module.
 pub async fn serve_sui_runtime() -> Response {
+    let (body, cache_control) = match crate::dev_assets::override_for("sui-runtime").await {
+        Some(bytes) => (Body::from(bytes), "no-cache"),
+        None => (Body::from(SUI_RUNTIME_JS), "public, max-age=3600, immutable"),
+    };
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(Body::from(SUI_RUNTIME_JS))
+        .header(header::CACHE_CONTROL, cache_control)
+        .body(body)
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
