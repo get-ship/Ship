@@ -55,6 +55,9 @@ fn attr_entry(p: &PropDecl) -> Value {
     if let Some(d) = p.default.as_ref() {
         e.as_object_mut().unwrap().insert("default".into(), Value::String(d.clone()));
     }
+    if let Some(desc) = p.description.as_ref() {
+        e.as_object_mut().unwrap().insert("description".into(), Value::String(desc.clone()));
+    }
     if let PropKind::Union(values) = &p.kind {
         e.as_object_mut().unwrap().insert("values".into(), json!(values));
     }
@@ -71,6 +74,9 @@ fn member_entry(p: &PropDecl) -> Value {
     });
     if let Some(d) = p.default.as_ref() {
         m.as_object_mut().unwrap().insert("default".into(), Value::String(d.clone()));
+    }
+    if let Some(desc) = p.description.as_ref() {
+        m.as_object_mut().unwrap().insert("description".into(), Value::String(desc.clone()));
     }
     if p.reflect {
         m.as_object_mut().unwrap().insert("reflects".into(), Value::Bool(true));
