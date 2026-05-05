@@ -172,9 +172,11 @@ pub struct GateSpec {
 ///
 /// Canonical YAML/JSON shape (match and not_match take glob patterns):
 ///
-///     match: ["src/**", "Cargo.toml"]
-///     not_match: ["tests/**"]
-///     min: 1
+/// ```text
+/// match: ["src/**", "Cargo.toml"]
+/// not_match: ["tests/**"]
+/// min: 1
+/// ```
 ///
 /// Earlier revisions accepted a pipe-separated string for `match`/`not_match`
 /// and a single rule object for `require_changed`/`forbid_changed`; both
