@@ -76,7 +76,7 @@ pub fn run_add_from(url: &str) -> Result<()> {
     }
 
     // Compile if an agent is active.
-    let state = crate::profile::WorkspaceState::load(&ship_dir);
+    let state = crate::profile::ProjectState::load(&ship_dir);
     crate::compile::run_compile(crate::compile::CompileOptions {
         project_root: &cwd,
         output_root: None,
@@ -84,6 +84,7 @@ pub fn run_add_from(url: &str) -> Result<()> {
         dry_run: false,
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],
+        plugins_installed: state.plugins_installed.clone(),
     })
     .ok(); // Non-fatal — user can compile manually.
 

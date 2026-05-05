@@ -302,6 +302,28 @@ pub struct SupervisorShuttingDown {
     pub reason: Option<String>,
 }
 
+// -- Compile aggregate --------------------------------------------------------
+
+/// Payload for `compile.completed`. Records what was compiled for the
+/// `project_compile_state` projection. `entity_id` on the envelope is the
+/// project_id; this payload carries the compile-run details.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CompileCompleted {
+    /// Active agent id at compile time, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_agent: Option<String>,
+    /// Compile time as RFC 3339 UTC.
+    pub compiled_at: String,
+    /// Ship version that produced this compile.
+    pub ship_version: String,
+    /// Primary provider compiled for (e.g. "claude").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    /// Plugin IDs the active agent declared and that this compile installed.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub plugins_installed: Vec<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

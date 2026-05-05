@@ -94,7 +94,7 @@ fn sync_writes_new_allows_to_agent() {
     let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     write(tmp.path(), ".ship/ship.jsonc", "{ \"id\": \"test-proj\", \"name\": \"test\" }\n");
     // Write workspace state with active agent via platform.db
-    let mut state = WorkspaceState::default();
+    let mut state = ProjectState::default();
     state.active_agent = Some("test".to_string());
     state.save(&ship_dir).unwrap();
     // Write the agent
@@ -126,7 +126,7 @@ fn sync_warns_deny_that_shadows_allow_but_does_not_import() {
     let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     write(tmp.path(), ".ship/ship.jsonc", "{ \"id\": \"test-proj\", \"name\": \"test\" }\n");
     // Write workspace state with active agent via platform.db
-    let mut state = WorkspaceState::default();
+    let mut state = ProjectState::default();
     state.active_agent = Some("test".to_string());
     state.save(&ship_dir).unwrap();
     write(tmp.path(), ".ship/agents/test.toml", r#"[agent]

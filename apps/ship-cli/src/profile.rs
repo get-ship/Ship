@@ -1,94 +1,59 @@
 //! Agent activation — `ship use [<agent-id>]`.
-//! Profile state (active_agent, compiled_at, plugins_installed) is stored
-//! in platform.db kv_state under a per-project namespace
-//! (`workspace:<hash(.ship/)>`). The `workspace:` prefix is a vestige of the
-//! retired workspace primitive; the storage shape is project-scoped.
-//! ship.lock is reserved for the registry lockfile format.
+//!
+//! Compile state (active_agent, compiled_at, plugins_installed) is recorded
+//! by the `compile.completed` event the compiler emits at the end of every
+//! successful run, materialized into the `project_compile_state` projection.
+//! `ship status` and the daemon read from there. No filesystem state file
+//! and no per-project KV namespace.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 use crate::agent_config::AgentConfig;
 use crate::compile::{CompileOptions, run_compile};
 
-const KEY_ACTIVE_AGENT: &str = "active_agent";
-const KEY_COMPILED_AT: &str = "compiled_at";
-const KEY_PLUGINS_INSTALLED: &str = "plugins_installed";
+// ── ProjectState ─────────────────────────────────────────────────────────────
 
-/// Build a project-scoped KV namespace for CLI state.
-/// Uses a stable hex hash of the canonical .ship/ path so `ship status` in
-/// one project doesn't show another project's active agent.
-fn workspace_ns(ship_dir: &Path) -> runtime::db::kv::KvNamespace {
-    let canonical = std::fs::canonicalize(ship_dir)
-        .unwrap_or_else(|_| ship_dir.to_path_buf());
-    let hash = {
-        use std::hash::{Hash, Hasher};
-        let mut hasher = std::collections::hash_map::DefaultHasher::new();
-        canonical.hash(&mut hasher);
-        format!("{:016x}", hasher.finish())
-    };
-    runtime::db::kv::KvNamespace::CliProjectState(hash)
-}
-
-// ── WorkspaceState ────────────────────────────────────────────────────────────
-
-/// Workspace runtime state, persisted in platform.db kv_state (namespace='workspace').
-/// Previously stored in .ship/ship.lock (TOML format). Migration runs on first load.
+/// Read view of `project_compile_state` for a given project. Fields are the
+/// shape the CLI wants to display (`ship status`); the projection layer
+/// stores whatever the latest `compile.completed` event carried.
 #[derive(Debug, Clone, Default)]
-pub struct WorkspaceState {
+pub struct ProjectState {
     pub active_agent: Option<String>,
     pub compiled_at: Option<String>,
     pub plugins_installed: Vec<String>,
 }
 
-impl WorkspaceState {
-    /// Load from platform.db, scoped to the project at `ship_dir`.
+impl ProjectState {
+    /// Read the latest compile state for the project at `ship_dir`.
+    /// Returns the default (all-None) when the project has never been
+    /// compiled.
     pub fn load(ship_dir: &Path) -> Self {
-        let mut state = WorkspaceState::default();
         if let Err(e) = runtime::db::ensure_db() {
             eprintln!("warning: could not open platform.db: {}", e);
-            return state;
+            return ProjectState::default();
         }
-        let ns = workspace_ns(ship_dir);
-        if let Ok(Some(v)) = runtime::db::kv::get(ns.clone(), KEY_ACTIVE_AGENT) {
-            state.active_agent = v.as_str().map(str::to_string);
+        let project_id = match runtime::project::ensure_project_id(ship_dir) {
+            Ok(id) => id,
+            Err(e) => {
+                eprintln!("warning: could not resolve project id: {}", e);
+                return ProjectState::default();
+            }
+        };
+        match runtime::projections::compile_state::load(&project_id) {
+            Ok(Some(row)) => ProjectState {
+                active_agent: row.active_agent,
+                compiled_at: Some(row.compiled_at),
+                plugins_installed: row.plugins_installed,
+            },
+            Ok(None) => ProjectState::default(),
+            Err(e) => {
+                eprintln!("warning: could not read compile state: {}", e);
+                ProjectState::default()
+            }
         }
-        if let Ok(Some(v)) = runtime::db::kv::get(ns.clone(), KEY_COMPILED_AT) {
-            state.compiled_at = v.as_str().map(str::to_string);
-        }
-        if let Ok(Some(v)) = runtime::db::kv::get(ns.clone(), KEY_PLUGINS_INSTALLED)
-            && let Some(arr) = v.as_array()
-        {
-            state.plugins_installed = arr
-                .iter()
-                .filter_map(|x| x.as_str().map(str::to_string))
-                .collect();
-        }
-        state
-    }
-
-    /// Persist workspace state to platform.db, scoped to the project.
-    pub fn save(&self, ship_dir: &Path) -> Result<()> {
-        runtime::db::ensure_db().context("failed to open platform.db")?;
-        let ns = workspace_ns(ship_dir);
-        if let Some(ref p) = self.active_agent {
-            runtime::db::kv::set(ns.clone(), KEY_ACTIVE_AGENT, &serde_json::json!(p))?;
-        }
-        if let Some(ref t) = self.compiled_at {
-            runtime::db::kv::set(ns.clone(), KEY_COMPILED_AT, &serde_json::json!(t))?;
-        }
-        runtime::db::kv::set(
-            ns,
-            KEY_PLUGINS_INSTALLED,
-            &serde_json::json!(self.plugins_installed),
-        )?;
-        Ok(())
     }
 }
-
-// ── Migration (removed) ──────────────────────────────────────────────────────
-// ship.lock workspace-state migration was a one-time path from the old TOML
-// format to platform.db. No consumers remain. Deleted 2026-03-20.
 
 // ── Activation ────────────────────────────────────────────────────────────────
 
@@ -102,11 +67,11 @@ pub fn activate_agent(
     extra_skills: Vec<String>,
 ) -> Result<()> {
     let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
-    let mut state = WorkspaceState::load(&ship_dir);
+    let state = ProjectState::load(&ship_dir);
     let id = agent_id
         .map(str::to_string)
         .or_else(|| state.active_agent.clone())
-        .context("No agent specified and no active agent set. Run: ship use <agent-id>")?;
+        .ok_or_else(|| anyhow::anyhow!("No agent specified and no active agent set. Run: ship use <agent-id>"))?;
 
     let agent_path = match find_agent_file(&id, project_root) {
         Some(p) => p,
@@ -132,6 +97,10 @@ pub fn activate_agent(
     };
     let agent = AgentConfig::load(&agent_path)?;
 
+    let now_plugins: Vec<String> = agent.plugins.install.clone();
+    let prev_plugins = state.plugins_installed.clone();
+    run_plugin_lifecycle(&now_plugins, &prev_plugins, &agent.plugins.scope);
+
     run_compile(CompileOptions {
         project_root,
         output_root,
@@ -139,16 +108,8 @@ pub fn activate_agent(
         dry_run: false,
         active_agent: Some(&id),
         extra_skills: extra_skills.clone(),
+        plugins_installed: now_plugins,
     })?;
-
-    let now_plugins: Vec<String> = agent.plugins.install.clone();
-    let prev_plugins = state.plugins_installed.clone();
-    run_plugin_lifecycle(&now_plugins, &prev_plugins, &agent.plugins.scope);
-
-    state.active_agent = Some(id.clone());
-    state.compiled_at = Some(chrono::Utc::now().to_rfc3339());
-    state.plugins_installed = now_plugins;
-    state.save(&ship_dir)?;
     if extra_skills.is_empty() {
         println!("✓ activated agent '{}'", id);
     } else {
@@ -284,31 +245,18 @@ mod tests {
     }
 
     #[test]
-    fn workspace_state_roundtrip() {
+    fn project_state_load_missing_returns_default() {
         let tmp = TempDir::new().unwrap();
         let ship_dir = setup_ship_dir(&tmp);
-        let state = WorkspaceState {
-            active_agent: Some("cli-lane".to_string()),
-            compiled_at: Some("2026-01-01T00:00:00Z".to_string()),
-            plugins_installed: vec!["superpowers@official".to_string()],
-        };
-        state.save(&ship_dir).unwrap();
-        let loaded = WorkspaceState::load(&ship_dir);
-        assert_eq!(loaded.active_agent.as_deref(), Some("cli-lane"));
-        assert_eq!(loaded.compiled_at.as_deref(), Some("2026-01-01T00:00:00Z"));
-        assert_eq!(loaded.plugins_installed, vec!["superpowers@official"]);
-    }
-
-    #[test]
-    fn workspace_state_load_missing_returns_default() {
-        let tmp = TempDir::new().unwrap();
-        let ship_dir = setup_ship_dir(&tmp);
-        let state = WorkspaceState::load(&ship_dir);
+        let state = ProjectState::load(&ship_dir);
         assert!(state.active_agent.is_none());
         assert!(state.plugins_installed.is_empty());
     }
 
-    // ship.lock workspace-state migration tests removed — migration code deleted 2026-03-20.
+    // The roundtrip test went away with WorkspaceState::save() — compile state
+    // now flows through `compile.completed` events into the
+    // `project_compile_state` projection. The projection's own tests cover
+    // the round trip (see `ship-substrate::projections::compile_state::tests`).
 
     #[test]
     fn find_agent_file_finds_new_location() {

@@ -46,6 +46,10 @@ pub struct CompileOptions<'a> {
     /// Extra skill IDs injected at compile time via `--with`. Additive on top of
     /// the agent's declared skill refs. Each ID must exist in the loaded library.
     pub extra_skills: Vec<String>,
+    /// Plugin IDs the active agent declared and that this compile installed.
+    /// Recorded on the emitted `compile.completed` event so the
+    /// `project_compile_state` projection knows which plugins are live.
+    pub plugins_installed: Vec<String>,
 }
 
 pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
@@ -156,6 +160,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
 
     if !opts.dry_run {
         ensure_session_gitignored(output_root)?;
+        emit_compile_completed(&ship_dir, opts.active_agent, &providers, &opts.plugins_installed);
         if opts.extra_skills.is_empty() {
             println!("✓ compiled for: {}", providers.join(", "));
         } else {
@@ -164,4 +169,51 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
         }
     }
     Ok(())
+}
+
+/// Emit a `compile.completed` event recording what this compile produced.
+/// The latest event for each project_id materializes into the
+/// `project_compile_state` projection. Best-effort — any failure is logged
+/// but doesn't fail the compile (the user has working output regardless).
+fn emit_compile_completed(
+    ship_dir: &Path,
+    active_agent: Option<&str>,
+    providers: &[String],
+    plugins_installed: &[String],
+) {
+    use runtime::events::EventEnvelope;
+    use runtime::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
+    use runtime::persistence::event_store::{EventStore, SqliteEventStore};
+
+    let project_id = match runtime::project::ensure_project_id(ship_dir) {
+        Ok(id) => id,
+        Err(e) => {
+            tracing::warn!("compile: cannot resolve project id: {e}");
+            return;
+        }
+    };
+    let payload = CompileCompleted {
+        active_agent: active_agent.map(str::to_string),
+        compiled_at: chrono::Utc::now().to_rfc3339(),
+        ship_version: env!("CARGO_PKG_VERSION").to_string(),
+        provider: providers.first().cloned(),
+        plugins_installed: plugins_installed.to_vec(),
+    };
+    let envelope = match EventEnvelope::new(COMPILE_COMPLETED, &project_id, &payload) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("compile: cannot build envelope: {e}");
+            return;
+        }
+    };
+    let store = match SqliteEventStore::new() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("compile: cannot open event store: {e}");
+            return;
+        }
+    };
+    if let Err(e) = store.append(&envelope) {
+        tracing::warn!("compile: cannot append compile.completed: {e}");
+    }
 }

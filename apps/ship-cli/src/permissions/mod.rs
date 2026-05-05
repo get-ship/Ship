@@ -14,7 +14,7 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::Path;
 
-use crate::profile::{WorkspaceState, find_agent_file};
+use crate::profile::{ProjectState, find_agent_file};
 
 #[cfg(test)]
 mod tests;
@@ -62,7 +62,7 @@ pub fn run_permissions_sync(project_root: &Path) -> Result<()> {
     let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
 
     // 1. Find the active agent.
-    let state = WorkspaceState::load(&ship_dir);
+    let state = ProjectState::load(&ship_dir);
     let agent_id = state.active_agent
         .as_deref()
         .context("No active agent. Run: ship use <agent-id>")?;

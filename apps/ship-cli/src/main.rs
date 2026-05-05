@@ -334,7 +334,7 @@ fn run_status(path: Option<PathBuf>) -> Result<()> {
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
     let ship_dir = runtime::ShipHome::project_ship_dir(&target);
-    let state = profile::WorkspaceState::load(&ship_dir);
+    let state = profile::ProjectState::load(&ship_dir);
     match state.active_agent {
         Some(ref p) => {
             println!("active agent: {}", p);
@@ -366,7 +366,7 @@ fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>)
         anyhow::bail!(".ship/ not found. Run: ship init");
     }
 
-    let state = profile::WorkspaceState::load(&runtime::ShipHome::project_ship_dir(&project_root));
+    let state = profile::ProjectState::load(&runtime::ShipHome::project_ship_dir(&project_root));
     compile::run_compile(compile::CompileOptions {
         project_root: &project_root,
         output_root: None,
@@ -374,6 +374,7 @@ fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>)
         dry_run,
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],
+        plugins_installed: state.plugins_installed.clone(),
     })
 }
 

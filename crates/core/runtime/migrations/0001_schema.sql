@@ -107,6 +107,18 @@ CREATE TABLE IF NOT EXISTS cursors (
   updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Project compile state — what was produced by the last `ship compile` for
+-- each project. Materialized from `compile.completed` events.
+CREATE TABLE IF NOT EXISTS project_compile_state (
+  project_id          TEXT PRIMARY KEY NOT NULL,
+  active_agent        TEXT,
+  compiled_at         TEXT NOT NULL,
+  ship_version        TEXT NOT NULL,
+  provider            TEXT,
+  plugins_installed_json TEXT NOT NULL DEFAULT '[]',
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Actors — one row per running or terminated kernel actor (chat, pipeline,
 -- service, shell). The dashboard renders every running thing from this
 -- table; recency comes from `last_event_at` which is bumped by triggers

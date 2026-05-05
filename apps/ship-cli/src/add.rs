@@ -171,7 +171,7 @@ fn do_add(project_root: &Path, pkg_path: &str, _version: &str) -> Result<()> {
         .with_context(|| format!("resolving {pkg_path}"))?;
 
     // Compile.
-    let state = crate::profile::WorkspaceState::load(&ship_dir);
+    let state = crate::profile::ProjectState::load(&ship_dir);
     crate::compile::run_compile(crate::compile::CompileOptions {
         project_root,
         output_root: None,
@@ -179,6 +179,7 @@ fn do_add(project_root: &Path, pkg_path: &str, _version: &str) -> Result<()> {
         dry_run: false,
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],
+        plugins_installed: state.plugins_installed.clone(),
     })
     .context("compiling after add")?;
 

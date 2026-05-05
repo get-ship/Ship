@@ -48,6 +48,7 @@ fn extra_skill_included_in_output() {
         dry_run: false,
         active_agent: Some("rust-lane"),
         extra_skills: vec!["compiler-docs".to_string()],
+            plugins_installed: vec![],
     })
     .unwrap();
     let injected =
@@ -87,6 +88,7 @@ providers = ["claude"]
         dry_run: false,
         active_agent: Some("rust-lane"),
         extra_skills: vec!["nonexistent".to_string()],
+            plugins_installed: vec![],
     })
     .unwrap_err();
     assert!(
@@ -117,6 +119,7 @@ fn multiple_extra_skills_all_included() {
         dry_run: false,
         active_agent: Some("rust-lane"),
         extra_skills: vec!["auth-feature".to_string(), "tdd".to_string()],
+            plugins_installed: vec![],
     })
     .unwrap();
     let auth =
@@ -150,6 +153,7 @@ fn no_extra_skills_behaviour_unchanged() {
         dry_run: false,
         active_agent: Some("rust-lane"),
         extra_skills: vec![],
+            plugins_installed: vec![],
     })
     .unwrap();
     let base =

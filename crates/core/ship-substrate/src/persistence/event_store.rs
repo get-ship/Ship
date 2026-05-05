@@ -52,14 +52,15 @@ fn insert_event_row(
     Ok(())
 }
 
-/// Build the default projection bus — `ActorProjection` + `SessionProjection`.
-/// Every `SqliteEventStore` constructed via `new*()` carries this bus, and
-/// `append` dispatches matching events to it in the same transaction as the
-/// row insert.
+/// Build the default projection bus — `ActorProjection` + `SessionProjection`
+/// + `CompileStateProjection`. Every `SqliteEventStore` constructed via
+/// `new*()` carries this bus, and `append` dispatches matching events to it
+/// in the same transaction as the row insert.
 fn default_bus() -> Arc<EventBus> {
     let mut bus = EventBus::new();
     bus.register(Box::new(ActorProjection::new()));
     bus.register(Box::new(SessionProjection::new()));
+    bus.register(Box::new(crate::projections::CompileStateProjection));
     Arc::new(bus)
 }
 

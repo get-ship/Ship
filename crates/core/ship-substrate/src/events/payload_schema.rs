@@ -121,6 +121,8 @@ fn schema_for_event_type(
         "studio.feedback.created" => Some(check::<crate::events::feedback::FeedbackEvent>),
         // studio / annotation (Phase 1 pin for the Phase 2 overlay wire format)
         "studio.annotation.created" => Some(check::<crate::events::annotation::AnnotationEvent>),
+        // compile
+        "compile.completed" => Some(check::<CompileCompleted>),
         _ => None,
     }
 }
