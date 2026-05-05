@@ -91,6 +91,11 @@ impl From<git2::Error> for GitError {
 /// given and non-"project") is resolved via the runtime workspace registry;
 /// otherwise falls through to the project root discovered from CWD, and
 /// finally `ship_dir.parent()` as a last resort (tests).
+///
+/// Uses the no-redirect resolver so each linked worktree resolves to its
+/// own root. Without it, `get_project_dir` follows the worktree-redirect
+/// to the main checkout's `.ship/`, and the status bar shows the main
+/// checkout's branch instead of the active worktree's.
 pub fn resolve_root(
     ship_dir: &Path,
     workspace_id: Option<&str>,
@@ -100,7 +105,8 @@ pub fn resolve_root(
             && (root.join(".git").exists() || runtime::ShipHome::project_ship_dir(&root).exists()) {
                 return Ok(root);
             }
-    if let Ok(project_ship) = runtime::project::get_project_dir(None)
+    if let Ok(cwd) = std::env::current_dir()
+        && let Some(project_ship) = runtime::project::resolve_project_ship_dir_no_redirect(&cwd)
         && let Some(root) = project_ship.parent() {
             return Ok(root.to_path_buf());
         }

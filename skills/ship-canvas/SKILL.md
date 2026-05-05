@@ -4,7 +4,7 @@ stable-id: ship-canvas
 description: Use when the conversation needs a visual surface — mockups, data visualizations, diagrams, design reviews — where the human wants to watch and guide your work from a single pane. You produce a live Ship view (not a static HTML file) that lets the human send structured feedback back to you via interactive widgets you design.
 tags: [design, canvas, visualization, feedback, extension-authoring]
 authors: [ship]
-artifacts: [ship-view]
+artifacts: [html]
 ---
 
 # Ship Canvas — interactive visual surface between agent and human

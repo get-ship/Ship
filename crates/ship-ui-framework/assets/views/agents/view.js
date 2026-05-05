@@ -21,7 +21,7 @@ var page_compiled_default = view((ctx) => {
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
-  $scope.agents = live(({ ship: ship2, route: route2 }) => ship2.agents.summaries());
+  $scope.agents = live(() => ship.agents.summaries());
   if (controller_default && typeof controller_default.setup === "function") {
     const __r = controller_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
@@ -89,11 +89,14 @@ var page_compiled_default = view((ctx) => {
             return (($scope3) => {
               const __frag80 = document.createDocumentFragment();
               const __c81 = [];
-              const __e82 = document.createElement("ship-provider-blob");
-              __c81.push(bindAttr(__e82, "provider", () => $scope3.p));
+              const __e82 = document.createElement("sui-chip");
+              __e82.setAttribute("tone", "muted");
+              __e82.setAttribute("variant", "outline");
               __e82.setAttribute("size", "sm");
-              __e82.setAttribute("variant", "glyph");
               __c81.push(bindAttr(__e82, "title", () => $scope3.p));
+              const __t83 = document.createTextNode("");
+              __e82.appendChild(__t83);
+              __c81.push(bindText(__t83, () => $scope3.p));
               __frag80.appendChild(__e82);
               return { nodes: Array.from(__frag80.childNodes), cleanup: () => {
                 for (const c of __c81) try {
@@ -112,20 +115,20 @@ var page_compiled_default = view((ctx) => {
           },
           branches: [
             () => {
-              const __frag84 = document.createDocumentFragment();
-              const __c85 = [];
-              const __e86 = document.createElement("ship-chip");
-              __e86.setAttribute("tone", "muted");
-              __e86.setAttribute("variant", "outline");
-              __e86.setAttribute("size", "sm");
-              const __t87 = document.createTextNode("+");
-              __e86.appendChild(__t87);
-              const __t88 = document.createTextNode("");
-              __e86.appendChild(__t88);
-              __c85.push(bindText(__t88, () => $scope2.a.providers.length - 4));
-              __frag84.appendChild(__e86);
-              return { nodes: Array.from(__frag84.childNodes), cleanup: () => {
-                for (const c of __c85) try {
+              const __frag85 = document.createDocumentFragment();
+              const __c86 = [];
+              const __e87 = document.createElement("sui-chip");
+              __e87.setAttribute("tone", "muted");
+              __e87.setAttribute("variant", "outline");
+              __e87.setAttribute("size", "sm");
+              const __t88 = document.createTextNode("+");
+              __e87.appendChild(__t88);
+              const __t89 = document.createTextNode("");
+              __e87.appendChild(__t89);
+              __c86.push(bindText(__t89, () => $scope2.a.providers.length - 4));
+              __frag85.appendChild(__e87);
+              return { nodes: Array.from(__frag85.childNodes), cleanup: () => {
+                for (const c of __c86) try {
                   c();
                 } catch (e) {
                 }
@@ -149,9 +152,9 @@ var page_compiled_default = view((ctx) => {
               const __forAnchor78 = document.createComment("for");
               __e77.appendChild(__forAnchor78);
               __c76.push(__wireBoundary_b20(__forAnchor78));
-              const __ifAnchor83 = document.createComment("if");
-              __e77.appendChild(__ifAnchor83);
-              __c76.push(__wireBoundary_b23(__ifAnchor83));
+              const __ifAnchor84 = document.createComment("if");
+              __e77.appendChild(__ifAnchor84);
+              __c76.push(__wireBoundary_b23(__ifAnchor84));
               __frag75.appendChild(__e77);
               return { nodes: Array.from(__frag75.childNodes), cleanup: () => {
                 for (const c of __c76) try {
@@ -170,24 +173,24 @@ var page_compiled_default = view((ctx) => {
           },
           branches: [
             () => {
-              const __frag93 = document.createDocumentFragment();
-              const __c94 = [];
-              const __e95 = document.createElement("ship-chip");
-              __e95.setAttribute("tone", "primary");
-              __e95.setAttribute("variant", "soft");
-              __e95.setAttribute("size", "sm");
-              const __e96 = document.createElement("sui-status-dot");
-              __e96.setAttribute("slot", "leading");
+              const __frag94 = document.createDocumentFragment();
+              const __c95 = [];
+              const __e96 = document.createElement("sui-chip");
               __e96.setAttribute("tone", "primary");
+              __e96.setAttribute("variant", "soft");
               __e96.setAttribute("size", "sm");
-              __e96.setAttribute("pulse", "");
-              __e96.setAttribute("label", "Active session");
-              __e95.appendChild(__e96);
-              const __t97 = document.createTextNode("\n                      active session\n                    ");
-              __e95.appendChild(__t97);
-              __frag93.appendChild(__e95);
-              return { nodes: Array.from(__frag93.childNodes), cleanup: () => {
-                for (const c of __c94) try {
+              const __e97 = document.createElement("sui-status-dot");
+              __e97.setAttribute("slot", "leading");
+              __e97.setAttribute("tone", "primary");
+              __e97.setAttribute("size", "sm");
+              __e97.setAttribute("pulse", "");
+              __e97.setAttribute("label", "Active session");
+              __e96.appendChild(__e97);
+              const __t98 = document.createTextNode("\n                      active session\n                    ");
+              __e96.appendChild(__t98);
+              __frag94.appendChild(__e96);
+              return { nodes: Array.from(__frag94.childNodes), cleanup: () => {
+                for (const c of __c95) try {
                   c();
                 } catch (e) {
                 }
@@ -199,27 +202,27 @@ var page_compiled_default = view((ctx) => {
           anchor: anchor2,
           items: () => ($scope2.a.tags || []).slice(0, 2),
           render: (t, __i2) => {
-            const __childScope99 = Object.create($scope2);
-            __childScope99.t = t;
-            __childScope99.__i = __i2;
+            const __childScope100 = Object.create($scope2);
+            __childScope100.t = t;
+            __childScope100.__i = __i2;
             return (($scope3) => {
-              const __frag100 = document.createDocumentFragment();
-              const __c101 = [];
-              const __e102 = document.createElement("ship-chip");
-              __e102.setAttribute("tone", "muted");
-              __e102.setAttribute("variant", "soft");
-              __e102.setAttribute("size", "sm");
-              const __t103 = document.createTextNode("");
-              __e102.appendChild(__t103);
-              __c101.push(bindText(__t103, () => $scope3.t));
-              __frag100.appendChild(__e102);
-              return { nodes: Array.from(__frag100.childNodes), cleanup: () => {
-                for (const c of __c101) try {
+              const __frag101 = document.createDocumentFragment();
+              const __c102 = [];
+              const __e103 = document.createElement("sui-chip");
+              __e103.setAttribute("tone", "muted");
+              __e103.setAttribute("variant", "soft");
+              __e103.setAttribute("size", "sm");
+              const __t104 = document.createTextNode("");
+              __e103.appendChild(__t104);
+              __c102.push(bindText(__t104, () => $scope3.t));
+              __frag101.appendChild(__e103);
+              return { nodes: Array.from(__frag101.childNodes), cleanup: () => {
+                for (const c of __c102) try {
                   c();
                 } catch (e) {
                 }
               } };
-            })(__childScope99);
+            })(__childScope100);
           }
         });
         const __wireBoundary_b29 = (anchor2) => bindIf({
@@ -230,20 +233,20 @@ var page_compiled_default = view((ctx) => {
           },
           branches: [
             () => {
-              const __frag105 = document.createDocumentFragment();
-              const __c106 = [];
-              const __e107 = document.createElement("ship-chip");
-              __e107.setAttribute("tone", "muted");
-              __e107.setAttribute("variant", "outline");
-              __e107.setAttribute("size", "sm");
-              const __t108 = document.createTextNode("+");
-              __e107.appendChild(__t108);
-              const __t109 = document.createTextNode("");
-              __e107.appendChild(__t109);
-              __c106.push(bindText(__t109, () => ($scope2.a.tags || []).length - 2));
-              __frag105.appendChild(__e107);
-              return { nodes: Array.from(__frag105.childNodes), cleanup: () => {
-                for (const c of __c106) try {
+              const __frag106 = document.createDocumentFragment();
+              const __c107 = [];
+              const __e108 = document.createElement("sui-chip");
+              __e108.setAttribute("tone", "muted");
+              __e108.setAttribute("variant", "outline");
+              __e108.setAttribute("size", "sm");
+              const __t109 = document.createTextNode("+");
+              __e108.appendChild(__t109);
+              const __t110 = document.createTextNode("");
+              __e108.appendChild(__t110);
+              __c107.push(bindText(__t110, () => ($scope2.a.tags || []).length - 2));
+              __frag106.appendChild(__e108);
+              return { nodes: Array.from(__frag106.childNodes), cleanup: () => {
+                for (const c of __c107) try {
                   c();
                 } catch (e) {
                 }
@@ -253,7 +256,7 @@ var page_compiled_default = view((ctx) => {
         });
         const __frag46 = document.createDocumentFragment();
         const __c47 = [];
-        const __e48 = document.createElement("ship-list-tile");
+        const __e48 = document.createElement("sui-list-tile");
         __e48.setAttribute("variant", "card");
         __e48.setAttribute("density", "normal");
         __e48.setAttribute("interactive", "");
@@ -330,27 +333,27 @@ var page_compiled_default = view((ctx) => {
         const __ifAnchor74 = document.createComment("if");
         __e52.appendChild(__ifAnchor74);
         __c47.push(__wireBoundary_b19(__ifAnchor74));
-        const __e89 = document.createElement("div");
-        __e89.setAttribute("class", "agents-card-badges");
-        const __e90 = document.createElement("ship-badge");
-        __e90.setAttribute("tone", "muted");
-        __e90.setAttribute("variant", "outline");
-        __e90.setAttribute("size", "sm");
-        __e90.setAttribute("class", "agents-card-badge-source");
-        const __t91 = document.createTextNode("");
-        __e90.appendChild(__t91);
-        __c47.push(bindText(__t91, () => $scope2.a.source));
-        __e89.appendChild(__e90);
-        const __ifAnchor92 = document.createComment("if");
-        __e89.appendChild(__ifAnchor92);
-        __c47.push(__wireBoundary_b26(__ifAnchor92));
-        const __forAnchor98 = document.createComment("for");
-        __e89.appendChild(__forAnchor98);
-        __c47.push(__wireBoundary_b27(__forAnchor98));
-        const __ifAnchor104 = document.createComment("if");
-        __e89.appendChild(__ifAnchor104);
-        __c47.push(__wireBoundary_b29(__ifAnchor104));
-        __e52.appendChild(__e89);
+        const __e90 = document.createElement("div");
+        __e90.setAttribute("class", "agents-card-badges");
+        const __e91 = document.createElement("sui-badge");
+        __e91.setAttribute("tone", "muted");
+        __e91.setAttribute("variant", "outline");
+        __e91.setAttribute("size", "sm");
+        __e91.setAttribute("class", "agents-card-badge-source");
+        const __t92 = document.createTextNode("");
+        __e91.appendChild(__t92);
+        __c47.push(bindText(__t92, () => $scope2.a.source));
+        __e90.appendChild(__e91);
+        const __ifAnchor93 = document.createComment("if");
+        __e90.appendChild(__ifAnchor93);
+        __c47.push(__wireBoundary_b26(__ifAnchor93));
+        const __forAnchor99 = document.createComment("for");
+        __e90.appendChild(__forAnchor99);
+        __c47.push(__wireBoundary_b27(__forAnchor99));
+        const __ifAnchor105 = document.createComment("if");
+        __e90.appendChild(__ifAnchor105);
+        __c47.push(__wireBoundary_b29(__ifAnchor105));
+        __e52.appendChild(__e90);
         __e48.appendChild(__e52);
         __frag46.appendChild(__e48);
         return { nodes: Array.from(__frag46.childNodes), cleanup: () => {
@@ -372,7 +375,7 @@ var page_compiled_default = view((ctx) => {
       () => {
         const __frag29 = document.createDocumentFragment();
         const __c30 = [];
-        const __e31 = document.createElement("ship-empty-state");
+        const __e31 = document.createElement("sui-empty-state");
         __e31.setAttribute("icon", "sparkles");
         __e31.setAttribute("variant", "default");
         __e31.setAttribute("size", "lg");
@@ -391,7 +394,7 @@ var page_compiled_default = view((ctx) => {
         __e31.appendChild(__e35);
         const __t37 = document.createTextNode("\n          or create one from the Studio.\n          ");
         __e31.appendChild(__t37);
-        const __e38 = document.createElement("ship-button");
+        const __e38 = document.createElement("sui-button");
         __e38.setAttribute("slot", "action");
         __e38.setAttribute("tone", "primary");
         __e38.setAttribute("variant", "solid");
@@ -400,7 +403,7 @@ var page_compiled_default = view((ctx) => {
           return typeof __h === "function" ? __h.bind(void 0) : (() => {
           });
         })(), { modifiers: [] }));
-        const __e39 = document.createElement("ship-icon");
+        const __e39 = document.createElement("sui-icon");
         __e39.setAttribute("slot", "leading");
         __e39.setAttribute("name", "plus");
         __e38.appendChild(__e39);
@@ -485,7 +488,7 @@ var page_compiled_default = view((ctx) => {
       __cleanups.push(bindText(__t9, () => $scope.total() === 1 ? "" : "s"));
       __e3.appendChild(__e6);
       __e2.appendChild(__e3);
-      const __e10 = document.createElement("ship-button");
+      const __e10 = document.createElement("sui-button");
       __e10.setAttribute("tone", "primary");
       __e10.setAttribute("variant", "solid");
       __cleanups.push(on(__e10, "click", (function() {
@@ -493,7 +496,7 @@ var page_compiled_default = view((ctx) => {
         return typeof __h === "function" ? __h.bind(void 0) : (() => {
         });
       })(), { modifiers: [] }));
-      const __e11 = document.createElement("ship-icon");
+      const __e11 = document.createElement("sui-icon");
       __e11.setAttribute("slot", "leading");
       __e11.setAttribute("name", "plus");
       __e10.appendChild(__e11);

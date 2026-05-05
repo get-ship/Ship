@@ -82,6 +82,15 @@ pub async fn serve_view_source(
     State(state): State<ApiState>,
     Path(path): Path<String>,
 ) -> Result<Json<ViewSourceResponse>, StatusCode> {
+    // Try the SUI resolver first — covers the new `views/<name>/page.sui`
+    // convention plus the legacy `.ship/views/<name>/index.sui` fallback.
+    // Devtools' Source/Schema tabs hit this endpoint for every mounted
+    // view; without this branch every SUI view returned 404.
+    if let Some(resp) = try_resolve_sui_view(&path) {
+        return Ok(Json(resp));
+    }
+
+    // Fall through to the legacy `.ship/views/<name>/index.html.j2` lookup.
     let roots = view_roots(&state);
     let (rmatch, scope) = roots
         .iter()
@@ -114,4 +123,49 @@ pub async fn serve_view_source(
         manifest,
         scope: scope.to_string(),
     }))
+}
+
+fn try_resolve_sui_view(path: &str) -> Option<ViewSourceResponse> {
+    // SUI resolver expects the top-level segment as `name` and the rest
+    // as a sub-path. For `view-source/agents` we get path = "agents";
+    // for `view-source/agents/abc` we'd get path = "agents/abc". Split.
+    let (name, sub) = match path.split_once('/') {
+        Some((n, rest)) => (n, Some(rest)),
+        None => (path, None),
+    };
+    let resolved = ship_ui_framework::resolver::resolve(name, sub).ok()?;
+    // Bake-list views (agents/git/counter) return source_path = None
+    // because the source is `include_str!`'d at compile time. Synthesize
+    // the canonical on-disk path so devtools can show + edit. The
+    // bake-list mirrors files at `<project_root>/views/<name>/page.sui`.
+    let source_path = match resolved.source_path {
+        Some(p) => p,
+        None => {
+            let cwd = std::env::current_dir().ok()?;
+            let ship_dir = runtime::project::resolve_project_ship_dir_no_redirect(&cwd)?;
+            let project_root = ship_dir.parent()?.to_path_buf();
+            project_root.join("views").join(name).join("page.sui")
+        }
+    };
+    let dir = source_path.parent()?;
+
+    // Manifest convention for SUI views: manifest.jsonc next to page.sui.
+    let (manifest_filename, manifest) = ["manifest.jsonc", "manifest.yaml", "manifest.json"]
+        .iter()
+        .find_map(|fname| {
+            let p = dir.join(fname);
+            std::fs::read_to_string(&p)
+                .ok()
+                .map(|body| (Some((*fname).to_string()), Some(body)))
+        })
+        .unwrap_or((None, None));
+
+    Some(ViewSourceResponse {
+        view_name: name.to_string(),
+        template_path: source_path.display().to_string(),
+        template: resolved.source,
+        manifest_filename,
+        manifest,
+        scope: "sui".to_string(),
+    })
 }

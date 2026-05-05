@@ -8,10 +8,10 @@
         <h1 class="agents-title">Agents</h1>
         <p class="agents-sub">{total()} agent{total() === 1 ? '' : 's'}</p>
       </div>
-      <ship-button tone="primary" variant="solid" on:click={newAgent}>
-        <ship-icon slot="leading" name="plus"></ship-icon>
+      <sui-button tone="primary" variant="solid" on:click={newAgent}>
+        <sui-icon slot="leading" name="plus"></sui-icon>
         New agent
-      </ship-button>
+      </sui-button>
     </header>
 
     {#while-loading of agents}
@@ -24,20 +24,20 @@
 
     {#if agents().kind === 'ok'}
       {#if items().length === 0}
-        <ship-empty-state icon="sparkles" variant="default" size="lg" data-test="empty">
+        <sui-empty-state icon="sparkles" variant="default" size="lg" data-test="empty">
           <span slot="title">No agents yet</span>
           Drop a JSONC file under
           <code class="agents-empty-code">.ship/agents/</code>
           or create one from the Studio.
-          <ship-button slot="action" tone="primary" variant="solid" on:click={newAgent}>
-            <ship-icon slot="leading" name="plus"></ship-icon>
+          <sui-button slot="action" tone="primary" variant="solid" on:click={newAgent}>
+            <sui-icon slot="leading" name="plus"></sui-icon>
             New agent
-          </ship-button>
-        </ship-empty-state>
+          </sui-button>
+        </sui-empty-state>
       {:else}
         <div class="agents-grid" data-view-enter data-test="grid">
           {#for a of items() key={a.id}}
-            <ship-list-tile variant="card" density="normal" interactive
+            <sui-list-tile variant="card" density="normal" interactive
                             navigable={'/agents/' + a.id}
                             class="agents-card-tile"
                             data-test="agent">
@@ -59,30 +59,30 @@
                 {#if a.providers && a.providers.length > 0}
                   <div class="agents-card-providers" aria-label="Compiles to">
                     {#for p of a.providers.slice(0, 4)}
-                      <ship-provider-blob provider={p} size="sm" variant="glyph" title={p}></ship-provider-blob>
+                      <sui-chip tone="muted" variant="outline" size="sm" title={p}>{p}</sui-chip>
                     {/for}
                     {#if a.providers.length > 4}
-                      <ship-chip tone="muted" variant="outline" size="sm">+{a.providers.length - 4}</ship-chip>
+                      <sui-chip tone="muted" variant="outline" size="sm">+{a.providers.length - 4}</sui-chip>
                     {/if}
                   </div>
                 {/if}
                 <div class="agents-card-badges">
-                  <ship-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{a.source}</ship-badge>
+                  <sui-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{a.source}</sui-badge>
                   {#if a.active}
-                    <ship-chip tone="primary" variant="soft" size="sm">
+                    <sui-chip tone="primary" variant="soft" size="sm">
                       <sui-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></sui-status-dot>
                       active session
-                    </ship-chip>
+                    </sui-chip>
                   {/if}
                   {#for t of (a.tags || []).slice(0, 2)}
-                    <ship-chip tone="muted" variant="soft" size="sm">{t}</ship-chip>
+                    <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>
                   {/for}
                   {#if (a.tags || []).length > 2}
-                    <ship-chip tone="muted" variant="outline" size="sm">+{(a.tags || []).length - 2}</ship-chip>
+                    <sui-chip tone="muted" variant="outline" size="sm">+{(a.tags || []).length - 2}</sui-chip>
                   {/if}
                 </div>
               </div>
-            </ship-list-tile>
+            </sui-list-tile>
           {/for}
         </div>
       {/if}

@@ -408,7 +408,11 @@ mod tests {
             let view_dir = root.join(".ship/views/cachey");
             fs::create_dir_all(&view_dir).unwrap();
             let path = view_dir.join("index.sui");
-            fs::write(&path, r#"<state name="x" value="1" /><p>{x()}</p>"#).unwrap();
+            // Static text — the mtime cache cares about source bytes, not
+            // about reactive state. The deprecated `<state>` directive
+            // lived here originally; controllers now own scope, but this
+            // test just needs deterministic distinct outputs.
+            fs::write(&path, r#"<p>first</p>"#).unwrap();
 
             let r = resolve("cachey", None).unwrap();
             let first = render_resolved(&r, "cachey").unwrap();
@@ -419,7 +423,7 @@ mod tests {
             // Advance mtime by writing a different source. The next call must
             // pick up the new content.
             std::thread::sleep(std::time::Duration::from_millis(20));
-            fs::write(&path, r#"<state name="x" value="2" /><p>{x()}</p>"#).unwrap();
+            fs::write(&path, r#"<p>second</p>"#).unwrap();
             let r2 = resolve("cachey", None).unwrap();
             let third = render_resolved(&r2, "cachey").unwrap();
             assert_ne!(third.html, first.html);

@@ -38,7 +38,7 @@ describe('createClient', () => {
     expect(sig().kind).toBe('loading')
     expect(FakeEventSource.instances).toHaveLength(1)
     const es = FakeEventSource.instances[0]!
-    expect(es.url).toMatch(/_ship-set\/data\?expr=/)
+    expect(es.url).toMatch(/_sui\/data\?expr=/)
     es.emitPatch({
       op: 'set',
       value: { items: [{ id: 'a', name: 'A' }] },
@@ -54,7 +54,7 @@ describe('createClient', () => {
   it('subsequent patches mutate via applyPatch', () => {
     FakeEventSource.instances = []
     const source = makeSseSource<{ items: { id: string }[] }>(
-      'http://test/_ship-set/data?expr=ship.agents.summaries%28%29',
+      'http://test/_sui/data?expr=ship.agents.summaries%28%29',
       FakeEventSource as any,
     )
     const sig = live(() => source)
@@ -83,7 +83,7 @@ describe('createClient', () => {
     const sig = live(() => ship.git.diff({ commit: 'abc1234' }))
     expect(sig().kind).toBe('loading')
     const url = FakeEventSource.instances[0]!.url
-    expect(url).toContain('/_ship-set/data?expr=')
+    expect(url).toContain('/_sui/data?expr=')
     // Args round-trip through encodeURIComponent — assert against the
     // decoded form for legibility.
     expect(decodeURIComponent(url.split('expr=')[1]!)).toBe(

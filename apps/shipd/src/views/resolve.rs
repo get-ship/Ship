@@ -106,12 +106,25 @@ pub(crate) fn is_valid_view_name(name: &str) -> bool {
     !name.is_empty() && !name.contains("..") && !name.contains('/') && !name.contains('\\')
 }
 
-/// Resolve a view directory by name. Checks project then global dirs.
+/// Resolve a view directory by name. Uses the no-redirect project
+/// resolver so each linked worktree resolves its own views (without
+/// it, `get_project_dir` would follow the worktree-redirect to the
+/// main checkout's `.ship/`, returning a different project's views).
+///
+/// Lookup order:
+///   1. `<this_worktree>/views/<name>/` — new SUI convention
+///   2. `<this_worktree>/.ship/views/<name>/` — legacy index.html.j2
+///   3. `<global>/views/<name>/` — global legacy
 pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
     if !is_valid_view_name(name) { return None; }
-    if let Ok(d) = runtime::project::get_project_dir(None) {
-        let c = d.join("views").join(name);
-        if c.is_dir() { return Some((c, "project")); }
+    let cwd = std::env::current_dir().ok()?;
+    if let Some(ship) = runtime::project::resolve_project_ship_dir_no_redirect(&cwd) {
+        if let Some(project_root) = ship.parent() {
+            let sui = project_root.join("views").join(name);
+            if sui.is_dir() { return Some((sui, "project")); }
+        }
+        let legacy = ship.join("views").join(name);
+        if legacy.is_dir() { return Some((legacy, "project")); }
     }
     if let Ok(d) = runtime::project::get_global_dir() {
         let c = d.join("views").join(name);

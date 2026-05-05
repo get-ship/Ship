@@ -60,13 +60,25 @@
     display: flex;
     flex-direction: column;
     opacity: 0;
+    /* Closed state: don't intercept clicks. The dialog stays in the
+       layout tree so the open-state CSS transition has something to
+       animate from, but `position: fixed; inset: 0` would otherwise
+       cover the entire viewport with an invisible (opacity: 0) but
+       click-eating overlay — clicks would land on the dialog instead
+       of the underlying app surface. `pointer-events: none` lifts that
+       restriction whenever the dialog isn't open. */
+    pointer-events: none;
     transform: translateY(8px) scale(0.96);
     transition:
       opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
       transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
   }
   :host([size='full']) dialog { max-height: 90vh; }
-  dialog[open] { opacity: 1; transform: translateY(0) scale(1); }
+  dialog[open] {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    pointer-events: auto;
+  }
 
   dialog::backdrop {
     background: hsl(0 0% 0% / 0.5);

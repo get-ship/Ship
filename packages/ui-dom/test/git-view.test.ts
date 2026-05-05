@@ -16,7 +16,7 @@ import {
   type LiveSource,
   type LiveState,
 } from '@ship/ui-runtime'
-import gitView from '../../../views/git/view.controller'
+import gitView from '../../../views/git/controller'
 import type { GitOverview } from '@ship/ui-sdk-client'
 
 const containers: HTMLElement[] = []
@@ -32,7 +32,7 @@ afterEach(() => {
 const flush = () => new Promise((r) => setTimeout(r, 0))
 
 const TEMPLATE = readFileSync(
-  resolve(__dirname, '../../../views/git/view.sui'),
+  resolve(__dirname, '../../../views/git/page.sui'),
   'utf8',
 )
 

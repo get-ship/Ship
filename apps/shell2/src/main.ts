@@ -13,13 +13,21 @@
 //   7. Rail: <sui-rail> along the left edge; persists collapsed state.
 //   8. Status bar: <sui-status-bar> along the bottom; polls workspaces.
 
+import { createClient, type ShipSDK } from '@ship/ui-sdk-client'
+
 interface MountFn {
   (
     target: HTMLElement,
     payload: unknown,
-    opts?: { cssScope?: 'adjacent' | 'document-head' | 'none' },
+    opts?: {
+      cssScope?: 'adjacent' | 'document-head' | 'none'
+      ship?: ShipSDK
+    },
   ): Promise<{ dispose(): void; element: HTMLElement }>
 }
+
+// Single SDK client instance, shared across every mounted view.
+const shipClient: ShipSDK = createClient()
 
 interface SuiRuntime {
   mount: MountFn
@@ -95,7 +103,14 @@ async function mountRoute(r: Route): Promise<void> {
       return
     }
     const payload = await res.json()
-    const handle = await runtime.mount(slot, payload, { cssScope: 'adjacent' })
+    const handle = await runtime.mount(slot, payload, {
+      cssScope: 'adjacent',
+      // SUI views call `ship.<domain>.<op>()` inside `<data live>`
+      // declarations. Without a `ship` SDK client wired to ctx,
+      // `ship` is undefined and the data lambda throws — visible
+      // as views stuck on `Loading…` because the patch never lands.
+      ship: shipClient,
+    })
     currentHandle = handle
     currentRoute = r
   } catch (err) {
@@ -231,13 +246,18 @@ async function updateStatus(): Promise<void> {
   if (!statusBar) return
   statusBar.setAttribute('theme', document.documentElement.dataset.theme ?? 'ship-light')
 
+  // Fetch the active project's actual git branch via /api/v1/git/status.
+  // The previous implementation pulled `workspaces[0].name` which returned
+  // the FIRST registered workspace globally — not necessarily the
+  // worktree the daemon is serving — so the status bar mis-labeled the
+  // branch on linked worktrees.
   try {
-    const res = await fetch('/api/v1/workspaces', { credentials: 'same-origin' })
+    const res = await fetch('/api/v1/git/status', { credentials: 'same-origin' })
     if (res.ok) {
       const envelope = await res.json()
-      const ws = envelope?.data?.workspaces?.[0]
-      statusBar.setAttribute('branch', ws?.name ?? ws?.id ?? 'no workspace')
-      statusBar.setAttribute('agents', ws?.active_agent ? `agent: ${ws.active_agent}` : '')
+      const branch = envelope?.data?.branch ?? envelope?.branch ?? 'unknown'
+      statusBar.setAttribute('branch', branch)
+      statusBar.setAttribute('agents', '')
       if (!daemonOnline) {
         statusBar.setAttribute('online', '')
         daemonOnline = true

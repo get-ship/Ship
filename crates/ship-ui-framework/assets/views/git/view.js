@@ -246,7 +246,7 @@ var page_compiled_default = view((ctx) => {
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
-  $scope.overview = live(({ ship: ship2, route: route2 }) => ship2.git.overview());
+  $scope.overview = live(() => ship.git.overview());
   if (controller_default && typeof controller_default.setup === "function") {
     const __r = controller_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);

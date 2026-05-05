@@ -310,8 +310,13 @@ mod tests {
         let _g = lock_with_dir(tmp.path());
         let view_dir = tmp.path().join(".ship/views/demo");
         fs::create_dir_all(&view_dir).unwrap();
+        // Reactive state moved out of the deprecated `<state>` directive
+        // into a paired controller's scope factory. Test writes both
+        // files and asserts the scope value lands in the payload.
         fs::write(view_dir.join("index.sui"),
-            r#"<state name="count" value="0" /><div><p>{count()}</p></div>"#).unwrap();
+            r#"<div><p>{count()}</p></div>"#).unwrap();
+        fs::write(view_dir.join("index.controller.ts"),
+            "import { controller, signal } from '@ship/ui-runtime'\nexport default controller({ scope: () => ({ count: signal(0) }) })\n").unwrap();
         fs::write(view_dir.join("index.css"), "p { color: red; }").unwrap();
 
         let resp = serve_view_payload(Path("demo".to_string())).await;
@@ -324,7 +329,11 @@ mod tests {
         assert!(!html.contains("__set_init__"),
             "html must NOT include the script island — scope is a separate field");
         assert_eq!(v["css"], "p { color: red; }");
-        assert_eq!(v["scope"]["count"], 0);
+        // Scope JSON ships as `{}` for controller-driven views — the
+        // runtime evaluates the controller's `scope:` factory on
+        // hydrate. (The deprecated `<state>` directive used to bake
+        // initial values into this field at compile time.)
+        assert!(v["scope"].is_object(), "scope should be a JSON object, got {}", v["scope"]);
         assert_eq!(v["moduleUrl"], "/_sui/views/demo/view.js");
         assert!(v["islands"].as_array().unwrap().is_empty());
     }
@@ -336,11 +345,9 @@ mod tests {
         let view_dir = tmp.path().join(".ship/views/demo");
         let sub_dir = view_dir.join("[name]");
         fs::create_dir_all(&sub_dir).unwrap();
-        fs::write(view_dir.join("index.sui"),
-            r#"<state name="x" value="1" /><div></div>"#).unwrap();
+        fs::write(view_dir.join("index.sui"), r#"<div></div>"#).unwrap();
         fs::write(view_dir.join("index.css"), ".parent {}").unwrap();
-        fs::write(sub_dir.join("index.sui"),
-            r#"<state name="y" value="2" /><span></span>"#).unwrap();
+        fs::write(sub_dir.join("index.sui"), r#"<span></span>"#).unwrap();
         fs::write(sub_dir.join("index.css"), ".child {}").unwrap();
 
         let resp = serve_view_payload_subpath(
@@ -403,7 +410,7 @@ mod tests {
         let view_dir = tmp.path().join(".ship/views/term-view");
         fs::create_dir_all(&view_dir).unwrap();
         fs::write(view_dir.join("index.sui"),
-            r#"<state name="n" value="0" /><div><sui-terminal rows={24} cols={80}></sui-terminal></div>"#).unwrap();
+            r#"<div><sui-terminal rows={24} cols={80}></sui-terminal></div>"#).unwrap();
 
         let resp = serve_view_payload(Path("term-view".to_string())).await;
         assert_eq!(resp.status(), StatusCode::OK);

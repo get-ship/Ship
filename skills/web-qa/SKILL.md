@@ -7,7 +7,10 @@ authors: [ship]
 license: MIT
 compatibility: Requires Playwright (@playwright/test) with browsers installed, and system libs libnspr4 + libnss3 on Linux
 artifacts: [image, markdown]
-allowed-tools: Bash(playwright*) Bash(npx playwright*) Bash(pnpm exec playwright*)
+allowed-tools:
+  - "Bash(playwright*)"
+  - "Bash(npx playwright*)"
+  - "Bash(pnpm exec playwright*)"
 ---
 
 # Web QA

@@ -341,17 +341,26 @@ fn emit_component_scope_seed(w: &mut Writer, program: &Program) {
 }
 
 fn emit_data_decls(w: &mut Writer, program: &Program) {
+    // The view's setup closure already destructures `ship`, `route`,
+    // `navigate` from `ctx` into its lexical scope, so the data thunk
+    // closes over them instead of taking them as args. The earlier
+    // form `({ ship, route }) => …` looked like it would receive a
+    // context arg, but `live()` / `data().source()` don't pass one —
+    // every `<data live>` resolved its source against `undefined` and
+    // got stuck on `loading` because `ship.git.overview()` threw a
+    // synchronous TypeError that sat inside the `signal` reset on
+    // the next effect tick.
     for d in &program.data {
         let src = &d.source.source;
         if d.live {
             w.line(&format!(
-                "$scope.{name} = live(({{ ship, route }}) => {src});",
+                "$scope.{name} = live(() => {src});",
                 name = js_ident(&d.name),
                 src = src
             ));
         } else {
             w.line(&format!(
-                "$scope.{name} = data({{ initial: undefined, source: ({{ ship, route }}) => {src} }});",
+                "$scope.{name} = data({{ initial: undefined, source: () => {src} }});",
                 name = js_ident(&d.name),
                 src = src
             ));

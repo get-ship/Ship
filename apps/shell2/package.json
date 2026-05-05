@@ -9,7 +9,9 @@
     "preview": "vite preview --port 3200",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@ship/ui-sdk-client": "workspace:*"
+  },
   "devDependencies": {
     "playwright": "^1.59.1",
     "typescript": "~5.8.3",

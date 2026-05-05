@@ -6,7 +6,7 @@
 // `loading` to `ok`. The disposer returned by `subscribe` closes the
 // EventSource on tear-down.
 //
-// Wire format: the daemon's `/_ship-set/data?expr=ship.<domain>.<op>()`
+// Wire format: the daemon's `/_sui/data?expr=ship.<domain>.<op>()`
 // endpoint streams `event: patch` frames whose data payload matches the
 // runtime's Patch shape (currently always `{op: 'set', value: ...}`).
 // Subsequent ops (`merge`, `append`, …) flow through `applyPatch` so a
@@ -147,17 +147,17 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
   return {
     agents: {
       summaries: () => makeSseSource<AgentsSummariesResponse>(
-        `${baseUrl}/_ship-set/data?expr=${encodeURIComponent('ship.agents.summaries()')}`,
+        `${baseUrl}/_sui/data?expr=${encodeURIComponent('ship.agents.summaries()')}`,
         ESCtor,
       ),
     },
     git: {
       overview: () => makeSseSource<GitOverview>(
-        `${baseUrl}/_ship-set/data?expr=${encodeURIComponent('ship.git.overview()')}`,
+        `${baseUrl}/_sui/data?expr=${encodeURIComponent('ship.git.overview()')}`,
         ESCtor,
       ),
       diff: (args) => makeSseSource<GitDiff>(
-        `${baseUrl}/_ship-set/data?expr=${encodeURIComponent(`ship.git.diff(${JSON.stringify(args)})`)}`,
+        `${baseUrl}/_sui/data?expr=${encodeURIComponent(`ship.git.diff(${JSON.stringify(args)})`)}`,
         ESCtor,
       ),
     },
@@ -165,7 +165,7 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
 }
 
 /**
- * Wire one `_ship-set/data` SSE channel into a `LiveSource`. The first
+ * Wire one `_sui/data` SSE channel into a `LiveSource`. The first
  * `patch` event with `op === 'set'` flips the signal to ok; subsequent
  * events go through `applyPatch` against a façade that maps T <→ ok-state.
  *
