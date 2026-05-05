@@ -18,8 +18,6 @@ pub enum KvNamespace {
     AuthSession,
     /// Auth daemon-owner binding — ephemeral
     AuthDaemonOwner,
-    /// Cron hook next-fire timestamps — ephemeral
-    CronState,
     /// User-facing settings (defaults.provider, defaults.model, daemon.port…)
     Settings,
     /// Skill variable state — global (machine-wide) scope; inner = skill_id
@@ -43,7 +41,6 @@ impl KvNamespace {
         match self {
             Self::AuthSession       => "auth.sessions".into(),
             Self::AuthDaemonOwner   => "auth.daemon_owner".into(),
-            Self::CronState         => "cron.last_fire".into(),
             Self::Settings          => "settings".into(),
             Self::SkillVarsGlobal(s)   => format!("skill_vars:{s}").into(),
             Self::SkillVarsLocal(s)    => format!("skill_vars.local:{s}").into(),

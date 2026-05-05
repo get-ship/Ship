@@ -11,7 +11,6 @@ use cron::Schedule;
 use serde_json::json;
 use tokio::sync::mpsc::UnboundedSender;
 
-use ship_substrate::db::kv::KvNamespace;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
 use super::super::def::{HookDef, TriggerSourceDef};
@@ -87,7 +86,7 @@ async fn cron_source_task(
                     if fire_at > now {
                         continue;
                     }
-                    // Check last-fire from KV to prevent double-fire on restart.
+                    // Check last-fire from the event log to prevent double-fire on restart.
                     let hook_name = entry.def.name.clone();
                     if let Some(last) = load_last_fire(&hook_name) {
                         if last >= fire_at {
@@ -97,7 +96,6 @@ async fn cron_source_task(
                         }
                     }
                     emit_cron_event(&hook_name, fire_at, now, &kernel).await;
-                    save_last_fire(&hook_name, now);
                     entry.advance();
                 }
             }
@@ -169,15 +167,12 @@ async fn emit_cron_event(
     }
 }
 
+/// Read the most recent fire time for this hook from the event log.
+/// `emit_cron_event` writes `external.cron.{hook_name}` events with
+/// `entity_id = hook_name`; the latest one's `created_at` is the last fire.
 fn load_last_fire(hook_name: &str) -> Option<DateTime<Utc>> {
-    let val = ship_substrate::db::kv::get(KvNamespace::CronState, hook_name).ok()??;
-    let ts = val.as_str()?;
-    ts.parse::<DateTime<Utc>>().ok()
-}
-
-fn save_last_fire(hook_name: &str, fired_at: DateTime<Utc>) {
-    let val = serde_json::Value::String(fired_at.to_rfc3339());
-    if let Err(e) = ship_substrate::db::kv::set(KvNamespace::CronState, hook_name, &val) {
-        tracing::warn!(hook = hook_name, "cron-source: persist last_fire failed: {e}");
-    }
+    let event_type = format!("external.cron.{hook_name}");
+    let events = ship_substrate::db::events::query_events_by_entity_and_type(hook_name, &event_type)
+        .ok()?;
+    events.last().map(|e| e.created_at)
 }
