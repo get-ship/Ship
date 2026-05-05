@@ -98,7 +98,7 @@ pub fn resolve_body_path(body_path: &str) -> std::io::Result<PathBuf> {
     if p.is_absolute() {
         return Ok(p.to_path_buf());
     }
-    let project_ship_dir = runtime::project::get_project_dir(None)
+    let project_ship_dir = ship_application::project::get_project_dir(None)
         .map_err(|e| std::io::Error::other(format!("resolve project dir: {e}")))?;
     let project_root = project_ship_dir.parent().unwrap_or(&project_ship_dir);
     Ok(project_root.join(p))

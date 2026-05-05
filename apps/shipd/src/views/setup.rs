@@ -114,8 +114,8 @@ fn render_user_view() -> Option<String> {
 
 fn read_setup_view_source() -> Option<String> {
     for dir in [
-        runtime::project::get_project_dir(None).ok(),
-        runtime::project::get_global_dir().ok(),
+        ship_application::project::get_project_dir(None).ok(),
+        ship_application::project::get_global_dir().ok(),
     ]
     .into_iter()
     .flatten()

@@ -1,7 +1,7 @@
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() -> anyhow::Result<()> {
-    let global_dir = runtime::project::get_global_dir()?;
+    let global_dir = ship_application::project::get_global_dir()?;
 
     // Logs live in machine/logs/ per the home-layout ADR. Eagerly create the
     // directory so the file appender can attach before the migrator runs in
@@ -79,7 +79,7 @@ fn extract_str_arg(args: &[String], flag: &str) -> Option<String> {
 /// and `~/.ship/` exclusion all behave consistently.
 fn discover_workspace() -> Option<std::path::PathBuf> {
     let cwd = std::env::current_dir().ok()?;
-    let ship_dir = runtime::project::resolve_project_ship_dir(&cwd)?;
+    let ship_dir = ship_application::project::resolve_project_ship_dir(&cwd)?;
     // resolver returns the .ship dir; we want its parent (the project root).
     ship_dir.parent().map(std::path::Path::to_path_buf)
 }

@@ -35,7 +35,7 @@ pub(super) fn try_dispatch(
             let total_events = events.len();
             // Agents + collections lists.
             let agents = crate::views::state::list_agents(ship_dir);
-            let project_dir = runtime::project::get_project_dir(None).ok();
+            let project_dir = ship_application::project::get_project_dir(None).ok();
             let mut schemas = ship_platform::collections::builtin::all_schemas();
             schemas.extend(
                 ship_platform::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())

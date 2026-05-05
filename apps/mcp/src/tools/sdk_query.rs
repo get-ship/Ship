@@ -77,7 +77,7 @@ fn truncate(s: &str, max: usize) -> String {
 }
 
 async fn http_get_query(query: &str) -> Result<String> {
-    let global_dir = runtime::project::get_global_dir()?;
+    let global_dir = ship_application::project::get_global_dir()?;
     let port = read_port(&global_dir)?;
     let token = read_token(&global_dir)?;
     // Percent-encode the query — reqwest's query() handles it for us.

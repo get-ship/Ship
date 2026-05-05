@@ -91,7 +91,7 @@ impl CollectionsServiceImpl {
     }
 
     fn load_any_schema(&self, collection: &str) -> Result<schema::CollectionSchema, Error> {
-        let project_dir = runtime::project::get_project_dir(None).ok();
+        let project_dir = ship_application::project::get_project_dir(None).ok();
         let user_schemas = schema::load_schemas_merged(&self.ship_dir, project_dir.as_deref())
             .map_err(|e| Error::Io(e.to_string()))?;
         let mut schemas = builtin::all_schemas();
@@ -106,7 +106,7 @@ impl CollectionsServiceImpl {
 #[async_trait]
 impl CollectionsService for CollectionsServiceImpl {
     fn list_user_schemas(&self) -> Result<Vec<schema::CollectionSchema>, Error> {
-        let project_dir = runtime::project::get_project_dir(None).ok();
+        let project_dir = ship_application::project::get_project_dir(None).ok();
         let user = schema::load_schemas_merged(&self.ship_dir, project_dir.as_deref())
             .map_err(|e| Error::Io(e.to_string()))?;
         let mut schemas = builtin::user_schemas();

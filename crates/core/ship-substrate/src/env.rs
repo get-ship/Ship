@@ -53,7 +53,7 @@ pub enum Var {
     /// checkout. Used by dev tooling iterating per-worktree views/themes.
     RespectWorktree,
     /// `SHIP_DEV_PROJECT_DIR` — project-dir override for tests + dev tooling.
-    /// When set, `runtime::project::get_project_dir(None)` returns this path
+    /// When set, `ship_application::project::get_project_dir(None)` returns this path
     /// instead of walking up from cwd. Tests use it for parallel-safe
     /// project-root isolation; production callers should never set it.
     DevProjectDir,

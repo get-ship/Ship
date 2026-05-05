@@ -131,7 +131,7 @@ fn full_index_renders_with_all_partials_spliced_in() {
     // The {% include %} chain in index.html.j2 needs sibling partial
     // resolution. render_view_source walks get_project_dir()/views/<name>,
     // which inside a git worktree may redirect to the main checkout.
-    // SHIP_DEV_PROJECT_DIR overrides that, per runtime::project::discovery.
+    // SHIP_DEV_PROJECT_DIR overrides that, per ship_application::project::discovery.
     let ship_dir = view_dir()
         .parent()
         .and_then(Path::parent)

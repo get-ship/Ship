@@ -26,7 +26,7 @@ pub(crate) fn build_generic_context(
         "query": query_params,
         "fragment": true,
     });
-    let Ok(ship_dir) = runtime::project::get_global_dir() else { return ctx };
+    let Ok(ship_dir) = ship_application::project::get_global_dir() else { return ctx };
 
     load_collections(&mut ctx, manifest_data, query_params, &ship_dir);
     ctx
@@ -45,7 +45,7 @@ fn load_collections(
     {
         return;
     }
-    let project_dir = runtime::project::get_project_dir(None).ok();
+    let project_dir = ship_application::project::get_project_dir(None).ok();
     let mut schemas = ship_platform::collections::builtin::all_schemas();
     schemas.extend(
         ship_platform::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())

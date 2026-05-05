@@ -22,7 +22,7 @@ cli-framework = { path = "../../crates/core/cli-framework" }
 lint = { path = "../../crates/core/lint" }
 lsp = { path = "../../crates/lsp" }
 compiler = { path = "../../crates/core/compiler" }
-runtime = { path = "../../crates/core/runtime" }
+ship-application = { path = "../../crates/core/ship-application" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }
@@ -50,7 +50,7 @@ ratatui = "0.29"
 crossterm = "0.28"
 
 [features]
-unstable = ["mcp/unstable", "runtime/unstable", "shipd/unstable"]
+unstable = ["mcp/unstable", "ship-application/unstable", "shipd/unstable"]
 
 # ── cargo-deb (Linux .deb) ────────────────────────────────────────────────────
 # Invoked by CI on tag push: `cargo deb -p ship-cli --no-build`.

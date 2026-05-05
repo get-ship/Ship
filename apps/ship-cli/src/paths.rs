@@ -78,7 +78,7 @@ pub fn is_agent_config(path: &std::path::Path) -> bool {
 /// Returns the absolute path to `.ship/` for the current project, or errors.
 /// Uses git-worktree-aware traversal so this works from subdirs and worktrees.
 pub fn project_ship_dir_required() -> anyhow::Result<std::path::PathBuf> {
-    runtime::project::get_project_dir(None)
+    ship_application::project::get_project_dir(None)
 }
 
 pub fn ensure_project_dirs() -> anyhow::Result<()> {

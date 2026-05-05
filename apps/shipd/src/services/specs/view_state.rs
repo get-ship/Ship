@@ -143,7 +143,7 @@ fn groups_of(all: &[Spec], q: &str) -> Vec<RailGroup> {
 
 /// Enumerate pipeline names available to the edit dropdown.
 fn list_pipelines() -> Vec<String> {
-    let project_dir = match runtime::project::get_project_dir(None) {
+    let project_dir = match ship_application::project::get_project_dir(None) {
         Ok(d) => d,
         Err(_) => return Vec::new(),
     };

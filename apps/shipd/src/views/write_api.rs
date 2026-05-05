@@ -102,7 +102,7 @@ fn relative_safe(rel: &str) -> Option<PathBuf> {
 /// Locate a view by name, returning (view_dir, scope). Mirrors the
 /// walker in `source_api` so PUT/GET resolve identically.
 fn resolve_view(state: &ApiState, name: &str) -> Option<(PathBuf, &'static str)> {
-    if let Ok(d) = runtime::project::get_project_dir(None) {
+    if let Ok(d) = ship_application::project::get_project_dir(None) {
         let c = d.join("views").join(name);
         if c.is_dir() {
             return Some((c, "project"));

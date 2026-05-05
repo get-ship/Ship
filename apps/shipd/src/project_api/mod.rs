@@ -56,7 +56,7 @@ pub(crate) fn resolve_worktree(
     //    current branch. get_project_dir walks up from CWD looking for
     //    .ship/, so it lands on the real project even if the daemon was
     //    started with a global ship_dir.
-    if let Ok(project_ship) = runtime::project::get_project_dir(None)
+    if let Ok(project_ship) = ship_application::project::get_project_dir(None)
         && let Some(root) = project_ship.parent()
         && let Some(current_branch) = current_branch_at(root)
         && current_branch == id
@@ -91,7 +91,7 @@ fn current_branch_at(root: &std::path::Path) -> Option<String> {
 /// Look up the worktree path for a branch via `git worktree list --porcelain`.
 /// Returns None if the branch isn't a checked-out worktree.
 pub(crate) fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
-    let project_ship = runtime::project::get_project_dir(None).ok()?;
+    let project_ship = ship_application::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
     let output = std::process::Command::new("git")
         .args(["worktree", "list", "--porcelain"])

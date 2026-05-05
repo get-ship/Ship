@@ -2,7 +2,7 @@ use crate::resource_resolver::resolve_resource_uri;
 use ship_substrate::db::ensure_db;
 use ship_substrate::db::ensure_db_at;
 use ship_substrate::events::{EventStore, SqliteEventStore};
-use runtime::project::init_project;
+use ship_application::project::init_project;
 use ship_substrate::events::EventEnvelope;
 use std::future;
 use tempfile::tempdir;

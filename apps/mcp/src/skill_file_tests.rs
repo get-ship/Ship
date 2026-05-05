@@ -1,6 +1,6 @@
 use crate::requests::{DeleteSkillFileRequest, WriteSkillFileRequest};
 use crate::tools::skills::{delete_skill_file, write_skill_file};
-use runtime::project::init_project;
+use ship_application::project::init_project;
 use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {

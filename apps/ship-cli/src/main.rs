@@ -48,7 +48,7 @@ use std::path::PathBuf;
 /// Initialize the global KernelRouter for CLI commands that emit events.
 /// Silently skips if the global dir is unavailable or the router fails to start.
 fn try_init_kernel_router() {
-    if let Ok(dir) = runtime::project::get_global_dir() {
+    if let Ok(dir) = ship_application::project::get_global_dir() {
         let _ = ship_substrate::events::init_kernel_router(dir);
     }
 }
@@ -247,7 +247,7 @@ fn run_rebuild_projections() -> Result<()> {
 
 #[cfg(feature = "unstable")]
 fn run_top() -> Result<()> {
-    let ship_dir = runtime::project::get_project_dir(None)?;
+    let ship_dir = ship_application::project::get_project_dir(None)?;
     top::run(ship_dir)
 }
 

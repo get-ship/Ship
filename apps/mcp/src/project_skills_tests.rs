@@ -1,7 +1,7 @@
 use crate::requests::ListProjectSkillsRequest;
 use crate::tools::skills::list_project_skills;
 use compiler::PullSkill;
-use runtime::project::init_project;
+use ship_application::project::init_project;
 use tempfile::tempdir;
 
 fn setup() -> (tempfile::TempDir, std::path::PathBuf) {

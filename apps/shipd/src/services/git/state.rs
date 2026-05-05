@@ -103,7 +103,7 @@ pub fn resolve_root(
     {
         return Ok(path);
     }
-    if let Ok(project_ship) = runtime::project::get_project_dir(None) {
+    if let Ok(project_ship) = ship_application::project::get_project_dir(None) {
         if let Some(root) = project_ship.parent() {
             return Ok(root.to_path_buf());
         }

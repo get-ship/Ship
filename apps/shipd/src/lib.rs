@@ -98,7 +98,7 @@ pub async fn run_network(
     // but they can't flip the --dev flag on the daemon process they didn't start.
     let host = if dev { "127.0.0.1".to_string() } else { host };
     auth::pairing::set_dev_mode(dev);
-    let global_dir = runtime::project::get_global_dir()?;
+    let global_dir = ship_application::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
 
     // Per devx-04, pick the daemon IPC dir based on workspace cwd. A daemon

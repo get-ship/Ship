@@ -753,7 +753,7 @@ fn format_relative_time(ts: &str) -> String {
 fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
     use ship_substrate::db::repair;
 
-    let global_dir = runtime::project::get_global_dir()
+    let global_dir = ship_application::project::get_global_dir()
         .context("resolve global ship dir")?;
     let db_path = ship_substrate::db::platform_db_path(&global_dir);
     if !db_path.exists() {

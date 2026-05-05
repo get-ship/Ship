@@ -501,8 +501,8 @@ impl ShipRuntime {
     /// surface a clear error rather than inventing one.
     pub fn project_slug(&self) -> Option<String> {
         let ws = self.workspace_dir.as_ref()?;
-        let project_ship = runtime::project::get_project_dir(Some(ws.clone())).ok()?;
-        Some(runtime::project::project_slug_from_ship_dir(&project_ship))
+        let project_ship = ship_application::project::get_project_dir(Some(ws.clone())).ok()?;
+        Some(ship_application::project::project_slug_from_ship_dir(&project_ship))
     }
 
     /// Lazily initialize and return the mesh manager.

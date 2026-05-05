@@ -17,7 +17,7 @@ pub(super) fn try_dispatch(
     let value: Result<Value, RegistryError> = match name {
         "collections.state" => {
             let ship_dir = state.ship_dir();
-            let project_dir = runtime::project::get_project_dir(None).ok();
+            let project_dir = ship_application::project::get_project_dir(None).ok();
             let mut schemas = ship_platform::collections::builtin::user_schemas();
             schemas.extend(
                 ship_platform::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())

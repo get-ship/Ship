@@ -29,7 +29,7 @@ use crate::views::router::match_path;
 pub(crate) fn view_roots(state: &ApiState) -> Vec<std::path::PathBuf> {
     let mut roots = Vec::new();
     // Project scope: .ship/views/ of the enclosing project (if any).
-    if let Ok(project_ship) = runtime::project::get_project_dir(None) {
+    if let Ok(project_ship) = ship_application::project::get_project_dir(None) {
         let p = project_ship.join("views");
         if project_ship != state.ship_dir() && p.is_dir() {
             roots.push(p);

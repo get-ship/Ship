@@ -400,7 +400,7 @@ pub struct CheckoutHookReq {
 pub async fn hooks_checkout(
     Json(req): Json<CheckoutHookReq>,
 ) -> impl IntoResponse {
-    let ship_dir_result = runtime::project::get_project_dir(Some(std::path::PathBuf::from(&req.path)));
+    let ship_dir_result = ship_application::project::get_project_dir(Some(std::path::PathBuf::from(&req.path)));
     let ship_dir = match ship_dir_result {
         Ok(d) => d,
         Err(e) => {

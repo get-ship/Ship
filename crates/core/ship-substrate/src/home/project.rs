@@ -19,7 +19,7 @@ impl ProjectRoot {
     ///
     /// A project root is the directory containing `.ship/`. The walk
     /// honors `.ship/.boundary` and the linked-worktree redirect logic
-    /// implemented in `runtime::project::resolve_project_ship_dir`.
+    /// implemented in `ship_application::project::resolve_project_ship_dir`.
     pub fn discover(from: &Path) -> Option<Self> {
         let ship = resolve_project_ship_dir(from)?;
         let root = ship.parent()?.to_path_buf();

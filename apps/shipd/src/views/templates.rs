@@ -259,8 +259,8 @@ pub(crate) fn collect_siblings(name: &str) -> Vec<(String, String)> {
     let Some(view_name) = name.split('/').next() else { return sibling_sources };
     let mut registered: std::collections::HashSet<String> = std::collections::HashSet::new();
     for ship_dir in [
-        runtime::project::get_project_dir(None).ok(),
-        runtime::project::get_global_dir().ok(),
+        ship_application::project::get_project_dir(None).ok(),
+        ship_application::project::get_global_dir().ok(),
     ]
     .into_iter()
     .flatten()

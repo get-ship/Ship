@@ -185,7 +185,7 @@ fn emit_compile_completed(
     use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 
-    let project_id = match runtime::project::ensure_project_id(ship_dir) {
+    let project_id = match ship_application::project::ensure_project_id(ship_dir) {
         Ok(id) => id,
         Err(e) => {
             tracing::warn!("compile: cannot resolve project id: {e}");

@@ -99,8 +99,8 @@ pub async fn serve_component_js(Path(file): Path<String>) -> Response {
 pub fn resolve_component_path(tag: &str) -> Option<std::path::PathBuf> {
     let filename = format!("{tag}.ship");
     for dir in [
-        runtime::project::get_project_dir(None).ok(),
-        runtime::project::get_global_dir().ok(),
+        ship_application::project::get_project_dir(None).ok(),
+        ship_application::project::get_global_dir().ok(),
     ]
     .into_iter()
     .flatten()
@@ -121,8 +121,8 @@ pub fn discover_components() -> Vec<(String, std::path::PathBuf)> {
     let mut out: Vec<(String, std::path::PathBuf)> = Vec::new();
     let mut seen: std::collections::HashSet<String> = std::collections::HashSet::new();
     for dir in [
-        runtime::project::get_project_dir(None).ok(),
-        runtime::project::get_global_dir().ok(),
+        ship_application::project::get_project_dir(None).ok(),
+        ship_application::project::get_global_dir().ok(),
     ]
     .into_iter()
     .flatten()

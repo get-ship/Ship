@@ -1,6 +1,6 @@
 //! Skill discovery for the `skills` view. Scans global + project scopes,
 //! deduplicates by id (project wins). Callers pass the daemon's global
-//! ship_dir; project scope resolved via `runtime::project::get_project_dir`.
+//! ship_dir; project scope resolved via `ship_application::project::get_project_dir`.
 
 use serde::Serialize;
 use std::collections::HashSet;
@@ -111,7 +111,7 @@ pub(crate) struct SkillScopes {
 }
 
 fn resolve_scopes(ship_dir: &Path) -> SkillScopes {
-    let project_ship = runtime::project::get_project_dir(None)
+    let project_ship = ship_application::project::get_project_dir(None)
         .ok()
         .filter(|p| p != ship_dir);
     scopes_from(ship_dir, project_ship.as_deref())

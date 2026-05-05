@@ -107,11 +107,11 @@ pub(crate) fn is_valid_view_name(name: &str) -> bool {
 /// Resolve a view directory by name. Checks project then global dirs.
 pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
     if !is_valid_view_name(name) { return None; }
-    if let Ok(d) = runtime::project::get_project_dir(None) {
+    if let Ok(d) = ship_application::project::get_project_dir(None) {
         let c = d.join("views").join(name);
         if c.is_dir() { return Some((c, "project")); }
     }
-    if let Ok(d) = runtime::project::get_global_dir() {
+    if let Ok(d) = ship_application::project::get_global_dir() {
         let c = d.join("views").join(name);
         if c.is_dir() { return Some((c, "global")); }
     }

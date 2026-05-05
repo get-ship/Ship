@@ -33,7 +33,7 @@ pub struct SessionsQuery {
 /// the project dir can't be resolved or git fails; gates fall back to the
 /// step-local start SHA in that case.
 pub(super) fn resolve_project_head_sha() -> Option<String> {
-    let project_ship = runtime::project::get_project_dir(None).ok()?;
+    let project_ship = ship_application::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
     ship_platform::services::orchestrator::git_helpers::resolve_head_sha(project_root)
 }

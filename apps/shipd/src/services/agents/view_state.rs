@@ -2,7 +2,7 @@
 //!
 //! Reads agent configs from `<ship_dir>/agents/*.{jsonc,json}` across two
 //! scopes and merges them — project (discovered from cwd via
-//! `runtime::project::get_project_dir`) wins over global on id collision.
+//! `ship_application::project::get_project_dir`) wins over global on id collision.
 //! Each summary/detail carries a `source` field so the view can group the
 //! rail by scope.
 //!
@@ -85,7 +85,7 @@ pub(crate) struct AgentScopes {
 }
 
 fn resolve_scopes(ship_dir: &Path) -> AgentScopes {
-    let project_ship = runtime::project::get_project_dir(None)
+    let project_ship = ship_application::project::get_project_dir(None)
         .ok()
         .filter(|p| p != ship_dir);
     scopes_from(ship_dir, project_ship.as_deref())
