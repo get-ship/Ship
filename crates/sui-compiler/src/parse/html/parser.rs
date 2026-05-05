@@ -286,7 +286,9 @@ impl<'a> Parser<'a> {
     fn starts_with(&self, s: &str) -> bool { self.src[self.i..].starts_with(s) }
     fn starts_with_ci(&self, s: &str) -> bool {
         let rest = &self.src[self.i..];
-        rest.len() >= s.len() && rest[..s.len()].eq_ignore_ascii_case(s)
+        rest.len() >= s.len()
+            && rest.is_char_boundary(s.len())
+            && rest[..s.len()].eq_ignore_ascii_case(s)
     }
     fn is_tag_start_at(&self, idx: usize) -> bool {
         idx < self.bytes.len() && self.bytes[idx].is_ascii_alphabetic()
@@ -298,4 +300,22 @@ fn is_tag_name_byte(b: u8) -> bool {
 }
 fn is_attr_name_byte(b: u8) -> bool {
     !b.is_ascii_whitespace() && b != b'=' && b != b'>' && b != b'/' && b != b'"' && b != b'\''
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::parse_fragment;
+
+    #[test]
+    fn raw_text_with_multibyte_after_lt_does_not_panic() {
+        // A `<` inside a <style>/<script> body followed by a multi-byte
+        // UTF-8 char (here U+2500 BOX DRAWINGS LIGHT HORIZONTAL, 3 bytes)
+        // used to panic in `starts_with_ci`: it sliced
+        // `rest[..needle.len()]` without checking that the byte index
+        // landed on a char boundary. Surfaced by libfuzzer in
+        // crates/sui-compiler/fuzz/ — minimized input was `<style><-──`.
+        let _ = parse_fragment("<style><-──");
+        let _ = parse_fragment("<script>x<─</script>");
+        let _ = parse_fragment("<style>a<bc</style>");
+    }
 }
