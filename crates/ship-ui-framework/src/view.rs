@@ -162,15 +162,19 @@ pub struct ViewSetupQuery {
 }
 
 fn compile_view_js(name: &str, resolved: &ResolvedView) -> Response {
+    // On-disk views always sit at `<dir>/index.sui`; their paired controller
+    // is the sibling `index.controller.ts` (matches the convention used by
+    // baked views' `<stem>.controller.ts`). When absent, the view compiles
+    // template-only.
     let ts_path = resolved.source_path.as_ref()
         .and_then(|p| p.parent())
-        .map(|d| d.join("index.ts"))
+        .map(|d| d.join("index.controller.ts"))
         .filter(|p| p.is_file());
 
     let opts = CompileOpts {
         source_path: resolved.source_path.clone(),
         emit_dts: false,
-        setup_url: ts_path.as_ref().map(|_| "./index.ts".to_string()),
+        setup_url: ts_path.as_ref().map(|_| "./index.controller.ts".to_string()),
         ..CompileOpts::default()
     };
     let out = match compile(&resolved.source, opts) {

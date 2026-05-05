@@ -2,9 +2,9 @@
 import { bindAttr, bindFor, bindIf, bindText, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship/ui-runtime";
 import { collectElementMarkers, collectTextOpens, hydrateOn, hydrateText, hydrateWhileError, hydrateWhileLoading } from "@ship/ui-dom";
 
-// views/agents/view.ts
+// views/agents/view.controller.ts
 import { controller, unwrap } from "@ship/ui-runtime";
-var view_default = controller({
+var view_controller_default = controller({
   derived: {
     items: ({ agents }) => unwrap(agents)?.items ?? [],
     total: ({ agents }) => unwrap(agents)?.items.length ?? 0
@@ -15,15 +15,15 @@ var view_default = controller({
 });
 
 // views/agents/view.js
-var view_default2 = view((ctx) => {
+var view_default = view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = /* @__PURE__ */ Object.create(null);
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
   $scope.agents = live(({ ship: ship2, route: route2 }) => ship2.agents.summaries());
-  if (view_default && typeof view_default.setup === "function") {
-    const __r = view_default.setup(ctx);
+  if (view_controller_default && typeof view_controller_default.setup === "function") {
+    const __r = view_controller_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
   }
   const __renderWhileLoading_0 = () => {
@@ -549,5 +549,5 @@ var view_default2 = view((ctx) => {
   });
 });
 export {
-  view_default2 as default
+  view_default as default
 };
