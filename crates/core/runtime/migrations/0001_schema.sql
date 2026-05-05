@@ -114,6 +114,21 @@ CREATE TABLE IF NOT EXISTS daemon_settings (
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Project registry — daemon's record of project paths it has seen.
+-- Materialized from project.registered / project.seen / project.archived events.
+CREATE TABLE IF NOT EXISTS projects (
+  id            TEXT PRIMARY KEY NOT NULL,
+  path          TEXT NOT NULL,
+  name          TEXT NOT NULL,
+  label         TEXT,
+  created_at    TEXT NOT NULL,
+  last_seen_at  TEXT NOT NULL,
+  archived_at   TEXT,
+  updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_projects_path ON projects(path);
+CREATE INDEX IF NOT EXISTS idx_projects_last_seen ON projects(last_seen_at DESC);
+
 -- Project compile state — what was produced by the last `ship compile` for
 -- each project. Materialized from `compile.completed` events.
 CREATE TABLE IF NOT EXISTS project_compile_state (

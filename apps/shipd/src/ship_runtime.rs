@@ -216,6 +216,11 @@ impl ShipRuntime {
             if let Err(e) = runtime::config::drain_legacy_settings_kv() {
                 tracing::warn!("settings drain from legacy KV: {e}");
             }
+            // One-shot drain of the legacy `project` KV namespace into
+            // project.registered / project.seen events. Idempotent.
+            if let Err(e) = runtime::projects::drain_legacy_kv() {
+                tracing::warn!("projects drain from legacy KV: {e}");
+            }
             runtime::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
         })

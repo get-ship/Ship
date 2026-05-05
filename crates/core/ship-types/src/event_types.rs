@@ -79,6 +79,14 @@ pub const STUDIO_REPLY: &str = "studio.reply";
 /// `project_compile_state` projection. `entity_id` is the project_id.
 pub const COMPILE_COMPLETED: &str = "compile.completed";
 
+/// Project registry — first time a project path is seen by the daemon.
+/// `entity_id` is the project_id (stable hash of the canonical path).
+pub const PROJECT_REGISTERED: &str = "project.registered";
+/// Project registry — `last_seen_at` bump (re-open, switch, reattach).
+pub const PROJECT_SEEN: &str = "project.seen";
+/// Project registry — user removed the project from their registry.
+pub const PROJECT_ARCHIVED: &str = "project.archived";
+
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_ACTIVATED,
@@ -145,6 +153,9 @@ pub const ALL: &[&str] = &[
     STUDIO_CHAT_TURN,
     STUDIO_REPLY,
     COMPILE_COMPLETED,
+    PROJECT_REGISTERED,
+    PROJECT_SEEN,
+    PROJECT_ARCHIVED,
 ];
 
 #[cfg(test)]

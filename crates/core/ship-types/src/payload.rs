@@ -302,6 +302,37 @@ pub struct SupervisorShuttingDown {
     pub reason: Option<String>,
 }
 
+// -- Project registry --------------------------------------------------------
+
+/// Payload for `project.registered`. `entity_id` is the project_id (stable
+/// hash of the canonical path).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectRegistered {
+    /// Canonical filesystem path to the project root.
+    pub path: String,
+    /// Display name (defaults to the directory basename when not provided).
+    pub name: String,
+    /// Optional human-friendly label distinct from `name`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// First-seen timestamp as RFC 3339 UTC.
+    pub created_at: String,
+}
+
+/// Payload for `project.seen` — `last_seen_at` bump on re-open / switch.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectSeen {
+    /// RFC 3339 UTC time the project was re-opened.
+    pub seen_at: String,
+}
+
+/// Payload for `project.archived` — user removed the project from registry.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectArchived {
+    /// RFC 3339 UTC time the project was archived.
+    pub archived_at: String,
+}
+
 // -- Compile aggregate --------------------------------------------------------
 
 /// Payload for `compile.completed`. Records what was compiled for the

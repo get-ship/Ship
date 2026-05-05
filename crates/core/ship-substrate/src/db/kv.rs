@@ -24,11 +24,9 @@ pub enum KvNamespace {
     SkillVarsLocal(String),
     /// Skill variable state — project scope; inner = "{ctx}:{skill_id}"
     SkillVarsProject(String),
-    /// Runtime project config cache (providers, active_agent, hooks, ai, git,
-    /// namespaces, modes). Inner = `format!("runtime::{}", ship_dir.display())`
+    /// Runtime project config cache (providers). Inner =
+    /// `format!("runtime::{}", ship_dir.display())`. Going away in slice 6.
     ProjectConfig(String),
-    /// Project registry — daemon's record of seen project paths
-    Project,
 }
 
 impl KvNamespace {
@@ -40,7 +38,6 @@ impl KvNamespace {
             Self::SkillVarsLocal(s)    => format!("skill_vars.local:{s}").into(),
             Self::SkillVarsProject(s)  => format!("skill_vars.project:{s}").into(),
             Self::ProjectConfig(s)     => s.as_str().into(),
-            Self::Project              => "project".into(),
         }
     }
 }

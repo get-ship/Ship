@@ -123,6 +123,10 @@ fn schema_for_event_type(
         "studio.annotation.created" => Some(check::<crate::events::annotation::AnnotationEvent>),
         // compile
         "compile.completed" => Some(check::<CompileCompleted>),
+        // project registry
+        "project.registered" => Some(check::<ProjectRegistered>),
+        "project.seen" => Some(check::<ProjectSeen>),
+        "project.archived" => Some(check::<ProjectArchived>),
         _ => None,
     }
 }

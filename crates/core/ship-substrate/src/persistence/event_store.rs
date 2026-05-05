@@ -61,6 +61,7 @@ fn default_bus() -> Arc<EventBus> {
     bus.register(Box::new(ActorProjection::new()));
     bus.register(Box::new(SessionProjection::new()));
     bus.register(Box::new(crate::projections::CompileStateProjection));
+    bus.register(Box::new(crate::projections::ProjectsProjection));
     Arc::new(bus)
 }
 
