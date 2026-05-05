@@ -10,6 +10,7 @@ pub mod controller_parse;
 #[cfg(test)]
 mod controller_parse_tests;
 pub mod controller_purity;
+pub mod css_token;
 pub mod expr_subset;
 pub mod handler_complexity;
 pub(crate) mod js_scan;
@@ -28,7 +29,11 @@ use crate::ir::*;
 ///
 /// Event handlers (`allow_arrow == true`) are excluded from the renderable
 /// expr-subset check; they are checked separately by `handler_complexity`.
-pub fn run(program: &Program, source_path: Option<&Path>) -> Result<(), CompileError> {
+pub fn run(
+    program: &Program,
+    source: &str,
+    source_path: Option<&Path>,
+) -> Result<(), CompileError> {
     visit_program(program, &mut |e| {
         if e.allow_arrow {
             return Ok(());
@@ -38,6 +43,7 @@ pub fn run(program: &Program, source_path: Option<&Path>) -> Result<(), CompileE
     check_mutations(program)?;
     handler_complexity::check(program, source_path)?;
     controller_purity::check(source_path)?;
+    css_token::check(source, source_path)?;
     let controller = controller_parse::read_paired_controller(source_path);
     if let Some(c) = controller.as_ref() {
         closed_sections::check(c)?;

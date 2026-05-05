@@ -42,6 +42,9 @@
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     overflow: hidden;
+    /* Component knobs — consumers may override on the host. */
+    --graph-aspect: 5 / 3;
+    --node-w: 180px;
     --edge-default: var(--border);
     --edge-agent: var(--tone-primary-fg, var(--foreground));
     --edge-skill: var(--tone-success-fg);

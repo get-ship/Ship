@@ -11,6 +11,7 @@ use std::path::Path;
 use lint::report::Finding;
 
 pub mod controller_purity;
+pub mod css_token;
 
 /// Function signature every rule conforms to.
 pub type RuleFn = fn(&Path, &str) -> Vec<Finding>;
@@ -19,4 +20,10 @@ pub type RuleFn = fn(&Path, &str) -> Vec<Finding>;
 /// in `lib.rs::lint_controller_source` walks this slice in order.
 pub const CONTROLLER_RULES: &[(&str, RuleFn)] = &[
     (controller_purity::RULE_ID, controller_purity::check),
+];
+
+/// Rules that lint a `*.sui` template source. The dispatcher in
+/// `lib.rs::lint_sui_template_source` walks this slice in order.
+pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
+    (css_token::RULE_ID, css_token::check),
 ];

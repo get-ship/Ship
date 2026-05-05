@@ -4572,6 +4572,7 @@ dependencies = [
  "oxc_ast_visit",
  "oxc_parser",
  "oxc_span",
+ "serde_json",
  "tempfile",
 ]
 

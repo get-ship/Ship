@@ -136,24 +136,9 @@ fn is_controller_path_recognises_suffix() {
     assert!(!is_controller_path(Path::new("foo/render.ts")));
 }
 
-#[test]
-fn flags_real_offender_in_repo() {
-    // Smoke against any still-unported component in the cleanup pass.
-    // sui-theme-picker is one of the remaining offenders; this points
-    // at it for now and gets re-pointed (or removed) as ports land.
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("packages/ui-components/src/sui-theme-picker/sui-theme-picker.controller.ts");
-    if !path.exists() {
-        eprintln!("skipping: {} not present", path.display());
-        return;
-    }
-    let source = std::fs::read_to_string(&path).expect("read sui-theme-picker controller");
-    let findings = lint_controller_source(&path, &source);
-    assert!(
-        !findings.is_empty(),
-        "expected sui-theme-picker.controller.ts to report at least one violation; \
-         got none. Either it's been cleaned up (good!) or the rule regressed — \
-         re-point this test at another remaining offender."
-    );
-}
+// The "real offender" sentinel test that used to live here was tied
+// to sui-theme-picker during its port. That component is now clean
+// (the violation got fixed when it was rewritten as scope:/template-
+// side rendering — see commit 1646ac83). The unit tests above cover
+// the rule's behaviour; we don't keep a moving fixture-pointer in
+// the suite once the migration it was tracking has landed.
