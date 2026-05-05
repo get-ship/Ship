@@ -67,9 +67,10 @@ impl AgentPlatform for ShipdPlatform {
     }
 
     fn git_merge(&self, branch: &str) -> Result<bool> {
-        let merge_result = std::process::Command::new("git")
+        let merge_result = crate::spawn_bounded::Cmd::new("git")
             .args(["merge", branch, "--no-edit"])
             .current_dir(helpers::repo_dir())
+            .timeout_secs(60)
             .output()
             .map_err(|e| anyhow::anyhow!("git merge command failed: {e}"))?;
 

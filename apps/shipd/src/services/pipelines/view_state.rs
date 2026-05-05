@@ -16,7 +16,7 @@
 use std::path::Path;
 
 fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
-    let out = std::process::Command::new("git")
+    let out = crate::spawn_bounded::Cmd::new("git")
         .args(args)
         .current_dir(root)
         .output()

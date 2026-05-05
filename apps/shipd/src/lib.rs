@@ -53,6 +53,7 @@ pub mod attest;
 pub mod pairing;
 pub mod shell_assets;
 pub mod ship_runtime;
+pub mod spawn_bounded;
 pub mod supervised;
 pub mod supervisor;
 pub mod webhook_ext;

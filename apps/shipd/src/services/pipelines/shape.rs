@@ -216,7 +216,7 @@ pub fn to_run_view(job: &JobRecord, include_stats: bool) -> RunView {
 pub fn current_project_workspace_id() -> Option<String> {
     let project_ship = runtime::project::get_project_dir(None).ok()?;
     let root = project_ship.parent()?;
-    let out = std::process::Command::new("git")
+    let out = crate::spawn_bounded::Cmd::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(root)
         .output()
