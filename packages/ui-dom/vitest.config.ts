@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import { resolve } from 'node:path'
+import { SHIP_VITEST_DEFAULTS } from '../../vitest.shared'
 
 export default defineConfig({
   resolve: {
@@ -14,5 +15,6 @@ export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
     environment: 'jsdom',
+    ...SHIP_VITEST_DEFAULTS,
   },
 })

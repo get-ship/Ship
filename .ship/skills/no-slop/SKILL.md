@@ -29,3 +29,5 @@ authors: [ship]
 10. **Don't shoehorn.** Recent conversation, recent commits, and recent context are not relevant to every task. Do the work that was asked for, not a remix of what you just saw.
 
 11. **Document the present, not the past.** Code, comments, and skills describe what is — not what was tried, what was rejected, or how the design evolved. The next agent never saw your conversation. No "previously," no "we used to," no "now" (which implies a past it can't see), no narration of the alternatives you considered. State the rule. State what the code does. Move on.
+
+12. **Don't retry tests hoping for different output.** Run the full test suite once. If it fails, read the failure, identify the root cause, fix the cause, run again. Two failed runs in a row from the same cause are a bug to diagnose, not a flake to retry. Three is the system burning memory because you stopped reading the failures. If a test hangs, vitest's `testTimeout` will catch it — read the timeout report and fix the never-resolving Promise, don't bump the timeout.

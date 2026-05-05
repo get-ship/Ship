@@ -2,6 +2,7 @@ import { defineConfig } from 'vitest/config'
 import { resolve, dirname, basename } from 'node:path'
 import { existsSync, readFileSync, renameSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
+import { SHIP_VITEST_DEFAULTS } from '../../vitest.shared'
 
 const repoRoot = resolve(__dirname, '../..')
 // Prefer the pre-built debug binary; fall back to `cargo run` if absent.
@@ -38,6 +39,7 @@ export default defineConfig({
     include: ['test/**/*.test.ts', 'src/**/*.test.ts'],
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],
+    ...SHIP_VITEST_DEFAULTS,
   },
   // `<tag>.compiled.js` shim. Production bundles use AOT-compiled modules
   // emitted by the Rust sui-compiler. For tests:
