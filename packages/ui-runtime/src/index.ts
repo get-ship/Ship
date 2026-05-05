@@ -154,11 +154,13 @@ export {
   getTemplateHook,
   clearRegistry,
   listRegisteredHooks,
-} from './template-hooks'
-export type { KbdShortcut, ShellContext } from './template-hooks'
-// Importing the index ensures the three built-in hooks are registered
-// at module load.
-import './template-hooks'
+} from './template-hooks/registry'
+export type { KbdShortcut } from './template-hooks/kbd'
+export type { ShellContext } from './template-hooks/shell'
+// Built-in hook factories are loaded on demand via the
+// `@ship/ui-runtime/template-hooks` subpath: the SUI compiler emits a
+// side-effect import of that subpath into compiled views that contain
+// `<use-*>` elements, so hook code only ships with views that use it.
 // Register <sui-if>, <sui-for>, <sui-match> custom elements.
 import './boundary-elements'
 

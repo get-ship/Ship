@@ -10,7 +10,13 @@
 // `<use-scroll-anchor>`, `<use-intersection>`.
 // See docs/ship-ui/references/docs/hooks.md.
 
-import { registerTemplateHook } from './registry'
+// Hook registration shares the runtime's registry singleton. Importing
+// `registerTemplateHook` via the package's own bare specifier keeps the
+// import external in view-side bundles (which externalize
+// `@ship/ui-runtime`) so views write into the same registry that
+// `getTemplateHook` reads from in the dom hydrate flow — instead of
+// inlining a separate registry instance.
+import { registerTemplateHook } from '@ship/ui-runtime'
 import { useKbdHook } from './kbd'
 import { useClickOutsideHook } from './click-outside'
 import { useShellHook } from './shell'

@@ -16,6 +16,11 @@ import {
   route as makeRoute,
   type RouteSignals,
 } from '@ship/ui-runtime'
+// Built-in `<use-*>` hooks register on barrel import. The legacy
+// hydrate flow is the only path that resolves `<use-*>` against the
+// registry, so the legacy bundle owns triggering registration — the
+// production runtime entry no longer ships hook code.
+import '@ship/ui-runtime/template-hooks'
 
 /** Options accepted by `hydrate`. */
 export interface HydrateOptions {

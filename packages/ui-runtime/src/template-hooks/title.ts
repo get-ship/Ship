@@ -11,7 +11,7 @@
 // the effect call re-evaluates the accessor on each dependency change.
 
 import type { TemplateHook, TemplateHookContext } from '../controller'
-import { effect } from '../signal'
+import { effect } from '@ship/ui-runtime'
 
 interface TitleAttrs extends Record<string, unknown> {
   /** Document title — plain string or a signal accessor `() => string`. */

@@ -296,6 +296,26 @@ async function buildOne(t) {
       }
     : { entryPoints: [entryAbs] };
 
+  // `external: ['@ship/ui-runtime']` matches the bare specifier AND
+  // its submodules, but the runtime split for built-in template hooks
+  // means the SUI compiler emits `import "@ship/ui-runtime/template-hooks"`
+  // into views that use `<use-*>` — and that subpath has no importmap
+  // entry. Force those imports to resolve locally so esbuild inlines
+  // the eight built-ins into the view bundle that needs them.
+  const inlineRuntimeSubpathsPlugin = {
+    name: 'inline-runtime-subpaths',
+    setup(build) {
+      build.onResolve({ filter: /^@ship\/ui-runtime\/.+/ }, async (args) => {
+        const sub = args.path.slice('@ship/ui-runtime/'.length);
+        return {
+          path: join(repoRoot, 'packages/ui-runtime/src', `${sub}/index.ts`),
+        };
+      });
+    },
+  };
+  const usesRuntime =
+    Array.isArray(t.external) && t.external.includes('@ship/ui-runtime');
+
   const result = await build({
     ...baseOpts,
     ...buildInput,
@@ -303,6 +323,7 @@ async function buildOne(t) {
     metafile: true,
     ...(t.external ? { external: t.external } : {}),
     ...(t.loaders ? { loader: { ...baseOpts.loader, ...t.loaders } } : {}),
+    ...(usesRuntime ? { plugins: [inlineRuntimeSubpathsPlugin] } : {}),
   });
 
   const inputs = Object.keys(result.metafile.inputs).map((p) =>

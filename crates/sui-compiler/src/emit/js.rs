@@ -112,6 +112,9 @@ fn emit_imports(w: &mut Writer, lowered: &Lowered, opts: &CompileOpts) {
             dom.join(", ")
         ));
     }
+    if lowered.uses_template_hooks {
+        w.line("import \"@ship/ui-runtime/template-hooks\";");
+    }
     if let Some(setup) = &opts.setup_url {
         w.line(&format!("import setup from {};", js_string(setup)));
     }
