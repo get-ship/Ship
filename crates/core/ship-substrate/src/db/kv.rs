@@ -20,8 +20,6 @@ pub enum KvNamespace {
     AuthSession,
     /// Auth daemon-owner binding — ephemeral
     AuthDaemonOwner,
-    /// Auth audit log entries — ephemeral
-    AuthAudit,
     /// Cron hook next-fire timestamps — ephemeral
     CronState,
     /// User-facing settings (defaults.provider, defaults.model, daemon.port…)
@@ -50,7 +48,6 @@ impl KvNamespace {
             Self::SyncCursor        => "sync".into(),
             Self::AuthSession       => "auth.sessions".into(),
             Self::AuthDaemonOwner   => "auth.daemon_owner".into(),
-            Self::AuthAudit         => "auth.audit".into(),
             Self::CronState         => "cron.last_fire".into(),
             Self::Settings          => "settings".into(),
             Self::SkillVarsGlobal(s)   => format!("skill_vars:{s}").into(),

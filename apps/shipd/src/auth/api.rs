@@ -214,7 +214,6 @@ pub async fn pair_confirm(
                 ephemeral: false,
             };
             crate::auth::scopes::persist_session(&session);
-            write_audit_log("pair_confirmed", &session_token, Some(&session.agent_id));
             session_registry.lock().await.insert(session.token.clone(), session);
             (
                 axum::http::StatusCode::OK,
@@ -272,28 +271,6 @@ pub async fn pair_status(
         ClaimResult::Expired => PairStatusResponse::Expired,
         ClaimResult::Unknown => PairStatusResponse::Unknown,
     })
-}
-
-// ---- Audit log ----
-
-/// Write an auth audit row to platform.db's kv_state.
-///
-/// Keys are timestamp-sortable: `{unix_ts}-{token_prefix}`.
-/// Persisted on every pair confirm and revoke so operators can reconstruct
-/// what paired when and what was revoked when.
-pub(crate) fn write_audit_log(event: &str, token: &str, agent_id: Option<&str>) {
-    let now_unix = chrono::Utc::now().timestamp();
-    let token_prefix: String = token.chars().take(16).collect();
-    let key = format!("{now_unix:010}-{token_prefix}");
-    let value = serde_json::json!({
-        "event": event,
-        "timestamp": chrono::Utc::now().to_rfc3339(),
-        "token_prefix": token_prefix,
-        "agent_id": agent_id,
-    });
-    if let Err(e) = runtime::db::kv::set(runtime::db::kv::KvNamespace::AuthAudit, &key, &value) {
-        tracing::warn!("auth audit: write failed: {e}");
-    }
 }
 
 // ---- Server-side attestation ----
@@ -412,7 +389,6 @@ pub async fn server_attest(
         ephemeral: false,
     };
     crate::auth::scopes::persist_session(&session);
-    write_audit_log("server_attest", &session_token, Some(&session.agent_id));
     session_registry.lock().await.insert(session_token.clone(), session);
 
     (
@@ -559,7 +535,6 @@ pub async fn revoke_sessions(
         if let Some(session) = reg.remove(token) {
             if !session.ephemeral {
                 remove_persisted_session(token);
-                write_audit_log("pair_revoked", token, Some(&session.agent_id));
             }
         }
     }
