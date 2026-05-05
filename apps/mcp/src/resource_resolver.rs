@@ -115,6 +115,19 @@ pub async fn resolve_resource_uri(
     if let Some(result) = resolve_workspace_uri(uri, &ship_dir) {
         return Some(result);
     }
+    if let Some(result) = resolve_components_uri(uri) {
+        return Some(result);
+    }
+    None
+}
+
+fn resolve_components_uri(uri: &str) -> Option<String> {
+    if uri == "ship://components" {
+        return Some(crate::components_catalog::full_catalog().to_string());
+    }
+    if let Some(tag) = uri.strip_prefix("ship://components/") {
+        return crate::components_catalog::component_catalog(tag);
+    }
     None
 }
 

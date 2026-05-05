@@ -116,7 +116,7 @@ Components fall into three buckets:
 - **Domain packs** — bundles of related components for a specific surface (editor, graph, chat). Opt-in per view via the manifest's `packs:` field. Loaded on demand to keep boot bundles small.
 - **Islands** — heavy components that lazy-load their engine only when mounted (terminal, code-editor, markdown-editor). Declared as a `packs:` entry in the view manifest; loaded at first instantiation.
 
-Discover what's registered by querying the Ship MCP resource catalog from the agent toolchain. Don't `curl` the daemon directly — agent auth blocks raw HTTP.
+Discover what's registered by reading the MCP resource `ship://components` — the canonical agent-side component catalog. It returns the aggregated Custom Elements Manifest (every `<sui-*>` primitive's tagName, attributes, slots, parts, events, CSS custom properties) as JSON. For a single tag, read `ship://components/<tag>` (e.g. `ship://components/sui-button`). Don't `curl` the daemon's `/api/assets/sui-custom-elements.json` — that endpoint exists for browser tooling; agent auth blocks raw HTTP.
 
 ## References
 
