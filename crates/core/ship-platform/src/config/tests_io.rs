@@ -131,6 +131,13 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     };
 
     save_config(&config, Some(ship_dir.clone()))?;
+    // Providers are file-canonical and not persisted by save_config — write
+    // ship.jsonc directly to round-trip them. (Agents and MCP servers are
+    // sidecar-canonical and DO round-trip through save_config.)
+    fs::write(
+        ship_dir.join("ship.jsonc"),
+        "{\"providers\": [\"gemini\"]}\n",
+    )?;
     let loaded = get_config(Some(ship_dir))?;
 
     assert_eq!(loaded.providers, vec!["gemini".to_string()]);

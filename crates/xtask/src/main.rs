@@ -5,6 +5,7 @@
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
 mod gen_sdk;
+mod lint_layers;
 
 use std::path::{Path, PathBuf};
 
@@ -164,6 +165,12 @@ fn main() {
                 std::process::exit(1);
             }
         }
+        "lint-layers" => {
+            if let Err(e) = lint_layers::run(&repo_root()) {
+                eprintln!("lint-layers failed: {e}");
+                std::process::exit(1);
+            }
+        }
         "help" | "--help" | "-h" => {
             eprintln!("Usage: cargo xtask <command>");
             eprintln!();
@@ -171,6 +178,7 @@ fn main() {
             eprintln!("  gen-types          Regenerate packages/ship-set/src/generated.ts");
             eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
             eprintln!("  gen-sdk            Emit packages/ship-set/sdk/*.json");
+            eprintln!("  lint-layers        Verify substrate/platform/application boundaries");
         }
         other => {
             eprintln!("Unknown command: {other}");

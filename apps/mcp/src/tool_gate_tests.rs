@@ -208,7 +208,7 @@ fn emit_event_not_in_any_preset() {
 
 #[test]
 fn core_tools_bypass_gating() {
-    let core = ["create_workspace", "complete_workspace", "set_skill_var"];
+    let core = ["set_skill_var", "chat_reply", "view_lint"];
     for tool in core {
         assert!(
             ShipServer::is_core_tool(tool),
@@ -255,11 +255,12 @@ fn worker_effective_tool_set_count() {
     all.extend(preset.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // 3 core + 4 protocol (step_done, log_progress, update_job,
-    // write_session_file) + 5 view canvas tools (open/patch/append/signal/
-    // close) = 12. View tools are now experimental (runtime marker) but
+    // 6 core (set_skill_var, chat_reply, view_lint, view_scaffold,
+    // sdk_query, view_errors) + 4 protocol (step_done, log_progress,
+    // update_job, write_session_file) + 5 view canvas (open/patch/
+    // append/signal/close_view) = 15. View tools are experimental but
     // always part of the platform set.
-    let expected = 12;
+    let expected = 15;
     assert_eq!(all.len(), expected, "worker effective set mismatch: {all:?}");
 }
 
@@ -271,8 +272,8 @@ fn orchestrator_effective_tool_set_count() {
     all.extend(preset.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // 12 worker + 3 orchestration (create_job, discover_mesh_agents,
-    // update_mesh_status) = 15.
-    let expected = 15;
+    // 15 worker + 3 orchestration (create_job, discover_mesh_agents,
+    // update_mesh_status) = 18.
+    let expected = 18;
     assert_eq!(all.len(), expected, "orchestrator effective set mismatch: {all:?}");
 }

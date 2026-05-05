@@ -83,6 +83,7 @@ unstable = ["ship-application/unstable"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
+ctor = "0.2"
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
 chrono = { workspace = true }

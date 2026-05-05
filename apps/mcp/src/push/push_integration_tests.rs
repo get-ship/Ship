@@ -84,10 +84,12 @@ async fn studio_event_reaches_agent_via_push_adapter() {
     let (_studio_store, _studio_mailbox) = kr.spawn_actor("studio", studio_config).unwrap();
 
     // Spawn agent actor (receiver) subscribed to studio.*
+    // Use a non-channel adapter so the channel-only filter
+    // (is_user_actionable) doesn't reject studio.canvas.* events.
     let agent_log = wire_agent(
         &mut kr,
         "agent.rust-lane",
-        "claude-channel",
+        "system-test",
         vec!["studio.".to_string(), "mesh.".to_string()],
     )
     .await;
@@ -370,11 +372,12 @@ async fn escalated_progress_event_reaches_push_adapter() {
     };
     let _ = kr.spawn_actor("session-emitter", session_config).unwrap();
 
-    // Spawn agent (receiver subscribed to session.*)
+    // Spawn agent (receiver subscribed to session.*) — use a non-channel
+    // adapter so the channel-only filter doesn't reject session.progress.
     let agent_log = wire_agent(
         &mut kr,
         "agent.test-agent",
-        "claude-channel",
+        "system-test",
         vec!["session.".to_string()],
     )
     .await;

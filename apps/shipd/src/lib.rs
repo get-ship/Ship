@@ -3,6 +3,18 @@
 //! Exposes `run_network` for starting the HTTP/SSE MCP daemon and
 //! `network_status` / `network_stop` for CLI subcommands.
 
+/// Test-load initializer — runs once when the lib test binary loads.
+/// Registers ship-platform's default projection set + supervisor hook so
+/// any `SqliteEventStore` constructed inside a unit test sees the full
+/// bus. Idempotent. Production path uses an explicit
+/// `ship_platform::install_defaults()` call from `ship_runtime::new()`
+/// (see apps/shipd/src/ship_runtime.rs).
+#[cfg(test)]
+#[ctor::ctor]
+fn install_test_platform_defaults() {
+    ship_platform::install_defaults();
+}
+
 pub mod access;
 pub mod sessions;
 pub mod auth;

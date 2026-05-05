@@ -380,8 +380,8 @@ fn install_empty_deps_writes_lock() {
     // Write a minimal registry manifest with no dependencies.
     write(
         tmp.path(),
-        ".ship/ship.toml",
-        "[module]\nname = \"github.com/test/repo\"\nversion = \"0.1.0\"\n",
+        ".ship/ship.jsonc",
+        "{\"module\": {\"name\": \"github.com/test/repo\", \"version\": \"0.1.0\"}}\n",
     );
 
     // install with no deps needs no network; lock is written immediately.

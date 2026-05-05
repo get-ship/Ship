@@ -173,15 +173,11 @@ impl ShipConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::Mutex;
+    use crate::test_env::{ShipHomeGuard, isolated_ship_home};
 
-    static ENV_LOCK: Mutex<()> = Mutex::new(());
-
-    fn isolated_home() -> (tempfile::TempDir, std::sync::MutexGuard<'static, ()>) {
-        let guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    fn isolated_home() -> (tempfile::TempDir, ShipHomeGuard) {
         let tmp = tempfile::tempdir().unwrap();
-        // SAFETY: serialized via ENV_LOCK; no other thread reads SHIP_HOME concurrently.
-        unsafe { std::env::set_var("SHIP_HOME", tmp.path()) };
+        let guard = isolated_ship_home(tmp.path());
         (tmp, guard)
     }
 

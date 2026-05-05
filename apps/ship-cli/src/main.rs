@@ -9,6 +9,8 @@ mod commands;
 mod compile;
 mod config;
 mod convert;
+#[cfg(test)]
+mod test_env;
 mod daemon;
 mod dep_skills;
 mod events_cmd;
@@ -47,7 +49,12 @@ use std::path::PathBuf;
 
 /// Initialize the global KernelRouter for CLI commands that emit events.
 /// Silently skips if the global dir is unavailable or the router fails to start.
+///
+/// Also installs the platform projection factory so the compile_state /
+/// projects / auth projections register on the default event bus before any
+/// `SqliteEventStore` is constructed.
 fn try_init_kernel_router() {
+    ship_platform::install_defaults();
     if let Ok(dir) = ship_application::project::get_global_dir() {
         let _ = ship_substrate::events::init_kernel_router(dir);
     }
@@ -70,6 +77,9 @@ pub fn ship_build_info() -> build_info::BuildInfo {
 
 fn main() {
     use clap::Parser;
+    // Install platform projection factory + supervisor hooks before any
+    // SqliteEventStore is constructed downstream. Idempotent.
+    ship_platform::install_defaults();
     let _log_guard = logging::init();
     let cli = Cli::parse();
     if let Err(e) = dispatch(cli.command) {

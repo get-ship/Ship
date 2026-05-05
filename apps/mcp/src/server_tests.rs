@@ -46,10 +46,6 @@ fn mode_gate_normalizes_and_blocks_disallowed_tools() {
     ShipServer::enforce_mode_tool_gate(&project_dir, "list_notes").expect("list_notes allowed");
     ShipServer::enforce_mode_tool_gate(&project_dir, "ship_list_notes_tool")
         .expect("prefixed note tool allowed");
-    ShipServer::enforce_mode_tool_gate(&project_dir, "create_workspace")
-        .expect("create_workspace must be core");
-    ShipServer::enforce_mode_tool_gate(&project_dir, "complete_workspace")
-        .expect("complete_workspace must be core");
     ShipServer::enforce_mode_tool_gate(&project_dir, "set_skill_var")
         .expect("set_skill_var must be core");
 
@@ -149,11 +145,7 @@ fn trims_whitespace() {
 
 #[test]
 fn core_tools_are_recognized() {
-    let core_tools = [
-        "create_workspace",
-        "complete_workspace",
-        "set_skill_var",
-    ];
+    let core_tools = ["set_skill_var", "chat_reply", "view_lint"];
     for tool in core_tools {
         assert!(
             ShipServer::is_core_tool(tool),
@@ -164,7 +156,6 @@ fn core_tools_are_recognized() {
 
 #[test]
 fn core_tool_with_prefix_and_suffix() {
-    assert!(ShipServer::is_core_tool("ship_create_workspace_tool"));
     assert!(ShipServer::is_core_tool("ship_set_skill_var_tool"));
 }
 
@@ -223,8 +214,6 @@ fn registers_canonical_verb_first_tool_names() {
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     let expected: &[&str] = &[
-        "create_workspace",
-        "complete_workspace",
         "log_progress",
         "set_skill_var",
         "write_session_file",

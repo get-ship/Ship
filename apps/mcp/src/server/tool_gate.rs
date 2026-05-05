@@ -20,8 +20,6 @@ impl ShipServer {
     /// Core platform tools that always bypass gating.
     /// Only write operations that all roles need — reads are resources now.
     pub const CORE_TOOLS: &[&str] = &[
-        "create_workspace",
-        "complete_workspace",
         "set_skill_var",
         // The chat protocol — every agent spawned into a Ship command-bar
         // session needs `chat_reply` to address the user, independent of

@@ -23,6 +23,14 @@ fn setup_minimal_project(tmp: &TempDir) {
 fn compile_worktree_output_root_separates_from_project_root() {
     // Simulates the actual worktree case: .ship/ config lives in project_root
     // but compiled output (CLAUDE.md, .mcp.json) goes to a separate output_root.
+    // SHIP_HOME pinned via the shared lock — config tests in another module
+    // mutate the same env var; without coordination they'd race and the
+    // emitted .mcp.json would carry whichever tempdir won.
+    let home = TempDir::new().unwrap();
+    let ship_home = home.path().join(".ship");
+    std::fs::create_dir_all(&ship_home).unwrap();
+    let _home_guard = crate::test_env::isolated_ship_home(&ship_home);
+
     let project = TempDir::new().unwrap();
     let output = TempDir::new().unwrap();
     setup_minimal_project(&project);

@@ -341,7 +341,7 @@ mod tests {
         let err = run_add(tmp.path(), "github.com/owner/repo").unwrap_err();
         assert!(
             err.to_string()
-                .contains("No .ship/ship.jsonc or .ship/ship.toml"),
+                .contains("No .ship/ship.jsonc"),
             "got: {err}"
         );
     }
@@ -351,20 +351,20 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         write(
             tmp.path(),
-            ".ship/ship.toml",
-            "[module]\nname = \"github.com/test/repo\"\nversion = \"0.1.0\"\n\n[dependencies]\n\"github.com/owner/pkg\" = \"main\"\n",
+            ".ship/ship.jsonc",
+            "{\"module\": {\"name\": \"github.com/test/repo\", \"version\": \"0.1.0\"}, \"dependencies\": {\"github.com/owner/pkg\": \"main\"}}\n",
         );
-        let original = std::fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.toml")).unwrap();
+        let original = std::fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
         let err = run_add(tmp.path(), "github.com/owner/pkg").unwrap_err();
         assert!(
             err.to_string().contains("already in dependencies"),
             "got: {err}"
         );
-        // ship.toml must be unchanged
-        let after = std::fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.toml")).unwrap();
+        // ship.jsonc must be unchanged
+        let after = std::fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
         assert_eq!(
             original, after,
-            "ship.toml must be unchanged on duplicate error"
+            "ship.jsonc must be unchanged on duplicate error"
         );
     }
 
@@ -374,8 +374,8 @@ mod tests {
         // No [module] section — should parse fine, fail on network (not module)
         write(
             tmp.path(),
-            ".ship/ship.toml",
-            "[defaults]\nproviders = [\"claude\"]\n",
+            ".ship/ship.jsonc",
+            "{\"defaults\": {\"providers\": [\"claude\"]}}\n",
         );
         let result = run_add(tmp.path(), "github.com/owner/pkg");
         if let Err(e) = &result {

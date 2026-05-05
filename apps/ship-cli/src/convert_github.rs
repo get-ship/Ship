@@ -176,9 +176,19 @@ pub fn convert_from_github_with_base(url: &str, base_url: &str) -> Result<()> {
             .clone()
             .unwrap_or_else(|| format!("agent-{}", n_agents + 1));
         let safe_name = sanitize_filename(&name);
-        let dest = agents_out_dir.join(format!("{}.toml", safe_name));
-        let toml_str = json_value_to_toml(&agent.extra, library.name.as_deref(), &name)?;
-        std::fs::write(&dest, &toml_str)
+        let dest = agents_out_dir.join(format!("{}.jsonc", safe_name));
+        let mut profile = match &agent.extra {
+            serde_json::Value::Object(obj) => obj.clone(),
+            _ => serde_json::Map::new(),
+        };
+        profile
+            .entry("id".to_string())
+            .or_insert(serde_json::Value::String(safe_name.clone()));
+        profile
+            .entry("name".to_string())
+            .or_insert(serde_json::Value::String(name.clone()));
+        let json_str = serde_json::to_string_pretty(&serde_json::Value::Object(profile))?;
+        std::fs::write(&dest, format!("{json_str}\n"))
             .with_context(|| format!("Failed to write agent {}", dest.display()))?;
         n_agents += 1;
     }
@@ -199,7 +209,7 @@ pub fn convert_from_github_with_base(url: &str, base_url: &str) -> Result<()> {
 
     let mut n_mcp = 0usize;
     if !library.mcp_servers.is_empty() {
-        let mcp_path = ship_dir.join("mcp.toml");
+        let mcp_path = ship_dir.join("mcp.jsonc");
         std::fs::create_dir_all(mcp_path.parent().unwrap())?;
         let mut mcp_file = McpFile::load(&mcp_path)?;
 

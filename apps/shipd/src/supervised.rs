@@ -268,7 +268,13 @@ mod tests {
         assert_eq!(snap[0].restart_count, 2);
     }
 
+    // Ignored by default: with MAX_RESTARTS=50 and a 1s→30s exponential
+    // backoff, a deterministic run takes ~22 minutes. The test is correct
+    // but isn't suited to the regular unit-test sweep. Make MAX_RESTARTS
+    // injectable to re-enable; until then run with `--ignored` when
+    // changing supervised lifecycle code.
     #[tokio::test]
+    #[ignore]
     async fn max_restarts_stops_supervisor() {
         let registry = HealthRegistry::new();
         let handle = spawn_supervised(&registry, "test-max", || async {

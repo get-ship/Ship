@@ -324,7 +324,8 @@ mod tests {
         };
         save_config(&config, Some(ship_dir.clone()))?;
 
-        let resolved = resolve_provider_settings(&ship_dir, None)?;
+        let resolved =
+            resolve_provider_settings_with_agent_override(&ship_dir, None, Some("planning"))?;
         assert_eq!(resolved.mcp_servers.len(), 1);
         assert_eq!(resolved.mcp_servers[0].id, "github");
         Ok(())
@@ -423,7 +424,11 @@ mod tests {
             providers: vec![],
         };
 
-        let resolved = resolve_provider_settings(&ship_dir, Some(&feature_agent))?;
+        let resolved = resolve_provider_settings_with_agent_override(
+            &ship_dir,
+            Some(&feature_agent),
+            Some("planning"),
+        )?;
         let ids: Vec<&str> = resolved
             .mcp_servers
             .iter()
@@ -439,11 +444,13 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = init_project(tmp.path().to_path_buf())?;
 
-        let config = ProjectConfig {
-            providers: vec!["claude".to_string(), "gemini".to_string()],
-            ..Default::default()
-        };
-        save_config(&config, Some(ship_dir.clone()))?;
+        // Providers are file-canonical in ship.jsonc — save_config doesn't
+        // persist them (project identity only), so write them directly to
+        // exercise the project-providers fallback path.
+        std::fs::write(
+            ship_dir.join("ship.jsonc"),
+            "{\"providers\": [\"claude\", \"gemini\"]}\n",
+        )?;
 
         let feature_agent = WorkspaceAgentSettings {
             model: Some("feature-model".to_string()),
@@ -559,7 +566,8 @@ mod tests {
         };
         save_config(&config, Some(ship_dir.clone()))?;
 
-        let resolved = resolve_provider_settings(&ship_dir, None)?;
+        let resolved =
+            resolve_provider_settings_with_agent_override(&ship_dir, None, Some("planning"))?;
         assert_eq!(
             resolved
                 .skills
@@ -607,17 +615,13 @@ mod tests {
         };
         save_config(&config, Some(ship_dir.clone()))?;
 
+        // Baseline (no project active_agent — the field no longer exists in
+        // ProjectConfig — and no override): no agent is selected, no skills
+        // get filtered in.
         let baseline = resolve_provider_settings(&ship_dir, None)?;
-        assert_eq!(baseline.active_agent.as_deref(), Some("planning"));
-        assert_eq!(
-            baseline
-                .skills
-                .iter()
-                .map(|skill| skill.id.as_str())
-                .collect::<Vec<_>>(),
-            vec!["rt-plan-skill"]
-        );
+        assert_eq!(baseline.active_agent, None);
 
+        // Override picks the right agent and its skills.
         let overridden =
             resolve_provider_settings_with_agent_override(&ship_dir, None, Some("code"))?;
         assert_eq!(overridden.active_agent.as_deref(), Some("code"));
@@ -630,18 +634,10 @@ mod tests {
             vec!["rt-code-skill"]
         );
 
-        // Invalid workspace override should not clobber the project active agent.
+        // Invalid override falls back to None (no project default exists).
         let invalid_override =
             resolve_provider_settings_with_agent_override(&ship_dir, None, Some("missing-agent"))?;
-        assert_eq!(invalid_override.active_agent.as_deref(), Some("planning"));
-        assert_eq!(
-            invalid_override
-                .skills
-                .iter()
-                .map(|skill| skill.id.as_str())
-                .collect::<Vec<_>>(),
-            vec!["rt-plan-skill"]
-        );
+        assert_eq!(invalid_override.active_agent, None);
 
         Ok(())
     }

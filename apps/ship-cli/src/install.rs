@@ -157,7 +157,7 @@ mod tests {
         let err = run_install(tmp.path(), false, false).unwrap_err();
         assert!(
             err.to_string()
-                .contains("No .ship/ship.jsonc or .ship/ship.toml"),
+                .contains("No .ship/ship.jsonc"),
             "got: {err}"
         );
     }
@@ -168,8 +168,8 @@ mod tests {
         // Project-config style ship.toml (no [module]) should work for install
         write(
             tmp.path(),
-            ".ship/ship.toml",
-            "[defaults]\nproviders = [\"claude\"]\n",
+            ".ship/ship.jsonc",
+            "{\"defaults\": {\"providers\": [\"claude\"]}}\n",
         );
         // No deps, no module — should succeed (empty lock, no-op compile)
         let result = run_install(tmp.path(), false, false);
@@ -188,8 +188,8 @@ mod tests {
         let tmp = TempDir::new().unwrap();
         write(
             tmp.path(),
-            ".ship/ship.toml",
-            "[module]\nname = \"github.com/test/repo\"\nversion = \"0.1.0\"\n",
+            ".ship/ship.jsonc",
+            "{\"module\": {\"name\": \"github.com/test/repo\", \"version\": \"0.1.0\"}}\n",
         );
         // install with no deps should succeed (no network needed)
         // Note: compile step will be a no-op since there are no agents
@@ -211,8 +211,8 @@ mod tests {
         // Write a manifest with a dep
         write(
             tmp.path(),
-            ".ship/ship.toml",
-            "[module]\nname = \"github.com/test/repo\"\nversion = \"0.1.0\"\n\n[dependencies]\n\"github.com/owner/pkg\" = \"main\"\n",
+            ".ship/ship.jsonc",
+            "{\"module\": {\"name\": \"github.com/test/repo\", \"version\": \"0.1.0\"}, \"dependencies\": {\"github.com/owner/pkg\": \"main\"}}\n",
         );
         // Write an empty lock (out of sync — dep is in manifest but not lock)
         write(tmp.path(), ".ship/ship.lock", "version = 1\n");

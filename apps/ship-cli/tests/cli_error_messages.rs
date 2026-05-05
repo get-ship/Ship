@@ -212,9 +212,8 @@ fn install_frozen_out_of_sync_suggests_run_without_frozen() {
     let tmp = TempDir::new().unwrap();
     write(
         tmp.path(),
-        ".ship/ship.toml",
-        "[module]\nname = \"github.com/test/repo\"\nversion = \"0.1.0\"\n\n\
-         [dependencies]\n\"github.com/owner/pkg\" = \"main\"\n",
+        ".ship/ship.jsonc",
+        "{\"module\": {\"name\": \"github.com/test/repo\", \"version\": \"0.1.0\"}, \"dependencies\": {\"github.com/owner/pkg\": \"main\"}}\n",
     );
     write(tmp.path(), ".ship/ship.lock", "version = 1\n");
 
