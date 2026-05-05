@@ -2,34 +2,31 @@
   <sui-theme-picker> — port of the shell theme picker (apps/shell/src/main.ts
   mountThemePicker + apps/shell/src/chrome/ship-nav-top.ts:150-161).
 
-  A trigger button (palette icon + current theme dot + label) that opens
-  a `<sui-popover>` containing a grouped grid of mini-preview cards. Each
-  card scopes that theme's tokens via [data-theme-preview="<id>"] so the
-  preview shows the actual surface, font, primary/accent — not a static
-  swatch. Selecting a card calls applyTheme + persistTheme from
-  @ship/set/themes, dispatches `sui-theme-change`, closes the popover.
+  Trigger button (palette dot + current theme label) toggles a panel
+  rendered via the native popover API. The panel hosts a grouped list of
+  mini-preview cards. Each card scopes that theme's tokens via
+  [data-theme-preview="<id>"] so the preview shows the actual surface,
+  font, primary/accent — not a static swatch. Selecting a card calls
+  applyTheme + persistTheme, dispatches `sui-theme-change`, closes the
+  panel.
 
   Listens to `ship:theme:change` on document (the canonical event
-  applyTheme dispatches) so external theme changes (devtools, settings
-  pane, programmatic) repaint the trigger and the card selection.
+  applyTheme dispatches) so external theme changes (devtools, settings,
+  programmatic) repaint the trigger and the card selection.
 
   Prop / event surface
-  ────────────────────────────────────────────────────────────────────────────
-  Props (all optional — sane defaults):
-    placement (union, 'bottom-end', reflect)  popover placement
+  ────────────────────────────────────────────────────────────────────────
+  Props:
+    placement (union, 'bottom-end', reflect)  panel placement
     label-style (union, 'text'|'compact', 'text', reflect)
                                               compact = dot + caret only
     persist (bool, true, reflect)             write-through to localStorage
                                               + /api/settings via persistTheme
-  ────────────────────────────────────────────────────────────────────────────
+  ────────────────────────────────────────────────────────────────────────
   Events: sui-theme-change   { detail: { id, dark } }   bubbles, composed
-                                                        Mirrors what
-                                                        ship:theme:change
-                                                        carries.
-  ────────────────────────────────────────────────────────────────────────────
   Slots: (none — fully self-contained)
-  Parts: trigger, dot, label, popover, grid
-  ────────────────────────────────────────────────────────────────────────────
+  Parts: trigger, dot, label, panel, grid
+  ────────────────────────────────────────────────────────────────────────
 -->
 
 <prop name="placement" values="top|top-end|bottom|bottom-end|left|left-end|right|right-end" default="bottom-end" reflect />
@@ -38,6 +35,7 @@
 
 <style>
   :host {
+    position: relative;
     display: inline-flex;
     --tp-trigger-gap: 6px;
   }
@@ -94,14 +92,35 @@
     color: var(--muted-foreground, #888);
   }
 
-  /* Grid container slotted into <sui-popover>'s default slot. The popover
-     surface provides the chrome (border, shadow, radius); we supply the
-     scrolling and grouping. */
+  /* Native popover panel. Reset the UA's default centering and let
+     the controller place us via getBoundingClientRect on the trigger. */
+  .panel {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    border: 0;
+    padding: 4px;
+    background: var(--popover, var(--card, #fff));
+    color: var(--popover-foreground, var(--card-foreground, #111));
+    border: 1px solid var(--border, #e5e5e5);
+    border-radius: var(--radius-md, 6px);
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.12));
+    opacity: 0;
+    transform: translateY(-4px) scale(0.97);
+    transition:
+      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
+      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
+  }
+  .panel:popover-open {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  .panel::backdrop { background: transparent; }
+
   .grid {
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 4px;
     width: 332px;
     max-height: min(80vh, 720px);
     overflow-y: auto;
@@ -208,6 +227,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     .tc-overlay { display: none; }
+    .panel { transition: none; transform: none !important; }
   }
   .tc-card {
     position: relative;
@@ -288,14 +308,58 @@
   }
 </style>
 
-<sui-popover placement={placement()} bind:this={popover}>
-  <button slot="trigger" class="trigger" part="trigger" type="button" bind:this={triggerBtn}
-    aria-label="Choose theme">
-    <span class="dot" part="dot" bind:this={dotEl} aria-hidden="true"></span>
-    <span class="label" part="label" bind:this={labelEl}>SHIP Light</span>
-    <svg class="caret" viewBox="0 0 10 6" aria-hidden="true">
-      <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
-    </svg>
-  </button>
-  <div class="grid" part="grid" role="listbox" aria-label="Theme" bind:this={gridEl}></div>
-</sui-popover>
+<button class="trigger" part="trigger" type="button" bind:this={triggerBtn}
+  aria-label="Choose theme"
+  aria-haspopup="dialog"
+  aria-expanded={panelOpen() ? 'true' : 'false'}
+  on:click={() => togglePanel()}>
+  <span class="dot" part="dot" style:background={dotColor()} aria-hidden="true"></span>
+  <span class="label" part="label">{triggerLabel()}</span>
+  <svg class="caret" viewBox="0 0 10 6" aria-hidden="true">
+    <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+  </svg>
+</button>
+
+<div class="panel" part="panel" popover="auto" bind:this={panelEl}>
+  <div class="grid" part="grid" role="listbox" aria-label="Theme">
+    {#for g of groups() key={g.label}}
+      <section class="group" aria-label={g.label}>
+        <div class="group-h">{g.label}</div>
+        <div class="group-rows">
+          {#for t of g.themes key={t.id}}
+            <button class="card" role="option" type="button"
+              data-theme-card={t.id}
+              aria-label={t.label}
+              aria-selected={activeTheme() === t.id ? 'true' : 'false'}
+              tabindex={activeTheme() === t.id ? '0' : '-1'}
+              on:click={() => selectTheme(t.id)}>
+              <span class="tc-bg" data-theme-preview={t.id} aria-hidden="true">
+                <span class="tc-overlay"></span>
+                <span class="tc-card">
+                  <span class="tc-card-head">
+                    <span class="tc-eyebrow">THEME</span>
+                    <span class="tc-heading">{t.label}</span>
+                  </span>
+                  <span class="tc-typo">
+                    <span class="tc-body">The quick brown fox</span>
+                    <span class="tc-mono">&#123; build: ok &#125;</span>
+                  </span>
+                  <span class="tc-controls">
+                    <span class="tc-cta">Action</span>
+                    <span class="tc-ghost">Cancel</span>
+                    <span class="tc-chip tc-chip-accent">New</span>
+                    <span class="tc-chip tc-chip-muted">Idle</span>
+                  </span>
+                </span>
+              </span>
+              <span class="row">
+                <span class="name">{t.label}</span>
+                <span class="radio" aria-hidden="true"></span>
+              </span>
+            </button>
+          {/for}
+        </div>
+      </section>
+    {/for}
+  </div>
+</div>
