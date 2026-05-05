@@ -87,15 +87,28 @@ Manifest:
 }
 ```
 
-Page composes the view-private widget:
+Page composes the view-private widget. Reactive state lives in
+`controller.ts`'s `scope:` factory — there is no `<state>` directive:
 
 ```html
 <!-- views/home/page.sui -->
-<state name="seen" value="0" />
 <div class="home">
   <home-hero prop:title={'Welcome to Ship'}></home-hero>
-  <button on:click={() => seen.set(seen() + 1)}>Bump</button>
+  <button on:click={() => seen.set(seen() + 1)}>Bump ({seen()})</button>
 </div>
+```
+
+```ts
+// views/home/controller.ts
+import { controller, signal } from '@ship/ui-runtime'
+import type { Scope } from './page.sui'
+
+export default controller<Scope>({
+  scope: () => {
+    const seen = signal(0)
+    return { seen }
+  },
+})
 ```
 
 Scaffold a new view:
