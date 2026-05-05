@@ -1,4 +1,4 @@
-import { controller, signal, effect } from '@ship/ui-runtime'
+import { controller, signal, derived } from '@ship/ui-runtime'
 import type { Scope } from './sui-devtools-signals.sui'
 
 function collectSignals(): Record<string, unknown> {
@@ -44,31 +44,26 @@ function renderValue(v: unknown): string {
   try { return JSON.stringify(v) } catch { return String(v) }
 }
 
-function esc(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-}
-
 export default controller<Scope>({
-  mount(state, host) {
-    const scope = state as unknown as Scope
-    const filterInput = scope.filterInput() as HTMLInputElement
-    const countEl = scope.countEl() as HTMLElement
-    const bodyEl = scope.bodyEl() as HTMLElement
-
+  scope: () => {
     const sigs = signal<Record<string, unknown>>({})
     const filter = signal('')
+    const allCount = derived(() => Object.keys(sigs()).length)
+    const shownEntries = derived(() => {
+      const s = sigs()
+      const needle = filter().toLowerCase()
+      const keys = Object.keys(s).sort()
+      const filtered = needle ? keys.filter(k => k.toLowerCase().includes(needle)) : keys
+      return filtered.map(k => ({ key: k, value: renderValue(s[k]) }))
+    })
+    return { sigs, filter, allCount, shownEntries }
+  },
 
+  mount(state, host) {
+    const s = state as Record<string, unknown>
     let timer: ReturnType<typeof setInterval> | null = null
 
-    const onDockActivate = (ev: Event) => {
-      const tab = (ev as CustomEvent<{ tab: string }>).detail?.tab
-      if (tab === 'signals') _start()
-      else _stop()
-    }
-
-    const dock = host.closest('sui-panel-dock') as HTMLElement | null
-    dock?.addEventListener('sui:dock:activate', onDockActivate)
-    if (dock?.getAttribute('active-tab') === 'signals') _start()
+    function _sample(): void { s['sigs'] = collectSignals() }
 
     function _start(): void {
       if (timer) return
@@ -82,31 +77,19 @@ export default controller<Scope>({
       timer = null
     }
 
-    function _sample(): void { sigs.set(collectSignals()) }
+    const onDockActivate = (ev: Event) => {
+      const tab = (ev as CustomEvent<{ tab: string }>).detail?.tab
+      if (tab === 'signals') _start()
+      else _stop()
+    }
 
-    filterInput.addEventListener('input', () => filter.set(filterInput.value))
+    const dock = host.closest('sui-panel-dock') as HTMLElement | null
+    dock?.addEventListener('sui:dock:activate', onDockActivate)
+    if (dock?.getAttribute('active-tab') === 'signals') _start()
 
-    const stopFx = effect(() => {
-      const s = sigs()
-      const f = filter()
-      const keys = Object.keys(s).sort()
-      const needle = f.toLowerCase()
-      const shown = needle ? keys.filter(k => k.toLowerCase().includes(needle)) : keys
-      countEl.textContent = `${shown.length} / ${keys.length}`
-      if (shown.length === 0) {
-        bodyEl.innerHTML = `<sui-empty-state><sui-icon slot="icon" name="${needle ? 'search' : 'radio'}"></sui-icon><span slot="title">${needle ? 'No matches' : 'No signals'}</span>${needle ? 'No signals match the current filter.' : 'Live events will appear here when actors emit.'}</sui-empty-state>`
-      } else {
-        bodyEl.innerHTML = shown.map(k =>
-          `<div class="row"><span class="k">${esc(k)}</span><span class="v">${esc(renderValue(s[k]))}</span></div>`
-        ).join('')
-      }
-    })
-
-    /** Public poke for the dock to force an immediate sample. */
     Object.defineProperty(host, 'refresh', { value: () => _sample(), configurable: true })
 
     return () => {
-      stopFx()
       _stop()
       dock?.removeEventListener('sui:dock:activate', onDockActivate)
     }

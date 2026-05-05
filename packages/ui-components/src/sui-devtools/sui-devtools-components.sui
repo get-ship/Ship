@@ -86,7 +86,48 @@
 </style>
 
 <div class="toolbar">
-  <input type="text" placeholder="Filter components…" bind:this={filterInput} />
-  <span bind:this={countEl}></span>
+  <input type="text" placeholder="Filter components…" bind:value={filter} />
+  <span>{shown().length} / {entries().length}</span>
 </div>
-<div class="body" bind:this={bodyEl}></div>
+<div class="body" bind:this={bodyEl}>
+  {#if entries().length === 0}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="package"></sui-icon>
+      <span slot="title">Loading components…</span>
+      Fetching the component catalog from the daemon.
+    </sui-empty-state>
+  {:else if shown().length === 0}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="search"></sui-icon>
+      <span slot="title">No matches</span>
+      No components match the current filter.
+    </sui-empty-state>
+  {:else}
+    {#for entry of shown() key={entry.tag}}
+      <details>
+        <summary>
+          <span class="tag">&lt;{entry.tag}&gt;</span>
+          <span class="desc">{entry.firstDesc}</span>
+          <button class="copy" data-tag={entry.tag} title="Copy snippet">Copy</button>
+        </summary>
+        <div class="panel">
+          <pre>{entry.snippet}</pre>
+          {#if entry.attributes.length > 0}
+            <div>
+              <strong>Attributes</strong>
+              <dl class="attrs">
+                {#for attr of entry.attributes key={attr.name}}
+                  <dt>{attr.name}{attr.default ? '=' + attr.default : ''}</dt>
+                  <dd>{attr.description ?? ''}</dd>
+                {/for}
+              </dl>
+            </div>
+          {/if}
+          {#if entry.slots.length > 0}
+            <div><strong>Slots</strong>: {entry.slotsLabel}</div>
+          {/if}
+        </div>
+      </details>
+    {/for}
+  {/if}
+</div>
