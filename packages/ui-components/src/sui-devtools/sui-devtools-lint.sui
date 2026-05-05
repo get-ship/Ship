@@ -54,5 +54,45 @@
   .count.warn { color: var(--warning, var(--muted-foreground)); border: 1px solid color-mix(in oklch, var(--warning, var(--muted-foreground)) 60%, transparent); }
 </style>
 
-<div class="toolbar" bind:this={toolbarEl}></div>
-<div class="body" bind:this={bodyEl}></div>
+<div class="toolbar">
+  {#if viewName()}
+    <span style="color:var(--foreground);font-weight:var(--font-weight-medium,500)">{viewName()}</span>
+  {:else}
+    <span>No view</span>
+  {/if}
+  <span style="flex:1"></span>
+  {#if errCount() > 0}
+    <span class="count err">{errCount()} error</span>
+  {/if}
+  {#if warnCount() > 0}
+    <span class="count warn">{warnCount()} warn</span>
+  {/if}
+  {#if loading()}
+    <span>Linting…</span>
+  {/if}
+</div>
+<div class="body">
+  {#if errorMsg()}
+    <div style="padding:20px;color:var(--muted-foreground)">{errorMsg()}</div>
+  {:else if !viewName() && !loading()}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="check-circle"></sui-icon>
+      <span slot="title">No view</span>
+      Navigate to a view to lint it.
+    </sui-empty-state>
+  {:else if filteredFindings().length === 0 && !loading()}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="check-circle"></sui-icon>
+      <span slot="title">Clean</span>
+      No lint errors in current view.
+    </sui-empty-state>
+  {:else}
+    {#for f of filteredFindings() key={f.rule + f.line + f.col}}
+      <div class="row">
+        <span class="sev" class:err={f.severity === 'error'} class:warn={f.severity !== 'error'}>{f.severity}</span>
+        <span class="loc">{f.file}:{f.line}:{f.col}</span>
+        <span><span class="rule">[{f.rule}]</span>{f.message}</span>
+      </div>
+    {/for}
+  {/if}
+</div>

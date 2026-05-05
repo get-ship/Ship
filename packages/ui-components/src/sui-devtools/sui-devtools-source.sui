@@ -80,6 +80,67 @@
   .edit-action:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 
-<div class="header" bind:this={headerEl}></div>
-<div class="split" bind:this={splitEl}></div>
-<div class="diagnostics" style="display:none" bind:this={diagEl}></div>
+<div class="header" bind:this={headerEl}>
+  {#if src()}
+    <span style="color:var(--foreground);font-weight:var(--font-weight-medium,500)">{src().view_name}</span>
+    <span style="padding:1px 6px;border:1px solid var(--border);border-radius:999px;text-transform:uppercase;letter-spacing:.04em;font-size:10px">{src().scope}</span>
+    {#if isDirty()}
+      <span class="dirty-dot" title="Unsaved changes"></span>
+    {/if}
+    <span style="flex:1"></span>
+    <span>{src().template_path}</span>
+    <span style="display:inline-flex;align-items:center;gap:6px">
+      {#if src().scope === 'project'}
+        <button class="edit-action primary" data-action="fork" disabled={saving()}>Fork to edit</button>
+      {/if}
+      {#if src().scope === 'global'}
+        <button class="edit-action primary" data-action="save" disabled={saving() || !isDirty()} title="Save (⌘/Ctrl+S)">{saving() ? 'Saving…' : 'Save'}</button>
+      {/if}
+    </span>
+  {/if}
+</div>
+<div class="split">
+  {#if loading()}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="file-code"></sui-icon>
+      <span slot="title">Loading source…</span>
+      Fetching the view template from the daemon.
+    </sui-empty-state>
+  {:else if loadError()}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="alert-triangle"></sui-icon>
+      <span slot="title">Source error</span>
+      {loadError()}
+    </sui-empty-state>
+  {:else if src()}
+    <div class="pane">
+      <div class="pane-head">{templateRelPath()}</div>
+      <div class="pane-editor">
+        <ship-code-editor language="html" bind:this={templateEditorEl} readonly={editorReadonly()}></ship-code-editor>
+      </div>
+    </div>
+    {#if src().manifest}
+      <div class="pane-head manifest">{src().manifest_filename}</div>
+      <div class="pane">
+        <div class="pane-editor">
+          <ship-code-editor language={manifestLangVal()} bind:this={manifestEditorEl} readonly></ship-code-editor>
+        </div>
+      </div>
+    {/if}
+  {:else}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="file-code"></sui-icon>
+      <span slot="title">No source available</span>
+      This path is not served by a file-routed view.
+    </sui-empty-state>
+  {/if}
+</div>
+<div class="diagnostics" style:display={showDiag() ? '' : 'none'}>
+  {#if diagMsg()}
+    {diagMsg()}
+  {:else}
+    {#for d of diagnostics() key={d.line + ':' + d.col + ':' + d.rule}}
+      <div>{d.line}:{d.col} [{d.rule}] {d.message}</div>
+    {/for}
+  {/if}
+</div>

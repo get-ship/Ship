@@ -52,7 +52,22 @@
 </style>
 
 <div class="toolbar">
-  <input type="text" placeholder="Filter signals…" bind:this={filterInput} />
-  <span bind:this={countEl}></span>
+  <input type="text" placeholder="Filter signals…" bind:value={filter} />
+  <span>{shownEntries().length} / {allCount()}</span>
 </div>
-<div class="body" bind:this={bodyEl}></div>
+<div class="body">
+  {#if shownEntries().length === 0}
+    <sui-empty-state>
+      <sui-icon slot="icon" name={filter() ? 'search' : 'radio'}></sui-icon>
+      <span slot="title">{filter() ? 'No matches' : 'No signals'}</span>
+      {filter() ? 'No signals match the current filter.' : 'Live events will appear here when actors emit.'}
+    </sui-empty-state>
+  {:else}
+    {#for entry of shownEntries() key={entry.key}}
+      <div class="row">
+        <span class="k">{entry.key}</span>
+        <span class="v">{entry.value}</span>
+      </div>
+    {/for}
+  {/if}
+</div>
