@@ -1,13 +1,14 @@
-//! On-demand esbuild bundling for project views with a paired `index.ts`
-//! controller.
+//! On-demand esbuild bundling for project views with a paired
+//! `index.controller.ts` controller.
 //!
-//! When `compile_view_js` detects a sibling `index.ts` alongside the
-//! resolved `index.sui`, it calls `bundle_view` here. The compiled view.js
-//! (which carries `import setup from "./index.ts"`) is written to a tempdir,
-//! `index.ts` is symlinked next to it so that esbuild can follow the symlink
-//! and resolve `index.ts`'s own relative imports from the real view directory.
-//! The bundled string is mtime-cached; re-bundling only occurs when either
-//! `index.sui` (view mtime) or `index.ts` advances.
+//! When `compile_view_js` detects a sibling `index.controller.ts` alongside
+//! the resolved `index.sui`, it calls `bundle_view` here. The compiled
+//! view.js (which carries `import setup from "./index.controller.ts"`) is
+//! written to a tempdir, `index.controller.ts` is symlinked next to it so
+//! that esbuild can follow the symlink and resolve the controller's own
+//! relative imports from the real view directory. The bundled string is
+//! mtime-cached; re-bundling only occurs when either `index.sui` (view
+//! mtime) or `index.controller.ts` advances.
 
 use std::collections::HashMap;
 use std::os::unix::fs::symlink;
@@ -54,11 +55,11 @@ pub fn esbuild_path() -> Option<PathBuf> {
 
 // ── Bundler ────────────────────────────────────────────────────────────
 
-/// Bundle a compiled view.js that carries `import setup from "./index.ts"`
-/// using esbuild so the controller is inlined.
+/// Bundle a compiled view.js that carries `import setup from
+/// "./index.controller.ts"` using esbuild so the controller is inlined.
 ///
 /// `view_source_path` is the path to `index.sui` (used as the cache key and
-/// for mtime tracking). `ts_path` is the paired `index.ts`.
+/// for mtime tracking). `ts_path` is the paired `index.controller.ts`.
 pub fn bundle_view(
     view_name: &str,
     view_js: &str,
@@ -98,10 +99,10 @@ pub fn bundle_view(
     let view_js_path = tmp.path().join(format!("{view_name}-view.js"));
     std::fs::write(&view_js_path, view_js).map_err(|e| format!("write view.js: {e}"))?;
 
-    // Symlink index.ts so esbuild resolves it and follows relative imports
-    // from the real view directory (e.g. ./partials/catalog.ts).
-    let ts_link = tmp.path().join("index.ts");
-    symlink(&canon_ts, &ts_link).map_err(|e| format!("symlink index.ts: {e}"))?;
+    // Symlink index.controller.ts so esbuild resolves it and follows relative
+    // imports from the real view directory (e.g. ./partials/catalog.ts).
+    let ts_link = tmp.path().join("index.controller.ts");
+    symlink(&canon_ts, &ts_link).map_err(|e| format!("symlink index.controller.ts: {e}"))?;
 
     let out = std::process::Command::new(&esbuild)
         .arg(view_js_path.to_str().unwrap_or_default())
@@ -169,7 +170,7 @@ mod tests {
             let view_dir = root.join(".ship/views/test-widget");
             fs::create_dir_all(&view_dir).unwrap();
             let sui_path = view_dir.join("index.sui");
-            let ts_path = view_dir.join("index.ts");
+            let ts_path = view_dir.join("index.controller.ts");
 
             fs::write(&sui_path, r#"<state name="x" value="0" /><p>{x()}</p>"#).unwrap();
             fs::write(
@@ -179,13 +180,13 @@ mod tests {
             .unwrap();
 
             // Simulate the compiled view.js that carries the import line.
-            let fake_view_js = r#"import setup from "./index.ts"; export { setup };"#;
+            let fake_view_js = r#"import setup from "./index.controller.ts"; export { setup };"#;
 
             let result = bundle_view("test-widget", fake_view_js, &sui_path, &ts_path);
             let bundled = result.expect("bundle succeeded");
 
             assert!(
-                !bundled.contains("import setup from \"./index.ts\""),
+                !bundled.contains("import setup from \"./index.controller.ts\""),
                 "bare import not inlined"
             );
             assert!(
@@ -207,7 +208,7 @@ mod tests {
             let sui_path = view_dir.join("index.sui");
             fs::write(&sui_path, r#"<state name="x" value="0" /><p>{x()}</p>"#).unwrap();
 
-            let nonexistent_ts = view_dir.join("index.ts"); // does not exist
+            let nonexistent_ts = view_dir.join("index.controller.ts"); // does not exist
             let result = bundle_view("plain-view", "export {}", &sui_path, &nonexistent_ts);
             assert!(result.is_err(), "missing ts_path should error");
         });
@@ -226,11 +227,11 @@ mod tests {
             let view_dir = root.join(".ship/views/cache-test");
             fs::create_dir_all(&view_dir).unwrap();
             let sui_path = view_dir.join("index.sui");
-            let ts_path = view_dir.join("index.ts");
+            let ts_path = view_dir.join("index.controller.ts");
             fs::write(&sui_path, r#"<p>hi</p>"#).unwrap();
             fs::write(&ts_path, r#"export default function CACHE_SENTINEL() {}"#).unwrap();
 
-            let fake_view_js = r#"import setup from "./index.ts"; export { setup };"#;
+            let fake_view_js = r#"import setup from "./index.controller.ts"; export { setup };"#;
 
             let first = bundle_view("cache-test", fake_view_js, &sui_path, &ts_path)
                 .expect("first bundle ok");

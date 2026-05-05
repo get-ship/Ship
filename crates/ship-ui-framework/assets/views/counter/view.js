@@ -2,19 +2,19 @@
 import { bindText, on, signal, view } from "@ship/ui-runtime";
 import { collectElementMarkers, collectTextOpens, hydrateOn, hydrateText } from "@ship/ui-dom";
 
-// views/counter/view.ts
-var view_default = null;
+// views/counter/view.controller.ts
+var view_controller_default = null;
 
 // views/counter/view.js
-var view_default2 = view((ctx) => {
+var view_default = view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = /* @__PURE__ */ Object.create(null);
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
   $scope.count = (ctx && ctx.scope && ctx.scope.count) ?? signal(0);
-  if (view_default && typeof view_default.setup === "function") {
-    const __r = view_default.setup(ctx);
+  if (view_controller_default && typeof view_controller_default.setup === "function") {
+    const __r = view_controller_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
   }
   return Object.assign({}, $scope, {
@@ -109,5 +109,5 @@ var view_default2 = view((ctx) => {
   });
 });
 export {
-  view_default2 as default
+  view_default as default
 };
