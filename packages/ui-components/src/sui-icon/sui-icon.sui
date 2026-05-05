@@ -62,13 +62,13 @@
   ::slotted(svg) { width: 100%; height: 100%; }
 </style>
 
-<svg part="svg"
-     class="sui-icon-svg"
-     viewBox="0 0 24 24"
-     fill="none"
-     stroke="currentColor"
-     stroke-width="2"
-     stroke-linecap="round"
-     stroke-linejoin="round"
-     bind:this={svgEl}></svg>
+<!--
+  The icon SVG is created by the controller in mount() via
+  document.createElementNS(SVG_NS, 'svg'). The sui-compiler emits
+  document.createElement(tag), which yields HTMLUnknownElement for SVG
+  tags — bindHtml's morph then wipes class/viewBox/etc. when reconciling.
+  Creating the element directly in the controller is the only way to
+  keep it in the proper SVG namespace and preserve attributes across
+  reactive updates.
+-->
 <slot></slot>

@@ -1,6 +1,8 @@
-import { controller, effect, bindHtml } from '@ship/ui-runtime'
+import { controller, effect } from '@ship/ui-runtime'
 import { LUCIDE_ICONS } from '../../../ship-set/src/web-components/core/lucide-icons.generated'
 import type { Scope } from './sui-icon.sui'
+
+const SVG_NS = 'http://www.w3.org/2000/svg'
 
 const ALIASES: Record<string, string> = {
   git: 'git-branch',
@@ -17,9 +19,36 @@ function resolveName(name: string): string | undefined {
   return undefined
 }
 
+function makeSvg(doc: Document): SVGSVGElement {
+  const svg = doc.createElementNS(SVG_NS, 'svg') as SVGSVGElement
+  svg.setAttribute('part', 'svg')
+  svg.setAttribute('class', 'sui-icon-svg')
+  svg.setAttribute('viewBox', '0 0 24 24')
+  svg.setAttribute('fill', 'none')
+  svg.setAttribute('stroke', 'currentColor')
+  svg.setAttribute('stroke-width', '2')
+  svg.setAttribute('stroke-linecap', 'round')
+  svg.setAttribute('stroke-linejoin', 'round')
+  return svg
+}
+
+function populatePaths(svg: SVGSVGElement, fragment: string): void {
+  while (svg.firstChild) svg.removeChild(svg.firstChild)
+  const parsed = new DOMParser().parseFromString(
+    `<svg xmlns="${SVG_NS}">${fragment}</svg>`,
+    'image/svg+xml',
+  ).documentElement
+  while (parsed.firstChild) {
+    svg.appendChild(svg.ownerDocument.adoptNode(parsed.firstChild))
+  }
+}
+
 export default controller<Scope>({
   mount(state, host) {
     const scope = state as unknown as Scope
+    const root = host.shadowRoot!
+    let svgEl: SVGSVGElement | null = null
+    let lastResolved: string | null = null
 
     const stopAria = effect(() => {
       const label = scope.label()
@@ -34,25 +63,32 @@ export default controller<Scope>({
       }
     })
 
-    const stopVisibility = effect(() => {
-      const svg = scope.svgEl()
-      if (!svg) return
-      const resolved = resolveName(scope.name())
-      svg.style.display = resolved ? '' : 'none'
+    const stopRender = effect(() => {
+      const resolved = resolveName(scope.name()) ?? null
+      const label = scope.label()
+      if (!resolved) {
+        if (svgEl) {
+          svgEl.remove()
+          svgEl = null
+        }
+        lastResolved = null
+        return
+      }
+      if (!svgEl) {
+        svgEl = makeSvg(host.ownerDocument)
+        root.insertBefore(svgEl, root.firstChild)
+      }
+      if (resolved !== lastResolved) {
+        populatePaths(svgEl, LUCIDE_ICONS[resolved]!)
+        lastResolved = resolved
+      }
+      if (label) svgEl.removeAttribute('aria-hidden')
+      else svgEl.setAttribute('aria-hidden', 'true')
     })
-
-    const svg = scope.svgEl()
-    const stopPaths = svg
-      ? bindHtml(svg, () => {
-          const resolved = resolveName(scope.name())
-          return resolved ? LUCIDE_ICONS[resolved]! : ''
-        })
-      : () => {}
 
     return () => {
       stopAria()
-      stopVisibility()
-      stopPaths()
+      stopRender()
     }
   },
 })
