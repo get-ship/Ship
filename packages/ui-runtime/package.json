@@ -9,7 +9,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./template-hooks": "./src/template-hooks/index.ts",
-    "./dev": "./src/dev.ts"
+    "./dev": "./src/dev.ts",
+    "./route": "./src/route/index.ts"
   },
   "files": [
     "src",

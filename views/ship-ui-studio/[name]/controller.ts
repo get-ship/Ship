@@ -1,4 +1,5 @@
-import { controller, signal, effect, defineRoutes } from '@ship/ui-runtime'
+import { controller, signal, effect } from '@ship/ui-runtime'
+import { defineRoutes } from '@ship/ui-runtime/route'
 import type { Scope } from './page.sui'
 import { loadCatalog, type CatalogEntry, type PropEntry } from '../catalog'
 

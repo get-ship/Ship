@@ -117,6 +117,7 @@ fn compile_one(path: &Path, repo: &Path) -> Result<String, String> {
 fn write_tsconfig(temp_dir: &Path, repo: &Path) {
     let runtime_index = repo.join("packages/ui-runtime/src/index.ts");
     let runtime_template_hooks = repo.join("packages/ui-runtime/src/template-hooks/index.ts");
+    let runtime_route = repo.join("packages/ui-runtime/src/route/index.ts");
     let runtime_dev = repo.join("packages/ui-runtime/src/dev.ts");
     let ui_dom_index = repo.join("packages/ui-dom/src/index.ts");
     let ui_dom_legacy = repo.join("packages/ui-dom/src/legacy/index.ts");
@@ -158,6 +159,7 @@ fn write_tsconfig(temp_dir: &Path, repo: &Path) {
             "paths": {
                 "@ship/ui-runtime": [runtime_index.to_string_lossy()],
                 "@ship/ui-runtime/template-hooks": [runtime_template_hooks.to_string_lossy()],
+                "@ship/ui-runtime/route": [runtime_route.to_string_lossy()],
                 "@ship/ui-runtime/dev": [runtime_dev.to_string_lossy()],
                 "@ship/ui-dom": [ui_dom_index.to_string_lossy()],
                 "@ship/ui-dom/legacy": [ui_dom_legacy.to_string_lossy()],
@@ -214,9 +216,12 @@ fn extract_named_imports(js: &str, module: &str) -> Vec<(String, String)> {
     out
 }
 
-/// Parse named exports from an `index.ts` file. Recognises the two
-/// shapes the runtime / ui-dom packages use: `export { A, B } from …;`
-/// and `export type { A } from …;` and `export function …`.
+/// Parse named exports from an `index.ts` file. Recognises:
+/// - `export { A, B } from …;` and `export type { A } from …;`
+/// - `export function name`, `export async function name`
+/// - `export const name`, `export let name`
+/// - `export class name`, `export interface name`
+/// - `export type name` (type alias declarations)
 fn extract_exports(idx: &Path) -> BTreeSet<String> {
     let mut out = BTreeSet::new();
     let Ok(src) = fs::read_to_string(idx) else {
@@ -234,6 +239,9 @@ fn extract_exports(idx: &Path) -> BTreeSet<String> {
                     in_block = true;
                     continue;
                 }
+            } else if let Some(name) = extract_declaration_export(l) {
+                out.insert(name);
+                continue;
             } else {
                 continue;
             }
@@ -269,16 +277,42 @@ fn extract_exports(idx: &Path) -> BTreeSet<String> {
     out
 }
 
+/// Extract the export name from a direct declaration export line.
+/// Handles `export [async] function name`, `export const/let/class/
+/// interface/type name`, but not `export {` (handled by `extract_exports`).
+fn extract_declaration_export(l: &str) -> Option<String> {
+    let rest = l.strip_prefix("export ")?;
+    // Named re-export blocks are handled elsewhere; default exports are
+    // anonymous in terms of the name callers import.
+    if rest.starts_with('{') || rest.starts_with("type {") || rest.starts_with("default ") {
+        return None;
+    }
+    // Strip optional `async` modifier (for async functions).
+    let rest = rest.strip_prefix("async ").unwrap_or(rest);
+    // Strip the declaration keyword.
+    let rest = ["function ", "const ", "let ", "class ", "interface ", "type "]
+        .iter()
+        .find_map(|kw| rest.strip_prefix(kw))?;
+    // Extract the identifier up to the first non-identifier character.
+    let name: String = rest
+        .chars()
+        .take_while(|c| c.is_alphanumeric() || *c == '_' || *c == '$')
+        .collect();
+    if name.is_empty() { None } else { Some(name) }
+}
+
 fn structural_check(
     js_files: &[(PathBuf, String, String)],
     repo: &Path,
 ) -> Vec<String> {
     let runtime_idx = repo.join("packages/ui-runtime/src/index.ts");
     let runtime_hooks_idx = repo.join("packages/ui-runtime/src/template-hooks/index.ts");
+    let runtime_route_idx = repo.join("packages/ui-runtime/src/route/index.ts");
     let dom_idx = repo.join("packages/ui-dom/src/index.ts");
 
     let runtime_exports = extract_exports(&runtime_idx);
     let runtime_hook_exports = extract_exports(&runtime_hooks_idx);
+    let runtime_route_exports = extract_exports(&runtime_route_idx);
     let dom_exports = extract_exports(&dom_idx);
 
     let mut errors = Vec::new();
@@ -295,6 +329,22 @@ fn structural_check(
             if !runtime_hook_exports.contains(&name) {
                 errors.push(format!(
                     "{}: imports `{name}` from `{module}` — not exported",
+                    src.display()
+                ));
+            }
+        }
+        for (name, module) in extract_named_imports(js, "@ship/ui-runtime/route") {
+            // The import uses `as` alias: `import { route as __routeFactory }`.
+            // extract_named_imports returns the local alias, so strip any
+            // `as <alias>` suffix to recover the original export name.
+            let export_name = if let Some(idx) = name.find(" as ") {
+                name[..idx].trim().to_string()
+            } else {
+                name.clone()
+            };
+            if !runtime_route_exports.contains(&export_name) {
+                errors.push(format!(
+                    "{}: imports `{name}` from `{module}` — not exported by @ship/ui-runtime/route",
                     src.display()
                 ));
             }
