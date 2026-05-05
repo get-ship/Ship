@@ -69,7 +69,9 @@
 <body>
   <div id="ship-app">
     <!-- Top bar: brand, breadcrumbs, view actions, theme picker, chrome controls -->
-    <sui-nav-top id="ship-nav-top"></sui-nav-top>
+    <sui-nav-top id="ship-nav-top">
+      <sui-command-bar slot="command-bar" id="ship-command-bar"></sui-command-bar>
+    </sui-nav-top>
 
     <!-- Left rail: vertical nav with collapse toggle -->
     <sui-rail id="ship-rail">
@@ -100,9 +102,6 @@
 
   <!-- App launcher: floating panel, opened via sui:launcher:open event or the [open] attribute -->
   <sui-launcher id="ship-launcher"></sui-launcher>
-
-  <!-- Command bar: singleton in top-layer. show/hide/toggle via imperative API or ⌘K -->
-  <sui-command-bar id="ship-command-bar"></sui-command-bar>
 
   <sui-toast-container position="bottom-right" id="sui-toast-container"></sui-toast-container>
 
