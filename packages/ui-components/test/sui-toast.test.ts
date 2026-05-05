@@ -12,10 +12,9 @@ type SuiToastContainer = HTMLElement & { show(opts?: Record<string, unknown>): S
 const shadow = (el: HTMLElement) => el.shadowRoot!
 const closeBtn = (el: HTMLElement) => shadow(el).querySelector<HTMLButtonElement>('.close')
 const progressEl = (el: HTMLElement) => shadow(el).querySelector<HTMLElement>('.progress')
-const iconSlot = (el: HTMLElement) => shadow(el).querySelector<HTMLSlotElement>('slot[name="icon"]')
 const autoIcon = (el: HTMLElement) => {
-  const slot = iconSlot(el)
-  return slot ? slot.querySelector<SVGSVGElement>('svg') : null
+  const wrap = shadow(el).querySelector<HTMLElement>('.icon')
+  return wrap ? wrap.querySelector<SVGSVGElement>('svg') : null
 }
 const toastDiv = (el: HTMLElement) => shadow(el).querySelector<HTMLDivElement>('.toast')
 
