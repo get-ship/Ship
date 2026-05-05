@@ -55,6 +55,45 @@ const SUI_BUNDLES: &[BundleSpec] = &[
         inputs_relpath: "apps/shipd/assets/.cache/sui-components.inputs.json",
         extra_source_roots: &["packages/ui-components/src"],
     },
+    // Island bundles. The bundler script names them
+    // `sui-islands/<bundle>` in its target list and writes the
+    // inputs manifest under the same dotted-segment cache name.
+    BundleSpec {
+        name: "sui-islands/sui-terminal",
+        output_relpath: "crates/ship-ui-framework/assets/sui-islands/sui-terminal.js",
+        inputs_relpath: "apps/shipd/assets/.cache/sui-islands__sui-terminal.inputs.json",
+        extra_source_roots: &["packages/ui-components/src/islands/sui-terminal"],
+    },
+    BundleSpec {
+        name: "sui-islands/sui-command-bar",
+        output_relpath: "crates/ship-ui-framework/assets/sui-islands/sui-command-bar.js",
+        inputs_relpath: "apps/shipd/assets/.cache/sui-islands__sui-command-bar.inputs.json",
+        extra_source_roots: &["packages/ui-components/src/islands/sui-command-bar"],
+    },
+    BundleSpec {
+        name: "sui-islands/sui-devtools",
+        output_relpath: "crates/ship-ui-framework/assets/sui-islands/sui-devtools.js",
+        inputs_relpath: "apps/shipd/assets/.cache/sui-islands__sui-devtools.inputs.json",
+        extra_source_roots: &["packages/ui-components/src/islands/sui-devtools"],
+    },
+    BundleSpec {
+        name: "sui-islands/sui-launcher",
+        output_relpath: "crates/ship-ui-framework/assets/sui-islands/sui-launcher.js",
+        inputs_relpath: "apps/shipd/assets/.cache/sui-islands__sui-launcher.inputs.json",
+        extra_source_roots: &["packages/ui-components/src/islands/sui-launcher"],
+    },
+    BundleSpec {
+        name: "sui-islands/sui-panel-dock",
+        output_relpath: "crates/ship-ui-framework/assets/sui-islands/sui-panel-dock.js",
+        inputs_relpath: "apps/shipd/assets/.cache/sui-islands__sui-panel-dock.inputs.json",
+        extra_source_roots: &["packages/ui-components/src/islands/sui-panel-dock"],
+    },
+    BundleSpec {
+        name: "sui-islands/sui-nav-top",
+        output_relpath: "crates/ship-ui-framework/assets/sui-islands/sui-nav-top.js",
+        inputs_relpath: "apps/shipd/assets/.cache/sui-islands__sui-nav-top.inputs.json",
+        extra_source_roots: &["packages/ui-components/src/islands/sui-nav-top"],
+    },
 ];
 
 struct BundleState {

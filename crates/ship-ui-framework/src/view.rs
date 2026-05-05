@@ -135,11 +135,17 @@ const SUI_NAV_TOP_ISLAND_JS: &str =
 /// related tags together; the URL is keyed on bundle, not tag. Unknown
 /// names 404 so malformed view output can't induce arbitrary path
 /// probing.
+///
+/// In dev mode `dev_assets::override_for("sui-islands/<name>")` reads
+/// the latest bytes from disk and reruns the bundler if inputs
+/// changed; in release we fall through to the embedded `include_str!`
+/// constant. Cache-Control is `no-cache` when the dev override fires
+/// so source edits propagate without a hard reload.
 pub async fn serve_sui_island(Path(bundle): Path<String>) -> Response {
     if !is_island_bundle(&bundle) {
         return not_found("unknown island");
     }
-    let body: &'static str = match bundle.as_str() {
+    let embedded: &'static str = match bundle.as_str() {
         "sui-terminal" => SUI_TERMINAL_ISLAND_JS,
         "sui-command-bar" => SUI_COMMAND_BAR_ISLAND_JS,
         "sui-devtools" => SUI_DEVTOOLS_ISLAND_JS,
@@ -148,12 +154,21 @@ pub async fn serve_sui_island(Path(bundle): Path<String>) -> Response {
         "sui-nav-top" => SUI_NAV_TOP_ISLAND_JS,
         _ => return not_found("unknown island"),
     };
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(Body::from(body))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+    let dev_key = format!("sui-islands/{bundle}");
+    match crate::dev_assets::override_for(&dev_key).await {
+        Some(bytes) => Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+            .header(header::CACHE_CONTROL, "no-cache")
+            .body(Body::from(bytes))
+            .unwrap_or_else(|_| Response::new(Body::from("response build failed"))),
+        None => Response::builder()
+            .status(StatusCode::OK)
+            .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+            .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
+            .body(Body::from(embedded))
+            .unwrap_or_else(|_| Response::new(Body::from("response build failed"))),
+    }
 }
 
 /// `GET /_sui/views/{name}/view.sui` — the raw template source

@@ -1,13 +1,31 @@
 #!/usr/bin/env bash
 # Start the dev daemon for this worktree.
 #
-# Builds shipd + ship, stashes the binaries in the daemon dir, and launches
-# the stashed shipd in dev mode. The stash is the running binary — rebuilds
-# in this worktree won't perturb the live daemon until `just dev-restart`.
+# Produces SUI bundles (esbuild + lucide registry), then builds shipd +
+# ship, stashes the binaries in the daemon dir, and launches the stashed
+# shipd in dev mode. The bundle step runs first because the framework
+# crate's build.rs validates every `include_str!`'d asset is non-empty —
+# baking in empty bytes silently shipped a daemon with empty island
+# bundles in the past, hence the validate-then-fail-loud pattern.
+#
+# We don't run the bundler from build.rs because the bundler invokes
+# `cargo run -p sui-compiler`, and a nested cargo would deadlock waiting
+# on the parent's build lock.
+#
+# The stash is the running binary — rebuilds in this worktree won't
+# perturb the live daemon until `just dev-restart`.
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
 . scripts/dev/_lib.sh
+
+# Generate the lucide icon registry first (fast — no nested cargo) so
+# the bundler can pick up its outputs if anything depends on them.
+node packages/ship-set/scripts/generate-lucide-registry.mjs
+
+# Bundle SUI assets. The script's own incremental cache makes this a
+# no-op when nothing changed.
+node scripts/build-bundles.mjs
 
 cargo build -p shipd -p ship-cli
 
