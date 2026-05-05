@@ -1,4 +1,4 @@
-import { controller, signal, derived, effect, shared } from '@ship/ui-runtime'
+import { controller, signal, derived, effect, ref, shared } from '@ship/ui-runtime'
 import type { Scope } from './sui-command-bar.sui'
 import type { Signal } from '@ship/ui-runtime'
 import {
@@ -51,11 +51,13 @@ export default controller<Scope>({
 
     const isChat = shared(derived(() => mode() === 'ai' && session() !== null))
 
+    const dialogRef = ref<HTMLElement>(null)
+
     return {
       open, mode, value, session, agents, providers, allSessions, views,
       selectedIdx, sessionPickerOpen, spawnAgent, spawnProvider, spawning,
       spawnError, thread, workspaceId, createSurface, createName, createPurpose,
-      createShape, createSubmitting, createError, isChat,
+      createShape, createSubmitting, createError, isChat, dialogRef,
     }
   },
 

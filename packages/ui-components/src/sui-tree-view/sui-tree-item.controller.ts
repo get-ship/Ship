@@ -1,4 +1,4 @@
-import { controller, signal, derived, effect } from '@ship/ui-runtime'
+import { controller, signal, derived, effect, ref } from '@ship/ui-runtime'
 import type { Scope } from './sui-tree-item.sui'
 import type { Signal } from '@ship/ui-runtime'
 import type { TreeNode } from './sui-tree-view.controller'
@@ -14,7 +14,8 @@ export default controller<Scope>({
       const n = node()
       return n?.children ?? []
     })
-    return { node, nodeLabel, nodeChildren }
+    const rowEl = ref<HTMLDivElement>(null)
+    return { node, nodeLabel, nodeChildren, rowEl }
   },
 
   mount(state, host) {

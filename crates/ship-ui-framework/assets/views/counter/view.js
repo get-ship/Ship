@@ -1,18 +1,20 @@
-// views/counter/view.js
-import { bindText, on, signal, view } from "@ship/ui-runtime";
+// views/counter/dist/view.compiled.js
+import { bindText, on, view } from "@ship/ui-runtime";
 import { collectElementMarkers, collectTextOpens, hydrateOn, hydrateText } from "@ship/ui-dom";
 
 // views/counter/view.controller.ts
-var view_controller_default = null;
+import { controller, signal } from "@ship/ui-runtime";
+var view_controller_default = controller({
+  scope: () => ({ count: signal(0) })
+});
 
-// views/counter/view.js
-var view_default = view((ctx) => {
+// views/counter/dist/view.compiled.js
+var view_compiled_default = view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = /* @__PURE__ */ Object.create(null);
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
-  $scope.count = (ctx && ctx.scope && ctx.scope.count) ?? signal(0);
   if (view_controller_default && typeof view_controller_default.setup === "function") {
     const __r = view_controller_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
@@ -109,5 +111,5 @@ var view_default = view((ctx) => {
   });
 });
 export {
-  view_default as default
+  view_compiled_default as default
 };

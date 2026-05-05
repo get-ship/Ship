@@ -1,10 +1,12 @@
-import { controller, signal, effect } from '@ship/ui-runtime'
+import { controller, signal, ref, effect } from '@ship/ui-runtime'
 import type { Scope } from './sui-pagination.sui'
 
 export default controller<Scope>({
   scope: () => ({
     totalPages: signal(1),
     info: signal(''),
+    prevBtn: ref<HTMLButtonElement>(null),
+    nextBtn: ref<HTMLButtonElement>(null),
   }),
 
   mount(state, host) {

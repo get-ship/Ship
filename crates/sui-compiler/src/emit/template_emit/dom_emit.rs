@@ -100,11 +100,13 @@ impl TemplateEmitter {
             }
             AttrInstr::BindThis { var, .. } => {
                 let key = self.next_key();
-                // Refs are write-once-from-runtime: create the signal
-                // pre-seeded with the freshly constructed element. The
-                // component author reads `<var>()` from the controller
-                // — same shape as React's `ref.current`, but signal-typed.
-                w.line(&format!("$scope.{var} = signal({el_var});"));
+                // Refs are write-once-from-runtime. If the controller's
+                // scope: factory pre-declared `var: ref(null)` we write
+                // the freshly constructed element into that slot;
+                // otherwise we install a fresh signal seeded with the
+                // element. Same shape as React's `ref.current`, but
+                // signal-typed.
+                w.line(&format!("attachRef($scope, {v}, {el_var});", v = js_string(var)));
                 if self.is_view && self.boundary_depth == 0 {
                     self.hydrate_uses_markers = true;
                     self.hydrate_calls.line(&format!(

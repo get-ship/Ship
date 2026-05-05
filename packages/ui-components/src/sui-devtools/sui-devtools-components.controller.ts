@@ -1,4 +1,4 @@
-import { controller, signal, derived } from '@ship/ui-runtime'
+import { controller, signal, derived, ref } from '@ship/ui-runtime'
 import type { Scope } from './sui-devtools-components.sui'
 
 interface CemAttr { name: string; description?: string; type?: { text?: string }; default?: string }
@@ -56,7 +56,8 @@ export default controller<Scope>({
         ? all.filter(e => e.tag.toLowerCase().includes(needle) || e.description.toLowerCase().includes(needle))
         : all
     })
-    return { entries, filter, shown }
+    const bodyEl = ref<HTMLDivElement>(null)
+    return { entries, filter, shown, bodyEl }
   },
 
   mount(state, host) {

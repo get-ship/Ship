@@ -1,4 +1,4 @@
-import { controller, effect, signal } from '@ship/ui-runtime'
+import { controller, effect, ref, signal } from '@ship/ui-runtime'
 import type { Scope } from './sui-toast.sui'
 
 type DismissReason = 'manual' | 'timeout' | 'programmatic'
@@ -8,7 +8,11 @@ const TONES_WITH_AUTO_ICON = new Set(['info', 'success', 'warning', 'destructive
 export default controller<Scope>({
   scope: () => {
     const hasSlottedIcon = signal(false)
-    return { hasSlottedIcon }
+    const iconSlotEl = ref<HTMLSlotElement>(null)
+    const titleSlotEl = ref<HTMLSlotElement>(null)
+    const actionsSlotEl = ref<HTMLSlotElement>(null)
+    const closeBtn = ref<HTMLButtonElement>(null)
+    return { hasSlottedIcon, iconSlotEl, titleSlotEl, actionsSlotEl, closeBtn }
   },
 
   mount(state, host) {
