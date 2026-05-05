@@ -5,7 +5,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use ship_primitives::services::dispatch_ports::{IsolationStrategy, JobContext};
+use ship_platform::services::dispatch_ports::{IsolationStrategy, JobContext};
 use std::path::PathBuf;
 
 use super::helpers::{compile_agent_config, create_worktree, worktrees_dir};

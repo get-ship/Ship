@@ -183,7 +183,7 @@ fn broadcast_tool_use(
             if s.len() > 400 { s.chars().take(400).collect() } else { s }
         })
         .unwrap_or_default();
-    let ev = ship_primitives::services::provider_adapter::ProviderEvent::ToolUse {
+    let ev = ship_platform::services::provider_adapter::ProviderEvent::ToolUse {
         tool: tool.to_string(),
         input_preview,
     };

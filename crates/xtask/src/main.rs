@@ -136,15 +136,15 @@ fn collect_types() -> TypeCollection {
     c.register::<ship_substrate::events::filter::EventFilter>();
 
     // collections/schema.rs — collection field-definition types (nested schemas)
-    c.register::<ship_primitives::collections::schema::FieldDef>();
-    c.register::<ship_primitives::collections::schema::FieldType>();
+    c.register::<ship_platform::collections::schema::FieldDef>();
+    c.register::<ship_platform::collections::schema::FieldType>();
 
     // workspace/types_session.rs (the workspace primitive retired; only
     // session-shaped types remain)
-    c.register::<ship_primitives::sessions::Session>();
-    c.register::<ship_primitives::sessions::SessionStatus>();
-    c.register::<ship_primitives::sessions::ProviderMatrix>();
-    c.register::<ship_primitives::sessions::ProviderMatrixRepairReport>();
+    c.register::<ship_platform::sessions::Session>();
+    c.register::<ship_platform::sessions::SessionStatus>();
+    c.register::<ship_platform::sessions::ProviderMatrix>();
+    c.register::<ship_platform::sessions::ProviderMatrixRepairReport>();
 
     c
 }

@@ -11,7 +11,7 @@ pub use crate::skill_parse::parse_skill;
 
 pub fn load_skills(ship_dir: &Path) -> Result<Vec<Skill>> {
     let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let skill_dirs = ship_primitives::agents::skill_paths::read_skill_paths(ship_dir, project_root);
+    let skill_dirs = ship_platform::agents::skill_paths::read_skill_paths(ship_dir, project_root);
     let primary = skill_dirs.first().cloned();
 
     let mut skills = Vec::new();
@@ -40,7 +40,7 @@ pub fn load_skills(ship_dir: &Path) -> Result<Vec<Skill>> {
                     let state_key = skill.stable_id.as_deref().unwrap_or(id.as_str());
                     match crate::vars::load_vars_json(&vars_path) {
                         Ok(var_defs) => {
-                            let state = ship_primitives::agents::skill_vars::get_skill_vars(ship_dir, state_key)
+                            let state = ship_platform::agents::skill_vars::get_skill_vars(ship_dir, state_key)
                                 .unwrap_or_default()
                                 .unwrap_or_default();
                             crate::vars::warn_invalid_enum_vars(state_key, &var_defs, &state);

@@ -139,9 +139,9 @@ impl ShipServer {
 
         // Compute skill-derived subscriptions
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
-        let skills_list = ship_primitives::agents::skill::list_skills(&ship_dir).unwrap_or_default();
+        let skills_list = ship_platform::agents::skill::list_skills(&ship_dir).unwrap_or_default();
         let skill_subs =
-            ship_primitives::agents::skill::artifact_events::skill_event_subscriptions(&skills_list);
+            ship_platform::agents::skill::artifact_events::skill_event_subscriptions(&skills_list);
 
         // Default subscription set for an agent peer. The mesh's
         // subscribe_namespaces IS the filter — anything not declared
@@ -222,7 +222,7 @@ impl ShipServer {
         *self.canonical_actor_id.lock().await = Some(actor_id.clone());
 
         // Register a scoped session under the canonical id.
-        let active_agent = ship_primitives::config::get_active_agent(Some(ship_dir.clone())).unwrap_or(None);
+        let active_agent = ship_platform::config::get_active_agent(Some(ship_dir.clone())).unwrap_or(None);
         let agent_role = active_agent.as_ref().and_then(|a| a.role.as_deref());
         let workspace_id = self.session_id.lock().await.clone();
         match crate::network_client::register_session(
@@ -371,7 +371,7 @@ impl ShipServer {
             Err(_) => return,
         };
 
-        let agent_id = ship_primitives::config::get_active_agent(Some(ship_dir.clone()))
+        let agent_id = ship_platform::config::get_active_agent(Some(ship_dir.clone()))
             .ok()
             .flatten()
             .map(|a| a.id.clone());
@@ -392,7 +392,7 @@ impl ShipServer {
         }
 
         // Start a fresh session via the runtime.
-        match ship_primitives::sessions::start_session(
+        match ship_platform::sessions::start_session(
             &ship_dir,
             &branch,
             None,

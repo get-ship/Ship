@@ -471,7 +471,7 @@ dependencies = [
  "runtime",
  "serde",
  "serde_json",
- "ship-primitives",
+ "ship-platform",
  "ship-substrate",
  "tempfile",
  "tracing",
@@ -2155,7 +2155,7 @@ dependencies = [
  "runtime",
  "serde",
  "serde_json",
- "ship-primitives",
+ "ship-platform",
  "ship-substrate",
  "tempfile",
  "tokio",
@@ -3282,7 +3282,7 @@ dependencies = [
  "ship-jobs",
  "ship-kernel",
  "ship-pipelines",
- "ship-primitives",
+ "ship-platform",
  "ship-substrate",
  "ship-types",
  "specta",
@@ -3667,7 +3667,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "ship-jobs",
- "ship-primitives",
+ "ship-platform",
  "ship-substrate",
  "shipd",
  "tempfile",
@@ -3714,7 +3714,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-primitives"
+name = "ship-platform"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -3840,7 +3840,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-jobs",
- "ship-primitives",
+ "ship-platform",
  "ship-substrate",
  "syn",
  "tempfile",
@@ -5753,7 +5753,7 @@ dependencies = [
  "runtime",
  "serde",
  "serde_json",
- "ship-primitives",
+ "ship-platform",
  "ship-substrate",
  "ship-types",
  "shipd",

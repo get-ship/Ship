@@ -46,9 +46,9 @@ fn load_collections(
         return;
     }
     let project_dir = runtime::project::get_project_dir(None).ok();
-    let mut schemas = ship_primitives::collections::builtin::all_schemas();
+    let mut schemas = ship_platform::collections::builtin::all_schemas();
     schemas.extend(
-        ship_primitives::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
+        ship_platform::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
             .unwrap_or_default(),
     );
     let active_id = query_params.get("collection").cloned();
@@ -104,16 +104,16 @@ fn load_collections(
         "fields": fields_list,
     });
 
-    if let Ok(mut svc) = ship_primitives::collections::store::open_data_db(ship_dir) {
-        let _ = ship_primitives::collections::store::ensure_collection_table(&mut svc, first);
-        let req = ship_primitives::collections::query::QueryRequest {
+    if let Ok(mut svc) = ship_platform::collections::store::open_data_db(ship_dir) {
+        let _ = ship_platform::collections::store::ensure_collection_table(&mut svc, first);
+        let req = ship_platform::collections::query::QueryRequest {
             collection: first.id.clone(),
             filter: std::collections::BTreeMap::new(),
             sort: std::collections::BTreeMap::new(),
             limit: 200,
             offset: 0,
         };
-        if let Ok(items) = ship_primitives::collections::store::query_items(&mut svc, first, &req) {
+        if let Ok(items) = ship_platform::collections::store::query_items(&mut svc, first, &req) {
             let items_json: Vec<serde_json::Value> = items
                 .into_iter()
                 .map(|i| serde_json::to_value(i).unwrap_or_default())

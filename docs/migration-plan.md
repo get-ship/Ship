@@ -62,7 +62,7 @@ Deleted `crates/core/runtime/src/agents/export/` (~5,500 LOC). Migrated to compi
 Carve `crates/core/runtime/` into two crates:
 
 - `ship-substrate` (L0) — events, persistence, db, actor, supervisor, projections, mesh, sessions, kernel-router. Knows nothing about agents, skills, etc.
-- `ship-primitives` (L1) — agents, collections, hooks-engine, artifacts, package-registry. Imports `ship-substrate`. Imports nothing else.
+- `ship-platform` (L1) — agents, collections, hooks-engine, artifacts, package-registry. Imports `ship-substrate`. Imports nothing else.
 
 Compile-time barrier enforces what charter currently only asserts about layers. Substrate split is early because every later phase benefits from the boundary already existing.
 
@@ -70,14 +70,14 @@ Compile-time barrier enforces what charter currently only asserts about layers. 
 
 **Phase 2B done**: `runtime` rewritten as a re-export shim over `ship-substrate`. 688 tests pass.
 
-**Phase 2C done**: `crates/core/ship-primitives` created. Moved from runtime: agents, artifacts, collections, config, hooks, sync, services/sync. 304 tests pass. `compiler::jsonc::from_jsonc_str` replaced with `serde_json::from_str` + `fs_util::strip_jsonc_comments` (8 call sites — also added trailing-comma handling to `strip_jsonc_comments`). `runtime` now re-exports L1 from ship-primitives + keeps registry, sessions, orchestrator, providers (compiler deps).
+**Phase 2C done**: `crates/core/ship-platform` created. Moved from runtime: agents, artifacts, collections, config, hooks, sync, services/sync. 304 tests pass. `compiler::jsonc::from_jsonc_str` replaced with `serde_json::from_str` + `fs_util::strip_jsonc_comments` (8 call sites — also added trailing-comma handling to `strip_jsonc_comments`). `runtime` now re-exports L1 from ship-platform + keeps registry, sessions, orchestrator, providers (compiler deps).
 
-**Phase 2D done** (current): All remaining runtime modules moved to ship-primitives. Three compiler:: call sites eliminated: `compiler::list_providers()` → `SUPPORTED_PROVIDER_IDS` const in agents::providers, `compiler::manifest::ShipManifest::from_file` → inline minimal dep parser, `compiler::vars::resolve_template` → inlined minijinja call. `runtime` is now a pure re-export shim over ship-substrate + ship-primitives. 652 tests pass in ship-primitives.
+**Phase 2D done** (current): All remaining runtime modules moved to ship-platform. Three compiler:: call sites eliminated: `compiler::list_providers()` → `SUPPORTED_PROVIDER_IDS` const in agents::providers, `compiler::manifest::ShipManifest::from_file` → inline minimal dep parser, `compiler::vars::resolve_template` → inlined minijinja call. `runtime` is now a pure re-export shim over ship-substrate + ship-platform. 652 tests pass in ship-platform.
 
 **Phase 2 complete.** Dependency graph:
 - `ship-substrate` (L0): events, persistence, db, actor, projections, supervisor, home, project, git, log, fs_util, env, errors, data, projects, trash, access, services (L0 traits + mesh/dispatch/etc.)
-- `ship-primitives` (L1): agents, collections, config, hooks, artifacts, sync, registry, sessions, services (orchestrator, providers, provider_adapter)
-- `runtime`: pure shim — `pub use ship_substrate::*` + `pub use ship_primitives::*` + `project/init.rs`
+- `ship-platform` (L1): agents, collections, config, hooks, artifacts, sync, registry, sessions, services (orchestrator, providers, provider_adapter)
+- `runtime`: pure shim — `pub use ship_substrate::*` + `pub use ship_platform::*` + `project/init.rs`
 
 ### Phase 3 — KV extraction ✓
 
@@ -99,7 +99,7 @@ Filesystem watcher emits `<domain>.changed` events when declarative config files
 
 - Six new event type constants: `agent.changed`, `skill.changed`, `view.changed`, `pipeline.changed`, `rule.changed`, `project.changed` in `ship-types`
 - Payload schema validation wired for all six (reuses `ConfigChanged { subject, detail }`)
-- `ship-primitives/src/config/watcher.rs` — `spawn_config_watcher(kernel, ship_dir, workspace_dir)` returns a RAII `ConfigWatcher`; per-domain 200 ms debounce; skills and views watched recursively
+- `ship-platform/src/config/watcher.rs` — `spawn_config_watcher(kernel, ship_dir, workspace_dir)` returns a RAII `ConfigWatcher`; per-domain 200 ms debounce; skills and views watched recursively
 - `start_config_watcher()` called at daemon startup after hook engine
 - 3 tests: file write → event emitted; recursive subdirectory; 5 rapid writes coalesce to 1 event
 
@@ -128,7 +128,7 @@ Extend the `cloud/` Worker code to accept event-log replication. Project-sync pr
 - Workspace URL space → projects (completes the workspace retirement per audit §7.2)
 - Naming-clash renames: `runtime::services` → `runtime::service_actors`; `apps/shipd/src/sessions/` → `apps/shipd/src/pty/`; `crates/core/runtime/src/registry/` → `runtime::package_registry/`; `apps/shipd/src/services/registry/` either renamed or collapsed once first-party views are content
 - Dead-code deletions: `runtime::actor` (audit §8.1, zero production callers), unbound `Route` variants (audit §5-5.C), `runtime::actor::supervisor` submodule
-- **Daemon thin-transport:** `apps/shipd/` becomes a thin HTTP routing layer. All business logic lives in `ship-substrate` and `ship-primitives` (established in Phase 2); `shipd` is reduced to route registration, auth middleware, and startup. Route handlers call into substrate/primitive APIs — no logic inline.
+- **Daemon thin-transport:** `apps/shipd/` becomes a thin HTTP routing layer. All business logic lives in `ship-substrate` and `ship-platform` (established in Phase 2); `shipd` is reduced to route registration, auth middleware, and startup. Route handlers call into substrate/primitive APIs — no logic inline.
 - **Single binary:** Fold `shipd` into `ship` as `ship daemon`. Eliminates the separate install artifact; `ship` spawns its own daemon subprocess. `shipd` crate becomes an internal library rather than a standalone binary.
 
 Cosmetic but quality-affecting. Each rename eliminates a category of confusion.

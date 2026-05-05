@@ -107,7 +107,7 @@ impl KernelAccess for ShipRuntime {
 }
 
 impl MeshAccess for ShipRuntime {
-    fn mesh_registry(&self) -> &ship_primitives::services::mesh::SharedMeshRegistry {
+    fn mesh_registry(&self) -> &ship_platform::services::mesh::SharedMeshRegistry {
         ShipRuntime::mesh_registry(self)
     }
 }

@@ -44,7 +44,7 @@ impl TestDaemon {
         // Create an isolated registry — do NOT use spawn_mesh_service which
         // uses a process-global OnceLock and returns disconnected registries
         // on second+ call.
-        let mesh_registry: ship_primitives::services::mesh::SharedMeshRegistry =
+        let mesh_registry: ship_platform::services::mesh::SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
 
         let api_state: ApiState = Arc::new(

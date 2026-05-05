@@ -16,25 +16,25 @@ pub fn ship_items(collection: String) -> Vec<Value> {
         Err(_) => return vec![],
     };
     let project_dir = runtime::project::get_project_dir(None).ok();
-    let schemas = ship_primitives::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+    let schemas = ship_platform::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
         .unwrap_or_default();
     let schema = match schemas.iter().find(|s| s.id == collection) {
         Some(s) => s,
         None => return vec![],
     };
-    let mut svc = match ship_primitives::collections::store::open_data_db(&ship_dir) {
+    let mut svc = match ship_platform::collections::store::open_data_db(&ship_dir) {
         Ok(s) => s,
         Err(_) => return vec![],
     };
-    let _ = ship_primitives::collections::store::ensure_collection_table(&mut svc, schema);
-    let req = ship_primitives::collections::query::QueryRequest {
+    let _ = ship_platform::collections::store::ensure_collection_table(&mut svc, schema);
+    let req = ship_platform::collections::query::QueryRequest {
         collection: collection.clone(),
         filter: std::collections::BTreeMap::new(),
         sort: std::collections::BTreeMap::new(),
         limit: 200,
         offset: 0,
     };
-    let items = match ship_primitives::collections::store::query_items(&mut svc, schema, &req) {
+    let items = match ship_platform::collections::store::query_items(&mut svc, schema, &req) {
         Ok(items) => items,
         Err(_) => return vec![],
     };
@@ -52,7 +52,7 @@ pub fn ship_schema(collection: String) -> Value {
         Err(_) => return Value::UNDEFINED,
     };
     let project_dir = runtime::project::get_project_dir(None).ok();
-    let schemas = ship_primitives::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+    let schemas = ship_platform::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
         .unwrap_or_default();
     match schemas.into_iter().find(|s| s.id == collection) {
         Some(s) => Value::from_serialize(&s),
@@ -68,19 +68,19 @@ pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
         Err(_) => return vec![],
     };
     let project_dir = runtime::project::get_project_dir(None).ok();
-    let schemas = ship_primitives::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+    let schemas = ship_platform::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
         .unwrap_or_default();
     let schema = match schemas.iter().find(|s| s.id == collection) {
         Some(s) => s,
         None => return vec![],
     };
-    let mut svc = match ship_primitives::collections::store::open_data_db(&ship_dir) {
+    let mut svc = match ship_platform::collections::store::open_data_db(&ship_dir) {
         Ok(s) => s,
         Err(_) => return vec![],
     };
-    let _ = ship_primitives::collections::store::ensure_collection_table(&mut svc, schema);
+    let _ = ship_platform::collections::store::ensure_collection_table(&mut svc, schema);
     let req = build_query_request(&collection, &opts);
-    let items = match ship_primitives::collections::store::query_items(&mut svc, schema, &req) {
+    let items = match ship_platform::collections::store::query_items(&mut svc, schema, &req) {
         Ok(items) => items,
         Err(_) => return vec![],
     };
@@ -94,7 +94,7 @@ pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
 fn build_query_request(
     collection: &str,
     opts: &Option<Value>,
-) -> ship_primitives::collections::query::QueryRequest {
+) -> ship_platform::collections::query::QueryRequest {
     let mut filter = std::collections::BTreeMap::new();
     let mut sort = std::collections::BTreeMap::new();
     let mut limit: u32 = 200;
@@ -120,7 +120,7 @@ fn build_query_request(
         }
     }
 
-    ship_primitives::collections::query::QueryRequest {
+    ship_platform::collections::query::QueryRequest {
         collection: collection.to_string(),
         filter,
         sort,
@@ -151,14 +151,14 @@ fn parse_sort_string(val: &serde_json::Value, sort: &mut std::collections::BTree
 /// data store can't be opened — view filter callers degrade to an empty
 /// list rather than failing the render.
 fn canvas_artifact_service()
--> Option<(ship_primitives::artifacts::ArtifactService, ship_substrate::data::DataService)> {
+-> Option<(ship_platform::artifacts::ArtifactService, ship_substrate::data::DataService)> {
     let global = runtime::project::get_global_dir().ok()?;
     let project_ship = runtime::project::get_project_dir(None).ok()?;
     let slug = runtime::project::project_slug_from_ship_dir(&project_ship);
     let mut svc = ship_substrate::data::DataService::open(&global).ok()?;
-    ship_primitives::artifacts::ensure_artifacts_collection(&mut svc).ok()?;
+    ship_platform::artifacts::ensure_artifacts_collection(&mut svc).ok()?;
     let _ = slug;
-    Some((ship_primitives::artifacts::ArtifactService::new(&global), svc))
+    Some((ship_platform::artifacts::ArtifactService::new(&global), svc))
 }
 
 /// Global function: `ship_canvas_docs()`.
@@ -176,8 +176,8 @@ pub fn ship_canvas_docs() -> Vec<Value> {
     filter.insert("collection_id".to_string(), serde_json::Value::String("canvas".to_string()));
     let mut sort = std::collections::BTreeMap::new();
     sort.insert("created_at".to_string(), -1);
-    let req = ship_primitives::collections::query::QueryRequest {
-        collection: ship_primitives::artifacts::ARTIFACTS_COLLECTION_ID.to_string(),
+    let req = ship_platform::collections::query::QueryRequest {
+        collection: ship_platform::artifacts::ARTIFACTS_COLLECTION_ID.to_string(),
         filter,
         sort,
         limit: 100,

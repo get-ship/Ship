@@ -261,7 +261,7 @@ pub async fn get_skill_vars(
 
     validate_skill_id(&skill_id)?;
 
-    let vars = ship_primitives::agents::skill_vars::get_skill_vars(&ship_dir, &skill_id).map_err(|e| {
+    let vars = ship_platform::agents::skill_vars::get_skill_vars(&ship_dir, &skill_id).map_err(|e| {
         err_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             &format!("failed to read skill vars: {e}"),
@@ -321,7 +321,7 @@ pub async fn set_skill_var(
             )
         })?;
 
-    ship_primitives::agents::skill_vars::set_skill_var(&ship_dir, &skill_id, &key, value).map_err(|e| {
+    ship_platform::agents::skill_vars::set_skill_var(&ship_dir, &skill_id, &key, value).map_err(|e| {
         let msg = e.to_string();
         if msg.contains("unknown variable") || msg.contains("no assets/vars.json") {
             err_response(StatusCode::NOT_FOUND, &msg)

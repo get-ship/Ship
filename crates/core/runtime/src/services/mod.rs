@@ -1,5 +1,5 @@
 // Cross-component integration tests for the service layer. The service
-// implementations themselves live in `ship-primitives::services`; this
+// implementations themselves live in `ship-platform::services`; this
 // module exists solely to host tests that span both substrate and
 // primitives without inviting either crate to take a dev-dependency on
 // the other.

@@ -26,7 +26,7 @@ use crate::services::specs::shape::{
     spec_from_item,
 };
 
-use ship_primitives::collections::builtin::SPECS_ID;
+use ship_platform::collections::builtin::SPECS_ID;
 
 type Resp = (StatusCode, Json<MeshResponse>);
 
@@ -146,7 +146,7 @@ pub struct UpdateSpecRequest {
     tag = "specs"
 )]
 pub async fn list_specs(State(state): State<ApiState>) -> impl IntoResponse {
-    let req = ship_primitives::collections::query::QueryRequest {
+    let req = ship_platform::collections::query::QueryRequest {
         collection: SPECS_ID.to_string(),
         filter: Default::default(),
         sort: {

@@ -21,7 +21,7 @@ use std::fs;
 use tempfile::TempDir;
 
 use compiler::lockfile::ShipLock;
-use ship_primitives::registry::cache::PackageCache;
+use ship_platform::registry::cache::PackageCache;
 
 use fixtures::{write, write_lock};
 
@@ -33,8 +33,8 @@ use fixtures::{write, write_lock};
 
 #[test]
 fn install_idempotent_second_run_does_not_rewrite_lock() {
-    use ship_primitives::registry::install::{InstallOptions, resolve_and_fetch};
-    use ship_primitives::registry::types::{Dependency, ShipManifest as RegistryManifest};
+    use ship_platform::registry::install::{InstallOptions, resolve_and_fetch};
+    use ship_platform::registry::types::{Dependency, ShipManifest as RegistryManifest};
 
     let tmp = TempDir::new().unwrap();
     let cache_tmp = TempDir::new().unwrap();
@@ -96,8 +96,8 @@ fn install_idempotent_second_run_does_not_rewrite_lock() {
 
 #[test]
 fn frozen_install_fails_when_lock_is_stale() {
-    use ship_primitives::registry::install::{InstallOptions, resolve_and_fetch};
-    use ship_primitives::registry::types::{Dependency, ShipManifest as RegistryManifest};
+    use ship_platform::registry::install::{InstallOptions, resolve_and_fetch};
+    use ship_platform::registry::types::{Dependency, ShipManifest as RegistryManifest};
 
     let tmp = TempDir::new().unwrap();
     let cache_tmp = TempDir::new().unwrap();
@@ -138,8 +138,8 @@ fn frozen_install_fails_when_lock_is_stale() {
 
 #[test]
 fn install_writes_lock_with_correct_package_entry() {
-    use ship_primitives::registry::install::{InstallOptions, resolve_and_fetch};
-    use ship_primitives::registry::types::{Dependency, ShipManifest as RegistryManifest};
+    use ship_platform::registry::install::{InstallOptions, resolve_and_fetch};
+    use ship_platform::registry::types::{Dependency, ShipManifest as RegistryManifest};
 
     let tmp = TempDir::new().unwrap();
     let cache_tmp = TempDir::new().unwrap();
@@ -203,7 +203,7 @@ fn install_writes_lock_with_correct_package_entry() {
 #[test]
 fn workspace_state_active_profile_round_trip() {
     use runtime::project::init_project;
-    use ship_primitives::kv;
+    use ship_platform::kv;
     use ship_substrate::db;
 
     let tmp = TempDir::new().unwrap();

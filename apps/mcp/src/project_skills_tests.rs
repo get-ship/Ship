@@ -38,7 +38,7 @@ fn write_manifest_with_skill_paths(ship_dir: &std::path::Path, paths: &[&str]) {
         r#"{{"id": "test123", "project": {{"skill_paths": [{}]}}}}"#,
         paths_json.join(", ")
     );
-    std::fs::write(ship_dir.join(ship_primitives::config::PRIMARY_CONFIG_FILE), content).unwrap();
+    std::fs::write(ship_dir.join(ship_platform::config::PRIMARY_CONFIG_FILE), content).unwrap();
 }
 
 #[test]

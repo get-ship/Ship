@@ -26,7 +26,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 /// The cleanup handler receives the event and acts on it.
 #[test]
 fn cleanup_handler_exists_for_merged_events() {
-    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/handlers.rs");
+    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/handlers.rs");
     assert!(
         source.contains("job_cleanup") || source.contains("handle_job_cleanup"),
         "a cleanup handler must exist for merged job events"
@@ -36,8 +36,8 @@ fn cleanup_handler_exists_for_merged_events() {
 /// The orchestrator event router must route job.merged to cleanup.
 #[test]
 fn job_merged_routes_to_cleanup() {
-    // Orchestration logic moved to ship_primitives::services::orchestrator::router
-    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/router.rs");
+    // Orchestration logic moved to ship_platform::services::orchestrator::router
+    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     assert!(
         source.contains("job.merged"),
         "orchestrator router must handle job.merged events"
@@ -51,7 +51,7 @@ fn job_merged_routes_to_cleanup() {
 /// Cleanup must remove the process registry entry.
 #[test]
 fn job_merged_unregisters_from_process_registry() {
-    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/router.rs");
+    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     assert!(
         source.contains("unregister"),
         "job.merged handler must unregister from process registry"
@@ -63,7 +63,7 @@ fn job_merged_unregisters_from_process_registry() {
 /// and tmux session cleanup independently.
 #[test]
 fn cleanup_delegates_to_platform() {
-    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/handlers.rs");
+    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/handlers.rs");
     assert!(
         source.contains("cleanup_job"),
         "cleanup must delegate to platform.cleanup_job for resource cleanup"
@@ -74,7 +74,7 @@ fn cleanup_delegates_to_platform() {
 /// for post-mortem investigation.
 #[test]
 fn job_failed_does_not_trigger_cleanup() {
-    let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/router.rs");
+    let source = include_str!("../../../../crates/core/ship-platform/src/services/orchestrator/router.rs");
     // Find the job.failed handler and verify it doesn't call cleanup
     let lines: Vec<&str> = source.lines().collect();
     let failed_handler = lines.iter().enumerate()

@@ -16,7 +16,7 @@ use chrono::Utc;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::job::event_types;
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use ship_primitives::services::dispatch_ports::{ExitCause, ExitSignal, JobExecutor};
+use ship_platform::services::dispatch_ports::{ExitCause, ExitSignal, JobExecutor};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -52,7 +52,7 @@ pub(crate) fn start_exit_handler(
                     let exit_signal = signal
                         .exit_code
                         .and_then(|c| if c != 0 { Some("non-zero") } else { None });
-                    ship_primitives::services::orchestrator::emit::emit_process_exited(
+                    ship_platform::services::orchestrator::emit::emit_process_exited(
                         &kernel,
                         &signal.slug,
                         None,
@@ -114,7 +114,7 @@ pub(crate) fn start_exit_handler(
                     // Record the substrate teardown, then fail the job.
                     // Without cause-awareness this path would have silently
                     // emitted job.completed — the exact bug this slice closes.
-                    ship_primitives::services::orchestrator::emit::emit_executor_session_destroyed(
+                    ship_platform::services::orchestrator::emit::emit_executor_session_destroyed(
                         &kernel,
                         &signal.slug,
                         "tmux_window",
@@ -267,7 +267,7 @@ async fn emit_job_event(
         }
     };
 
-    ship_primitives::services::orchestrator::emit::persist_and_route(
+    ship_platform::services::orchestrator::emit::persist_and_route(
         kernel, envelope, slug, None,
     ).await;
 }

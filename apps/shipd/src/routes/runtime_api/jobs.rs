@@ -374,7 +374,7 @@ pub async fn create_job(
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps
     // so projections can track pipeline state.
-    let payload = match ship_primitives::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
+    let payload = match ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
         Ok(p) => p,
         Err(e) => {
             return (
@@ -600,7 +600,7 @@ pub async fn end_job(
         if let Some(dh) = state.dispatch_handle() {
             let txs = dh.activity_txs.lock().await;
             if let Some(tx) = txs.get(&req.slug) {
-                let _ = tx.send(ship_primitives::services::orchestrator::StepActivity::TurnEnded);
+                let _ = tx.send(ship_platform::services::orchestrator::StepActivity::TurnEnded);
                 return (
                     StatusCode::OK,
                     Json(MeshResponse { ok: true, data: serde_json::json!(format!("turn ended for pipeline step '{}'", req.slug)) }),

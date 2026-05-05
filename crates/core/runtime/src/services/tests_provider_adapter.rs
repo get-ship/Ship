@@ -1,7 +1,7 @@
 //! Tests for the provider adapter registry and trait contract.
 
-use ship_primitives::services::dispatch_ports::LaunchProfile;
-use ship_primitives::services::provider_adapter::{adapter_for, adapter_for_or_default};
+use ship_platform::services::dispatch_ports::LaunchProfile;
+use ship_platform::services::provider_adapter::{adapter_for, adapter_for_or_default};
 
 fn default_profile() -> LaunchProfile {
     LaunchProfile { persist_session: true, ..Default::default() }

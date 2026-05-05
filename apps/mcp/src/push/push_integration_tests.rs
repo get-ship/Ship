@@ -429,11 +429,11 @@ async fn agents_auto_register_discover_and_communicate() {
         read_namespaces: vec!["mesh.".to_string()],
         subscribe_namespaces: vec!["mesh.".to_string()],
     };
-    let handler: Box<dyn ship_primitives::services::ServiceHandler> =
-        Box::new(ship_primitives::services::mesh::MeshService::new(
+    let handler: Box<dyn ship_platform::services::ServiceHandler> =
+        Box::new(ship_platform::services::mesh::MeshService::new(
             tokio::sync::mpsc::unbounded_channel().0,
         ));
-    ship_primitives::services::spawn_service(&mut kr, "service.mesh", mesh_config, handler).unwrap();
+    ship_platform::services::spawn_service(&mut kr, "service.mesh", mesh_config, handler).unwrap();
 
     // AGENTS: Both subscribe to mesh.*
     let agent_a_log = wire_agent(

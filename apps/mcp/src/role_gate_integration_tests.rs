@@ -1,6 +1,6 @@
 use super::*;
 use runtime::project::init_project;
-use ship_primitives::config::{AgentProfile, get_config, save_config};
+use ship_platform::config::{AgentProfile, get_config, save_config};
 use tempfile::tempdir;
 
 fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {

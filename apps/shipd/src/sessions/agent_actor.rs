@@ -25,8 +25,8 @@ use std::sync::Mutex;
 
 use anyhow::{anyhow, Result};
 use chrono::Utc;
-use ship_primitives::services::dispatch_ports::LaunchProfile;
-use ship_primitives::services::provider_adapter::{adapter_for, ProviderEvent};
+use ship_platform::services::dispatch_ports::LaunchProfile;
+use ship_platform::services::provider_adapter::{adapter_for, ProviderEvent};
 use ship_substrate::supervisor::{spawn_actor, ActorKind, ActorProfile, TransportKind};
 use tokio::sync::broadcast;
 
@@ -240,7 +240,7 @@ fn spawn_reader_middleware(
 /// back to Idle.
 pub fn run_headless_turn(
     session: super::types::PtySession,
-    launch: ship_primitives::services::dispatch_ports::LaunchCommand,
+    launch: ship_platform::services::dispatch_ports::LaunchCommand,
     provider_id: String,
     work_dir: PathBuf,
 ) -> Result<()> {

@@ -6,11 +6,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
-use ship_primitives::services::dispatch_ports::{
+use ship_platform::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
-use ship_primitives::services::orchestrator::emit::emit_executor_session_destroyed;
-use ship_primitives::services::provider_adapter::adapter_for_or_default;
+use ship_platform::services::orchestrator::emit::emit_executor_session_destroyed;
+use ship_platform::services::provider_adapter::adapter_for_or_default;
 use tokio::sync::Mutex;
 
 use super::super::helpers::{ensure_tmux_session, kill_tmux_session};

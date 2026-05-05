@@ -16,7 +16,7 @@ mod cross_component {
     use ship_substrate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
     use ship_substrate::events::validator::{CallerKind, EmitContext};
     use ship_substrate::events::{ActorStore, EventEnvelope};
-    use ship_primitives::services::{ServiceHandler, spawn_service};
+    use ship_platform::services::{ServiceHandler, spawn_service};
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 

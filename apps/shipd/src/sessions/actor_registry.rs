@@ -25,7 +25,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use ship_primitives::services::provider_adapter::ProviderEvent;
+use ship_platform::services::provider_adapter::ProviderEvent;
 use ship_substrate::supervisor::ActorHandle;
 use std::path::PathBuf;
 use tokio::sync::broadcast;

@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use ship_primitives::sessions::{
+use ship_platform::sessions::{
     get_active_session as runtime_get_active_session,
     record_session_progress as runtime_record_workspace_session_progress,
 };

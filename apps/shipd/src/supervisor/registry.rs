@@ -3,7 +3,7 @@
 
 use futures::future::join_all;
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
-use ship_primitives::services::dispatch_ports::{ExecutorHandle, JobExecutor};
+use ship_platform::services::dispatch_ports::{ExecutorHandle, JobExecutor};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;

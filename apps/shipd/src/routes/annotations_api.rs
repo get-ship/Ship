@@ -13,8 +13,8 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use ship_primitives::collections::builtin::{annotations_schema, ANNOTATIONS_ID};
-use ship_primitives::collections::service as collection_service;
+use ship_platform::collections::builtin::{annotations_schema, ANNOTATIONS_ID};
+use ship_platform::collections::service as collection_service;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::annotation::AnnotationEvent;
 use ulid::Ulid;

@@ -151,7 +151,7 @@ pub fn glue_other_sections(
 /// when the pipeline isn't loadable (missing or malformed) — view is
 /// expected to render `—` in that case.
 pub fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
-    use ship_primitives::services::orchestrator::pipeline_loader;
+    use ship_platform::services::orchestrator::pipeline_loader;
     let payload = ship_substrate::events::job::JobCreatedPayload {
         job_id: String::new(),
         slug: String::new(),

@@ -8,7 +8,7 @@ use rmcp::{
     },
     service::{NotificationContext, RequestContext},
 };
-use ship_primitives::config::get_active_agent;
+use ship_platform::config::get_active_agent;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 

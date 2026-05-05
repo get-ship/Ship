@@ -13,20 +13,20 @@ use rmcp::transport::streamable_http_server::{
 use std::path::Path;
 use tokio_util::sync::CancellationToken;
 
-use ship_primitives::config::DiskBackedConfig;
+use ship_platform::config::DiskBackedConfig;
 
 use crate::server::ShipServer;
 
 /// Read the MCP bearer token from a given credentials.jsonc path.
 /// Returns None if the file is absent or no `mcp.token` is set.
 pub fn read_token_from_path(path: &Path) -> Option<String> {
-    let creds = ship_primitives::config::Credentials::load_at(path);
+    let creds = ship_platform::config::Credentials::load_at(path);
     creds.mcp_token().map(|s| s.to_string())
 }
 
 /// Read the MCP bearer token from `~/.ship/machine/credentials.jsonc`.
 pub fn read_auth_token() -> Result<Option<String>> {
-    Ok(ship_primitives::config::Credentials::load()
+    Ok(ship_platform::config::Credentials::load()
         .mcp_token()
         .map(|s| s.to_string()))
 }

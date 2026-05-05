@@ -1,5 +1,5 @@
 use anyhow::Result;
-use ship_primitives::config::get_active_agent;
+use ship_platform::config::get_active_agent;
 use std::path::Path;
 use std::process::Command as ProcessCommand;
 

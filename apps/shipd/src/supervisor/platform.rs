@@ -5,10 +5,10 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
-use ship_primitives::services::dispatch_ports::{
+use ship_platform::services::dispatch_ports::{
     AgentPlatform, ExitSignal, ExecutorHandle, JobExecutor, ProcessRegistryPort,
 };
-use ship_primitives::services::orchestrator::emit::emit_executor_session_destroyed;
+use ship_platform::services::orchestrator::emit::emit_executor_session_destroyed;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;

@@ -19,12 +19,12 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 
-pub use ship_primitives::config::Credentials;
-pub use ship_primitives::config::DiskBackedConfig;
-pub use ship_primitives::config::credentials::{Account as CredentialsAccount, Mcp as CredentialsMcp};
+pub use ship_platform::config::Credentials;
+pub use ship_platform::config::DiskBackedConfig;
+pub use ship_platform::config::credentials::{Account as CredentialsAccount, Mcp as CredentialsMcp};
 
-use ship_primitives::config::library::{Cloud, Defaults, Identity, LibrarySettings};
-use ship_primitives::config::local::{Dispatch, LocalSettings, Terminal, Worktrees};
+use ship_platform::config::library::{Cloud, Defaults, Identity, LibrarySettings};
+use ship_platform::config::local::{Dispatch, LocalSettings, Terminal, Worktrees};
 
 /// Façade over the JSONC settings stores.
 ///

@@ -1,16 +1,16 @@
 use anyhow::Result;
-use ship_primitives::agents::import::{
+use ship_platform::agents::import::{
     import_from_provider, import_permissions_from_provider, import_skills_from_provider,
 };
-use ship_primitives::agents::providers::{
+use ship_platform::agents::providers::{
     autodetect_providers, disable_provider, enable_provider, list_models, list_providers,
 };
-use ship_primitives::agents::skill::{
+use ship_platform::agents::skill::{
     SkillInstallScope, create_skill, create_user_skill, delete_skill, delete_user_skill,
     get_effective_skill, list_effective_skills, list_skills, list_user_skills, update_skill,
     update_user_skill,
 };
-use ship_primitives::config::{
+use ship_platform::config::{
     McpServerConfig, McpServerType, add_mcp_server, get_config, list_mcp_servers,
     remove_mcp_server,
 };
@@ -151,7 +151,7 @@ pub fn handle_skill_action(action: SkillAction, project_dir: Option<&Path>) -> R
                 SkillWriteScope::Project => SkillInstallScope::Project,
                 SkillWriteScope::User => SkillInstallScope::User,
             };
-            let installed = ship_primitives::agents::skill::install_skill_from_source(
+            let installed = ship_platform::agents::skill::install_skill_from_source(
                 project_dir,
                 &source,
                 &id,
@@ -212,11 +212,11 @@ pub fn handle_skill_action(action: SkillAction, project_dir: Option<&Path>) -> R
             let skill = match scope {
                 SkillReadScope::Project => {
                     let dir = require_project_dir(project_dir)?;
-                    let skill = ship_primitives::agents::skill::get_skill(dir, &id)?;
+                    let skill = ship_platform::agents::skill::get_skill(dir, &id)?;
                     log_action(dir, "skill get", &format!("Got skill: {}", id)).ok();
                     skill
                 }
-                SkillReadScope::User => ship_primitives::agents::skill::get_user_skill(&id)?,
+                SkillReadScope::User => ship_platform::agents::skill::get_user_skill(&id)?,
                 SkillReadScope::Effective => {
                     get_effective_skill(require_project_dir(project_dir)?, &id)?
                 }

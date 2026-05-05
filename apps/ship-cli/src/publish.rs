@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 use compiler::manifest::ShipManifest;
-use ship_primitives::registry::hash::{ExportHashes, compute_export_hashes};
+use ship_platform::registry::hash::{ExportHashes, compute_export_hashes};
 
 use crate::config::{Credentials, DiskBackedConfig};
 

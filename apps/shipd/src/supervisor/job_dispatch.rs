@@ -2,10 +2,10 @@
 //!
 //! Constructs the `OrchestratorContext` with shipd's concrete executor,
 //! isolation strategy, and platform implementations, then delegates all
-//! event handling to `ship_primitives::services::orchestrator::router`.
+//! event handling to `ship_platform::services::orchestrator::router`.
 
-use ship_primitives::services::dispatch_ports::JobExecutor;
-use ship_primitives::services::orchestrator::OrchestratorContext;
+use ship_platform::services::dispatch_ports::JobExecutor;
+use ship_platform::services::orchestrator::OrchestratorContext;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -24,7 +24,7 @@ pub struct DispatchHandle {
     pub executor: Arc<dyn JobExecutor>,
     /// Shared with OrchestratorContext — allows API handlers to send
     /// activity signals (e.g. TurnEnded from Stop hook) to step monitors.
-    pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<ship_primitives::services::orchestrator::StepActivity>>>>,
+    pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<ship_platform::services::orchestrator::StepActivity>>>>,
 }
 
 /// Subscribe to `job.*` kernel events and dispatch jobs to worktrees.
@@ -72,18 +72,18 @@ pub async fn subscribe_job_events(
         executor: executor.clone(),
         platform,
         registry: Arc::new(RegistryAdapter(registry.clone())),
-        probe: Arc::new(ship_primitives::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: activity_txs.clone(),
         job_locks: Arc::new(Mutex::new(HashMap::new())),
-        event_dedup: Arc::new(ship_primitives::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
     });
 
     let kr = kernel.clone();
     crate::supervised::spawn_monitored(health_registry, "job-orchestrator", async move {
-        ship_primitives::services::orchestrator::router::start_orchestrator(kr, octx).await;
+        ship_platform::services::orchestrator::router::start_orchestrator(kr, octx).await;
     });
 
     Some(DispatchHandle { registry, executor, activity_txs })

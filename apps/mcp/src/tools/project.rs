@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use runtime::project::{get_active_project_global, get_project_dir, set_active_project_global};
 use runtime::project::{get_project_name, list_registered_projects};
-use ship_primitives::config::get_config;
-use ship_primitives::sessions::get_active_session as runtime_get_active_session;
+use ship_platform::config::get_config;
+use ship_platform::sessions::get_active_session as runtime_get_active_session;
 use ship_substrate::events::read_recent_events;
 use ship_substrate::log::read_log;
 use tokio::sync::Mutex;

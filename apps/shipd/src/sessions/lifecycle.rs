@@ -13,8 +13,8 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
-use ship_primitives::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use ship_primitives::services::provider_adapter::adapter_for;
+use ship_platform::services::dispatch_ports::{LaunchCommand, LaunchProfile};
+use ship_platform::services::provider_adapter::adapter_for;
 use tokio::sync::broadcast;
 
 use super::registry::SessionRegistry;
@@ -191,7 +191,7 @@ pub fn send_agent_message(
     ) {
         tracing::error!(session = %session.0.meta.lock().unwrap().id, error = %e, "headless turn spawn failed");
         let _ = session.0.event_tx.send(
-            ship_primitives::services::provider_adapter::ProviderEvent::Message {
+            ship_platform::services::provider_adapter::ProviderEvent::Message {
                 text: format!("[ship] turn failed: {e}"),
             },
         );

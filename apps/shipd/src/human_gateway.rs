@@ -11,8 +11,8 @@ pub async fn spawn_human_gateway(
     health_registry: &supervised::HealthRegistry,
 ) {
     use ship_substrate::events::ActorConfig;
-    use ship_primitives::services::human_gateway::{HumanGatewayService, TelegramAdapter};
-    use ship_primitives::services::spawn_service;
+    use ship_platform::services::human_gateway::{HumanGatewayService, TelegramAdapter};
+    use ship_platform::services::spawn_service;
     use std::sync::Arc as StdArc;
 
     let adapter = match TelegramAdapter::from_env() {
@@ -33,7 +33,7 @@ pub async fn spawn_human_gateway(
         subscribe_namespaces: vec!["job.".to_string()],
     };
 
-    let handler: Box<dyn ship_primitives::services::ServiceHandler> = Box::new(
+    let handler: Box<dyn ship_platform::services::ServiceHandler> = Box::new(
         HumanGatewayService::new(StdArc::new(adapter), outbox_tx),
     );
 

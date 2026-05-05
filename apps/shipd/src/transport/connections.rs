@@ -183,8 +183,8 @@ static MESH_SPAWNED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
 pub async fn spawn_mesh_service(
     kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
     health_registry: &crate::supervised::HealthRegistry,
-) -> Result<ship_primitives::services::mesh::SharedMeshRegistry> {
-    let registry: ship_primitives::services::mesh::SharedMeshRegistry =
+) -> Result<ship_platform::services::mesh::SharedMeshRegistry> {
+    let registry: ship_platform::services::mesh::SharedMeshRegistry =
         Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
 
     if MESH_SPAWNED.set(()).is_err() {
@@ -200,14 +200,14 @@ pub async fn spawn_mesh_service(
         read_namespaces: vec!["mesh.".to_string()],
         subscribe_namespaces: vec!["mesh.".to_string()],
     };
-    let handler: Box<dyn ship_primitives::services::ServiceHandler> = Box::new(
-        ship_primitives::services::mesh::MeshService::with_shared_registry(
+    let handler: Box<dyn ship_platform::services::ServiceHandler> = Box::new(
+        ship_platform::services::mesh::MeshService::with_shared_registry(
             outbox_tx,
             registry.clone(),
         ),
     );
 
-    ship_primitives::services::spawn_service(
+    ship_platform::services::spawn_service(
         &mut *kernel.lock().await,
         "service.mesh",
         mesh_config,

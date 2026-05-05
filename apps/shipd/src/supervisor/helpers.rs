@@ -9,7 +9,7 @@ pub(crate) fn worktrees_dir() -> PathBuf {
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| "ship".to_string());
-    ship_primitives::config::worktrees_dir(&project)
+    ship_platform::config::worktrees_dir(&project)
 }
 
 pub(crate) fn repo_dir() -> PathBuf {
@@ -220,8 +220,8 @@ pub(crate) fn delete_branch(branch: &str) -> Result<()> {
 }
 
 pub(crate) fn provider_cli(providers: &[String]) -> Option<String> {
-    use ship_primitives::services::dispatch_ports::LaunchProfile;
-    use ship_primitives::services::provider_adapter::adapter_for;
+    use ship_platform::services::dispatch_ports::LaunchProfile;
+    use ship_platform::services::provider_adapter::adapter_for;
 
     for p in providers {
         match p.as_str() {

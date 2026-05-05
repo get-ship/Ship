@@ -5,7 +5,7 @@
 
 use anyhow::{Context, Result, anyhow};
 use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
-use ship_primitives::services::mesh::SharedMeshRegistry;
+use ship_platform::services::mesh::SharedMeshRegistry;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -104,9 +104,9 @@ pub struct ShipRuntime {
     /// Wall-clock instant the daemon process started — used for uptime.
     started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
-    hook_engine: std::sync::OnceLock<std::sync::Arc<ship_primitives::hooks::engine::HookEngine>>,
+    hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::hooks::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
-    config_watcher: std::sync::OnceLock<ship_primitives::config::ConfigWatcher>,
+    config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
     /// `RulesService` impl — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
@@ -208,18 +208,18 @@ impl ShipRuntime {
             // Open data.db + run collections migration first.
             let _ = ship_substrate::data::DataService::open(&dir)?;
             // Migrate kv rows from platform.db to kv.db before migration 0002 drops them.
-            ship_primitives::kv::migrate_from_platform_db(&dir)
+            ship_platform::kv::migrate_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
             ship_substrate::db::ensure_db_at(&dir)?;
             // One-shot drain of the legacy `settings` KV namespace into the
             // daemon_settings table. Idempotent and inexpensive on every boot.
-            if let Err(e) = ship_primitives::config::drain_legacy_settings_kv() {
+            if let Err(e) = ship_platform::config::drain_legacy_settings_kv() {
                 tracing::warn!("settings drain from legacy KV: {e}");
             }
             // One-shot drain of legacy per-project `runtime::*` KV rows. The
             // ProjectConfig variant is gone; rows are deleted. (Providers
             // now lives in ship.jsonc only.)
-            if let Err(e) = ship_primitives::config::drain_legacy_project_config_kv() {
+            if let Err(e) = ship_platform::config::drain_legacy_project_config_kv() {
                 tracing::warn!("project config drain from legacy KV: {e}");
             }
             // One-shot drain of the legacy `project` KV namespace into
@@ -543,7 +543,7 @@ impl ShipRuntime {
         tokio::task::spawn_blocking(move || {
             match ship_substrate::data::DataService::open(&ship_dir) {
                 Ok(mut svc) => {
-                    if let Err(e) = ship_primitives::artifacts::gc::backfill_content_hashes(&ship_dir, &mut svc) {
+                    if let Err(e) = ship_platform::artifacts::gc::backfill_content_hashes(&ship_dir, &mut svc) {
                         tracing::warn!("artifact content_hash backfill failed: {e}");
                     }
                 }
@@ -570,7 +570,7 @@ impl ShipRuntime {
                     loop {
                         match ship_substrate::data::DataService::open(&ship_dir) {
                             Ok(mut svc) => {
-                                if let Err(e) = ship_primitives::artifacts::gc::collect_expired(
+                                if let Err(e) = ship_platform::artifacts::gc::collect_expired(
                                     &ship_dir, &mut svc, &kernel,
                                 ).await {
                                     tracing::warn!("artifact GC run failed: {e}");
@@ -595,7 +595,7 @@ impl ShipRuntime {
         // user-scope vector. Project-scope triggers are loaded by the hook
         // engine when a project workspace activates.
         let library_dir = ship_substrate::ShipHome::at(self.ship_dir.clone()).library_dir();
-        match ship_primitives::hooks::engine::spawn_hook_service(
+        match ship_platform::hooks::engine::spawn_hook_service(
             self.kernel.clone(),
             library_dir,
         )
@@ -603,7 +603,7 @@ impl ShipRuntime {
         {
             Ok(engine) => {
                 // Also start the filesystem watcher for hot-reload.
-                if let Err(e) = ship_primitives::hooks::watcher::spawn_watcher(engine.clone()) {
+                if let Err(e) = ship_platform::hooks::watcher::spawn_watcher(engine.clone()) {
                     tracing::warn!("hook watcher failed to start: {e}");
                 }
                 let _ = self.hook_engine.set(engine);
@@ -616,14 +616,14 @@ impl ShipRuntime {
     /// The running hook engine, if started.
     pub fn hook_engine(
         &self,
-    ) -> Option<&std::sync::Arc<ship_primitives::hooks::engine::HookEngine>> {
+    ) -> Option<&std::sync::Arc<ship_platform::hooks::engine::HookEngine>> {
         self.hook_engine.get()
     }
 
     /// The webhook source for the public webhook route, if the engine is running.
     pub fn webhook_source(
         &self,
-    ) -> Option<std::sync::Arc<ship_primitives::hooks::sources::webhook::WebhookSource>> {
+    ) -> Option<std::sync::Arc<ship_platform::hooks::sources::webhook::WebhookSource>> {
         self.hook_engine.get()?.webhook_source()
     }
 
@@ -635,7 +635,7 @@ impl ShipRuntime {
         if self.config_watcher.get().is_some() {
             return;
         }
-        match ship_primitives::config::spawn_config_watcher(
+        match ship_platform::config::spawn_config_watcher(
             self.kernel.clone(),
             self.ship_dir.clone(),
             self.workspace_dir.clone(),
@@ -871,7 +871,7 @@ pub(crate) async fn ensure_data_service<'a>(
     let mut guard = handle.lock().await;
     if guard.is_none() {
         let mut svc = ship_substrate::data::DataService::open(ship_dir)?;
-        ship_primitives::artifacts::ensure_artifacts_collection(&mut svc)
+        ship_platform::artifacts::ensure_artifacts_collection(&mut svc)
             .context("registering built-in artifacts collection")?;
         *guard = Some(svc);
     }

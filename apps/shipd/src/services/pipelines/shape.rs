@@ -258,9 +258,9 @@ pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
 }
 
 pub fn providers_on_path() -> Vec<String> {
-    ship_primitives::agents::providers::PROVIDERS
+    ship_platform::agents::providers::PROVIDERS
         .iter()
-        .filter(|d| ship_primitives::agents::providers::detect_binary(d.binary))
+        .filter(|d| ship_platform::agents::providers::detect_binary(d.binary))
         .map(|d| d.id.to_string())
         .collect()
 }

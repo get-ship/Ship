@@ -1,5 +1,5 @@
 //! Registry dispatcher for `specs.*` ops. Specs are a first-party
-//! collection (`SPECS_ID`); reads go through `ship_primitives::collections::store`
+//! collection (`SPECS_ID`); reads go through `ship_platform::collections::store`
 //! directly, then pipe through `specs::shape` / `specs::view_state` for
 //! the wire shapes the Studio specs view consumes.
 
@@ -11,9 +11,9 @@ use crate::services::files::{FilesService, Scope};
 use crate::services::specs::shape::{Spec, load_body, spec_from_item};
 use crate::services::specs::view_state;
 
-use ship_primitives::collections::builtin::{SPECS_ID, specs_schema};
-use ship_primitives::collections::query::QueryRequest;
-use ship_primitives::collections::store;
+use ship_platform::collections::builtin::{SPECS_ID, specs_schema};
+use ship_platform::collections::query::QueryRequest;
+use ship_platform::collections::store;
 
 #[allow(unused_imports, unused_variables)]
 pub(super) fn try_dispatch(

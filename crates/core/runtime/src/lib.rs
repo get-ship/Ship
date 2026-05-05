@@ -1,7 +1,7 @@
 // `runtime` is now a thin crate housing only L1 wiring code — `project::init`
 // and the `services` module. All previously re-exported substrate/primitives
 // surface has been removed; consumers depend on `ship-substrate` and
-// `ship-primitives` directly.
+// `ship-platform` directly.
 
 pub mod project;
 pub mod services;
@@ -72,7 +72,7 @@ mod tests {
         assert!(ship_path.join("project/releases/TEMPLATE.md").is_file());
         assert!(ship_path.join("project/features/TEMPLATE.md").is_file());
         assert!(ship_path.join("project/notes/TEMPLATE.md").is_file());
-        let cfg = ship_primitives::config::get_config(Some(ship_path.clone()))?;
+        let cfg = ship_platform::config::get_config(Some(ship_path.clone()))?;
         assert!(cfg.agents.is_empty());
         assert!(!ship_path.join("events.ndjson").is_file());
         assert!(ship_path.join("ship.jsonc").is_file());

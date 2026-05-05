@@ -5,7 +5,7 @@
 //! registry, terminal launching, and the platform trait implementations.
 //!
 //! Job orchestration (pipeline advancement, step dispatch, event routing) lives
-//! in `ship_primitives::services::orchestrator`.
+//! in `ship_platform::services::orchestrator`.
 
 pub mod adapters;
 pub(crate) mod agent_lifecycle;

@@ -819,7 +819,7 @@ fn daemon_cleanup() -> Result<()> {
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| "ship".to_string());
-    let worktrees_base = ship_primitives::config::worktrees_dir(&project_name);
+    let worktrees_base = ship_platform::config::worktrees_dir(&project_name);
 
     let orphans: Vec<_> = jobs
         .values()

@@ -13,7 +13,7 @@ path = "src/main.rs"
 compiler = { path = "../core/compiler", features = ["specta"] }
 runtime = { path = "../core/runtime" }
 ship-substrate = { path = "../core/ship-substrate" }
-ship-primitives = { path = "../core/ship-primitives" }
+ship-platform = { path = "../core/ship-platform" }
 ship-types = { path = "../core/ship-types", features = ["specta"] }
 shipd = { path = "../../apps/shipd" }
 specta = { workspace = true, features = ["chrono", "serde_json"] }

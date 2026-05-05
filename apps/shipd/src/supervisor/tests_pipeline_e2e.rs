@@ -13,8 +13,8 @@ use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::store::{EventStore, SqliteEventStore};
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::projections::job::{load_jobs_at, JobStatus};
-use ship_primitives::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
-use ship_primitives::services::orchestrator::OrchestratorContext;
+use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use ship_platform::services::orchestrator::OrchestratorContext;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -196,11 +196,11 @@ async fn pipeline_advances_through_all_steps() {
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
         registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
-        probe: Arc::new(ship_primitives::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(ship_primitives::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
@@ -216,7 +216,7 @@ async fn pipeline_advances_through_all_steps() {
     // Advance pipeline — should dispatch next step (gate).
     // The advance function loads the projection (which includes the completed
     // event), finds unblocked steps, and dispatches them via the executor.
-    let advanced = ship_primitives::services::orchestrator::pipeline::advance_pipeline_at(
+    let advanced = ship_platform::services::orchestrator::pipeline::advance_pipeline_at(
         &kernel, &completed_event, &dctx, &ship_dir,
     ).await;
 
@@ -444,17 +444,17 @@ async fn run_step_advances_to_agent_step() {
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
         registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
-        probe: Arc::new(ship_primitives::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(ship_primitives::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // advance_pipeline with the step_completed event — should dispatch "implement"
-    let advanced = ship_primitives::services::orchestrator::pipeline::advance_pipeline_at(
+    let advanced = ship_platform::services::orchestrator::pipeline::advance_pipeline_at(
         &kernel, &step_completed_event, &dctx, &ship_dir,
     ).await;
 
@@ -533,18 +533,18 @@ async fn first_step_run_executes_without_agent() {
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
         registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
-        probe: Arc::new(ship_primitives::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_platform::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(ship_primitives::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_platform::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // Dispatch the first run step directly — should execute without spawning an agent.
     // Use the _at variant so events persist to the test's temp store.
-    ship_primitives::services::orchestrator::dispatch::dispatch_first_run_step_at(
+    ship_platform::services::orchestrator::dispatch::dispatch_first_run_step_at(
         &kernel, &payload, &dctx, "setup", "echo hello", &ship_dir,
     ).await;
 

@@ -28,11 +28,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use ship_primitives::services::dispatch_ports::{
+use ship_platform::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor, LaunchCommand, LaunchProfile,
 };
-use ship_primitives::services::orchestrator::emit::persist_and_route;
-use ship_primitives::services::provider_adapter::{adapter_for_or_default, ProviderAdapter};
+use ship_platform::services::orchestrator::emit::persist_and_route;
+use ship_platform::services::provider_adapter::{adapter_for_or_default, ProviderAdapter};
 use ship_substrate::supervisor::{spawn_actor, ActorHandle, ActorKind, ActorProfile, TransportKind};
 
 /// Default prompt injected when the caller didn't supply one.

@@ -9,7 +9,7 @@
 use ship_substrate::db::events::list_recent_events_at;
 use ship_substrate::events::kernel_router::KernelRouter;
 use ship_substrate::events::EventEnvelope;
-use ship_primitives::services::dispatch_ports::{ExitCause, ExitSignal};
+use ship_platform::services::dispatch_ports::{ExitCause, ExitSignal};
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -196,7 +196,7 @@ async fn agent_exited_unknown_code_emits_job_failed() {
 
 use async_trait::async_trait;
 use ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED;
-use ship_primitives::services::dispatch_ports::{
+use ship_platform::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, JobContext, JobExecutor,
 };
 

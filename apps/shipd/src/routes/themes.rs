@@ -91,7 +91,7 @@ pub fn resolve_theme_css() -> String {
 // ── Internals ────────────────────────────────────────────────────────────────
 
 fn active_theme_name() -> String {
-    ship_primitives::config::get_setting("theme.name")
+    ship_platform::config::get_setting("theme.name")
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(String::from))

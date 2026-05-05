@@ -83,8 +83,8 @@ async fn point_annotation_persists_and_returns_201() {
     // Persistence: row exists in the annotations collection.
     let mut guard = state.data_service().await.unwrap();
     let data = guard.as_mut().unwrap();
-    let schema = ship_primitives::collections::builtin::annotations_schema();
-    let item = ship_primitives::collections::service::get_item(data, &schema, &id).unwrap();
+    let schema = ship_platform::collections::builtin::annotations_schema();
+    let item = ship_platform::collections::service::get_item(data, &schema, &id).unwrap();
     assert!(item.is_some(), "annotation row missing");
     let row = item.unwrap();
     assert_eq!(row.data["kind"], "point");

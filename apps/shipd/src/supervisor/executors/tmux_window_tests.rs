@@ -56,7 +56,7 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
         eprintln!("skipping: tmux not available");
         return;
     }
-    use ship_primitives::services::dispatch_ports::{LaunchProfile, StepInfo};
+    use ship_platform::services::dispatch_ports::{LaunchProfile, StepInfo};
     let tmp = tempfile::tempdir().unwrap();
     let slug = format!("tmuxwintest-{}", &ship_substrate::gen_ulid()[..8].to_lowercase());
     let session = session_name(&slug);
@@ -109,7 +109,7 @@ async fn resume_handle_refuses_ambiguous_name() {
         eprintln!("skipping: tmux not available");
         return;
     }
-    use ship_primitives::services::dispatch_ports::{LaunchProfile, StepInfo};
+    use ship_platform::services::dispatch_ports::{LaunchProfile, StepInfo};
     let tmp = tempfile::tempdir().unwrap();
     let slug = format!("tmuxwintest-{}", &ship_substrate::gen_ulid()[..8].to_lowercase());
     let session = session_name(&slug);

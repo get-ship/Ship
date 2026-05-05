@@ -69,7 +69,7 @@ fn record_to_api(record: ship_substrate::projects::ProjectRecord, label: Option<
 }
 
 fn active_id() -> Option<String> {
-    ship_primitives::config::get_setting("shell.project.active")
+    ship_platform::config::get_setting("shell.project.active")
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(String::from))
@@ -183,7 +183,7 @@ pub async fn switch_project(
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
     if let Err(e) =
-        ship_primitives::config::set_setting("shell.project.active", serde_json::json!(req.id))
+        ship_platform::config::set_setting("shell.project.active", serde_json::json!(req.id))
     {
         return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }

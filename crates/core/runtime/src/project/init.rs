@@ -55,12 +55,12 @@ pub fn init_project(base_dir: PathBuf) -> Result<PathBuf> {
 
     // Write ship.toml (with a stable project ID) BEFORE any DB access so that
     // project_db_key can read the ID and derive a stable state directory path.
-    if !ship_path.join(ship_primitives::config::PRIMARY_CONFIG_FILE).exists() {
-        let config = ship_primitives::config::ProjectConfig {
+    if !ship_path.join(ship_platform::config::PRIMARY_CONFIG_FILE).exists() {
+        let config = ship_platform::config::ProjectConfig {
             id: ship_substrate::gen_nanoid(),
             ..Default::default()
         };
-        ship_primitives::config::save_config(&config, Some(ship_path.clone()))?;
+        ship_platform::config::save_config(&config, Some(ship_path.clone()))?;
     }
 
     write_if_missing(
@@ -86,7 +86,7 @@ Vision -> Release -> Feature -> Spec -> Close Feature -> Ship Release
 "#,
     )?;
 
-    ship_primitives::config::ensure_standard_dirs(&ship_path)?;
+    ship_platform::config::ensure_standard_dirs(&ship_path)?;
     write_project_gitignore(base_dir.as_ref())?;
 
     Ok(ship_path)
@@ -167,13 +167,13 @@ pub fn init_project_with_registry(base_dir: PathBuf) -> Result<InitWithRegistryR
     let ship_dir = init_project(base_dir)?;
 
     // Seed default dependencies — idempotent, skips if deps already present.
-    let seed = ship_primitives::registry::init_deps::seed_default_dependencies(&ship_dir)?;
+    let seed = ship_platform::registry::init_deps::seed_default_dependencies(&ship_dir)?;
     let deps_seeded = seed.added;
 
     // Best-effort install. Failure is not an error — bare scaffold skills
     // remain as the offline fallback.
     let registry_installed =
-        ship_primitives::registry::init_deps::try_install_init_deps(&ship_dir).unwrap_or_default();
+        ship_platform::registry::init_deps::try_install_init_deps(&ship_dir).unwrap_or_default();
 
     Ok(InitWithRegistryResult {
         ship_dir,

@@ -24,7 +24,7 @@ compiler = { path = "../../crates/core/compiler" }
 lint = { path = "../../crates/core/lint" }
 runtime = { path = "../../crates/core/runtime" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
-ship-primitives = { path = "../../crates/core/ship-primitives" }
+ship-platform = { path = "../../crates/core/ship-platform" }
 anyhow = { workspace = true }
 base64 = { workspace = true }
 chrono = { workspace = true }

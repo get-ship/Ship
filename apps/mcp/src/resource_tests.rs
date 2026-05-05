@@ -207,7 +207,7 @@ async fn skill_get_includes_overridden_variable() {
     );
 
     // Override the variable
-    ship_primitives::agents::skill_vars::set_skill_var(&ship_dir, "commit", "commit_style", serde_json::json!("gitmoji"))
+    ship_platform::agents::skill_vars::set_skill_var(&ship_dir, "commit", "commit_style", serde_json::json!("gitmoji"))
         .unwrap();
 
     let result = resolve("ship://skills/commit", &ship_dir).await.unwrap();

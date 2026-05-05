@@ -189,7 +189,7 @@ pub async fn list_skills(
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(&worktree);
 
     // Use read_skill_paths to discover all skill directories (respects skill_paths config)
-    let skill_dirs = ship_primitives::agents::skill_paths::read_skill_paths(&ship_dir, &worktree);
+    let skill_dirs = ship_platform::agents::skill_paths::read_skill_paths(&ship_dir, &worktree);
 
     let mut skills = Vec::new();
     let mut seen_ids = std::collections::HashSet::new();

@@ -82,7 +82,7 @@ pub async fn dispatch_pipeline(
     }
 
     // Walk up from the daemon's CWD to find `.ship/pipelines/<name>.{yaml,yml,jsonc,json}`.
-    // Matches ship_primitives::services::orchestrator::pipeline_loader::load_pipeline_file's
+    // Matches ship_platform::services::orchestrator::pipeline_loader::load_pipeline_file's
     // resolution strategy so ensure_pipeline (called below) will find the same file.
     let pipeline_path = {
         let mut dir = std::env::current_dir().ok();
@@ -188,7 +188,7 @@ pub async fn dispatch_pipeline(
         baseline_sha: super::resolve_project_head_sha(),
     };
 
-    let payload = match ship_primitives::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
+    let payload = match ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
         Ok(p) => p,
         Err(e) => {
             return (

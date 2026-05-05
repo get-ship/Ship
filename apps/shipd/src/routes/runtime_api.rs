@@ -35,7 +35,7 @@ pub struct SessionsQuery {
 pub(super) fn resolve_project_head_sha() -> Option<String> {
     let project_ship = runtime::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
-    ship_primitives::services::orchestrator::git_helpers::resolve_head_sha(project_root)
+    ship_platform::services::orchestrator::git_helpers::resolve_head_sha(project_root)
 }
 
 /// GET /api/v1/runtime/sessions[?workspace_id=<id>]
@@ -218,12 +218,12 @@ mod tests {
             let mut reg = state.mesh_registry().write().await;
             reg.insert(
                 "agent.test".into(),
-                ship_primitives::services::mesh::MeshEntry {
+                ship_platform::services::mesh::MeshEntry {
                     agent_id: "agent.test".into(),
                     label: "Test Agent".into(),
                     capabilities: vec!["rust".into()],
                     registered_at: chrono::Utc::now(),
-                    status: ship_primitives::services::mesh::AgentStatus::Active,
+                    status: ship_platform::services::mesh::AgentStatus::Active,
                 },
             );
         }

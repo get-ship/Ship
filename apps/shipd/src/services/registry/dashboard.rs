@@ -36,9 +36,9 @@ pub(super) fn try_dispatch(
             // Agents + collections lists.
             let agents = crate::views::state::list_agents(ship_dir);
             let project_dir = runtime::project::get_project_dir(None).ok();
-            let mut schemas = ship_primitives::collections::builtin::all_schemas();
+            let mut schemas = ship_platform::collections::builtin::all_schemas();
             schemas.extend(
-                ship_primitives::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
+                ship_platform::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
                     .unwrap_or_default(),
             );
             let collections: Vec<_> = schemas.iter().map(|s| json!({

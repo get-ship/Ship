@@ -1,7 +1,7 @@
 //! Project layout, identity, discovery, registry, global state.
 //!
 //! L0 surface only. `init_project` and `init_project_with_registry` live in
-//! ship-primitives / runtime (they depend on config schemas and registry).
+//! ship-platform / runtime (they depend on config schemas and registry).
 
 pub const SHIP_DIR_NAME: &str = ".ship";
 pub const PRIMARY_CONFIG_FILE: &str = "ship.jsonc";

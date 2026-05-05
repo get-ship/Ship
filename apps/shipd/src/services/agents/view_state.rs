@@ -286,7 +286,7 @@ pub(crate) fn load_agent_with_scopes(
 // The detail-panel pickers need to know what the user can select. We
 // enumerate the three stores on disk:
 //   - skills: reuse list_skills() → id + name
-//   - mcp: ship_primitives::config::list_mcp_servers()
+//   - mcp: ship_platform::config::list_mcp_servers()
 //   - rules: scan .ship/rules/*.md
 
 #[derive(Serialize, Debug)]

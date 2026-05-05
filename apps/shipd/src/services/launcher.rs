@@ -58,7 +58,7 @@ pub async fn launch_collection_item(
     let baseline_sha = runtime::project::get_project_dir(None)
         .ok()
         .and_then(|p| p.parent().map(std::path::Path::to_path_buf))
-        .and_then(|root| ship_primitives::services::orchestrator::git_helpers::resolve_head_sha(&root));
+        .and_then(|root| ship_platform::services::orchestrator::git_helpers::resolve_head_sha(&root));
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
         slug,
@@ -79,7 +79,7 @@ pub async fn launch_collection_item(
         headless: false,
         baseline_sha,
     };
-    let payload = ship_primitives::services::orchestrator::pipeline_loader::ensure_pipeline(payload)
+    let payload = ship_platform::services::orchestrator::pipeline_loader::ensure_pipeline(payload)
         .map_err(LaunchError::Validation)?;
     let envelope = EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))

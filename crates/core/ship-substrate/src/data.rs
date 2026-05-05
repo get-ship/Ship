@@ -50,7 +50,7 @@ impl DataService {
     }
 
     /// Register built-in schemas. Idempotent — safe to call on every open.
-    /// The actual schema registrations are injected by ship-primitives via
+    /// The actual schema registrations are injected by ship-platform via
     /// `DataService::register_schema`; this is a no-op at the substrate level.
     pub fn run_startup(&mut self, _ship_dir: &Path) -> Result<()> {
         Ok(())

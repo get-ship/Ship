@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use ship_primitives::agents::providers::{list_models, list_providers};
-use ship_primitives::agents::skill::{get_effective_skill, list_effective_skills};
-use ship_primitives::agents::skill_vars::get_skill_vars;
-use ship_primitives::config::get_config;
-use ship_primitives::sessions::{
+use ship_platform::agents::providers::{list_models, list_providers};
+use ship_platform::agents::skill::{get_effective_skill, list_effective_skills};
+use ship_platform::agents::skill_vars::get_skill_vars;
+use ship_platform::config::get_config;
+use ship_platform::sessions::{
     get_active_session as runtime_get_active_session, list_sessions as runtime_list_sessions,
 };
 use ship_substrate::log::read_log;

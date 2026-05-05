@@ -28,11 +28,11 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use ship_substrate::events::KernelRouter;
-use ship_primitives::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
-use ship_primitives::services::provider_adapter::adapter_for_or_default;
-use ship_primitives::services::providers::codex_session::CodexSession;
-use ship_primitives::services::providers::opencode_session::OpenCodeSession;
-use ship_primitives::services::server_session::ServerSession;
+use ship_platform::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
+use ship_platform::services::provider_adapter::adapter_for_or_default;
+use ship_platform::services::providers::codex_session::CodexSession;
+use ship_platform::services::providers::opencode_session::OpenCodeSession;
+use ship_platform::services::server_session::ServerSession;
 use tokio::sync::Mutex;
 
 use super::{ProcessExecutor, ServerExecutor, TmuxWindowExecutor};

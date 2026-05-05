@@ -2,8 +2,8 @@ use std::path::{Path, PathBuf};
 
 use compiler::PullSkill;
 use compiler::types::is_valid_skill_name;
-use ship_primitives::agents::skill::list_effective_skills;
-use ship_primitives::agents::skill_vars::{get_skill_vars, list_skill_vars, set_skill_var};
+use ship_platform::agents::skill::list_effective_skills;
+use ship_platform::agents::skill_vars::{get_skill_vars, list_skill_vars, set_skill_var};
 
 use crate::requests::{
     DeleteSkillFileRequest, GetSkillVarsRequest, ListProjectSkillsRequest, ListSkillVarsRequest,
@@ -58,7 +58,7 @@ pub fn list_project_skills(project_dir: &Path, req: ListProjectSkillsRequest) ->
     } else {
         project_dir.to_path_buf()
     };
-    let skill_dirs = ship_primitives::agents::skill_paths::read_skill_paths(&ship_dir, project_dir);
+    let skill_dirs = ship_platform::agents::skill_paths::read_skill_paths(&ship_dir, project_dir);
     tracing::info!(
         "list_project_skills: ship_dir={}, skill_dirs={:?}",
         ship_dir.display(),
@@ -227,7 +227,7 @@ fn resolve_skill_file_path(
     }
     // Write to the first configured skill_path (default: "skills/")
     let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let write_base = ship_primitives::agents::skill_paths::read_skill_paths(ship_dir, project_root)
+    let write_base = ship_platform::agents::skill_paths::read_skill_paths(ship_dir, project_root)
         .into_iter()
         .next()
         .unwrap_or_else(|| ship_dir.join("skills"));

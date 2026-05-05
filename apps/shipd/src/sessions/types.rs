@@ -81,7 +81,7 @@ pub struct SpawnRequest {
 pub(crate) mod private {
     use super::*;
     use portable_pty::MasterPty;
-    use ship_primitives::services::provider_adapter::ProviderEvent;
+    use ship_platform::services::provider_adapter::ProviderEvent;
     use std::io::Write as _;
     use std::path::PathBuf;
     use std::sync::{Arc, Mutex};
@@ -140,7 +140,7 @@ impl PtySession {
     /// Shell sessions return a receiver that will never produce.
     pub fn subscribe_events(
         &self,
-    ) -> tokio::sync::broadcast::Receiver<ship_primitives::services::provider_adapter::ProviderEvent> {
+    ) -> tokio::sync::broadcast::Receiver<ship_platform::services::provider_adapter::ProviderEvent> {
         self.0.event_tx.subscribe()
     }
 }

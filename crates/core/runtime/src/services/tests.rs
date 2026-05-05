@@ -9,9 +9,9 @@ use tokio::sync::mpsc;
 
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::{ActorStore, EventEnvelope, Mailbox};
-use ship_primitives::services::{ServiceHandle, ServiceHandler, spawn_service, run_service};
+use ship_platform::services::{ServiceHandle, ServiceHandler, spawn_service, run_service};
 #[cfg(feature = "unstable")]
-use ship_primitives::services::sync::{SyncConfig, SyncServiceHandler};
+use ship_platform::services::sync::{SyncConfig, SyncServiceHandler};
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 

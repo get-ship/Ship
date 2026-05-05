@@ -197,12 +197,12 @@ async fn discover_with_registered_agents() {
         let mut registry = state.mesh_registry().write().await;
         registry.insert(
             "agent.a".into(),
-            ship_primitives::services::mesh::MeshEntry {
+            ship_platform::services::mesh::MeshEntry {
                 agent_id: "agent.a".into(),
                 label: "Agent A".into(),
                 capabilities: vec!["rust".into()],
                 registered_at: chrono::Utc::now(),
-                status: ship_primitives::services::mesh::AgentStatus::Active,
+                status: ship_platform::services::mesh::AgentStatus::Active,
             },
         );
     }

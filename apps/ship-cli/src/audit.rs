@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use ship_primitives::config::security::{self, Severity};
+use ship_platform::config::security::{self, Severity};
 
 /// Run `ship audit` — scan for hidden Unicode characters.
 pub fn run_audit(path: Option<PathBuf>, json: bool) -> Result<()> {

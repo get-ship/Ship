@@ -8,7 +8,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use ship_primitives::collections::{builtin, query::QueryRequest, schema, service as col_svc, store};
+use ship_platform::collections::{builtin, query::QueryRequest, schema, service as col_svc, store};
 use ship_substrate::data::DataService;
 use ship_substrate::events::KernelRouter;
 

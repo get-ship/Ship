@@ -382,12 +382,12 @@ async fn mesh_discover_via_router() {
         let mut reg = daemon.state.mesh_registry().write().await;
         reg.insert(
             "agent.discoverable".into(),
-            ship_primitives::services::mesh::MeshEntry {
+            ship_platform::services::mesh::MeshEntry {
                 agent_id: "agent.discoverable".into(),
                 label: "agent.discoverable".into(),
                 capabilities: vec!["rust".into()],
                 registered_at: chrono::Utc::now(),
-                status: ship_primitives::services::mesh::AgentStatus::Active,
+                status: ship_platform::services::mesh::AgentStatus::Active,
             },
         );
     }
@@ -442,12 +442,12 @@ async fn runtime_agents_via_harness() {
         let mut reg = daemon.state.mesh_registry().write().await;
         reg.insert(
             "agent.api-test".into(),
-            ship_primitives::services::mesh::MeshEntry {
+            ship_platform::services::mesh::MeshEntry {
                 agent_id: "agent.api-test".into(),
                 label: "agent.api-test".into(),
                 capabilities: vec!["rust".into()],
                 registered_at: chrono::Utc::now(),
-                status: ship_primitives::services::mesh::AgentStatus::Active,
+                status: ship_platform::services::mesh::AgentStatus::Active,
             },
         );
     }
