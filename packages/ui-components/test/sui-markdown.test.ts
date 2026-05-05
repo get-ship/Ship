@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import '../src/sui-markdown/sui-markdown.compiled.js'
-import { renderMarkdown } from '../src/sui-markdown/sui-markdown.ts'
+import { renderMarkdown } from '../src/sui-markdown/sui-markdown.controller.ts'
+import { signal } from '@ship/ui-runtime'
+import { bindHtml } from '@ship/ui-runtime'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
@@ -58,6 +60,25 @@ describe('renderMarkdown', () => {
     const out = renderMarkdown('> a quoted line')
     expect(out).toContain('<blockquote>')
     expect(out).toContain('a quoted line')
+  })
+})
+
+describe('bindHtml focus retention (used by sui-markdown)', () => {
+  it('preserves input focus across content updates via morph', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+
+    const $html = signal('<p>First</p><input type="text" />')
+    bindHtml(root, () => $html())
+
+    const input = root.querySelector('input')!
+    input.focus()
+    expect(document.activeElement).toBe(input)
+
+    $html.set('<p>Updated</p><input type="text" />')
+    expect(document.activeElement).toBe(root.querySelector('input'))
+
+    document.body.removeChild(root)
   })
 })
 
