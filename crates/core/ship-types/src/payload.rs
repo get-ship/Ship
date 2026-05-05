@@ -396,6 +396,71 @@ pub struct CompileCompleted {
     pub plugins_installed: Vec<String>,
 }
 
+// -- Skill / Rule / Permission CRUD -----------------------------------------
+
+/// Payload for `skill.created`. `entity_id` is the skill id.
+/// `scope` is "project" | "user" — same vocabulary as
+/// `ship-platform::SkillInstallScope`.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkillCreated {
+    pub scope: String,
+    pub name: String,
+    /// SHA-256 hash of the SKILL.md body, hex-encoded. Lets sync detect
+    /// whether the same id refers to the same content across devices.
+    pub content_hash: String,
+}
+
+/// Payload for `skill.updated`. `entity_id` is the skill id.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkillUpdated {
+    pub scope: String,
+    pub content_hash: String,
+}
+
+/// Payload for `skill.deleted`. `entity_id` is the skill id.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkillDeleted {
+    pub scope: String,
+}
+
+/// Payload for `rule.created`. `entity_id` is the canonical rule id
+/// (the file name minus the optional `NNNN-` prefix and `.md` suffix).
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RuleCreated {
+    /// The actual filename written, including the `NNNN-` prefix
+    /// when present.
+    pub file_name: String,
+    pub content_hash: String,
+}
+
+/// Payload for `rule.updated`. `entity_id` is the canonical rule id.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RuleUpdated {
+    pub file_name: String,
+    pub content_hash: String,
+}
+
+/// Payload for `rule.deleted`. `entity_id` is the canonical rule id.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct RuleDeleted {
+    pub file_name: String,
+}
+
+/// Payload for `permissions.updated`. `entity_id` is the project_id
+/// (or `"global"` for user-scope writes). The full normalized permissions
+/// JSON travels in `permissions_json` so subscribers / sync can replay
+/// without reading the file.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct PermissionsUpdated {
+    /// "project" | "global" — matches the `entity_id` ("global" or a
+    /// project_id).
+    pub scope: String,
+    /// Stable hash so consumers can dedupe identical writes.
+    pub content_hash: String,
+    /// Serialized permissions document at the time of the write.
+    pub permissions_json: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

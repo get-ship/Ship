@@ -102,6 +102,29 @@ pub const DAEMON_OWNER_BOUND: &str = "daemon.owner.bound";
 /// Daemon-owner binding — the user unpaired (`ship logout`).
 pub const DAEMON_OWNER_UNBOUND: &str = "daemon.owner.unbound";
 
+/// Skill CRUD — a skill SKILL.md (project- or user-scoped) was written
+/// for the first time. `entity_id` is the skill id.
+pub const SKILL_CREATED: &str = "skill.created";
+/// Skill CRUD — content or front-matter of an existing skill changed.
+/// `entity_id` is the skill id.
+pub const SKILL_UPDATED: &str = "skill.updated";
+/// Skill CRUD — a skill was removed from disk. `entity_id` is the
+/// skill id.
+pub const SKILL_DELETED: &str = "skill.deleted";
+
+/// Rule CRUD — a `.ship/rules/<file>.md` was created. `entity_id` is
+/// the canonical rule id (file name minus the optional `NNNN-` prefix
+/// and `.md` suffix).
+pub const RULE_CREATED: &str = "rule.created";
+/// Rule CRUD — content of an existing rule changed.
+pub const RULE_UPDATED: &str = "rule.updated";
+/// Rule CRUD — rule file was removed.
+pub const RULE_DELETED: &str = "rule.deleted";
+
+/// Permissions — `.ship/permissions.jsonc` was rewritten. `entity_id`
+/// is the project_id (or `"global"` for user-scope writes).
+pub const PERMISSIONS_UPDATED: &str = "permissions.updated";
+
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_ACTIVATED,
@@ -176,6 +199,13 @@ pub const ALL: &[&str] = &[
     AUTH_SESSION_EXPIRED,
     DAEMON_OWNER_BOUND,
     DAEMON_OWNER_UNBOUND,
+    SKILL_CREATED,
+    SKILL_UPDATED,
+    SKILL_DELETED,
+    RULE_CREATED,
+    RULE_UPDATED,
+    RULE_DELETED,
+    PERMISSIONS_UPDATED,
 ];
 
 #[cfg(test)]

@@ -1,8 +1,59 @@
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+use ship_types::event_types::{RULE_CREATED, RULE_DELETED, RULE_UPDATED};
+use ship_types::payload::{RuleCreated, RuleDeleted, RuleUpdated};
 use specta::Type;
 use std::fs;
 use std::path::PathBuf;
+
+/// Strip the optional `NNNN-` numeric prefix and `.md` suffix to get the
+/// canonical rule id used as the event entity_id.
+fn rule_id_from_file(file_name: &str) -> String {
+    let trimmed = file_name.trim_end_matches(".md");
+    if let Some((prefix, rest)) = trimmed.split_once('-')
+        && !prefix.is_empty()
+        && prefix.chars().all(|ch| ch.is_ascii_digit())
+    {
+        return rest.to_string();
+    }
+    trimmed.to_string()
+}
+
+fn content_hash_hex(content: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    let bytes = hasher.finalize();
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        use std::fmt::Write;
+        let _ = write!(out, "{b:02x}");
+    }
+    out
+}
+
+/// Best-effort event emit. Failures warn-only — file write is the truth.
+fn emit_rule_event(event_type: &'static str, id: &str, payload: &impl serde::Serialize) {
+    let envelope = match EventEnvelope::new(event_type, id, payload) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("rule event {event_type}: build envelope failed: {e}");
+            return;
+        }
+    };
+    let store = match SqliteEventStore::new() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("rule event {event_type}: open store failed: {e}");
+            return;
+        }
+    };
+    if let Err(e) = store.append(&envelope) {
+        tracing::warn!("rule event {event_type}: append failed: {e}");
+    }
+}
 
 // ─── Data types ───────────────────────────────────────────────────────────────
 
@@ -106,6 +157,14 @@ pub fn create_rule(ship_dir: PathBuf, file_name: &str, content: &str) -> Result<
     fs::create_dir_all(&dir)?;
     let path = dir.join(&file_name);
     ship_substrate::fs_util::write_atomic(&path, content)?;
+    emit_rule_event(
+        RULE_CREATED,
+        &rule_id_from_file(&file_name),
+        &RuleCreated {
+            file_name: file_name.clone(),
+            content_hash: content_hash_hex(content),
+        },
+    );
     Ok(Rule {
         file_name,
         path: path.to_string_lossy().to_string(),
@@ -117,6 +176,14 @@ pub fn update_rule(ship_dir: PathBuf, file_name: &str, content: &str) -> Result<
     let file_name = normalize_rule_file_name(file_name)?;
     let path = rules_dir(&ship_dir).join(&file_name);
     ship_substrate::fs_util::write_atomic(&path, content)?;
+    emit_rule_event(
+        RULE_UPDATED,
+        &rule_id_from_file(&file_name),
+        &RuleUpdated {
+            file_name: file_name.clone(),
+            content_hash: content_hash_hex(content),
+        },
+    );
     Ok(Rule {
         file_name,
         path: path.to_string_lossy().to_string(),
@@ -126,8 +193,15 @@ pub fn update_rule(ship_dir: PathBuf, file_name: &str, content: &str) -> Result<
 
 pub fn delete_rule(ship_dir: PathBuf, file_name: &str) -> Result<()> {
     let file_name = normalize_rule_file_name(file_name)?;
-    let path = rules_dir(&ship_dir).join(file_name);
+    let path = rules_dir(&ship_dir).join(&file_name);
     fs::remove_file(path)?;
+    emit_rule_event(
+        RULE_DELETED,
+        &rule_id_from_file(&file_name),
+        &RuleDeleted {
+            file_name: file_name.clone(),
+        },
+    );
     Ok(())
 }
 

@@ -133,6 +133,14 @@ fn schema_for_event_type(
         "auth.session.expired" => Some(check::<AuthSessionExpired>),
         "daemon.owner.bound" => Some(check::<DaemonOwnerBound>),
         "daemon.owner.unbound" => Some(check::<DaemonOwnerUnbound>),
+        // skill / rule / permission CRUD (event-coverage/01)
+        "skill.created" => Some(check::<SkillCreated>),
+        "skill.updated" => Some(check::<SkillUpdated>),
+        "skill.deleted" => Some(check::<SkillDeleted>),
+        "rule.created" => Some(check::<RuleCreated>),
+        "rule.updated" => Some(check::<RuleUpdated>),
+        "rule.deleted" => Some(check::<RuleDeleted>),
+        "permissions.updated" => Some(check::<PermissionsUpdated>),
         _ => None,
     }
 }

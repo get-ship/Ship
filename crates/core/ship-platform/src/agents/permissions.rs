@@ -1,10 +1,64 @@
+use ship_substrate::events::EventEnvelope;
 use ship_substrate::fs_util::write_atomic;
+use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use ship_types::event_types::PERMISSIONS_UPDATED;
+use ship_types::payload::PermissionsUpdated;
 use specta::Type;
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+fn permissions_content_hash_hex(content: &str) -> String {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(content.as_bytes());
+    let bytes = hasher.finalize();
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        use std::fmt::Write;
+        let _ = write!(out, "{b:02x}");
+    }
+    out
+}
+
+/// Resolve the entity_id for a permissions write. Project-scoped writes
+/// use the project_id (when resolvable); user-scope or unresolvable
+/// project paths fall back to "global".
+fn permissions_entity_id(ship_dir: &Path) -> (String, String) {
+    use ship_substrate::project::ensure_project_id;
+    match ensure_project_id(ship_dir) {
+        Ok(pid) if !pid.is_empty() => (pid, "project".to_string()),
+        _ => ("global".to_string(), "global".to_string()),
+    }
+}
+
+fn emit_permissions_updated(ship_dir: &Path, json: &str) {
+    let (entity, scope) = permissions_entity_id(ship_dir);
+    let payload = PermissionsUpdated {
+        scope,
+        content_hash: permissions_content_hash_hex(json),
+        permissions_json: json.to_string(),
+    };
+    let envelope = match EventEnvelope::new(PERMISSIONS_UPDATED, &entity, &payload) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("permissions.updated: build envelope failed: {e}");
+            return;
+        }
+    };
+    let store = match SqliteEventStore::new() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("permissions.updated: open store failed: {e}");
+            return;
+        }
+    };
+    if let Err(e) = store.append(&envelope) {
+        tracing::warn!("permissions.updated: append failed: {e}");
+    }
+}
 
 // ─── Data types ───────────────────────────────────────────────────────────────
 
@@ -254,7 +308,10 @@ pub fn save_permissions(ship_dir: PathBuf, permissions: &Permissions) -> Result<
     }
     // permissions_config_path returns *.jsonc — write JSON to match the reader
     // dispatch in get_permissions (which parses .jsonc as JSON, not TOML).
-    write_atomic(&path, serde_json::to_string_pretty(permissions)?)
+    let json = serde_json::to_string_pretty(permissions)?;
+    write_atomic(&path, &json)?;
+    emit_permissions_updated(&ship_dir, &json);
+    Ok(())
 }
 
 fn canonical_tool_ids() -> Vec<String> {

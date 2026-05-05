@@ -22,11 +22,13 @@ pub mod types {
 
         #[test]
         fn all_constants_have_expected_count() {
-            // F1 (substrate-cleanup slice 01) deleted 12 unused constants:
-            // 9 workspace.*, job.claimed, executor.session_created,
-            // executor.window_created. Adjust this when adding/removing
-            // event types.
-            assert_eq!(ALL.len(), 73, "exactly 73 event type constants required");
+            // F1 (substrate-cleanup slice 01) deleted 12 unused constants
+            // (9 workspace.*, job.claimed, executor.session_created,
+            // executor.window_created). event-coverage/01 added 7
+            // (skill.{created,updated,deleted}, rule.{created,updated,
+            // deleted}, permissions.updated) bringing the total to 80.
+            // Adjust this when adding/removing event types.
+            assert_eq!(ALL.len(), 80, "exactly 80 event type constants required");
         }
     }
 }

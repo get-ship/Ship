@@ -269,6 +269,73 @@ fn supervisor_shutting_down_v1_round_trips() {
     let _: SupervisorShuttingDown = parse(r#"{"reason": "user"}"#, "SupervisorShuttingDown");
 }
 
+// ── Skill / Rule / Permission CRUD ──────────────────────────────────────────
+
+#[test]
+fn skill_created_v1_round_trips() {
+    let json = r#"{
+        "scope": "project",
+        "name": "Commit Style",
+        "content_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+    }"#;
+    let p: SkillCreated = parse(json, "SkillCreated");
+    assert_eq!(p.scope, "project");
+    assert_eq!(p.name, "Commit Style");
+}
+
+#[test]
+fn skill_updated_v1_round_trips() {
+    let json = r#"{
+        "scope": "user",
+        "content_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+    }"#;
+    let p: SkillUpdated = parse(json, "SkillUpdated");
+    assert_eq!(p.scope, "user");
+}
+
+#[test]
+fn skill_deleted_v1_round_trips() {
+    let p: SkillDeleted = parse(r#"{"scope": "project"}"#, "SkillDeleted");
+    assert_eq!(p.scope, "project");
+}
+
+#[test]
+fn rule_created_v1_round_trips() {
+    let json = r#"{
+        "file_name": "0001-rust.md",
+        "content_hash": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+    }"#;
+    let p: RuleCreated = parse(json, "RuleCreated");
+    assert_eq!(p.file_name, "0001-rust.md");
+}
+
+#[test]
+fn rule_updated_v1_round_trips() {
+    let json = r#"{
+        "file_name": "rust.md",
+        "content_hash": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+    }"#;
+    let _: RuleUpdated = parse(json, "RuleUpdated");
+}
+
+#[test]
+fn rule_deleted_v1_round_trips() {
+    let p: RuleDeleted = parse(r#"{"file_name": "0001-rust.md"}"#, "RuleDeleted");
+    assert_eq!(p.file_name, "0001-rust.md");
+}
+
+#[test]
+fn permissions_updated_v1_round_trips() {
+    let json = r#"{
+        "scope": "project",
+        "content_hash": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+        "permissions_json": "{\"tools\":{}}"
+    }"#;
+    let p: PermissionsUpdated = parse(json, "PermissionsUpdated");
+    assert_eq!(p.scope, "project");
+    assert!(p.permissions_json.contains("tools"));
+}
+
 // ── Compile aggregate ───────────────────────────────────────────────────────
 
 #[test]
