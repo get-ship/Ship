@@ -136,9 +136,25 @@ fn is_controller_path_recognises_suffix() {
     assert!(!is_controller_path(Path::new("foo/render.ts")));
 }
 
-// The "real offender" sentinel test that used to live here was tied
-// to sui-theme-picker during its port. That component is now clean
-// (the violation got fixed when it was rewritten as scope:/template-
-// side rendering — see commit 1646ac83). The unit tests above cover
-// the rule's behaviour; we don't keep a moving fixture-pointer in
-// the suite once the migration it was tracking has landed.
+#[test]
+fn flags_synthetic_innerhtml_offender() {
+    // Synthetic source matching the pattern Phase 1.5 cleaned up. Real
+    // controllers in the repo are now all clean, so a smoke against any
+    // specific file would pass for the wrong reason. This keeps the rule
+    // exercised end-to-end against the kind of code it's meant to catch.
+    let path = std::path::PathBuf::from("synthetic/sui-foo/sui-foo.controller.ts");
+    let source = r#"
+import { controller } from '@ship/ui-runtime'
+export default controller({
+  mount(state, host) {
+    const root = host.shadowRoot
+    if (root) root.innerHTML = '<div></div>'
+  },
+})
+"#;
+    let findings = lint_controller_source(&path, source);
+    assert!(
+        !findings.is_empty(),
+        "expected synthetic .innerHTML write to report a violation; got none — rule regressed."
+    );
+}
