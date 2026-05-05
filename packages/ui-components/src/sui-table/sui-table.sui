@@ -38,7 +38,7 @@
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
-<prop name="variant" values="slot|native" default="slot" reflect />
+<prop name="variant" values="slot|native|data" default="slot" reflect />
 <prop name="density" values="compact|default|comfortable" default="default" reflect />
 <prop name="dense" type="bool" default="false" reflect />
 <prop name="hoverable" type="bool" default="true" reflect />
@@ -119,7 +119,30 @@
   }
 </style>
 
-{#if variant() !== 'native'}
+{#if variant() === 'data'}
+<div class="wrap" part="wrap">
+  <table part="table" aria-label={label() || null}>
+    <thead part="thead">
+      <tr>
+        {#for c of columns() key={c.field}}
+          <th on:click={() => sortBy(c.field)} class:sorted={sortKey() === c.field}>
+            {c.label}
+          </th>
+        {/for}
+      </tr>
+    </thead>
+    <tbody part="tbody">
+      {#for r of sortedRows() key={r.id}}
+        <tr class:selected={selected().includes(r.id)} on:click={() => toggleSelect(r.id)}>
+          {#for c of columns() key={c.field}}
+            <td>{r[c.field]}</td>
+          {/for}
+        </tr>
+      {/for}
+    </tbody>
+  </table>
+</div>
+{:else if variant() !== 'native'}
 <div class="wrap" part="wrap">
   <table part="table" aria-label={label() || null}>
     <thead part="thead"><slot name="head"></slot></thead>

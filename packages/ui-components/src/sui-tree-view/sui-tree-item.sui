@@ -95,7 +95,15 @@
     </svg>
   </span>
   <slot name="icon"></slot>
-  <span class="label" part="label">{label()}</span>
+  <span class="label" part="label">{nodeLabel()}</span>
   <span class="trailing"><slot name="trailing"></slot></span>
 </div>
-<div class="children" part="children" role="group"><slot></slot></div>
+<div class="children" part="children" role="group">
+  {#if nodeChildren().length > 0}
+    {#for c of nodeChildren() key={c.id}}
+      <sui-tree-item prop:node={c}></sui-tree-item>
+    {/for}
+  {:else}
+    <slot></slot>
+  {/if}
+</div>

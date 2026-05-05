@@ -1,4 +1,4 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, bindHtml } from '@ship/ui-runtime'
 import type { Scope } from './sui-json-view.sui'
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [k: string]: JsonValue }
@@ -42,30 +42,24 @@ export default controller<Scope>({
     if (!host.hasAttribute('role')) host.setAttribute('role', 'tree')
     if (!host.hasAttribute('aria-label')) host.setAttribute('aria-label', 'JSON tree')
 
-    const stopEffect = effect(() => {
-      const el = scope.contentEl() as HTMLElement | null
-      if (!el) return
+    const el = scope.contentEl() as HTMLElement | null
+    if (!el) return () => {}
 
+    return bindHtml(el, () => {
       const data = scope.data()
       const expanded = scope.expanded()
       const depth = scope.depth()
 
-      if (!data) {
-        el.innerHTML = ''
-        return
-      }
+      if (!data) return ''
 
       let parsed: JsonValue
       try {
         parsed = JSON.parse(data) as JsonValue
       } catch (e) {
-        el.innerHTML = `<span class="error" part="error" role="alert">Invalid JSON: ${escape((e as Error).message)}</span>`
-        return
+        return `<span class="error" part="error" role="alert">Invalid JSON: ${escape((e as Error).message)}</span>`
       }
 
-      el.innerHTML = `<div part="root">${renderValue(parsed, null, 0, expanded, depth)}</div>`
+      return `<div part="root">${renderValue(parsed, null, 0, expanded, depth)}</div>`
     })
-
-    return () => stopEffect()
   },
 })

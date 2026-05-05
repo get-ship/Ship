@@ -1,11 +1,46 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, signal, derived, effect } from '@ship/ui-runtime'
 import type { Scope } from './sui-tree-item.sui'
+import type { Signal } from '@ship/ui-runtime'
+import type { TreeNode } from './sui-tree-view.controller'
 
 export default controller<Scope>({
+  scope: ({ label }) => {
+    const node = signal<TreeNode | null>(null)
+    const nodeLabel = derived(() => {
+      const n = node()
+      return n ? n.label : (label as unknown as Signal<string>)()
+    })
+    const nodeChildren = derived(() => {
+      const n = node()
+      return n?.children ?? []
+    })
+    return { node, nodeLabel, nodeChildren }
+  },
+
   mount(state, host) {
     const scope = state as unknown as Scope
 
     if (!host.hasAttribute('role')) host.setAttribute('role', 'treeitem')
+
+    // Wire node property so prop:node={n} from parent updates the signal.
+    const nodeSignal = scope.node as unknown as Signal<TreeNode | null>
+    const initNode = (host as any).node
+    if (initNode != null) nodeSignal.set(initNode)
+    Object.defineProperty(host, 'node', {
+      configurable: true,
+      get: () => nodeSignal(),
+      set: (v: TreeNode | null) => nodeSignal.set(v),
+    })
+
+    // Sync leaf attribute from node data (node with no children → leaf).
+    const stopLeafSync = effect(() => {
+      const n = nodeSignal()
+      if (n !== null) {
+        const isLeaf = !n.children || n.children.length === 0
+        if (isLeaf) host.setAttribute('leaf', '')
+        else host.removeAttribute('leaf')
+      }
+    })
 
     const syncAria = effect(() => {
       const row = scope.rowEl() as HTMLElement | null
@@ -72,6 +107,7 @@ export default controller<Scope>({
     })
 
     return () => {
+      stopLeafSync()
       syncAria()
       stopRow()
     }
