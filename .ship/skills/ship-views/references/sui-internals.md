@@ -6,7 +6,7 @@ Read this when changing `crates/sui-compiler/`, `crates/sui-lint/`, `crates/lsp/
 
 | Crate | Role |
 |---|---|
-| `crates/sui-compiler` | Parses `.sui` → IR → emits `.compiled.js` + `.sui.d.ts`. Owns the `check/` phase (build-time hard walls). |
+| `crates/sui-compiler` | Parses `.sui` → IR → emits `<stem>.compiled.js` + `<stem>.sui.d.ts` into a sibling `dist/`. Owns the `check/` phase (build-time hard walls). |
 | `crates/sui-lint` | Lints `*.controller.ts`. Same rule walker drives editor diagnostics and the compiler check. |
 | `crates/lsp` | Single LSP for both stacks. Dispatches by `Stack` enum — j2 → `lint`, SUI → `sui-lint`. Distributed as `ship lsp`. |
 | `packages/ui-runtime` | Signal engine (`signal`/`derived`/`effect`/`untrack`/`batch`), bindings (`bindText`/`bindAttr`/`bindClass`/`bindValue`/`bindHtml`/`bindIf`/`bindFor`), template hooks. |
@@ -57,13 +57,13 @@ Skipping any step ships stale bytes. The `include_str!` call sites are `apps/shi
 | LSP | `pnpm -F @ship/ui-lsp test` |
 | Browser smoke | `node .artifacts/sui-counter-probe.mjs` (Playwright probe; daemon must be up) |
 
-## Generated artifacts (gitignored, sit next to source)
+## Generated artifacts (gitignored, emitted under `dist/`)
 
 Don't commit. Don't be surprised by:
 
-- `views/<name>/view.js` — sui-compiler emit; the paired controller is `view.controller.ts`. Vitest prefers `.ts` via `packages/ui-dom/vitest.config.ts::resolve.extensions`.
-- `packages/ui-components/src/<tag>/<tag>.compiled.js` — component emit; `index.ts` side-effect-imports each one to register the custom element.
-- `**/*.sui.d.ts` — type declarations the compiler emits alongside source.
+- `views/<name>/dist/page.compiled.js` — view emit. The paired controller is `views/<name>/controller.ts`; legacy directories still use `view.sui` / `view.controller.ts` and emit `view.compiled.js`. Vitest resolves `.ts` first via `packages/ui-dom/vitest.config.ts::resolve.extensions`.
+- `packages/ui-components/src/<tag>/dist/<tag>.compiled.js` — component emit; `packages/ui-components/src/index.ts` side-effect-imports each one to register the custom element.
+- `**/dist/*.sui.d.ts` — type declarations the compiler emits alongside the JS module.
 
 ## Adding a runtime export to `@ship/ui-runtime`
 
@@ -72,7 +72,7 @@ Each public symbol gets its own file in `packages/ui-runtime/src/<name>.ts` (mir
 ## Compile shape contract — don't conflate
 
 - `view(setup)` from `@ship/ui-runtime`: the compiler emits `export default view((ctx) => {...})` for every `.sui` view module. Wraps a setup function as `{ setup }` so `attach()` can call `module.default.setup(ctx)`.
-- `controller(def)`: the paired `view.controller.ts` exports `controller<Scope>({ derived, on, use, mount, unmount })` for tier-2/3 logic. Resolved by the compiled view's setup.
+- `controller(def)`: the paired `controller.ts` (or legacy `view.controller.ts`) exports `controller<Scope>({ scope, on, mount, unmount })` for tier-2 logic. Resolved by the compiled view's setup.
 - They coexist. `view` ≠ `controller`.
 
 ## Marker contract
@@ -91,4 +91,4 @@ Commit at every passing test gate. A multi-hour uncommitted session is a dead se
 
 ## Discipline
 
-When a test fails, fix root cause. Don't paper over with config workarounds. The vitest `resolve.extensions` reorder is an exception — it expresses real project layout (compiled `.js` next to source `.ts`), not a workaround.
+When a test fails, fix root cause. Don't paper over with config workarounds. The vitest `resolve.extensions` reorder is an exception — it expresses real project layout (compiled `.js` under `dist/` resolves before source `.ts`), not a workaround.
