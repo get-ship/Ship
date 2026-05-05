@@ -1,29 +1,27 @@
-//! Declarative-tier config watcher — emits domain-specific `<domain>.changed`
-//! events whenever config files under `.ship/` change on disk.
+//! Declarative-tier config watcher — registers the five built-in `.ship/`
+//! domains (agents, skills, views, pipelines, rules) against the generic
+//! [`crate::services::watcher::WatcherService`].
 //!
-//! Covers agents, skills, views, pipelines, and rules. Each domain has its own
-//! 200 ms debounce so a burst of file writes (editor save, agent scaffold) emits
-//! exactly one event per domain. Both the user-scope (`~/.ship/library/`) and the
-//! project-scope (`<workspace>/.ship/`) dirs are watched when present.
-//!
-//! Watchers are RAII: dropping [`ConfigWatcher`] stops all filesystem watches and
-//! cancels all debounce tasks.
+//! Both user-scope (`~/.ship/library/`) and project-scope
+//! (`<workspace>/.ship/`) dirs are watched when present. Each domain has its
+//! own debounce so a burst of file writes emits exactly one event per
+//! domain. Watchers are RAII via the returned [`WatcherService`].
 
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 
 use anyhow::Result;
-use notify::{Event, EventKind, RecursiveMode, Watcher};
+use notify::RecursiveMode;
 use tokio::sync::Mutex;
-use tokio::sync::mpsc;
 
+use crate::services::watcher::{DEFAULT_DEBOUNCE, WatcherService, WatcherSpec};
 use ship_substrate::ShipHome;
 use ship_substrate::events::kernel_router::KernelRouter;
-use ship_types::{CallerKind, EmitContext};
-use ship_types::envelope::EventEnvelope;
 use ship_types::event_types;
-use ship_types::payload::ConfigChanged;
+
+/// Re-export so existing call sites that imported `config::ConfigWatcher`
+/// continue to work — the type is the generic [`WatcherService`].
+pub type ConfigWatcher = WatcherService;
 
 struct DomainCfg {
     dir_name: &'static str,
@@ -59,113 +57,58 @@ const DOMAINS: &[DomainCfg] = &[
     },
 ];
 
-/// RAII handle — dropping it stops all watchers and debounce tasks.
-pub struct ConfigWatcher {
-    _watchers: Vec<notify::RecommendedWatcher>,
-    _tasks: Vec<tokio::task::JoinHandle<()>>,
-}
-
-/// Spawn per-domain filesystem watchers for declarative config dirs.
-///
-/// - `ship_dir`: the global `~/.ship` root (user-scope dirs live under
-///   `ship_dir/library/<domain>/`)
-/// - `workspace_dir`: optional project root; project-scope dirs live under
-///   `workspace_dir/.ship/<domain>/` — watched only when the dir exists
+/// Spawn watchers for the five declarative config domains, both at
+/// user-scope and (when present) project-scope.
 pub fn spawn_config_watcher(
     kernel: Arc<Mutex<KernelRouter>>,
     ship_dir: PathBuf,
     workspace_dir: Option<PathBuf>,
-) -> Result<ConfigWatcher> {
+) -> Result<WatcherService> {
     let library_dir = ShipHome::at(ship_dir).library_dir();
     let project_ship_dir = workspace_dir.map(ShipHome::project_ship_dir);
 
-    let mut watchers = Vec::new();
-    let mut tasks = Vec::new();
+    let mut service = WatcherService::new();
 
     for domain in DOMAINS {
+        // User scope — ensure the dir exists so we always have somewhere to
+        // attach. (Project scope is created by `ship init`, not the watcher.)
         let user_dir = library_dir.join(domain.dir_name);
-        let proj_dir = project_ship_dir.as_ref().map(|p| p.join(domain.dir_name));
-
-        // Ensure user-scope dir exists so the watcher has somewhere to watch.
         if !user_dir.exists() {
             let _ = std::fs::create_dir_all(&user_dir);
         }
+        service.register(
+            kernel.clone(),
+            WatcherSpec {
+                dir: user_dir,
+                event_type: domain.event_type,
+                subject: domain.dir_name.to_string(),
+                recursive: domain.recursive,
+                debounce: DEFAULT_DEBOUNCE,
+            },
+        )?;
 
-        let (tx, mut rx) = mpsc::unbounded_channel::<()>();
-        let tx_cb = tx.clone();
-
-        let mut w = notify::recommended_watcher(move |res: notify::Result<Event>| {
-            if let Ok(ev) = res
-                && matches!(
-                    ev.kind,
-                    EventKind::Create(_) | EventKind::Modify(_) | EventKind::Remove(_)
-                )
-            {
-                let _ = tx_cb.send(());
+        // Project scope (only when a workspace is attached).
+        if let Some(ref pd) = project_ship_dir {
+            let proj_dir = pd.join(domain.dir_name);
+            if let Err(e) = service.register(
+                kernel.clone(),
+                WatcherSpec {
+                    dir: proj_dir.clone(),
+                    event_type: domain.event_type,
+                    subject: domain.dir_name.to_string(),
+                    recursive: domain.recursive,
+                    debounce: DEFAULT_DEBOUNCE,
+                },
+            ) {
+                tracing::warn!(
+                    "config watcher: could not watch {}: {e}",
+                    proj_dir.display()
+                );
             }
-        })?;
-
-        if user_dir.exists() {
-            w.watch(&user_dir, domain.recursive)?;
         }
-
-        // Watch project scope if the dir exists (don't create it — project
-        // dirs are created by the project init flow, not by the watcher).
-        if let Some(ref pd) = proj_dir {
-            if pd.exists() {
-                if let Err(e) = w.watch(pd, domain.recursive) {
-                    tracing::warn!(
-                        "config watcher: could not watch {}: {e}",
-                        pd.display()
-                    );
-                }
-            }
-        }
-
-        watchers.push(w);
-
-        let kernel = kernel.clone();
-        let event_type = domain.event_type;
-        let domain_name = domain.dir_name;
-
-        let task = tokio::spawn(async move {
-            while rx.recv().await.is_some() {
-                tokio::time::sleep(Duration::from_millis(200)).await;
-                while rx.try_recv().is_ok() {}
-                emit_domain_event(&kernel, event_type, domain_name).await;
-            }
-        });
-        tasks.push(task);
     }
 
-    Ok(ConfigWatcher { _watchers: watchers, _tasks: tasks })
-}
-
-async fn emit_domain_event(
-    kernel: &Arc<Mutex<KernelRouter>>,
-    event_type: &str,
-    domain: &str,
-) {
-    let payload = ConfigChanged {
-        subject: domain.to_string(),
-        detail: None,
-    };
-    let envelope = match EventEnvelope::new(event_type, domain, &payload) {
-        Ok(e) => e,
-        Err(e) => {
-            tracing::warn!("config watcher: failed to build {event_type} envelope: {e}");
-            return;
-        }
-    };
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        project_id: None,
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
-        tracing::warn!("config watcher: failed to emit {event_type}: {e}");
-    }
+    Ok(service)
 }
 
 #[cfg(test)]
@@ -175,6 +118,7 @@ mod tests {
     use ship_substrate::events::new_isolated_for_test;
     use ship_substrate::events::EventFilter;
     use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+    use std::time::Duration;
     use tempfile::tempdir;
     use crate::testutil::init_project;
 

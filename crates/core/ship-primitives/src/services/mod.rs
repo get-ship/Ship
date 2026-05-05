@@ -12,6 +12,7 @@ pub use ship_substrate::services::server_session::{self};
 pub mod orchestrator;
 pub mod provider_adapter;
 pub mod providers;
+pub mod watcher;
 
 #[cfg(feature = "unstable")]
 pub mod sync;
