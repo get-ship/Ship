@@ -12,14 +12,6 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     let config = ProjectConfig {
         providers: vec!["claude".to_string(), "codex".to_string()],
         active_agent: Some("planning".to_string()),
-        hooks: vec![HookConfig {
-            id: "audit".to_string(),
-            trigger: HookTrigger::PostToolUse,
-            matcher: Some("Bash".to_string()),
-            timeout_ms: None,
-            description: None,
-            command: "echo audit".to_string(),
-        }],
         ai: Some(AiConfig {
             provider: Some("codex".to_string()),
             model: Some("gpt-5".to_string()),
@@ -106,9 +98,6 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
         .and_then(|v| serde_json::from_value(v).ok());
     assert_eq!(active_agent.as_deref(), Some("planning"));
 
-    let hooks_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "hooks")?.unwrap().to_string();
-    assert!(hooks_json.contains("\"audit\""));
-
     let statuses_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "statuses")?.unwrap().to_string();
     assert!(statuses_json.contains("\"backlog\""));
 
@@ -117,9 +106,6 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
 
     let git_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "git")?.unwrap().to_string();
     assert!(git_json.contains("\"ship.jsonc\""));
-
-    let ns_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "namespaces")?.unwrap().to_string();
-    assert!(ns_json.contains("\"project\""));
 
     // Verify modes stored in kv_state
     let modes_val = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "modes")?.expect("expected modes in kv");
@@ -155,11 +141,6 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
             ignore: vec!["project/features".to_string()],
             commit: vec!["ship.toml".to_string(), "rules".to_string()],
         },
-        namespaces: vec![NamespaceConfig {
-            id: "plugin:demo".to_string(),
-            path: "demo".to_string(),
-            owner: "plugins".to_string(),
-        }],
         modes: vec![AgentProfile {
             id: "focus".to_string(),
             name: "Focus".to_string(),
@@ -196,7 +177,6 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     );
     assert!(loaded.statuses.iter().any(|status| status.id == "qa"));
     assert!(loaded.git.commit.iter().any(|entry| entry == "rules"));
-    assert!(loaded.namespaces.iter().any(|ns| ns.id == "plugin:demo"));
     assert!(loaded.agent.skills.is_empty());
     assert_eq!(loaded.modes.len(), 1);
     assert_eq!(loaded.modes[0].id, "focus");

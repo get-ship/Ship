@@ -229,23 +229,6 @@ impl ShipRuntime {
             Err(e) => tracing::warn!("trash auto-purge failed: {e}"),
         }
 
-        // Validate artifacts config from project settings (if a workspace is
-        // attached and the block is present). Fail fast on invalid values.
-        if let Some(ws) = &workspace_dir {
-            match runtime::config::get_config(Some(ws.clone())) {
-                Ok(proj) => {
-                    if let Some(art_cfg) = &proj.artifacts {
-                        if let Err(e) = art_cfg.validate() {
-                            return Err(anyhow!(
-                                "invalid [artifacts] config in .ship/ship.jsonc: {e}"
-                            ));
-                        }
-                    }
-                }
-                Err(e) => tracing::warn!("could not read project config for artifacts validation: {e}"),
-            }
-        }
-
         let mesh_registry: SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(HashMap::new()));
 

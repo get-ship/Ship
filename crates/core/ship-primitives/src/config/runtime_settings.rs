@@ -1,5 +1,5 @@
 use super::project::ProjectConfig;
-use super::types::{AiConfig, GitConfig, HookConfig, NamespaceConfig, StatusConfig};
+use super::types::{AiConfig, GitConfig, StatusConfig};
 use ship_substrate::db::kv;
 use ship_substrate::db::kv::KvNamespace;
 use anyhow::Result;
@@ -86,11 +86,9 @@ pub(super) fn get_runtime_settings(
     Option<(
         Vec<String>,
         Option<String>,
-        Vec<HookConfig>,
         Option<Vec<StatusConfig>>,
         Option<AiConfig>,
         Option<GitConfig>,
-        Option<Vec<NamespaceConfig>>,
     )>,
 > {
     let providers: Vec<String> = kv::get(project_ns(ship_dir), "providers")?
@@ -98,15 +96,11 @@ pub(super) fn get_runtime_settings(
         .unwrap_or_default();
     let active_agent: Option<String> = kv::get(project_ns(ship_dir), "active_agent")?
         .and_then(|v| serde_json::from_value(v).ok());
-    let hooks: Vec<HookConfig> = kv::get(project_ns(ship_dir), "hooks")?
-        .map(|v| serde_json::from_value(v).unwrap_or_default())
-        .unwrap_or_default();
 
     // If no keys exist at all, return None (fresh project).
-    if providers.is_empty() && active_agent.is_none() && hooks.is_empty() {
+    if providers.is_empty() && active_agent.is_none() {
         let has_any = kv::get(project_ns(ship_dir), "providers")?.is_some()
-            || kv::get(project_ns(ship_dir), "active_agent")?.is_some()
-            || kv::get(project_ns(ship_dir), "hooks")?.is_some();
+            || kv::get(project_ns(ship_dir), "active_agent")?.is_some();
         if !has_any {
             return Ok(None);
         }
@@ -125,30 +119,15 @@ pub(super) fn get_runtime_settings(
         .and_then(|v| serde_json::from_value::<GitConfig>(v).ok())
         .map(normalize_git_config);
 
-    let namespaces: Vec<NamespaceConfig> = kv::get(project_ns(ship_dir), "namespaces")?
-        .map(|v| serde_json::from_value(v).unwrap_or_default())
-        .unwrap_or_default();
-    let namespaces = if namespaces.is_empty() { None } else { Some(namespaces) };
-
-    Ok(Some((
-        providers,
-        active_agent,
-        hooks,
-        statuses,
-        ai,
-        git,
-        namespaces,
-    )))
+    Ok(Some((providers, active_agent, statuses, ai, git)))
 }
 
 pub(super) fn save_runtime_settings(ship_dir: &Path, config: &ProjectConfig) -> Result<()> {
     kv::set(project_ns(ship_dir), "providers", &serde_json::to_value(&config.providers)?)?;
     kv::set(project_ns(ship_dir), "active_agent", &serde_json::to_value(&config.active_agent)?)?;
-    kv::set(project_ns(ship_dir), "hooks", &serde_json::to_value(&config.hooks)?)?;
     kv::set(project_ns(ship_dir), "statuses", &serde_json::to_value(&config.statuses)?)?;
     kv::set(project_ns(ship_dir), "ai", &serde_json::to_value(&config.ai)?)?;
     kv::set(project_ns(ship_dir), "git", &serde_json::to_value(normalize_git_config(config.git.clone()))?)?;
-    kv::set(project_ns(ship_dir), "namespaces", &serde_json::to_value(&config.namespaces)?)?;
     Ok(())
 }
 

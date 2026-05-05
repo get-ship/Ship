@@ -74,63 +74,9 @@ fn duplicate_mcp_server_rejected() -> anyhow::Result<()> {
     Ok(())
 }
 
-// ── Hook CRUD ──────────────────────────────────────────────────────────────
-
-#[test]
-fn add_and_list_hook() -> anyhow::Result<()> {
-    let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
-    let hook = HookConfig {
-        id: "log-tools".to_string(),
-        trigger: HookTrigger::PostToolUse,
-        matcher: Some("Bash".to_string()),
-        timeout_ms: None,
-        description: None,
-        command: "echo 'tool used'".to_string(),
-    };
-    add_hook(Some(dir.clone()), hook)?;
-    let hooks = list_hooks(Some(dir))?;
-    assert_eq!(hooks.len(), 1);
-    assert_eq!(hooks[0].id, "log-tools");
-    assert_eq!(hooks[0].trigger, HookTrigger::PostToolUse);
-    Ok(())
-}
-
-#[test]
-fn remove_hook_works() -> anyhow::Result<()> {
-    let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
-    let hook = HookConfig {
-        id: "bye".to_string(),
-        trigger: HookTrigger::Stop,
-        matcher: None,
-        timeout_ms: None,
-        description: None,
-        command: "echo bye".to_string(),
-    };
-    add_hook(Some(dir.clone()), hook)?;
-    remove_hook(Some(dir.clone()), "bye")?;
-    assert!(list_hooks(Some(dir))?.is_empty());
-    Ok(())
-}
-
-#[test]
-fn duplicate_hook_rejected() -> anyhow::Result<()> {
-    let tmp = tempdir()?;
-    let dir = init_project(tmp.path().to_path_buf())?;
-    let hook = HookConfig {
-        id: "dup".to_string(),
-        trigger: HookTrigger::PreToolUse,
-        matcher: None,
-        timeout_ms: None,
-        description: None,
-        command: "x".to_string(),
-    };
-    add_hook(Some(dir.clone()), hook.clone())?;
-    let result = add_hook(Some(dir), hook);
-    assert!(result.is_err());
-    Ok(())
-}
+// Hook CRUD removed — `config.hooks` was parallel dead data.
+// Real hooks live as `.ship/hooks/<id>.jsonc` files and the hook engine
+// reads them via the Phase 4 watcher.
 
 // ── Mode CRUD ──────────────────────────────────────────────────────────────
 

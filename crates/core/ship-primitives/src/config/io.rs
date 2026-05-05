@@ -1,6 +1,6 @@
 use super::mcp::{get_mcp_config, save_mcp_config};
 use super::merge::{
-    merge_hooks, merge_mcp_servers, merge_modes, merge_string_lists, write_project_core_config,
+    merge_mcp_servers, merge_modes, merge_string_lists, write_project_core_config,
 };
 use super::modes::{get_modes_config, save_modes_config};
 use super::project::{ProjectConfig, default_providers};
@@ -40,12 +40,11 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
     config.git = normalize_git_config(config.git);
 
     if is_project {
-        if let Some((providers, active_agent, hooks, statuses, ai, git, namespaces)) =
+        if let Some((providers, active_agent, statuses, ai, git)) =
             get_runtime_settings(&config_dir)?
         {
             config.providers = providers;
             config.active_agent = active_agent;
-            config.hooks = hooks;
             if let Some(statuses) = statuses {
                 config.statuses = statuses;
             }
@@ -54,9 +53,6 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
             }
             if let Some(git) = git {
                 config.git = git;
-            }
-            if let Some(namespaces) = namespaces {
-                config.namespaces = namespaces;
             }
         }
     }
@@ -103,7 +99,6 @@ pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<ProjectConfi
 
     project.modes = merge_modes(&global.modes, &project.modes);
     project.mcp_servers = merge_mcp_servers(&global.mcp_servers, &project.mcp_servers);
-    project.hooks = merge_hooks(&global.hooks, &project.hooks);
 
     if project.active_agent.is_none() {
         project.active_agent = global.active_agent;

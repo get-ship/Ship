@@ -7,24 +7,6 @@ use anyhow::Result;
 
 use ship_substrate::project::{SHIP_DIR_NAME, skills_dir, vision_doc_path};
 
-pub fn register_ship_namespace(
-    ship_path: &Path,
-    namespace: crate::config::NamespaceConfig,
-) -> Result<()> {
-    let mut config = crate::config::get_config(Some(ship_path.to_path_buf()))?;
-    if let Some(existing) = config
-        .namespaces
-        .iter_mut()
-        .find(|entry| entry.id == namespace.id)
-    {
-        *existing = namespace;
-    } else {
-        config.namespaces.push(namespace);
-    }
-    crate::config::save_config(&config, Some(ship_path.to_path_buf()))?;
-    crate::config::ensure_registered_namespaces(ship_path, &config.namespaces)
-}
-
 fn write_if_missing(path: &Path, content: &str) -> Result<()> {
     if path.exists() {
         return Ok(());
@@ -105,7 +87,7 @@ Vision -> Release -> Feature -> Spec -> Close Feature -> Ship Release
     )?;
 
     let config = crate::config::get_config(Some(ship_path.clone()))?;
-    crate::config::ensure_registered_namespaces(&ship_path, &config.namespaces)?;
+    crate::config::ensure_standard_dirs(&ship_path)?;
     crate::config::generate_gitignore(&ship_path, &config.git)?;
 
     Ok(ship_path)

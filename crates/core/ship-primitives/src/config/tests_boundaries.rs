@@ -29,7 +29,6 @@ fn project_config_roundtrips_json() {
     assert_eq!(restored.name.as_deref(), Some("test-project"));
     assert_eq!(restored.description.as_deref(), Some("boundary test"));
     assert_eq!(restored.statuses.len(), config.statuses.len());
-    assert_eq!(restored.namespaces, config.namespaces);
 }
 
 #[test]

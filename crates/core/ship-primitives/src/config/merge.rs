@@ -1,5 +1,4 @@
 use super::project::{AgentProfile, McpServerConfig, ProjectConfig, ProjectCoreFile};
-use super::types::HookConfig;
 use ship_substrate::fs_util::write_atomic;
 use anyhow::Result;
 use std::collections::HashSet;
@@ -40,18 +39,6 @@ pub(super) fn merge_mcp_servers(
             *existing = server.clone();
         } else {
             merged.push(server.clone());
-        }
-    }
-    merged
-}
-
-pub(super) fn merge_hooks(base: &[HookConfig], overlay: &[HookConfig]) -> Vec<HookConfig> {
-    let mut merged = base.to_vec();
-    for hook in overlay {
-        if let Some(existing) = merged.iter_mut().find(|h| h.id == hook.id) {
-            *existing = hook.clone();
-        } else {
-            merged.push(hook.clone());
         }
     }
     merged

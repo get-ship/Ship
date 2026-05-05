@@ -1,6 +1,6 @@
 use super::types::{
-    AgentLayerConfig, AiConfig, ArtifactsConfig, GitConfig, HookConfig, NamespaceConfig,
-    PermissionConfig, StatusConfig, is_agent_layer_empty,
+    AgentLayerConfig, AiConfig, GitConfig, HookConfig, PermissionConfig, StatusConfig,
+    is_agent_layer_empty,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -133,21 +133,12 @@ pub struct ProjectConfig {
     pub mcp_servers: Vec<McpServerConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub active_agent: Option<String>,
-    /// Global hooks applied regardless of active mode
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub hooks: Vec<HookConfig>,
     #[serde(default, skip_serializing_if = "is_agent_layer_empty")]
     pub agent: AgentLayerConfig,
     /// Which agent providers to generate config for on branch checkout.
     /// Alpha: "claude" | "gemini" | "codex". Defaults to ["claude"].
     #[serde(default = "default_providers", skip_serializing_if = "Vec::is_empty")]
     pub providers: Vec<String>,
-    /// Claimed `.ship` namespaces. First-party modules are always present.
-    #[serde(default = "default_namespaces")]
-    pub namespaces: Vec<NamespaceConfig>,
-    /// Artifact storage settings. Defaults apply if the block is absent.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub artifacts: Option<ArtifactsConfig>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -198,10 +189,6 @@ pub fn default_statuses() -> Vec<StatusConfig> {
     ]
 }
 
-fn default_namespaces() -> Vec<NamespaceConfig> {
-    super::types::default_namespaces()
-}
-
 impl Default for ProjectConfig {
     fn default() -> Self {
         Self {
@@ -215,11 +202,8 @@ impl Default for ProjectConfig {
             modes: Vec::new(),
             mcp_servers: Vec::new(),
             active_agent: None,
-            hooks: Vec::new(),
             agent: AgentLayerConfig::default(),
-            namespaces: default_namespaces(),
             providers: default_providers(),
-            artifacts: None,
         }
     }
 }

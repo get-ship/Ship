@@ -90,7 +90,7 @@ mod tests_io;
 
 pub use types::{
     AgentLayerConfig, AiConfig, GitConfig, HookConfig, HookTrigger,
-    LEGACY_CONFIG_FILE, NamespaceConfig, PRIMARY_CONFIG_FILE, PermissionConfig, StatusConfig,
+    LEGACY_CONFIG_FILE, PRIMARY_CONFIG_FILE, PermissionConfig, StatusConfig,
 };
 
 pub use project::{
@@ -108,9 +108,9 @@ pub use git::{
 };
 
 pub use crud::{
-    add_hook, add_mcp_server, add_status, ensure_registered_namespaces,
-    get_active_agent, get_project_statuses, list_hooks, list_mcp_servers,
-    remove_hook, remove_mcp_server, remove_status,
+    add_mcp_server, add_status, ensure_standard_dirs,
+    get_active_agent, get_project_statuses, list_mcp_servers,
+    remove_mcp_server, remove_status,
 };
 
 pub use discover::discover_projects;

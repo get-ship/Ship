@@ -8,70 +8,12 @@ use ship_substrate::git;
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 use std::path::Path;
-use std::process::Command;
 
 use super::compile::{compile_session_context, resolve_session_providers};
 use super::helpers::*;
 use super::session::{hydrate_session, persist_session_artifact};
 use super::types_session::*;
 use ship_substrate::project::sanitize_file_name;
-
-// ---- Post-session hooks ----------------------------------------------------
-
-fn run_post_session_hooks(ship_dir: &Path, session: &Session) -> Result<()> {
-    let effective = crate::config::get_effective_config(Some(ship_dir.to_path_buf()))?;
-    let hooks: Vec<_> = effective
-        .hooks
-        .into_iter()
-        .filter(|hook| {
-            hook.trigger == crate::config::HookTrigger::SessionEnd
-                || hook.trigger == crate::config::HookTrigger::Stop
-        })
-        .collect();
-
-    for hook in hooks {
-        let command = hook.command.trim();
-        if command.is_empty() {
-            continue;
-        }
-
-        let mut process = if cfg!(windows) {
-            let mut cmd = Command::new("cmd");
-            cmd.args(["/C", command]);
-            cmd
-        } else {
-            let mut cmd = Command::new("sh");
-            cmd.args(["-lc", command]);
-            cmd
-        };
-
-        let output = process
-            .current_dir(ship_dir)
-            .env("SHIP_ACTOR_ID", &session.id)
-            .env("SHIP_SESSION_BRANCH", &session.branch)
-            .output();
-
-        match output {
-            Ok(out) => {
-                if !out.status.success() {
-                    tracing::warn!(
-                        "Post-session hook '{}' failed with status {:?}",
-                        hook.id,
-                        out.status.code()
-                    );
-                }
-            }
-            Err(error) => {
-                tracing::warn!(
-                    "Failed to execute post-session hook '{}': {}",
-                    hook.id, error
-                );
-            }
-        }
-    }
-
-    Ok(())
-}
 
 // ---- Start / end -----------------------------------------------------------
 
@@ -228,13 +170,6 @@ pub fn end_session(
     if let Err(e) = persist_session_artifact(ship_dir, &ended, "end") {
         tracing::warn!("failed to persist session artifact on end: {e}");
     }
-    let hook_ship_dir = ship_dir.to_path_buf();
-    let hook_session = ended.clone();
-    std::thread::spawn(move || {
-        if let Err(e) = run_post_session_hooks(&hook_ship_dir, &hook_session) {
-            tracing::warn!("failed to run post-session hooks: {e}");
-        }
-    });
 
     Ok(ended)
 }

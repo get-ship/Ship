@@ -1,9 +1,9 @@
 use super::io::{get_config, get_effective_config, save_config};
 use super::project::{AgentProfile, McpServerConfig};
 use super::runtime_settings::{default_color_for, id_to_name};
-use super::types::{HookConfig, NamespaceConfig, StatusConfig};
+use super::types::StatusConfig;
 use anyhow::{Result, anyhow};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -64,62 +64,14 @@ pub fn remove_status(project_dir: Option<PathBuf>, status: &str) -> Result<()> {
     Ok(())
 }
 
-pub fn ensure_registered_namespaces(
-    ship_path: &Path,
-    namespaces: &[NamespaceConfig],
-) -> Result<()> {
-    const RESERVED_TOP_LEVEL: &[&str] = &[
-        "project",
-        "agents",
-        "ship.jsonc",
-        "ship.toml",
-        "log.md",
-        "templates",
-        "plugins",
-    ];
-
-    for ns in namespaces {
-        let rel = ns.path.trim();
-        if rel.is_empty() {
-            continue;
-        }
-        let rel_path = Path::new(rel);
-        if rel_path.is_absolute()
-            || rel_path
-                .components()
-                .any(|c| matches!(c, std::path::Component::ParentDir))
-        {
-            return Err(anyhow!(
-                "Invalid namespace path '{}' for namespace '{}'",
-                ns.path,
-                ns.id
-            ));
-        }
-        if ns.id.starts_with("plugin:") {
-            let mut components = rel_path.components();
-            let first = components
-                .next()
-                .and_then(|c| c.as_os_str().to_str())
-                .ok_or_else(|| anyhow!("Plugin namespace '{}' has an invalid path", ns.id))?;
-            if components.next().is_some() {
-                return Err(anyhow!(
-                    "Plugin namespace '{}' must claim a top-level directory only",
-                    ns.id
-                ));
-            }
-            if RESERVED_TOP_LEVEL.contains(&first) {
-                return Err(anyhow!(
-                    "Plugin namespace '{}' cannot claim reserved path '{}'",
-                    ns.id,
-                    first
-                ));
-            }
-        }
-        std::fs::create_dir_all(
-            ship_substrate::project::ship_dir_from_path(ship_path)
-                .unwrap_or(ship_path.to_path_buf())
-                .join(rel_path),
-        )?;
+/// Create the standard `.ship/` subdirectories used by built-in modules.
+/// Replaces the old configurable `namespaces` registry — every project
+/// gets the same baseline tree.
+pub fn ensure_standard_dirs(ship_path: &std::path::Path) -> Result<()> {
+    let base = ship_substrate::project::ship_dir_from_path(ship_path)
+        .unwrap_or_else(|| ship_path.to_path_buf());
+    for sub in ["project", "agents"] {
+        std::fs::create_dir_all(base.join(sub))?;
     }
     Ok(())
 }
@@ -159,26 +111,4 @@ pub fn remove_mcp_server(project_dir: Option<PathBuf>, id: &str) -> Result<()> {
 pub fn list_mcp_servers(project_dir: Option<PathBuf>) -> Result<Vec<McpServerConfig>> {
     let config = get_config(project_dir)?;
     Ok(config.mcp_servers)
-}
-
-// ─── Hook CRUD ────────────────────────────────────────────────────────────────
-
-pub fn add_hook(project_dir: Option<PathBuf>, hook: HookConfig) -> Result<()> {
-    let mut config = get_config(project_dir.clone())?;
-    if config.hooks.iter().any(|h| h.id == hook.id) {
-        return Err(anyhow!("Hook '{}' already exists", hook.id));
-    }
-    config.hooks.push(hook);
-    save_config(&config, project_dir)
-}
-
-pub fn remove_hook(project_dir: Option<PathBuf>, id: &str) -> Result<()> {
-    let mut config = get_config(project_dir.clone())?;
-    config.hooks.retain(|h| h.id != id);
-    save_config(&config, project_dir)
-}
-
-pub fn list_hooks(project_dir: Option<PathBuf>) -> Result<Vec<HookConfig>> {
-    let config = get_config(project_dir)?;
-    Ok(config.hooks)
 }

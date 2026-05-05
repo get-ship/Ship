@@ -7,6 +7,4 @@
 pub use ship_substrate::project::*;
 
 mod init;
-pub use init::{
-    InitWithRegistryResult, init_project, init_project_with_registry, register_ship_namespace,
-};
+pub use init::{InitWithRegistryResult, init_project, init_project_with_registry};
