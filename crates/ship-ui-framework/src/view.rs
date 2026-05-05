@@ -45,16 +45,16 @@ use crate::resolver::{ResolvedView, resolve};
 // ride directly off `include_str!` here — on-disk views go through
 // `sui_compiler::compile` at request time and re-read sibling
 // `view.css`.
-const AGENTS_VIEW_CSS: &str = include_str!("../../../views/agents/view.css");
+const AGENTS_VIEW_CSS: &str = include_str!("../../../views/agents/style.css");
 const AGENTS_VIEW_JS: &str =
     include_str!("../assets/views/agents/view.js");
 
-const GIT_VIEW_CSS: &str = include_str!("../../../views/git/view.css");
+const GIT_VIEW_CSS: &str = include_str!("../../../views/git/style.css");
 const GIT_VIEW_JS: &str =
     include_str!("../assets/views/git/view.js");
 
 const COUNTER_VIEW_CSS: &str =
-    include_str!("../../../views/counter/view.css");
+    include_str!("../../../views/counter/style.css");
 const COUNTER_VIEW_JS: &str =
     include_str!("../assets/views/counter/view.js");
 
@@ -174,19 +174,30 @@ pub struct ViewSetupQuery {
 }
 
 fn compile_view_js(name: &str, resolved: &ResolvedView) -> Response {
-    // On-disk views always sit at `<dir>/index.sui`; their paired controller
-    // is the sibling `index.controller.ts` (matches the convention used by
-    // baked views' `<stem>.controller.ts`). When absent, the view compiles
-    // template-only.
-    let ts_path = resolved.source_path.as_ref()
+    // Paired controller convention depends on the source filename stem:
+    //   page.sui  → controller.ts        (new view-directory convention)
+    //   index.sui → index.controller.ts  (legacy `.ship/views/` convention)
+    // When absent, the view compiles template-only.
+    let ts_filename = match resolved
+        .source_path
+        .as_ref()
+        .and_then(|p| p.file_stem())
+        .and_then(|s| s.to_str())
+    {
+        Some("page") => "controller.ts",
+        _ => "index.controller.ts",
+    };
+    let ts_path = resolved
+        .source_path
+        .as_ref()
         .and_then(|p| p.parent())
-        .map(|d| d.join("index.controller.ts"))
+        .map(|d| d.join(ts_filename))
         .filter(|p| p.is_file());
 
     let opts = CompileOpts {
         source_path: resolved.source_path.clone(),
         emit_dts: false,
-        setup_url: ts_path.as_ref().map(|_| "./index.controller.ts".to_string()),
+        setup_url: ts_path.as_ref().map(|_| format!("./{ts_filename}")),
         ..CompileOpts::default()
     };
     let out = match compile(&resolved.source, opts) {
@@ -237,7 +248,8 @@ pub async fn serve_sui_view_css(
     }
     let body: String = match resolve(&name, q.sub.as_deref()) {
         Ok(r) => {
-            // Project views use `index.css`; baked use `view.css`. The
+            // New convention uses `style.css`; legacy `.ship/views/` used
+            // `index.css`; baked first-party views used `view.css`. The
             // parent (top-level) CSS always loads. When a sub-template is
             // requested, its own CSS (if present) is appended so detail
             // pages get both the parent's layout rules and their own.
@@ -247,15 +259,17 @@ pub async fn serve_sui_view_css(
                 .as_ref()
                 .and_then(|p| top_level_view_dir(p, &name))
             {
-                if let Ok(s) = std::fs::read_to_string(parent_dir.join("index.css")) {
-                    buf.push_str(&s);
-                } else if let Ok(s) = std::fs::read_to_string(parent_dir.join("view.css")) {
+                if let Ok(s) = std::fs::read_to_string(parent_dir.join("style.css"))
+                    .or_else(|_| std::fs::read_to_string(parent_dir.join("index.css")))
+                    .or_else(|_| std::fs::read_to_string(parent_dir.join("view.css")))
+                {
                     buf.push_str(&s);
                 }
             }
             if q.sub.is_some()
                 && let Some(sub_dir) = r.source_path.as_ref().and_then(|p| p.parent())
-                && let Ok(s) = std::fs::read_to_string(sub_dir.join("index.css"))
+                && let Ok(s) = std::fs::read_to_string(sub_dir.join("style.css"))
+                    .or_else(|_| std::fs::read_to_string(sub_dir.join("index.css")))
             {
                 if !buf.is_empty() && !buf.ends_with('\n') {
                     buf.push('\n');

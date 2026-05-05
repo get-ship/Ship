@@ -1,0 +1,13 @@
+// Route metadata for views/agents/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "agents",
+  "path": "/agents",
+  "title": "Agents",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Agents",
+    "icon": "users"
+  }
+}

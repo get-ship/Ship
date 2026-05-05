@@ -15,7 +15,11 @@ pub fn check(source_path: Option<&Path>) -> Result<(), CompileError> {
     let Some(p) = source_path else { return Ok(()); };
     let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else { return Ok(()); };
     let dir = p.parent().unwrap_or(Path::new("."));
-    let controller_path = dir.join(format!("{stem}.controller.ts"));
+    let controller_path = if stem == "page" {
+        dir.join("controller.ts")
+    } else {
+        dir.join(format!("{stem}.controller.ts"))
+    };
     if !controller_path.exists() {
         return Ok(());
     }

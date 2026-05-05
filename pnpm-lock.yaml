@@ -492,33 +492,6 @@ importers:
         specifier: ^4.1.5
         version: 4.1.5(@types/node@25.3.3)(jsdom@28.1.0(@noble/hashes@2.0.1))(msw@2.12.10(@types/node@25.3.3)(typescript@5.8.3))(vite@7.3.1(@types/node@25.3.3)(jiti@2.6.1)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.3))
 
-  views/agents:
-    dependencies:
-      '@ship/ui-runtime':
-        specifier: workspace:*
-        version: link:../../packages/ui-runtime
-      '@ship/ui-sdk-client':
-        specifier: workspace:*
-        version: link:../../packages/ui-sdk-client
-
-  views/counter:
-    dependencies:
-      '@ship/ui-runtime':
-        specifier: workspace:*
-        version: link:../../packages/ui-runtime
-      '@ship/ui-sdk-client':
-        specifier: workspace:*
-        version: link:../../packages/ui-sdk-client
-
-  views/git:
-    dependencies:
-      '@ship/ui-runtime':
-        specifier: workspace:*
-        version: link:../../packages/ui-runtime
-      '@ship/ui-sdk-client':
-        specifier: workspace:*
-        version: link:../../packages/ui-sdk-client
-
 packages:
 
   '@acemir/cssom@0.9.31':

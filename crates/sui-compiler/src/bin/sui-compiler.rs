@@ -334,10 +334,17 @@ fn paired_setup(path: &Path, dist_mode: bool) -> Option<String> {
         .strip_suffix(".html.set")
         .or_else(|| file_name.strip_suffix(".sui"))?;
     let parent = path.parent()?;
-    let candidate = parent.join(format!("{stem}.controller.ts"));
+    // page.sui pairs with controller.ts (no stem prefix); every other
+    // stem pairs with <stem>.controller.ts.
+    let filename = if stem == "page" {
+        "controller.ts".to_string()
+    } else {
+        format!("{stem}.controller.ts")
+    };
+    let candidate = parent.join(&filename);
     if !candidate.exists() {
         return None;
     }
     let prefix = if dist_mode { ".." } else { "." };
-    Some(format!("{prefix}/{stem}.controller.ts"))
+    Some(format!("{prefix}/{filename}"))
 }

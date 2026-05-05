@@ -100,7 +100,7 @@ fn agents_view_compiles_through_full_pipeline() {
     // The real view file in the repo. Must continue to pass through
     // the renderable check.
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../views/agents/view.sui");
+        .join("../../views/agents/page.sui");
     let src = std::fs::read_to_string(&path)
         .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
     compile(&src, opts())

@@ -99,10 +99,18 @@ pub fn bundle_view(
     let view_js_path = tmp.path().join(format!("{view_name}-view.js"));
     std::fs::write(&view_js_path, view_js).map_err(|e| format!("write view.js: {e}"))?;
 
-    // Symlink index.controller.ts so esbuild resolves it and follows relative
-    // imports from the real view directory (e.g. ./partials/catalog.ts).
-    let ts_link = tmp.path().join("index.controller.ts");
-    symlink(&canon_ts, &ts_link).map_err(|e| format!("symlink index.controller.ts: {e}"))?;
+    // Symlink the controller next to the view.js so esbuild resolves it
+    // and follows relative imports from the real view directory. The
+    // symlink filename must match the import in the compiled view.js —
+    // `controller.ts` for page.sui sources, `index.controller.ts` for
+    // legacy index.sui sources.
+    let ts_filename = canon_ts
+        .file_name()
+        .and_then(|s| s.to_str())
+        .unwrap_or("controller.ts")
+        .to_string();
+    let ts_link = tmp.path().join(&ts_filename);
+    symlink(&canon_ts, &ts_link).map_err(|e| format!("symlink {ts_filename}: {e}"))?;
 
     let out = std::process::Command::new(&esbuild)
         .arg(view_js_path.to_str().unwrap_or_default())

@@ -9,11 +9,11 @@ use axum::{
 };
 
 const AGENTS_VIEW_HTML_SET: &str =
-    include_str!("../../../views/agents/view.sui");
+    include_str!("../../../views/agents/page.sui");
 const GIT_VIEW_HTML_SET: &str =
-    include_str!("../../../views/git/view.sui");
+    include_str!("../../../views/git/page.sui");
 const COUNTER_VIEW_HTML_SET: &str =
-    include_str!("../../../views/counter/view.sui");
+    include_str!("../../../views/counter/page.sui");
 
 /// Baked SUI view set — `include_str!`'d at compile time. Used by the
 /// resolver's "bake list" path (where Some(_) means: this is baked,
@@ -28,7 +28,7 @@ pub fn view_source(name: &str) -> Option<&'static str> {
 }
 
 /// Resolve a view's source by name. Tries the bake list first, then
-/// falls back to per-worktree `.ship/views/<name>/index.sui` so
+/// falls back to the project-local `views/<name>/page.sui` so
 /// project-defined SUI views (e.g. ship-ui-studio) are still
 /// reachable. Used by the SSE channel handler.
 pub fn render_view_source(name: &str) -> Option<String> {
@@ -37,7 +37,8 @@ pub fn render_view_source(name: &str) -> Option<String> {
     }
     let cwd = std::env::current_dir().ok()?;
     let ship_dir = runtime::project::resolve_project_ship_dir_no_redirect(&cwd)?;
-    let path = ship_dir.join("views").join(name).join("index.sui");
+    let project_root = ship_dir.parent()?;
+    let path = project_root.join("views").join(name).join("page.sui");
     std::fs::read_to_string(&path).ok()
 }
 

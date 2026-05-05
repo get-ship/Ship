@@ -179,7 +179,7 @@ fn agents_view_renders_without_panic() {
             .unwrap()
             .parent()
             .unwrap()
-            .join("views/agents/view.sui"),
+            .join("views/agents/page.sui"),
     )
     .expect("read agents view");
     let program = parse(&src).expect("agents view parses");
@@ -244,7 +244,7 @@ fn agents_view_island_carries_loading_envelope() {
             .unwrap()
             .parent()
             .unwrap()
-            .join("views/agents/view.sui"),
+            .join("views/agents/page.sui"),
     )
     .expect("read agents view");
     let program = parse(&src).expect("parse");
@@ -310,7 +310,7 @@ fn agents_view_round_trip_with_d3() {
             .unwrap()
             .parent()
             .unwrap()
-            .join("views/agents/view.sui"),
+            .join("views/agents/page.sui"),
     )
     .expect("read agents view");
     let program = parse(&src).expect("parse agents view");
@@ -349,7 +349,7 @@ fn walker_keys_match_registry() {
             .unwrap()
             .parent()
             .unwrap()
-            .join("views/agents/view.sui"),
+            .join("views/agents/page.sui"),
     )
     .expect("read agents view");
     let program = parse(&src).expect("parse");
