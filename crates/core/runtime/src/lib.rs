@@ -28,6 +28,7 @@ pub use ship_primitives::artifacts;
 pub use ship_primitives::collections;
 pub use ship_primitives::config;
 pub use ship_primitives::hooks;
+pub use ship_primitives::kv;
 pub use ship_primitives::registry;
 pub mod services;
 pub use ship_primitives::sessions;

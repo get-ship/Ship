@@ -202,7 +202,7 @@ fn install_writes_lock_with_correct_package_entry() {
 
 #[test]
 fn workspace_state_active_profile_round_trip() {
-    use runtime::db;
+    use runtime::{db, kv};
     use runtime::project::init_project;
 
     let tmp = TempDir::new().unwrap();
@@ -213,14 +213,14 @@ fn workspace_state_active_profile_round_trip() {
     db::ensure_db().expect("ensure_db must succeed");
 
     // First write.
-    db::kv::set(
-        db::kv::KvNamespace::SkillVarsGlobal("test".to_string()),
+    kv::set(
+        kv::KvNamespace::SkillVarsGlobal("test".to_string()),
         "active_profile",
         &serde_json::json!("my-profile"),
     )
     .expect("kv set must succeed");
 
-    let val = db::kv::get(db::kv::KvNamespace::SkillVarsGlobal("test".to_string()), "active_profile")
+    let val = kv::get(kv::KvNamespace::SkillVarsGlobal("test".to_string()), "active_profile")
         .expect("kv get must succeed")
         .expect("value must be present");
     assert_eq!(
@@ -230,14 +230,14 @@ fn workspace_state_active_profile_round_trip() {
     );
 
     // Second write — same value, idempotent.
-    db::kv::set(
-        db::kv::KvNamespace::SkillVarsGlobal("test".to_string()),
+    kv::set(
+        kv::KvNamespace::SkillVarsGlobal("test".to_string()),
         "active_profile",
         &serde_json::json!("my-profile"),
     )
     .expect("second kv set must succeed");
 
-    let val2 = db::kv::get(db::kv::KvNamespace::SkillVarsGlobal("test".to_string()), "active_profile")
+    let val2 = kv::get(kv::KvNamespace::SkillVarsGlobal("test".to_string()), "active_profile")
         .expect("kv get after second write must succeed")
         .expect("value must still be present");
     assert_eq!(

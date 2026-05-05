@@ -4,6 +4,7 @@ pub mod artifacts;
 pub mod collections;
 pub mod config;
 pub mod hooks;
+pub mod kv;
 pub mod registry;
 pub mod services;
 pub mod sessions;

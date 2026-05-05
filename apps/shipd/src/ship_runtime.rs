@@ -208,7 +208,7 @@ impl ShipRuntime {
             // Open data.db + run collections migration first.
             let _ = runtime::data::DataService::open(&dir)?;
             // Migrate kv rows from platform.db to kv.db before migration 0002 drops them.
-            runtime::db::kv::migrate_from_platform_db(&dir)
+            runtime::kv::migrate_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
             runtime::db::ensure_db_at(&dir)?;
             // One-shot drain of the legacy `settings` KV namespace into the

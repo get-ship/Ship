@@ -1,7 +1,7 @@
 use super::project::AgentProfile;
 use super::types::{HookConfig, PermissionConfig};
-use ship_substrate::db::kv;
-use ship_substrate::db::kv::KvNamespace;
+use crate::kv;
+use crate::kv::KvNamespace;
 use anyhow::Result;
 use std::path::Path;
 

@@ -7,7 +7,7 @@ use anyhow::Result;
 use chrono::Utc;
 use sqlx::Row;
 
-use crate::db::{block_on, ensure_kv_db, open_kv_db};
+use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
 
 /// Approved KV namespaces. Adding a new variant here is the required
 /// code-review gate for introducing a new KV namespace. Raw string
@@ -135,7 +135,7 @@ pub fn list_all(ns: KvNamespace) -> Result<Vec<(String, serde_json::Value)>> {
 ///
 /// Called at daemon startup before the platform.db migration that drops `kv_state`.
 pub fn migrate_from_platform_db(ship_dir: &std::path::Path) -> Result<()> {
-    use crate::db::{kv_db_path, open_db_at, platform_db_path};
+    use ship_substrate::db::{kv_db_path, open_db_at, platform_db_path};
 
     let platform_path = platform_db_path(ship_dir);
     if !platform_path.exists() {
@@ -143,7 +143,7 @@ pub fn migrate_from_platform_db(ship_dir: &std::path::Path) -> Result<()> {
     }
 
     let kv_path = kv_db_path(ship_dir);
-    crate::db::ensure_kv_db_at(ship_dir)?;
+    ship_substrate::db::ensure_kv_db_at(ship_dir)?;
 
     let mut platform_conn = open_db_at(&platform_path)?;
 
@@ -204,9 +204,9 @@ pub fn migrate_from_platform_db(ship_dir: &std::path::Path) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::ensure_kv_db;
-    use crate::testutil::init_project_minimal as init_project;
+    use crate::testutil::init_project;
     use serde_json::json;
+    use ship_substrate::db::ensure_kv_db;
     use tempfile::tempdir;
 
     fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
@@ -268,7 +268,7 @@ mod tests {
 
     #[test]
     fn migrate_from_platform_db_copies_rows() {
-        use crate::db::{ensure_db_at, platform_db_path};
+        use ship_substrate::db::{ensure_db_at, platform_db_path};
 
         let tmp = tempdir().unwrap();
         let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
@@ -288,6 +288,6 @@ mod tests {
     }
 
     fn ensure_kv_db_at_with_ship_dir(ship_dir: &std::path::Path) {
-        crate::db::ensure_kv_db_at(ship_dir).unwrap();
+        ship_substrate::db::ensure_kv_db_at(ship_dir).unwrap();
     }
 }
