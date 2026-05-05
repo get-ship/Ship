@@ -23,9 +23,6 @@
   ──────────────────────────────────────────────────────────────
 -->
 
-<state name="totalPages" value="1" />
-<state name="info" value="''" />
-
 <prop name="page" type="number" default="1" reflect />
 <prop name="total" type="number" default="0" reflect />
 <prop name="per-page" type="number" default="25" reflect />

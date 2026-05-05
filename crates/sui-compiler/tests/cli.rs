@@ -56,7 +56,7 @@ fn cli_renders_diagnostic_with_path() {
     }
     let tmp = tempfile::tempdir().unwrap();
     let bad = tmp.path().join("bad.sui");
-    std::fs::write(&bad, r#"<state name="x" value={a = 1} />"#).unwrap();
+    std::fs::write(&bad, r#"<p>{a = 1}</p>"#).unwrap();
     let out = tmp.path().join("out");
     let output = Command::new(&bin)
         .args(["build"])

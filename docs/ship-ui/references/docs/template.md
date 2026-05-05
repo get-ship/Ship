@@ -13,25 +13,35 @@ A `.sui` file is HTML with a small set of directive elements at the top, mustach
 
 These appear at the top of the file (before the rendered DOM). They declare reactivity but do not render to HTML.
 
-### `<state>` — local signal
+### Reactive state — declared in the controller's `scope:` factory
 
-```html
-<state name="count" value="0" />
-<state name="open" value="{false}" />
-```
-
-Declares a mutable signal in template scope. **`<state>` is the only state primitive** — controllers do not have a `state:` section. Templates always declare; controllers always read and mutate via `on.*` handlers and lifecycle hooks.
-
-Computed-initial values (`crypto.randomUUID()`, an SDK call, a derivation over `route`) declare a placeholder here and assign in `mount`:
-
-```html
-<state name="id" value="''" />
-```
+Reactive component state lives in the paired controller — there is no `<state>` directive. Templates declare data subscriptions, slots, and props; controllers own the signals templates read.
 
 ```ts
+// view.controller.ts
+import { controller, signal } from '@ship/ui-runtime'
+import type { Scope } from './view.sui'
+
+export default controller<Scope>({
+  scope: () => ({
+    count: signal(0),
+    open: signal(false),
+  }),
+  on: {
+    increment: (s) => { s.count = s.count + 1 },
+  },
+})
+```
+
+The template reads them by call (`count()`) and mutates them through `on.*` handlers / lifecycle hooks. See [controller.md](controller.md) for the full controller surface.
+
+Computed-initial values (`crypto.randomUUID()`, an SDK call, a derivation over `route`) seed a placeholder in `scope:` and assign in `mount`:
+
+```ts
+scope: () => ({ id: signal('') }),
 mount: ({ state }) => {
   state.id = crypto.randomUUID()
-}
+},
 ```
 
 ### `<data>` — daemon subscription
@@ -40,14 +50,15 @@ mount: ({ state }) => {
 <data name="agents" source="ship.agents.summaries()" live />
 <data name="settings" source="ship.settings.read()" />
 
-<!-- Reactive args via $scope: re-subscribes when selectedId changes. -->
-<state name="selectedId" value="'abc'" />
+<!-- Reactive args via $scope: re-subscribes when selectedId changes.
+     `selectedId` is a signal declared in the controller's `scope:`
+     factory; the template just declares the subscription. -->
 <data name="agent" source="ship.agents.get({id: $scope.selectedId()})" live />
 ```
 
 Subscribes to a `ship.*` SDK call. With `live`, the runtime opens an SSE channel and patches the signal as the daemon emits updates. Without `live`, the value is read once at mount.
 
-The `source` expression is plain JS that runs inside `live()`'s tracked reactive scope. It receives three arguments: `ship` (the SDK), `route` (a [`RouteSignals`](data-subscriptions.md#reactive-route-in-source-thunks) — `route.params.<name>` and `route.query.<name>` are themselves signals), and `$scope` (every identifier already in view scope — state signals, controller bindings, earlier `<data>` declarations). Reading a signal via `$scope.<key>()` or `route.params.<key>()` is tracked; when the signal changes, the prior subscription disposes and a new one opens with the updated args.
+The `source` expression is plain JS that runs inside `live()`'s tracked reactive scope. It receives three arguments: `ship` (the SDK), `route` (a [`RouteSignals`](data-subscriptions.md#reactive-route-in-source-thunks) — `route.params.<name>` and `route.query.<name>` are themselves signals), and `$scope` (every identifier already in view scope — controller-scope signals, earlier `<data>` declarations). Reading a signal via `$scope.<key>()` or `route.params.<key>()` is tracked; when the signal changes, the prior subscription disposes and a new one opens with the updated args.
 
 `<data>` is the **canonical** way to bring server data into a view. See [data-subscriptions.md](data-subscriptions.md).
 
@@ -61,7 +72,7 @@ The `source` expression is plain JS that runs inside `live()`'s tracked reactive
 <button disabled={disabled() || loading()}>{label()}</button>
 ```
 
-The file IS the component. `<prop>` appears at the top of a component `.sui` file alongside `<data>` and `<state>` — no wrapper element needed. The tag name and shadow flag come from the per-component metadata file (`<tag>.sui.json`):
+The file IS the component. `<prop>` appears at the top of a component `.sui` file alongside `<data>` — no wrapper element needed. The tag name and shadow flag come from the per-component metadata file (`<tag>.sui.json`):
 
 ```json
 { "component": "ship-button", "shadow": true }

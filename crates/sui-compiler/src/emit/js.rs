@@ -3,13 +3,14 @@
 //! Layout of the emitted module:
 //!
 //! ```js
-//! import { signal, view, … } from "@ship/ui-runtime";
+//! import { view, … } from "@ship/ui-runtime";
 //! import setup from "./view.ts";        // when paired
 //!
 //! export default view((ctx) => {
 //!   const $scope = Object.create(null);
 //!   $scope.ship = ctx.ship; …
-//!   $scope.count = signal(0);
+//!   //  state signals come from the controller's `scope:` factory:
+//!   //  Object.assign($scope, setup.setup(ctx)) seeds them here.
 //!   …
 //!   const __wireBoundary_b3 = (anchor) => bindIf({ … });
 //!   …
@@ -218,7 +219,6 @@ fn emit_setup_body(
         w.line("$scope.navigate = navigate;");
     }
     emit_data_decls(w, program);
-    emit_state_decls(w, program);
     if opts.setup_url.is_some() {
         if is_component {
             // Component path: pass $scope as ctx.scope so the controller's
@@ -346,24 +346,6 @@ fn emit_data_decls(w: &mut Writer, program: &Program) {
                 src = src
             ));
         }
-    }
-}
-
-fn emit_state_decls(w: &mut Writer, program: &Program) {
-    for s in &program.state {
-        // Reuse the SSR-built state signal from `ctx.scope` when one
-        // exists. attach.ts seeds `setupCtx.scope` with init.scope's
-        // signals (one per `<state>`); the controller's writable proxy
-        // is built against that same set, so writes go to those signals.
-        // If we instead created a fresh signal here, bindings would
-        // close over the duplicate and never see controller writes.
-        // Components have no init.scope; the `?? signal(...)` fallback
-        // creates a fresh signal for that path.
-        w.line(&format!(
-            "$scope.{name} = (ctx && ctx.scope && ctx.scope.{name}) ?? signal(({src}));",
-            name = js_ident(&s.name),
-            src = s.value.source
-        ));
     }
 }
 

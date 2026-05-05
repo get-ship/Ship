@@ -1,8 +1,8 @@
 #![allow(clippy::unwrap_used)]
 //! Emit a JSON-serializable description of a file's directive
-//! declarations: `<data>`, `<state>`, `<prop>`. Used by tooling
-//! (HMR, error overlay, devserver) that needs a quick semantic
-//! summary without the JS bundle.
+//! declarations: `<data>`, `<prop>`. Used by tooling (HMR, error
+//! overlay, devserver) that needs a quick semantic summary without
+//! the JS bundle.
 
 use crate::ir::*;
 use crate::CompileOpts;
@@ -14,14 +14,9 @@ pub fn emit_schema(program: &Program, opts: &CompileOpts) -> Value {
         .iter()
         .map(|d| json!({ "name": d.name, "source": d.source.source, "live": d.live }))
         .collect();
-    let state: Vec<Value> = program
-        .state
-        .iter()
-        .map(|s| json!({ "name": s.name, "value": s.value.source }))
-        .collect();
     let component = opts.component_meta.as_ref().map(|m| component_value(&m.name, &program.props));
 
-    json!({ "data": data, "state": state, "component": component })
+    json!({ "data": data, "component": component })
 }
 
 fn component_value(tag: &str, props: &[PropDecl]) -> Value {

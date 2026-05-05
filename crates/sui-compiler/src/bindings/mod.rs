@@ -92,7 +92,7 @@ impl Builder {
 
     fn walk_element(&mut self, el: &ElementInstr) {
         let lower = el.tag.to_ascii_lowercase();
-        if lower == "state" || lower == "data" {
+        if lower == "data" {
             return;
         }
         for attr in &el.attrs {

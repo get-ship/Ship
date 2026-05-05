@@ -8,10 +8,9 @@ template files (`.sui`, `.set`).
 - **Language registration**: files ending in `.set` or `.sui`
   are recognized as the `set` language.
 - **Syntax highlighting**: a TextMate grammar covers
-  - **Directive elements** — `<data>`, `<state>`, `<component>`,
-    `<prop>`, `<while-loading>`, `<while-error>` are coloured
-    distinctly from regular HTML so the runtime contract is visible
-    at a glance.
+  - **Directive elements** — `<data>`, `<component>`, `<prop>`,
+    `<while-loading>`, `<while-error>` are coloured distinctly from
+    regular HTML so the runtime contract is visible at a glance.
   - **Binding attribute prefixes** — `bind:`, `on:`, `class:`,
     `style:`, `attr:`, `let:` are coloured separately from plain
     attributes; `on:click|preventDefault|stop` highlights the event

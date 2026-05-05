@@ -1,6 +1,8 @@
-import { controller, effect, defineRoutes } from '@ship/ui-runtime'
+import { controller, signal, effect, defineRoutes } from '@ship/ui-runtime'
 import type { Scope } from './index.sui'
 import { loadCatalog, type CatalogEntry, type PropEntry } from '../partials/catalog'
+
+type StudioFilterKind = 'all' | 'sui' | 'view'
 
 // Until shell 2.0 ports the studio in, the canonical access path is
 // /sui/ship-ui-studio/:name (view-host static mount). Both patterns
@@ -12,6 +14,15 @@ defineRoutes([
 ])
 
 export default controller<Scope>({
+  scope: () => ({
+    allCatalog: signal<CatalogEntry[]>([]),
+    loading: signal(true),
+    propValues: signal<Record<string, unknown>>({}),
+    _dispose: signal<(() => void) | null>(null),
+    filterKind: signal<StudioFilterKind>('all'),
+    filterText: signal(''),
+  }),
+
   derived: {
     entry: ({ allCatalog, route }) => {
       const name = route.params.name()

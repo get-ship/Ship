@@ -142,7 +142,7 @@ pub fn render_default(
 /// it's classified by `control_flow_kind` on the `Instr` level, before
 /// the walker reaches an element.
 pub(crate) enum EmitDecision {
-    /// Skip outright (e.g. `<state>`, `<data>`).
+    /// Skip outright (e.g. `<data>`).
     Skip,
     /// Self-closing void element — emit `<tag …>` with no body / close.
     Void,
@@ -154,7 +154,7 @@ pub(crate) enum EmitDecision {
 /// keeps the walker's match readable.
 pub(crate) fn decide_element(el: &ElementInstr) -> EmitDecision {
     let lower = el.tag.to_ascii_lowercase();
-    if lower == "state" || lower == "data" {
+    if lower == "data" {
         return EmitDecision::Skip;
     }
     if is_void_element(&lower) {

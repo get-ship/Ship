@@ -13,9 +13,11 @@
 // a template hook (`<use-kbd>` for tab keyboard shortcuts), envelope
 // unwrap via `unwrapOr`, signal-passing into the hook factory.
 
-import { controller, unwrapOr, useFilteredList } from '@ship/ui-runtime'
+import { controller, signal, unwrapOr, useFilteredList } from '@ship/ui-runtime'
 import type { GitOverview, GitCommit } from '@ship/ui-sdk-client'
 import type { Scope } from './view.sui'
+
+type GitTab = 'changes' | 'history' | 'branches'
 
 const EMPTY_OVERVIEW: GitOverview = {
   workspace_id: null,
@@ -36,6 +38,8 @@ const EMPTY_OVERVIEW: GitOverview = {
 const read = ({ overview }: Scope) => unwrapOr(overview, EMPTY_OVERVIEW)
 
 export default controller<Scope>({
+  scope: () => ({ tab: signal<GitTab>('changes') }),
+
   derived: {
     branch:         (s) => read(s).branch,
     headShort:      (s) => read(s).head_short,

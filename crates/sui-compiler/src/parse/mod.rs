@@ -4,8 +4,10 @@
 //!  1. Preprocess — same two transforms the interpreter does
 //!     (quote unquoted brace attrs, expand non-void self-closers).
 //!  2. HTML parse — produces a span-bearing DOM-ish tree.
-//!  3. Directive lift — pluck `<data>`, `<state>`, `<prop>`, and
-//!     top-level `<style>` out of the top-level child list into the IR.
+//!  3. Directive lift — pluck `<data>`, `<prop>`, and top-level
+//!     `<style>` out of the top-level child list into the IR. A
+//!     top-level `<state>` directive is rejected with a parse error
+//!     pointing authors at the controller's `scope:` factory.
 //!  4. Template grammar scan — text-node `{...}` markers become
 //!     template instructions; element children recurse.
 //!  5. Expression validate — every brace expression goes through the
@@ -27,7 +29,6 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
     let nodes = html::parse_fragment(&prepared)?;
 
     let mut data: Vec<DataDecl> = Vec::new();
-    let mut state: Vec<StateDecl> = Vec::new();
     let mut props: Vec<PropDecl> = Vec::new();
     let mut style_parts: Vec<String> = Vec::new();
     let mut template_nodes: Vec<Node> = Vec::with_capacity(nodes.len());
@@ -40,8 +41,7 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
                     continue;
                 }
                 "state" => {
-                    state.push(parse_state(el)?);
-                    continue;
+                    return Err(state_directive_retired(el));
                 }
                 "prop" => {
                     props.push(parse_prop(el)?);
@@ -66,13 +66,38 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
 
     Ok(Program {
         data,
-        state,
         props,
         styles,
         template,
         source_len: source.len(),
         span: Span::new(0, source.len()),
     })
+}
+
+/// Build the parse error returned when an author writes a top-level
+/// `<state>` element. The directive was retired in favour of
+/// declaring reactive state in the paired controller's `scope:`
+/// factory; the message names the migration target so authors can
+/// fix the file without consulting the changelog.
+fn state_directive_retired(el: &html::Element) -> CompileError {
+    let name = el.get_attribute("name").unwrap_or_default();
+    let label = if name.is_empty() {
+        "<state>".to_string()
+    } else {
+        format!("<state name=\"{name}\">")
+    };
+    CompileError::new(format!(
+        "{label} directive is no longer supported. Declare reactive state \
+         in the paired controller's `scope:` factory \
+         (e.g. `scope: () => ({{ {} }})`).",
+        if name.is_empty() {
+            "x: signal(0)".to_string()
+        } else {
+            format!("{name}: signal(...)")
+        }
+    ))
+    .with_span(el.span)
+    .with_category(label)
 }
 
 fn parse_data(el: &html::Element) -> Result<DataDecl, CompileError> {
@@ -88,19 +113,6 @@ fn parse_data(el: &html::Element) -> Result<DataDecl, CompileError> {
         name,
         source: Expr::new(expr_text, span, false),
         live,
-        span: el.span,
-    })
-}
-
-fn parse_state(el: &html::Element) -> Result<StateDecl, CompileError> {
-    let name = required_attr(el, "name", "<state>")?;
-    let raw = required_attr(el, "value", "<state>")?;
-    let span = attr_span(el, "value").unwrap_or(el.span);
-    let expr_text = strip_brace_attr(&raw);
-    expr::validate_at(&expr_text, false, &format!("<state name=\"{name}\"> value"), span)?;
-    Ok(StateDecl {
-        name,
-        value: Expr::new(expr_text, span, false),
         span: el.span,
     })
 }

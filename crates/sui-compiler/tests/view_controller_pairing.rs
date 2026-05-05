@@ -19,7 +19,7 @@ fn view_opts(setup: Option<&str>) -> CompileOpts {
 
 #[test]
 fn view_with_paired_controller_emits_import() {
-    let src = r#"<state name="x" value="0" /><p>{x()}</p>"#;
+    let src = r#"<p>{x()}</p>"#;
     let out = compile(src, view_opts(Some("./index.controller.ts")))
         .expect("compile view + paired controller");
     assert!(
@@ -31,7 +31,7 @@ fn view_with_paired_controller_emits_import() {
 
 #[test]
 fn view_with_paired_controller_calls_setup_and_merges() {
-    let src = r#"<state name="x" value="0" /><p>{x()}</p>"#;
+    let src = r#"<p>{x()}</p>"#;
     let out = compile(src, view_opts(Some("./index.controller.ts")))
         .expect("compile view + paired controller");
     // The view-side setup-call branch (emit_setup_call) must run. It
@@ -56,7 +56,7 @@ fn view_with_paired_controller_calls_setup_and_merges() {
 
 #[test]
 fn view_without_paired_controller_emits_no_import_or_setup_call() {
-    let src = r#"<state name="x" value="0" /><p>{x()}</p>"#;
+    let src = r#"<p>{x()}</p>"#;
     let out = compile(src, view_opts(None)).expect("compile bare view");
     assert!(
         !out.js.contains("import setup from"),

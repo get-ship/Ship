@@ -1,6 +1,7 @@
-import { controller } from '@ship/ui-runtime'
+import { controller, signal } from '@ship/ui-runtime'
 
 export default controller({
+  scope: () => ({ count: signal(0) }),
   derived: {
     doubled: ({ count }) => count() * 2,
     label: ({ count }) => `count is ${count()}`,

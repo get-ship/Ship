@@ -14,9 +14,9 @@ impl TemplateEmitter {
         cleanups_var: &str,
     ) {
         let lower = el.tag.to_ascii_lowercase();
-        // Mirror `bindings::Builder::walk_element`: skip `<state>` /
-        // `<data>` entirely (no children walked, no keys allocated).
-        if lower == "state" || lower == "data" {
+        // Mirror `bindings::Builder::walk_element`: skip `<data>`
+        // entirely (no children walked, no keys allocated).
+        if lower == "data" {
             return;
         }
         let v = self.fresh("e");

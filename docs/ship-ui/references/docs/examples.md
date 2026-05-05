@@ -9,14 +9,12 @@ description: Three example shapes to anchor the framework's discipline. Counter 
 
 These three examples cover the discipline boundaries. Each tier has a representative; each example exercises a different combination of primitives.
 
-## Tier 1 — counter (no controller)
+## Tier 1 — counter (minimal controller)
 
-Pure declarative. Local state in the template. No `.ts` file.
+The smallest reactive shape: a single signal in the controller's `scope:` factory plus inline arrow handlers in the template.
 
 ```html
 <!-- views/counter/view.sui -->
-<state name="count" value="0" />
-
 <div class="counter">
   <p>Count: <span data-test="value">{count()}</span></p>
   <button on:click={() => count.set(count() + 1)}>+</button>
@@ -24,11 +22,19 @@ Pure declarative. Local state in the template. No `.ts` file.
 </div>
 ```
 
-Files: just `view.sui`. The framework infers tier 1 from the absence of `view.ts`.
+```ts
+// views/counter/view.controller.ts
+import { controller, signal } from '@ship/ui-runtime'
+import type { Scope } from './view.sui'
 
-What this exercises: `<state>`, expression interpolation, `on:click` with a call-only arrow body.
+export default controller<Scope>({
+  scope: () => ({ count: signal(0) }),
+})
+```
 
-What this avoids: a controller for two pieces of state and two handlers. Trivial views stay trivial.
+What this exercises: `scope:` factory, expression interpolation, `on:click` with a call-only arrow body.
+
+What this avoids: a full `derived` / `on` stanza for trivial state. Inline handlers cover the simplest mutations.
 
 ## Tier 2 — agents (object controller + a derived bundle)
 
@@ -140,17 +146,14 @@ The same view, scaled with the v1 hooks (`useFilteredList`, `useSelection`, `<us
 {/if}
 ```
 
-Add a `<state>` line to the template for the search-toggle (state lives in the template, never on the controller):
-
-```html
-<state name="searchOpen" value="false" />
-```
+The search-toggle signal lives in the controller's `scope:` factory:
 
 ```ts
-// views/agents/view.ts
-import { controller, useFilteredList, useSelection } from '@ship/ui-runtime'
+// views/agents/view.controller.ts
+import { controller, signal, useFilteredList, useSelection } from '@ship/ui-runtime'
 
 export default controller({
+  scope: () => ({ searchOpen: signal(false) }),
   use: ({ agents }) => ({
     filter: useFilteredList(agents, (a, q) => a.name.toLowerCase().includes(q.toLowerCase())),
     sel:    useSelection(agents, (a) => a.id),
@@ -237,8 +240,8 @@ What this avoids: hand-rolled form state with five state variables and four hand
 | Decision | Where it lives |
 |---|---|
 | Server data | `<data>` in the template |
-| Local state (any) | `<state>` in the template |
-| Computed-initial state (`crypto.randomUUID()`, etc.) | `<state>` placeholder + assignment in `mount` |
+| Local state (any) | `scope:` factory in the controller |
+| Computed-initial state (`crypto.randomUUID()`, etc.) | `scope:` placeholder + assignment in `mount` |
 | Computed values | Controller `derived:` (named) or inline expressions (one-off) |
 | Event handlers | Controller `on:` |
 | UI pattern bundles | Controller hook in `use:` |

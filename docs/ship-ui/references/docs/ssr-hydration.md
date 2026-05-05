@@ -93,7 +93,7 @@ The browser-side runtime is **attach-only**. It does not parse templates, does n
 
 1. Walk the rendered DOM looking for markers.
 2. For each marker, read the binding from the manifest (or inline annotation).
-3. Initialize signals from inlined initial values (`<state>` markers carry the initial state JSON; `<data>` markers carry `kind: 'ok'` envelopes with values).
+3. Initialize signals from inlined initial values (`<data>` markers carry `kind: 'ok'` envelopes with values; reactive component state from the controller's `scope:` factory materializes when the controller's `setup` runs at hydrate).
 4. Attach event listeners (`on:click`, `bind:`).
 5. Wire reactive bindings (text interp, attribute interp, control-flow boundaries) to track signals and update the DOM on change.
 6. Open SSE channels for each `<data live>` and apply patches as they arrive.
@@ -109,7 +109,7 @@ State changes from local signals (button clicks, bind:value) flow through handle
 A view rendered without JavaScript is still meaningful:
 
 - Static structure renders.
-- Initial values from `<state>` and `<data>` are inlined.
+- Initial values from `<data>` are inlined; reactive controller-scope signals are dormant until JS runs.
 - `{#if}` / `{#for}` / `{#match}` show their initial branches.
 - Custom elements show their server-rendered children (the framework does not require client-side construction for non-island components).
 

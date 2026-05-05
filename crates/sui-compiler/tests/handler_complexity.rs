@@ -68,9 +68,13 @@ fn multi_stmt_fails_without_ts() {
 #[test]
 fn multi_stmt_passes_with_sibling_controller_ts() {
     let dir = tempfile::tempdir().expect("create tempdir");
-    std::fs::write(dir.path().join("view.controller.ts"), "export default {}").unwrap();
+    let controller_src = "import { controller, signal } from '@ship/ui-runtime'\n\
+        export default controller({\n\
+          scope: () => ({ x: signal(0), y: signal(0) }),\n\
+        })\n";
+    std::fs::write(dir.path().join("view.controller.ts"), controller_src).unwrap();
     let sui_path = dir.path().join("view.sui");
-    let src = r#"<state name="x" value="0" /><state name="y" value="0" /><button on:click={() => { x.set(1); y.set(2) }}>+</button>"#;
+    let src = r#"<button on:click={() => { x.set(1); y.set(2) }}>+</button>"#;
     std::fs::write(&sui_path, src).unwrap();
 
     compile(src, view_opts(Some(sui_path)))

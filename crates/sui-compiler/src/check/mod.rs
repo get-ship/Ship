@@ -123,9 +123,6 @@ where
     for d in &program.data {
         f(&d.source)?;
     }
-    for s in &program.state {
-        f(&s.value)?;
-    }
     visit_instrs(&program.template, f)?;
     Ok(())
 }

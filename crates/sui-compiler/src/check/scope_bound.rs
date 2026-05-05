@@ -2,10 +2,9 @@
 //! interpolation or `on:` handler must resolve to a name the runtime
 //! actually has. Scope sources, in resolution order:
 //!
-//!  * `<state name="…">`, `<data name="…">`, `<prop name="…">`
-//!    declarations on the program.
-//!  * `derived` keys and `use` keys from the paired controller (when
-//!    one exists).
+//!  * `<data name="…">`, `<prop name="…">` declarations on the program.
+//!  * `scope` factory return keys, `derived` keys, `on` keys, and
+//!    `use` keys from the paired controller (when one exists).
 //!  * The setup-context idents `ship`, `route`, `navigate`.
 //!  * JS / browser globals from a small fixed allowlist.
 //!  * Locals introduced by an arrow's parameter list (handlers can
@@ -90,9 +89,6 @@ fn build_scope(program: &Program, controller: Option<&ParsedController>) -> Scop
     let mut names = BTreeSet::new();
     for d in &program.data {
         names.insert(d.name.clone());
-    }
-    for s in &program.state {
-        names.insert(s.name.clone());
     }
     for p in &program.props {
         names.insert(super::super::emit::util::camel_of(&p.name));
@@ -190,14 +186,18 @@ fn collect_use_keys(src: &str, span: Span, into: &mut BTreeSet<String>) {
     }
 }
 
-/// `scope: (init, host?) => { ... return { key1, key2, ... } }` — find the
-/// last `return {` in the function body and collect its object keys.
+/// `scope:` factory — collect the keys of the object the factory returns.
+///
+/// Handles three author shapes:
+///   - block body:    `scope: (init) => { ... return { x, y } }`
+///   - expression body, parenthesised:  `scope: () => ({ x, y })`
+///   - expression body, bare object:    `scope: () => ({x, y})` (same as above)
 fn collect_scope_return_keys(src: &str, span: Span, into: &mut BTreeSet<String>) {
     let bytes = src.as_bytes();
     let start = span.start;
     let end = span.end.min(bytes.len());
-    // Walk backwards from end of span to find the last `return` keyword
-    // followed by `{`, which holds the exported scope entries.
+
+    // Block body: walk for the last `return {…}` and lift its keys.
     let return_kw = b"return";
     let mut i = start;
     let mut last_return_obj: Option<usize> = None;
@@ -213,6 +213,53 @@ fn collect_scope_return_keys(src: &str, span: Span, into: &mut BTreeSet<String>)
     if let Some(obj_start) = last_return_obj {
         let obj_end = skip_balanced(bytes, obj_start, end);
         collect_object_keys(src, Span::new(obj_start, obj_end), into);
+        return;
+    }
+
+    // Expression-body arrow: skip past the parameter list + `=>` and lift
+    // keys from the trailing object literal (with or without surrounding
+    // parens).
+    if let Some(obj_start) = expression_body_object(bytes, start, end) {
+        let obj_end = skip_balanced(bytes, obj_start, end);
+        collect_object_keys(src, Span::new(obj_start, obj_end), into);
+    }
+}
+
+/// Locate the `{` that opens an arrow's expression-body object literal.
+///
+/// Walks past the param list (a `(...)` group, or a single bare ident),
+/// the fat arrow `=>`, and any wrapping parens, then returns the offset
+/// of the literal's opening `{`. Returns `None` if the value isn't an
+/// arrow with an object expression body.
+fn expression_body_object(bytes: &[u8], start: usize, end: usize) -> Option<usize> {
+    let mut i = skip_trivia(bytes, start);
+    if i >= end {
+        return None;
+    }
+    // Step over the parameter list. Either `(...)` or a single ident.
+    if bytes[i] == b'(' {
+        i = skip_balanced(bytes, i, end);
+    } else if is_ident_start(bytes[i]) {
+        while i < end && is_ident_cont(bytes[i]) {
+            i += 1;
+        }
+    } else {
+        return None;
+    }
+    i = skip_trivia(bytes, i);
+    // Fat arrow.
+    if i + 1 >= end || bytes[i] != b'=' || bytes[i + 1] != b'>' {
+        return None;
+    }
+    i = skip_trivia(bytes, i + 2);
+    // Strip wrapping parens (`() => ({...})`).
+    while i < end && bytes[i] == b'(' {
+        i = skip_trivia(bytes, i + 1);
+    }
+    if i < end && bytes[i] == b'{' {
+        Some(i)
+    } else {
+        None
     }
 }
 
@@ -226,10 +273,6 @@ fn visit_program(program: &Program, v: &mut Visitor) {
     for d in &program.data {
         if v.error.is_some() { return; }
         check_expr(&d.source, v, &[]);
-    }
-    for s in &program.state {
-        if v.error.is_some() { return; }
-        check_expr(&s.value, v, &[]);
     }
     visit_instrs(&program.template, v);
 }

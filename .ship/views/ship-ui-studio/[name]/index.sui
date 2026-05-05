@@ -1,10 +1,3 @@
-<state name="allCatalog" value="[]" />
-<state name="loading"    value="true" />
-<state name="propValues" value="({})" />
-<state name="_dispose"   value="null" />
-<state name="filterKind" value="'all'" />
-<state name="filterText" value="''" />
-
 <div class="studio">
   <aside class="studio-sidebar">
     <div class="studio-sidebar-header">

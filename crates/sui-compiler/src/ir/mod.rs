@@ -16,7 +16,6 @@ use crate::diagnostics::Span;
 #[derive(Debug, Clone)]
 pub struct Program {
     pub data: Vec<DataDecl>,
-    pub state: Vec<StateDecl>,
     /// Props declared by top-level `<prop>` directives (component files only).
     pub props: Vec<PropDecl>,
     /// CSS lifted from top-level `<style>` elements (component files only).

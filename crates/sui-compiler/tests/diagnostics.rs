@@ -14,11 +14,24 @@ fn compile_view(source: &str) -> sui_compiler::CompileError {
 }
 
 #[test]
-fn assignment_in_state_value_is_rejected() {
-    let src = r#"<state name="x" value={a = 1} />"#;
+fn state_directive_is_retired() {
+    // The legacy `<state>` directive was retired in favour of declaring
+    // reactive state in the controller's `scope:` factory. Authors who
+    // still ship the old form get a parse error pointing at the
+    // migration target.
+    let src = r#"<state name="x" value="0" />"#;
     let err = compile_view(src);
-    assert!(err.message.contains("assignments"), "msg: {}", err.message);
-    assert!(err.category.is_some());
+    assert!(
+        err.message.contains("no longer supported"),
+        "msg: {}",
+        err.message
+    );
+    assert!(
+        err.message.contains("scope:"),
+        "msg should name the migration target: {}",
+        err.message
+    );
+    assert_eq!(err.category.as_deref(), Some("<state name=\"x\">"));
 }
 
 #[test]
@@ -56,7 +69,7 @@ fn missing_required_data_attr_reports_directive() {
 
 #[test]
 fn assignment_diagnostic_has_a_span() {
-    let src = r#"<state name="x" value={a = 1} />"#;
+    let src = r#"<p>{a = 1}</p>"#;
     let err = compile_view(src);
     assert!(err.span.is_some(), "should carry a span");
     let rendered = err.render(src);

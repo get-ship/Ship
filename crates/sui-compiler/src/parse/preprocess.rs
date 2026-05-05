@@ -5,8 +5,8 @@
 //!  1. Quote unquoted brace attributes — `disabled={x || y}` becomes
 //!     `disabled="{x || y}"` with `"` inside the expression escaped
 //!     to `&quot;`.
-//!  2. Expand non-void self-closing tags — `<state … />` becomes
-//!     `<state …></state>`.
+//!  2. Expand non-void self-closing tags — `<data … />` becomes
+//!     `<data …></data>`.
 
 const VOID_TAGS: &[&str] = &[
     "area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta",
@@ -233,8 +233,8 @@ mod tests {
 
     #[test]
     fn expands_non_void_selfclose() {
-        let out = expand_self_close("<state name=\"x\" value=\"0\" />");
-        assert_eq!(out, "<state name=\"x\" value=\"0\"></state>");
+        let out = expand_self_close("<custom-tag attr=\"v\" />");
+        assert_eq!(out, "<custom-tag attr=\"v\"></custom-tag>");
     }
 
     #[test]
@@ -262,10 +262,10 @@ mod tests {
 
     #[test]
     fn full_pipeline() {
-        let src = r#"<state name="count" value="0" />
+        let src = r#"<data name="agents" source="ship.agents.summaries()" live />
 <button on:click={() => x()}>hi</button>"#;
         let out = preprocess(src);
-        assert!(out.contains("</state>"));
+        assert!(out.contains("</data>"));
         assert!(out.contains(r#"on:click="{() =&gt; x()}""#) || out.contains(r#"on:click="{() => x()}""#));
     }
 }

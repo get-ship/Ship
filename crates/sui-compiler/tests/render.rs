@@ -1,10 +1,12 @@
 //! Integration tests for the SSR render walker.
 //!
 //! D-1 nailed marker shapes; D-2 evaluates the renderable subset
-//! against the page's initial scope, inlines the rendered values
-//! alongside markers, and emits the `__set_init__` JSON island after
-//! the body. These tests pin the rendered HTML so any regression in
-//! marker shape, evaluator output, or island serialization is loud.
+//! against the page's initial scope (just `<data>` envelopes plus
+//! `route`), inlines the rendered values alongside markers, and
+//! emits the `__set_init__` JSON island after the body. Reactive
+//! component state is declared in the controller's `scope:` factory
+//! and only materializes during hydrate, so state-bound expressions
+//! fall through to marker-only output here.
 
 use sui_compiler::bindings;
 use sui_compiler::parse::parse;
@@ -29,7 +31,7 @@ fn static_html_renders_verbatim() {
         html.starts_with(r#"<div class="x">hello</div>"#),
         "static body must come first; got: {html:?}"
     );
-    // No state/data decls -> island is the empty object.
+    // No data decls -> island is the empty object.
     assert!(html.ends_with("{}</script>"), "expected empty island; got: {html:?}");
 }
 
@@ -45,7 +47,7 @@ fn dynamic_text_emits_comment_marker() {
 
 #[test]
 fn event_handler_emits_on_attr() {
-    let src = "<state name=\"x\" value=\"0\" />\n<button on:click={() => x()}></button>";
+    let src = "<button on:click={() => x()}></button>";
     let html = render_source(src);
     assert!(
         html.contains(r#"<button on:click="b0">"#),
@@ -57,7 +59,7 @@ fn event_handler_emits_on_attr() {
 #[test]
 fn bind_value_emits_bind_attr() {
     // <input> is a void element — no closing tag.
-    let src = "<state name=\"q\" value=\"''\" />\n<input bind:value={q} />";
+    let src = "<input bind:value={q} />";
     let html = render_source(src);
     assert!(
         html.contains(r#"bind:value="b0""#),
@@ -71,7 +73,7 @@ fn bind_value_emits_bind_attr() {
 
 #[test]
 fn bind_checked_emits_bind_attr() {
-    let src = "<state name=\"on\" value=\"false\" />\n<input type=\"checkbox\" bind:checked={on} />";
+    let src = "<input type=\"checkbox\" bind:checked={on} />";
     let html = render_source(src);
     assert!(
         html.contains(r#"bind:checked="b0""#),
@@ -81,7 +83,7 @@ fn bind_checked_emits_bind_attr() {
 
 #[test]
 fn class_directive_emits_class_attr() {
-    let src = "<state name=\"on\" value=\"false\" />\n<p class:active={on}>x</p>";
+    let src = "<p class:active={on}>x</p>";
     let html = render_source(src);
     assert!(
         html.contains(r#"class:active="b0""#),
@@ -91,7 +93,7 @@ fn class_directive_emits_class_attr() {
 
 #[test]
 fn expr_attribute_emits_attr_marker() {
-    let src = "<state name=\"u\" value=\"'/'\" />\n<a href={u}>x</a>";
+    let src = "<a href={u}>x</a>";
     let html = render_source(src);
     assert!(
         html.contains(r#"attr:href="b0""#),
@@ -116,7 +118,7 @@ fn if_emits_placeholder() {
 
 #[test]
 fn for_emits_placeholder() {
-    let src = "<state name=\"xs\" value=\"[]\" />\n{#for x of xs}<li>x</li>{/for}";
+    let src = "{#for x of xs}<li>x</li>{/for}";
     let html = render_source(src);
     assert!(
         html.contains(r#"<sui-for key="b0" hidden></sui-for>"#),
@@ -150,19 +152,19 @@ fn static_attrs_are_html_escaped() {
 }
 
 #[test]
-fn state_and_data_decls_skip_in_html() {
-    let src = "<state name=\"count\" value=\"0\" />\n<p>hi</p>";
+fn data_decl_skips_in_html() {
+    let src = "<data name=\"agents\" source=\"ship.agents.summaries()\" live />\n<p>hi</p>";
     let html = render_source(src);
-    // <state> declarations are lifted by the parser, never appear in
+    // <data> declarations are lifted by the parser, never appear in
     // the template tree, so they cannot be rendered. Confirm.
-    assert!(!html.contains("<state"), "state must not render: {html:?}");
+    assert!(!html.contains("<data"), "data must not render: {html:?}");
     assert!(html.contains("<p>hi</p>"));
 }
 
 #[test]
 fn keys_increment_in_source_order() {
     // Two dynamic interpolations should get b0 and b1 in order.
-    let src = "<state name=\"a\" value=\"0\" />\n<state name=\"b\" value=\"0\" />\n<p>{a}-{b}</p>";
+    let src = "<p>{a}-{b}</p>";
     let html = render_source(src);
     let i0 = html.find("sui:text:b0").expect("first marker");
     let i1 = html.find("sui:text:b1").expect("second marker");
@@ -191,29 +193,6 @@ fn agents_view_renders_without_panic() {
 // ---------- Phase D-2: scope evaluation + JSON island ----------
 
 #[test]
-fn state_value_inlines_into_text() {
-    let src = "<state name=\"n\" value=\"42\" />\n<p>{n}</p>";
-    let html = render_source(src);
-    assert!(
-        html.contains("<p><!--sui:text:b0-->42<!--/sui--></p>"),
-        "expected inlined value between markers; got: {html:?}"
-    );
-}
-
-#[test]
-fn state_string_value_html_escapes() {
-    // Tests text-content escaping: `&`, `<`, `>` -> entities; quotes
-    // pass through PCDATA. Single-quoted inner string keeps the HTML
-    // attribute parser happy.
-    let src = "<state name=\"s\" value=\"'<a>&x'\" />\n<p>{s}</p>";
-    let html = render_source(src);
-    assert!(
-        html.contains("<p><!--sui:text:b0-->&lt;a&gt;&amp;x<!--/sui--></p>"),
-        "expected escaped text content; got: {html:?}"
-    );
-}
-
-#[test]
 fn data_initial_envelope_is_loading() {
     let src = "<data name=\"agents\" source=\"ship.agents.summaries()\" live />";
     let html = render_source(src);
@@ -234,16 +213,6 @@ fn unevaluable_expr_emits_marker_only() {
 }
 
 #[test]
-fn attribute_interp_inlines_value() {
-    let src = "<state name=\"id\" value=\"'42'\" />\n<a href={'/u/' + id}>x</a>";
-    let html = render_source(src);
-    assert!(
-        html.contains(r#"<a href="/u/42" attr:href="b0">"#),
-        "expected inlined href and marker; got: {html:?}"
-    );
-}
-
-#[test]
 fn class_directive_renders_initial() {
     let src = "<div class:active={true}>x</div>";
     let html = render_source(src);
@@ -254,23 +223,13 @@ fn class_directive_renders_initial() {
 }
 
 #[test]
-fn bind_value_renders_initial() {
-    let src = "<state name=\"query\" value=\"'hi'\" />\n<input bind:value={query} />";
-    let html = render_source(src);
-    assert!(
-        html.contains(r#"<input value="hi" bind:value="b0">"#),
-        "expected initial value plus marker; got: {html:?}"
-    );
-}
-
-#[test]
 fn json_island_present_after_body() {
-    let src = "<state name=\"n\" value=\"3\" />\n<p>{n}</p>";
+    let src = "<data name=\"agents\" source=\"ship.agents.summaries()\" live />\n<p>hi</p>";
     let html = render_source(src);
     let count = html.matches(ISLAND_OPEN).count();
     assert_eq!(count, 1, "expected exactly one island; got {count}: {html:?}");
     let island_pos = html.find(ISLAND_OPEN).unwrap();
-    let body_marker = html.find("<!--/sui-->").expect("body marker present");
+    let body_marker = html.find("<p>hi</p>").expect("static body present");
     assert!(
         body_marker < island_pos,
         "island must follow body content; got: {html:?}"
@@ -307,43 +266,10 @@ fn agents_view_island_carries_loading_envelope() {
 // ---------- Phase D-3: control-flow rendering ----------
 
 #[test]
-fn if_truthy_branch_renders_body() {
-    let src = "<state name=\"show\" value=\"true\" />\n{#if show}<p>yes</p>{/if}";
-    let html = render_source(src);
-    assert!(
-        html.contains(r#"<sui-if key="b0" style="display:contents"><p>yes</p></sui-if>"#),
-        "expected truthy branch body in active wrapper; got: {html:?}"
-    );
-}
-
-#[test]
-fn if_falsy_branch_skipped() {
-    let src = "<state name=\"show\" value=\"false\" />\n{#if show}<p>yes</p>{/if}";
-    let html = render_source(src);
-    assert!(
-        html.contains(r#"<sui-if key="b0" hidden></sui-if>"#),
-        "expected placeholder for falsy branch with no else; got: {html:?}"
-    );
-    assert!(!html.contains("<p>yes</p>"));
-}
-
-#[test]
-fn if_else_branch_renders_when_falsy() {
-    let src = "<state name=\"x\" value=\"false\" />\n{#if x}<p>a</p>{:else}<p>b</p>{/if}";
-    let html = render_source(src);
-    assert!(
-        html.contains(r#"<sui-if key="b0" style="display:contents"><p>b</p></sui-if>"#),
-        "expected else body; got: {html:?}"
-    );
-    assert!(!html.contains("<p>a</p>"));
-}
-
-#[test]
 fn if_unevaluable_falls_back_to_placeholder() {
-    // `route.params.id` is a string lookup on the empty `route.params`
-    // placeholder, so the strict-equality test against `'42'` evaluates
-    // cleanly to false. To get a genuinely unevaluable shape we have
-    // to reference an unbound name — same end-state semantics.
+    // State signals reach scope only at hydrate, so a `{#if x}` over a
+    // controller-scope identifier collapses to the placeholder shape
+    // here at SSR time.
     let src = "{#if missing.id === '42'}<p>x</p>{/if}";
     let html = render_source(src);
     assert!(
@@ -351,52 +277,6 @@ fn if_unevaluable_falls_back_to_placeholder() {
         "expected placeholder; got: {html:?}"
     );
     assert!(!html.contains("<p>x</p>"));
-}
-
-#[test]
-fn for_renders_each_iteration() {
-    let src = "<state name=\"items\" value=\"[1,2,3]\" />\n{#for n of items}<li>{n}</li>{/for}";
-    let html = render_source(src);
-    // Body has one dynamic-text key allocated once and shared across iterations.
-    assert!(
-        html.contains(r#"<sui-for key="b0" style="display:contents">"#),
-        "expected for active wrapper open; got: {html:?}"
-    );
-    assert!(html.contains("<li><!--sui:text:b1-->1<!--/sui--></li>"));
-    assert!(html.contains("<li><!--sui:text:b1-->2<!--/sui--></li>"));
-    assert!(html.contains("<li><!--sui:text:b1-->3<!--/sui--></li>"));
-}
-
-#[test]
-fn for_emits_data_set_key() {
-    let src = "<state name=\"items\" value=\"[1,2,3]\" />\n{#for n of items key={n}}<li>{n}</li>{/for}";
-    let html = render_source(src);
-    assert!(html.contains(r#"<li key="1">"#), "missing key=1: {html:?}");
-    assert!(html.contains(r#"<li key="2">"#), "missing key=2: {html:?}");
-    assert!(html.contains(r#"<li key="3">"#), "missing key=3: {html:?}");
-}
-
-#[test]
-fn for_iterations_share_inner_keys() {
-    let src = "<state name=\"items\" value=\"[1,2]\" />\n{#for n of items}<li>{n}</li>{/for}";
-    let html = render_source(src);
-    let occurrences = html.matches("sui:text:b1").count();
-    // One open marker per iteration; `b1` reused across all iterations.
-    assert_eq!(
-        occurrences, 2,
-        "expected the same b1 key reused across iterations; got {occurrences}: {html:?}"
-    );
-}
-
-#[test]
-fn for_empty_renders_else_body() {
-    let src =
-        "<state name=\"items\" value=\"[]\" />\n{#for n of items}<li>{n}</li>{:else}<p>none</p>{/for}";
-    let html = render_source(src);
-    assert!(
-        html.contains(r#"<sui-for key="b0" style="display:contents"><p>none</p></sui-for>"#),
-        "expected else body inside for active wrapper; got: {html:?}"
-    );
 }
 
 #[test]
@@ -411,17 +291,6 @@ fn for_unevaluable_iterable_falls_back() {
 }
 
 #[test]
-fn match_evaluates_discriminant() {
-    let src = "<state name=\"kind\" value=\"'a'\" />\n{#match kind}{:case 'a'}<p>A</p>{:case 'b'}<p>B</p>{/match}";
-    let html = render_source(src);
-    assert!(
-        html.contains(r#"<sui-match key="b0" branch="when_0" style="display:contents"><p>A</p></sui-match>"#),
-        "expected case A rendered; got: {html:?}"
-    );
-    assert!(!html.contains("<p>B</p>"));
-}
-
-#[test]
 fn match_unevaluable_falls_back() {
     let src = "{#match missing}{:case 'a'}<p>A</p>{:default}<p>D</p>{/match}";
     let html = render_source(src);
@@ -431,21 +300,6 @@ fn match_unevaluable_falls_back() {
     );
     assert!(!html.contains("<p>A</p>"));
     assert!(!html.contains("<p>D</p>"));
-}
-
-#[test]
-fn nested_control_flow_round_trip() {
-    let src = "<state name=\"x\" value=\"true\" />\n<state name=\"xs\" value=\"[1,2]\" />\n{#if x}{#for n of xs}<li>{n}</li>{/for}{/if}";
-    let html = render_source(src);
-    // Outer if takes b0; inner for takes b1; inner dynamic text takes b2.
-    assert!(html.contains(r#"<sui-if key="b0" style="display:contents">"#));
-    assert!(html.contains(r#"<sui-for key="b1" style="display:contents">"#));
-    assert!(html.contains("<li><!--sui:text:b2-->1<!--/sui--></li>"));
-    assert!(html.contains("<li><!--sui:text:b2-->2<!--/sui--></li>"));
-    // for body closes inside if body which closes outside.
-    let if_open = html.find(r#"<sui-if key="b0""#).unwrap();
-    let for_open = html.find(r#"<sui-for key="b1""#).unwrap();
-    assert!(if_open < for_open, "nesting order wrong: {html:?}");
 }
 
 #[test]

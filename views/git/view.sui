@@ -1,5 +1,4 @@
 <data name="overview" source="ship.git.overview()" live />
-<state name="tab" value="'changes'" />
 
 <use-kbd>
   <on key="1" action="showChanges" />

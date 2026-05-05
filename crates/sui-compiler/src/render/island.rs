@@ -3,9 +3,8 @@
 //! Per `docs/ship-adrs/.../sui-marker-contract.md`, every SSR'd
 //! page emits exactly one `<script type="application/json"
 //! id="__set_init__">` element after the rendered body. The contents
-//! are a JSON object keyed by the names of the page's `<state>` and
-//! `<data>` declarations (state values are inlined directly; data
-//! values are `{kind: "loading"}` envelopes for D-2).
+//! are a JSON object keyed by the names of the page's `<data>`
+//! declarations — `{kind: "loading"}` envelopes for D-2.
 //!
 //! The HTML parser ends a `<script>` element at `</script` regardless
 //! of the script's `type`. JSON values can contain that exact byte

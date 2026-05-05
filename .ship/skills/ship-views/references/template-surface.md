@@ -28,12 +28,11 @@ Reference views: `views/counter/` (no controller), `views/agents/` (object-liter
 <data name="agents" source="ship.agents.summaries()" live />
 <data name="settings" source="ship.settings.read()" />
 
-<!-- reactive args — re-subscribes when selectedId changes -->
-<state name="selectedId" value="'abc'" />
+<!-- reactive args — re-subscribes when selectedId changes.
+     `selectedId` is a signal declared in the controller's `scope:`
+     factory; templates declare the data subscription, controllers
+     own the local state. -->
 <data name="agent" source="ship.agents.get({id: $scope.selectedId()})" live />
-
-<!-- local state -->
-<state name="count" value="0" />
 
 <!-- props (component .sui files only; tag = directory/filename stem) -->
 <prop name="tone" values="default|primary" default="default" reflect />
@@ -75,7 +74,7 @@ Reference views: `views/counter/` (no controller), `views/agents/` (object-liter
 <slot></slot>
 ```
 
-File IS the component / view — no `<component>` wrapper. Top-level directives (`<state>`, `<data>`, `<prop>`, `<use-*>`) declare scope; the rest is the body.
+File IS the component / view — no `<component>` wrapper. Top-level directives (`<data>`, `<prop>`, `<use-*>`) declare scope; the rest is the body. Reactive component state is declared in the paired controller's `scope:` factory.
 
 ## Controller (paired `view.controller.ts`, five sections)
 
@@ -94,7 +93,7 @@ export default controller<Scope>({
 
 Three tiers, smallest that fits:
 
-1. **Tier 1 — no controller.** Pure `.sui` with `<state>` and single-expression inline handlers.
+1. **Tier 1 — no controller.** Pure `.sui` with `<data>` / `<prop>` and single-expression inline handlers. Anything reactive — local signals, derived, hooks — needs a paired controller.
 2. **Tier 2 — object-literal controller.** Most coordinated views. Multi-statement handlers require a paired `.controller.ts`.
 3. **Tier 3 — function-form controller.** When setup needs closure-scoped variables.
 

@@ -1,3 +1,5 @@
+import { signal } from '@ship/ui-runtime'
+
 export default function setup() {
-  return {}
+  return { count: signal(0) }
 }

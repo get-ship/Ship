@@ -24,8 +24,10 @@ pub use parser::parse_expr;
 pub use ast::Node;
 
 /// Map of identifier name -> JSON value. Built once per render from
-/// the program's `<state>` / `<data>` declarations plus the synthetic
-/// `route` placeholder.
+/// the program's `<data>` declarations plus the synthetic `route`
+/// placeholder. Reactive state declared in the controller's `scope:`
+/// factory has no SSR representation — those identifiers stay
+/// unbound during static render.
 pub type Scope = HashMap<String, serde_json::Value>;
 
 /// Failure modes for the evaluator.

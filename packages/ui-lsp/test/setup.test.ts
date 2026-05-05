@@ -14,11 +14,9 @@ describe('setup', () => {
     const info = loadSetup(path.join(FIXTURES, 'profile.sui'));
     expect(info).not.toBeNull();
     const names = info!.members.map(m => m.name).sort();
-    // Per the "state is declarative-only" ADR, `state:` is no longer
-    // a controller section — `name` and `age` come from the template's
-    // <state> directives, not the controller def. Setup analysis
-    // surfaces only the controller's derived/on/use keys.
-    expect(names).toEqual(['filter', 'save']);
+    // `name` and `age` are signals declared in the controller's
+    // `scope:` factory; `filter` from `derived`; `save` from `on`.
+    expect(names).toEqual(['age', 'filter', 'name', 'save']);
   });
 
   it('falls back to return-statement object literal', () => {
@@ -32,11 +30,9 @@ describe('setup', () => {
   });
 
   describe('controller(def) — Form C', () => {
-    it('extracts derived / on / use keys from object form', () => {
-      // Per the "state is declarative-only" ADR, controllers have
-      // five sections — derived / on / use / mount / unmount — and
-      // state lives in the template. Setup analysis only surfaces
-      // section-derived identifiers (derived / on / use).
+    it('extracts scope / derived / on / use keys from object form', () => {
+      // Setup analysis surfaces every controller section that
+      // contributes to template scope: scope / derived / on / use.
       const src = `
         import { controller } from '@ship/ui-runtime'
         export default controller({

@@ -37,26 +37,6 @@ fn compile_component_dts(source: &str) -> String {
 }
 
 #[test]
-fn state_integer_literal_emits_number() {
-    let dts = compile_dts(r#"<state name="count" value="0" />"#);
-    assert!(dts.contains("count: Signal<number>"), "got: {dts}");
-    assert!(dts.contains("import type { Signal }"), "got: {dts}");
-    assert!(!dts.contains("LiveState"), "got: {dts}");
-}
-
-#[test]
-fn state_string_literal_emits_string() {
-    let dts = compile_dts(r#"<state name="label" value="''" />"#);
-    assert!(dts.contains("label: Signal<string>"), "got: {dts}");
-}
-
-#[test]
-fn state_boolean_emits_boolean() {
-    let dts = compile_dts(r#"<state name="open" value="false" />"#);
-    assert!(dts.contains("open: Signal<boolean>"), "got: {dts}");
-}
-
-#[test]
 fn data_live_emits_live_state() {
     let dts = compile_dts(r#"<data name="agents" source="ship.agents.list()" live />"#);
     assert!(dts.contains("agents: Signal<LiveState<unknown>>"), "got: {dts}");
@@ -111,7 +91,7 @@ fn emit_dts_false_returns_none() {
         component_meta: None,
         emit_dts: false,
     };
-    let out = compile(r#"<state name="x" value="0" />"#, opts).expect("compile");
+    let out = compile(r#"<p>hi</p>"#, opts).expect("compile");
     assert!(out.dts.is_none(), "expected no dts when emit_dts=false");
 }
 
@@ -173,10 +153,10 @@ fn reflect_empty_does_not_add_scope_entry() {
 fn multiple_declarations_all_appear() {
     let src = r#"
 <data name="overview" source="ship.git.overview()" live />
-<state name="tab" value="'changes'" />
+<data name="config" source="ship.config.get()" />
 "#;
     let dts = compile_dts(src);
     assert!(dts.contains("overview: Signal<LiveState<unknown>>"), "got: {dts}");
-    assert!(dts.contains("tab: Signal<string>"), "got: {dts}");
+    assert!(dts.contains("config: Signal<unknown>"), "got: {dts}");
     assert!(dts.contains("import type { Signal, LiveState }"), "got: {dts}");
 }

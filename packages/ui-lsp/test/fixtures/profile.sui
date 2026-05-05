@@ -1,6 +1,3 @@
-<state name="name" value="'Alice'" />
-<state name="age" value="30" />
-
 <div class="profile">
   <h1>{name()}</h1>
   <p>Age: {age()}</p>

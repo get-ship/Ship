@@ -1,8 +1,18 @@
-import { controller } from '@ship/ui-runtime'
+import { controller, signal } from '@ship/ui-runtime'
 import type { Scope } from './index.sui'
 import { loadCatalog, type CatalogEntry } from './partials/catalog'
 
+type StudioFilterKind = 'all' | 'sui' | 'view'
+
 export default controller<Scope>({
+  scope: () => ({
+    sui: signal<CatalogEntry[]>([]),
+    views: signal<CatalogEntry[]>([]),
+    loading: signal(true),
+    filterKind: signal<StudioFilterKind>('all'),
+    filterText: signal(''),
+  }),
+
   derived: {
     allItems: ({ sui, views }) =>
       [...(sui() as CatalogEntry[]), ...(views() as CatalogEntry[])],

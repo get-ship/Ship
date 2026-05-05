@@ -48,9 +48,6 @@ pub fn lower(program: &Program, mode: CompileMode) -> Lowered {
         out.runtime_imports.insert("data");
         out.runtime_imports.insert("live");
     }
-    if !program.state.is_empty() {
-        out.runtime_imports.insert("signal");
-    }
     let mut depth = 0;
     walk_instrs(&program.template, &mut out, is_view, &mut depth);
     out
