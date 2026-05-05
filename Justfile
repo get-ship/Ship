@@ -48,15 +48,31 @@ status:
 doctor:
     ship doctor
 
-# Run all tests (Rust + loops). For a faster inner loop use test-fast.
+# Run all tests (Rust + loops + integration). For a faster inner loop use test-fast.
 [group('daily')]
 test:
     cargo test --workspace --features unstable
+    @just test-integration-shape
+    @just test-integration-symmetry
 
 # Library tests only — skips integration suites for fast inner-loop feedback.
 [group('daily')]
 test-fast:
     cargo test --workspace --lib --features unstable
+
+# Shape-conformance integration test — every checked-in `.sui` template
+# compiles and its emitted JS typechecks against the runtime's public
+# surface. See crates/sui-compiler/tests/shape_conformance.rs.
+[group('daily')]
+test-integration-shape:
+    cargo test -p sui-compiler --test shape_conformance
+
+# Resource-symmetry integration test — every checked-in view mounts +
+# disposes in jsdom with zero leaked EventSources / Observers / intervals.
+# See tests/integration/resource-symmetry.test.ts.
+[group('daily')]
+test-integration-symmetry:
+    pnpm exec vitest run --config tests/integration/vitest.config.ts
 
 # Run tests for a single crate. Usage: just test-pkg runtime
 [group('daily')]

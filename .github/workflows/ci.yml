@@ -47,8 +47,18 @@ jobs:
         run: cargo build -p ship-cli -p mcp -p shipd
       - name: Build (unstable)
         run: cargo build --features unstable -p ship-cli -p mcp -p shipd
+      # Shape-conformance integration test runs as part of
+      # `cargo test --workspace` (it's a normal integration test under
+      # `crates/sui-compiler/tests/shape_conformance.rs`). The tsc gate
+      # inside that test depends on the earlier `pnpm install` step
+      # populating `node_modules/.bin/tsc`.
       - name: Cargo test
         run: cargo test --workspace --features unstable
+      # Resource symmetry: every checked-in view mounts + disposes in
+      # jsdom with zero leaked EventSources / Observers / intervals.
+      # See `tests/integration/resource-symmetry.test.ts`.
+      - name: Integration test (resource symmetry)
+        run: pnpm exec vitest run --config tests/integration/vitest.config.ts
       # Runs `pretest` first (scripts/precompile-sui.mjs), which exercises
       # every framework check baked into the sui-compiler pipeline:
       # controller-purity, css-token, bind-this-ref, on-callable, and
