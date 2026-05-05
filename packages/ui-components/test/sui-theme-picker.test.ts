@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import '../src/sui-theme-picker/sui-theme-picker.compiled.js'
+import '../src/sui-theme-picker/dist/sui-theme-picker.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

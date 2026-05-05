@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Precompile every `.sui` source under a package's `src/` to its sibling
-// `<stem>.compiled.js` artifact. Runs as a `pretest` hook before vitest
+// `dist/<stem>.compiled.js` artifact. Runs as a `pretest` hook before vitest
 // boots so a buggy compile fails the test command before any test starts —
 // rather than surfacing as a confusing "module not found" deep inside a
 // vitest worker.
@@ -15,7 +15,7 @@
 // `<package-dir>` may be absolute, or relative to either the current
 // working directory or the repo root.
 
-import { existsSync, mkdirSync, readdirSync, renameSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnBoundedOrThrow } from './spawn-bounded.mjs';
@@ -48,20 +48,18 @@ function* walkSui(dir) {
 }
 
 function compileOne(suiPath) {
-  const outDir = dirname(suiPath);
   const stem = basename(suiPath, '.sui');
   const hasBin = existsSync(compilerBin);
   const cmd = hasBin ? compilerBin : 'cargo';
   const args = hasBin
-    ? ['build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
-    : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts'];
+    ? ['build', suiPath, '--component-name', stem, '--no-dts']
+    : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--component-name', stem, '--no-dts'];
 
   const rel = relative(repoRoot, suiPath);
   spawnBoundedOrThrow(cmd, args, `sui-compiler ${rel}`, { cwd: repoRoot });
 
-  const emitted = join(outDir, `${stem}.js`);
-  const compiled = join(outDir, `${stem}.compiled.js`);
-  if (existsSync(emitted)) renameSync(emitted, compiled);
+  // The compiler emits to `<source-dir>/dist/<stem>.compiled.js`; verify it landed.
+  const compiled = join(dirname(suiPath), 'dist', `${stem}.compiled.js`);
   if (!existsSync(compiled)) {
     throw new Error(`sui-compiler ${rel}: compiled artifact missing at ${compiled}`);
   }

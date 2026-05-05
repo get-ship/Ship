@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-toggle-group/sui-toggle.compiled.js'
-import '../src/sui-toggle-group/sui-toggle-group.compiled.js'
+import '../src/sui-toggle-group/dist/sui-toggle.compiled.js'
+import '../src/sui-toggle-group/dist/sui-toggle-group.compiled.js'
 import { createContainerRegistry, flush } from '../src/test-utils'
 
 const reg = createContainerRegistry()

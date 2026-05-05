@@ -1,8 +1,11 @@
 //! `sui-compiler` CLI. Compiles a single `.sui` file or a
 //! directory of them, writing the emitted JS (and CEM JSON for
-//! components) to `--out`. Errors render with file path, line, and
-//! column.
+//! components) into a sibling `dist/` directory next to each
+//! source file. Pass `--out <dir>` to override and emit every
+//! file to a single directory (legacy behaviour). Errors render
+//! with file path, line, and column.
 
+use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process;
@@ -60,9 +63,17 @@ enum Command {
     Build {
         /// Path to a `.sui` file or a directory.
         input: PathBuf,
-        /// Output directory.
+        /// Output directory. When omitted, each file's outputs land in a
+        /// sibling `dist/` directory next to its source (`<source-dir>/dist/`)
+        /// and the JS module is named `<stem>.compiled.js`. When supplied,
+        /// every file is emitted into this single directory and the JS
+        /// module is named `<stem>.js` (legacy behaviour).
         #[arg(long)]
-        out: PathBuf,
+        out: Option<PathBuf>,
+        /// Remove each source file's `dist/` directory (or `--out` directory)
+        /// before emitting. Idempotent rebuilds.
+        #[arg(long)]
+        clean: bool,
         /// Override mode (otherwise auto-detected from --component-name).
         #[arg(long)]
         mode: Option<ModeArg>,
@@ -103,21 +114,21 @@ fn main() -> Result<()> {
     install_resource_bounds();
     let cli = Cli::parse();
     match cli.cmd {
-        Command::Build { input, out, mode, no_dts, styles, component_name } => {
-            build(input, out, mode, no_dts, styles, component_name)
+        Command::Build { input, out, clean, mode, no_dts, styles, component_name } => {
+            build(input, out, clean, mode, no_dts, styles, component_name)
         }
     }
 }
 
 fn build(
     input: PathBuf,
-    out: PathBuf,
+    out: Option<PathBuf>,
+    clean: bool,
     mode: Option<ModeArg>,
     no_dts: bool,
     styles: Option<PathBuf>,
     component_name: Option<String>,
 ) -> Result<()> {
-    fs::create_dir_all(&out).with_context(|| format!("create out dir {}", out.display()))?;
     let mut targets = Vec::new();
     if input.is_dir() {
         if styles.is_some() {
@@ -138,6 +149,33 @@ fn build(
     if targets.is_empty() {
         return Err(anyhow!("no .sui files found under {}", input.display()));
     }
+
+    if clean {
+        if let Some(out_dir) = out.as_deref() {
+            // Single --out dir mode: clean it once before emit.
+            if out_dir.exists() {
+                fs::remove_dir_all(out_dir)
+                    .with_context(|| format!("clean {}", out_dir.display()))?;
+            }
+        } else {
+            // Per-source dist/ mode: clean each unique <source-dir>/dist/.
+            let mut cleaned: HashSet<PathBuf> = HashSet::new();
+            for path in &targets {
+                let src_dir = path.parent().unwrap_or(Path::new(".")).to_path_buf();
+                let dist = src_dir.join("dist");
+                if cleaned.insert(dist.clone()) && dist.exists() {
+                    fs::remove_dir_all(&dist)
+                        .with_context(|| format!("clean {}", dist.display()))?;
+                }
+            }
+        }
+    }
+
+    if let Some(out_dir) = out.as_deref() {
+        fs::create_dir_all(out_dir)
+            .with_context(|| format!("create out dir {}", out_dir.display()))?;
+    }
+
     let styles_text = match styles.as_deref() {
         Some(p) => Some(
             fs::read_to_string(p)
@@ -158,7 +196,7 @@ fn build(
             (_, Some(name)) => Some(ComponentMeta { name, shadow: true }),
             _ => None,
         };
-        compile_one(&path, &out, mode.clone(), no_dts, styles_text.as_deref(), component_meta)?;
+        compile_one(&path, out.as_deref(), mode.clone(), no_dts, styles_text.as_deref(), component_meta)?;
     }
     println!("compiled {count} file(s)");
     Ok(())
@@ -199,7 +237,7 @@ fn collect_targets(dir: &Path, out: &mut Vec<PathBuf>) -> Result<()> {
 
 fn compile_one(
     path: &Path,
-    out_dir: &Path,
+    out_override: Option<&Path>,
     mode: Option<ModeArg>,
     no_dts: bool,
     styles: Option<&str>,
@@ -208,11 +246,25 @@ fn compile_one(
     let source = fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
     let mode = mode.map(|m| m.into()).unwrap_or(CompileMode::Auto);
+    // Resolve the emit dir for this file. Without --out, every file
+    // gets its own sibling `dist/`; with --out, all files share that
+    // directory (legacy single-dir mode).
+    let src_dir = path.parent().unwrap_or(Path::new("."));
+    let dist_mode = out_override.is_none();
+    let out_dir: PathBuf = match out_override {
+        Some(p) => p.to_path_buf(),
+        None => src_dir.join("dist"),
+    };
+    fs::create_dir_all(&out_dir)
+        .with_context(|| format!("create out dir {}", out_dir.display()))?;
     // Paired controller is auto-detected: if `<stem>.controller.ts`
     // exists next to the source, the compiler emits
-    // `import setup from "./<stem>.controller.ts"`. Authors who want
-    // template-only just don't write the .controller.ts file.
-    let setup_url = paired_setup(path);
+    // `import setup from "<rel>"` where `<rel>` is the path from the
+    // emit dir back to the controller. In dist/ mode that's
+    // `../<stem>.controller.ts`; in legacy --out=source-dir mode it's
+    // `./<stem>.controller.ts`. Authors who want template-only just
+    // don't write the .controller.ts file.
+    let setup_url = paired_setup(path, dist_mode);
     let opts = CompileOpts {
         setup_url,
         mode,
@@ -234,7 +286,16 @@ fn compile_one(
         .strip_suffix(".html.set")
         .or_else(|| stem.strip_suffix(".sui"))
         .unwrap_or(stem);
-    let js_path = out_dir.join(format!("{stem_no_ext}.js"));
+    // In dist/ mode the emitted JS is named `<stem>.compiled.js` so
+    // imports can name it directly without a separate rename step in
+    // the build pipeline. With --out we keep the legacy `<stem>.js`
+    // for callers that expect that name.
+    let js_name = if dist_mode {
+        format!("{stem_no_ext}.compiled.js")
+    } else {
+        format!("{stem_no_ext}.js")
+    };
+    let js_path = out_dir.join(&js_name);
     fs::write(&js_path, &result.js)
         .with_context(|| format!("write {}", js_path.display()))?;
     if let Some(cem) = result.cem {
@@ -258,9 +319,8 @@ fn compile_one(
             .with_context(|| format!("write {}", meta_path.display()))?;
     }
     // Write the .d.ts next to the source file so `import type { Scope } from
-    // './view.sui'` resolves correctly regardless of --out placement.
+    // './view.sui'` resolves correctly regardless of emit placement.
     if let Some(dts) = result.dts {
-        let src_dir = path.parent().unwrap_or(Path::new("."));
         let dts_path = src_dir.join(format!("{stem}.d.ts"));
         fs::write(&dts_path, dts)
             .with_context(|| format!("write {}", dts_path.display()))?;
@@ -268,16 +328,16 @@ fn compile_one(
     Ok(())
 }
 
-fn paired_setup(path: &Path) -> Option<String> {
+fn paired_setup(path: &Path, dist_mode: bool) -> Option<String> {
     let file_name = path.file_name()?.to_str()?;
     let stem = file_name
         .strip_suffix(".html.set")
         .or_else(|| file_name.strip_suffix(".sui"))?;
     let parent = path.parent()?;
     let candidate = parent.join(format!("{stem}.controller.ts"));
-    if candidate.exists() {
-        Some(format!("./{stem}.controller.ts"))
-    } else {
-        None
+    if !candidate.exists() {
+        return None;
     }
+    let prefix = if dist_mode { ".." } else { "." };
+    Some(format!("{prefix}/{stem}.controller.ts"))
 }

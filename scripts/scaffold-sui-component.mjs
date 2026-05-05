@@ -19,7 +19,7 @@
  * After scaffolding:
  *   1. Edit <tag>.sui — replace the placeholder prop list, styles, body
  *   2. Add to packages/ui-components/src/index.ts:
- *        import './<tag>/<tag>.compiled.js'
+ *        import './<tag>/dist/<tag>.compiled.js'
  *   3. Add to scripts/build-bundles.mjs componentSources:
  *        { htmlSet: 'packages/ui-components/src/<tag>/<tag>.sui' }
  *   4. node scripts/build-bundles.mjs --force
@@ -100,7 +100,7 @@ console.log(`[scaffold] created packages/ui-components/src/${tag}/`)
 console.log(`[scaffold] next steps:`)
 console.log(`  1. Edit ${tag}.sui — props, styles, template body, parity comment`)
 console.log(`  2. Add to packages/ui-components/src/index.ts:`)
-console.log(`       import './${tag}/${tag}.compiled.js'`)
+console.log(`       import './${tag}/dist/${tag}.compiled.js'`)
 console.log(`  3. Add to scripts/build-bundles.mjs componentSources:`)
 console.log(`       { htmlSet: 'packages/ui-components/src/${tag}/${tag}.sui' }`)
 console.log(`  4. node scripts/build-bundles.mjs --force`)

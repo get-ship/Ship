@@ -5,7 +5,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 // AOT registration: importing the compiled output calls
 // `customElements.define()` at module load.
-import '../src/sui-status-dot/sui-status-dot.compiled.js'
+import '../src/sui-status-dot/dist/sui-status-dot.compiled.js'
 
 const containers: HTMLElement[] = []
 const mkContainer = (): HTMLElement => {

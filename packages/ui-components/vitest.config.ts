@@ -1,6 +1,6 @@
 import { defineConfig } from 'vitest/config'
 import { resolve, dirname, basename } from 'node:path'
-import { existsSync, readFileSync, renameSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { SHIP_VITEST_DEFAULTS } from '../../vitest.shared'
 // @ts-expect-error — JS module, no .d.ts.
 import { spawnBoundedOrThrow } from '../../scripts/spawn-bounded.mjs'
@@ -13,12 +13,12 @@ const compilerBin = resolve(repoRoot, 'target/debug/sui-compiler')
 // never hit this path. spawnBoundedOrThrow wraps the child in
 // `prlimit + timeout` so a buggy compile dies cleanly without taking the
 // host VM with it.
-function compileSui(suiPath: string, outDir: string, stem: string): void {
+function compileSui(suiPath: string, stem: string): void {
   const hasBin = existsSync(compilerBin)
   const cmd = hasBin ? compilerBin : 'cargo'
   const args = hasBin
-    ? ['build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
-    : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
+    ? ['build', suiPath, '--component-name', stem, '--no-dts']
+    : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--component-name', stem, '--no-dts']
   spawnBoundedOrThrow(cmd, args, `sui-compiler ${suiPath}`, { cwd: repoRoot })
 }
 
@@ -40,12 +40,14 @@ export default defineConfig({
     ...SHIP_VITEST_DEFAULTS,
   },
   // `<tag>.compiled.js` shim. Production bundles use AOT-compiled modules
-  // emitted by the Rust sui-compiler. For tests:
-  //   (a) If the `.compiled.js` already exists (built by build-bundles or
-  //       a prior test run), resolve it directly.
-  //   (b) If a sibling `.sui` file exists, compile it on-demand via the Rust
-  //       binary (or `cargo run` fallback) and write the output next to the
-  //       source as `<stem>.compiled.js`.
+  // emitted by the Rust sui-compiler into a sibling `dist/` directory.
+  // For tests, an `import '.../<stem>.compiled.js'` is resolved as:
+  //   (a) `<importer-dir>/dist/<stem>.compiled.js` if it already exists
+  //       (built by build-bundles, the pretest precompile hook, or a prior
+  //       test run).
+  //   (b) Otherwise, if a sibling `<stem>.sui` source file exists, compile
+  //       it on-demand via the Rust binary (or `cargo run` fallback). The
+  //       compiler emits to `dist/<stem>.compiled.js` automatically.
   //   (c) Otherwise fall back to the legacy `.html.set` hydrate path.
   plugins: [
     {
@@ -63,24 +65,28 @@ export default defineConfig({
       name: 'compiled-js-test-shim',
       resolveId(id: string, importer?: string) {
         if (!id.endsWith('.compiled.js') || !importer) return null
-        const dir = resolve(importer, '..')
-        const stem = id.replace(/^\.\//, '').replace(/\.compiled\.js$/, '')
-        const actualFile = resolve(dir, `${stem}.compiled.js`)
+        // Resolve the import to the absolute artifact path. Test files
+        // import the dist-based path directly, e.g.
+        // `'../src/sui-foo/dist/sui-foo.compiled.js'`, so a relative
+        // resolution from the importer hits the actual artifact location.
+        const importerDir = resolve(importer, '..')
+        const actualFile = resolve(importerDir, id)
 
         if (existsSync(actualFile)) return actualFile
 
-        const suiFile = resolve(dir, `${stem}.sui`)
+        // Source layout: `<source-dir>/<stem>.sui` → emit at
+        // `<source-dir>/dist/<stem>.compiled.js`. Walk one segment up
+        // from the artifact's directory to find the source.
+        const stem = basename(actualFile).replace(/\.compiled\.js$/, '')
+        const sourceDir = dirname(dirname(actualFile))
+        const suiFile = resolve(sourceDir, `${stem}.sui`)
         if (existsSync(suiFile)) {
-          const compDir = dirname(suiFile)
-          const tagName = basename(suiFile, '.sui')
-          compileSui(suiFile, compDir, tagName)
-          const emitted = resolve(compDir, `${tagName}.js`)
-          if (existsSync(emitted)) renameSync(emitted, actualFile)
+          compileSui(suiFile, stem)
           if (existsSync(actualFile)) return actualFile
         }
 
         // Legacy fallback: virtual module using the old hydrate path.
-        return `\0compiled-js-shim:${resolve(dir, stem)}`
+        return `\0compiled-js-shim:${resolve(sourceDir, stem)}`
       },
       load(id: string) {
         const prefix = '\0compiled-js-shim:'

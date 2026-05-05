@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import '../src/sui-timeline/sui-timeline.compiled.js'
-import '../src/sui-timeline/sui-timeline-item.compiled.js'
+import '../src/sui-timeline/dist/sui-timeline.compiled.js'
+import '../src/sui-timeline/dist/sui-timeline-item.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

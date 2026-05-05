@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import '../src/sui-toast/sui-toast.compiled.js'
-import '../src/sui-toast/sui-toast-container.compiled.js'
+import '../src/sui-toast/dist/sui-toast.compiled.js'
+import '../src/sui-toast/dist/sui-toast-container.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
