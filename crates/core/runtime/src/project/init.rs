@@ -86,11 +86,62 @@ Vision -> Release -> Feature -> Spec -> Close Feature -> Ship Release
 "#,
     )?;
 
-    let config = crate::config::get_config(Some(ship_path.clone()))?;
     crate::config::ensure_standard_dirs(&ship_path)?;
-    crate::config::generate_gitignore(&ship_path, &config.git)?;
+    write_project_gitignore(base_dir.as_ref())?;
 
     Ok(ship_path)
+}
+
+/// Write a top-level `.gitignore` template to the project root listing only
+/// tool-required files Ship generates on compile (CLAUDE.md, AGENTS.md, the
+/// per-provider tool dirs). Implementation details inside `.ship/` never
+/// belong here. Idempotent: appends only the lines the user doesn't already
+/// have.
+fn write_project_gitignore(project_root: &Path) -> Result<()> {
+    let path = project_root.join(".gitignore");
+    let existing = std::fs::read_to_string(&path).unwrap_or_default();
+    let want: &[&str] = &[
+        "# Ship — tool-generated provider context",
+        "CLAUDE.md",
+        "AGENTS.md",
+        ".mcp.json",
+        ".claude/",
+        ".codex/",
+        ".opencode/",
+    ];
+    let mut additions = Vec::new();
+    for line in want {
+        let trimmed = line.trim();
+        if trimmed.starts_with('#') || trimmed.is_empty() {
+            // Always include the comment header in a fresh file; skip in an
+            // existing one if any of the entries below are already there
+            // (let the user own their own organization).
+            if existing.is_empty() {
+                additions.push(line.to_string());
+            }
+            continue;
+        }
+        let already = existing
+            .lines()
+            .any(|l| l.trim() == trimmed);
+        if !already {
+            additions.push(line.to_string());
+        }
+    }
+    if additions.is_empty() {
+        return Ok(());
+    }
+    let mut out = existing.clone();
+    if !out.is_empty() && !out.ends_with('\n') {
+        out.push('\n');
+    }
+    if !out.is_empty() && !additions.first().map(|s| s.starts_with('#')).unwrap_or(false) {
+        out.push('\n');
+    }
+    out.push_str(&additions.join("\n"));
+    out.push('\n');
+    std::fs::write(&path, out)?;
+    Ok(())
 }
 
 /// Result of [`init_project_with_registry`].

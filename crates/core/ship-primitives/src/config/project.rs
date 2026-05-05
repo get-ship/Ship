@@ -1,6 +1,5 @@
 use super::types::{
-    AgentLayerConfig, AiConfig, GitConfig, HookConfig, PermissionConfig, StatusConfig,
-    is_agent_layer_empty,
+    AgentLayerConfig, HookConfig, PermissionConfig, is_agent_layer_empty,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -122,11 +121,6 @@ pub struct ProjectConfig {
     pub id: String,
     pub name: Option<String>,
     pub description: Option<String>,
-    #[serde(default = "default_statuses")]
-    pub statuses: Vec<StatusConfig>,
-    #[serde(default)]
-    pub git: GitConfig,
-    pub ai: Option<AiConfig>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub agents: Vec<AgentProfile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -157,36 +151,6 @@ pub fn default_providers() -> Vec<String> {
     vec!["claude".to_string()]
 }
 
-pub fn default_statuses() -> Vec<StatusConfig> {
-    vec![
-        StatusConfig {
-            id: "backlog".into(),
-            name: "Backlog".into(),
-            color: "gray".into(),
-        },
-        StatusConfig {
-            id: "in-progress".into(),
-            name: "In Progress".into(),
-            color: "blue".into(),
-        },
-        StatusConfig {
-            id: "review".into(),
-            name: "Review".into(),
-            color: "yellow".into(),
-        },
-        StatusConfig {
-            id: "blocked".into(),
-            name: "Blocked".into(),
-            color: "red".into(),
-        },
-        StatusConfig {
-            id: "done".into(),
-            name: "Done".into(),
-            color: "green".into(),
-        },
-    ]
-}
-
 impl Default for ProjectConfig {
     fn default() -> Self {
         Self {
@@ -194,9 +158,6 @@ impl Default for ProjectConfig {
             id: String::new(),
             name: None,
             description: None,
-            statuses: default_statuses(),
-            git: GitConfig::default(),
-            ai: None,
             agents: Vec::new(),
             mcp_servers: Vec::new(),
             agent: AgentLayerConfig::default(),

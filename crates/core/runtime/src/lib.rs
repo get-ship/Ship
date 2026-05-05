@@ -69,13 +69,13 @@ pub use agents::import::{
 };
 pub use config::catalog::{CatalogEntry, CatalogKind, list_catalog, list_catalog_by_kind, search_catalog};
 pub use config::{
-    AgentLayerConfig, AgentProfile, AiConfig, GitConfig, HookConfig, HookTrigger, McpServerConfig,
-    McpServerType, PermissionConfig, ProjectConfig, StatusConfig,
-    add_mcp_server, add_status, ensure_standard_dirs, generate_gitignore,
-    get_active_agent, get_all_settings, get_config, get_effective_config, get_git_config,
-    get_project_statuses, get_setting, is_category_committed, list_mcp_servers,
-    remove_mcp_server, remove_status, save_config,
-    set_category_committed, set_git_config, set_setting, setting_default,
+    AgentLayerConfig, AgentProfile, HookConfig, HookTrigger, McpServerConfig,
+    McpServerType, PermissionConfig, ProjectConfig,
+    add_mcp_server, ensure_standard_dirs,
+    get_active_agent, get_all_settings, get_config, get_effective_config,
+    get_setting, list_mcp_servers,
+    remove_mcp_server, save_config,
+    set_setting, setting_default,
 };
 
 pub use events::{
@@ -116,101 +116,11 @@ mod tests {
     use std::fs;
     use tempfile::tempdir;
 
-    #[test]
-    fn test_add_and_remove_status() -> anyhow::Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = init_project(tmp.path().to_path_buf())?;
-        add_status(Some(project_dir.clone()), "testing")?;
-        let statuses = get_project_statuses(Some(project_dir.clone()))?;
-        assert!(statuses.contains(&"testing".to_string()));
-        remove_status(Some(project_dir.clone()), "testing")?;
-        let statuses = get_project_statuses(Some(project_dir))?;
-        assert!(!statuses.contains(&"testing".to_string()));
-        Ok(())
-    }
-
-    #[test]
-    fn test_remove_status_without_issue_guard() -> anyhow::Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = init_project(tmp.path().to_path_buf())?;
-        add_status(Some(project_dir.clone()), "review")?;
-        let result = remove_status(Some(project_dir), "review");
-        assert!(result.is_ok());
-        Ok(())
-    }
-
-    #[test]
-    fn test_git_config_roundtrip() -> anyhow::Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = init_project(tmp.path().to_path_buf())?;
-        set_category_committed(&project_dir, "features", true)?;
-        set_category_committed(&project_dir, "notes", false)?;
-        let git = get_git_config(&project_dir)?;
-        assert!(is_category_committed(&git, "features"));
-        assert!(!is_category_committed(&git, "notes"));
-        Ok(())
-    }
-
-    #[test]
-    fn test_legacy_agents_category_maps_to_rules_mcp_permissions() -> anyhow::Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = init_project(tmp.path().to_path_buf())?;
-        set_category_committed(&project_dir, "agents", false)?;
-        let gitignore = fs::read_to_string(project_dir.join(".gitignore"))?;
-        assert!(gitignore.contains("\nrules\n") || gitignore.contains("\nrules"));
-        assert!(gitignore.contains("mcp.jsonc"));
-        assert!(gitignore.contains("permissions.jsonc"));
-        set_category_committed(&project_dir, "agents", true)?;
-        let gitignore = fs::read_to_string(project_dir.join(".gitignore"))?;
-        assert!(!gitignore.contains("\nrules\n") && !gitignore.contains("\nrules"));
-        assert!(!gitignore.contains("mcp.jsonc"));
-        assert!(!gitignore.contains("permissions.jsonc"));
-        Ok(())
-    }
-
-    #[test]
-    fn test_agent_layer_is_not_file_backed() -> anyhow::Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = init_project(tmp.path().to_path_buf())?;
-        let mut config = get_config(Some(project_dir.clone()))?;
-        config.ai = Some(AiConfig {
-            provider: Some("codex".into()),
-            model: Some("gpt-5".into()),
-            cli_path: None,
-        });
-        config.agent.skills = vec!["backend-rust".into(), "frontend-react".into()];
-        config.agent.prompts = vec!["Summarize risks first".into()];
-        config.agent.context = vec!["AGENTS.md".into(), "specs/".into()];
-        save_config(&config, Some(project_dir.clone()))?;
-        let loaded = get_config(Some(project_dir))?;
-        assert_eq!(loaded.ai.and_then(|ai| ai.provider), Some("codex".into()));
-        assert!(loaded.agent.skills.is_empty());
-        assert!(loaded.agent.prompts.is_empty());
-        assert!(loaded.agent.context.is_empty());
-        Ok(())
-    }
-
-    #[test]
-    fn test_generate_gitignore() -> anyhow::Result<()> {
-        let tmp = tempdir()?;
-        let project_dir = init_project(tmp.path().to_path_buf())?;
-        let gitignore = fs::read_to_string(project_dir.join(".gitignore"))?;
-        assert!(!gitignore.contains("generated/"));
-        assert!(gitignore.contains(".tmp-global/"));
-        assert!(gitignore.contains("project/releases"));
-        assert!(gitignore.contains("project/features"));
-        assert!(gitignore.contains("project/specs"));
-        assert!(gitignore.contains("project/adrs"));
-        assert!(gitignore.contains("project/notes"));
-        assert!(gitignore.contains("vision.md"));
-        assert!(gitignore.contains("skills"));
-        assert!(!gitignore.contains("\nrules\n") && !gitignore.contains("\nrules"));
-        assert!(!gitignore.contains("mcp.jsonc"));
-        assert!(!gitignore.contains("permissions.jsonc"));
-        assert!(!gitignore.contains("platform.db"));
-        assert!(!gitignore.contains("log.md"));
-        Ok(())
-    }
+    // status / git-config / agent-layer-is-not-file-backed / generate_gitignore
+    // tests removed alongside the deleted ProjectConfig.{statuses,git,ai}
+    // fields and the configurable .ship/.gitignore mechanism. The new
+    // top-level .gitignore template is generated unconditionally by
+    // init_project; that's covered by test_init_project below.
 
     #[test]
     fn test_log_action() -> anyhow::Result<()> {

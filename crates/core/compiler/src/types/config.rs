@@ -2,66 +2,6 @@ use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
 
-// ─── Status / Git ─────────────────────────────────────────────────────────────
-
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct StatusConfig {
-    pub id: String,
-    pub name: String,
-    #[serde(default = "default_color")]
-    pub color: String,
-}
-
-fn default_color() -> String {
-    "gray".to_string()
-}
-
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct GitConfig {
-    #[serde(default)]
-    pub ignore: Vec<String>,
-    #[serde(default)]
-    pub commit: Vec<String>,
-}
-
-impl Default for GitConfig {
-    fn default() -> Self {
-        Self {
-            ignore: Vec::new(),
-            commit: vec![
-                "agents".to_string(),
-                "ship.jsonc".to_string(),
-                "templates".to_string(),
-                "vision".to_string(),
-            ],
-        }
-    }
-}
-
-// ─── AI / Provider ────────────────────────────────────────────────────────────
-
-#[cfg_attr(feature = "specta", derive(specta::Type))]
-#[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct AiConfig {
-    pub provider: Option<String>,
-    pub model: Option<String>,
-    pub cli_path: Option<String>,
-}
-
-impl AiConfig {
-    pub fn effective_provider(&self) -> &str {
-        self.provider.as_deref().unwrap_or("claude")
-    }
-
-    pub fn effective_cli(&self) -> &str {
-        self.cli_path
-            .as_deref()
-            .unwrap_or_else(|| self.effective_provider())
-    }
-}
-
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -223,11 +163,8 @@ pub struct ProjectConfig {
     pub id: String,
     pub name: Option<String>,
     pub description: Option<String>,
-    #[serde(default = "default_statuses")]
-    pub statuses: Vec<StatusConfig>,
     #[serde(default)]
     pub providers: Vec<String>,
-    pub ai: Option<AiConfig>,
     #[serde(default)]
     pub agents: Vec<AgentConfig>,
     #[serde(default)]
@@ -236,8 +173,6 @@ pub struct ProjectConfig {
     pub hooks: Vec<HookConfig>,
     #[serde(default)]
     pub namespaces: Vec<NamespaceConfig>,
-    #[serde(default)]
-    pub git: GitConfig,
     #[serde(skip, default)]
     pub agent: AgentLayerConfig,
 }
@@ -249,14 +184,11 @@ impl Default for ProjectConfig {
             id: String::new(),
             name: None,
             description: None,
-            statuses: default_statuses(),
             providers: Vec::new(),
-            ai: None,
             agents: Vec::new(),
             mcp_servers: Vec::new(),
             hooks: Vec::new(),
             namespaces: Vec::new(),
-            git: GitConfig::default(),
             agent: AgentLayerConfig::default(),
         }
     }
@@ -266,27 +198,3 @@ fn default_version() -> String {
     "1".to_string()
 }
 
-fn default_statuses() -> Vec<StatusConfig> {
-    vec![
-        StatusConfig {
-            id: "backlog".to_string(),
-            name: "Backlog".to_string(),
-            color: "gray".to_string(),
-        },
-        StatusConfig {
-            id: "in-progress".to_string(),
-            name: "In Progress".to_string(),
-            color: "blue".to_string(),
-        },
-        StatusConfig {
-            id: "blocked".to_string(),
-            name: "Blocked".to_string(),
-            color: "red".to_string(),
-        },
-        StatusConfig {
-            id: "done".to_string(),
-            name: "Done".to_string(),
-            color: "green".to_string(),
-        },
-    ]
-}

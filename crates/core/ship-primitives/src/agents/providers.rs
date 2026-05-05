@@ -405,16 +405,9 @@ fn discover_models(desc: &ProviderDescriptor, project_dir: Option<&Path>) -> Vec
         }
     }
 
-    // Ship-side preference for generation model.
-    if let Some(project_dir) = project_dir
-        && let Ok(config) = get_config(Some(project_dir.to_path_buf()))
-        && let Some(ai) = config.ai.as_ref()
-        && ai.effective_provider() == desc.id
-        && let Some(model) = ai.model.as_deref()
-    {
-        push_model(&mut models, &mut seen, desc.id, model.trim(), false);
-    }
-
+    // Ship-side model preference (config.ai) was removed — model selection
+    // now comes from the user via Studio settings or per-compile flags.
+    let _ = project_dir;
     models
 }
 

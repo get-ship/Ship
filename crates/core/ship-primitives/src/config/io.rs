@@ -5,7 +5,7 @@ use super::merge::{
 use super::agents::{get_agents_config, save_agents_config};
 use super::project::{ProjectConfig, default_providers};
 use super::runtime_settings::{
-    get_runtime_settings, migrate_json_config, normalize_git_config, save_runtime_settings,
+    get_runtime_settings, migrate_json_config, save_runtime_settings,
 };
 use super::types::PRIMARY_CONFIG_FILE;
 use ship_substrate::project::get_global_dir;
@@ -37,22 +37,10 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
     } else {
         ProjectConfig::default()
     };
-    config.git = normalize_git_config(config.git);
 
     if is_project {
-        if let Some((providers, statuses, ai, git)) =
-            get_runtime_settings(&config_dir)?
-        {
+        if let Some(providers) = get_runtime_settings(&config_dir)? {
             config.providers = providers;
-            if let Some(statuses) = statuses {
-                config.statuses = statuses;
-            }
-            if ai.is_some() {
-                config.ai = ai;
-            }
-            if let Some(git) = git {
-                config.git = git;
-            }
         }
     }
 
@@ -80,10 +68,6 @@ pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<ProjectConfi
     };
 
     let mut project = get_config(Some(project_dir))?;
-
-    if project.ai.is_none() {
-        project.ai = global.ai;
-    }
 
     project.agent.skills = merge_string_lists(&global.agent.skills, &project.agent.skills);
     project.agent.prompts = merge_string_lists(&global.agent.prompts, &project.agent.prompts);

@@ -1,5 +1,4 @@
 use super::project::ProjectConfig;
-use super::types::{AiConfig, GitConfig, StatusConfig};
 use ship_substrate::db::kv;
 use ship_substrate::db::kv::KvNamespace;
 use anyhow::Result;
@@ -60,117 +59,26 @@ pub(super) fn project_ns(ship_dir: &Path) -> KvNamespace {
     KvNamespace::ProjectConfig(format!("runtime::{}", ship_dir.display()))
 }
 
-pub(super) fn normalize_git_config(mut git: GitConfig) -> GitConfig {
-    if git.commit.iter().any(|entry| entry == "agents") {
-        for entry in ["mcp", "permissions", "rules"] {
-            if !git.commit.iter().any(|existing| existing == entry) {
-                git.commit.push(entry.to_string());
-            }
-        }
-        git.commit.retain(|entry| entry != "agents");
-    }
-
-    if git.ignore.iter().any(|entry| entry == "agents") {
-        for entry in ["mcp", "permissions", "rules"] {
-            if !git.ignore.iter().any(|existing| existing == entry) {
-                git.ignore.push(entry.to_string());
-            }
-        }
-    }
-
-    git
-}
-
-#[allow(clippy::type_complexity)]
-pub(super) fn get_runtime_settings(
-    ship_dir: &Path,
-) -> Result<
-    Option<(
-        Vec<String>,
-        Option<Vec<StatusConfig>>,
-        Option<AiConfig>,
-        Option<GitConfig>,
-    )>,
-> {
-    let providers: Vec<String> = kv::get(project_ns(ship_dir), "providers")?
-        .map(|v| serde_json::from_value(v).unwrap_or_default())
-        .unwrap_or_default();
-
-    // If providers key doesn't exist at all, return None (fresh project).
-    if providers.is_empty() && kv::get(project_ns(ship_dir), "providers")?.is_none() {
+/// Returns the project's persisted providers list, if any has been written.
+/// None when the project is fresh (no `providers` key in KV yet).
+pub(super) fn get_runtime_settings(ship_dir: &Path) -> Result<Option<Vec<String>>> {
+    let raw = kv::get(project_ns(ship_dir), "providers")?;
+    let Some(raw) = raw else {
         return Ok(None);
-    }
-
-    let statuses: Vec<StatusConfig> = kv::get(project_ns(ship_dir), "statuses")?
-        .map(|v| serde_json::from_value(v).unwrap_or_default())
-        .unwrap_or_default();
-    let statuses = if statuses.is_empty() { None } else { Some(statuses) };
-
-    let ai: Option<AiConfig> = kv::get(project_ns(ship_dir), "ai")?
-        .and_then(|v| serde_json::from_value(v).ok());
-
-    let git_val = kv::get(project_ns(ship_dir), "git")?;
-    let git = git_val
-        .and_then(|v| serde_json::from_value::<GitConfig>(v).ok())
-        .map(normalize_git_config);
-
-    Ok(Some((providers, statuses, ai, git)))
+    };
+    let providers: Vec<String> = serde_json::from_value(raw).unwrap_or_default();
+    Ok(Some(providers))
 }
 
 pub(super) fn save_runtime_settings(ship_dir: &Path, config: &ProjectConfig) -> Result<()> {
     kv::set(project_ns(ship_dir), "providers", &serde_json::to_value(&config.providers)?)?;
-    kv::set(project_ns(ship_dir), "statuses", &serde_json::to_value(&config.statuses)?)?;
-    kv::set(project_ns(ship_dir), "ai", &serde_json::to_value(&config.ai)?)?;
-    kv::set(project_ns(ship_dir), "git", &serde_json::to_value(normalize_git_config(config.git.clone()))?)?;
     Ok(())
 }
 
-pub(super) fn migrate_json_config(path: &Path) -> Result<ProjectConfig> {
-    use std::fs;
-    #[derive(serde::Deserialize, Default)]
-    struct LegacyConfig {
-        statuses: Option<Vec<String>>,
-    }
-
-    let content = fs::read_to_string(path)?;
-    let legacy: LegacyConfig = serde_json::from_str(&content).unwrap_or_default();
-
-    let statuses = legacy
-        .statuses
-        .unwrap_or_default()
-        .into_iter()
-        .map(|id| StatusConfig {
-            name: id_to_name(&id),
-            color: default_color_for(&id),
-            id,
-        })
-        .collect();
-    Ok(ProjectConfig {
-        statuses,
-        ..Default::default()
-    })
+pub(super) fn migrate_json_config(_path: &std::path::Path) -> Result<ProjectConfig> {
+    // Legacy JSON config used to carry `statuses` — that field is gone.
+    // Fall back to a fresh default config; the user can repopulate via
+    // Studio if they want their old workflow back.
+    Ok(ProjectConfig::default())
 }
 
-pub(super) fn id_to_name(id: &str) -> String {
-    id.split('-')
-        .map(|w| {
-            let mut c = w.chars();
-            match c.next() {
-                None => String::new(),
-                Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
-            }
-        })
-        .collect::<Vec<_>>()
-        .join(" ")
-}
-
-pub(super) fn default_color_for(id: &str) -> String {
-    match id {
-        "backlog" => "gray".into(),
-        "in-progress" => "blue".into(),
-        "review" => "yellow".into(),
-        "done" => "green".into(),
-        "blocked" => "red".into(),
-        _ => "gray".into(),
-    }
-}

@@ -388,9 +388,10 @@ pub fn resolve(
     };
 
     // ── Model ─────────────────────────────────────────────────────────────────
-    let model = feature
-        .and_then(|f| f.model.clone())
-        .or_else(|| config.ai.as_ref().and_then(|ai| ai.model.clone()));
+    // Model comes from the feature/workspace override only — there's no
+    // project-level default. The provider's CLI picks its own when none
+    // is specified.
+    let model = feature.and_then(|f| f.model.clone());
 
     // ── Cost / turns ──────────────────────────────────────────────────────────
     let max_cost_per_session = feature.and_then(|f| f.max_cost_per_session);
@@ -529,7 +530,7 @@ fn apply_workspace_skill_filter(skills: &mut Vec<Skill>, feature: &WorkspaceOver
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{AiConfig, AgentConfig, ProjectConfig};
+    use crate::types::{AgentConfig, ProjectConfig};
 
     fn make_skill(id: &str) -> Skill {
         Skill {
@@ -846,13 +847,9 @@ mod tests {
 
     #[test]
     fn feature_model_overrides_project_model() {
-        let config = ProjectConfig {
-            ai: Some(AiConfig {
-                model: Some("project-model".to_string()),
-                ..Default::default()
-            }),
-            ..Default::default()
-        };
+        // ProjectConfig.ai was removed — there's no project-level model
+        // anymore. Feature/workspace model override stands alone.
+        let config = ProjectConfig::default();
         let feature = WorkspaceOverrides {
             model: Some("feature-model".to_string()),
             ..Default::default()

@@ -27,9 +27,6 @@ fn collect_types() -> TypeCollection {
     let mut c = TypeCollection::default();
 
     // types/config.rs
-    c.register::<compiler::StatusConfig>();
-    c.register::<compiler::GitConfig>();
-    c.register::<compiler::AiConfig>();
     c.register::<compiler::HookTrigger>();
     c.register::<compiler::HookConfig>();
     c.register::<compiler::PermissionConfig>();

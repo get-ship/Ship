@@ -69,7 +69,6 @@ pub trait DiskBackedConfig: Sized + Default + Serialize + DeserializeOwned {
     }
 }
 mod discover;
-mod git;
 mod io;
 mod mcp;
 mod merge;
@@ -89,8 +88,8 @@ mod tests_io;
 // ─── Public API — mirrors the original config.rs public surface ───────────────
 
 pub use types::{
-    AgentLayerConfig, AiConfig, GitConfig, HookConfig, HookTrigger,
-    LEGACY_CONFIG_FILE, PRIMARY_CONFIG_FILE, PermissionConfig, StatusConfig,
+    AgentLayerConfig, HookConfig, HookTrigger,
+    LEGACY_CONFIG_FILE, PRIMARY_CONFIG_FILE, PermissionConfig,
 };
 
 pub use project::{
@@ -102,15 +101,10 @@ pub use mcp::get_mcp_config;
 
 pub use io::{get_config, get_effective_config, save_config};
 
-pub use git::{
-    generate_gitignore, get_git_config, is_category_committed, set_category_committed,
-    set_git_config,
-};
-
 pub use crud::{
-    add_mcp_server, add_status, ensure_standard_dirs,
-    get_active_agent, get_project_statuses, list_mcp_servers,
-    remove_mcp_server, remove_status,
+    add_mcp_server, ensure_standard_dirs,
+    get_active_agent, list_mcp_servers,
+    remove_mcp_server,
 };
 
 pub use discover::discover_projects;

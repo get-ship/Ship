@@ -11,11 +11,6 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
 
     let config = ProjectConfig {
         providers: vec!["claude".to_string(), "codex".to_string()],
-        ai: Some(AiConfig {
-            provider: Some("codex".to_string()),
-            model: Some("gpt-5".to_string()),
-            cli_path: None,
-        }),
         agent: AgentLayerConfig {
             skills: vec!["task-policy".to_string()],
             prompts: vec![],
@@ -93,14 +88,8 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
         .unwrap_or_default();
     assert_eq!(providers, vec!["claude".to_string(), "codex".to_string()]);
 
-    let statuses_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "statuses")?.unwrap().to_string();
-    assert!(statuses_json.contains("\"backlog\""));
-
-    let ai_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "ai")?.unwrap().to_string();
-    assert!(ai_json.contains("\"codex\""));
-
-    let git_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "git")?.unwrap().to_string();
-    assert!(git_json.contains("\"ship.jsonc\""));
+    // statuses, ai, and git fields were removed from ProjectConfig — no
+    // KV checks for them anymore.
 
     // Verify agents stored in kv_state
     let agents_val = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "agents")?.expect("expected agents in kv");
@@ -121,20 +110,6 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
 
     let config = ProjectConfig {
         providers: vec!["gemini".to_string()],
-        ai: Some(AiConfig {
-            provider: Some("codex".to_string()),
-            model: Some("gpt-5".to_string()),
-            cli_path: Some("codex".to_string()),
-        }),
-        statuses: vec![StatusConfig {
-            id: "qa".to_string(),
-            name: "QA".to_string(),
-            color: "teal".to_string(),
-        }],
-        git: GitConfig {
-            ignore: vec!["project/features".to_string()],
-            commit: vec!["ship.toml".to_string(), "rules".to_string()],
-        },
         agents: vec![AgentProfile {
             id: "focus".to_string(),
             name: "Focus".to_string(),
@@ -160,16 +135,6 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     let loaded = get_config(Some(ship_dir))?;
 
     assert_eq!(loaded.providers, vec!["gemini".to_string()]);
-    assert_eq!(
-        loaded
-            .ai
-            .as_ref()
-            .and_then(|ai| ai.provider.clone())
-            .as_deref(),
-        Some("codex")
-    );
-    assert!(loaded.statuses.iter().any(|status| status.id == "qa"));
-    assert!(loaded.git.commit.iter().any(|entry| entry == "rules"));
     assert!(loaded.agent.skills.is_empty());
     assert_eq!(loaded.agents.len(), 1);
     assert_eq!(loaded.agents[0].id, "focus");

@@ -153,9 +153,9 @@ pub fn resolve_provider_settings_with_agent_override(
     };
 
     // ── Model ─────────────────────────────────────────────────────────────────
-    let model = workspace_agent
-        .and_then(|wa| wa.model.clone())
-        .or_else(|| config.ai.as_ref().and_then(|ai| ai.model.clone()));
+    // Model comes from the workspace override only — there's no project-level
+    // default. The provider's CLI picks a default when none is specified.
+    let model = workspace_agent.and_then(|wa| wa.model.clone());
 
     // ── MCP servers ───────────────────────────────────────────────────────────
     let mut mcp_servers = config.mcp_servers.clone();
@@ -219,7 +219,7 @@ pub fn resolve_provider_settings_with_agent_override(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{AgentProfile, AiConfig, McpServerType, ProjectConfig, save_config};
+    use crate::config::{AgentProfile, McpServerType, ProjectConfig, save_config};
     use crate::testutil::init_project;
     use crate::rule::create_rule;
     use crate::skill::create_skill;
@@ -251,11 +251,6 @@ mod tests {
 
         let config = ProjectConfig {
             providers: vec!["claude".to_string(), "gemini".to_string()],
-            ai: Some(AiConfig {
-                provider: Some("claude".to_string()),
-                model: Some("global-model".to_string()),
-                cli_path: None,
-            }),
             mcp_servers: vec![stdio_server("github", "github-bin")],
             ..Default::default()
         };
