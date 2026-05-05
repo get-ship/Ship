@@ -80,3 +80,62 @@ build_sha() {
     fi
     git rev-parse --short=8 HEAD 2>/dev/null || echo "unknown"
 }
+
+# Path to the vite.pid file for the current daemon dir.
+vite_pid_file() {
+    echo "$(daemon_dir)/vite.pid"
+}
+
+# Kill the vite process recorded for the current daemon dir and remove the pid file.
+kill_vite() {
+    local pf pid kd
+    pf=$(vite_pid_file)
+    [ -f "$pf" ] || return 0
+    pid=$(cat "$pf")
+    rm -f "$pf"
+    [ -n "$pid" ] || return 0
+    if kill -0 "$pid" 2>/dev/null; then
+        kill "$pid" 2>/dev/null || true
+        kd=$(( $(date +%s) + 3 ))
+        while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$kd" ]; do
+            sleep 0.1
+        done
+        kill -9 "$pid" 2>/dev/null || true
+        echo "vite: killed pid $pid"
+    fi
+}
+
+# Walk all daemon dirs and reap vite processes whose cwd no longer exists.
+# This catches vites left running after their worktree was deleted.
+reap_orphan_vites() {
+    local home machine
+    home="${SHIP_HOME:-$HOME/.ship}"
+    machine="$home/machine"
+    [ -d "$machine/daemons" ] || return 0
+    local dir vpf vpid vcwd kd
+    for dir in "$machine/daemons"/*/; do
+        [ -d "$dir" ] || continue
+        vpf="${dir%/}/vite.pid"
+        [ -f "$vpf" ] || continue
+        vpid=$(cat "$vpf")
+        if [ -z "$vpid" ]; then
+            rm -f "$vpf"
+            continue
+        fi
+        if ! kill -0 "$vpid" 2>/dev/null; then
+            rm -f "$vpf"
+            continue
+        fi
+        vcwd=$(readlink "/proc/$vpid/cwd" 2>/dev/null || true)
+        if [ -z "$vcwd" ] || [ ! -d "$vcwd" ]; then
+            kill "$vpid" 2>/dev/null || true
+            kd=$(( $(date +%s) + 3 ))
+            while kill -0 "$vpid" 2>/dev/null && [ "$(date +%s)" -lt "$kd" ]; do
+                sleep 0.1
+            done
+            kill -9 "$vpid" 2>/dev/null || true
+            rm -f "$vpf"
+            echo "reap_orphan_vites: reaped vite $vpid (cwd gone: ${vcwd:-unknown})"
+        fi
+    done
+}

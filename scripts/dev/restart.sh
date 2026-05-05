@@ -6,12 +6,15 @@
 # matches THIS worktree but whose dir != the dir we just resolved. Catches
 # stale daemons left over from before per-worktree-isolation landed (when
 # linked worktrees redirected to the main checkout's daemon dir).
+#
+# Also reaps any vite processes running from a deleted worktree path.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 . scripts/dev/_lib.sh
 
-# Best-effort stop. Ignore failures (daemon may not be running).
+# Best-effort stop of daemon + vite for this worktree. Ignore failures.
 "$(ship_bin)" daemon stop || true
+kill_vite || true
 
 # Wait for the pid file to drop so we don't race the next start.
 d=$(daemon_dir)
@@ -20,7 +23,8 @@ while [ -f "$d/pid" ] && [ "$(date +%s)" -lt "$deadline" ]; do sleep 0.1; done
 
 # Orphan cleanup: any daemon dir under machine/daemons/ whose recorded
 # workspace is THIS worktree but whose dir != $d is a leftover from before
-# the per-worktree-isolation fix. Kill its pid (if alive) and remove the dir.
+# the per-worktree-isolation fix. Kill its pid (if alive), kill its vite,
+# and remove the dir.
 home="${SHIP_HOME:-$HOME/.ship}"
 machine="$home/machine"
 this_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -46,7 +50,6 @@ if [ -d "$machine/daemons" ]; then
             pid=$(cat "$pid_file")
             if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
                 kill "$pid" 2>/dev/null || true
-                # Brief wait for graceful exit before removing the dir.
                 kdeadline=$(( $(date +%s) + 3 ))
                 while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$kdeadline" ]; do
                     sleep 0.1
@@ -54,9 +57,26 @@ if [ -d "$machine/daemons" ]; then
                 kill -9 "$pid" 2>/dev/null || true
             fi
         fi
+        # Reap any tracked vite before removing the dir.
+        vite_pf="$orphan/vite.pid"
+        if [ -f "$vite_pf" ]; then
+            vpid=$(cat "$vite_pf")
+            if [ -n "$vpid" ] && kill -0 "$vpid" 2>/dev/null; then
+                kill "$vpid" 2>/dev/null || true
+                kvd=$(( $(date +%s) + 2 ))
+                while kill -0 "$vpid" 2>/dev/null && [ "$(date +%s)" -lt "$kvd" ]; do
+                    sleep 0.1
+                done
+                kill -9 "$vpid" 2>/dev/null || true
+            fi
+        fi
         rm -rf "$orphan"
         echo "dev-restart: pruned orphan daemon $(basename "$orphan") (workspace=$ws)"
     done
 fi
+
+# Global pass: reap any vite running from a path that no longer exists.
+# This catches vites from deleted worktrees that don't share this workspace.
+reap_orphan_vites
 
 exec scripts/dev/start.sh

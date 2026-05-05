@@ -33,10 +33,15 @@ dev-restart:
     @just reap
     @scripts/dev/restart.sh
 
-# Stop the daemon serving this worktree.
+# Stop the daemon and vite server for this worktree.
 [group('daily')]
 dev-stop:
     @scripts/dev/stop.sh
+
+# Kill every daemon + vite across all worktrees. Clean slate.
+[group('daily')]
+dev-stop-all:
+    @scripts/dev/stop-all.sh
 
 # List every daemon: workspace, port, pid, sha, alignment to current build.
 [group('daily')]
@@ -122,6 +127,12 @@ init-worktree branch:
     [ -f "$target/.ship/.boundary" ] || echo '{}' > "$target/.ship/.boundary"
     echo "worktree: $target"
 
+# Remove a git worktree and reap its daemon + vite. Pass slug (path suffix) or full path.
+# Append `-- --force` to force-remove a worktree with uncommitted changes.
+[group('occasional')]
+worktree-remove slug *flags:
+    @scripts/dev/worktree-remove.sh "{{ slug }}" {{ flags }}
+
 # Remove stash binaries for daemons that aren't currently running.
 # Leaves library/ alone — that's portable user state.
 [group('occasional')]
@@ -186,9 +197,10 @@ shell-dev:
 
 # Frontend dev server (Vite) — SUI-native shell (S1+). Daemon must be running.
 # Runs at http://127.0.0.1:3200 (offset by daemon port for parallel worktrees).
+# PID is tracked in the daemon dir so `just dev-stop` can reap it.
 [group('occasional')]
 shell2-dev:
-    pnpm --filter shell2 dev
+    @scripts/dev/shell2-start.sh
 
 # Full SUI dev stack — restart daemon, then start shell2 on top.
 # After this finishes booting, open http://127.0.0.1:3200/ship-ui-studio
