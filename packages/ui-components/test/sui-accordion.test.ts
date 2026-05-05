@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-accordion/sui-accordion.compiled.js'
-import '../src/sui-accordion/sui-accordion-item.compiled.js'
+import '../src/sui-accordion/dist/sui-accordion.compiled.js'
+import '../src/sui-accordion/dist/sui-accordion-item.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

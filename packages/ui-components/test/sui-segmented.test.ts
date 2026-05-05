@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-segmented/sui-segmented-option.compiled.js'
-import '../src/sui-segmented/sui-segmented.compiled.js'
+import '../src/sui-segmented/dist/sui-segmented-option.compiled.js'
+import '../src/sui-segmented/dist/sui-segmented.compiled.js'
 import { createContainerRegistry, flush } from '../src/test-utils'
 
 const reg = createContainerRegistry()

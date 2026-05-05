@@ -152,24 +152,9 @@ tests/loops/results/
 tests/e2e/report/
 tests/e2e/screenshots/
 playwright-report/
-views/*/view.js
-views/*/view.schema.json
 # sui-compiler emits <file>.sui.d.ts alongside each .sui; regenerated artifact.
+# d.ts stays next to source so `import type { Scope } from './foo.sui'` resolves.
 **/*.sui.d.ts
-# .sui.meta.json sidecar — LSP/IDE binding info, regenerated artifact.
-**/*.sui.meta.json
-
-# SUI components AOT artifacts. sui-compiler emits
-# <tag>.compiled.js + <tag>.schema.json next to each .sui source;
-# index.ts side-effect-imports each .compiled.js. esbuild inlines
-# them into apps/shipd/assets/sui-components.js so only the
-# bundle ships.
-packages/ui-components/src/*/*.compiled.js
-packages/ui-components/src/*/*.schema.json
-packages/ui-components/src/*/*.custom-elements.json
-packages/ui-components/src/islands/*/*.compiled.js
-packages/ui-components/src/islands/*/*.schema.json
-packages/ui-components/src/islands/*/*.custom-elements.json
 
 # Per-view compile cache emitted by sui-compiler / build-bundles.
 views/*/.compiled/

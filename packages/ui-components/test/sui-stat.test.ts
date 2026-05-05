@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-stat/sui-stat.compiled.js'
+import '../src/sui-stat/dist/sui-stat.compiled.js'
 import { createContainerRegistry, mount, flush } from '../src/test-utils'
 
 const reg = createContainerRegistry()

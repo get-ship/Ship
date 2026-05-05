@@ -12,7 +12,7 @@
 
 import { build, context } from 'esbuild';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync, renameSync, readdirSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync, readdirSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -109,9 +109,9 @@ const targets = [
   // hydrate helpers (`hydrateText`, `collectTextOpens`) from it. The
   // shared sui-dom.js bundle on the page already exposes them globally
   // via the runtime registry — bundling them again would duplicate code.
-  { name: 'views/agents/view',    entry: 'views/agents/view.js',  htmlSet: 'views/agents/view.sui',  external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
-  { name: 'views/counter/view',   entry: 'views/counter/view.js', htmlSet: 'views/counter/view.sui', external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
-  { name: 'views/git/view',       entry: 'views/git/view.js',     htmlSet: 'views/git/view.sui',     external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
+  { name: 'views/agents/view',    entry: 'views/agents/dist/view.compiled.js',  htmlSet: 'views/agents/view.sui',  external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
+  { name: 'views/counter/view',   entry: 'views/counter/dist/view.compiled.js', htmlSet: 'views/counter/view.sui', external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
+  { name: 'views/git/view',       entry: 'views/git/dist/view.compiled.js',     htmlSet: 'views/git/view.sui',     external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
 ];
 
 const args = new Set(process.argv.slice(2));
@@ -128,7 +128,7 @@ function aggregateSuiCem() {
   const out = { schemaVersion: '1.0.0', readme: '', modules: [] };
   for (const entry of readdirSync(srcDir, { withFileTypes: true })) {
     if (!entry.isDirectory() || entry.name === 'islands') continue;
-    const cemPath = join(srcDir, entry.name, `${entry.name}.custom-elements.json`);
+    const cemPath = join(srcDir, entry.name, 'dist', `${entry.name}.custom-elements.json`);
     if (!existsSync(cemPath)) continue;
     try {
       const cem = JSON.parse(readFileSync(cemPath, 'utf8'));
@@ -173,8 +173,14 @@ function hashTree(entryAbs) {
  *   - shadow = always on
  *   - paired controller = `<stem>.ts` next to source, auto-detected by the compiler
  *
- * Views: emitted `<stem>.js` carries the `bindings` manifest + the
- * default-export setup that re-imports the paired controller `.ts`.
+ * The compiler emits all artifacts into a sibling `dist/` directory next
+ * to each source file:
+ *   <source-dir>/dist/<stem>.compiled.js
+ *   <source-dir>/dist/<stem>.custom-elements.json   (components)
+ *   <source-dir>/dist/<stem>.schema.json            (views)
+ *   <source-dir>/dist/<stem>.sui.meta.json
+ * The emitted `<stem>.compiled.js` carries an `import setup from
+ * "../<stem>.controller.ts"` line (paired controller, auto-detected).
  * esbuild then bundles the compiled file, inlining the controller.
  *
  * When `cssPath` is supplied, the CSS is prepended as a `<style>` block.
@@ -182,11 +188,10 @@ function hashTree(entryAbs) {
 async function compileSui(suiPath, opts = {}) {
   const { mode = 'view', cssPath = null } = opts;
   const inputAbs = join(repoRoot, suiPath);
-  const outDir = dirname(inputAbs);
   const stem = basename(inputAbs).replace(/\.sui$/, '');
   const args = [
     'run', '--quiet', '-p', 'sui-compiler', '--',
-    'build', inputAbs, '--out', outDir,
+    'build', inputAbs,
   ];
   if (mode === 'component') {
     // Compiler infers tag from filename stem; shadow is always on for
@@ -205,13 +210,6 @@ async function compileSui(suiPath, opts = {}) {
     cwd: repoRoot,
     timeoutSecs: 90,
   });
-  if (mode === 'component') {
-    // Rename <stem>.js → <stem>.compiled.js so the build artifact is
-    // visibly distinct from the .ts source next to it.
-    const emitted = join(outDir, `${stem}.js`);
-    const renamed = join(outDir, `${stem}.compiled.js`);
-    renameSync(emitted, renamed);
-  }
 }
 
 function fileMtimeHash(paths) {
@@ -271,7 +269,7 @@ async function buildOne(t) {
   const buildInput = isIsland
     ? {
         stdin: {
-          contents: `import './${t.islandTag}.compiled.js';`,
+          contents: `import './dist/${t.islandTag}.compiled.js';`,
           resolveDir: join(repoRoot, t.islandDir),
           loader: 'js',
         },
@@ -470,7 +468,7 @@ function countRegisteredComponents(bundleName) {
   try {
     const indexPath = join(repoRoot, 'packages/ui-components/src/index.ts');
     const src = readFileSync(indexPath, 'utf8');
-    const matches = src.match(/^\s*import\s+'\.\/sui-[^']+\.compiled\.js'/gm) || [];
+    const matches = src.match(/^\s*import\s+'\.\/sui-[^']+\/dist\/[^']+\.compiled\.js'/gm) || [];
     return matches.length;
   } catch {
     return 0;

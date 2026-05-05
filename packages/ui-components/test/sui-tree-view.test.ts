@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import '../src/sui-tree-view/sui-tree-view.compiled.js'
-import '../src/sui-tree-view/sui-tree-item.compiled.js'
+import '../src/sui-tree-view/dist/sui-tree-view.compiled.js'
+import '../src/sui-tree-view/dist/sui-tree-item.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
