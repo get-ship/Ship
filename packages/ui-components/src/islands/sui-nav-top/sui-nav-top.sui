@@ -76,6 +76,11 @@
     flex-shrink: 0;
     transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
   }
+  .brand-mark {
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
   .brand:hover { background: color-mix(in oklch, var(--foreground) 8%, transparent); }
   .brand:focus-visible {
     outline: none;
@@ -136,7 +141,7 @@
 </style>
 
 <a class="brand" part="brand" href="/" aria-label="Ship home" title="Ship home" on:click={onBrand}>
-  <sui-icon name="rocket" size="sm" aria-hidden="true"></sui-icon>
+  <img class="brand-mark" src="/ship-logo.svg" alt="" aria-hidden="true" />
 </a>
 <span class="sep" aria-hidden="true"></span>
 <nav class="crumbs" part="crumbs" aria-label="Breadcrumbs">

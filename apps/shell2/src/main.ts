@@ -231,41 +231,58 @@ function readRouteFromUrl(pathname: string): Route | null {
 }
 
 // ── Rail collapse persistence ────────────────────────────────────────
+//
+// Default behavior matches apps/shell: rail starts COLLAPSED (icon-only),
+// expands when the user opens it, persists via the same `ship-rail-open`
+// key so users who flip back and forth between shell + shell2 see the
+// same state. Pre-fix shell2 used its own inverted key
+// `ship-rail-collapsed` with the opposite default — port mismatch.
 
-const RAIL_COLLAPSED_KEY = 'ship-rail-collapsed'
+const RAIL_OPEN_KEY = 'ship-rail-open'
 
 function initRail(): void {
   const rail = document.getElementById('ship-rail')
   if (!rail) return
 
-  // Restore persisted collapsed state before first paint.
+  // Restore persisted state before first paint. Default: collapsed.
+  // The rail expands only when the user has explicitly opened it.
+  let open = false
   try {
-    if (localStorage.getItem(RAIL_COLLAPSED_KEY)) {
-      rail.setAttribute('collapsed', '')
-      document.body.classList.add('rail-collapsed')
-    }
+    open = !!localStorage.getItem(RAIL_OPEN_KEY)
   } catch { /* best-effort */ }
+  applyRail(rail, open)
 
   // sui-rail:toggle — fired by the rail's own collapse button
   rail.addEventListener('sui-rail:toggle', (e: Event) => {
     const collapsed = (e as CustomEvent<{ collapsed: boolean }>).detail?.collapsed
-    try {
-      if (collapsed) localStorage.setItem(RAIL_COLLAPSED_KEY, '1')
-      else localStorage.removeItem(RAIL_COLLAPSED_KEY)
-    } catch { /* best-effort */ }
+    persistRailOpen(!collapsed)
   })
 
   // sui:rail:toggle — fired by sui-nav-top's menu button (toggle request)
   document.addEventListener('sui:rail:toggle', () => {
-    const next = !rail.hasAttribute('collapsed')
-    if (next) rail.setAttribute('collapsed', '')
-    else rail.removeAttribute('collapsed')
-    document.body.classList.toggle('rail-collapsed', next)
-    try {
-      if (next) localStorage.setItem(RAIL_COLLAPSED_KEY, '1')
-      else localStorage.removeItem(RAIL_COLLAPSED_KEY)
-    } catch { /* best-effort */ }
+    const nextOpen = rail.hasAttribute('collapsed') // currently collapsed → open it
+    applyRail(rail, nextOpen)
+    persistRailOpen(nextOpen)
   })
+}
+
+function applyRail(rail: HTMLElement, open: boolean): void {
+  if (open) {
+    rail.removeAttribute('collapsed')
+    document.body.classList.add('rail-open')
+    document.body.classList.remove('rail-collapsed')
+  } else {
+    rail.setAttribute('collapsed', '')
+    document.body.classList.remove('rail-open')
+    document.body.classList.add('rail-collapsed')
+  }
+}
+
+function persistRailOpen(open: boolean): void {
+  try {
+    if (open) localStorage.setItem(RAIL_OPEN_KEY, '1')
+    else localStorage.removeItem(RAIL_OPEN_KEY)
+  } catch { /* best-effort */ }
 }
 
 // ── Status bar ───────────────────────────────────────────────────────
