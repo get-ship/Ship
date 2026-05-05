@@ -163,6 +163,60 @@ fn comment_and_whitespace_snapshot() {
     assert_snapshot(fx.name, &js, &path);
 }
 
+/// R2: views that reference `route` in template expressions must emit
+/// `import { route as __routeFactory } from "@ship/ui-runtime/route"` and
+/// use `ctx.route ?? __routeFactory()` for `$scope.route`. Views that don't
+/// reference `route` must not include the import.
+#[test]
+fn route_view_emits_route_import() {
+    let path = fixtures_dir().join("route-view.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains("import { route as __routeFactory } from \"@ship/ui-runtime/route\""),
+        "expected route subpath import, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("$scope.route = ctx.route ?? __routeFactory()"),
+        "expected ctx.route ?? __routeFactory() assignment, got:\n{}",
+        out.js
+    );
+}
+
+#[test]
+fn routeless_view_omits_route_import() {
+    let path = fixtures_dir().join("counter.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        !out.js.contains("@ship/ui-runtime/route"),
+        "routeless view must not import @ship/ui-runtime/route, got:\n{}",
+        out.js
+    );
+    assert!(
+        !out.js.contains("__routeFactory"),
+        "routeless view must not reference __routeFactory, got:\n{}",
+        out.js
+    );
+}
+
 /// Fix 1: source HTML comments must never appear as createComment() in output.
 #[test]
 fn comment_nodes_not_emitted() {

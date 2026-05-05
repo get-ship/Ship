@@ -70,7 +70,7 @@ pub fn emit_module(
 
     let mut body = Writer::new();
     body.enter();
-    emit_setup_body(&mut body, program, bindings, mode, opts);
+    emit_setup_body(&mut body, program, bindings, mode, opts, lowered);
     body.leave();
 
     match mode {
@@ -114,6 +114,9 @@ fn emit_imports(w: &mut Writer, lowered: &Lowered, opts: &CompileOpts) {
     }
     if lowered.uses_template_hooks {
         w.line("import \"@ship/ui-runtime/template-hooks\";");
+    }
+    if lowered.uses_route {
+        w.line("import { route as __routeFactory } from \"@ship/ui-runtime/route\";");
     }
     if let Some(setup) = &opts.setup_url {
         w.line(&format!("import setup from {};", js_string(setup)));
@@ -211,12 +214,18 @@ fn emit_setup_body(
     bindings: &BindingRegistry,
     mode: CompileMode,
     opts: &CompileOpts,
+    lowered: &Lowered,
 ) {
     let is_component = matches!(mode, CompileMode::Component);
     if is_component {
         w.line("const { props, host } = ctx;");
         w.line("if (!ctx.cleanups) ctx.cleanups = [];");
         w.line("const __cleanups = ctx.cleanups;");
+    } else if lowered.uses_route {
+        // Don't destructure `route` from ctx — the module-level
+        // `__routeFactory` import (from `@ship/ui-runtime/route`) uses
+        // the same name. Access `ctx.route` directly so there's no clash.
+        w.line("const { ship, navigate } = ctx;");
     } else {
         w.line("const { ship, route, navigate } = ctx;");
     }
@@ -225,7 +234,13 @@ fn emit_setup_body(
         emit_component_scope_seed(w, program);
     } else {
         w.line("$scope.ship = ship;");
-        w.line("$scope.route = route;");
+        if lowered.uses_route {
+            // Use host-provided RouteSignals or fall back to constructing
+            // one via the view's own import of `@ship/ui-runtime/route`.
+            w.line("$scope.route = ctx.route ?? __routeFactory();");
+        } else {
+            w.line("$scope.route = route;");
+        }
         w.line("$scope.navigate = navigate;");
     }
     emit_data_decls(w, program);

@@ -36,6 +36,11 @@ pub struct Lowered {
     /// register on view module load — `@ship/ui-runtime`'s entry no
     /// longer ships them, so views that need them have to ask.
     pub uses_template_hooks: bool,
+    /// `true` if any template expression references `route` as an
+    /// identifier. The emitter adds `import { route } from
+    /// "@ship/ui-runtime/route"` so routeless views don't pull in the
+    /// route module.
+    pub uses_route: bool,
 }
 
 /// Walk the program, build a `Lowered` summary.
@@ -59,6 +64,61 @@ pub fn lower(program: &Program, mode: CompileMode) -> Lowered {
     out
 }
 
+fn is_ident_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_' || b == b'$'
+}
+
+fn expr_references_route(source: &str) -> bool {
+    let target = b"route";
+    let bytes = source.as_bytes();
+    let tlen = target.len();
+    if bytes.len() < tlen {
+        return false;
+    }
+    for i in 0..=bytes.len() - tlen {
+        if &bytes[i..i + tlen] == target {
+            let ok_before = i == 0 || !is_ident_char(bytes[i - 1]);
+            let ok_after = i + tlen >= bytes.len() || !is_ident_char(bytes[i + tlen]);
+            if ok_before && ok_after {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn check_attr_for_route(a: &AttrInstr, out: &mut Lowered) {
+    if out.uses_route {
+        return;
+    }
+    match a {
+        AttrInstr::Expr { expr, .. }
+        | AttrInstr::BindValue { expr, .. }
+        | AttrInstr::BindChecked { expr, .. }
+        | AttrInstr::Class { expr, .. }
+        | AttrInstr::Style { expr, .. }
+        | AttrInstr::Prop { expr, .. }
+        | AttrInstr::Mutation { expr, .. } => {
+            if expr_references_route(&expr.source) {
+                out.uses_route = true;
+            }
+        }
+        AttrInstr::On { handler, .. } => {
+            if expr_references_route(&handler.source) {
+                out.uses_route = true;
+            }
+        }
+        AttrInstr::DynamicAttr { name_expr, expr, .. } => {
+            if expr_references_route(&name_expr.source) || expr_references_route(&expr.source) {
+                out.uses_route = true;
+            }
+        }
+        AttrInstr::Static { .. }
+        | AttrInstr::BindThis { .. }
+        | AttrInstr::SlotReflectEmpty { .. } => {}
+    }
+}
+
 fn walk_instrs(instrs: &[Instr], out: &mut Lowered, is_view: bool, depth: &mut usize) {
     for instr in instrs {
         walk_instr(instr, out, is_view, depth);
@@ -68,7 +128,7 @@ fn walk_instrs(instrs: &[Instr], out: &mut Lowered, is_view: bool, depth: &mut u
 fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize) {
     match instr {
         Instr::StaticText { .. } | Instr::Comment { .. } => {}
-        Instr::DynamicText { .. } => {
+        Instr::DynamicText { expr } => {
             out.runtime_imports.insert("bindText");
             // Phase 3b.3: depth-0 text bindings in views are direct-emit.
             // The compiler still calls `bindText` from `__mount` (legacy
@@ -77,12 +137,18 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
                 out.dom_imports.insert("collectTextOpens");
                 out.dom_imports.insert("hydrateText");
             }
+            if is_view && !out.uses_route && expr_references_route(&expr.source) {
+                out.uses_route = true;
+            }
         }
         Instr::Element(el) => {
             if el.tag.starts_with("use-") {
                 out.uses_template_hooks = true;
             }
             for a in &el.attrs {
+                if is_view {
+                    check_attr_for_route(a, out);
+                }
                 bindings::collect_attr_imports(a, out, is_view, *depth);
             }
             walk_instrs(&el.children, out, is_view, depth);
@@ -114,6 +180,9 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
             }
             *depth += 1;
             for b in branches {
+                if is_view && !out.uses_route && expr_references_route(&b.cond.source) {
+                    out.uses_route = true;
+                }
                 walk_instrs(&b.body, out, is_view, depth);
             }
             if let Some(eb) = else_body {
@@ -121,10 +190,19 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
             }
             *depth -= 1;
         }
-        Instr::For(ForInstr { body, else_body, .. }) => {
+        Instr::For(ForInstr { iterable, key, body, else_body, .. }) => {
             out.runtime_imports.insert("bindFor");
             if is_view && *depth == 0 {
                 out.dom_imports.insert("collectElementMarkers");
+            }
+            if is_view && !out.uses_route {
+                if expr_references_route(&iterable.source) {
+                    out.uses_route = true;
+                } else if let Some(k) = key {
+                    if expr_references_route(&k.source) {
+                        out.uses_route = true;
+                    }
+                }
             }
             *depth += 1;
             walk_instrs(body, out, is_view, depth);
@@ -133,13 +211,19 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
             }
             *depth -= 1;
         }
-        Instr::Match(MatchInstr { cases, default, .. }) => {
+        Instr::Match(MatchInstr { discriminant, cases, default, .. }) => {
             out.runtime_imports.insert("bindIf");
             if is_view && *depth == 0 {
                 out.dom_imports.insert("collectElementMarkers");
             }
+            if is_view && !out.uses_route && expr_references_route(&discriminant.source) {
+                out.uses_route = true;
+            }
             *depth += 1;
             for c in cases {
+                if is_view && !out.uses_route && expr_references_route(&c.test.source) {
+                    out.uses_route = true;
+                }
                 walk_instrs(&c.body, out, is_view, depth);
             }
             if let Some(d) = default {

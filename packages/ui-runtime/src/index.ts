@@ -15,12 +15,9 @@
  *                    `bindProp`, `bindValue`, `bindChecked`, `bindRawHtml`
  *                    (+ type `Disposer`)
  *   - Events:        `on`, `matchesKey` (+ types `OnOptions`, `Modifier`)
- *   - Patches:       `applyPatch`, `applyPatches`, `tokenizePath`
- *                    (+ types `Patch`, `PatchOp`, `PathToken`)
  *   - Control flow:  `bindFor`, `bindForSignal`, `bindIf`, `bindAwait`
  *                    (+ types `BindForOptions`, `RenderedItem`,
  *                    `BindIfOptions`, `BranchRender`, `BindAwaitOptions`)
- *   - HMR / SSR:     `morph` (+ type `MorphOptions`)
  *   - Slots:         `resolveSlots`, `snapshotChildren`, `slotFilled`
  *                    (+ type `SlotDecl`)
  *   - Components:    `defineComponent`, `camelOf`
@@ -81,9 +78,6 @@ export {
   bindHostAttr,
 } from './host-api'
 
-export { applyPatch, applyPatches, tokenizePath } from './patch'
-export type { Patch, PatchOp, PathToken } from './patch'
-
 export { bindFor, bindForSignal } from './for'
 export type { BindForOptions, RenderedItem } from './for'
 
@@ -94,9 +88,6 @@ export { bindAwait } from './await'
 export type { BindAwaitOptions } from './await'
 
 export { bindRawHtml } from './raw-html'
-
-export { morph } from './morph'
-export type { MorphOptions } from './morph'
 
 export { resolveSlots, snapshotChildren, slotFilled } from './slot'
 export type { SlotDecl } from './slot'
@@ -131,9 +122,6 @@ export type {
 } from './while'
 
 export type { ShipSDK } from './ship'
-
-export { route, navigate, defineRoutes } from './route'
-export type { RouteSignals, RouteShape } from './route'
 
 export { component, prop } from './component'
 export type { PropDef, ComponentDef, ComponentSetupContext } from './component'

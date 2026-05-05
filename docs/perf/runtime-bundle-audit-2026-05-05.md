@@ -337,6 +337,88 @@ Combined ceiling for R1–R4: roughly **2.5–3 KiB gz** off
 `sui-runtime.js`, dropping the bundle to ~12.5–13.0 KiB gz — back
 inside the gate's "target" band for the first time since F1.
 
+## Follow-up: R2 + R3 + R4 (`job/runtime-r2-r3-r4`)
+
+### R2 — `route.ts` split into `@ship/ui-runtime/route` subpath
+
+`route.ts` (4 151 B raw, ~1.0 KiB gz estimated) is no longer in the
+static `sui-runtime.js` bundle. Changes:
+
+1. `packages/ui-runtime/src/route.ts` → `packages/ui-runtime/src/route/index.ts`.
+   Signal import path updated from `'./signal'` to `'../signal'`.
+2. `packages/ui-runtime/package.json` — added `"./route": "./src/route/index.ts"`
+   to the `exports` map, mirroring the `./template-hooks` subpath.
+3. `packages/ui-runtime/src/index.ts` — removed the `route`, `navigate`,
+   `defineRoutes`, `RouteSignals`, and `RouteShape` re-exports.
+   The public API surface now points callers to `@ship/ui-runtime/route`.
+4. `packages/ui-runtime/src/mount.ts` — changed from a value import of
+   `route` to a type-only import (`import type { RouteSignals } from './route'`).
+   `mount()` no longer constructs a fallback `route()` instance; route signals
+   must be supplied by the host via `opts.route`, or the compiled view imports
+   `@ship/ui-runtime/route` directly and creates its own. The comment in
+   `mount.ts` explains the rationale.
+5. `scripts/build-bundles.mjs` — `inlineRuntimeSubpathsPlugin` already
+   resolves `@ship/ui-runtime/route` for view bundles (same pattern as
+   `./template-hooks`). No new plugin logic needed.
+
+Route-using views: the SUI compiler now detects `route.*` references in
+template expressions and, when present, emits:
+
+```js
+import { route as __routeFactory } from "@ship/ui-runtime/route";
+```
+
+…at the top of the compiled module, and uses
+`$scope.route = ctx.route ?? __routeFactory()` in `setup()` so the
+route factory is only loaded into a view bundle that actually needs URL
+state. Views without `route.*` references (counter, demos, most
+components) pay zero cost.
+
+Compiler changes:
+- `crates/sui-compiler/src/lower/mod.rs` — `Lowered` struct gains
+  `pub uses_route: bool`; `walk_instr` detects route in dynamic-text
+  exprs, element attrs, `If` conditions, `For` iterables/keys, and
+  `Match` discriminants.
+- `crates/sui-compiler/src/emit/js.rs` — emits the route factory import
+  when `lowered.uses_route`, adjusts the `ctx` destructure to avoid a
+  name collision, and emits `$scope.route = ctx.route ?? __routeFactory()`.
+
+### R3 + R4 — Public surface reduction
+
+`applyPatch`, `applyPatches`, `tokenizePath` (R3) and `morph` (R4) are no
+longer re-exported from `packages/ui-runtime/src/index.ts`. The
+underlying modules (`patch.ts` and `morph.ts`) remain in the bundle
+because `data.ts` imports `applyPatch` from `./patch` and `bind.ts`
+imports `morph` from `./morph` — both are reachable from the static
+import graph. Without code-splitting these modules cannot be lazy-loaded.
+Net effect: public API surface shrinks (no external callers in the
+workspace anyway), but gz savings are marginal.
+
+### Verification
+
+`node scripts/build-bundles.mjs --force`:
+
+| asset | before (post-R1+R5) | after | delta |
+|---|---:|---:|---:|
+| `sui-runtime.js` raw | 60 525 B | 60 043 B | −482 B |
+| `sui-runtime.js` gz | 14 899 B | 14 547 B | **−352 B** |
+| input count | 43 | 35 | −8 |
+
+The actual gz saving from R2 is ~350 B (vs. the audit's ~1.0 KiB estimate).
+The gap is explained by gzip cross-file correlation: `route.ts` shares many
+tokens with `signal.ts`, `mount.ts`, and `bind.ts` that remain in the bundle —
+the correlated bytes don't compress to zero just because `route.ts` was removed.
+R3/R4 public-surface changes add no measurable gz delta since their code is
+still reachable through `data.ts` and `bind.ts`.
+
+Tests:
+- `cargo test -p sui-compiler` — all green (shape-conformance + snapshot
+  suites including new `route_view_emits_route_import` and
+  `routeless_view_omits_route_import` tests).
+- `pnpm -F @ship/ui-runtime test` — 380 passed, 5 skipped.
+- `pnpm -F @ship/ui-components test` — 1 025 passed.
+- `just test-integration-shape` + `just test-integration-symmetry` — green.
+
 ## Acceptance check
 
 - [x] Report exists at `docs/perf/runtime-bundle-audit-2026-05-05.md`.
@@ -345,8 +427,11 @@ inside the gate's "target" band for the first time since F1.
 - [x] At least 2 actionable recommendations (R1–R5; only R5 is the
       kind of "trivial cleanup" follow-up — R1 through R4 are real
       bundle-shape changes).
-- [x] `pnpm -F @ship/ui-runtime test` green — 354 passed, 5 skipped
-      after the `isRef` removal and again after R1 + R5 landed.
+- [x] `pnpm -F @ship/ui-runtime test` green — 380 passed, 5 skipped
+      after R1 + R5 landed and again after R2 + R3 + R4 landed.
 - [x] R1 + R5 applied (`job/runtime-perf-followup`): `sui-runtime.js`
       gz 14 899 B (down from 16 116 B at HEAD pre-follow-up;
       audit-time baseline was 15 924 B).
+- [x] R2 + R3 + R4 applied (`job/runtime-r2-r3-r4`): `sui-runtime.js`
+      gz 14 547 B (−352 B from post-R1+R5 baseline). Route module
+      removed from static bundle; public surface reduced by 5 exports.

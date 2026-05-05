@@ -15,7 +15,7 @@
 
 import { signal, type Signal } from './signal'
 import type { LiveSignal, LiveState } from './live'
-import { route as makeRoute, type RouteSignals } from './route'
+import type { RouteSignals } from './route'
 import { createScope, withScope } from './effect-scope'
 import type { ViewPayload as GeneratedViewPayload } from './generated'
 
@@ -114,7 +114,10 @@ export async function mount<Scope = Record<string, unknown>>(
   }
 
   // 5. Build setup context + run setup(ctx).
-  const route = opts.route ?? makeRoute()
+  // Route signals come from opts.route (host-provided) or the compiled
+  // view's own import of @ship/ui-runtime/route. Mount no longer creates
+  // a fallback instance — route.ts is out of the static bundle.
+  const route = opts.route
   const navigate = opts.navigate ?? noop
   const baseScope: Record<string, unknown> = {
     ship: opts.ship,

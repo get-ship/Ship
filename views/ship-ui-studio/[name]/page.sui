@@ -33,7 +33,7 @@
           <a
             class="catalog-item"
             href={'/ship-ui-studio/' + item.id}
-            data-active={item.id === currentName() ? 'true' : 'false'}
+            data-active={item.id === (route.params.name() ?? '') ? 'true' : 'false'}
             data-test="catalog-item"
           >
             <code class="catalog-item-name">{item.id}</code>

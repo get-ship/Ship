@@ -19,7 +19,7 @@
 // itself with that updater on construction so all attached views see
 // the same URL state.
 
-import { signal, type Signal } from './signal'
+import { signal, type Signal } from '../signal'
 
 /**
  * The reactive URL handle exposed to view scope as `route`.
@@ -91,7 +91,7 @@ let updaterInstalled = false
  * for now it's an imperative call.
  *
  * ```ts
- * import { defineRoutes } from '@ship/ui-runtime'
+ * import { defineRoutes } from '@ship/ui-runtime/route'
  * defineRoutes([{ pattern: '/agents/:id' }])
  * ```
  */
