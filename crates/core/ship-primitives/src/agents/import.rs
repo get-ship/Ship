@@ -14,9 +14,6 @@ use super::providers::{ConfigFormat, ProviderDescriptor, SkillsOutput, require_p
 
 pub fn import_from_provider(provider_id: &str, project_dir: PathBuf) -> Result<usize> {
     let desc = require_provider(provider_id)?;
-    let (managed, _) =
-        ship_substrate::db::managed_state::get_managed_state_db(provider_id).unwrap_or_default();
-
     let mut config = get_config(Some(project_dir.clone()))?;
     let mut added = 0usize;
     let import_paths = provider_import_paths(desc, &project_dir)?;
@@ -36,9 +33,6 @@ pub fn import_from_provider(provider_id: &str, project_dir: PathBuf) -> Result<u
                 continue;
             };
             server.scope = imported_scope.clone();
-            if managed.contains(&server.id) {
-                continue;
-            }
             if config
                 .mcp_servers
                 .iter()

@@ -16,7 +16,6 @@ mod events_tests;
 #[cfg(test)]
 mod tests_envelope;
 pub mod kv;
-pub mod managed_state;
 pub mod pool;
 pub mod rebuild;
 pub mod session;

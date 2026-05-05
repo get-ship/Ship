@@ -99,7 +99,6 @@ pub use skill_vars::{
 };
 
 // ─── Re-exports from db (formerly state_db) ────────────────────────────────
-pub use db::managed_state::{get_managed_state_db, set_managed_state_db};
 pub use db::types::SessionDb;
 pub use errors::{KernelError, WorkspaceError};
 

@@ -31,8 +31,6 @@ pub enum KvNamespace {
     /// Runtime project config cache (providers, active_agent, hooks, ai, git,
     /// namespaces, modes). Inner = `format!("runtime::{}", ship_dir.display())`
     ProjectConfig(String),
-    /// MCP managed-server state (server IDs, last mode) — per provider
-    McpManaged,
     /// Project registry — daemon's record of seen project paths
     Project,
     /// Per-project CLI state (active_agent, compiled_at, plugins_installed).
@@ -51,7 +49,6 @@ impl KvNamespace {
             Self::SkillVarsLocal(s)    => format!("skill_vars.local:{s}").into(),
             Self::SkillVarsProject(s)  => format!("skill_vars.project:{s}").into(),
             Self::ProjectConfig(s)     => s.as_str().into(),
-            Self::McpManaged           => "mcp.managed".into(),
             Self::Project              => "project".into(),
             Self::CliProjectState(h)   => format!("workspace:{h}").into(),
         }
