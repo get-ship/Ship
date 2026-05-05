@@ -139,7 +139,7 @@ This is why the envelope is contractual — hooks rely on the shape to unwrap co
 
 ## Reactive `route` in source thunks
 
-`route.params.<name>` and `route.query.<name>` are themselves signals. Reading one inside a `<data live source="…">` thunk subscribes the live channel to the param: when navigation changes the URL, the prior SSE subscription disposes and a new one opens with the updated arg. No author-side wiring; this is the same `live()` tracking that re-fires on `<state>` changes.
+`route.params.<name>` and `route.query.<name>` are themselves signals. Reading one inside a `<data live source="…">` thunk subscribes the live channel to the param: when navigation changes the URL, the prior SSE subscription disposes and a new one opens with the updated arg. No author-side wiring; this is the same `live()` tracking that re-fires on controller `scope:` signal changes.
 
 Concrete pattern — a `/agents/<id>` view:
 

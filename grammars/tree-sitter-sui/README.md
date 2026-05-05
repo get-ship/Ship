@@ -13,10 +13,10 @@ with no ERROR nodes. ABI 15.
 `.html.set` is HTML extended with template grammar. The grammar
 recognises:
 
-- **Directive elements** — `<data>`, `<state>`, `<component>`,
-  `<prop>`, `<while-loading>`, `<while-error>` (just HTML elements
-  as far as the grammar is concerned; the runtime extracts them by
-  tag name; queries flag them visually).
+- **Directive elements** — `<data>`, `<component>`, `<prop>`,
+  `<while-loading>`, `<while-error>` (just HTML elements as far as
+  the grammar is concerned; the runtime extracts them by tag name;
+  queries flag them visually).
 - **Standard HTML elements** — both the explicit-close form
   (`<div>…</div>`) and the self-closing form (`<ship-icon …/>`),
   plus the void-element forms (`<link>`, `<br>`, `<img>`, …).
@@ -82,9 +82,8 @@ Expected: prints nothing.
   inside `${…}` inside a backtick — none in the corpus today) and
   let inline `<style>` bodies span unmatched `{` characters cleanly.
 - **`queries/locals.scm`.** Would expose declaration scopes
-  (component props, `<state>` names, `let:` bindings) for
-  jump-to-def in editors that consume the `@local.*` family.
-  Currently absent.
+  (component props, `let:` bindings) for jump-to-def in editors
+  that consume the `@local.*` family. Currently absent.
 - **HTML attribute namespaces.** `attr_name` excludes `:` so the
   `bind:` / `on:` / `class:` / `style:` / `attr:` / `let:`
   directives win the lexer race; the corpus has no SVG-style

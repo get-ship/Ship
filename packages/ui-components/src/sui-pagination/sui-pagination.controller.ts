@@ -1,7 +1,12 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, signal, effect } from '@ship/ui-runtime'
 import type { Scope } from './sui-pagination.sui'
 
 export default controller<Scope>({
+  scope: () => ({
+    totalPages: signal(1),
+    info: signal(''),
+  }),
+
   mount(state, host) {
     const scope = state as unknown as Scope
 

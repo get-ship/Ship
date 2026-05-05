@@ -1,7 +1,11 @@
-//! Directive declarations — `<data>`, `<state>`, `<prop>`.
+//! Directive declarations — `<data>`, `<prop>`.
 //!
 //! These are lifted out of the template tree by the parser. The
 //! emitter expands each one into the matching runtime call.
+//!
+//! Reactive component state is declared in the paired controller's
+//! `scope:` factory; the `<state>` directive was retired in favour
+//! of typed, testable controller scope. See `.ship/skills/ship-views`.
 
 use crate::diagnostics::Span;
 use crate::ir::expr::Expr;
@@ -15,16 +19,6 @@ pub struct DataDecl {
     /// expression literal lifted from the `source=` attribute.
     pub source: Expr,
     pub live: bool,
-    pub span: Span,
-}
-
-/// `<state name="count" value="0" />` or `value={0}`.
-#[derive(Debug, Clone)]
-pub struct StateDecl {
-    pub name: String,
-    /// Initial-value expression. Brace form (`{...}`) is stripped at
-    /// parse time so this is always a bare expression.
-    pub value: Expr,
     pub span: Span,
 }
 

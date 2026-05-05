@@ -1,13 +1,13 @@
 // Test fixture exercising the LSP's Form C (`controller(def)`).
-// `filter` and `save` end up in template scope — `filter` from
-// `derived`, `save` from `on`. `name` and `age` are template-declared
-// `<state>` directives in profile.sui, so they don't show up
-// from controller-def extraction (the template parser surfaces them
-// separately).
+// `name` and `age` come from the controller's `scope:` block (signals),
+// `filter` from `derived`, `save` from `on`. All four end up in
+// template scope.
 
 declare function controller<T>(def: T): T;
+declare function signal<T>(initial: T): { (): T; set(v: T): void };
 
 export default controller({
+  scope: () => ({ name: signal('Alice'), age: signal(30) }),
   derived: { filter: () => 'all' },
   on: { save: () => {} },
 });

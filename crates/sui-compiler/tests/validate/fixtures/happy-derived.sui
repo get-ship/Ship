@@ -1,5 +1,3 @@
-<state name="count" value="0" />
-
 <div>
   <p>{label()}</p>
   <p>doubled: {doubled()}</p>

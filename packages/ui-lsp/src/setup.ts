@@ -240,22 +240,17 @@ function unwrapToObjectLiteral(expr: ts.Node): ts.ObjectLiteralExpression | null
 /** Walk a `controller(def)` argument object literal. The relevant
  * sections each contribute identifiers to the view scope:
  *
+ *   - `scope`:   keys are signals/derived/hooks the factory returns
  *   - `derived`: keys are callable memos
  *   - `on`:      keys are handler functions
  *   - `use`:     keys are hook namespace objects
- *
- * Per the "state is declarative-only" ADR, `state:` is no longer a
- * controller section — local writable signals are declared in the
- * template via `<state name="..." />` and reach scope through that
- * route. The LSP picks them up via `parsed.state` from the template
- * parser, not from the controller def.
  *
  * Each section may itself be an object literal OR a factory `(scope) => ({...})`.
  * Both are unwrapped via `unwrapToObjectLiteral`.
  */
 function membersFromControllerDef(obj: ts.ObjectLiteralExpression): SetupMember[] {
   const out: SetupMember[] = []
-  for (const sectionName of ['derived', 'on', 'use'] as const) {
+  for (const sectionName of ['scope', 'derived', 'on', 'use'] as const) {
     const prop = obj.properties.find(
       (p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === sectionName,
     )

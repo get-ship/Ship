@@ -1,5 +1,3 @@
-<state name="count" value="0" />
-
 <div class="counter">
   <p>count: <span data-test="value">{count()}</span></p>
   <button data-test="inc" on:click={() => count.set(count() + 1)}>

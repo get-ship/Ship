@@ -19,11 +19,11 @@
 "/>" @punctuation.bracket
 
 ; ── directive elements (recognised by tag name) ──────────────────────
-; Highlight `<data>`, `<state>`, `<component>`, `<prop>`,
-; `<while-loading>`, `<while-error>` distinctively so authors can see
-; the runtime contract at a glance.
+; Highlight `<data>`, `<component>`, `<prop>`, `<while-loading>`,
+; `<while-error>` distinctively so authors can see the runtime
+; contract at a glance.
 ((tag_name) @keyword.directive
-  (#match? @keyword.directive "^(data|state|component|prop|while-loading|while-error|slot)$"))
+  (#match? @keyword.directive "^(data|component|prop|while-loading|while-error|slot)$"))
 
 ; ── binding attribute prefixes ───────────────────────────────────────
 "bind:"  @keyword.directive

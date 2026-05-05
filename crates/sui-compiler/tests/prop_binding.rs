@@ -15,8 +15,7 @@ fn view_opts() -> CompileOpts {
 
 #[test]
 fn prop_attribute_emits_bind_prop_call() {
-    let src = r#"<state name="items" value="[]" />
-<my-grid prop:items={items()}></my-grid>"#;
+    let src = r#"<my-grid prop:items={items()}></my-grid>"#;
     let r = compile(src, view_opts()).expect("compile");
     assert!(
         r.js.contains(r#"bindProp(__e0, "items""#),
@@ -27,8 +26,7 @@ fn prop_attribute_emits_bind_prop_call() {
 
 #[test]
 fn prop_imports_runtime_and_dom_helpers() {
-    let src = r#"<state name="items" value="[]" />
-<my-grid prop:items={items()}></my-grid>"#;
+    let src = r#"<my-grid prop:items={items()}></my-grid>"#;
     let r = compile(src, view_opts()).expect("compile");
     assert!(r.js.contains("bindProp"), "missing bindProp import");
     assert!(r.js.contains("hydrateProp"), "missing hydrateProp import");
@@ -59,9 +57,7 @@ fn empty_prop_name_is_compile_error() {
 
 #[test]
 fn multiple_props_each_emit_their_own_call() {
-    let src = r#"<state name="rows" value="[]" />
-<state name="title" value="''" />
-<my-grid prop:rows={rows()} prop:label={title()}></my-grid>"#;
+    let src = r#"<my-grid prop:rows={rows()} prop:label={title()}></my-grid>"#;
     let r = compile(src, view_opts()).expect("compile");
     let count = r.js.matches("bindProp(").count();
     assert_eq!(count, 2, "expected 2 bindProp calls, got {count}\n{}", r.js);

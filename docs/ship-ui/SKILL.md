@@ -29,8 +29,8 @@ Ship views have three roles: **template** (the `.sui` file — structure + decla
 ## Documents in this skill
 
 - **[index.md](references/docs/index.md)** — architecture, the three-role split, MVVM mapping, the shared view scope, the discipline. Read first.
-- **[template.md](references/docs/template.md)** — `.sui` directive surface: `<state>`, `<data>`, `<prop>`, control flow blocks (`{#if}`, `{#for}`, `{#match}`, `{#while-loading}`, `{#while-error err}`), `on:`, `bind:` (incl. `bind:this`), `<slot reflect-empty>`, `<use-*>`, slots. The file IS the component — no `<component>` wrapper.
-- **[controller.md](references/docs/controller.md)** — paired `.ts` shape: three tiers (no controller / object / function), five sections (derived / on / use / mount / unmount), scope rules. State lives in `<state>` declarations only — never on the controller.
+- **[template.md](references/docs/template.md)** — `.sui` directive surface: `<data>`, `<prop>`, control flow blocks (`{#if}`, `{#for}`, `{#match}`, `{#while-loading}`, `{#while-error err}`), `on:`, `bind:` (incl. `bind:this`), `<slot reflect-empty>`, `<use-*>`, slots. The file IS the component — no `<component>` wrapper.
+- **[controller.md](references/docs/controller.md)** — paired `.ts` shape: three tiers (no controller / object / function), six sections (scope / derived / on / use / mount / unmount). Reactive state lives in the controller's `scope:` factory.
 - **[hooks.md](references/docs/hooks.md)** — template hooks (`<use-*>`) vs controller hooks (`use:` namespace). When to reach for which. Authoring contracts.
 - **[data-subscriptions.md](references/docs/data-subscriptions.md)** — `<data>` is canonical. Live envelope shape. Pass signals, not closures.
 - **[ssr-hydration.md](references/docs/ssr-hydration.md)** — Rust IR render walker, attach-only client runtime, the renderable expression subset, marker contract.

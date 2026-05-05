@@ -4,6 +4,8 @@ import { resolve } from 'node:path'
 import { hydrate } from '../src/legacy'
 import { state, signal, type Signal } from '@ship/ui-runtime'
 
+const counterSetup = (): { count: Signal<number> } => ({ count: signal(0) })
+
 const fixturePath = (name: string): string =>
   resolve(__dirname, 'fixtures', name)
 const loadFixture = (name: string): string =>
@@ -39,7 +41,7 @@ describe('hydrate — hello (static)', () => {
 describe('hydrate — counter (state + on:click)', () => {
   it('updates the displayed count when the button is clicked', async () => {
     const container = mkContainer()
-    const handle = hydrate(loadFixture('counter.sui'), undefined, {
+    const handle = hydrate(loadFixture('counter.sui'), counterSetup, {
       container,
     })
     const value = container.querySelector('[data-test="value"]')!
@@ -64,7 +66,7 @@ describe('hydrate — counter (state + on:click)', () => {
 
   it('removes event listeners on dispose so post-dispose clicks are inert', () => {
     const container = mkContainer()
-    const handle = hydrate(loadFixture('counter.sui'), undefined, {
+    const handle = hydrate(loadFixture('counter.sui'), counterSetup, {
       container,
     })
     const inc = container.querySelector(
@@ -195,7 +197,7 @@ describe('hydrate — disposer fully tears down', () => {
     void sharedCount
     void signal
     void probe
-    const handle = hydrate(loadFixture('counter.sui'), undefined, {
+    const handle = hydrate(loadFixture('counter.sui'), counterSetup, {
       container,
     })
     const before = container.innerHTML
@@ -206,7 +208,7 @@ describe('hydrate — disposer fully tears down', () => {
 
   it('disposes effects so subsequent signal writes do not throw', () => {
     const container = mkContainer()
-    const handle = hydrate(loadFixture('counter.sui'), undefined, {
+    const handle = hydrate(loadFixture('counter.sui'), counterSetup, {
       container,
     })
     handle.dispose()

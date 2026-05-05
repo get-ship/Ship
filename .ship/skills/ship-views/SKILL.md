@@ -51,12 +51,10 @@ Convention is the contract. Filename stem identifies the view; `.controller.ts` 
 <data name="agents" source="ship.agents.summaries()" live />
 <data name="settings" source="ship.settings.read()" />
 
-<!-- reactive args — re-subscribes when selectedId changes -->
-<state name="selectedId" value="'abc'" />
+<!-- reactive args — re-subscribes when selectedId changes.
+     `selectedId` is a signal declared in the controller's `scope:`
+     factory (see Controller contract below). -->
 <data name="agent" source="ship.agents.get({id: $scope.selectedId()})" live />
-
-<!-- local state -->
-<state name="count" value="0" />
 
 <!-- props (component .sui files only) -->
 <prop name="tone" values="default|primary" default="default" reflect />
@@ -101,7 +99,7 @@ Convention is the contract. Filename stem identifies the view; `.controller.ts` 
 <slot></slot>
 ```
 
-The file IS the view — no `<component>` wrapper. Top-level directives (`<state>`, `<data>`, `<prop>`, `<use-*>`) declare scope; the rest is the body.
+The file IS the view — no `<component>` wrapper. Top-level directives (`<data>`, `<prop>`, `<use-*>`) declare scope; the rest is the body. Reactive component state is declared in the paired controller's `scope:` factory, not the template.
 
 For full examples see `references/template-surface.md`.
 

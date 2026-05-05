@@ -11,7 +11,7 @@ fn build_for(src: &str) -> BindingRegistry {
 
 #[test]
 fn dynamic_text_emits_text_binding() {
-    let r = build_for("<state name=\"x\" value=\"0\" />\n<p>{x}</p>");
+    let r = build_for("<p>{x}</p>");
     assert_eq!(r.len(), 1);
     let b = r.get(0).unwrap();
     assert_eq!(b.key, "b0");
@@ -78,7 +78,7 @@ fn dynamic_attr_emits_attr_dynamic_binding() {
 
 #[test]
 fn if_emits_if_binding_then_walks_body() {
-    let r = build_for("<state name=\"x\" value=\"0\" />\n{#if x}<p>{x}</p>{/if}");
+    let r = build_for("{#if x}<p>{x}</p>{/if}");
     assert_eq!(r.len(), 2);
     assert_eq!(r.get(0).unwrap().kind, BindingKind::If);
     assert_eq!(r.get(0).unwrap().expr, "x");
@@ -87,10 +87,7 @@ fn if_emits_if_binding_then_walks_body() {
 
 #[test]
 fn if_walks_else_body() {
-    let r = build_for(
-        "<state name=\"a\" value=\"0\" />\n<state name=\"b\" value=\"0\" />\n\
-         {#if a}<p>{a}</p>{:else}<p>{b}</p>{/if}",
-    );
+    let r = build_for("{#if a}<p>{a}</p>{:else}<p>{b}</p>{/if}");
     // bindings: if, text(a), text(b)
     assert_eq!(r.len(), 3);
     assert_eq!(r.get(0).unwrap().kind, BindingKind::If);
@@ -100,7 +97,7 @@ fn if_walks_else_body() {
 
 #[test]
 fn for_iterable_emits_for_binding() {
-    let r = build_for("<state name=\"xs\" value=\"[]\" />\n{#for n of xs}<li>{n}</li>{/for}");
+    let r = build_for("{#for n of xs}<li>{n}</li>{/for}");
     assert_eq!(r.len(), 2);
     assert_eq!(r.get(0).unwrap().kind, BindingKind::For);
     assert_eq!(r.get(0).unwrap().expr, "xs");
@@ -110,10 +107,7 @@ fn for_iterable_emits_for_binding() {
 #[test]
 fn for_body_yields_one_binding_not_per_iteration() {
     // Even if the body has many bindings, the registry walks it once.
-    let r = build_for(
-        "<state name=\"xs\" value=\"[]\" />\n\
-         {#for n of xs}<li class:hot={n}>{n}</li>{/for}",
-    );
+    let r = build_for("{#for n of xs}<li class:hot={n}>{n}</li>{/for}");
     // for boundary, class:hot, dynamic text — 3 entries total.
     assert_eq!(r.len(), 3);
     assert_eq!(r.get(0).unwrap().kind, BindingKind::For);
@@ -127,8 +121,7 @@ fn for_body_yields_one_binding_not_per_iteration() {
 #[test]
 fn match_emits_match_binding_and_walks_cases() {
     let r = build_for(
-        "<state name=\"k\" value=\"'a'\" />\n\
-         {#match k}{:case 'a'}<p>{k}</p>{:case 'b'}<p>B</p>{:default}<p>D</p>{/match}",
+        "{#match k}{:case 'a'}<p>{k}</p>{:case 'b'}<p>B</p>{:default}<p>D</p>{/match}",
     );
     // match boundary, text(k), no bindings in case 'b' or default.
     assert_eq!(r.len(), 2);
@@ -139,11 +132,7 @@ fn match_emits_match_binding_and_walks_cases() {
 
 #[test]
 fn nested_control_flow_walks_outer_then_inner() {
-    let r = build_for(
-        "<state name=\"x\" value=\"true\" />\n\
-         <state name=\"xs\" value=\"[1,2]\" />\n\
-         {#if x}{#for n of xs}<li>{n}</li>{/for}{/if}",
-    );
+    let r = build_for("{#if x}{#for n of xs}<li>{n}</li>{/for}{/if}");
     // bindings: if, for, text
     assert_eq!(r.len(), 3);
     assert_eq!(r.get(0).unwrap().kind, BindingKind::If);
@@ -153,11 +142,7 @@ fn nested_control_flow_walks_outer_then_inner() {
 
 #[test]
 fn keys_are_sequential_b_strings() {
-    let r = build_for(
-        "<state name=\"a\" value=\"0\" />\n\
-         <state name=\"b\" value=\"0\" />\n\
-         <p>{a}-{b}</p>",
-    );
+    let r = build_for("<p>{a}-{b}</p>");
     let keys: Vec<&str> = r.iter().map(|b| b.key.as_str()).collect();
     assert_eq!(keys, vec!["b0", "b1"]);
 }

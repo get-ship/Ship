@@ -1,19 +1,17 @@
 #![allow(clippy::if_same_then_else)]
 //! `.d.ts` declaration file emitter.
 //!
-//! Walks `<state>`, `<data>`, `<prop>`, and `<use-* as=>` declarations
-//! from the IR and emits a TypeScript declaration file that authors can
-//! import as `Scope`.
+//! Walks `<data>`, `<prop>`, and `<use-* as=>` declarations from the
+//! IR and emits a TypeScript declaration file that authors can import
+//! as `Scope`. Reactive state lives in the controller's `scope:`
+//! factory and is typed by TS itself, so it has no `.d.ts` entry.
 
-use crate::ir::{AttrInstr, DataDecl, ElementInstr, Instr, Program, PropDecl, PropKind, StateDecl};
+use crate::ir::{AttrInstr, DataDecl, ElementInstr, Instr, Program, PropDecl, PropKind};
 
 /// Emit the `.sui.d.ts` text for a compiled `.sui` file.
 pub fn emit_dts(program: &Program) -> String {
     let mut members: Vec<(String, String)> = Vec::new();
 
-    for s in &program.state {
-        members.push((s.name.clone(), state_ts_type(s)));
-    }
     for d in &program.data {
         members.push((d.name.clone(), data_ts_type(d)));
     }
@@ -52,10 +50,6 @@ pub fn emit_dts(program: &Program) -> String {
     out
 }
 
-fn state_ts_type(s: &StateDecl) -> String {
-    format!("Signal<{}>", infer_ts_type(&s.value.source))
-}
-
 fn data_ts_type(d: &DataDecl) -> String {
     if d.live {
         "Signal<LiveState<unknown>>".to_string()
@@ -76,43 +70,6 @@ fn prop_ts_type(p: &PropDecl) -> String {
             .join(" | "),
     };
     format!("Signal<{inner}>")
-}
-
-/// Infer a TypeScript primitive type from a JS literal expression.
-fn infer_ts_type(src: &str) -> &str {
-    let s = src.trim();
-    if is_number_literal(s) {
-        return "number";
-    }
-    if is_string_literal(s) {
-        return "string";
-    }
-    if s == "true" || s == "false" {
-        return "boolean";
-    }
-    if is_array_literal(s) {
-        return "unknown[]";
-    }
-    "unknown"
-}
-
-fn is_number_literal(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-    let s = s.strip_prefix('-').unwrap_or(s);
-    s.chars().all(|c| c.is_ascii_digit() || c == '.' || c == '_')
-        && s.chars().any(|c| c.is_ascii_digit())
-}
-
-fn is_string_literal(s: &str) -> bool {
-    (s.starts_with('\'') && s.ends_with('\'') && s.len() >= 2)
-        || (s.starts_with('"') && s.ends_with('"') && s.len() >= 2)
-        || (s.starts_with('`') && s.ends_with('`') && s.len() >= 2)
-}
-
-fn is_array_literal(s: &str) -> bool {
-    s.starts_with('[') || s == "[]"
 }
 
 /// Walk template instructions and collect `bind:this={var}` refs.

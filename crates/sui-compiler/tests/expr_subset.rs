@@ -28,8 +28,8 @@ fn rejects_await_in_attribute_expr() {
 }
 
 #[test]
-fn rejects_this_in_state_value() {
-    let err = compile_view(r#"<state name="x" value={this.value} />"#);
+fn rejects_this_in_text_expression() {
+    let err = compile_view(r#"<p>{this.value}</p>"#);
     assert!(err.message.contains("`this`"), "msg: {}", err.message);
 }
 
