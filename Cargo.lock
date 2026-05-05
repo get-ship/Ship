@@ -3853,6 +3853,7 @@ dependencies = [
  "ship-jobs",
  "ship-platform",
  "ship-substrate",
+ "ship-types",
  "syn",
  "tempfile",
  "thiserror 2.0.18",

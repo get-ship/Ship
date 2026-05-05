@@ -125,6 +125,14 @@ pub const RULE_DELETED: &str = "rule.deleted";
 /// is the project_id (or `"global"` for user-scope writes).
 pub const PERMISSIONS_UPDATED: &str = "permissions.updated";
 
+/// Session status transition (e.g. Idle → Thinking). `entity_id` is
+/// the session id. Useful for "what's the agent doing right now?" UIs.
+pub const SESSION_STATUS_CHANGED: &str = "session.status_changed";
+/// A turn failed to spawn or run end-to-end. `entity_id` is the session
+/// id. Distinct from `session.ended` — the session stays alive, the
+/// individual turn is the unit of failure.
+pub const SESSION_TURN_FAILED: &str = "session.turn_failed";
+
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_ACTIVATED,
@@ -206,6 +214,8 @@ pub const ALL: &[&str] = &[
     RULE_UPDATED,
     RULE_DELETED,
     PERMISSIONS_UPDATED,
+    SESSION_STATUS_CHANGED,
+    SESSION_TURN_FAILED,
 ];
 
 #[cfg(test)]

@@ -21,6 +21,7 @@ path = "src/main.rs"
 ship-application = { path = "../../crates/core/ship-application" }
 ship-substrate = { path = "../../crates/core/ship-substrate" }
 ship-platform = { path = "../../crates/core/ship-platform" }
+ship-types = { path = "../../crates/core/ship-types" }
 lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }

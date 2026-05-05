@@ -26,9 +26,9 @@ pub mod types {
             // (9 workspace.*, job.claimed, executor.session_created,
             // executor.window_created). event-coverage/01 added 7
             // (skill.{created,updated,deleted}, rule.{created,updated,
-            // deleted}, permissions.updated) bringing the total to 80.
+            // deleted}, permissions.updated). event-coverage/02 added 2 (session.status_changed, session.turn_failed) for 82 total.
             // Adjust this when adding/removing event types.
-            assert_eq!(ALL.len(), 80, "exactly 80 event type constants required");
+            assert_eq!(ALL.len(), 82, "exactly 82 event type constants required");
         }
     }
 }

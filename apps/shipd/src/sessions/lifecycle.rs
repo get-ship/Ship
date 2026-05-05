@@ -22,6 +22,41 @@ use super::types::{
     private::Inner, PtySession, SessionHandle, SessionId, SessionKind, SessionMeta,
     SessionStatus,
 };
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
+use ship_types::event_types::{SESSION_STATUS_CHANGED, SESSION_TURN_FAILED};
+use ship_types::payload::{SessionStatusChanged, SessionTurnFailed};
+
+/// Best-effort emit. The session's in-memory state is the source of
+/// truth; the event log is audit/observability scaffolding.
+fn emit_session_event(event_type: &'static str, session_id: &str, payload: &impl serde::Serialize) {
+    let envelope = match EventEnvelope::new(event_type, session_id, payload) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("session event {event_type}: build envelope failed: {e}");
+            return;
+        }
+    };
+    let store = match SqliteEventStore::new() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("session event {event_type}: open store failed: {e}");
+            return;
+        }
+    };
+    if let Err(e) = store.append(&envelope) {
+        tracing::warn!("session event {event_type}: append failed: {e}");
+    }
+}
+
+fn status_str(s: SessionStatus) -> &'static str {
+    match s {
+        SessionStatus::Spawning => "spawning",
+        SessionStatus::Idle => "idle",
+        SessionStatus::Thinking => "thinking",
+        SessionStatus::Ended => "ended",
+    }
+}
 
 /// Broadcast channel capacity — 1024 chunks ≈ several screens of output
 /// at typical PTY burst rates. Lagging subscribers drop old frames.
@@ -189,7 +224,13 @@ pub fn send_agent_message(
         adapter_id,
         work_dir,
     ) {
-        tracing::error!(session = %session.0.meta.lock().unwrap().id, error = %e, "headless turn spawn failed");
+        let session_id = session.0.meta.lock().unwrap().id.clone();
+        tracing::error!(session = %session_id, error = %e, "headless turn spawn failed");
+        emit_session_event(
+            SESSION_TURN_FAILED,
+            &session_id,
+            &SessionTurnFailed { error: e.to_string() },
+        );
         let _ = session.0.event_tx.send(
             ship_platform::services::provider_adapter::ProviderEvent::Message {
                 text: format!("[ship] turn failed: {e}"),
@@ -261,9 +302,23 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
 
 
 fn set_status(inner: &SessionHandle, status: SessionStatus) {
-    let mut m = inner.meta.lock().unwrap();
-    m.status = status;
-    m.last_activity = Utc::now();
+    let (id, prior) = {
+        let mut m = inner.meta.lock().unwrap();
+        let prior = m.status;
+        m.status = status;
+        m.last_activity = Utc::now();
+        (m.id.clone(), prior)
+    };
+    if prior != status {
+        emit_session_event(
+            SESSION_STATUS_CHANGED,
+            &id,
+            &SessionStatusChanged {
+                from: status_str(prior).to_string(),
+                to: status_str(status).to_string(),
+            },
+        );
+    }
 }
 
 /// Idle-reaper: flips Thinking → Idle after a quiet window. Run this
@@ -282,7 +337,17 @@ pub fn sweep_idle(registry: &SessionRegistry) {
                 if matches!(m.status, SessionStatus::Thinking)
                     && (Utc::now() - m.last_activity).num_seconds() >= IDLE_AFTER_SECS
                 {
+                    let session_id = m.id.clone();
                     m.status = SessionStatus::Idle;
+                    drop(m);
+                    emit_session_event(
+                        SESSION_STATUS_CHANGED,
+                        &session_id,
+                        &SessionStatusChanged {
+                            from: "thinking".to_string(),
+                            to: "idle".to_string(),
+                        },
+                    );
                 }
             }
         }

@@ -141,6 +141,9 @@ fn schema_for_event_type(
         "rule.updated" => Some(check::<RuleUpdated>),
         "rule.deleted" => Some(check::<RuleDeleted>),
         "permissions.updated" => Some(check::<PermissionsUpdated>),
+        // session lifecycle additions (event-coverage/02)
+        "session.status_changed" => Some(check::<SessionStatusChanged>),
+        "session.turn_failed" => Some(check::<SessionTurnFailed>),
         _ => None,
     }
 }

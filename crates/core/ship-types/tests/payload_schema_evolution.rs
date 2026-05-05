@@ -325,6 +325,23 @@ fn rule_deleted_v1_round_trips() {
 }
 
 #[test]
+fn session_status_changed_v1_round_trips() {
+    let p: SessionStatusChanged =
+        parse(r#"{"from": "idle", "to": "thinking"}"#, "SessionStatusChanged");
+    assert_eq!(p.from, "idle");
+    assert_eq!(p.to, "thinking");
+}
+
+#[test]
+fn session_turn_failed_v1_round_trips() {
+    let p: SessionTurnFailed = parse(
+        r#"{"error": "claude binary not found on PATH"}"#,
+        "SessionTurnFailed",
+    );
+    assert!(p.error.contains("claude"));
+}
+
+#[test]
 fn permissions_updated_v1_round_trips() {
     let json = r#"{
         "scope": "project",

@@ -461,6 +461,22 @@ pub struct PermissionsUpdated {
     pub permissions_json: String,
 }
 
+/// Payload for `session.status_changed`. `entity_id` is the session id.
+/// Status names match the `SessionStatus` enum's serialized form
+/// ("idle" | "thinking"). Self-transitions (from == to) are not emitted.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionStatusChanged {
+    pub from: String,
+    pub to: String,
+}
+
+/// Payload for `session.turn_failed`. `entity_id` is the session id.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionTurnFailed {
+    /// Free-text error message from the spawn / run path.
+    pub error: String,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
