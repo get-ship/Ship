@@ -14,6 +14,7 @@
 //                               client returns this shape.
 
 import { effect, signal, type Signal } from './signal'
+import { registerOwnerCleanup } from './owner'
 
 /** The lifecycle of a `LiveSignal<T>` value. */
 export type LiveState<T> =
@@ -103,7 +104,15 @@ export function live<T>(
   const sig = signal<LiveState<T>>({ kind: 'loading' })
   let token = 0
 
-  effect(() => {
+  // Capture the effect's stop fn AND register it with the current
+  // mount-time owner so the EventSource closes when the view unmounts.
+  // Pre-fix: the effect's stop fn was discarded, the SSE subscription
+  // never got cleaned up, and every navigation that touched a view
+  // with `<data live>` leaked the EventSource + its handlers + the
+  // signal graph holding them. After ~tens of navigations the tab
+  // OOM'd. (`mount.ts` runs `setup()` inside `withOwner` so registered
+  // cleanups land in the MountHandle's cleanup list.)
+  const stop = effect(() => {
     const myToken = ++token
     let result: LiveSource<T> | Promise<T> | T
     try {
@@ -146,6 +155,7 @@ export function live<T>(
     return undefined
   })
 
+  registerOwnerCleanup(stop)
   return sig
 }
 
