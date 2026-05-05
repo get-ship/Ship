@@ -14,7 +14,7 @@
   .hero {
     padding: 1.5rem 1.75rem;
     border-radius: 0.75rem;
-    background: var(--surface, #f6f8fa);
+    background: var(--surface-1, #f6f8fa);
     border: 1px solid var(--border, #d0d7de);
   }
   :host([tone='accent']) .hero {
