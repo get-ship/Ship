@@ -85,6 +85,30 @@ describe('scope: block', () => {
     document.body.removeChild(host)
   })
 
+  it('mount: can mutate scope: signals when template declares no <state>', () => {
+    // Regression: ship-ui-studio's mount() does `state.sui = catalog.sui`
+    // against signals created by the scope: factory. The template carries
+    // no <state> declarations, so ctx.stateKeys is an empty Set. Before
+    // the fix, an empty (but defined) stateKeys short-circuited the
+    // signal-picker and scope: signals were treated as read-only — the
+    // assignment dropped silently with a console warning.
+    const def = {
+      scope: () => ({ items: signal<string[]>([]), loading: signal(true) }),
+      mount: (s: { items: string[]; loading: boolean }) => {
+        s.items = ['a', 'b']
+        s.loading = false
+      },
+    }
+    const stateKeys: ReadonlySet<string> = new Set()
+    const bindings = resolveController(def, { ship: fakeShip, stateKeys })
+    const lifecycle = (
+      bindings as Record<string, unknown>
+    )['__shipSetLifecycle'] as { state: Record<string, unknown>; mount: (s: Record<string, unknown>, el: HTMLElement) => void }
+    lifecycle.mount(lifecycle.state, document.createElement('div'))
+    expect((bindings.items as () => string[])()).toEqual(['a', 'b'])
+    expect((bindings.loading as () => boolean)()).toBe(false)
+  })
+
   it('skipped when no scope: block declared', () => {
     const def = { on: { fn: () => {} } }
     const bindings = resolveController(def, ctx())

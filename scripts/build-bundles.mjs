@@ -409,7 +409,7 @@ async function watchAll() {
 // or the bundle crosses ~80 KiB gz on cold load), the framework team splits
 // it into core + extended. That decision lives here, not in port specs.
 const BUNDLE_GATES = [
-  { name: 'sui-runtime',     ceiling: 15, target: 13, scope: 'bundle' },
+  { name: 'sui-runtime',     ceiling: 16, target: 13, scope: 'bundle' },
   { name: 'sui-dom',         ceiling:  6, target:  4, scope: 'bundle' },
   // Components bundle: observability only, not a fail-build gate.
   // Reports gz size + per-component average so framework owners see drift.

@@ -78,7 +78,7 @@ export function resolveController(
     : {}
   Object.assign(baseScope, scopeAdds)
 
-  const stateSignals = pickStateSignals(baseScope, ctx.stateKeys)
+  const stateSignals = pickStateSignals(baseScope, ctx.stateKeys, scopeAdds)
   const writableProxy = buildWritableProxy(stateSignals, baseScope)
 
   const declScope: Record<string, unknown> = { ...baseScope }
@@ -150,16 +150,28 @@ function normalize(
 
 /**
  * Extract the writable-state subset of an ambient scope. State signals
- * are identified by `stateKeys` when present; otherwise we fall back
- * to "every callable value with a `.set` method" as a heuristic.
+ * are identified by `stateKeys` (template `<state>` directives) AND the
+ * keys returned by the controller's `scope:` factory — both are author-
+ * declared writable signals. Without `stateKeys` and without `scopeAdds`
+ * we fall back to the "any callable value with a `.set` method" heuristic.
  */
 function pickStateSignals(
   scope: Record<string, unknown>,
   stateKeys?: ReadonlySet<string>,
+  scopeAdds?: Record<string, unknown>,
 ): Record<string, Signal<unknown>> {
   const out: Record<string, Signal<unknown>> = {}
-  if (stateKeys) {
-    for (const k of stateKeys) {
+  const haveStateKeys = stateKeys !== undefined
+  const scopeAddKeys = scopeAdds ? Object.keys(scopeAdds) : []
+  if (haveStateKeys || scopeAddKeys.length > 0) {
+    if (stateKeys) {
+      for (const k of stateKeys) {
+        const v = scope[k]
+        if (isSignal(v)) out[k] = v
+      }
+    }
+    for (const k of scopeAddKeys) {
+      if (k in out) continue
       const v = scope[k]
       if (isSignal(v)) out[k] = v
     }
