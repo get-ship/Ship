@@ -2,6 +2,16 @@
 // Intentionally minimal — these suppress uncaught errors without simulating
 // real behavior. Tests only care about DOM structure / ARIA / event flow.
 
+// Prime the lucide icon registry from the generated source. Production
+// `<sui-icon>` lazy-fetches the registry from `/_sui/lucide-icons.json`
+// (R4 of the components-bundle audit); tests don't have that endpoint
+// and assert synchronously, so we inject the same map at startup so
+// resolution is sync.
+import { LUCIDE_ICONS } from '../../ship-set/src/web-components/core/lucide-icons.generated'
+import { setIconRegistry } from '../src/sui-icon/registry'
+setIconRegistry(LUCIDE_ICONS)
+
+
 if (typeof ResizeObserver === 'undefined') {
   // xterm's fit addon calls it but jsdom has no layout engine, so the
   // callback never fires.
