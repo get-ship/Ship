@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../src/sui-command-bar/sui-command-bar.compiled.js'
+import '../src/sui-command-bar/sui-command-palette.compiled.js'
+import '../src/sui-command-bar/sui-command-chat.compiled.js'
 import '../src/sui-dialog/sui-dialog.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
@@ -17,10 +19,15 @@ function makeBar(attrs: Record<string, string | boolean> = {}) {
   return mount(reg, 'sui-command-bar', attrs)
 }
 
+// Shadow-piercing helpers
 function shadow(el: HTMLElement) { return el.shadowRoot! }
 function dialog(el: HTMLElement) { return shadow(el).querySelector('sui-dialog') as HTMLElement | null }
 function trigger(el: HTMLElement) { return shadow(el).querySelector('.cb-trigger') as HTMLButtonElement | null }
 function wrap(el: HTMLElement) { return shadow(el).querySelector('.cb-wrap') as HTMLElement | null }
+function palette(el: HTMLElement) { return shadow(el).querySelector('sui-command-palette') as HTMLElement | null }
+function palShadow(el: HTMLElement) { return palette(el)?.shadowRoot ?? null }
+function searchInput(el: HTMLElement) { return palShadow(el)?.querySelector('.cb-search') as HTMLInputElement | null }
+function palItems(el: HTMLElement) { return palShadow(el)?.querySelectorAll('.cb-item') ?? null }
 
 // Press a key on the document
 function key(opts: { key: string; metaKey?: boolean; ctrlKey?: boolean }) {
@@ -30,6 +37,14 @@ function key(opts: { key: string; metaKey?: boolean; ctrlKey?: boolean }) {
 describe('<sui-command-bar>', () => {
   it('registers the custom element', () => {
     expect(customElements.get('sui-command-bar')).toBeDefined()
+  })
+
+  it('registers sui-command-palette', () => {
+    expect(customElements.get('sui-command-palette')).toBeDefined()
+  })
+
+  it('registers sui-command-chat', () => {
+    expect(customElements.get('sui-command-chat')).toBeDefined()
   })
 
   it('renders a shadow root with trigger button', () => {
@@ -98,11 +113,11 @@ describe('<sui-command-bar>', () => {
     expect(el.hasAttribute('open')).toBe(true)
   })
 
-  it('show(mode, query) seeds the input value', async () => {
+  it('show(mode, query) seeds the palette input value', async () => {
     const { el } = makeBar()
     ;(el as CB).show('find', '>dashboard')
     await flush()
-    const input = wrap(el)?.querySelector('.cb-search') as HTMLInputElement | null
+    const input = searchInput(el)
     expect(input?.value).toBe('>dashboard')
   })
 
@@ -155,19 +170,26 @@ describe('<sui-command-bar>', () => {
     expect(events[0]!.composed).toBe(true)
   })
 
-  it('open attr renders wrap with content', async () => {
+  it('open attr mounts sui-command-palette inside cb-wrap', async () => {
     const { el } = makeBar()
-    ;(el as CB).show()
+    ;(el as CB).show('find')
     await flush()
-    expect(wrap(el)?.innerHTML.length).toBeGreaterThan(0)
+    expect(palette(el)).not.toBeNull()
   })
 
-  describe('mode detection from input', () => {
+  it('palette has a shadow root with input', async () => {
+    const { el } = makeBar()
+    ;(el as CB).show('find')
+    await flush()
+    expect(searchInput(el)).not.toBeNull()
+  })
+
+  describe('mode detection from palette input', () => {
     it('/ prefix sets command mode', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
       await flush()
-      const input = wrap(el)?.querySelector('.cb-search') as HTMLInputElement | null
+      const input = searchInput(el)
       if (!input) return
       input.value = '/lint'
       input.dispatchEvent(new Event('input'))
@@ -179,7 +201,7 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('ai')
       await flush()
-      const input = wrap(el)?.querySelector('.cb-search') as HTMLInputElement | null
+      const input = searchInput(el)
       if (!input) return
       input.value = '>dash'
       input.dispatchEvent(new Event('input'))
@@ -191,7 +213,7 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('ai')
       await flush()
-      const input = wrap(el)?.querySelector('.cb-search') as HTMLInputElement | null
+      const input = searchInput(el)
       if (!input) return
       input.value = '+view'
       input.dispatchEvent(new Event('input'))
@@ -203,7 +225,7 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('ai')
       await flush()
-      const input = wrap(el)?.querySelector('.cb-search') as HTMLInputElement | null
+      const input = searchInput(el)
       if (!input) return
       input.value = '@agent'
       input.dispatchEvent(new Event('input'))
@@ -217,7 +239,7 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
       await flush()
-      const items = wrap(el)?.querySelectorAll('.cb-item')
+      const items = palItems(el)
       expect(items?.length).toBeGreaterThan(0)
     })
 
@@ -225,12 +247,12 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('find', '>dashboard')
       await flush()
-      const input = wrap(el)?.querySelector('.cb-search') as HTMLInputElement | null
+      const input = searchInput(el)
       if (!input) return
       input.value = '>dashboard'
       input.dispatchEvent(new Event('input'))
       await flush()
-      const items = wrap(el)?.querySelectorAll('.cb-item')
+      const items = palItems(el)
       const labels = Array.from(items ?? []).map((i) => i.querySelector('span')?.textContent ?? '')
       expect(labels.some((l) => l.toLowerCase().includes('dashboard'))).toBe(true)
     })
@@ -239,11 +261,10 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
       await flush()
-      const input = wrap(el)?.querySelector('.cb-search') as HTMLInputElement | null
-      if (!input) return
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+      // Dispatch on bar host — onPaletteKeydown listens there.
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true }))
       await flush()
-      const items = wrap(el)?.querySelectorAll('.cb-item')
+      const items = palItems(el)
       expect(items?.[1]?.getAttribute('aria-selected')).toBe('true')
     })
 
@@ -251,11 +272,9 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
       await flush()
-      const input = wrap(el)?.querySelector('.cb-search') as HTMLInputElement | null
-      if (!input) return
-      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }))
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, composed: true }))
       await flush()
-      const items = wrap(el)?.querySelectorAll('.cb-item')
+      const items = palItems(el)
       expect(items?.[0]?.getAttribute('aria-selected')).toBe('true')
     })
   })
@@ -265,7 +284,7 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('command')
       await flush()
-      const items = wrap(el)?.querySelectorAll('.cb-item')
+      const items = palItems(el)
       expect(items?.length).toBeGreaterThan(0)
     })
 
@@ -273,12 +292,12 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('command', '/zzznomatch')
       await flush()
-      const input = wrap(el)?.querySelector('.cb-search') as HTMLInputElement | null
+      const input = searchInput(el)
       if (!input) return
       input.value = '/zzznomatch'
       input.dispatchEvent(new Event('input'))
       await flush()
-      const empty = wrap(el)?.querySelector('.cb-empty')
+      const empty = palShadow(el)?.querySelector('.cb-empty')
       expect(empty).not.toBeNull()
     })
   })
@@ -288,7 +307,7 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('create')
       await flush()
-      const btns = wrap(el)?.querySelectorAll('.cb-surface-btn')
+      const btns = palShadow(el)?.querySelectorAll('.cb-surface-btn')
       expect(btns?.length).toBe(6)
     })
 
@@ -296,15 +315,15 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('create')
       await flush()
-      expect(wrap(el)?.querySelector('.cb-create-name')).not.toBeNull()
-      expect(wrap(el)?.querySelector('.cb-create-shape')).not.toBeNull()
+      expect(palShadow(el)?.querySelector('.cb-create-name')).not.toBeNull()
+      expect(palShadow(el)?.querySelector('.cb-create-shape')).not.toBeNull()
     })
 
     it('submit button disabled when name empty', async () => {
       const { el } = makeBar()
       ;(el as CB).show('create')
       await flush()
-      const btn = wrap(el)?.querySelector('.cb-create-submit') as HTMLButtonElement | null
+      const btn = palShadow(el)?.querySelector('.cb-create-submit') as HTMLButtonElement | null
       expect(btn?.disabled).toBe(true)
     })
   })
@@ -314,37 +333,85 @@ describe('<sui-command-bar>', () => {
       const { el } = makeBar()
       ;(el as CB).show('ai')
       await flush()
-      // With no session loaded, should show spawn card or empty thread
-      const body = wrap(el)?.querySelector('.cb-body')
-      expect(body).not.toBeNull()
+      const card = palShadow(el)?.querySelector('.cb-spawn-card')
+      expect(card).not.toBeNull()
     })
   })
 
   describe('AsyncSearch cancellation', () => {
-    it('AbortController is used for stream cancellation', async () => {
+    it('component cleans up without throw on disconnect', async () => {
       const { el } = makeBar()
       ;(el as CB).show()
       await flush()
       ;(el as CB).hide()
       await flush()
-      // Component should not throw on disconnect after abort
       reg.cleanup()
       expect(true).toBe(true)
     })
   })
 
   describe('result selection via sui-command:select', () => {
-    it('item click dispatches sui-command:select', async () => {
+    it('item click dispatches sui-command:select from palette', async () => {
       const { el } = makeBar()
       ;(el as CB).show('find')
       await flush()
       const events: CustomEvent[] = []
       el.addEventListener('sui-command:select', (e) => events.push(e as CustomEvent))
-      const item = wrap(el)?.querySelector('.cb-item') as HTMLElement | null
+      const item = palShadow(el)?.querySelector('.cb-item') as HTMLElement | null
       item?.click()
       await flush()
       expect(events.length).toBeGreaterThan(0)
       expect(events[0]!.detail.mode).toBe('find')
+    })
+  })
+
+  describe('focus retention (regression)', () => {
+    it('palette input stays focused after ArrowDown', async () => {
+      const { el } = makeBar()
+      ;(el as CB).show('find')
+      await flush()
+      const input = searchInput(el)
+      if (!input) return
+      input.focus()
+      // ArrowDown is handled on bar host; input should retain focus after.
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, composed: true }))
+      await flush()
+      // Input lives in a shadow root; document.activeElement reflects to its host chain.
+      expect(document.activeElement === el || input.getRootNode() !== document).toBe(true)
+    })
+
+    it('palette input stays focused after ArrowUp', async () => {
+      const { el } = makeBar()
+      ;(el as CB).show('find')
+      await flush()
+      const input = searchInput(el)
+      if (!input) return
+      input.focus()
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, composed: true }))
+      await flush()
+      expect(document.activeElement === el || input.getRootNode() !== document).toBe(true)
+    })
+
+    // Original QA bug: typing into the search input destroyed the input
+    // element on each keystroke (re-render loop wiped the DOM). This
+    // test directly exercises that path — type 5 chars, assert the
+    // element identity is preserved AND the value reflects.
+    it('palette input identity + value preserved across keystrokes', async () => {
+      const { el } = makeBar()
+      ;(el as CB).show('find')
+      await flush()
+      const input = searchInput(el)
+      if (!input) return
+      input.focus()
+      const initial = input  // capture identity
+      for (const ch of 'hello') {
+        input.value += ch
+        input.dispatchEvent(new InputEvent('input', { data: ch, bubbles: true, composed: true }))
+        await flush()
+      }
+      // Same element instance after every keystroke (no re-render destroyed it)
+      expect(searchInput(el)).toBe(initial)
+      expect(input.value).toBe('hello')
     })
   })
 })

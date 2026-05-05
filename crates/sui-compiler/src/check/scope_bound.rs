@@ -102,6 +102,7 @@ fn build_scope(program: &Program, controller: Option<&ParsedController>) -> Scop
             match sec.name.as_str() {
                 "derived" | "on" => collect_object_keys(&c.source, sec.value_span, &mut names),
                 "use" => collect_use_keys(&c.source, sec.value_span, &mut names),
+                "scope" => collect_scope_return_keys(&c.source, sec.value_span, &mut names),
                 _ => {}
             }
         }
@@ -186,6 +187,32 @@ fn collect_use_keys(src: &str, span: Span, into: &mut BTreeSet<String>) {
     if i < end && bytes[i] == b'{' {
         let close = skip_balanced(bytes, i, end);
         collect_object_keys(src, Span::new(i, close), into);
+    }
+}
+
+/// `scope: (init, host?) => { ... return { key1, key2, ... } }` — find the
+/// last `return {` in the function body and collect its object keys.
+fn collect_scope_return_keys(src: &str, span: Span, into: &mut BTreeSet<String>) {
+    let bytes = src.as_bytes();
+    let start = span.start;
+    let end = span.end.min(bytes.len());
+    // Walk backwards from end of span to find the last `return` keyword
+    // followed by `{`, which holds the exported scope entries.
+    let return_kw = b"return";
+    let mut i = start;
+    let mut last_return_obj: Option<usize> = None;
+    while i + return_kw.len() < end {
+        if bytes[i..].starts_with(return_kw) {
+            let after = skip_trivia(bytes, i + return_kw.len());
+            if after < end && bytes[after] == b'{' {
+                last_return_obj = Some(after);
+            }
+        }
+        i += 1;
+    }
+    if let Some(obj_start) = last_return_obj {
+        let obj_end = skip_balanced(bytes, obj_start, end);
+        collect_object_keys(src, Span::new(obj_start, obj_end), into);
     }
 }
 
