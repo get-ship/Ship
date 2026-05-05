@@ -289,6 +289,15 @@ check-no-set-var-global-dir:
     fi
     @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"
 
+# 60-second time-boxed parser fuzz against sui_compiler::parse::parse,
+# seeded from every .sui in packages/ui-components/src. Requires the
+# nightly toolchain + cargo-fuzz (install with
+# `cargo install cargo-fuzz` and `rustup toolchain install nightly`).
+# See crates/sui-compiler/fuzz/FUZZING.md for longer runs.
+[group('occasional')]
+fuzz-parser:
+    @scripts/fuzz/run-parser-fuzz.sh 60
+
 # Seed the local registry with @unofficial packages.
 [group('occasional')]
 seed:
