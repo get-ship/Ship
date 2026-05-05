@@ -39,7 +39,7 @@ pub struct ShipServer {
     /// Event relay state — initialized on connection init.
     relay: std::sync::Arc<tokio::sync::Mutex<RelayState>>,
     /// Actor-scoped event store for this connection.
-    pub actor_store: std::sync::Arc<tokio::sync::Mutex<Option<runtime::events::ActorStore>>>,
+    pub actor_store: std::sync::Arc<tokio::sync::Mutex<Option<ship_substrate::events::ActorStore>>>,
     /// Canonical actor_id for this connection — the id the daemon
     /// returned from `actor_spawn`. Populated in `on_initialized`.
     /// Tool handlers read this instead of re-running synthesis fallback.
@@ -135,13 +135,13 @@ impl ShipServer {
         // Hint id from env (daemon-spawned agents pre-mint and propagate
         // via SHIP_ACTOR_ID). Externally-launched MCPs have no env id;
         // the daemon mints in `actor_spawn` and we adopt the response.
-        let hint_id: Option<String> = runtime::env::read(runtime::env::Var::ActorId);
+        let hint_id: Option<String> = ship_substrate::env::read(ship_substrate::env::Var::ActorId);
 
         // Compute skill-derived subscriptions
-        let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
-        let skills_list = runtime::list_skills(&ship_dir).unwrap_or_default();
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
+        let skills_list = ship_primitives::agents::skill::list_skills(&ship_dir).unwrap_or_default();
         let skill_subs =
-            runtime::agents::skill::artifact_events::skill_event_subscriptions(&skills_list);
+            ship_primitives::agents::skill::artifact_events::skill_event_subscriptions(&skills_list);
 
         // Default subscription set for an agent peer. The mesh's
         // subscribe_namespaces IS the filter — anything not declared
@@ -188,7 +188,7 @@ impl ShipServer {
             capabilities
         };
 
-        let config = runtime::events::ActorConfig {
+        let config = ship_substrate::events::ActorConfig {
             namespace: hint_id.clone().unwrap_or_default(),
             write_namespaces: vec!["".to_string()],
             read_namespaces: vec!["agent.".to_string()],
@@ -222,7 +222,7 @@ impl ShipServer {
         *self.canonical_actor_id.lock().await = Some(actor_id.clone());
 
         // Register a scoped session under the canonical id.
-        let active_agent = runtime::get_active_agent(Some(ship_dir.clone())).unwrap_or(None);
+        let active_agent = ship_primitives::config::get_active_agent(Some(ship_dir.clone())).unwrap_or(None);
         let agent_role = active_agent.as_ref().and_then(|a| a.role.as_deref());
         let workspace_id = self.session_id.lock().await.clone();
         match crate::network_client::register_session(
@@ -237,7 +237,7 @@ impl ShipServer {
         }
 
         // Create local ActorStore for event persistence
-        match runtime::events::ActorStore::open(
+        match ship_substrate::events::ActorStore::open(
             &actor_id,
             &global_dir,
             config.write_namespaces.clone(),
@@ -283,7 +283,7 @@ impl ShipServer {
                 }
             }
         });
-        let mailbox = runtime::events::Mailbox::from_receiver(rx);
+        let mailbox = ship_substrate::events::Mailbox::from_receiver(rx);
 
         let relay = notification_relay::EventRelay::new();
         relay_state.peers = relay.peers();
@@ -335,7 +335,7 @@ impl ShipServer {
         if let Some(id) = self.canonical_actor_id.lock().await.clone() {
             return id;
         }
-        if let Ok(env_id) = runtime::env::read_raw(runtime::env::Var::ActorId)
+        if let Ok(env_id) = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId)
             && !env_id.is_empty()
         {
             tracing::info!(actor_id = %env_id, "resolved actor ID from SHIP_ACTOR_ID");
@@ -356,7 +356,7 @@ impl ShipServer {
     /// 4. Otherwise start a fresh session via the runtime.
     /// 5. Store the session_id for tool-call counting and shutdown drain.
     pub(crate) async fn auto_session_start(&self) {
-        use runtime::db::session_drain;
+        use ship_substrate::db::session_drain;
 
         // Clean up sessions stuck draining longer than 120s.
         let _ = session_drain::cleanup_stale_draining(120);
@@ -365,13 +365,13 @@ impl ShipServer {
             Ok(d) => d,
             Err(_) => return,
         };
-        let ship_dir = runtime::ShipHome::project_ship_dir(&project_dir);
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(&project_dir);
         let branch = match tool_gate::current_branch(&project_dir) {
             Ok(b) => b,
             Err(_) => return,
         };
 
-        let agent_id = runtime::get_active_agent(Some(ship_dir.clone()))
+        let agent_id = ship_primitives::config::get_active_agent(Some(ship_dir.clone()))
             .ok()
             .flatten()
             .map(|a| a.id.clone());
@@ -392,7 +392,7 @@ impl ShipServer {
         }
 
         // Start a fresh session via the runtime.
-        match runtime::start_session(
+        match ship_primitives::sessions::start_session(
             &ship_dir,
             &branch,
             None,
@@ -415,7 +415,7 @@ impl ShipServer {
     /// attaches within the grace window, `auto_session_start` will resume it.
     /// Otherwise `cleanup_stale_draining` finalizes it.
     pub(crate) async fn shutdown(&self) {
-        use runtime::db::session_drain;
+        use ship_substrate::db::session_drain;
 
         if let Some(sid) = self.session_id.lock().await.take() {
             match session_drain::drain_session(&sid) {
@@ -727,7 +727,7 @@ impl ShipServer {
             let label = req.name.as_deref().unwrap_or("inline");
             lint::lint_view_source(label, &source)
         } else if let Some(name) = req.name {
-            let views_dir = runtime::ShipHome::project_ship_dir(project_dir).join("views").join(&name);
+            let views_dir = ship_substrate::ShipHome::project_ship_dir(project_dir).join("views").join(&name);
             if !views_dir.exists() {
                 return format!("Error: view '{}' not found under .ship/views/", name);
             }

@@ -1,6 +1,6 @@
 //! Tests for per-connection lifecycle: Inbox, EventRelay, ConnectionGuard.
 
-use runtime::events::EventEnvelope;
+use ship_substrate::events::EventEnvelope;
 use std::sync::Arc;
 
 use crate::transport::connections::Inbox;
@@ -82,7 +82,7 @@ async fn event_relay_forwards_to_inbox() {
     use tokio::sync::mpsc;
 
     let (tx, rx) = mpsc::channel::<EventEnvelope>(16);
-    let mailbox = runtime::events::Mailbox::from_receiver(rx);
+    let mailbox = ship_substrate::events::Mailbox::from_receiver(rx);
 
     let inbox = Inbox::new();
     let relay = EventRelay::new().with_inbox(Arc::clone(&inbox));
@@ -107,7 +107,7 @@ async fn event_relay_exits_when_mailbox_closes() {
     use tokio::sync::mpsc;
 
     let (tx, rx) = mpsc::channel::<EventEnvelope>(16);
-    let mailbox = runtime::events::Mailbox::from_receiver(rx);
+    let mailbox = ship_substrate::events::Mailbox::from_receiver(rx);
 
     let relay = EventRelay::new();
     let handle = relay.spawn(mailbox);
@@ -128,7 +128,7 @@ async fn event_relay_forwards_multiple_events() {
     use tokio::sync::mpsc;
 
     let (tx, rx) = mpsc::channel::<EventEnvelope>(16);
-    let mailbox = runtime::events::Mailbox::from_receiver(rx);
+    let mailbox = ship_substrate::events::Mailbox::from_receiver(rx);
 
     let inbox = Inbox::new();
     let relay = EventRelay::new().with_inbox(Arc::clone(&inbox));
@@ -167,7 +167,7 @@ async fn event_relay_adds_peer_and_forwards() {
     }
 
     let (tx, rx) = mpsc::channel::<EventEnvelope>(16);
-    let mailbox = runtime::events::Mailbox::from_receiver(rx);
+    let mailbox = ship_substrate::events::Mailbox::from_receiver(rx);
 
     let relay = EventRelay::new();
     let sink_events = Arc::new(tokio::sync::Mutex::new(Vec::new()));

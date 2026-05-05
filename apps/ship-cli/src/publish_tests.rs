@@ -5,7 +5,7 @@ use tempfile::tempdir;
 #[test]
 fn dry_run_reads_manifest_and_hashes() -> Result<()> {
     let dir = tempdir()?;
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir)?;
     std::fs::write(
         ship_dir.join("ship.jsonc"),
@@ -33,7 +33,7 @@ fn dry_run_reads_manifest_and_hashes() -> Result<()> {
 #[test]
 fn publish_without_token_errors() -> Result<()> {
     let dir = tempdir()?;
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir)?;
     std::fs::write(
         ship_dir.join("ship.jsonc"),
@@ -104,7 +104,7 @@ fn build_payload_includes_all_fields() {
 #[test]
 fn dry_run_reads_jsonc_manifest() -> Result<()> {
     let dir = tempdir()?;
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir)?;
     std::fs::write(
         ship_dir.join("ship.jsonc"),
@@ -200,7 +200,7 @@ fn build_payload_filters_to_single_agent() {
 #[test]
 fn dry_run_single_skill_export() -> Result<()> {
     let dir = tempdir()?;
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir)?;
     std::fs::write(
         ship_dir.join("ship.jsonc"),
@@ -228,7 +228,7 @@ fn dry_run_single_skill_export() -> Result<()> {
 #[test]
 fn dry_run_unknown_export_errors() {
     let dir = tempdir().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     std::fs::write(
         ship_dir.join("ship.jsonc"),

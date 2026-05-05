@@ -31,11 +31,11 @@ fn router_for(state: ApiState, auth: AuthContext) -> Router {
 
 fn fresh_state() -> (ApiState, TempDir) {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = Arc::new(tokio::sync::Mutex::new(
-        runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+        ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
     let state: ApiState = Arc::new(ShipRuntime::new_test(ship_dir, kernel));
     (state, dir)
@@ -43,7 +43,7 @@ fn fresh_state() -> (ApiState, TempDir) {
 
 fn mcp_auth(agent: &str) -> AuthContext {
     AuthContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: Some(agent.into()),
         workspace_id: None,
         session_id: None,
@@ -156,12 +156,12 @@ async fn view_scoped_feedback_reaches_owner_actor_mailbox() {
 async fn spawn_studio_subscriber(
     state: &ApiState,
     agent: &str,
-) -> runtime::events::Mailbox {
+) -> ship_substrate::events::Mailbox {
     let mut kernel = state.kernel().lock().await;
     let (_store, mailbox) = kernel
         .spawn_actor(
             agent,
-            runtime::events::ActorConfig {
+            ship_substrate::events::ActorConfig {
                 namespace: agent.into(),
                 write_namespaces: vec!["".into()],
                 read_namespaces: vec!["agent.".into()],

@@ -38,7 +38,7 @@ pub struct Worktrees {
     /// daemon. Keys are branch names exactly as `git symbolic-ref --short
     /// HEAD` returns them (e.g. `main`, `feature/agents-on-supervisor`).
     /// Honored before the hash-derived default in
-    /// `runtime::home::derive_worktree_port`.
+    /// `ship_substrate::home::derive_worktree_port`.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub ports: HashMap<String, u16>,
 }

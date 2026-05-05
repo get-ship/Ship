@@ -12,7 +12,7 @@ use crate::auth;
 use crate::auth::{AuthContext, Scope};
 use crate::auth::pairing;
 use crate::auth::scopes::{DaemonSession, SessionRegistry};
-use runtime::events::CallerKind;
+use ship_substrate::events::CallerKind;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -21,7 +21,7 @@ fn setup_ship_dir() {
     // `get_global_dir()` auto-isolates per test binary (see runtime::project).
     // Just ensure the DB exists at that path.
     let ship_dir = runtime::project::get_global_dir().unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
 }
 
 fn session_registry() -> SessionRegistry {

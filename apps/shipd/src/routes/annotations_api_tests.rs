@@ -23,11 +23,11 @@ fn router_for(state: ApiState, auth: AuthContext) -> Router {
 
 fn fresh_state() -> (ApiState, TempDir) {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = Arc::new(tokio::sync::Mutex::new(
-        runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+        ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
     let state: ApiState = Arc::new(ShipRuntime::new_test(ship_dir, kernel));
     (state, dir)
@@ -35,7 +35,7 @@ fn fresh_state() -> (ApiState, TempDir) {
 
 fn human_auth() -> AuthContext {
     AuthContext {
-        caller_kind: runtime::events::CallerKind::Cli,
+        caller_kind: ship_substrate::events::CallerKind::Cli,
         agent_id: None,
         workspace_id: None,
         session_id: None,
@@ -83,8 +83,8 @@ async fn point_annotation_persists_and_returns_201() {
     // Persistence: row exists in the annotations collection.
     let mut guard = state.data_service().await.unwrap();
     let data = guard.as_mut().unwrap();
-    let schema = runtime::collections::builtin::annotations_schema();
-    let item = runtime::collections::service::get_item(data, &schema, &id).unwrap();
+    let schema = ship_primitives::collections::builtin::annotations_schema();
+    let item = ship_primitives::collections::service::get_item(data, &schema, &id).unwrap();
     assert!(item.is_some(), "annotation row missing");
     let row = item.unwrap();
     assert_eq!(row.data["kind"], "point");

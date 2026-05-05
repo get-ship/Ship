@@ -7,10 +7,10 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use runtime::artifacts::{ArtifactRecord, ArtifactScope, ArtifactService};
-use runtime::collections::query::QueryRequest;
-use runtime::data::DataService;
-use runtime::events::KernelRouter;
+use ship_primitives::artifacts::{ArtifactRecord, ArtifactScope, ArtifactService};
+use ship_primitives::collections::query::QueryRequest;
+use ship_substrate::data::DataService;
+use ship_substrate::events::KernelRouter;
 
 use crate::ship_runtime::ensure_data_service;
 

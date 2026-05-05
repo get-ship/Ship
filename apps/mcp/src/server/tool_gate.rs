@@ -1,5 +1,5 @@
 use anyhow::Result;
-use runtime::get_active_agent;
+use ship_primitives::config::get_active_agent;
 use std::path::Path;
 use std::process::Command as ProcessCommand;
 
@@ -116,7 +116,7 @@ impl ShipServer {
     /// Dispatched agents always get PLATFORM_TOOLS regardless of
     /// KV-stored active_agent state — dispatch context is the truth.
     pub fn is_dispatched_context() -> bool {
-        if runtime::env::read_raw(runtime::env::Var::ActorId)
+        if ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId)
             .map(|v| !v.is_empty())
             .unwrap_or(false)
         {

@@ -5,11 +5,11 @@ use cli_framework::hooks::{
 use std::io::Read;
 
 fn agent_id() -> Option<String> {
-    runtime::env::read_raw(runtime::env::Var::AgentId).ok().filter(|s| !s.is_empty())
+    ship_substrate::env::read_raw(ship_substrate::env::Var::AgentId).ok().filter(|s| !s.is_empty())
 }
 
 fn workspace_id() -> Option<String> {
-    runtime::env::read_raw(runtime::env::Var::WorkspaceId).ok().filter(|s| !s.is_empty())
+    ship_substrate::env::read_raw(ship_substrate::env::Var::WorkspaceId).ok().filter(|s| !s.is_empty())
 }
 
 fn read_stdin() -> Result<String> {
@@ -62,9 +62,9 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
         .or_else(|| parsed.get("output"))
         .cloned();
 
-    let agent = runtime::env::read_raw(runtime::env::Var::AgentId).ok();
-    let workspace = runtime::env::read_raw(runtime::env::Var::WorkspaceId).ok();
-    let session = runtime::env::read_raw(runtime::env::Var::ActorId).ok();
+    let agent = ship_substrate::env::read_raw(ship_substrate::env::Var::AgentId).ok();
+    let workspace = ship_substrate::env::read_raw(ship_substrate::env::Var::WorkspaceId).ok();
+    let session = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId).ok();
 
     let mut event = serde_json::json!({
         "provider": provider,
@@ -101,7 +101,7 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
 /// Use `crate::daemon::ensure_daemon()` for commands that can afford the wait.
 fn daemon_info() -> Option<(u16, String)> {
     let cwd = std::env::current_dir().ok()?;
-    let handle = runtime::home::discover_running_daemon(&cwd)?;
+    let handle = ship_substrate::home::discover_running_daemon(&cwd)?;
     Some((handle.port, handle.token))
 }
 
@@ -205,7 +205,7 @@ pub fn run_session_end() -> Result<()> {
             println!("{}", serde_json::to_string(&event)?);
             broadcast_session_ended(&actor, &workspace);
         }
-        if let Ok(slug) = runtime::env::read_raw(runtime::env::Var::ActorId) {
+        if let Ok(slug) = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId) {
             signal_job_completed(&slug);
         }
         Ok(())
@@ -219,7 +219,7 @@ fn signal_job_completed(slug: &str) {
         Ok(c) => c,
         Err(_) => return,
     };
-    let handle = match runtime::home::discover_running_daemon(&cwd) {
+    let handle = match ship_substrate::home::discover_running_daemon(&cwd) {
         Some(h) => h,
         None => return,
     };
@@ -243,9 +243,9 @@ mod tests {
     fn normalize_stdin_carries_env_identity() {
         // SAFETY: single-threaded test, no other threads read env here.
         unsafe {
-            runtime::env::set(runtime::env::Var::AgentId, "agent.rust-lane");
-            runtime::env::set(runtime::env::Var::ActorId, "job-abc");
-            runtime::env::set(runtime::env::Var::WorkspaceId, "ws-1");
+            ship_substrate::env::set(ship_substrate::env::Var::AgentId, "agent.rust-lane");
+            ship_substrate::env::set(ship_substrate::env::Var::ActorId, "job-abc");
+            ship_substrate::env::set(ship_substrate::env::Var::WorkspaceId, "ws-1");
         }
         let stdin = r#"{"tool_name":"Bash","tool_input":{"command":"ls"}}"#;
         let event = normalize_stdin(stdin, "before-tool");
@@ -255,9 +255,9 @@ mod tests {
         assert_eq!(event["workspace"], "ws-1");
         assert_eq!(event["hook_type"], "before-tool");
         unsafe {
-            runtime::env::remove(runtime::env::Var::AgentId);
-            runtime::env::remove(runtime::env::Var::ActorId);
-            runtime::env::remove(runtime::env::Var::WorkspaceId);
+            ship_substrate::env::remove(ship_substrate::env::Var::AgentId);
+            ship_substrate::env::remove(ship_substrate::env::Var::ActorId);
+            ship_substrate::env::remove(ship_substrate::env::Var::WorkspaceId);
         }
     }
 

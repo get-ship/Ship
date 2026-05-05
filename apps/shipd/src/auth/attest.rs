@@ -206,7 +206,7 @@ pub const DAEMON_OWNER_KEY: &str = "user_id";
 
 /// Return the user ID that owns this daemon, or None if not yet bound.
 pub fn daemon_owner() -> Option<String> {
-    runtime::projections::auth::current_owner()
+    ship_substrate::projections::auth::current_owner()
         .ok()
         .flatten()
         .map(|row| row.user_id)
@@ -216,17 +216,17 @@ pub fn daemon_owner() -> Option<String> {
 /// Emits `daemon.owner.bound`; the projection's single-row table replaces
 /// any prior binding.
 pub fn set_daemon_owner(user_id: &str) -> anyhow::Result<()> {
-    let payload = runtime::events::types::DaemonOwnerBound {
+    let payload = ship_substrate::events::types::DaemonOwnerBound {
         source: "attest".to_string(),
         bound_at_unix: chrono::Utc::now().timestamp(),
     };
-    let envelope = runtime::events::EventEnvelope::new(
-        runtime::events::types::event_types::DAEMON_OWNER_BOUND,
+    let envelope = ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::DAEMON_OWNER_BOUND,
         user_id,
         &payload,
     )?;
-    let store = runtime::persistence::event_store::SqliteEventStore::new()?;
-    runtime::persistence::event_store::EventStore::append(&store, &envelope)?;
+    let store = ship_substrate::persistence::event_store::SqliteEventStore::new()?;
+    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope)?;
     Ok(())
 }
 

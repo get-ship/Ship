@@ -17,9 +17,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use runtime::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor, LaunchProfile};
-use runtime::services::provider_adapter::capabilities;
-use runtime::services::server_session::StubSession;
+use ship_primitives::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor, LaunchProfile};
+use ship_primitives::services::provider_adapter::capabilities;
+use ship_primitives::services::server_session::StubSession;
 
 use super::routing::{RouteKind, RoutingExecutor, ServerSessionRegistry};
 use super::server::ServerExecutor;

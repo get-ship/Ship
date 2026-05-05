@@ -10,8 +10,8 @@ use anyhow::Result;
 use tempfile::tempdir;
 use tokio::sync::mpsc;
 
-use crate::events::{ActorStore, EventEnvelope, Mailbox};
-use crate::services::{run_service, HealthStatus, ServiceHandler};
+use ship_substrate::events::{ActorStore, EventEnvelope, Mailbox};
+use ship_primitives::services::{run_service, HealthStatus, ServiceHandler};
 
 // ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -99,10 +99,10 @@ async fn run_service_calls_on_drain_when_mailbox_closes() {
     let mailbox = Mailbox::from_receiver(rx);
 
     let tmp = tempdir().unwrap();
-    crate::db::ensure_db_at(tmp.path()).unwrap();
+    ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
     let store = ActorStore::new(
         "drain-svc",
-        crate::db::platform_db_path(tmp.path()),
+        ship_substrate::db::platform_db_path(tmp.path()),
         vec!["test.".into()],
         vec![],
     );

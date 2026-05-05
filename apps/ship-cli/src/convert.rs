@@ -59,7 +59,7 @@ fn extract_profile_id(url: &str) -> Result<String> {
 /// Fetch an agent from getship.dev and install it locally.
 fn convert_from_url(url: &str) -> Result<()> {
     let project_root = std::env::current_dir()?;
-    let ship_dir = runtime::ShipHome::project_ship_dir(&project_root);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&project_root);
     if !ship_dir.exists() {
         anyhow::bail!(".ship/ not found. Run: ship init");
     }
@@ -125,7 +125,7 @@ fn convert_from_path(source: &str) -> Result<()> {
     let library = compiler::decompile_all(&path);
 
     // ── Ensure .ship/ exists ─────────────────────────────────────────────────
-    let ship_dir = runtime::ShipHome::project_ship_dir(&path);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&path);
     std::fs::create_dir_all(&ship_dir)?;
 
     let mut files_written = 0;

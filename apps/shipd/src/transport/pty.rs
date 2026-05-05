@@ -66,8 +66,8 @@ pub async fn workspace_pty(
     // Workspaces no longer exist as a runtime primitive — actors hold the
     // tmux session detail (set at spawn).
     let _ = state;
-    let session_name = match runtime::projections::actor::list_actors(
-        &runtime::projections::actor::ListActorsFilter {
+    let session_name = match ship_substrate::projections::actor::list_actors(
+        &ship_substrate::projections::actor::ListActorsFilter {
             workspace_id: Some(workspace_id.clone()),
             ..Default::default()
         },

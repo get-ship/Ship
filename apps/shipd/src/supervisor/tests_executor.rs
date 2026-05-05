@@ -3,7 +3,7 @@
 //! Executors are provider-agnostic process managers. They receive a
 //! ProviderAdapter and delegate all provider-specific behavior to it.
 
-use runtime::services::provider_adapter::{adapter_for, adapter_for_or_default};
+use ship_primitives::services::provider_adapter::{adapter_for, adapter_for_or_default};
 
 // ── Source helpers ───────────────────────────────────────────────────────────
 

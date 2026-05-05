@@ -10,7 +10,7 @@ use specta::Type;
 // `AuthorKind` and `Selection` are shared with `feedback.rs`. Re-export the
 // canonical definitions so the specta TS surface emits a single type name
 // per concept. External consumers can continue to import them via
-// `runtime::events::annotation::{AuthorKind, Selection}`.
+// `ship_substrate::events::annotation::{AuthorKind, Selection}`.
 pub use super::feedback::{AuthorKind, Selection};
 
 /// A single user- or agent-authored annotation on a live canvas, spec doc,

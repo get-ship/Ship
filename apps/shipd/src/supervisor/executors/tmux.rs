@@ -4,13 +4,13 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use runtime::events::executor::DestructionCause;
-use runtime::events::KernelRouter;
-use runtime::services::dispatch_ports::{
+use ship_substrate::events::executor::DestructionCause;
+use ship_substrate::events::KernelRouter;
+use ship_primitives::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
-use runtime::services::orchestrator::emit::emit_executor_session_destroyed;
-use runtime::services::provider_adapter::adapter_for_or_default;
+use ship_primitives::services::orchestrator::emit::emit_executor_session_destroyed;
+use ship_primitives::services::provider_adapter::adapter_for_or_default;
 use tokio::sync::Mutex;
 
 use super::super::helpers::{ensure_tmux_session, kill_tmux_session};

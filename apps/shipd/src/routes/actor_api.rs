@@ -4,7 +4,7 @@
 //! actor lifecycle and event routing to the daemon's shared kernel.
 
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
-use runtime::events::{EmitContext, EventEnvelope};
+use ship_substrate::events::{EmitContext, EventEnvelope};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -31,7 +31,7 @@ pub struct ActorSpawnReq {
     #[serde(default)]
     pub actor_id: Option<String>,
     #[schema(value_type = Object)]
-    pub config: runtime::events::ActorConfig,
+    pub config: ship_substrate::events::ActorConfig,
     /// Optional mesh capabilities for auto-registration.
     pub capabilities: Option<Vec<String>>,
 }
@@ -48,7 +48,7 @@ pub struct ActorSpawnReq {
 }))]
 pub struct EventRouteReq {
     #[schema(value_type = Object)]
-    pub envelope: runtime::events::EventEnvelope,
+    pub envelope: ship_substrate::events::EventEnvelope,
     pub workspace_id: Option<String>,
     pub session_id: Option<String>,
 }
@@ -93,7 +93,7 @@ pub async fn actor_spawn(
             }
             id.to_string()
         }
-        _ => runtime::gen_ulid(),
+        _ => ship_substrate::gen_ulid(),
     };
 
     {
@@ -111,8 +111,8 @@ pub async fn actor_spawn(
                 }
                 Err(e) => {
                     let status = match &e {
-                        runtime::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
-                        runtime::KernelError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
+                        ship_substrate::errors::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
+                        ship_substrate::errors::KernelError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
                         _ => StatusCode::INTERNAL_SERVER_ERROR,
                     };
                     return (status, Json(MeshResponse {
@@ -150,13 +150,13 @@ pub async fn actor_spawn(
     let emit_actor_id = actor_id.clone();
     let capabilities = req.capabilities.clone().unwrap_or_default();
     std::thread::spawn(move || {
-        let already_exists = runtime::projections::actor::get_actor(&emit_actor_id)
+        let already_exists = ship_substrate::projections::actor::get_actor(&emit_actor_id)
             .map(|opt| opt.is_some())
             .unwrap_or(false);
         if already_exists {
             return;
         }
-        let payload = runtime::events::types::ActorCreated {
+        let payload = ship_substrate::events::types::ActorCreated {
             kind: "agent".to_string(),
             environment_type: "local".to_string(),
             transport: Some("stdio".to_string()),
@@ -164,7 +164,7 @@ pub async fn actor_spawn(
             capabilities,
             ..Default::default()
         };
-        if let Err(e) = runtime::db::actor_events::emit_actor_created(
+        if let Err(e) = ship_substrate::db::actor_events::emit_actor_created(
             &emit_actor_id,
             &payload,
             None,
@@ -185,7 +185,7 @@ pub async fn actor_spawn(
 
 /// Crockford-base32 ULID — 26 chars from the alphabet
 /// `0123456789ABCDEFGHJKMNPQRSTVWXYZ`. The daemon mints these via
-/// `runtime::gen_ulid()`; clients send them back verbatim.
+/// `ship_substrate::gen_ulid()`; clients send them back verbatim.
 fn is_ulid_shape(s: &str) -> bool {
     s.len() == 26 && s.bytes().all(|b| {
         matches!(b,

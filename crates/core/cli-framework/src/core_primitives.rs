@@ -1,13 +1,20 @@
 use anyhow::Result;
-use runtime::{
-    McpServerConfig, McpServerType, SkillInstallScope, add_mcp_server,
-    autodetect_providers, create_skill, create_user_skill, delete_skill, delete_user_skill,
-    disable_provider, enable_provider, get_config, get_effective_skill,
+use ship_primitives::agents::import::{
     import_from_provider, import_permissions_from_provider, import_skills_from_provider,
-    list_effective_skills, list_mcp_servers, list_models, list_providers, list_skills,
-    list_user_skills, log_action, remove_mcp_server, update_skill,
+};
+use ship_primitives::agents::providers::{
+    autodetect_providers, disable_provider, enable_provider, list_models, list_providers,
+};
+use ship_primitives::agents::skill::{
+    SkillInstallScope, create_skill, create_user_skill, delete_skill, delete_user_skill,
+    get_effective_skill, list_effective_skills, list_skills, list_user_skills, update_skill,
     update_user_skill,
 };
+use ship_primitives::config::{
+    McpServerConfig, McpServerType, add_mcp_server, get_config, list_mcp_servers,
+    remove_mcp_server,
+};
+use ship_substrate::log::log_action;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Copy)]
@@ -144,7 +151,7 @@ pub fn handle_skill_action(action: SkillAction, project_dir: Option<&Path>) -> R
                 SkillWriteScope::Project => SkillInstallScope::Project,
                 SkillWriteScope::User => SkillInstallScope::User,
             };
-            let installed = runtime::install_skill_from_source(
+            let installed = ship_primitives::agents::skill::install_skill_from_source(
                 project_dir,
                 &source,
                 &id,
@@ -205,11 +212,11 @@ pub fn handle_skill_action(action: SkillAction, project_dir: Option<&Path>) -> R
             let skill = match scope {
                 SkillReadScope::Project => {
                     let dir = require_project_dir(project_dir)?;
-                    let skill = runtime::get_skill(dir, &id)?;
+                    let skill = ship_primitives::agents::skill::get_skill(dir, &id)?;
                     log_action(dir, "skill get", &format!("Got skill: {}", id)).ok();
                     skill
                 }
-                SkillReadScope::User => runtime::get_user_skill(&id)?,
+                SkillReadScope::User => ship_primitives::agents::skill::get_user_skill(&id)?,
                 SkillReadScope::Effective => {
                     get_effective_skill(require_project_dir(project_dir)?, &id)?
                 }
@@ -253,7 +260,7 @@ pub fn handle_skill_action(action: SkillAction, project_dir: Option<&Path>) -> R
 pub fn handle_event_action(action: EventAction, project_dir: &Path) -> Result<()> {
     match action {
         EventAction::List { limit } => {
-            let events = runtime::read_recent_events(project_dir, limit)?;
+            let events = ship_substrate::events::read_recent_events(project_dir, limit)?;
             if events.is_empty() {
                 println!("No events found.");
             } else {

@@ -16,7 +16,7 @@ fn session_token_store() -> &'static Mutex<Option<String>> {
 /// ProjectRoot::discover → per-worktree daemon → singleton fallback.
 fn get_network_port() -> Result<u16> {
     let cwd = std::env::current_dir().map_err(|e| anyhow!("cwd unavailable: {e}"))?;
-    runtime::home::discover_running_daemon(&cwd)
+    ship_substrate::home::discover_running_daemon(&cwd)
         .map(|h| h.port)
         .ok_or_else(|| anyhow!("ship daemon is not running — start it with: ship daemon start"))
 }
@@ -24,7 +24,7 @@ fn get_network_port() -> Result<u16> {
 /// Read the daemon bearer token for the current cwd.
 fn get_network_token() -> Result<String> {
     let cwd = std::env::current_dir().map_err(|e| anyhow!("cwd unavailable: {e}"))?;
-    runtime::home::discover_running_daemon(&cwd)
+    ship_substrate::home::discover_running_daemon(&cwd)
         .map(|h| h.token)
         .ok_or_else(|| anyhow!("ship daemon token not found — is the daemon running?"))
 }
@@ -140,7 +140,7 @@ pub async fn mesh_status(agent_id: &str, status: &str) -> Result<String> {
 /// Returns the canonical actor_id the daemon registered under.
 pub async fn actor_spawn(
     actor_id: Option<&str>,
-    config: &runtime::events::ActorConfig,
+    config: &ship_substrate::events::ActorConfig,
     capabilities: Option<Vec<String>>,
 ) -> Result<String> {
     let body = post(
@@ -312,7 +312,7 @@ pub async fn job_step_done_via_daemon(slug: &str, body: Value) -> Result<String>
 /// Route a pre-built EventEnvelope through the daemon's KernelRouter.
 /// This ensures events reach daemon subscribers (job-dispatch, workspace-sync, etc).
 pub async fn event_route(
-    envelope: &runtime::events::EventEnvelope,
+    envelope: &ship_substrate::events::EventEnvelope,
     workspace_id: Option<&str>,
     session_id: Option<&str>,
 ) -> Result<String> {
@@ -385,7 +385,7 @@ pub async fn register_session(
 /// The background task runs until the connection drops or the receiver is dropped.
 pub fn mesh_subscribe(
     agent_id: &str,
-) -> Result<tokio::sync::mpsc::UnboundedReceiver<runtime::events::EventEnvelope>> {
+) -> Result<tokio::sync::mpsc::UnboundedReceiver<ship_substrate::events::EventEnvelope>> {
     let url = format!("{}/mesh/events/{}", base_url()?, agent_id);
     let token = get_network_token()?;
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
@@ -446,7 +446,7 @@ pub fn mesh_subscribe(
                     continue;
                 }
 
-                match serde_json::from_str::<runtime::events::EventEnvelope>(&data) {
+                match serde_json::from_str::<ship_substrate::events::EventEnvelope>(&data) {
                     Ok(event) => {
                         tracing::info!(event_type = %event.event_type, "mesh SSE event parsed");
                         if tx.send(event).is_err() {

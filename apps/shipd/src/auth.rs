@@ -28,7 +28,7 @@ use axum::{
     middleware::Next,
     response::{IntoResponse, Response},
 };
-use runtime::events::CallerKind;
+use ship_substrate::events::CallerKind;
 
 /// Constant-time token comparison to prevent timing attacks.
 /// XORs all bytes and checks the accumulator — execution time is
@@ -70,8 +70,8 @@ pub struct AuthContext {
 
 impl AuthContext {
     /// Convert to the runtime's `EmitContext` preserving the caller's identity.
-    pub fn to_emit_context(&self) -> runtime::events::EmitContext {
-        runtime::events::EmitContext {
+    pub fn to_emit_context(&self) -> ship_substrate::events::EmitContext {
+        ship_substrate::events::EmitContext {
             caller_kind: self.caller_kind.clone(),
             skill_id: None,
             project_id: self.workspace_id.clone(),
@@ -90,8 +90,8 @@ impl AuthContext {
     /// and permissions, then emits events on their behalf using `CallerKind::Runtime`.
     /// This allows the daemon to emit to reserved namespaces (mesh.*, job.*, etc.)
     /// while still carrying the caller's workspace/session context.
-    pub fn to_daemon_emit_context(&self) -> runtime::events::EmitContext {
-        runtime::events::EmitContext {
+    pub fn to_daemon_emit_context(&self) -> ship_substrate::events::EmitContext {
+        ship_substrate::events::EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
             project_id: self.workspace_id.clone(),

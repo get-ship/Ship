@@ -1,6 +1,6 @@
 use super::*;
 use runtime::project::init_project;
-use runtime::{AgentProfile, get_config, save_config};
+use ship_primitives::config::{AgentProfile, get_config, save_config};
 use tempfile::tempdir;
 
 fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
@@ -11,21 +11,21 @@ fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
     // Mark as active by emitting compile.completed — the projection is the
     // source of truth for "which agent is active for this project".
     let project_id = runtime::project::ensure_project_id(project_dir).expect("project id");
-    let payload = runtime::events::types::CompileCompleted {
+    let payload = ship_substrate::events::types::CompileCompleted {
         active_agent: Some(id),
         compiled_at: chrono::Utc::now().to_rfc3339(),
         ship_version: "test".to_string(),
         provider: None,
         plugins_installed: Vec::new(),
     };
-    let envelope = runtime::events::EventEnvelope::new(
-        runtime::events::types::event_types::COMPILE_COMPLETED,
+    let envelope = ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::COMPILE_COMPLETED,
         &project_id,
         &payload,
     )
     .expect("envelope");
-    let store = runtime::persistence::event_store::SqliteEventStore::new().expect("store");
-    runtime::persistence::event_store::EventStore::append(&store, &envelope).expect("append");
+    let store = ship_substrate::persistence::event_store::SqliteEventStore::new().expect("store");
+    ship_substrate::persistence::event_store::EventStore::append(&store, &envelope).expect("append");
 }
 
 // ── role-based gating integration ──────────────────────────────────

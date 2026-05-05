@@ -9,7 +9,7 @@ use serde::Serialize;
 use std::collections::BTreeSet;
 use std::path::Path;
 
-use runtime::projections::job::JobStatus;
+use ship_substrate::projections::job::JobStatus;
 
 use crate::views::state::{
     Filter, PipelineDef, aggregate_pipeline_stats, list_pipeline_defs, list_pipeline_runs,

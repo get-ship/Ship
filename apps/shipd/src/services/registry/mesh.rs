@@ -18,7 +18,7 @@ pub(super) fn try_dispatch(
         "mesh.snapshot" => {
             // 1. Kernel actor list (mesh truth) merged with projection
             //    metadata where available.
-            let kernel_actors: Vec<(String, runtime::events::ActorConfig)> = {
+            let kernel_actors: Vec<(String, ship_substrate::events::ActorConfig)> = {
                 let kernel = state.kernel().clone();
                 tokio::task::block_in_place(|| {
                     tokio::runtime::Handle::current().block_on(async {
@@ -26,8 +26,8 @@ pub(super) fn try_dispatch(
                     })
                 })
             };
-            let projection_rows = runtime::projections::actor::list_actors(
-                &runtime::projections::actor::ListActorsFilter {
+            let projection_rows = ship_substrate::projections::actor::list_actors(
+                &ship_substrate::projections::actor::ListActorsFilter {
                     limit: 500,
                     ..Default::default()
                 },
@@ -63,14 +63,14 @@ pub(super) fn try_dispatch(
             //    actors but they're the most important "Ship is doing
             //    this on your machine" rows.
             let global_dir = runtime::project::get_global_dir().unwrap_or_default();
-            let home = runtime::ShipHome::at(global_dir.clone());
+            let home = ship_substrate::ShipHome::at(global_dir.clone());
             let daemon_pid: Option<i64> = std::fs::read_to_string(
-                home.daemon_file(runtime::DaemonFile::Pid),
+                home.daemon_file(ship_substrate::home::DaemonFile::Pid),
             )
                 .ok()
                 .and_then(|s| s.trim().parse().ok());
             let log_path = home.machine_dir().join("logs").join("shipd.log");
-            let pid_alive = runtime::projections::actor::pid_alive;
+            let pid_alive = ship_substrate::projections::actor::pid_alive;
             let mut processes: Vec<serde_json::Value> = Vec::new();
 
             // Daemon + supervisor — the "Ship is running" anchor.
@@ -194,8 +194,8 @@ pub(super) fn try_dispatch(
             //    to. Today: Telegram if env vars are set. Will
             //    expand as user-inbox / Discord / Slack land.
             let mut integrations: Vec<serde_json::Value> = Vec::new();
-            let tg_token = runtime::env::read(runtime::env::Var::TelegramToken);
-            let tg_chat = runtime::env::read(runtime::env::Var::TelegramChatId);
+            let tg_token = ship_substrate::env::read(ship_substrate::env::Var::TelegramToken);
+            let tg_chat = ship_substrate::env::read(ship_substrate::env::Var::TelegramChatId);
             integrations.push(json!({
                 "name": "Telegram (user inbox)",
                 "kind": "inbox",

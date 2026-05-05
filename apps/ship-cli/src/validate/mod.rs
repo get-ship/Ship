@@ -32,7 +32,7 @@ pub struct AgentReport {
 
 /// Run validation for one or all agents. Print results. Return Err if any error found.
 pub fn run_validate(agent_id: Option<&str>, json: bool, project_root: &Path) -> Result<()> {
-    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_root);
     if !ship_dir.exists() {
         anyhow::bail!(".ship/ not found. Run: ship init");
     }

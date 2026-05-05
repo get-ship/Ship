@@ -10,7 +10,7 @@ use serde::Deserialize;
 use tokio::sync::Mutex;
 use tracing::{info, warn};
 
-use runtime::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
+use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
 /// Shared kernel handle used as Axum state.
 pub type SharedKernel = Arc<Mutex<KernelRouter>>;

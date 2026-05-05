@@ -13,8 +13,8 @@ use std::time::Duration;
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
-use runtime::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use runtime::services::provider_adapter::adapter_for;
+use ship_primitives::services::dispatch_ports::{LaunchCommand, LaunchProfile};
+use ship_primitives::services::provider_adapter::adapter_for;
 use tokio::sync::broadcast;
 
 use super::registry::SessionRegistry;
@@ -72,7 +72,7 @@ pub fn spawn_agent(
     // by providers without a channels capability (codex, opencode, etc.).
     std::fs::create_dir_all(&log_dir)
         .with_context(|| format!("create log dir {}", log_dir.display()))?;
-    let id: SessionId = runtime::gen_ulid();
+    let id: SessionId = ship_substrate::gen_ulid();
     let log_path = log_dir.join(format!("agent-{agent_id}-{id}.log"));
     let _ = std::fs::write(&log_path, "");
 
@@ -191,7 +191,7 @@ pub fn send_agent_message(
     ) {
         tracing::error!(session = %session.0.meta.lock().unwrap().id, error = %e, "headless turn spawn failed");
         let _ = session.0.event_tx.send(
-            runtime::services::provider_adapter::ProviderEvent::Message {
+            ship_primitives::services::provider_adapter::ProviderEvent::Message {
                 text: format!("[ship] turn failed: {e}"),
             },
         );
@@ -227,7 +227,7 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
         SessionKind::Pipeline => "pipeline-step",
         SessionKind::Shell => "shell",
     };
-    let payload = runtime::events::types::ActorCreated {
+    let payload = ship_substrate::events::types::ActorCreated {
         kind: kind_str.to_string(),
         environment_type: "local".to_string(),
         workspace_id: Some(m.workspace_id.clone()),
@@ -248,7 +248,7 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
     let workspace_id = m.workspace_id.clone();
     drop(m);
     std::thread::spawn(move || {
-        if let Err(e) = runtime::db::actor_events::emit_actor_created(
+        if let Err(e) = ship_substrate::db::actor_events::emit_actor_created(
             &actor_id,
             &payload,
             Some(&workspace_id),
@@ -333,7 +333,7 @@ pub fn stop(registry: &SessionRegistry, id: &str) -> bool {
 /// absent, unreadable, or has no inline rules — callers fall back to vanilla
 /// provider behaviour.
 pub fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
-    let path = runtime::ShipHome::project_ship_dir(work_dir).join("agents").join(format!("{agent_id}.jsonc"));
+    let path = ship_substrate::ShipHome::project_ship_dir(work_dir).join("agents").join(format!("{agent_id}.jsonc"));
     let raw = std::fs::read_to_string(&path).ok()?;
     let stripped = strip_jsonc(&raw);
     let v: serde_json::Value = serde_json::from_str(&stripped).ok()?;

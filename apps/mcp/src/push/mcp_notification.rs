@@ -9,7 +9,7 @@
 use async_trait::async_trait;
 use rmcp::model::CustomNotification;
 use rmcp::{Peer, RoleServer, model::ServerNotification};
-use runtime::events::EventEnvelope;
+use ship_substrate::events::EventEnvelope;
 use tracing::warn;
 
 use super::PushAdapter;

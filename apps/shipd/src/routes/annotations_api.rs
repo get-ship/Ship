@@ -13,10 +13,10 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use runtime::collections::builtin::{annotations_schema, ANNOTATIONS_ID};
-use runtime::collections::service as collection_service;
-use runtime::events::EventEnvelope;
-use runtime::events::annotation::AnnotationEvent;
+use ship_primitives::collections::builtin::{annotations_schema, ANNOTATIONS_ID};
+use ship_primitives::collections::service as collection_service;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::annotation::AnnotationEvent;
 use ulid::Ulid;
 
 use crate::auth::AuthContext;
@@ -72,8 +72,8 @@ pub async fn post_annotation(
         "note": ev.note.clone(),
         "payload": payload_json,
         "author_kind": match ev.author_kind {
-            runtime::events::annotation::AuthorKind::Human => "human",
-            runtime::events::annotation::AuthorKind::Agent => "agent",
+            ship_substrate::events::annotation::AuthorKind::Human => "human",
+            ship_substrate::events::annotation::AuthorKind::Agent => "agent",
         },
     });
 
@@ -152,7 +152,7 @@ pub async fn post_annotation(
 }
 
 fn annotation_kind_str(ev: &AnnotationEvent) -> &'static str {
-    use runtime::events::annotation::AnnotationKind;
+    use ship_substrate::events::annotation::AnnotationKind;
     match ev.kind {
         AnnotationKind::Point => "point",
         AnnotationKind::Region => "region",
@@ -161,7 +161,7 @@ fn annotation_kind_str(ev: &AnnotationEvent) -> &'static str {
 }
 
 fn validate(ev: &AnnotationEvent) -> Result<(), Response> {
-    use runtime::events::annotation::AnnotationKind;
+    use ship_substrate::events::annotation::AnnotationKind;
     match ev.kind {
         AnnotationKind::Point => {
             if ev.target.selector.is_none() {

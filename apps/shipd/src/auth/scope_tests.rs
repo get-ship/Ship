@@ -12,18 +12,18 @@ use crate::rest_api::*;
 use crate::test_harness::TestDaemon;
 
 fn make_api_state(dir: &TempDir) -> ApiState {
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
-        runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+        ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
     std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
 }
 
 fn worker_auth() -> AuthContext {
     AuthContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: Some("agent.worker".into()),
         workspace_id: None,
         session_id: None,
@@ -33,7 +33,7 @@ fn worker_auth() -> AuthContext {
 
 fn commander_auth() -> AuthContext {
     AuthContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: Some("agent.commander".into()),
         workspace_id: None,
         session_id: None,
@@ -183,14 +183,14 @@ async fn minimal_scope_cannot_route_events() {
     let state = make_api_state(&dir);
 
     let auth = AuthContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: None,
         workspace_id: None,
         session_id: None,
         scopes: vec![Scope::ReadWorkspace],
     };
 
-    let envelope = runtime::events::EventEnvelope::new(
+    let envelope = ship_substrate::events::EventEnvelope::new(
         "test.event",
         "entity-1",
         &serde_json::json!({}),

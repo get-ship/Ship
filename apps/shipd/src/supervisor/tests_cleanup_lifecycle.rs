@@ -7,9 +7,9 @@
 //! Cleanup must be event-driven and idempotent. Running cleanup twice on
 //! the same job must not error.
 
-use runtime::events::job::event_types;
-use runtime::events::EventEnvelope;
-use runtime::projections::job::{project, JobStatus};
+use ship_substrate::events::job::event_types;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::projections::job::{project, JobStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let job_id = payload["job_id"].as_str().unwrap_or("test");
@@ -36,7 +36,7 @@ fn cleanup_handler_exists_for_merged_events() {
 /// The orchestrator event router must route job.merged to cleanup.
 #[test]
 fn job_merged_routes_to_cleanup() {
-    // Orchestration logic moved to runtime::services::orchestrator::router
+    // Orchestration logic moved to ship_primitives::services::orchestrator::router
     let source = include_str!("../../../../crates/core/ship-primitives/src/services/orchestrator/router.rs");
     assert!(
         source.contains("job.merged"),

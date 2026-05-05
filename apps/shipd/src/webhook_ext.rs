@@ -11,12 +11,12 @@ use axum::{
     response::IntoResponse,
     Json,
 };
-use runtime::hooks::sources::webhook::{WebhookResult, WebhookSource};
+use ship_primitives::hooks::sources::webhook::{WebhookResult, WebhookSource};
 use serde_json::json;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use runtime::events::KernelRouter;
+use ship_substrate::events::KernelRouter;
 
 pub type SharedWebhookSource = Arc<WebhookSource>;
 pub type SharedKernelRef = Arc<Mutex<KernelRouter>>;

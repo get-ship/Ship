@@ -29,7 +29,7 @@ impl ProjectState {
     /// Returns the default (all-None) when the project has never been
     /// compiled.
     pub fn load(ship_dir: &Path) -> Self {
-        if let Err(e) = runtime::db::ensure_db() {
+        if let Err(e) = ship_substrate::db::ensure_db() {
             eprintln!("warning: could not open platform.db: {}", e);
             return ProjectState::default();
         }
@@ -40,7 +40,7 @@ impl ProjectState {
                 return ProjectState::default();
             }
         };
-        match runtime::projections::compile_state::load(&project_id) {
+        match ship_substrate::projections::compile_state::load(&project_id) {
             Ok(Some(row)) => ProjectState {
                 active_agent: row.active_agent,
                 compiled_at: Some(row.compiled_at),
@@ -66,7 +66,7 @@ pub fn activate_agent(
     output_root: Option<&Path>,
     extra_skills: Vec<String>,
 ) -> Result<()> {
-    let ship_dir = runtime::ShipHome::project_ship_dir(project_root);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_root);
     let state = ProjectState::load(&ship_dir);
     let id = agent_id
         .map(str::to_string)
@@ -151,7 +151,7 @@ fn run_plugin_lifecycle(now: &[String], prev: &[String], scope: &str) {
 /// Search order: agents/ → agents/profiles/ (compat) → agents/presets/ (compat) → modes/ (legacy), project then global.
 /// Within each directory, `.jsonc` is checked before `.toml`.
 pub fn find_agent_file(agent_id: &str, project_root: &Path) -> Option<PathBuf> {
-    let ship = runtime::ShipHome::project_ship_dir(project_root);
+    let ship = ship_substrate::ShipHome::project_ship_dir(project_root);
     let jsonc_file = format!("{}.jsonc", agent_id);
     let toml_file = format!("{}.toml", agent_id);
 
@@ -186,7 +186,7 @@ pub fn find_agent_file(agent_id: &str, project_root: &Path) -> Option<PathBuf> {
     }
     // Global dirs
     let home = dirs::home_dir()?;
-    let global_ship = runtime::ShipHome::project_ship_dir(home);
+    let global_ship = ship_substrate::ShipHome::project_ship_dir(home);
     if let Some(p) = check_dir(global_ship.join("agents")) {
         return Some(p);
     }
@@ -204,7 +204,7 @@ pub fn find_agent_file(agent_id: &str, project_root: &Path) -> Option<PathBuf> {
 
 /// List agent IDs available in .ship/agents/ (for error messages).
 fn list_available_agents(project_root: &Path) -> Vec<String> {
-    let agents_dir = runtime::ShipHome::project_ship_dir(project_root).join("agents");
+    let agents_dir = ship_substrate::ShipHome::project_ship_dir(project_root).join("agents");
     let mut ids = Vec::new();
     if let Ok(entries) = std::fs::read_dir(&agents_dir) {
         for entry in entries.flatten() {
@@ -234,7 +234,7 @@ mod tests {
     }
 
     fn setup_ship_dir(tmp: &TempDir) -> PathBuf {
-        let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         std::fs::write(
             ship_dir.join("ship.toml"),

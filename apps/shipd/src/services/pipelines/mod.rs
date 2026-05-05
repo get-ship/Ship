@@ -219,10 +219,10 @@ pub async fn list_runs(
     State(state): State<ApiState>,
     Query(q): Query<RunsQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let jobs = runtime::projections::job::load_jobs_at(state.ship_dir())
+    let jobs = ship_substrate::projections::job::load_jobs_at(state.ship_dir())
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "io", e.to_string()))?;
     let limit = q.limit.unwrap_or(100).clamp(1, 500);
-    let mut items: Vec<&runtime::projections::job::JobRecord> = jobs
+    let mut items: Vec<&ship_substrate::projections::job::JobRecord> = jobs
         .values()
         .filter(|j| match q.name.as_deref() {
             Some(n) if !n.is_empty() => {
@@ -250,7 +250,7 @@ pub async fn get_run(
     State(state): State<ApiState>,
     Path(slug): Path<String>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let jobs = runtime::projections::job::load_jobs_at(state.ship_dir())
+    let jobs = ship_substrate::projections::job::load_jobs_at(state.ship_dir())
         .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "io", e.to_string()))?;
     let job = jobs
         .values()

@@ -89,7 +89,7 @@ pub async fn index_handler() -> Response {
 }
 
 fn has_any_workspace() -> bool {
-    runtime::projects::list()
+    ship_substrate::projects::list()
         .map(|projects| !projects.is_empty())
         .unwrap_or(false)
 }

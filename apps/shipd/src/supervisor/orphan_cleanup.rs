@@ -6,10 +6,10 @@
 
 use std::sync::Arc;
 
-use runtime::events::executor::DestructionCause;
-use runtime::events::KernelRouter;
-use runtime::projections::job::{load_jobs, JobStatus};
-use runtime::services::orchestrator::emit::emit_executor_session_destroyed;
+use ship_substrate::events::executor::DestructionCause;
+use ship_substrate::events::KernelRouter;
+use ship_substrate::projections::job::{load_jobs, JobStatus};
+use ship_primitives::services::orchestrator::emit::emit_executor_session_destroyed;
 use tokio::sync::Mutex;
 
 use super::helpers::worktrees_dir;

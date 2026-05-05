@@ -68,7 +68,7 @@ fn build_context(
     let env = serde_json::json!({
         "scope": if state.ship_dir().ends_with(".ship") { "user" } else { "project" },
         "version": env!("CARGO_PKG_VERSION"),
-        "dev": runtime::env::read_raw(runtime::env::Var::Dev).is_ok(),
+        "dev": ship_substrate::env::read_raw(ship_substrate::env::Var::Dev).is_ok(),
         "now": chrono::Utc::now().to_rfc3339(),
     });
 

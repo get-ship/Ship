@@ -6,10 +6,10 @@
 //! `ExitCause` now forces the call site to declare semantics, and the
 //! handler branches accordingly. Without these, the same bug can creep back.
 
-use runtime::db::events::list_recent_events_at;
-use runtime::events::kernel_router::KernelRouter;
-use runtime::events::EventEnvelope;
-use runtime::services::dispatch_ports::{ExitCause, ExitSignal};
+use ship_substrate::db::events::list_recent_events_at;
+use ship_substrate::events::kernel_router::KernelRouter;
+use ship_substrate::events::EventEnvelope;
+use ship_primitives::services::dispatch_ports::{ExitCause, ExitSignal};
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -20,7 +20,7 @@ use super::registry::ProcessRegistry;
 
 fn setup() -> (TempDir, std::path::PathBuf, Arc<Mutex<KernelRouter>>) {
     let dir = TempDir::new().unwrap();
-    let base = runtime::ShipHome::project_ship_dir(dir.path());
+    let base = ship_substrate::ShipHome::project_ship_dir(dir.path());
     let router = KernelRouter::new(base.clone()).unwrap();
     (dir, base, Arc::new(Mutex::new(router)))
 }
@@ -195,8 +195,8 @@ async fn agent_exited_unknown_code_emits_job_failed() {
 // complete regardless of how the destruction was triggered.
 
 use async_trait::async_trait;
-use runtime::events::executor::EXECUTOR_SESSION_DESTROYED;
-use runtime::services::dispatch_ports::{
+use ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED;
+use ship_primitives::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, JobContext, JobExecutor,
 };
 

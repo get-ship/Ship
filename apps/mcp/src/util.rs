@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 /// Worktree base directory. Routes through the canonical
-/// `runtime::config::worktrees_dir` resolver:
+/// `ship_primitives::config::worktrees_dir` resolver:
 ///
 ///   1. `~/.ship/machine/local.jsonc:worktrees.dir`
 ///   2. `SHIP_WORKTREE_DIR` env (dev/test override)
@@ -11,7 +11,7 @@ pub fn configured_worktree_dir(project_root: &std::path::Path) -> PathBuf {
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_else(|| "project".to_string());
-    runtime::config::worktrees_dir(&project_name)
+    ship_primitives::config::worktrees_dir(&project_name)
 }
 
 #[cfg(test)]

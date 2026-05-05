@@ -57,7 +57,7 @@ fn err(status: StatusCode, msg: impl Into<String>) -> axum::response::Response {
         .into_response()
 }
 
-fn record_to_api(record: runtime::projects::ProjectRecord, label: Option<String>) -> Project {
+fn record_to_api(record: ship_substrate::projects::ProjectRecord, label: Option<String>) -> Project {
     Project {
         id: record.id,
         name: record.name,
@@ -69,7 +69,7 @@ fn record_to_api(record: runtime::projects::ProjectRecord, label: Option<String>
 }
 
 fn active_id() -> Option<String> {
-    runtime::get_setting("shell.project.active")
+    ship_primitives::config::get_setting("shell.project.active")
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(String::from))
@@ -85,7 +85,7 @@ fn active_id() -> Option<String> {
     tag = "framework"
 )]
 pub async fn list_projects(State(_state): State<ApiState>) -> axum::response::Response {
-    match runtime::projects::list() {
+    match ship_substrate::projects::list() {
         Ok(records) => {
             let projects = records
                 .into_iter()
@@ -128,17 +128,17 @@ pub async fn add_project(
     }
     // Ensure the project's `.ship/` exists so the daemon has a place to
     // store project-scoped config when the user starts authoring.
-    let ship_dir = runtime::ShipHome::project_ship_dir(&path);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&path);
     if !ship_dir.exists()
         && let Err(e) = std::fs::create_dir_all(&ship_dir)
     {
         return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }
-    if let Err(e) = runtime::projects::register(&path, None) {
+    if let Err(e) = ship_substrate::projects::register(&path, None) {
         return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }
     // Re-list so the response includes the new record + everything else.
-    match runtime::projects::list() {
+    match ship_substrate::projects::list() {
         Ok(records) => {
             let projects = records
                 .into_iter()
@@ -172,7 +172,7 @@ pub async fn switch_project(
     State(_state): State<ApiState>,
     Json(req): Json<ProjectSwitchReq>,
 ) -> axum::response::Response {
-    match runtime::projects::get(&req.id) {
+    match ship_substrate::projects::get(&req.id) {
         Ok(Some(_)) => {}
         Ok(None) => {
             return err(
@@ -183,12 +183,12 @@ pub async fn switch_project(
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
     if let Err(e) =
-        runtime::set_setting("shell.project.active", serde_json::json!(req.id))
+        ship_primitives::config::set_setting("shell.project.active", serde_json::json!(req.id))
     {
         return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }
     // Bump last_seen on switch so the rail's recency order reflects use.
-    let _ = runtime::projects::touch(&req.id);
+    let _ = ship_substrate::projects::touch(&req.id);
     (
         StatusCode::OK,
         Json(serde_json::json!({ "ok": true, "active": req.id })),

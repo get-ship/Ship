@@ -231,7 +231,7 @@ impl SkillsService for SkillsServiceImpl {
         id: &str,
     ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, anyhow::Error>
     {
-        runtime::get_skill_vars(&self.user_root, id)
+        ship_primitives::agents::skill_vars::get_skill_vars(&self.user_root, id)
     }
 
     fn set_var(
@@ -240,11 +240,11 @@ impl SkillsService for SkillsServiceImpl {
         key: &str,
         value: serde_json::Value,
     ) -> Result<(), anyhow::Error> {
-        runtime::set_skill_var(&self.user_root, id, key, value)
+        ship_primitives::agents::skill_vars::set_skill_var(&self.user_root, id, key, value)
     }
 
     fn delete_var(&self, id: &str, key: &str) -> Result<bool, anyhow::Error> {
-        runtime::delete_skill_var(&self.user_root, id, key)
+        ship_primitives::agents::skill_vars::delete_skill_var(&self.user_root, id, key)
     }
 }
 

@@ -5,7 +5,7 @@
 //! in-memory so tests can exercise it without touching the DB.
 
 use serde::Serialize;
-use runtime::events::EventEnvelope;
+use ship_substrate::events::EventEnvelope;
 use std::collections::BTreeSet;
 use std::path::Path;
 
@@ -100,7 +100,7 @@ fn to_row(e: &EventEnvelope) -> EventRow {
 
 /// Read recent events, most recent first, applying `filter`.
 pub fn list_events(ship_dir: &Path, filter: &EventFilter, limit: usize) -> Vec<EventRow> {
-    let envs = runtime::db::events::list_recent_events_at(ship_dir, limit.max(1))
+    let envs = ship_substrate::db::events::list_recent_events_at(ship_dir, limit.max(1))
         .unwrap_or_else(|e| {
             tracing::error!(error = %e, "list_recent_events_at failed");
             Vec::new()
@@ -156,7 +156,7 @@ pub fn group_by_entity(rows: Vec<EventRow>) -> Vec<EntityGroup> {
 mod tests {
     use super::*;
     use chrono::Utc;
-    use runtime::events::EventEnvelope;
+    use ship_substrate::events::EventEnvelope;
 
     fn env(id: &str, kind: &str, entity: &str, actor: &str) -> EventEnvelope {
         EventEnvelope {

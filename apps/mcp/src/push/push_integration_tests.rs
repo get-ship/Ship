@@ -5,7 +5,7 @@
 
 use crate::push::PushAdapter;
 use crate::server::notification_relay::{EventRelay, PeerHandle};
-use runtime::events::{ActorConfig, EventEnvelope, KernelRouter};
+use ship_substrate::events::{ActorConfig, EventEnvelope, KernelRouter};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -108,8 +108,8 @@ async fn studio_event_reaches_agent_via_push_adapter() {
     .with_actor_id("studio")
     .with_context(Some("v0.2.0"), None);
 
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+    let ctx = ship_substrate::events::EmitContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         skill_id: None,
         project_id: Some("v0.2.0".to_string()),
         session_id: None,
@@ -163,8 +163,8 @@ async fn mesh_message_reaches_target_agent() {
     .with_actor_id("agent.react-designer")
     .with_context(Some("v0.2.0"), None);
 
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+    let ctx = ship_substrate::events::EmitContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         skill_id: None,
         project_id: Some("v0.2.0".to_string()),
         session_id: None,
@@ -240,8 +240,8 @@ async fn studio_event_fans_out_to_multiple_agents() {
     .unwrap()
     .with_actor_id("studio");
 
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+    let ctx = ship_substrate::events::EmitContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         skill_id: None,
         project_id: None,
         session_id: None,
@@ -393,8 +393,8 @@ async fn escalated_progress_event_reaches_push_adapter() {
     .with_actor_id("session-emitter")
     .with_context(Some("feature/arch"), Some("sess-escalation-test"));
 
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Runtime,
+    let ctx = ship_substrate::events::EmitContext {
+        caller_kind: ship_substrate::events::CallerKind::Runtime,
         skill_id: None,
         project_id: Some("feature/arch".to_string()),
         session_id: Some("sess-escalation-test".to_string()),
@@ -423,17 +423,17 @@ async fn escalated_progress_event_reaches_push_adapter() {
 async fn agents_auto_register_discover_and_communicate() {
     // SETUP: Kernel + mesh service
     let mut kr = temp_kernel();
-    let mesh_config = runtime::events::ActorConfig {
+    let mesh_config = ship_substrate::events::ActorConfig {
         namespace: "service.mesh".to_string(),
         write_namespaces: vec!["mesh.".to_string()],
         read_namespaces: vec!["mesh.".to_string()],
         subscribe_namespaces: vec!["mesh.".to_string()],
     };
-    let handler: Box<dyn runtime::services::ServiceHandler> =
-        Box::new(runtime::services::mesh::MeshService::new(
+    let handler: Box<dyn ship_primitives::services::ServiceHandler> =
+        Box::new(ship_primitives::services::mesh::MeshService::new(
             tokio::sync::mpsc::unbounded_channel().0,
         ));
-    runtime::services::spawn_service(&mut kr, "service.mesh", mesh_config, handler).unwrap();
+    ship_primitives::services::spawn_service(&mut kr, "service.mesh", mesh_config, handler).unwrap();
 
     // AGENTS: Both subscribe to mesh.*
     let agent_a_log = wire_agent(
@@ -452,8 +452,8 @@ async fn agents_auto_register_discover_and_communicate() {
     .await;
 
     // AUTO-REGISTER: Both agents emit mesh.register (simulating on_initialized)
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+    let ctx = ship_substrate::events::EmitContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         skill_id: None,
         project_id: None,
         session_id: None,

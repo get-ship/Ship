@@ -6,8 +6,8 @@
 
 use axum::extract::{Path, State};
 use minijinja::Value;
-use runtime::events::ActorConfig;
-use runtime::gen_ulid;
+use ship_substrate::events::ActorConfig;
+use ship_substrate::gen_ulid;
 use std::collections::HashMap;
 use std::time::Duration;
 

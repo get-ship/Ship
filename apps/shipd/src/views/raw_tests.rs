@@ -7,11 +7,11 @@ use axum::extract::Path as AxPath;
 use tempfile::TempDir;
 
 fn make_api_state(dir: &TempDir) -> ApiState {
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
-        runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+        ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
     std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
 }
@@ -70,17 +70,17 @@ async fn unknown_view_returns_404() {
 #[tokio::test(flavor = "multi_thread")]
 async fn user_view_fallback_reads_index_html() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     let view_dir = ship_dir.join("views").join("custom");
     std::fs::create_dir_all(&view_dir).unwrap();
     std::fs::write(view_dir.join("index.html"), "<p>legacy body</p>").unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
 
     unsafe {
         std::env::set_var("SHIP_DEV_PROJECT_DIR", ship_dir.to_str().unwrap());
     }
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
-        runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+        ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
     let state: ApiState =
         std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel));

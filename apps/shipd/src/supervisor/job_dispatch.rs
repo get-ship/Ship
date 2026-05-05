@@ -2,10 +2,10 @@
 //!
 //! Constructs the `OrchestratorContext` with shipd's concrete executor,
 //! isolation strategy, and platform implementations, then delegates all
-//! event handling to `runtime::services::orchestrator::router`.
+//! event handling to `ship_primitives::services::orchestrator::router`.
 
-use runtime::services::dispatch_ports::JobExecutor;
-use runtime::services::orchestrator::OrchestratorContext;
+use ship_primitives::services::dispatch_ports::JobExecutor;
+use ship_primitives::services::orchestrator::OrchestratorContext;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -24,7 +24,7 @@ pub struct DispatchHandle {
     pub executor: Arc<dyn JobExecutor>,
     /// Shared with OrchestratorContext — allows API handlers to send
     /// activity signals (e.g. TurnEnded from Stop hook) to step monitors.
-    pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<runtime::services::orchestrator::StepActivity>>>>,
+    pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<ship_primitives::services::orchestrator::StepActivity>>>>,
 }
 
 /// Subscribe to `job.*` kernel events and dispatch jobs to worktrees.
@@ -33,7 +33,7 @@ pub struct DispatchHandle {
 /// then starts the runtime orchestrator. Returns a `DispatchHandle` for
 /// graceful shutdown.
 pub async fn subscribe_job_events(
-    kernel: Arc<Mutex<runtime::events::KernelRouter>>,
+    kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
     _ship_dir: PathBuf,
     health_registry: &crate::supervised::HealthRegistry,
 ) -> Option<DispatchHandle> {
@@ -48,7 +48,7 @@ pub async fn subscribe_job_events(
     // single-session interactive TmuxExecutor for users pairing with an
     // agent in a workspace session.
     let executor: Arc<dyn JobExecutor> =
-        if runtime::env::read_raw(runtime::env::Var::Executor).as_deref() == Ok("tmux") {
+        if ship_substrate::env::read_raw(ship_substrate::env::Var::Executor).as_deref() == Ok("tmux") {
             tracing::info!("job-dispatch: using TmuxExecutor (SHIP_EXECUTOR=tmux)");
             Arc::new(super::executors::TmuxExecutor::new(Some(kernel.clone())))
         } else {
@@ -72,18 +72,18 @@ pub async fn subscribe_job_events(
         executor: executor.clone(),
         platform,
         registry: Arc::new(RegistryAdapter(registry.clone())),
-        probe: Arc::new(runtime::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_primitives::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: activity_txs.clone(),
         job_locks: Arc::new(Mutex::new(HashMap::new())),
-        event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_primitives::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
     });
 
     let kr = kernel.clone();
     crate::supervised::spawn_monitored(health_registry, "job-orchestrator", async move {
-        runtime::services::orchestrator::router::start_orchestrator(kr, octx).await;
+        ship_primitives::services::orchestrator::router::start_orchestrator(kr, octx).await;
     });
 
     Some(DispatchHandle { registry, executor, activity_txs })

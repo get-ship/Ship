@@ -5,7 +5,7 @@
 
 use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{CallerKind, EventEnvelope};
+use ship_substrate::events::{CallerKind, EventEnvelope};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
@@ -128,7 +128,7 @@ pub async fn mesh_register(
         let mut kernel = state.kernel().lock().await;
         // Stop existing actor so we get a fresh mailbox for the SSE endpoint.
         let _ = kernel.stop_actor(&req.agent_id);
-        let config = runtime::events::ActorConfig {
+        let config = ship_substrate::events::ActorConfig {
             namespace: req.agent_id.clone(),
             write_namespaces: vec!["mesh.".to_string()],
             read_namespaces: vec!["mesh.".to_string()],
@@ -136,7 +136,7 @@ pub async fn mesh_register(
         };
         match kernel.spawn_actor(&req.agent_id, config) {
             Ok((_store, mailbox)) => Some(mailbox),
-            Err(runtime::KernelError::ActorAlreadyExists { .. }) => {
+            Err(ship_substrate::errors::KernelError::ActorAlreadyExists { .. }) => {
                 tracing::warn!(agent_id = %req.agent_id, "actor already exists after stop");
                 None
             }

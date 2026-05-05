@@ -8,7 +8,7 @@ use rmcp::{
     },
     service::{NotificationContext, RequestContext},
 };
-use runtime::get_active_agent;
+use ship_primitives::config::get_active_agent;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 
@@ -121,7 +121,7 @@ impl ServerHandler for ShipServer {
     ) -> Result<CallToolResult, ErrorData> {
         let tool_name = request.name.to_string();
         if let Ok(project_dir) = self.get_effective_project_dir().await
-            && let Err(message) = Self::enforce_mode_tool_gate(&runtime::ShipHome::project_ship_dir(project_dir), &tool_name)
+            && let Err(message) = Self::enforce_mode_tool_gate(&ship_substrate::ShipHome::project_ship_dir(project_dir), &tool_name)
         {
             return Ok(CallToolResult::error(vec![Content::text(message)]));
         }
@@ -132,12 +132,12 @@ impl ServerHandler for ShipServer {
                 .unwrap_or_default()
                 .as_millis() as u64;
             self.last_activity.store(now_ms, Ordering::Relaxed);
-            let _ = runtime::db::session_drain::increment_tool_count(sid);
+            let _ = ship_substrate::db::session_drain::increment_tool_count(sid);
 
             // Emit heartbeat every 10 tool calls.
             let count = self.heartbeat_counter.fetch_add(1, Ordering::Relaxed) + 1;
             if count.is_multiple_of(10) {
-                let _ = runtime::db::session_drain::update_heartbeat(sid);
+                let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
             }
         }
         let result = self
@@ -157,7 +157,7 @@ impl ServerHandler for ShipServer {
         let all_tools = self.tool_router.list_all();
         let dispatched = Self::is_dispatched_context();
         let visible = if let Ok(project_dir) = self.get_effective_project_dir().await {
-            let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
+            let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
             let active_agent = get_active_agent(Some(ship_dir)).unwrap_or(None);
             all_tools
                 .into_iter()

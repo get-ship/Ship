@@ -22,7 +22,7 @@ impl JobManager {
     /// Reconciliation detects jobs stuck in `Dispatched` state and emits
     /// `job.step_failed` for any whose agent process is no longer running.
     pub async fn init(
-        kernel: Arc<Mutex<runtime::events::KernelRouter>>,
+        kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
         ship_dir: PathBuf,
         health_registry: &crate::supervised::HealthRegistry,
     ) -> Self {

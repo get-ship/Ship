@@ -101,8 +101,8 @@ pub(crate) fn scopes_from(
     ship_dir: &Path,
     project_ship_dir: Option<&Path>,
 ) -> AgentScopes {
-    let global_dir = runtime::ShipHome::at(ship_dir.to_path_buf())
-        .vector_dir(runtime::Scope::User, runtime::Vector::Agents, None);
+    let global_dir = ship_substrate::ShipHome::at(ship_dir.to_path_buf())
+        .vector_dir(ship_substrate::home::Scope::User, ship_substrate::home::Vector::Agents, None);
     let project_dir = project_ship_dir
         .filter(|p| *p != ship_dir)
         .map(|p| p.join("agents"));
@@ -286,7 +286,7 @@ pub(crate) fn load_agent_with_scopes(
 // The detail-panel pickers need to know what the user can select. We
 // enumerate the three stores on disk:
 //   - skills: reuse list_skills() → id + name
-//   - mcp: runtime::config::list_mcp_servers()
+//   - mcp: ship_primitives::config::list_mcp_servers()
 //   - rules: scan .ship/rules/*.md
 
 #[derive(Serialize, Debug)]

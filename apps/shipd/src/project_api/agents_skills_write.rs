@@ -87,7 +87,7 @@ pub async fn write_agent(
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let agents_dir = runtime::ShipHome::project_ship_dir(&worktree).join("agents");
+    let agents_dir = ship_substrate::ShipHome::project_ship_dir(&worktree).join("agents");
 
     std::fs::create_dir_all(&agents_dir).map_err(|e| {
         err_response(
@@ -161,7 +161,7 @@ pub async fn write_skill_file(
 
     validate_skill_id(&skill_id)?;
 
-    let skill_dir = runtime::ShipHome::project_ship_dir(&worktree).join("skills").join(&skill_id);
+    let skill_dir = ship_substrate::ShipHome::project_ship_dir(&worktree).join("skills").join(&skill_id);
     let dest = safe_join(&skill_dir, &file_path)?;
 
     if let Some(parent) = dest.parent() {
@@ -215,7 +215,7 @@ pub async fn delete_skill_file(
 
     validate_skill_id(&skill_id)?;
 
-    let skill_dir = runtime::ShipHome::project_ship_dir(&worktree).join("skills").join(&skill_id);
+    let skill_dir = ship_substrate::ShipHome::project_ship_dir(&worktree).join("skills").join(&skill_id);
     let target = safe_join(&skill_dir, &file_path)?;
 
     if !target.exists() {
@@ -257,11 +257,11 @@ pub async fn get_skill_vars(
     Path((id, skill_id)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let ship_dir = runtime::ShipHome::project_ship_dir(&worktree);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&worktree);
 
     validate_skill_id(&skill_id)?;
 
-    let vars = runtime::get_skill_vars(&ship_dir, &skill_id).map_err(|e| {
+    let vars = ship_primitives::agents::skill_vars::get_skill_vars(&ship_dir, &skill_id).map_err(|e| {
         err_response(
             StatusCode::INTERNAL_SERVER_ERROR,
             &format!("failed to read skill vars: {e}"),
@@ -309,7 +309,7 @@ pub async fn set_skill_var(
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let ship_dir = runtime::ShipHome::project_ship_dir(&worktree);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&worktree);
 
     validate_skill_id(&skill_id)?;
 
@@ -321,7 +321,7 @@ pub async fn set_skill_var(
             )
         })?;
 
-    runtime::set_skill_var(&ship_dir, &skill_id, &key, value).map_err(|e| {
+    ship_primitives::agents::skill_vars::set_skill_var(&ship_dir, &skill_id, &key, value).map_err(|e| {
         let msg = e.to_string();
         if msg.contains("unknown variable") || msg.contains("no assets/vars.json") {
             err_response(StatusCode::NOT_FOUND, &msg)
@@ -352,10 +352,10 @@ mod tests {
 
     fn make_test_state() -> (ApiState, tempfile::TempDir) {
         let dir = tempfile::TempDir::new().unwrap();
-        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
-        runtime::db::ensure_db_at(&ship_dir).unwrap();
-        let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
+        ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
+        let kernel = ship_substrate::events::init_kernel_router(ship_dir.clone()).unwrap();
         let state = std::sync::Arc::new(
             crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel),
         );
@@ -402,7 +402,7 @@ mod tests {
 
     fn full_auth() -> axum::Extension<AuthContext> {
         axum::Extension(AuthContext {
-            caller_kind: runtime::events::CallerKind::Cli,
+            caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
             session_id: None,

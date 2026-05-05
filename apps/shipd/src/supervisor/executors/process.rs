@@ -26,14 +26,14 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use runtime::events::process::{event_types as proc_events, ProcessKilledPayload};
-use runtime::events::{EventEnvelope, KernelRouter};
-use runtime::services::dispatch_ports::{
+use ship_substrate::events::process::{event_types as proc_events, ProcessKilledPayload};
+use ship_substrate::events::{EventEnvelope, KernelRouter};
+use ship_primitives::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor, LaunchCommand, LaunchProfile,
 };
-use runtime::services::orchestrator::emit::persist_and_route;
-use runtime::services::provider_adapter::{adapter_for_or_default, ProviderAdapter};
-use runtime::supervisor::{spawn_actor, ActorHandle, ActorKind, ActorProfile, TransportKind};
+use ship_primitives::services::orchestrator::emit::persist_and_route;
+use ship_primitives::services::provider_adapter::{adapter_for_or_default, ProviderAdapter};
+use ship_substrate::supervisor::{spawn_actor, ActorHandle, ActorKind, ActorProfile, TransportKind};
 
 /// Default prompt injected when the caller didn't supply one.
 /// Kept in ProcessExecutor (the headless spawn path) because only
@@ -75,7 +75,7 @@ impl ProcessExecutor {
 /// State held in the ExecutorHandle for process-based execution.
 ///
 /// Since 1.1.d, the actual child + PTY mechanics live in
-/// `runtime::supervisor::ActorHandle`. This struct is just metadata
+/// `ship_substrate::supervisor::ActorHandle`. This struct is just metadata
 /// the executor's `is_alive` / `stop` / event emission needs.
 struct ProcessState {
     slug: String,
@@ -320,7 +320,7 @@ mod tests {
         assert_eq!(cmd.args.last().unwrap(), "custom");
     }
 
-    // PTY mechanics are tested at the source — `runtime::supervisor::tests`
+    // PTY mechanics are tested at the source — `ship_substrate::supervisor::tests`
     // (spawn_pty_minimal, stop_terminates_child) exercises the substrate
     // end-to-end. ProcessExecutor's job is to compose the substrate +
     // executor-specific event emission, which the next test pins.
@@ -333,9 +333,9 @@ mod tests {
     // not just that the call site fires — matches the spec's acceptance
     // criterion for event-store reads.
 
-    use runtime::events::kernel_router::KernelRouter;
-    use runtime::events::process::event_types as proc_events;
-    use runtime::db::events::query_events_by_entity_and_type_at;
+    use ship_substrate::events::kernel_router::KernelRouter;
+    use ship_substrate::events::process::event_types as proc_events;
+    use ship_substrate::db::events::query_events_by_entity_and_type_at;
     use std::sync::Arc;
 
     /// Spawn a `sleep 60` child via the supervisor primitive and wrap
@@ -375,9 +375,9 @@ mod tests {
 
     fn setup_kernel() -> (tempfile::TempDir, Arc<TokioMutex<KernelRouter>>, std::path::PathBuf) {
         let dir = tempfile::tempdir().unwrap();
-        let base = runtime::ShipHome::project_ship_dir(dir.path());
+        let base = ship_substrate::ShipHome::project_ship_dir(dir.path());
         let router = KernelRouter::new(base.clone()).unwrap();
-        let db = runtime::db::platform_db_path(&base);
+        let db = ship_substrate::db::platform_db_path(&base);
         (dir, Arc::new(TokioMutex::new(router)), db)
     }
 

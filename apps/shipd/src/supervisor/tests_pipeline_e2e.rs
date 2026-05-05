@@ -8,13 +8,13 @@
 //! mock executor and isolation.
 
 use async_trait::async_trait;
-use runtime::events::job::event_types;
-use runtime::events::kernel_router::{ActorConfig, KernelRouter};
-use runtime::events::store::{EventStore, SqliteEventStore};
-use runtime::events::EventEnvelope;
-use runtime::projections::job::{load_jobs_at, JobStatus};
-use runtime::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
-use runtime::services::orchestrator::OrchestratorContext;
+use ship_substrate::events::job::event_types;
+use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+use ship_substrate::events::store::{EventStore, SqliteEventStore};
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::projections::job::{load_jobs_at, JobStatus};
+use ship_primitives::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use ship_primitives::services::orchestrator::OrchestratorContext;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -78,7 +78,7 @@ fn dispatch_config() -> ActorConfig {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn simple_job_lifecycle_through_event_store() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -144,7 +144,7 @@ async fn simple_job_lifecycle_through_event_store() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pipeline_advances_through_all_steps() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     let worktree_root = dir.path().join("worktrees");
     let worktree_path = worktree_root.join("e2e-pipe");
     std::fs::create_dir_all(&ship_dir).unwrap();
@@ -196,11 +196,11 @@ async fn pipeline_advances_through_all_steps() {
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
         registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
-        probe: Arc::new(runtime::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_primitives::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_primitives::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
@@ -216,7 +216,7 @@ async fn pipeline_advances_through_all_steps() {
     // Advance pipeline — should dispatch next step (gate).
     // The advance function loads the projection (which includes the completed
     // event), finds unblocked steps, and dispatches them via the executor.
-    let advanced = runtime::services::orchestrator::pipeline::advance_pipeline_at(
+    let advanced = ship_primitives::services::orchestrator::pipeline::advance_pipeline_at(
         &kernel, &completed_event, &dctx, &ship_dir,
     ).await;
 
@@ -244,7 +244,7 @@ async fn pipeline_advances_through_all_steps() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn dependent_job_dispatches_after_upstream_completes() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -311,7 +311,7 @@ async fn dependent_job_dispatches_after_upstream_completes() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn restart_recovery_finds_stale_jobs() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -381,7 +381,7 @@ async fn restart_recovery_finds_stale_jobs() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn run_step_advances_to_agent_step() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     let worktree_root = dir.path().join("worktrees");
     let worktree_path = worktree_root.join("run-advance");
     std::fs::create_dir_all(&ship_dir).unwrap();
@@ -444,17 +444,17 @@ async fn run_step_advances_to_agent_step() {
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
         registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
-        probe: Arc::new(runtime::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_primitives::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_primitives::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // advance_pipeline with the step_completed event — should dispatch "implement"
-    let advanced = runtime::services::orchestrator::pipeline::advance_pipeline_at(
+    let advanced = ship_primitives::services::orchestrator::pipeline::advance_pipeline_at(
         &kernel, &step_completed_event, &dctx, &ship_dir,
     ).await;
 
@@ -492,7 +492,7 @@ async fn run_step_advances_to_agent_step() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn first_step_run_executes_without_agent() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     let worktree_root = dir.path().join("worktrees");
     let worktree_path = worktree_root.join("run-first");
     std::fs::create_dir_all(&ship_dir).unwrap();
@@ -519,7 +519,7 @@ async fn first_step_run_executes_without_agent() {
     ).unwrap()).unwrap();
 
     // Parse the payload for dispatch_job_internal
-    let payload: runtime::events::job::JobCreatedPayload =
+    let payload: ship_substrate::events::job::JobCreatedPayload =
         serde_json::from_value(created_payload).unwrap();
 
     // Set up kernel + dispatch context with mock executor
@@ -533,18 +533,18 @@ async fn first_step_run_executes_without_agent() {
         executor: executor.clone(),
         platform: Arc::new(MockPlatform),
         registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
-        probe: Arc::new(runtime::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
+        probe: Arc::new(ship_primitives::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
+        event_dedup: Arc::new(ship_primitives::services::orchestrator::dedup::EventDedup::new()),
         fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // Dispatch the first run step directly — should execute without spawning an agent.
     // Use the _at variant so events persist to the test's temp store.
-    runtime::services::orchestrator::dispatch::dispatch_first_run_step_at(
+    ship_primitives::services::orchestrator::dispatch::dispatch_first_run_step_at(
         &kernel, &payload, &dctx, "setup", "echo hello", &ship_dir,
     ).await;
 

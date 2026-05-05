@@ -8,7 +8,7 @@
 //! and custom rules are Phase 2.
 
 use axum::{extract::State, Extension, Json, http::StatusCode, response::IntoResponse};
-use runtime::events::EventEnvelope;
+use ship_substrate::events::EventEnvelope;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -94,7 +94,7 @@ pub async fn hook_session_start(
 
     // Update heartbeat if we have a session.
     if let Some(ref sid) = session {
-        let _ = runtime::db::session_drain::update_heartbeat(sid);
+        let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
     }
 
     (StatusCode::OK, Json(HookResponse::allow()))
@@ -129,8 +129,8 @@ pub async fn hook_before_tool(
     // stays — it's the workspace-session vocabulary, separate from the
     // actor event log.
     if let Some(ref sid) = session {
-        let _ = runtime::db::session_drain::increment_tool_count(sid);
-        let _ = runtime::db::session_drain::update_heartbeat(sid);
+        let _ = ship_substrate::db::session_drain::increment_tool_count(sid);
+        let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
         broadcast_tool_use(&state, sid, tool, event.tool_input.as_ref());
     }
 
@@ -183,7 +183,7 @@ fn broadcast_tool_use(
             if s.len() > 400 { s.chars().take(400).collect() } else { s }
         })
         .unwrap_or_default();
-    let ev = runtime::services::provider_adapter::ProviderEvent::ToolUse {
+    let ev = ship_primitives::services::provider_adapter::ProviderEvent::ToolUse {
         tool: tool.to_string(),
         input_preview,
     };
@@ -216,7 +216,7 @@ pub async fn hook_after_tool(
     tracing::debug!(actor = %actor, tool = %tool, session = ?session, "hook: after-tool");
 
     if let Some(ref sid) = session {
-        let _ = runtime::db::session_drain::update_heartbeat(sid);
+        let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
         // The UI distinguishes start from finish by arrival order, not a
         // dedicated event variant. Emitting a second ToolUse with the
         // response preview lets the card flip from "running" to "done"
@@ -271,7 +271,7 @@ pub async fn hook_session_end(
     tracing::debug!(actor = %actor, session = ?session, "hook: session-end");
 
     if let Some(ref sid) = session {
-        let _ = runtime::db::session_drain::update_heartbeat(sid);
+        let _ = ship_substrate::db::session_drain::update_heartbeat(sid);
     }
 
     (StatusCode::OK, Json(HookResponse::allow()))
@@ -324,7 +324,7 @@ mod tests {
             session_id: None,
         };
         let auth = AuthContext {
-            caller_kind: runtime::events::CallerKind::Cli,
+            caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: Some("from-auth".into()),
             workspace_id: None,
             session_id: None,
@@ -344,7 +344,7 @@ mod tests {
             session_id: None,
         };
         let auth = AuthContext {
-            caller_kind: runtime::events::CallerKind::Cli,
+            caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: Some("from-auth".into()),
             workspace_id: None,
             session_id: None,

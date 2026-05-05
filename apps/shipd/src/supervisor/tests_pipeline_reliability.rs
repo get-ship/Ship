@@ -3,9 +3,9 @@
 //! These tests exercise the job projection across a variety of pipeline shapes and
 //! event sequences, verifying status transitions, step tracking, and merge semantics.
 
-use runtime::events::EventEnvelope;
-use runtime::events::job::event_types;
-use runtime::projections::job::{JobStatus, project};
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::job::event_types;
+use ship_substrate::projections::job::{JobStatus, project};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "entity", &payload).unwrap()

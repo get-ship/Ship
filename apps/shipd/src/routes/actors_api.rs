@@ -2,7 +2,7 @@
 //! actor (chat agent, pipeline step, shell, service).
 //!
 //! Read endpoints project from the `actors` table maintained by
-//! `runtime::projections::ActorProjection`. Liveness derives from
+//! `ship_substrate::projections::ActorProjection`. Liveness derives from
 //! `last_event_at` (bumped by SQLite triggers on every event correlated
 //! to the actor) — no heartbeat loop. The input endpoint emits a
 //! kernel event with `target_actor_id` set so directed delivery routes
@@ -14,9 +14,9 @@ use axum::{
     http::StatusCode,
     response::IntoResponse,
 };
-use runtime::events::EventEnvelope;
-use runtime::events::types::event_types;
-use runtime::projections::actor::{
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::types::event_types;
+use ship_substrate::projections::actor::{
     ListActorsFilter, actor_status, get_actor, list_actor_events, list_actors,
 };
 use serde::Serialize;
@@ -180,7 +180,7 @@ pub struct ActorInputReq {
 /// Build the mesh snapshot payload — actors + mesh + system. Shared
 /// between the one-shot endpoint and the SSE diff stream.
 async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, String> {
-    use runtime::supervisor::process_stats;
+    use ship_substrate::supervisor::process_stats;
 
     let mut rows = list_actors(&ListActorsFilter::default())
         .map_err(|e| format!("query: {e}"))?;
@@ -250,7 +250,7 @@ async fn build_mesh_snapshot(state: &ApiState) -> Result<serde_json::Value, Stri
         .iter()
         .filter_map(|a| a.get("process").and_then(|p| p.get("rss_bytes")).and_then(|v| v.as_u64()))
         .sum();
-    let platform_db_bytes = std::fs::metadata(runtime::db::platform_db_path(state.ship_dir()))
+    let platform_db_bytes = std::fs::metadata(ship_substrate::db::platform_db_path(state.ship_dir()))
         .ok()
         .map(|m| m.len())
         .unwrap_or(0);

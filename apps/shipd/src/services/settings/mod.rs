@@ -1,5 +1,5 @@
 //! Settings domain service. View-shaping only — the actual read/write
-//! ops go through `runtime::config::{get_setting, set_setting}` +
+//! ops go through `ship_primitives::config::{get_setting, set_setting}` +
 //! the HTTP endpoints under `/api/v1/settings/*`. Registry exposes
 //! `settings.state` → view ctx.
 

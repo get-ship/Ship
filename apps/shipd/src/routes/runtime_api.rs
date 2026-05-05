@@ -10,8 +10,8 @@ use axum::{
     response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{ActorConfig, EventEnvelope};
-use runtime::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::{ActorConfig, EventEnvelope};
+use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -35,7 +35,7 @@ pub struct SessionsQuery {
 pub(super) fn resolve_project_head_sha() -> Option<String> {
     let project_ship = runtime::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
-    runtime::services::orchestrator::git_helpers::resolve_head_sha(project_root)
+    ship_primitives::services::orchestrator::git_helpers::resolve_head_sha(project_root)
 }
 
 /// GET /api/v1/runtime/sessions[?workspace_id=<id>]
@@ -60,7 +60,7 @@ pub async fn list_sessions(
         return e.into_response();
     }
     let workspace_id = params.workspace_id.as_deref();
-    match runtime::db::session::list_sessions_db(workspace_id, 100) {
+    match ship_substrate::db::session::list_sessions_db(workspace_id, 100) {
         Ok(sessions) => {
             let data: Vec<serde_json::Value> = sessions
                 .into_iter()
@@ -144,19 +144,19 @@ mod tests {
     use tempfile::TempDir;
 
     fn make_api_state(dir: &TempDir) -> ApiState {
-        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
-        runtime::db::ensure_db_at(&ship_dir).unwrap();
+        ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
         // Isolated per-test kernel — init_kernel_router uses a OnceLock that
         // pins the first test's ship_dir globally, breaking all subsequent
         // tests with "unable to open database file" when they try to write.
-        let kernel = runtime::events::new_isolated_for_test(ship_dir.clone()).unwrap();
+        let kernel = ship_substrate::events::new_isolated_for_test(ship_dir.clone()).unwrap();
         Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
     }
 
     fn test_auth() -> Extension<AuthContext> {
         Extension(AuthContext {
-            caller_kind: runtime::events::CallerKind::Cli,
+            caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
             session_id: None,
@@ -218,12 +218,12 @@ mod tests {
             let mut reg = state.mesh_registry().write().await;
             reg.insert(
                 "agent.test".into(),
-                runtime::services::mesh::MeshEntry {
+                ship_primitives::services::mesh::MeshEntry {
                     agent_id: "agent.test".into(),
                     label: "Test Agent".into(),
                     capabilities: vec!["rust".into()],
                     registered_at: chrono::Utc::now(),
-                    status: runtime::services::mesh::AgentStatus::Active,
+                    status: ship_primitives::services::mesh::AgentStatus::Active,
                 },
             );
         }
@@ -238,7 +238,7 @@ mod tests {
 
     fn full_auth() -> AuthContext {
         AuthContext {
-            caller_kind: runtime::events::CallerKind::Cli,
+            caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
             session_id: None,
@@ -274,8 +274,8 @@ mod tests {
         let state = make_api_state(&dir);
 
         // Emit a job.created event so load_jobs() finds it.
-        let job_id = runtime::gen_ulid();
-        let payload = runtime::events::job::JobCreatedPayload {
+        let job_id = ship_substrate::gen_ulid();
+        let payload = ship_substrate::events::job::JobCreatedPayload {
             job_id: job_id.clone(),
             slug: "test-detail".into(),
             agent: "agent-1".into(),
@@ -295,8 +295,8 @@ mod tests {
             headless: false,
             baseline_sha: None,
         };
-        let envelope = runtime::events::EventEnvelope::new(
-            runtime::events::job::event_types::JOB_CREATED,
+        let envelope = ship_substrate::events::EventEnvelope::new(
+            ship_substrate::events::job::event_types::JOB_CREATED,
             &job_id,
             &payload,
         )
@@ -319,8 +319,8 @@ mod tests {
     }
 
     async fn emit_job_created(state: &ApiState, slug: &str) -> String {
-        let job_id = runtime::gen_ulid();
-        let payload = runtime::events::job::JobCreatedPayload {
+        let job_id = ship_substrate::gen_ulid();
+        let payload = ship_substrate::events::job::JobCreatedPayload {
             job_id: job_id.clone(),
             slug: slug.into(),
             agent: "a".into(),
@@ -356,13 +356,13 @@ mod tests {
         .into_response();
         assert_eq!(response.status(), StatusCode::OK);
 
-        let jobs = runtime::projections::job::load_jobs_at(state.ship_dir()).unwrap();
+        let jobs = ship_substrate::projections::job::load_jobs_at(state.ship_dir()).unwrap();
         let job = jobs.get(&job_id).unwrap();
-        assert_eq!(job.status, runtime::projections::job::JobStatus::Cancelled);
+        assert_eq!(job.status, ship_substrate::projections::job::JobStatus::Cancelled);
 
         // Confirm the cancelled event actually landed.
-        let events = runtime::db::events::query_recent_events_for_entity_at(
-            &runtime::db::platform_db_path(state.ship_dir()),
+        let events = ship_substrate::db::events::query_recent_events_for_entity_at(
+            &ship_substrate::db::platform_db_path(state.ship_dir()),
             &job_id, 20,
         )
         .unwrap();
@@ -379,7 +379,7 @@ mod tests {
         let job_id = emit_job_created(&state, "cancel-term").await;
 
         // Seed a terminal state first.
-        let fail_payload = runtime::events::job::JobFailedPayload {
+        let fail_payload = ship_substrate::events::job::JobFailedPayload {
             job_id: job_id.clone(),
             error: "boom".into(),
         };
@@ -400,8 +400,8 @@ mod tests {
         assert_eq!(response.status(), StatusCode::CONFLICT);
 
         // Make sure no job.cancelled was emitted (idempotent no-op).
-        let events = runtime::db::events::query_recent_events_for_entity_at(
-            &runtime::db::platform_db_path(state.ship_dir()),
+        let events = ship_substrate::db::events::query_recent_events_for_entity_at(
+            &ship_substrate::db::platform_db_path(state.ship_dir()),
             &job_id, 20,
         )
         .unwrap();
@@ -441,7 +441,7 @@ mod tests {
     // ---- Slice 6 endpoints ----
 
     async fn emit_process_spawned(state: &ApiState, slug: &str, pid: u32) {
-        let payload = runtime::events::process::ProcessSpawnedPayload {
+        let payload = ship_substrate::events::process::ProcessSpawnedPayload {
             slug: slug.to_string(),
             job_id: format!("job-{slug}"),
             pid: Some(pid),
@@ -453,7 +453,7 @@ mod tests {
             step_id: None,
         };
         let env = EventEnvelope::new(
-            runtime::events::process::event_types::PROCESS_SPAWNED,
+            ship_substrate::events::process::event_types::PROCESS_SPAWNED,
             slug,
             &payload,
         )
@@ -463,7 +463,7 @@ mod tests {
     }
 
     async fn emit_drift_detected(state: &ApiState, slug: &str) {
-        let payload = runtime::events::supervisor::DriftDetectedPayload {
+        let payload = ship_substrate::events::supervisor::DriftDetectedPayload {
             slug: slug.into(),
             job_id: format!("job-{slug}"),
             expected_status: "Dispatched".into(),
@@ -471,7 +471,7 @@ mod tests {
             detail: "test".into(),
         };
         let env = EventEnvelope::new(
-            runtime::events::supervisor::event_types::SUPERVISOR_DRIFT_DETECTED,
+            ship_substrate::events::supervisor::event_types::SUPERVISOR_DRIFT_DETECTED,
             slug,
             &payload,
         )
@@ -481,13 +481,13 @@ mod tests {
     }
 
     async fn emit_sweep_completed(state: &ApiState, drift_count: usize) {
-        let payload = runtime::events::supervisor::SweepCompletedPayload {
+        let payload = ship_substrate::events::supervisor::SweepCompletedPayload {
             duration_ms: 12,
             drift_count,
             actions_taken: drift_count,
         };
         let env = EventEnvelope::new(
-            runtime::events::supervisor::event_types::SUPERVISOR_SWEEP_COMPLETED,
+            ship_substrate::events::supervisor::event_types::SUPERVISOR_SWEEP_COMPLETED,
             "supervisor",
             &payload,
         )
@@ -506,7 +506,7 @@ mod tests {
         let env = EventEnvelope::new(
             event_types::JOB_FAILED,
             &job_id,
-            &runtime::events::job::JobFailedPayload {
+            &ship_substrate::events::job::JobFailedPayload {
                 job_id: job_id.clone(),
                 error: "boom".into(),
             },

@@ -99,7 +99,7 @@ pub fn resolve_root(
 ) -> Result<PathBuf, String> {
     if let Some(branch) = workspace_id.filter(|s| !s.is_empty() && *s != "project")
         && let Some(path) = crate::project_api::worktree_path_for_branch(branch)
-        && (path.join(".git").exists() || runtime::ShipHome::project_ship_dir(&path).exists())
+        && (path.join(".git").exists() || ship_substrate::ShipHome::project_ship_dir(&path).exists())
     {
         return Ok(path);
     }

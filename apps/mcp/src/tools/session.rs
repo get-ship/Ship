@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use runtime::sessions::{
+use ship_primitives::sessions::{
     get_active_session as runtime_get_active_session,
     record_session_progress as runtime_record_workspace_session_progress,
 };
@@ -8,7 +8,7 @@ use runtime::sessions::{
 use crate::requests::LogProgressRequest;
 
 pub fn log_progress(project_dir: &Path, req: LogProgressRequest, branch: &str) -> String {
-    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
     match runtime_get_active_session(&ship_dir, branch) {
         Ok(None) => {
             return format!(

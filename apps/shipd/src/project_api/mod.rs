@@ -256,7 +256,7 @@ pub async fn emit_event(
                 ),
             ));
         }
-        for prefix in runtime::events::RESERVED_NAMESPACES {
+        for prefix in ship_substrate::events::RESERVED_NAMESPACES {
             if body.event_type.starts_with(prefix) {
                 return Err(err_response(
                     StatusCode::BAD_REQUEST,
@@ -270,7 +270,7 @@ pub async fn emit_event(
     }
 
     let mut envelope =
-        runtime::events::EventEnvelope::new(&body.event_type, &body.entity_id, &body.payload)
+        ship_substrate::events::EventEnvelope::new(&body.event_type, &body.entity_id, &body.payload)
             .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e.to_string()))?;
 
     let actor = body.actor_id.as_deref().unwrap_or("studio");
@@ -292,8 +292,8 @@ pub async fn emit_event(
     let ctx = if let Some(axum::Extension(ac)) = auth {
         ac.to_daemon_emit_context()
     } else {
-        runtime::events::EmitContext {
-            caller_kind: runtime::events::CallerKind::Cli,
+        ship_substrate::events::EmitContext {
+            caller_kind: ship_substrate::events::CallerKind::Cli,
             skill_id: None,
             project_id: body.workspace_id.clone(),
             session_id: None,
@@ -324,10 +324,10 @@ mod tests_inline {
 
     fn make_test_state() -> (ApiState, tempfile::TempDir) {
         let dir = tempfile::TempDir::new().unwrap();
-        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
-        runtime::db::ensure_db_at(&ship_dir).unwrap();
-        let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
+        ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
+        let kernel = ship_substrate::events::init_kernel_router(ship_dir.clone()).unwrap();
         let state = std::sync::Arc::new(
             crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel),
         );

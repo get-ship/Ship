@@ -39,7 +39,7 @@ pub struct TimelineRow {
     pub summary: String,
 }
 
-fn event_summary(env: &runtime::events::EventEnvelope) -> String {
+fn event_summary(env: &ship_substrate::events::EventEnvelope) -> String {
     let v: serde_json::Value =
         serde_json::from_str(&env.payload_json).unwrap_or(serde_json::Value::Null);
     match env.event_type.as_str() {
@@ -86,11 +86,11 @@ fn event_summary(env: &runtime::events::EventEnvelope) -> String {
 }
 
 pub fn build(slug: &str, ship_dir: &Path) -> Option<RunDetailCtx> {
-    let jobs = runtime::projections::job::load_jobs_at(ship_dir).ok()?;
+    let jobs = ship_substrate::projections::job::load_jobs_at(ship_dir).ok()?;
     let job = jobs.values().find(|j| j.slug == slug)?;
     let run = to_run_view(job, true);
-    let events = runtime::db::events::query_recent_events_for_entity_at(
-        &runtime::db::platform_db_path(ship_dir),
+    let events = ship_substrate::db::events::query_recent_events_for_entity_at(
+        &ship_substrate::db::platform_db_path(ship_dir),
         &job.job_id,
         500,
     )
@@ -100,7 +100,7 @@ pub fn build(slug: &str, ship_dir: &Path) -> Option<RunDetailCtx> {
         .iter()
         .filter(|e| e.event_type == "step.observed")
         .filter_map(|e| {
-            serde_json::from_str::<runtime::events::job::StepObservedPayload>(&e.payload_json)
+            serde_json::from_str::<ship_substrate::events::job::StepObservedPayload>(&e.payload_json)
                 .ok()
                 .map(|p| StepObservationRow {
                     step_name: p.step_name,

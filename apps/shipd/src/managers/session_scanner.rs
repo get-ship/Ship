@@ -23,7 +23,7 @@ pub struct SessionScanner {
 impl SessionScanner {
     /// Start the scanner. Spawns a supervised background task that restarts on panic.
     pub fn start(
-        kernel: Arc<Mutex<runtime::events::KernelRouter>>,
+        kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
         health_registry: &HealthRegistry,
     ) -> Self {
         let handle = crate::supervised::spawn_supervised(
@@ -45,7 +45,7 @@ impl SessionScanner {
 
 /// Scan for abandoned sessions and end them.
 fn scan_abandoned_sessions() {
-    let sessions = match runtime::db::session_drain::list_active_sessions() {
+    let sessions = match ship_substrate::db::session_drain::list_active_sessions() {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("session scanner: failed to list active sessions: {e}");
@@ -65,7 +65,7 @@ fn scan_abandoned_sessions() {
         };
 
         if is_abandoned {
-            match runtime::db::session_drain::force_end_session(&session.id, "abandoned") {
+            match ship_substrate::db::session_drain::force_end_session(&session.id, "abandoned") {
                 Ok(()) => {
                     tracing::info!(
                         session_id = %session.id,

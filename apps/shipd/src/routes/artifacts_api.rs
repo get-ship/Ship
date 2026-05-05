@@ -32,8 +32,8 @@ use crate::auth::scopes::{can_delete_artifacts, can_read_artifacts, can_write_ar
 use crate::services::artifacts::service::{
     ArtifactsService, Error as ArtifactsError, PatchArgs, StoreArgs,
 };
-use runtime::artifacts::{ARTIFACTS_COLLECTION_ID, ArtifactScope};
-use runtime::collections::query::QueryRequest;
+use ship_primitives::artifacts::{ARTIFACTS_COLLECTION_ID, ArtifactScope};
+use ship_primitives::collections::query::QueryRequest;
 
 /// Max upload: 50 MB.
 pub const MAX_UPLOAD_BYTES: usize = 50 * 1024 * 1024;

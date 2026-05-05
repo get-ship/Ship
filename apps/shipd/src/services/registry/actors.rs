@@ -16,7 +16,7 @@ pub(super) fn try_dispatch(
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "actors.list" => {
-            let filter = runtime::projections::actor::ListActorsFilter {
+            let filter = ship_substrate::projections::actor::ListActorsFilter {
                 workspace_id: args.get("workspace_id").and_then(|v| v.as_str())
                     .filter(|s| !s.is_empty()).map(String::from),
                 kind: args.get("kind").and_then(|v| v.as_str())
@@ -25,7 +25,7 @@ pub(super) fn try_dispatch(
                     .filter(|s| !s.is_empty()).map(String::from),
                 limit: args.get("limit").and_then(|v| v.as_i64()).unwrap_or(0),
             };
-            let actors = runtime::projections::actor::list_actors(&filter)
+            let actors = ship_substrate::projections::actor::list_actors(&filter)
                 .map_err(|e| RegistryError::service(format!("actors.list: {e}")))?;
             Ok(json!({ "items": actors }))
         }

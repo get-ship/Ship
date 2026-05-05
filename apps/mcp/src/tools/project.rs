@@ -3,10 +3,10 @@ use std::sync::Arc;
 
 use runtime::project::{get_active_project_global, get_project_dir, set_active_project_global};
 use runtime::project::{get_project_name, list_registered_projects};
-use runtime::{
-    get_config, read_log, read_recent_events,
-    sessions::get_active_session as runtime_get_active_session,
-};
+use ship_primitives::config::get_config;
+use ship_primitives::sessions::get_active_session as runtime_get_active_session;
+use ship_substrate::events::read_recent_events;
+use ship_substrate::log::read_log;
 use tokio::sync::Mutex;
 
 /// Set the active project; returns (response_message, resolved_project_root).
@@ -54,9 +54,9 @@ pub async fn get_effective_project_dir(
     active_project: &Arc<Mutex<Option<PathBuf>>>,
 ) -> Result<PathBuf, String> {
     if !actor_id.is_empty()
-        && let Ok(Some(actor)) = runtime::projections::actor::get_actor(actor_id)
+        && let Ok(Some(actor)) = ship_substrate::projections::actor::get_actor(actor_id)
         && let Some(project_id) = actor.project_id.as_deref()
-        && let Ok(Some(project)) = runtime::projects::get(project_id)
+        && let Ok(Some(project)) = ship_substrate::projects::get(project_id)
         && let Ok(dir) = get_project_dir(Some(PathBuf::from(&project.path)))
     {
         return Ok(resolve_project_root(dir));
@@ -108,9 +108,9 @@ fn resolve_project_root(ship_dir: PathBuf) -> PathBuf {
 /// Returns None when the project has never been compiled. The argument is
 /// the project root (with `.ship/` appended internally to find ship.jsonc).
 fn active_agent_for_project(project_dir: &Path) -> Option<String> {
-    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
     let project_id = runtime::project::ensure_project_id(&ship_dir).ok()?;
-    runtime::projections::compile_state::load(&project_id)
+    ship_substrate::projections::compile_state::load(&project_id)
         .ok()
         .flatten()
         .and_then(|s| s.active_agent)

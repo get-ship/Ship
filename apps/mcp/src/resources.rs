@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use rmcp::model::{AnnotateAble, RawResource, RawResourceTemplate};
-use runtime::read_recent_events;
+use ship_substrate::events::read_recent_events;
 
 pub fn static_resource_list() -> Vec<rmcp::model::Annotated<RawResource>> {
     vec![

@@ -9,11 +9,11 @@ pub(crate) fn worktrees_dir() -> PathBuf {
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| "ship".to_string());
-    runtime::config::worktrees_dir(&project)
+    ship_primitives::config::worktrees_dir(&project)
 }
 
 pub(crate) fn repo_dir() -> PathBuf {
-    if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::RepoDir) {
+    if let Ok(dir) = ship_substrate::env::read_raw(ship_substrate::env::Var::RepoDir) {
         return PathBuf::from(dir);
     }
     std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."))
@@ -220,8 +220,8 @@ pub(crate) fn delete_branch(branch: &str) -> Result<()> {
 }
 
 pub(crate) fn provider_cli(providers: &[String]) -> Option<String> {
-    use runtime::services::dispatch_ports::LaunchProfile;
-    use runtime::services::provider_adapter::adapter_for;
+    use ship_primitives::services::dispatch_ports::LaunchProfile;
+    use ship_primitives::services::provider_adapter::adapter_for;
 
     for p in providers {
         match p.as_str() {

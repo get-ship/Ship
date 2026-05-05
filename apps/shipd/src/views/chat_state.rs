@@ -6,7 +6,7 @@
 //! this module only reshapes envelopes into a serializable row.
 
 use serde::Serialize;
-use runtime::events::EventEnvelope;
+use ship_substrate::events::EventEnvelope;
 use std::path::Path;
 
 pub const DEFAULT_LIMIT: usize = 200;
@@ -89,7 +89,7 @@ pub fn list_messages(
     workspace_id: Option<&str>,
     limit: usize,
 ) -> Vec<ChatMessage> {
-    let envs = runtime::db::events::list_recent_events_at(ship_dir, limit.max(1))
+    let envs = ship_substrate::db::events::list_recent_events_at(ship_dir, limit.max(1))
         .unwrap_or_else(|e| {
             tracing::error!(error = %e, "chat: list_recent_events_at failed");
             Vec::new()

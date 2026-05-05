@@ -1,13 +1,8 @@
-// All service infrastructure and L1 service actors now live in ship-primitives.
-// Re-export the complete surface so existing callers don't need path changes.
-pub use ship_primitives::services::*;
-pub use ship_primitives::services::{
-    dispatch_ports, human_gateway, mesh, orchestrator, process_tree_probe, provider_adapter,
-    providers, server_session,
-};
-
-#[cfg(feature = "unstable")]
-pub use ship_primitives::services::sync;
+// Cross-component integration tests for the service layer. The service
+// implementations themselves live in `ship-primitives::services`; this
+// module exists solely to host tests that span both substrate and
+// primitives without inviting either crate to take a dev-dependency on
+// the other.
 
 #[cfg(test)]
 #[path = "tests_provider_adapter.rs"]

@@ -18,7 +18,7 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
 use futures_util::stream::{self, Stream};
-use runtime::events::{types::event_types, EventEnvelope};
+use ship_substrate::events::{types::event_types, EventEnvelope};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::time::Duration;
@@ -301,7 +301,7 @@ pub async fn session_message(
     // respawn (kill + spawn fresh — not yet implemented; falls through
     // to the legacy per-turn path).
     if let Some(entry) = state.actor_sessions().get(&id) {
-        use runtime::services::provider_adapter::{adapter_for, PushMechanism};
+        use ship_primitives::services::provider_adapter::{adapter_for, PushMechanism};
         let provider = entry
             .meta_snapshot()
             .provider
@@ -399,7 +399,7 @@ pub async fn session_reply(
     // In-memory broadcast for SSE consumers tailing the session's
     // parsed-event stream. Check both registries so reply works
     // regardless of which substrate owns the session.
-    let ev = runtime::services::provider_adapter::ProviderEvent::Message { text };
+    let ev = ship_primitives::services::provider_adapter::ProviderEvent::Message { text };
     if let Some(entry) = state.actor_sessions().get(&id) {
         if let Some(tx) = entry.event_tx.as_ref() {
             let _ = tx.send(ev);
@@ -471,7 +471,7 @@ pub async fn spawn_session(
             // go through the supervisor primitive + ActorRegistry. The
             // push_mechanism (channel / stdin / respawn) is decided at
             // send-time; the spawn shape is identical regardless.
-            if let Ok(adapter) = runtime::services::provider_adapter::adapter_for(provider) {
+            if let Ok(adapter) = ship_primitives::services::provider_adapter::adapter_for(provider) {
                 if adapter.caps().persistent_session {
                     let append = lifecycle::load_agent_rules(&work_dir, agent_id);
                     return match super::agent_actor::spawn_or_attach(
@@ -527,7 +527,7 @@ pub async fn spawn_session(
             // Shell sessions go through the supervisor primitive +
             // ActorRegistry. Kernel registration, PTY hold, log file,
             // and `actor.created` emission all happen inside
-            // `runtime::supervisor::spawn_actor` — no second registry
+            // `ship_substrate::supervisor::spawn_actor` — no second registry
             // write, no second event emit.
             match super::shell_actor::spawn_shell(
                 state.actor_sessions(),

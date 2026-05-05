@@ -13,7 +13,7 @@ use rmcp::{
 };
 use rmcp::schemars::{self, JsonSchema};
 use serde::Deserialize;
-use runtime::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope};
+use ship_substrate::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope};
 
 use crate::transport::connections::{ConnectionGuard, EventRelay, Inbox, McpEventSink, PeerHandle};
 
@@ -64,7 +64,7 @@ struct MeshStatusRequest {
 pub struct NetworkServer {
     tool_router: ToolRouter<Self>,
     /// Shared across all connections — the single KernelRouter for this daemon.
-    kernel: Arc<tokio::sync::Mutex<runtime::events::KernelRouter>>,
+    kernel: Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
     /// Per-connection MCP peer for push notifications.
     notification_peer: Arc<tokio::sync::Mutex<Option<Peer<RoleServer>>>>,
     /// Per-connection cleanup guard. Dropped when the last clone is gone.
@@ -81,7 +81,7 @@ impl std::fmt::Debug for NetworkServer {
 
 #[tool_router]
 impl NetworkServer {
-    pub fn new(kernel: Arc<tokio::sync::Mutex<runtime::events::KernelRouter>>) -> Self {
+    pub fn new(kernel: Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>) -> Self {
         let conn = Arc::new(ConnectionGuard {
             actor_id: std::sync::Mutex::new(None),
             relay_handle: std::sync::Mutex::new(None),

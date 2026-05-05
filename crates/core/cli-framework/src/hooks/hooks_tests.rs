@@ -1,5 +1,5 @@
 use super::{handle_after_tool, handle_before_tool, handle_session_end, handle_session_start};
-use runtime::events::types::event_types;
+use ship_substrate::events::types::event_types;
 
 #[test]
 fn session_start_emits_correct_event() {

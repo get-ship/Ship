@@ -18,7 +18,7 @@ use compiler::{
     AgentProfile, CompileOutput, McpRefs, PluginRefs, ProfileMeta, ProfilePermissions,
     ProfileRules, ProjectLibrary, Rule, Skill, SkillRefs, SkillSource, compile, resolve_library,
 };
-use runtime::registry::cache::PackageCache;
+use ship_primitives::registry::cache::PackageCache;
 
 use fixtures::{extract_repo_content, git_head_commit, make_local_dep_repo, write, write_lock};
 
@@ -387,7 +387,7 @@ fn local_and_dep_skills_both_appear_in_compiled_output() {
 
 #[test]
 fn fetch_package_content_works_with_local_bare_repo() {
-    use runtime::registry::fetch::fetch_package_content;
+    use ship_primitives::registry::fetch::fetch_package_content;
 
     let tmp = TempDir::new().unwrap();
     let bare = make_local_dep_repo(

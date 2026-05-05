@@ -2,7 +2,7 @@
 //! and edge cases (concurrency, namespace isolation, mailbox overflow).
 
 use crate::test_harness::TestDaemon;
-use runtime::events::{ActorConfig, EventEnvelope};
+use ship_substrate::events::{ActorConfig, EventEnvelope};
 
 // ── TestDaemon harness ──────────────────────────────────────────────────────
 
@@ -10,7 +10,7 @@ use runtime::events::{ActorConfig, EventEnvelope};
 async fn harness_provides_clean_environment() {
     let daemon = TestDaemon::new().await;
     assert!(daemon.temp_dir.path().exists());
-    assert!(runtime::ShipHome::project_ship_dir(daemon.temp_dir.path()).exists());
+    assert!(ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).exists());
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -72,8 +72,8 @@ async fn sse_delivers_routed_event_to_registered_agent() {
         .unwrap()
         .with_target("agent.sse-rx");
 
-        let ctx = runtime::events::EmitContext {
-            caller_kind: runtime::events::CallerKind::Mcp,
+        let ctx = ship_substrate::events::EmitContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
             skill_id: None,
             project_id: None,
             session_id: None,
@@ -274,7 +274,7 @@ async fn actor_store_isolation_between_actors() {
     store_a.append(&ev).unwrap();
 
     // Store B cannot see store A's data.
-    let filter = runtime::events::EventFilter::default();
+    let filter = ship_substrate::events::EventFilter::default();
     let results = store_b.query(&filter).unwrap();
     assert!(results.is_empty(), "actor B must not see actor A's events");
 }
@@ -355,8 +355,8 @@ async fn broadcast_routes_to_subscribed_actors() {
     // Route a broadcast event.
     let ev = EventEnvelope::new("mesh.broadcast", "all", &serde_json::json!({"data": "hi"}))
         .unwrap();
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+    let ctx = ship_substrate::events::EmitContext {
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         skill_id: None,
         project_id: None,
         session_id: None,
@@ -382,12 +382,12 @@ async fn mesh_discover_via_router() {
         let mut reg = daemon.state.mesh_registry().write().await;
         reg.insert(
             "agent.discoverable".into(),
-            runtime::services::mesh::MeshEntry {
+            ship_primitives::services::mesh::MeshEntry {
                 agent_id: "agent.discoverable".into(),
                 label: "agent.discoverable".into(),
                 capabilities: vec!["rust".into()],
                 registered_at: chrono::Utc::now(),
-                status: runtime::services::mesh::AgentStatus::Active,
+                status: ship_primitives::services::mesh::AgentStatus::Active,
             },
         );
     }
@@ -442,12 +442,12 @@ async fn runtime_agents_via_harness() {
         let mut reg = daemon.state.mesh_registry().write().await;
         reg.insert(
             "agent.api-test".into(),
-            runtime::services::mesh::MeshEntry {
+            ship_primitives::services::mesh::MeshEntry {
                 agent_id: "agent.api-test".into(),
                 label: "agent.api-test".into(),
                 capabilities: vec!["rust".into()],
                 registered_at: chrono::Utc::now(),
-                status: runtime::services::mesh::AgentStatus::Active,
+                status: ship_primitives::services::mesh::AgentStatus::Active,
             },
         );
     }

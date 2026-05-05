@@ -13,10 +13,10 @@
 //!    Dispatched jobs with no activity in >5 minutes.
 
 use chrono::Utc;
-use runtime::events::executor::DestructionCause;
-use runtime::events::job::event_types;
-use runtime::events::{EventEnvelope, KernelRouter};
-use runtime::services::dispatch_ports::{ExitCause, ExitSignal, JobExecutor};
+use ship_substrate::events::executor::DestructionCause;
+use ship_substrate::events::job::event_types;
+use ship_substrate::events::{EventEnvelope, KernelRouter};
+use ship_primitives::services::dispatch_ports::{ExitCause, ExitSignal, JobExecutor};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -52,7 +52,7 @@ pub(crate) fn start_exit_handler(
                     let exit_signal = signal
                         .exit_code
                         .and_then(|c| if c != 0 { Some("non-zero") } else { None });
-                    runtime::services::orchestrator::emit::emit_process_exited(
+                    ship_primitives::services::orchestrator::emit::emit_process_exited(
                         &kernel,
                         &signal.slug,
                         None,
@@ -114,7 +114,7 @@ pub(crate) fn start_exit_handler(
                     // Record the substrate teardown, then fail the job.
                     // Without cause-awareness this path would have silently
                     // emitted job.completed — the exact bug this slice closes.
-                    runtime::services::orchestrator::emit::emit_executor_session_destroyed(
+                    ship_primitives::services::orchestrator::emit::emit_executor_session_destroyed(
                         &kernel,
                         &signal.slug,
                         "tmux_window",
@@ -180,7 +180,7 @@ async fn sweep_registered(
     }
     tracing::warn!(count = dead.len(), "liveness: sweep found dead handles");
 
-    let jobs = match runtime::projections::job::load_jobs() {
+    let jobs = match ship_substrate::projections::job::load_jobs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("liveness: failed to load jobs for dead slug lookup: {e}");
@@ -207,9 +207,9 @@ async fn sweep_stale_dispatched(
     kernel: &Arc<Mutex<KernelRouter>>,
     registry: &Arc<Mutex<ProcessRegistry>>,
 ) {
-    use runtime::projections::job::JobStatus;
+    use ship_substrate::projections::job::JobStatus;
 
-    let jobs = match runtime::projections::job::load_jobs() {
+    let jobs = match ship_substrate::projections::job::load_jobs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("liveness: stale sweep failed to load jobs: {e}");
@@ -267,7 +267,7 @@ async fn emit_job_event(
         }
     };
 
-    runtime::services::orchestrator::emit::persist_and_route(
+    ship_primitives::services::orchestrator::emit::persist_and_route(
         kernel, envelope, slug, None,
     ).await;
 }

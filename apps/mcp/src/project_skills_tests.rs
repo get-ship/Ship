@@ -38,7 +38,7 @@ fn write_manifest_with_skill_paths(ship_dir: &std::path::Path, paths: &[&str]) {
         r#"{{"id": "test123", "project": {{"skill_paths": [{}]}}}}"#,
         paths_json.join(", ")
     );
-    std::fs::write(ship_dir.join(runtime::config::PRIMARY_CONFIG_FILE), content).unwrap();
+    std::fs::write(ship_dir.join(ship_primitives::config::PRIMARY_CONFIG_FILE), content).unwrap();
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn includes_vars_and_files() {
 #[test]
 fn discovers_skills_from_multiple_paths() {
     let tmp = tempdir().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     write_manifest_with_skill_paths(&ship_dir, &["skills/", "docs/"]);
 
@@ -185,7 +185,7 @@ fn default_no_skill_paths_scans_skills_only() {
 #[test]
 fn duplicate_skill_id_first_path_wins() {
     let tmp = tempdir().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     write_manifest_with_skill_paths(&ship_dir, &["first/", "second/"]);
 

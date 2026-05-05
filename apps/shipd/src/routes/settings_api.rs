@@ -58,12 +58,12 @@ fn cached_providers() -> Vec<ProviderStatus> {
             return cached.clone();
         }
     }
-    let providers: Vec<ProviderStatus> = runtime::agent_export::PROVIDERS
+    let providers: Vec<ProviderStatus> = ship_primitives::agents::providers::PROVIDERS
         .iter()
         .map(|d| {
-            let available = runtime::detect_binary(d.binary);
+            let available = ship_primitives::agents::providers::detect_binary(d.binary);
             let version = if available {
-                runtime::detect_version(d.binary)
+                ship_primitives::agents::providers::detect_version(d.binary)
             } else {
                 None
             };
@@ -95,7 +95,7 @@ fn cached_providers() -> Vec<ProviderStatus> {
 pub async fn list_settings(
     State(_state): State<ApiState>,
 ) -> impl IntoResponse {
-    match runtime::get_all_settings() {
+    match ship_primitives::config::get_all_settings() {
         Ok(settings) => (
             StatusCode::OK,
             Json(MeshResponse {
@@ -141,7 +141,7 @@ pub async fn update_setting(
             }),
         );
     }
-    match runtime::set_setting(&req.key, req.value.clone()) {
+    match ship_primitives::config::set_setting(&req.key, req.value.clone()) {
         Ok(()) => (
             StatusCode::OK,
             Json(MeshResponse {
@@ -176,7 +176,7 @@ pub async fn get_setting(
     State(_state): State<ApiState>,
     Path(key): Path<String>,
 ) -> impl IntoResponse {
-    match runtime::get_setting(&key) {
+    match ship_primitives::config::get_setting(&key) {
         Ok(Some(value)) => (
             StatusCode::OK,
             Json(MeshResponse {

@@ -4,7 +4,7 @@ use anyhow::{Result, anyhow};
 use async_trait::async_trait;
 use rmcp::model::CustomNotification;
 use rmcp::{Peer, RoleServer, model::ServerNotification};
-use runtime::events::{EventEnvelope, Mailbox};
+use ship_substrate::events::{EventEnvelope, Mailbox};
 use std::collections::VecDeque;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -128,7 +128,7 @@ impl EventRelay {
 pub struct ConnectionGuard {
     pub actor_id: std::sync::Mutex<Option<String>>,
     pub relay_handle: std::sync::Mutex<Option<tokio::task::JoinHandle<()>>>,
-    pub kernel: Arc<tokio::sync::Mutex<runtime::events::KernelRouter>>,
+    pub kernel: Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
 }
 
 impl Drop for ConnectionGuard {
@@ -158,8 +158,8 @@ impl Drop for ConnectionGuard {
             )
             .map(|e| e.with_actor_id(&id).with_target(&id))
             {
-                let ctx = runtime::events::EmitContext {
-                    caller_kind: runtime::events::CallerKind::Mcp,
+                let ctx = ship_substrate::events::EmitContext {
+                    caller_kind: ship_substrate::events::CallerKind::Mcp,
                     skill_id: None,
                     project_id: None,
                     session_id: None,
@@ -181,10 +181,10 @@ static MESH_SPAWNED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
 /// Returns the shared registry for the REST API to read.
 /// Idempotent — safe to call multiple times (returns new empty registry on re-call).
 pub async fn spawn_mesh_service(
-    kernel: &Arc<tokio::sync::Mutex<runtime::events::KernelRouter>>,
+    kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
     health_registry: &crate::supervised::HealthRegistry,
-) -> Result<runtime::services::mesh::SharedMeshRegistry> {
-    let registry: runtime::services::mesh::SharedMeshRegistry =
+) -> Result<ship_primitives::services::mesh::SharedMeshRegistry> {
+    let registry: ship_primitives::services::mesh::SharedMeshRegistry =
         Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
 
     if MESH_SPAWNED.set(()).is_err() {
@@ -194,20 +194,20 @@ pub async fn spawn_mesh_service(
     let (outbox_tx, mut outbox_rx) =
         tokio::sync::mpsc::unbounded_channel::<EventEnvelope>();
 
-    let mesh_config = runtime::events::ActorConfig {
+    let mesh_config = ship_substrate::events::ActorConfig {
         namespace: "service.mesh".to_string(),
         write_namespaces: vec!["mesh.".to_string()],
         read_namespaces: vec!["mesh.".to_string()],
         subscribe_namespaces: vec!["mesh.".to_string()],
     };
-    let handler: Box<dyn runtime::services::ServiceHandler> = Box::new(
-        runtime::services::mesh::MeshService::with_shared_registry(
+    let handler: Box<dyn ship_primitives::services::ServiceHandler> = Box::new(
+        ship_primitives::services::mesh::MeshService::with_shared_registry(
             outbox_tx,
             registry.clone(),
         ),
     );
 
-    runtime::services::spawn_service(
+    ship_primitives::services::spawn_service(
         &mut *kernel.lock().await,
         "service.mesh",
         mesh_config,
@@ -218,8 +218,8 @@ pub async fn spawn_mesh_service(
     // Drain outbox → kernel (directed delivery to agent mailboxes)
     let kr = kernel.clone();
     crate::supervised::spawn_monitored(health_registry, "mesh-outbox", async move {
-        let ctx = runtime::events::EmitContext {
-            caller_kind: runtime::events::CallerKind::Mcp,
+        let ctx = ship_substrate::events::EmitContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
             skill_id: None,
             project_id: None,
             session_id: None,

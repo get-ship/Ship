@@ -18,7 +18,7 @@
 
 use std::sync::Arc;
 
-pub use runtime::access::{ConfigAccess, KernelAccess, MeshAccess, SharedKernel};
+pub use ship_substrate::access::{ConfigAccess, KernelAccess, MeshAccess, SharedKernel};
 
 use crate::auth::SessionRegistry;
 use crate::services::agents::service::AgentsService;
@@ -107,7 +107,7 @@ impl KernelAccess for ShipRuntime {
 }
 
 impl MeshAccess for ShipRuntime {
-    fn mesh_registry(&self) -> &runtime::services::mesh::SharedMeshRegistry {
+    fn mesh_registry(&self) -> &ship_primitives::services::mesh::SharedMeshRegistry {
         ShipRuntime::mesh_registry(self)
     }
 }

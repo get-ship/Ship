@@ -19,7 +19,7 @@ fn current_workspace_name() -> Result<String> {
 /// List trashed files for the current workspace.
 pub fn run_trash_list() -> Result<()> {
     let ws = current_workspace_name()?;
-    let entries = runtime::trash::list_trash(&ws)?;
+    let entries = ship_substrate::trash::list_trash(&ws)?;
     if entries.is_empty() {
         println!("No trashed files for workspace '{ws}'.");
         return Ok(());
@@ -48,7 +48,7 @@ pub fn run_trash_list() -> Result<()> {
 
 /// Force purge all trash.
 pub fn run_trash_purge() -> Result<()> {
-    let removed = runtime::trash::purge_old_trash(Duration::ZERO)?;
+    let removed = ship_substrate::trash::purge_old_trash(Duration::ZERO)?;
     println!("Purged {removed} trash entries.");
     Ok(())
 }
@@ -56,7 +56,7 @@ pub fn run_trash_purge() -> Result<()> {
 /// Restore a file from trash.
 pub fn run_restore(filename: &str, dest: Option<PathBuf>) -> Result<()> {
     let ws = current_workspace_name()?;
-    let target = runtime::trash::restore_file(
+    let target = ship_substrate::trash::restore_file(
         &ws,
         filename,
         dest.as_deref(),

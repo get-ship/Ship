@@ -31,7 +31,7 @@ pub fn maybe_open_setup(ship_dir: &Path, port: u16) {
 /// `platform.db` — that one is rewritten on every daemon boot (PID/port
 /// bookkeeping) and its presence doesn't mean the user ever completed setup.
 fn is_first_run(ship_dir: &Path) -> bool {
-    !runtime::db::data_db_path(ship_dir).exists()
+    !ship_substrate::db::data_db_path(ship_dir).exists()
 }
 
 #[cfg(target_os = "linux")]
@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn is_first_run_false_when_data_db_exists() {
         let tmp = TempDir::new().unwrap();
-        let path = runtime::db::data_db_path(tmp.path());
+        let path = ship_substrate::db::data_db_path(tmp.path());
         std::fs::create_dir_all(path.parent().unwrap()).unwrap();
         std::fs::write(&path, b"").unwrap();
         assert!(!is_first_run(tmp.path()));

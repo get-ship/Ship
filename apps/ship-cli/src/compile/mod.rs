@@ -53,7 +53,7 @@ pub struct CompileOptions<'a> {
 }
 
 pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
-    let ship_dir = runtime::ShipHome::project_ship_dir(&opts.project_root);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&opts.project_root);
     let output_root = opts.output_root.unwrap_or(opts.project_root);
 
     // 1. Load raw library from .ship/ (flat layout)
@@ -72,7 +72,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
     {
         let all_skill_refs = collect_all_skill_refs(&library);
         if !all_skill_refs.is_empty() {
-            let lock_path = runtime::ShipHome::project_ship_dir(&opts.project_root).join("ship.lock");
+            let lock_path = ship_substrate::ShipHome::project_ship_dir(&opts.project_root).join("ship.lock");
             let dep_skills = resolve_dep_skills(
                 &all_skill_refs,
                 &library.skills,
@@ -115,7 +115,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
     let mut resolved = resolve_library(&library, None, opts.active_agent);
     // Inject the resolved ship home so the compiler can emit MCP entries
     // with `SHIP_HOME` without reading env directly (it is WASM-safe).
-    let ship_home: runtime::ShipHome = runtime::ShipHome::from_env();
+    let ship_home: ship_substrate::ShipHome = ship_substrate::ShipHome::from_env();
     resolved.ship_home_dir = Some(ship_home.root().to_string_lossy().into_owned());
 
     // 4. Determine providers to compile for
@@ -181,9 +181,9 @@ fn emit_compile_completed(
     providers: &[String],
     plugins_installed: &[String],
 ) {
-    use runtime::events::EventEnvelope;
-    use runtime::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
-    use runtime::persistence::event_store::{EventStore, SqliteEventStore};
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::events::types::{CompileCompleted, event_types::COMPILE_COMPLETED};
+    use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 
     let project_id = match runtime::project::ensure_project_id(ship_dir) {
         Ok(id) => id,

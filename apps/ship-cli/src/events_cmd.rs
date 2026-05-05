@@ -51,7 +51,7 @@ pub fn run_events(
 ) -> Result<()> {
     let since_cutoff = since.as_deref().map(parse_since).transpose()?;
 
-    let mut events = runtime::events::read_events(ship_dir)?;
+    let mut events = ship_substrate::events::read_events(ship_dir)?;
 
     // Apply filters
     if let Some(cutoff) = since_cutoff {

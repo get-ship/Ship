@@ -69,7 +69,7 @@ pub(super) fn server_entry(desc: &ProviderDescriptor, s: &McpServerConfig) -> Js
 }
 
 pub(super) fn ship_server_entry(emit_type: bool, ship_home_dir: Option<&str>) -> Json {
-    // The compiler is WASM-safe and cannot depend on `runtime::ShipHome` or
+    // The compiler is WASM-safe and cannot depend on `ship_substrate::ShipHome` or
     // read environment variables. Callers (CLI/daemon) inject the resolved
     // home path; when absent (e.g. WASM frontends), we omit the env block
     // entirely and let the spawned `ship mcp serve` resolve its own home via

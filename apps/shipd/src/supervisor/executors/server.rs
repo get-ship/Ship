@@ -22,11 +22,11 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use runtime::events::KernelRouter;
-use runtime::services::dispatch_ports::{
+use ship_substrate::events::KernelRouter;
+use ship_primitives::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
-use runtime::services::server_session::{ServerSession, SessionEvent};
+use ship_primitives::services::server_session::{ServerSession, SessionEvent};
 use tokio::sync::Mutex as TokioMutex;
 
 /// Default prompt used when `.artifacts/job-spec.md` is missing — mirrors

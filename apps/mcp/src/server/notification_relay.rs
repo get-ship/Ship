@@ -1,4 +1,4 @@
-use runtime::events::{EventEnvelope, Mailbox};
+use ship_substrate::events::{EventEnvelope, Mailbox};
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;

@@ -1,4 +1,4 @@
-//! Pipeline DAG types — extracted from `runtime::events::job` per
+//! Pipeline DAG types — extracted from `ship_substrate::events::job` per
 //! modular-runtime-01. These types are pure data; the daemon, the
 //! cloud worker (per cloud-specs/08), and the eventual browser embed
 //! all share the same structures.

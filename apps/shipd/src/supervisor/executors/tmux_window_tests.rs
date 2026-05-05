@@ -48,7 +48,7 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
     // Real-tmux integration test. Flaky under parallel test execution
     // because tmux's session init races with sibling tests. Gate with
     // SHIP_TMUX_TESTS=1 to run locally; the default test run skips it.
-    if runtime::env::read_raw(runtime::env::Var::TmuxTests).ok().as_deref() != Some("1") {
+    if ship_substrate::env::read_raw(ship_substrate::env::Var::TmuxTests).ok().as_deref() != Some("1") {
         eprintln!("skipping: set SHIP_TMUX_TESTS=1 to run");
         return;
     }
@@ -56,9 +56,9 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
         eprintln!("skipping: tmux not available");
         return;
     }
-    use runtime::services::dispatch_ports::{LaunchProfile, StepInfo};
+    use ship_primitives::services::dispatch_ports::{LaunchProfile, StepInfo};
     let tmp = tempfile::tempdir().unwrap();
-    let slug = format!("tmuxwintest-{}", &runtime::gen_ulid()[..8].to_lowercase());
+    let slug = format!("tmuxwintest-{}", &ship_substrate::gen_ulid()[..8].to_lowercase());
     let session = session_name(&slug);
 
     let make_ctx = || JobContext {
@@ -109,9 +109,9 @@ async fn resume_handle_refuses_ambiguous_name() {
         eprintln!("skipping: tmux not available");
         return;
     }
-    use runtime::services::dispatch_ports::{LaunchProfile, StepInfo};
+    use ship_primitives::services::dispatch_ports::{LaunchProfile, StepInfo};
     let tmp = tempfile::tempdir().unwrap();
-    let slug = format!("tmuxwintest-{}", &runtime::gen_ulid()[..8].to_lowercase());
+    let slug = format!("tmuxwintest-{}", &ship_substrate::gen_ulid()[..8].to_lowercase());
     let session = session_name(&slug);
 
     let make_ctx = || JobContext {

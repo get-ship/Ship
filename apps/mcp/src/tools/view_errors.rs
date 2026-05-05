@@ -150,14 +150,14 @@ async fn http_delete_errors() -> Result<u64> {
 
 fn read_port(_global_dir: &std::path::Path) -> Result<u16> {
     let cwd = std::env::current_dir().map_err(|e| anyhow!("cwd unavailable: {e}"))?;
-    runtime::home::discover_running_daemon(&cwd)
+    ship_substrate::home::discover_running_daemon(&cwd)
         .map(|h| h.port)
         .ok_or_else(|| anyhow!("ship daemon not running"))
 }
 
 fn read_token(_global_dir: &std::path::Path) -> Result<String> {
     let cwd = std::env::current_dir().map_err(|e| anyhow!("cwd unavailable: {e}"))?;
-    runtime::home::discover_running_daemon(&cwd)
+    ship_substrate::home::discover_running_daemon(&cwd)
         .map(|h| h.token)
         .ok_or_else(|| anyhow!("daemon token missing"))
 }

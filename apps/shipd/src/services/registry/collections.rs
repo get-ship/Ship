@@ -18,9 +18,9 @@ pub(super) fn try_dispatch(
         "collections.state" => {
             let ship_dir = state.ship_dir();
             let project_dir = runtime::project::get_project_dir(None).ok();
-            let mut schemas = runtime::collections::builtin::user_schemas();
+            let mut schemas = ship_primitives::collections::builtin::user_schemas();
             schemas.extend(
-                runtime::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
+                ship_primitives::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
                     .unwrap_or_default(),
             );
             let active_id = args.get("active").and_then(|v| v.as_str())
@@ -29,7 +29,7 @@ pub(super) fn try_dispatch(
             // Same shape build_view_context emitted — field tuples stay
             // as [key, {field_type, required, values, default}] pairs so
             // templates iterate without dict-helpers.
-            fn fields_tuples(s: &runtime::collections::schema::CollectionSchema) -> Vec<serde_json::Value> {
+            fn fields_tuples(s: &ship_primitives::collections::schema::CollectionSchema) -> Vec<serde_json::Value> {
                 s.fields.iter().map(|(k, v)| json!([k, {
                     "field_type": format!("{:?}", v.field_type).to_lowercase(),
                     "required": v.required,
@@ -48,15 +48,15 @@ pub(super) fn try_dispatch(
             let (schema, items, total_items, active_collection) = match active_schema {
                 Some(first) => {
                     let mut items_out: Vec<serde_json::Value> = Vec::new();
-                    if let Ok(mut svc) = runtime::collections::store::open_data_db(ship_dir) {
-                        let _ = runtime::collections::store::ensure_collection_table(&mut svc, first);
-                        let req = runtime::collections::query::QueryRequest {
+                    if let Ok(mut svc) = ship_primitives::collections::store::open_data_db(ship_dir) {
+                        let _ = ship_primitives::collections::store::ensure_collection_table(&mut svc, first);
+                        let req = ship_primitives::collections::query::QueryRequest {
                             collection: first.id.clone(),
                             filter: Default::default(),
                             sort: Default::default(),
                             limit: 200, offset: 0,
                         };
-                        if let Ok(rows) = runtime::collections::store::query_items(&mut svc, first, &req) {
+                        if let Ok(rows) = ship_primitives::collections::store::query_items(&mut svc, first, &req) {
                             items_out = rows.into_iter()
                                 .map(|i| serde_json::to_value(i).unwrap_or_default())
                                 .collect();

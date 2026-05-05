@@ -7,12 +7,12 @@ use crate::supervised;
 /// Spawn `HumanGatewayService` if Telegram env vars are present.
 /// Silently skips if `SHIP_TELEGRAM_TOKEN` or `SHIP_TELEGRAM_CHAT_ID` is absent.
 pub async fn spawn_human_gateway(
-    kernel: &Arc<tokio::sync::Mutex<runtime::events::KernelRouter>>,
+    kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
     health_registry: &supervised::HealthRegistry,
 ) {
-    use runtime::events::ActorConfig;
-    use runtime::services::human_gateway::{HumanGatewayService, TelegramAdapter};
-    use runtime::services::spawn_service;
+    use ship_substrate::events::ActorConfig;
+    use ship_primitives::services::human_gateway::{HumanGatewayService, TelegramAdapter};
+    use ship_primitives::services::spawn_service;
     use std::sync::Arc as StdArc;
 
     let adapter = match TelegramAdapter::from_env() {
@@ -24,7 +24,7 @@ pub async fn spawn_human_gateway(
     };
 
     let (outbox_tx, mut outbox_rx) =
-        tokio::sync::mpsc::unbounded_channel::<runtime::events::EventEnvelope>();
+        tokio::sync::mpsc::unbounded_channel::<ship_substrate::events::EventEnvelope>();
 
     let config = ActorConfig {
         namespace: "service.human-gateway".to_string(),
@@ -33,7 +33,7 @@ pub async fn spawn_human_gateway(
         subscribe_namespaces: vec!["job.".to_string()],
     };
 
-    let handler: Box<dyn runtime::services::ServiceHandler> = Box::new(
+    let handler: Box<dyn ship_primitives::services::ServiceHandler> = Box::new(
         HumanGatewayService::new(StdArc::new(adapter), outbox_tx),
     );
 
@@ -48,8 +48,8 @@ pub async fn spawn_human_gateway(
     // Drain outbox → kernel (currently unused, reserved for future adapter replies)
     let kr = kernel.clone();
     supervised::spawn_monitored(health_registry, "human-gateway-outbox", async move {
-        let ctx = runtime::events::EmitContext {
-            caller_kind: runtime::events::CallerKind::Mcp,
+        let ctx = ship_substrate::events::EmitContext {
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
             skill_id: None,
             project_id: None,
             session_id: None,

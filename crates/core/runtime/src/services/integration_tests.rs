@@ -11,18 +11,18 @@ mod mesh_kernel {
     use tokio::sync::mpsc;
 
     use ship_types::identity::{ActorIdentity, ActorType};
-    use crate::events::kernel_router::{ActorConfig, KernelRouter};
-    use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
-    use crate::events::validator::{CallerKind, EmitContext};
-    use crate::events::{EventEnvelope, Mailbox};
-    use crate::services::mesh::MeshService;
-    use crate::services::{ServiceHandle, spawn_service};
+    use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+    use ship_substrate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
+    use ship_substrate::events::validator::{CallerKind, EmitContext};
+    use ship_substrate::events::{EventEnvelope, Mailbox};
+    use ship_primitives::services::mesh::MeshService;
+    use ship_primitives::services::{ServiceHandle, spawn_service};
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     fn setup() -> (tempfile::TempDir, KernelRouter) {
         let tmp = tempdir().unwrap();
-        let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+        let router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(tmp.path())).unwrap();
         (tmp, router)
     }
 
@@ -377,7 +377,7 @@ mod mesh_kernel {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn backpressure_signals_mailbox_full_to_sender() {
-        use crate::events::kernel_router::MAILBOX_CAPACITY;
+        use ship_substrate::events::kernel_router::MAILBOX_CAPACITY;
 
         let (_tmp, mut router) = setup();
         let (tx, mut outbox) = mpsc::unbounded_channel();

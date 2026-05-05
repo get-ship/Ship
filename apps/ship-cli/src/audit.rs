@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use runtime::security::{self, Severity};
+use ship_primitives::config::security::{self, Severity};
 
 /// Run `ship audit` — scan for hidden Unicode characters.
 pub fn run_audit(path: Option<PathBuf>, json: bool) -> Result<()> {
@@ -9,7 +9,7 @@ pub fn run_audit(path: Option<PathBuf>, json: bool) -> Result<()> {
         Some(p) => p,
         None => {
             let cwd = std::env::current_dir()?;
-            let ship = runtime::ShipHome::project_ship_dir(&cwd);
+            let ship = ship_substrate::ShipHome::project_ship_dir(&cwd);
             if ship.is_dir() { ship } else { cwd }
         }
     };

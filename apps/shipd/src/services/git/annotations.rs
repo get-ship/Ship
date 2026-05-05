@@ -7,8 +7,8 @@
 //! `view_id` is set to `"git"` (or `"git:{workspace_id}"` when a workspace
 //! is active) so comments from other views never bleed in.
 
-use runtime::collections::{builtin::ANNOTATIONS_ID, query::QueryRequest, service};
-use runtime::data::DataService;
+use ship_primitives::collections::{builtin::ANNOTATIONS_ID, query::QueryRequest, service};
+use ship_substrate::data::DataService;
 use serde::Serialize;
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -56,7 +56,7 @@ fn load_from_svc(
         None => "git".to_string(),
     };
 
-    let schema = runtime::collections::builtin::annotations_schema();
+    let schema = ship_primitives::collections::builtin::annotations_schema();
 
     let mut filter = BTreeMap::new();
     filter.insert(

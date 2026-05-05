@@ -10,19 +10,19 @@ mod cross_component {
     use tempfile::tempdir;
 
     use anyhow::Result;
-    use crate::events::filter::EventFilter;
+    use ship_substrate::events::filter::EventFilter;
     use ship_types::identity::{ActorIdentity, ActorType};
-    use crate::events::kernel_router::{ActorConfig, KernelRouter};
-    use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
-    use crate::events::validator::{CallerKind, EmitContext};
-    use crate::events::{ActorStore, EventEnvelope};
-    use crate::services::{ServiceHandler, spawn_service};
+    use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+    use ship_substrate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
+    use ship_substrate::events::validator::{CallerKind, EmitContext};
+    use ship_substrate::events::{ActorStore, EventEnvelope};
+    use ship_primitives::services::{ServiceHandler, spawn_service};
 
     // ── Fixtures ──────────────────────────────────────────────────────────────
 
     fn setup() -> (tempfile::TempDir, KernelRouter) {
         let tmp = tempdir().unwrap();
-        let router = KernelRouter::new(crate::ShipHome::project_ship_dir(tmp.path())).unwrap();
+        let router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(tmp.path())).unwrap();
         (tmp, router)
     }
 

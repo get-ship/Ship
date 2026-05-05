@@ -173,7 +173,7 @@ fn pidfile_adapter_start_stop_round_trip() {
     let ctx = StartContext {
         host: "127.0.0.1".to_string(),
         dev: true,
-        global_dir: runtime::ShipHome::from_env().root().to_path_buf(),
+        global_dir: ship_substrate::ShipHome::from_env().root().to_path_buf(),
     };
     PidfileAdapter.start(&ctx).expect("start");
     PidfileAdapter.stop().expect("stop");

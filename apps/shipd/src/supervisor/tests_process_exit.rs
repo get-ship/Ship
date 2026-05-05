@@ -5,8 +5,8 @@
 //! that verify the executor files wire up exit_tx rather than legacy curl.
 
 use async_trait::async_trait;
-use runtime::events::kernel_router::{ActorConfig, KernelRouter};
-use runtime::services::dispatch_ports::{
+use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+use ship_primitives::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
 use std::sync::Arc;
@@ -63,7 +63,7 @@ fn dead_handle() -> ExecutorHandle {
 
 fn setup_kernel() -> (TempDir, Arc<Mutex<KernelRouter>>) {
     let dir = TempDir::new().unwrap();
-    let router = KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
+    let router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
     (dir, Arc::new(Mutex::new(router)))
 }
 

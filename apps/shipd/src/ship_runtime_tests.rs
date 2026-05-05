@@ -122,10 +122,10 @@ async fn job_manager_accessible() {
 async fn shutdown_cleans_files() {
     let (dir, rt) = make_runtime().await;
     let base = dir.path();
-    let home = runtime::ShipHome::at(base.to_path_buf());
-    let token_path = home.daemon_file(runtime::DaemonFile::Token);
-    let port_path = home.daemon_file(runtime::DaemonFile::Port);
-    let pid_path = home.daemon_file(runtime::DaemonFile::Pid);
+    let home = ship_substrate::ShipHome::at(base.to_path_buf());
+    let token_path = home.daemon_file(ship_substrate::home::DaemonFile::Token);
+    let port_path = home.daemon_file(ship_substrate::home::DaemonFile::Port);
+    let pid_path = home.daemon_file(ship_substrate::home::DaemonFile::Pid);
 
     // Simulate the files that run_network writes on startup.
     std::fs::create_dir_all(token_path.parent().unwrap()).unwrap();

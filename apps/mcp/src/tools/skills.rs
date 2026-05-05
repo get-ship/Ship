@@ -2,7 +2,8 @@ use std::path::{Path, PathBuf};
 
 use compiler::PullSkill;
 use compiler::types::is_valid_skill_name;
-use runtime::{get_skill_vars, list_effective_skills, list_skill_vars, set_skill_var};
+use ship_primitives::agents::skill::list_effective_skills;
+use ship_primitives::agents::skill_vars::{get_skill_vars, list_skill_vars, set_skill_var};
 
 use crate::requests::{
     DeleteSkillFileRequest, GetSkillVarsRequest, ListProjectSkillsRequest, ListSkillVarsRequest,
@@ -11,7 +12,7 @@ use crate::requests::{
 use crate::tools::skill_files::{collect_reference_docs, collect_skill_files, parse_skill_frontmatter};
 
 pub fn list_skills(project_dir: &Path, req: ListSkillsRequest) -> String {
-    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
     let skills = match list_effective_skills(&ship_dir) {
         Ok(s) => s,
         Err(e) => return format!("Error listing skills: {}", e),
@@ -52,12 +53,12 @@ pub fn list_skills(project_dir: &Path, req: ListSkillsRequest) -> String {
 pub fn list_project_skills(project_dir: &Path, req: ListProjectSkillsRequest) -> String {
     // project_dir is the project root (e.g. /workspaces/ship).
     // read_skill_paths expects the .ship directory.
-    let ship_dir = if runtime::ShipHome::project_ship_dir(project_dir).is_dir() {
-        runtime::ShipHome::project_ship_dir(project_dir)
+    let ship_dir = if ship_substrate::ShipHome::project_ship_dir(project_dir).is_dir() {
+        ship_substrate::ShipHome::project_ship_dir(project_dir)
     } else {
         project_dir.to_path_buf()
     };
-    let skill_dirs = runtime::read_skill_paths(&ship_dir, project_dir);
+    let skill_dirs = ship_primitives::agents::skill_paths::read_skill_paths(&ship_dir, project_dir);
     tracing::info!(
         "list_project_skills: ship_dir={}, skill_dirs={:?}",
         ship_dir.display(),
@@ -139,7 +140,7 @@ fn read_skill_from_dir(id: &str, skill_dir: &Path) -> Option<PullSkill> {
 
 /// `get_skill_vars` MCP tool — return merged variable state for a skill.
 pub fn get_skill_vars_tool(project_dir: &Path, req: GetSkillVarsRequest) -> String {
-    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
     match get_skill_vars(&ship_dir, &req.skill_id) {
         Ok(Some(vars)) => match serde_json::to_string_pretty(&vars) {
             Ok(json) => json,
@@ -155,7 +156,7 @@ pub fn get_skill_vars_tool(project_dir: &Path, req: GetSkillVarsRequest) -> Stri
 
 /// `set_skill_var` MCP tool — write a single variable value.
 pub fn set_skill_var_tool(project_dir: &Path, req: SetSkillVarRequest) -> String {
-    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
     let value: serde_json::Value = match serde_json::from_str(&req.value_json) {
         Ok(v) => v,
         Err(e) => {
@@ -174,7 +175,7 @@ pub fn set_skill_var_tool(project_dir: &Path, req: SetSkillVarRequest) -> String
 
 /// `list_skill_vars` MCP tool — list all skills with configured variables.
 pub fn list_skill_vars_tool(project_dir: &Path, req: ListSkillVarsRequest) -> String {
-    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
     let all = match list_skill_vars(&ship_dir) {
         Ok(v) => v,
         Err(e) => return format!("Error listing skill vars: {e}"),
@@ -226,7 +227,7 @@ fn resolve_skill_file_path(
     }
     // Write to the first configured skill_path (default: "skills/")
     let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let write_base = runtime::read_skill_paths(ship_dir, project_root)
+    let write_base = ship_primitives::agents::skill_paths::read_skill_paths(ship_dir, project_root)
         .into_iter()
         .next()
         .unwrap_or_else(|| ship_dir.join("skills"));

@@ -24,7 +24,7 @@ pub fn run_views(
     rules: &[String],
     format: OutputFormat,
 ) -> Result<()> {
-    let views_root = runtime::ShipHome::project_ship_dir(project_root).join("views");
+    let views_root = ship_substrate::ShipHome::project_ship_dir(project_root).join("views");
     if !views_root.exists() {
         anyhow::bail!(
             ".ship/views/ not found at {}. Nothing to lint.",

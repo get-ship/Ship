@@ -4,9 +4,9 @@
 //! daemon restarts, agent crashes, stuck jobs, resource leaks, and
 //! concurrent operations. They define what "stable" means for v0.2.0.
 
-use runtime::events::job::event_types;
-use runtime::events::EventEnvelope;
-use runtime::projections::job::{project, JobStatus};
+use ship_substrate::events::job::event_types;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::projections::job::{project, JobStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let job_id = payload["job_id"].as_str().unwrap_or("test");

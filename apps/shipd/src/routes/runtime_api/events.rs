@@ -7,8 +7,8 @@ use axum::{
     response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{ActorConfig, EventEnvelope};
-use runtime::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::{ActorConfig, EventEnvelope};
+use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -50,14 +50,14 @@ pub async fn poll_events(
 ) -> impl IntoResponse {
     let limit = params.limit.unwrap_or(200).min(2000);
     let ship_dir = state.ship_dir();
-    if let Err(e) = runtime::db::ensure_db_at(ship_dir) {
+    if let Err(e) = ship_substrate::db::ensure_db_at(ship_dir) {
         return (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
         );
     }
     // Read the most recent N events ascending; we filter in memory.
-    let events = match runtime::db::events::list_recent_events_at(ship_dir, 5_000) {
+    let events = match ship_substrate::db::events::list_recent_events_at(ship_dir, 5_000) {
         Ok(e) => e,
         Err(e) => {
             return (
@@ -156,7 +156,7 @@ pub async fn event_stream(
         kernel.spawn_actor(&actor_id, config).map(|(_store, mb)| mb).map_err(|e| {
             tracing::warn!("event_stream: actor spawn failed: {e}");
             let status = match &e {
-                runtime::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
+                ship_substrate::errors::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
                 _ => StatusCode::INTERNAL_SERVER_ERROR,
             };
             (status, e.to_string())

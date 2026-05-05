@@ -135,16 +135,16 @@ fn github_convert_writes_profiles_rules_and_mcp() {
         .unwrap();
 
         assert!(
-            runtime::ShipHome::project_ship_dir(tmp).join("agents/rust-expert.toml").exists(),
+            ship_substrate::ShipHome::project_ship_dir(tmp).join("agents/rust-expert.toml").exists(),
             "agent written"
         );
         assert!(
-            runtime::ShipHome::project_ship_dir(tmp).join("rules/no-panics.md").exists(),
+            ship_substrate::ShipHome::project_ship_dir(tmp).join("rules/no-panics.md").exists(),
             "rule written"
         );
-        let rule = std::fs::read_to_string(runtime::ShipHome::project_ship_dir(tmp).join("rules/no-panics.md")).unwrap();
+        let rule = std::fs::read_to_string(ship_substrate::ShipHome::project_ship_dir(tmp).join("rules/no-panics.md")).unwrap();
         assert_eq!(rule, "Never use unwrap()");
-        assert!(runtime::ShipHome::project_ship_dir(tmp).join("mcp.toml").exists(), "mcp written");
+        assert!(ship_substrate::ShipHome::project_ship_dir(tmp).join("mcp.toml").exists(), "mcp written");
     });
 
     mock.assert();
@@ -198,7 +198,7 @@ fn github_convert_skips_duplicate_mcp_servers() {
         convert_github::convert_from_github_with_base("https://github.com/acme/repo", &base)
             .unwrap();
 
-        let mcp_path = runtime::ShipHome::project_ship_dir(tmp).join("mcp.toml");
+        let mcp_path = ship_substrate::ShipHome::project_ship_dir(tmp).join("mcp.toml");
         let mcp = McpFile::load(&mcp_path).unwrap();
         assert_eq!(
             mcp.servers.len(),

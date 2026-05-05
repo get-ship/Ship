@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
-use runtime::events::EventEnvelope;
-use runtime::events::types::{
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::types::{
     SessionEnded, SessionStarted, SkillCompleted, SkillFailed, SkillStarted,
     event_types,
 };

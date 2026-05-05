@@ -52,7 +52,7 @@ impl ActorStore {
     /// Open an ActorStore for the given actor, backed by platform.db.
     ///
     /// `base_dir` is the global Ship directory (e.g. `~/.ship`). Platform.db
-    /// must have been initialised already (via `runtime::db::ensure_db_at`).
+    /// must have been initialised already (via `ship_substrate::db::ensure_db_at`).
     pub fn open(
         actor_id: &str,
         base_dir: &Path,

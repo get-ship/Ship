@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 
 use compiler::manifest::ShipManifest;
-use runtime::registry::hash::{ExportHashes, compute_export_hashes};
+use ship_primitives::registry::hash::{ExportHashes, compute_export_hashes};
 
 use crate::config::{Credentials, DiskBackedConfig};
 
@@ -147,7 +147,7 @@ pub fn run_publish(
     is_dry_run: bool,
     tag: Option<&str>,
 ) -> Result<()> {
-    let ship_dir = runtime::ShipHome::project_ship_dir(root);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(root);
     let manifest_path = ship_dir.join("ship.jsonc");
     let manifest = ShipManifest::from_file(&manifest_path)
         .context("reading .ship/ship.jsonc — is this a Ship project?")?;

@@ -4,9 +4,9 @@
 //! The projection is derived entirely from events — no side channels.
 //! These properties are the foundation of the entire system.
 
-use runtime::events::job::event_types;
-use runtime::events::EventEnvelope;
-use runtime::projections::job::{project, JobStatus};
+use ship_substrate::events::job::event_types;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::projections::job::{project, JobStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let job_id = payload["job_id"].as_str().unwrap_or("test");

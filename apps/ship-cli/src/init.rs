@@ -16,7 +16,7 @@ pub fn run(global: bool, provider: Option<String>) -> Result<()> {
 
 fn run_global() -> Result<()> {
     paths::ensure_global_dirs()?;
-    let home = runtime::ShipHome::from_env();
+    let home = ship_substrate::ShipHome::from_env();
     let settings_path = home.settings_path();
     if !settings_path.exists() {
         // settings.jsonc lives in library/ — the canonical user-prefs file

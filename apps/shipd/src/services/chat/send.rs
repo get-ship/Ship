@@ -45,7 +45,7 @@ pub async fn send_message(
         "summary": text,
         "workspace_id": req.workspace_id,
     });
-    let mut envelope = match runtime::events::EventEnvelope::new(
+    let mut envelope = match ship_substrate::events::EventEnvelope::new(
         "studio.message",
         &entity,
         &payload,
@@ -65,8 +65,8 @@ pub async fn send_message(
     if let Some(ws) = req.workspace_id.as_deref() {
         envelope = envelope.with_context(Some(ws), None);
     }
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Cli,
+    let ctx = ship_substrate::events::EmitContext {
+        caller_kind: ship_substrate::events::CallerKind::Cli,
         skill_id: None,
         project_id: req.workspace_id.clone(),
         session_id: None,

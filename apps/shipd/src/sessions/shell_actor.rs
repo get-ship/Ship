@@ -1,7 +1,7 @@
 //! Shell sessions on the supervisor primitive.
 //!
 //! Replaces `lifecycle::spawn_shell` for the Shell kind. Builds an
-//! `ActorProfile`, calls `runtime::supervisor::spawn_actor`, and inserts
+//! `ActorProfile`, calls `ship_substrate::supervisor::spawn_actor`, and inserts
 //! into `ActorRegistry`. The supervisor primitive owns the kernel
 //! registration, PTY hold, log file, and `actor.created` emission — this
 //! function's only job is shell-specific shape (env, work dir, $SHELL)
@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use chrono::Utc;
-use runtime::supervisor::{spawn_actor, ActorKind, ActorProfile, TransportKind};
+use ship_substrate::supervisor::{spawn_actor, ActorKind, ActorProfile, TransportKind};
 
 use super::actor_registry::{ActorEntry, ActorRegistry};
 use super::types::{SessionKind, SessionMeta, SessionStatus};

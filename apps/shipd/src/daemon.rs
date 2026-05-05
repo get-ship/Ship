@@ -28,7 +28,7 @@ fn ensure_daemon_dir(daemon_dir: &Path) -> Result<()> {
 /// Honors per-worktree daemons (devx-04) via `discover_running_daemon`.
 pub fn network_status() -> Result<()> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    match runtime::home::discover_running_daemon(&cwd) {
+    match ship_substrate::home::discover_running_daemon(&cwd) {
         Some(handle) => println!("shipd: running on port {}", handle.port),
         None => println!("shipd: not running"),
     }
@@ -38,7 +38,7 @@ pub fn network_status() -> Result<()> {
 /// Send SIGTERM to the network daemon serving the current cwd.
 pub fn network_stop() -> Result<()> {
     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
-    let handle = runtime::home::discover_running_daemon(&cwd)
+    let handle = ship_substrate::home::discover_running_daemon(&cwd)
         .ok_or_else(|| anyhow!("shipd is not running (no daemon for {})", cwd.display()))?;
     let pid = match handle.pid {
         Some(p) => p,
@@ -355,7 +355,8 @@ mod path_layout_tests {
     //! `<root>/machine/daemons/<hash>/` (devx-04). The helpers treat
     //! `daemon_dir` as opaque; policy lives in the caller.
     use super::*;
-    use runtime::{DaemonFile, ShipHome};
+    use ship_substrate::ShipHome;
+    use ship_substrate::home::DaemonFile;
     use tempfile::TempDir;
 
     #[test]

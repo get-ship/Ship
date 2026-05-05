@@ -1,9 +1,9 @@
 use crate::resource_resolver::resolve_resource_uri;
-use runtime::db::ensure_db;
-use runtime::db::ensure_db_at;
-use runtime::events::{EventStore, SqliteEventStore};
+use ship_substrate::db::ensure_db;
+use ship_substrate::db::ensure_db_at;
+use ship_substrate::events::{EventStore, SqliteEventStore};
 use runtime::project::init_project;
-use runtime::EventEnvelope;
+use ship_substrate::events::EventEnvelope;
 use std::future;
 use tempfile::tempdir;
 
@@ -207,7 +207,7 @@ async fn skill_get_includes_overridden_variable() {
     );
 
     // Override the variable
-    runtime::set_skill_var(&ship_dir, "commit", "commit_style", serde_json::json!("gitmoji"))
+    ship_primitives::agents::skill_vars::set_skill_var(&ship_dir, "commit", "commit_style", serde_json::json!("gitmoji"))
         .unwrap();
 
     let result = resolve("ship://skills/commit", &ship_dir).await.unwrap();

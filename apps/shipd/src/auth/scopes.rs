@@ -204,7 +204,7 @@ pub fn persist_session(session: &DaemonSession) {
             return;
         }
     };
-    let payload = runtime::events::types::AuthSessionCreated {
+    let payload = ship_substrate::events::types::AuthSessionCreated {
         agent_id: session.agent_id.clone(),
         scopes_json,
         project_id: session.workspace_id.clone(),
@@ -215,8 +215,8 @@ pub fn persist_session(session: &DaemonSession) {
         // doesn't gate behavior on this; it's audit metadata.
         source: "persist".to_string(),
     };
-    let envelope = match runtime::events::EventEnvelope::new(
-        runtime::events::types::event_types::AUTH_SESSION_CREATED,
+    let envelope = match ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::AUTH_SESSION_CREATED,
         &session.token,
         &payload,
     ) {
@@ -226,14 +226,14 @@ pub fn persist_session(session: &DaemonSession) {
             return;
         }
     };
-    let store = match runtime::persistence::event_store::SqliteEventStore::new() {
+    let store = match ship_substrate::persistence::event_store::SqliteEventStore::new() {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("session persist: store open failed: {e}");
             return;
         }
     };
-    if let Err(e) = runtime::persistence::event_store::EventStore::append(&store, &envelope) {
+    if let Err(e) = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope) {
         tracing::warn!("session persist: append failed: {e}");
     }
 }
@@ -241,11 +241,11 @@ pub fn persist_session(session: &DaemonSession) {
 /// Revoke a persisted session via an `auth.session.revoked` event. Soft-
 /// deletes in the projection; row stays for audit.
 pub fn remove_persisted_session(token: &str) {
-    let payload = runtime::events::types::AuthSessionRevoked {
+    let payload = ship_substrate::events::types::AuthSessionRevoked {
         reason: "user".to_string(),
     };
-    let envelope = match runtime::events::EventEnvelope::new(
-        runtime::events::types::event_types::AUTH_SESSION_REVOKED,
+    let envelope = match ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::AUTH_SESSION_REVOKED,
         token,
         &payload,
     ) {
@@ -255,14 +255,14 @@ pub fn remove_persisted_session(token: &str) {
             return;
         }
     };
-    let store = match runtime::persistence::event_store::SqliteEventStore::new() {
+    let store = match ship_substrate::persistence::event_store::SqliteEventStore::new() {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("session revoke: store open failed: {e}");
             return;
         }
     };
-    if let Err(e) = runtime::persistence::event_store::EventStore::append(&store, &envelope) {
+    if let Err(e) = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope) {
         tracing::warn!("session revoke: append failed: {e}");
     }
 }
@@ -272,7 +272,7 @@ pub fn remove_persisted_session(token: &str) {
 /// lookup. Expired rows are skipped (they'll be cleaned up by future
 /// auth.session.expired events; out-of-band sweeps not yet implemented).
 pub async fn hydrate_sessions(registry: &SessionRegistry) {
-    let rows = match runtime::projections::auth::list_active_sessions() {
+    let rows = match ship_substrate::projections::auth::list_active_sessions() {
         Ok(rows) => rows,
         Err(e) => {
             tracing::warn!("session hydrate: list failed: {e}");

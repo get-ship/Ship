@@ -3,12 +3,12 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use runtime::events::executor::DestructionCause;
-use runtime::events::KernelRouter;
-use runtime::services::dispatch_ports::{
+use ship_substrate::events::executor::DestructionCause;
+use ship_substrate::events::KernelRouter;
+use ship_primitives::services::dispatch_ports::{
     AgentPlatform, ExitSignal, ExecutorHandle, JobExecutor, ProcessRegistryPort,
 };
-use runtime::services::orchestrator::emit::emit_executor_session_destroyed;
+use ship_primitives::services::orchestrator::emit::emit_executor_session_destroyed;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -84,7 +84,7 @@ impl AgentPlatform for ShipdPlatform {
 
     fn start_exit_handler(
         &self,
-        kernel: Arc<Mutex<runtime::events::KernelRouter>>,
+        kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
         exit_rx: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>,
     ) {
         super::liveness::start_exit_handler(kernel, self.registry.clone(), exit_rx);
@@ -92,7 +92,7 @@ impl AgentPlatform for ShipdPlatform {
 
     fn start_liveness_sweep(
         &self,
-        kernel: Arc<Mutex<runtime::events::KernelRouter>>,
+        kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
     ) {
         super::liveness::start_liveness_sweep(kernel, self.registry.clone(), self.executor.clone(), &self.health_registry);
     }
@@ -114,8 +114,8 @@ impl AgentPlatform for MockPlatform {
     async fn graceful_agent_exit(&self, _: &str, _: Option<&str>) {}
     async fn cleanup_job(&self, _: &str, _: &str) {}
     fn git_merge(&self, _: &str) -> Result<bool> { Ok(true) }
-    fn start_exit_handler(&self, _: Arc<Mutex<runtime::events::KernelRouter>>, _: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>) {}
-    fn start_liveness_sweep(&self, _: Arc<Mutex<runtime::events::KernelRouter>>) {}
+    fn start_exit_handler(&self, _: Arc<Mutex<ship_substrate::events::KernelRouter>>, _: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>) {}
+    fn start_liveness_sweep(&self, _: Arc<Mutex<ship_substrate::events::KernelRouter>>) {}
     async fn cleanup_orphaned_worktrees(&self) {}
 }
 

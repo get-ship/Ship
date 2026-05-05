@@ -27,12 +27,12 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use runtime::events::KernelRouter;
-use runtime::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
-use runtime::services::provider_adapter::adapter_for_or_default;
-use runtime::services::providers::codex_session::CodexSession;
-use runtime::services::providers::opencode_session::OpenCodeSession;
-use runtime::services::server_session::ServerSession;
+use ship_substrate::events::KernelRouter;
+use ship_primitives::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
+use ship_primitives::services::provider_adapter::adapter_for_or_default;
+use ship_primitives::services::providers::codex_session::CodexSession;
+use ship_primitives::services::providers::opencode_session::OpenCodeSession;
+use ship_primitives::services::server_session::ServerSession;
 use tokio::sync::Mutex;
 
 use super::{ProcessExecutor, ServerExecutor, TmuxWindowExecutor};
@@ -223,7 +223,7 @@ impl JobExecutor for RoutingExecutor {
         let transport = if ctx.headless { "headless" } else { "pty" };
         let transport = transport.to_string();
         std::thread::spawn(move || {
-            let _ = runtime::db::actor_events::emit_actor_created_simple(
+            let _ = ship_substrate::db::actor_events::emit_actor_created_simple(
                 &actor_id,
                 kind,
                 Some(&workspace_id),

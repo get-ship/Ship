@@ -8,7 +8,7 @@ use super::*;
 
 fn full_auth() -> axum::Extension<crate::auth::AuthContext> {
     axum::Extension(crate::auth::AuthContext {
-        caller_kind: runtime::events::CallerKind::Cli,
+        caller_kind: ship_substrate::events::CallerKind::Cli,
         agent_id: None,
         workspace_id: None,
         session_id: None,
@@ -27,22 +27,22 @@ fn test_branch(name: &str) -> String {
 /// Set up a project_api test environment. Returns `(branch, ApiState)`
 /// — branch is just a label for tests; runtime no longer tracks workspaces.
 fn create_test_workspace(dir: &TempDir) -> (String, crate::rest_api::ApiState) {
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     let branch = test_branch("ws");
     (branch, make_api_state_with_dir(&ship_dir))
 }
 
 fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     make_api_state_with_dir(&ship_dir)
 }
 
 fn make_api_state_with_dir(ship_dir: &std::path::Path) -> crate::rest_api::ApiState {
     std::fs::create_dir_all(ship_dir).unwrap();
-    runtime::db::ensure_db_at(ship_dir).unwrap();
-    let kernel = runtime::events::init_kernel_router(ship_dir.to_path_buf()).unwrap();
+    ship_substrate::db::ensure_db_at(ship_dir).unwrap();
+    let kernel = ship_substrate::events::init_kernel_router(ship_dir.to_path_buf()).unwrap();
     std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(
         ship_dir.to_path_buf(),
         kernel,
@@ -194,7 +194,7 @@ async fn list_agents_empty() {
 #[tokio::test(flavor = "multi_thread")]
 async fn list_agents_reads_jsonc() {
     let dir = TempDir::new().unwrap();
-    let agents_dir = runtime::ShipHome::project_ship_dir(dir.path()).join("agents");
+    let agents_dir = ship_substrate::ShipHome::project_ship_dir(dir.path()).join("agents");
     std::fs::create_dir_all(&agents_dir).unwrap();
     std::fs::write(
         agents_dir.join("test-agent.jsonc"),
@@ -224,7 +224,7 @@ async fn list_agents_reads_jsonc() {
 #[tokio::test(flavor = "multi_thread")]
 async fn list_agents_strips_comments() {
     let dir = TempDir::new().unwrap();
-    let agents_dir = runtime::ShipHome::project_ship_dir(dir.path()).join("agents");
+    let agents_dir = ship_substrate::ShipHome::project_ship_dir(dir.path()).join("agents");
     std::fs::create_dir_all(&agents_dir).unwrap();
     std::fs::write(
         agents_dir.join("commented.jsonc"),

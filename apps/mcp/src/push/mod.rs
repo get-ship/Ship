@@ -14,7 +14,7 @@ pub mod mcp_notification;
 
 use async_trait::async_trait;
 use rmcp::{Peer, RoleServer};
-use runtime::events::EventEnvelope;
+use ship_substrate::events::EventEnvelope;
 
 /// Push adapter trait — provider-specific event delivery.
 ///

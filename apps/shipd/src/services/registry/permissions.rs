@@ -57,7 +57,7 @@ pub(super) fn try_dispatch(
             // Per-server `mcp__<server>__*` wildcards via McpService.
             let project_root = state.ship_dir().parent().map(Path::to_path_buf)
                 .unwrap_or_else(|| state.ship_dir().to_path_buf());
-            if let Ok(servers) = runtime::config::list_mcp_servers(Some(project_root)) {
+            if let Ok(servers) = ship_primitives::config::list_mcp_servers(Some(project_root)) {
                 for server in servers {
                     let sid = if server.id.is_empty() { server.name.clone() } else { server.id };
                     out.push(json!({

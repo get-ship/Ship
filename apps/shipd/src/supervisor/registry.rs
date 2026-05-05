@@ -2,8 +2,8 @@
 //! and reconciliation.
 
 use futures::future::join_all;
-use runtime::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
-use runtime::services::dispatch_ports::{ExecutorHandle, JobExecutor};
+use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
+use ship_primitives::services::dispatch_ports::{ExecutorHandle, JobExecutor};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -120,7 +120,7 @@ pub(crate) async fn graceful_shutdown(
 ) {
     // 1. Emit supervisor.shutting_down event
     let envelope = match EventEnvelope::new(
-        runtime::events::types::event_types::SUPERVISOR_SHUTTING_DOWN,
+        ship_substrate::events::types::event_types::SUPERVISOR_SHUTTING_DOWN,
         "supervisor",
         &serde_json::json!({
             "agent_count": registry.len(),

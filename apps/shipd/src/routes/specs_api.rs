@@ -26,7 +26,7 @@ use crate::services::specs::shape::{
     spec_from_item,
 };
 
-use runtime::collections::builtin::SPECS_ID;
+use ship_primitives::collections::builtin::SPECS_ID;
 
 type Resp = (StatusCode, Json<MeshResponse>);
 
@@ -146,7 +146,7 @@ pub struct UpdateSpecRequest {
     tag = "specs"
 )]
 pub async fn list_specs(State(state): State<ApiState>) -> impl IntoResponse {
-    let req = runtime::collections::query::QueryRequest {
+    let req = ship_primitives::collections::query::QueryRequest {
         collection: SPECS_ID.to_string(),
         filter: Default::default(),
         sort: {
@@ -218,7 +218,7 @@ pub async fn create_spec(
     if req.title.trim().is_empty() {
         return err(StatusCode::BAD_REQUEST, "title is required");
     }
-    let id = runtime::gen_ulid();
+    let id = ship_substrate::gen_ulid();
     let body_path = default_body_path(&id);
     if let Err(e) = save_body(&body_path, &req.body) {
         return err(StatusCode::INTERNAL_SERVER_ERROR, format!("save body: {e}"));

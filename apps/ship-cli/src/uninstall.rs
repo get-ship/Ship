@@ -22,10 +22,10 @@ const PATH_SENTINEL: &str = "# ship-installer:path";
 
 pub fn run(yes: bool) -> Result<()> {
     let home = dirs::home_dir().context("cannot resolve $HOME")?;
-    let ship_home = runtime::env::read_raw(runtime::env::Var::Home)
+    let ship_home = ship_substrate::env::read_raw(ship_substrate::env::Var::Home)
         .ok()
         .map(PathBuf::from)
-        .unwrap_or_else(|| runtime::ShipHome::project_ship_dir(&home));
+        .unwrap_or_else(|| ship_substrate::ShipHome::project_ship_dir(&home));
 
     if !yes && !confirm(&ship_home)? {
         println!("aborted.");

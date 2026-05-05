@@ -46,7 +46,7 @@ pub fn run(repo_root: &Path) -> Result<()> {
         &out_dir.join("sdk-collections.json"),
         "sdk-collections",
         collect_jsonc_dir(
-            &runtime::ShipHome::project_ship_dir(repo_root).join("collections"),
+            &ship_substrate::ShipHome::project_ship_dir(repo_root).join("collections"),
             |v| v.get("id").and_then(|x| x.as_str()).map(str::to_owned),
         )?,
     )?;
@@ -54,14 +54,14 @@ pub fn run(repo_root: &Path) -> Result<()> {
         &out_dir.join("sdk-triggers.json"),
         "sdk-triggers",
         collect_jsonc_dir(
-            &runtime::ShipHome::project_ship_dir(repo_root).join("triggers"),
+            &ship_substrate::ShipHome::project_ship_dir(repo_root).join("triggers"),
             |v| v.get("name").and_then(|x| x.as_str()).map(str::to_owned),
         )?,
     )?;
     write_doc(
         &out_dir.join("sdk-views.json"),
         "sdk-views",
-        collect_view_manifests(&runtime::ShipHome::project_ship_dir(repo_root).join("views"))?,
+        collect_view_manifests(&ship_substrate::ShipHome::project_ship_dir(repo_root).join("views"))?,
     )?;
     write_doc(
         &out_dir.join("sdk-ship-ops.json"),

@@ -17,7 +17,7 @@ use crate::rest_api::ApiState;
 use crate::services::collections::service::{
     CollectionsService, CreateItemArgs, Error as CollectionsError, UpdateItemArgs,
 };
-use runtime::collections::{query::QueryRequest, schema};
+use ship_primitives::collections::{query::QueryRequest, schema};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

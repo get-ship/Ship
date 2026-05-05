@@ -83,7 +83,7 @@ fn refresh_workspaces(state: &mut TopState, _ship_dir: &Path) {
 
 fn refresh_sessions(state: &mut TopState) {
     state.sessions.clear();
-    match runtime::db::session::list_sessions_db(None, 50) {
+    match ship_substrate::db::session::list_sessions_db(None, 50) {
         Ok(sessions) => {
             for s in sessions {
                 state.sessions.push(SessionRow {
@@ -105,7 +105,7 @@ fn refresh_sessions(state: &mut TopState) {
 fn refresh_events(state: &mut TopState, ship_dir: &Path) {
     // First load: get recent events. Subsequent: incremental via cursor.
     if state.event_cursor.is_none() {
-        match runtime::read_recent_events(ship_dir, MAX_EVENTS) {
+        match ship_substrate::events::read_recent_events(ship_dir, MAX_EVENTS) {
             Ok(events) => {
                 for e in events {
                     let id = e.id.clone();
@@ -117,7 +117,7 @@ fn refresh_events(state: &mut TopState, ship_dir: &Path) {
         }
         return;
     }
-    match runtime::query_events_since(state.event_cursor.as_deref(), false) {
+    match ship_substrate::events::query_events_since(state.event_cursor.as_deref(), false) {
         Ok(new_events) => {
             for e in new_events {
                 let id = e.id.clone();
@@ -136,7 +136,7 @@ fn refresh_agents(state: &mut TopState) {
     state.agents.clear();
 
     // Reconstruct mesh agents from event log.
-    if let Ok(events) = runtime::query_events_since(None, false) {
+    if let Ok(events) = ship_substrate::events::query_events_since(None, false) {
         let mut agents: std::collections::HashMap<String, AgentRow> =
             std::collections::HashMap::new();
         for e in &events {
@@ -180,7 +180,7 @@ fn refresh_agents(state: &mut TopState) {
     }
 
     // Actor count from KernelRouter (if initialized).
-    if let Some(kr) = runtime::events::kernel_router()
+    if let Some(kr) = ship_substrate::events::kernel_router()
         && let Ok(kr_guard) = kr.try_lock()
     {
         state.actor_count = kr_guard.actor_count();
@@ -189,13 +189,13 @@ fn refresh_agents(state: &mut TopState) {
 
 fn refresh_network(state: &mut TopState) {
     let port_path =
-        runtime::ShipHome::from_env().daemon_file(runtime::DaemonFile::Port);
+        ship_substrate::ShipHome::from_env().daemon_file(ship_substrate::home::DaemonFile::Port);
     state.network_port = std::fs::read_to_string(port_path)
         .ok()
         .map(|p| p.trim().to_string());
 }
 
-fn to_event_row(e: runtime::EventEnvelope) -> EventRow {
+fn to_event_row(e: ship_substrate::events::EventEnvelope) -> EventRow {
     EventRow {
         time: format_time(&e.created_at.to_rfc3339()),
         event_type: e.event_type,

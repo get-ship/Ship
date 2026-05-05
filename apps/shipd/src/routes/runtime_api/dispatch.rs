@@ -7,8 +7,8 @@ use axum::{
     response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{ActorConfig, EventEnvelope};
-use runtime::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::{ActorConfig, EventEnvelope};
+use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -82,13 +82,13 @@ pub async fn dispatch_pipeline(
     }
 
     // Walk up from the daemon's CWD to find `.ship/pipelines/<name>.{yaml,yml,jsonc,json}`.
-    // Matches runtime::services::orchestrator::pipeline_loader::load_pipeline_file's
+    // Matches ship_primitives::services::orchestrator::pipeline_loader::load_pipeline_file's
     // resolution strategy so ensure_pipeline (called below) will find the same file.
     let pipeline_path = {
         let mut dir = std::env::current_dir().ok();
         let mut found = None;
         while let Some(d) = dir.as_ref() {
-            let pipelines_dir = runtime::ShipHome::project_ship_dir(&d).join("pipelines");
+            let pipelines_dir = ship_substrate::ShipHome::project_ship_dir(&d).join("pipelines");
             if pipelines_dir.is_dir() {
                 for ext in ["yaml", "yml", "jsonc", "json"] {
                     let candidate = pipelines_dir.join(format!("{}.{ext}", req.pipeline));
@@ -162,10 +162,10 @@ pub async fn dispatch_pipeline(
     let pipeline_name = meta.name.clone().unwrap_or_else(|| req.pipeline.clone());
     let workspace_name = req.workspace.unwrap_or_else(|| pipeline_name.clone());
     let slug = req.slug.unwrap_or_else(|| {
-        format!("{}-{}", workspace_name, &runtime::gen_ulid()[..8].to_lowercase())
+        format!("{}-{}", workspace_name, &ship_substrate::gen_ulid()[..8].to_lowercase())
     });
     let branch = req.branch.unwrap_or_else(|| format!("job/{slug}"));
-    let job_id = runtime::gen_ulid();
+    let job_id = ship_substrate::gen_ulid();
 
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
@@ -188,7 +188,7 @@ pub async fn dispatch_pipeline(
         baseline_sha: super::resolve_project_head_sha(),
     };
 
-    let payload = match runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
+    let payload = match ship_primitives::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
         Ok(p) => p,
         Err(e) => {
             return (

@@ -52,7 +52,7 @@ pub struct SkillBundle {
 /// Run `ship add --from <url>`.
 pub fn run_add_from(url: &str) -> Result<()> {
     let cwd = std::env::current_dir()?;
-    let ship_dir = runtime::ShipHome::project_ship_dir(&cwd);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&cwd);
     if !ship_dir.exists() {
         anyhow::bail!(".ship/ not found. Run `ship init` first.");
     }
@@ -191,20 +191,20 @@ fn scan_bundle_security(bundle: &TransferBundle) -> Result<()> {
     for (skill_id, skill) in &bundle.skills {
         for (path, content) in &skill.files {
             let filename = format!("skills/{skill_id}/{path}");
-            let findings = runtime::security::scan_text(content, &filename);
+            let findings = ship_primitives::config::security::scan_text(content, &filename);
             all_findings.extend(findings);
         }
     }
 
     for (i, rule) in bundle.agent.rules.iter().enumerate() {
-        let findings = runtime::security::scan_text(rule, &format!("rule[{i}]"));
+        let findings = ship_primitives::config::security::scan_text(rule, &format!("rule[{i}]"));
         all_findings.extend(findings);
     }
 
-    if runtime::security::has_critical(&all_findings) {
+    if ship_primitives::config::security::has_critical(&all_findings) {
         let critical: Vec<String> = all_findings
             .iter()
-            .filter(|f| f.severity == runtime::security::Severity::Critical)
+            .filter(|f| f.severity == ship_primitives::config::security::Severity::Critical)
             .map(|f| f.to_string())
             .collect();
         anyhow::bail!(
@@ -214,7 +214,7 @@ fn scan_bundle_security(bundle: &TransferBundle) -> Result<()> {
         );
     }
 
-    let (_, warnings, _) = runtime::security::summarize(&all_findings);
+    let (_, warnings, _) = ship_primitives::config::security::summarize(&all_findings);
     if warnings > 0 {
         eprintln!(
             "warning: {} suspicious Unicode character(s) found in bundle (non-blocking)",

@@ -1,7 +1,7 @@
 //! View shape for the `specs` collection: a typed projection of a
 //! `store::Item` plus body-file helpers. Pure data — no service trait,
 //! no DB locking. Routes and registry build their own queries against
-//! `CollectionsService` / `runtime::collections::store` and pipe items
+//! `CollectionsService` / `ship_primitives::collections::store` and pipe items
 //! through `spec_from_item` to get this shape.
 //!
 //! Body content lives on disk at `.artifacts/specs/<id>.md`; the path
@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use runtime::collections::store;
+use ship_primitives::collections::store;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Spec {

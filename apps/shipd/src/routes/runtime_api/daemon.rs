@@ -7,8 +7,8 @@ use axum::{
     response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{ActorConfig, EventEnvelope};
-use runtime::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::{ActorConfig, EventEnvelope};
+use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -16,10 +16,10 @@ use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
-    use runtime::projections::job::JobStatus;
+    use ship_substrate::projections::job::JobStatus;
 
     let ship_dir = state.ship_dir();
-    let jobs = runtime::projections::job::load_jobs_at(ship_dir).unwrap_or_default();
+    let jobs = ship_substrate::projections::job::load_jobs_at(ship_dir).unwrap_or_default();
     let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
     for j in jobs.values() {
         let key = match j.status {
@@ -91,7 +91,7 @@ pub async fn rebuild_projections(
     if let Err(e) = require_scope(&auth, Scope::AdminDaemon) {
         return e;
     }
-    match runtime::db::rebuild::rebuild_projections(state.ship_dir()) {
+    match ship_substrate::db::rebuild::rebuild_projections(state.ship_dir()) {
         Ok(report) => (
             StatusCode::OK,
             Json(MeshResponse {

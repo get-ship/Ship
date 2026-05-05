@@ -6,7 +6,7 @@ fn main() -> anyhow::Result<()> {
     // Logs live in machine/logs/ per the home-layout ADR. Eagerly create the
     // directory so the file appender can attach before the migrator runs in
     // ship_runtime startup.
-    let logs_dir = runtime::ShipHome::at(global_dir.clone())
+    let logs_dir = ship_substrate::ShipHome::at(global_dir.clone())
         .machine_dir()
         .join("logs");
     let _ = std::fs::create_dir_all(&logs_dir);
@@ -37,7 +37,7 @@ fn main() -> anyhow::Result<()> {
 
     let args: Vec<String> = std::env::args().collect();
     // --port is optional — None means "auto-derive from path_hash, honoring
-    // local.jsonc:worktrees.ports pins". See `runtime::home::worktree_port_for`.
+    // local.jsonc:worktrees.ports pins". See `ship_substrate::home::worktree_port_for`.
     let port = extract_u16_arg(&args, "--port");
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dev = args.iter().any(|a| a == "--dev");

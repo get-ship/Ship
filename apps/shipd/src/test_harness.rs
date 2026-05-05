@@ -33,18 +33,18 @@ impl TestDaemon {
     /// Create a fully wired TestDaemon with temp dir, DB, kernel, and router.
     pub async fn new() -> Self {
         let temp_dir = TempDir::new().unwrap();
-        let ship_dir = runtime::ShipHome::project_ship_dir(temp_dir.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(temp_dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
-        runtime::db::ensure_db_at(&ship_dir).unwrap();
+        ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
 
         let kernel = Arc::new(tokio::sync::Mutex::new(
-            runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+            ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
         ));
 
         // Create an isolated registry — do NOT use spawn_mesh_service which
         // uses a process-global OnceLock and returns disconnected registries
         // on second+ call.
-        let mesh_registry: runtime::services::mesh::SharedMeshRegistry =
+        let mesh_registry: ship_primitives::services::mesh::SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
 
         let api_state: ApiState = Arc::new(
@@ -178,7 +178,7 @@ impl TestDaemon {
     /// Create a CLI AuthContext (trusted, default for tests).
     pub fn cli_auth() -> AuthContext {
         AuthContext {
-            caller_kind: runtime::events::CallerKind::Cli,
+            caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: None,
             workspace_id: None,
             session_id: None,
@@ -189,7 +189,7 @@ impl TestDaemon {
     /// Create an MCP AuthContext with the given agent_id.
     pub fn mcp_auth(agent_id: &str) -> AuthContext {
         AuthContext {
-            caller_kind: runtime::events::CallerKind::Mcp,
+            caller_kind: ship_substrate::events::CallerKind::Mcp,
             agent_id: Some(agent_id.to_string()),
             workspace_id: None,
             session_id: None,

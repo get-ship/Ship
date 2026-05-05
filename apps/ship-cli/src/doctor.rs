@@ -13,7 +13,7 @@ use crate::http::daemon_client;
 /// Run `ship doctor` and print a multi-section report.
 pub fn run() -> Result<()> {
     let cli = build_info::build_info!();
-    let home = runtime::ShipHome::from_env();
+    let home = ship_substrate::ShipHome::from_env();
 
     section("ship CLI");
     kv("version", env!("CARGO_PKG_VERSION"));
@@ -92,8 +92,8 @@ impl DaemonProbe {
 }
 
 fn probe_daemon() -> Option<DaemonProbe> {
-    let home = runtime::ShipHome::from_env();
-    let port_path = home.daemon_file(runtime::DaemonFile::Port);
+    let home = ship_substrate::ShipHome::from_env();
+    let port_path = home.daemon_file(ship_substrate::home::DaemonFile::Port);
     let port: u16 = std::fs::read_to_string(&port_path)
         .ok()?
         .trim()

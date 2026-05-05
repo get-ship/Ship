@@ -12,14 +12,14 @@ use crate::rest_api::*;
 use crate::test_harness::TestDaemon;
 
 fn make_api_state(dir: &TempDir) -> ApiState {
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     // Create a fresh KernelRouter per test — never use init_kernel_router(),
     // which returns a process-global OnceLock singleton and causes all tests
     // to share the same kernel when run in parallel.
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
-        runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+        ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
     std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
 }
@@ -197,12 +197,12 @@ async fn discover_with_registered_agents() {
         let mut registry = state.mesh_registry().write().await;
         registry.insert(
             "agent.a".into(),
-            runtime::services::mesh::MeshEntry {
+            ship_primitives::services::mesh::MeshEntry {
                 agent_id: "agent.a".into(),
                 label: "Agent A".into(),
                 capabilities: vec!["rust".into()],
                 registered_at: chrono::Utc::now(),
-                status: runtime::services::mesh::AgentStatus::Active,
+                status: ship_primitives::services::mesh::AgentStatus::Active,
             },
         );
     }
@@ -237,9 +237,9 @@ async fn status_update_returns_ok() {
 #[tokio::test(flavor = "multi_thread")]
 async fn checkout_hook_with_valid_ship_dir() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
     // init_project creates the markers that get_project_dir looks for.
     let _ = runtime::project::init_project(dir.path().to_path_buf());
 
@@ -408,9 +408,9 @@ async fn capabilities_returns_unauthenticated_without_token() {
     // A browser request from localhost with no token must be rejected.
     // Today this PASSES through due to the localhost exemption — test must fail.
     let temp_dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(temp_dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(temp_dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
 
     let token = crate::auth::generate_token().unwrap();
     let token_arc = std::sync::Arc::new(token);
@@ -507,7 +507,7 @@ async fn mcp_agent_without_agent_id_can_register() {
 
     // MCP caller with no agent_id in auth (e.g. Studio) — allowed.
     let auth = AuthContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
+        caller_kind: ship_substrate::events::CallerKind::Mcp,
         agent_id: None,
         workspace_id: None,
         session_id: None,

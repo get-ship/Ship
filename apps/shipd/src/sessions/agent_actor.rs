@@ -2,7 +2,7 @@
 //!
 //! Replaces `lifecycle::spawn_long_lived_agent` for channels-capable
 //! providers (Claude). Builds an `ActorProfile` from the provider
-//! adapter's `build_interactive`, calls `runtime::supervisor::spawn_actor`,
+//! adapter's `build_interactive`, calls `ship_substrate::supervisor::spawn_actor`,
 //! and attaches a reader-middleware thread that:
 //!
 //! 1. Auto-dismisses Claude's `--dangerously-load-development-channels`
@@ -25,9 +25,9 @@ use std::sync::Mutex;
 
 use anyhow::{anyhow, Result};
 use chrono::Utc;
-use runtime::services::dispatch_ports::LaunchProfile;
-use runtime::services::provider_adapter::{adapter_for, ProviderEvent};
-use runtime::supervisor::{spawn_actor, ActorKind, ActorProfile, TransportKind};
+use ship_primitives::services::dispatch_ports::LaunchProfile;
+use ship_primitives::services::provider_adapter::{adapter_for, ProviderEvent};
+use ship_substrate::supervisor::{spawn_actor, ActorKind, ActorProfile, TransportKind};
 use tokio::sync::broadcast;
 
 use super::actor_registry::{ActorEntry, ActorRegistry};
@@ -207,7 +207,7 @@ fn spawn_reader_middleware(
         }
 
         let duration_ms = (Utc::now() - spawned_at).num_milliseconds().max(0) as u64;
-        let payload = runtime::events::types::ActorStopped {
+        let payload = ship_substrate::events::types::ActorStopped {
             reason: "process_exit".to_string(),
             exit_code: None,
             duration_ms: Some(duration_ms),
@@ -215,7 +215,7 @@ fn spawn_reader_middleware(
         let stopped_id = actor_id.clone();
         let stopped_ws = workspace_id.clone();
         std::thread::spawn(move || {
-            let _ = runtime::db::actor_events::emit_actor_stopped(
+            let _ = ship_substrate::db::actor_events::emit_actor_stopped(
                 &stopped_id,
                 &payload,
                 Some(&stopped_ws),
@@ -240,7 +240,7 @@ fn spawn_reader_middleware(
 /// back to Idle.
 pub fn run_headless_turn(
     session: super::types::PtySession,
-    launch: runtime::services::dispatch_ports::LaunchCommand,
+    launch: ship_primitives::services::dispatch_ports::LaunchCommand,
     provider_id: String,
     work_dir: PathBuf,
 ) -> Result<()> {
@@ -345,10 +345,10 @@ fn emit_studio_reply(actor_id: &str, text: &str) {
     let actor_id = actor_id.to_string();
     let text = text.to_string();
     std::thread::spawn(move || {
-        let Some(kr) = runtime::events::kernel_router() else { return };
+        let Some(kr) = ship_substrate::events::kernel_router() else { return };
         let payload = serde_json::json!({ "actor_id": &actor_id, "text": text });
-        let envelope = match runtime::events::EventEnvelope::new(
-            runtime::events::types::event_types::STUDIO_REPLY,
+        let envelope = match ship_substrate::events::EventEnvelope::new(
+            ship_substrate::events::types::event_types::STUDIO_REPLY,
             &actor_id,
             &payload,
         ) {
@@ -358,13 +358,13 @@ fn emit_studio_reply(actor_id: &str, text: &str) {
                 return;
             }
         };
-        let ctx = runtime::events::EmitContext {
-            caller_kind: runtime::events::CallerKind::Runtime,
+        let ctx = ship_substrate::events::EmitContext {
+            caller_kind: ship_substrate::events::CallerKind::Runtime,
             skill_id: None,
             project_id: None,
             session_id: None,
         };
-        if let Err(e) = runtime::db::block_on_anyhow(async move {
+        if let Err(e) = ship_substrate::db::block_on_anyhow(async move {
             kr.lock().await.emit(envelope, &ctx).await
         }) {
             tracing::debug!(actor = %actor_id, "studio.reply emit failed: {e}");
@@ -379,7 +379,7 @@ struct MenuState {
 }
 
 fn try_dismiss_menu(
-    handle: &runtime::supervisor::ActorHandle,
+    handle: &ship_substrate::supervisor::ActorHandle,
     state: &Arc<Mutex<MenuState>>,
     chunk: &[u8],
 ) -> bool {

@@ -92,59 +92,59 @@ fn collect_types() -> TypeCollection {
     // ── Daemon / runtime types ─────────────────────────────────────────────
 
     // projections/job.rs
-    c.register::<runtime::JobRecord>();
-    c.register::<runtime::JobStatus>();
+    c.register::<ship_substrate::projections::job::JobRecord>();
+    c.register::<ship_substrate::projections::job::JobStatus>();
 
     // events/job.rs (job event payloads)
-    c.register::<runtime::events::job::JobCreatedPayload>();
-    c.register::<runtime::events::job::JobCompletedPayload>();
-    c.register::<runtime::events::job::JobDispatchedPayload>();
-    c.register::<runtime::events::job::JobGateRequestedPayload>();
-    c.register::<runtime::events::job::JobGatePassedPayload>();
-    c.register::<runtime::events::job::JobGateFailedPayload>();
-    c.register::<runtime::events::job::JobBlockedPayload>();
-    c.register::<runtime::events::job::JobMergedPayload>();
-    c.register::<runtime::events::job::JobFailedPayload>();
-    c.register::<runtime::events::job::JobUpdatePayload>();
+    c.register::<ship_substrate::events::job::JobCreatedPayload>();
+    c.register::<ship_substrate::events::job::JobCompletedPayload>();
+    c.register::<ship_substrate::events::job::JobDispatchedPayload>();
+    c.register::<ship_substrate::events::job::JobGateRequestedPayload>();
+    c.register::<ship_substrate::events::job::JobGatePassedPayload>();
+    c.register::<ship_substrate::events::job::JobGateFailedPayload>();
+    c.register::<ship_substrate::events::job::JobBlockedPayload>();
+    c.register::<ship_substrate::events::job::JobMergedPayload>();
+    c.register::<ship_substrate::events::job::JobFailedPayload>();
+    c.register::<ship_substrate::events::job::JobUpdatePayload>();
 
     // events/job.rs (step event payloads + evidence types)
-    c.register::<runtime::events::job::StepObservedPayload>();
-    c.register::<runtime::events::job::StepTrigger>();
-    c.register::<runtime::events::job::StepVerdict>();
-    c.register::<runtime::events::job::StepRetryPayload>();
+    c.register::<ship_substrate::events::job::StepObservedPayload>();
+    c.register::<ship_substrate::events::job::StepTrigger>();
+    c.register::<ship_substrate::events::job::StepVerdict>();
+    c.register::<ship_substrate::events::job::StepRetryPayload>();
 
     // events/job.rs (pipeline types — already exported via JobRecord, but explicit for clarity)
-    c.register::<runtime::events::job::Pipeline>();
-    c.register::<runtime::events::job::PipelineStep>();
-    c.register::<runtime::events::job::StepType>();
+    c.register::<ship_substrate::events::job::Pipeline>();
+    c.register::<ship_substrate::events::job::PipelineStep>();
+    c.register::<ship_substrate::events::job::StepType>();
 
     // events/feedback.rs
-    c.register::<runtime::events::feedback::FeedbackEvent>();
-    c.register::<runtime::events::feedback::FeedbackKind>();
-    c.register::<runtime::events::feedback::FeedbackIntent>();
-    c.register::<runtime::events::feedback::FeedbackTarget>();
-    c.register::<runtime::events::feedback::Selection>();
-    c.register::<runtime::events::feedback::AuthorKind>();
+    c.register::<ship_substrate::events::feedback::FeedbackEvent>();
+    c.register::<ship_substrate::events::feedback::FeedbackKind>();
+    c.register::<ship_substrate::events::feedback::FeedbackIntent>();
+    c.register::<ship_substrate::events::feedback::FeedbackTarget>();
+    c.register::<ship_substrate::events::feedback::Selection>();
+    c.register::<ship_substrate::events::feedback::AuthorKind>();
 
     // events/annotation.rs (AuthorKind/Selection shared with feedback.rs — registered above)
-    c.register::<runtime::events::annotation::AnnotationEvent>();
-    c.register::<runtime::events::annotation::AnnotationKind>();
-    c.register::<runtime::events::annotation::AnnotationIntent>();
-    c.register::<runtime::events::annotation::AnnotationTarget>();
+    c.register::<ship_substrate::events::annotation::AnnotationEvent>();
+    c.register::<ship_substrate::events::annotation::AnnotationKind>();
+    c.register::<ship_substrate::events::annotation::AnnotationIntent>();
+    c.register::<ship_substrate::events::annotation::AnnotationTarget>();
 
     // events/filter.rs
-    c.register::<runtime::events::filter::EventFilter>();
+    c.register::<ship_substrate::events::filter::EventFilter>();
 
     // collections/schema.rs — collection field-definition types (nested schemas)
-    c.register::<runtime::collections::schema::FieldDef>();
-    c.register::<runtime::collections::schema::FieldType>();
+    c.register::<ship_primitives::collections::schema::FieldDef>();
+    c.register::<ship_primitives::collections::schema::FieldType>();
 
     // workspace/types_session.rs (the workspace primitive retired; only
     // session-shaped types remain)
-    c.register::<runtime::Session>();
-    c.register::<runtime::SessionStatus>();
-    c.register::<runtime::ProviderMatrix>();
-    c.register::<runtime::ProviderMatrixRepairReport>();
+    c.register::<ship_primitives::sessions::Session>();
+    c.register::<ship_primitives::sessions::SessionStatus>();
+    c.register::<ship_primitives::sessions::ProviderMatrix>();
+    c.register::<ship_primitives::sessions::ProviderMatrixRepairReport>();
 
     c
 }

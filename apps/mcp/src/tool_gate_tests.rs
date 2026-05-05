@@ -126,17 +126,17 @@ fn dispatched_context_detects_filesystem_marker() {
     fs::write(wt.join(".artifacts/.dispatched"), "ship-dev-testslug").unwrap();
 
     let prev_cwd = std::env::current_dir().ok();
-    let prev_env = runtime::env::read_raw(runtime::env::Var::ActorId).ok();
+    let prev_env = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId).ok();
     // SAFETY: tests run sequentially per test binary; modifying env/cwd
     // here is benign — restored before assertion.
-    unsafe { runtime::env::remove(runtime::env::Var::ActorId); }
+    unsafe { ship_substrate::env::remove(ship_substrate::env::Var::ActorId); }
     std::env::set_current_dir(&wt).unwrap();
     let detected = ShipServer::is_dispatched_context();
     if let Some(p) = prev_cwd {
         let _ = std::env::set_current_dir(p);
     }
     if let Some(v) = prev_env {
-        unsafe { runtime::env::set(runtime::env::Var::ActorId, v); }
+        unsafe { ship_substrate::env::set(ship_substrate::env::Var::ActorId, v); }
     }
     assert!(
         detected,
@@ -157,15 +157,15 @@ fn dispatched_context_ignores_artifacts_without_marker() {
     fs::write(wt.join(".artifacts/job-spec.md"), "old job spec").unwrap();
 
     let prev_cwd = std::env::current_dir().ok();
-    let prev_env = runtime::env::read_raw(runtime::env::Var::ActorId).ok();
-    unsafe { runtime::env::remove(runtime::env::Var::ActorId); }
+    let prev_env = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId).ok();
+    unsafe { ship_substrate::env::remove(ship_substrate::env::Var::ActorId); }
     std::env::set_current_dir(&wt).unwrap();
     let detected = ShipServer::is_dispatched_context();
     if let Some(p) = prev_cwd {
         let _ = std::env::set_current_dir(p);
     }
     if let Some(v) = prev_env {
-        unsafe { runtime::env::set(runtime::env::Var::ActorId, v); }
+        unsafe { ship_substrate::env::set(ship_substrate::env::Var::ActorId, v); }
     }
     assert!(
         !detected,

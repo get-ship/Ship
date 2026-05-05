@@ -4,8 +4,8 @@
 //! owns the kernel, config, and lazily-initialized managers.
 
 use anyhow::{Context, Result, anyhow};
-use runtime::events::{CallerKind, EmitContext, EventEnvelope};
-use runtime::services::mesh::SharedMeshRegistry;
+use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope};
+use ship_primitives::services::mesh::SharedMeshRegistry;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -58,8 +58,8 @@ pub struct AppMetadata {
 pub type AppState = Arc<ShipRuntime>;
 
 // Re-export for backward compat in handlers.
-pub type SharedKernel = Arc<Mutex<runtime::events::KernelRouter>>;
-pub type AgentMailboxes = Arc<Mutex<HashMap<String, runtime::events::Mailbox>>>;
+pub type SharedKernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
+pub type AgentMailboxes = Arc<Mutex<HashMap<String, ship_substrate::events::Mailbox>>>;
 pub type PtyConnections = Arc<Mutex<HashMap<String, usize>>>;
 
 // ---- ShipRuntime ----
@@ -88,7 +88,7 @@ pub struct ShipRuntime {
     /// so trait-bound service impls (`CollectionsService`,
     /// `ArtifactsService`) can hold a clone of the same handle and see
     /// the same lazily-opened DataService.
-    data_service: Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>>,
+    data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>>,
     /// Agent-owned view sessions (Phase 1 canvas framework).
     view_sessions: crate::views::session::SharedViewSessionRegistry,
     /// PTY session registry — chat, pipelines, dock terminal all go
@@ -104,9 +104,9 @@ pub struct ShipRuntime {
     /// Wall-clock instant the daemon process started — used for uptime.
     started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
-    hook_engine: std::sync::OnceLock<std::sync::Arc<runtime::hooks::engine::HookEngine>>,
+    hook_engine: std::sync::OnceLock<std::sync::Arc<ship_primitives::hooks::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
-    config_watcher: std::sync::OnceLock<runtime::config::ConfigWatcher>,
+    config_watcher: std::sync::OnceLock<ship_primitives::config::ConfigWatcher>,
     /// `RulesService` impl — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
@@ -148,12 +148,12 @@ impl ShipRuntime {
         // the event log, replay events into fresh projection tables. If the
         // event log itself is corrupt, refuse to start — the user needs to
         // intervene rather than lose data silently.
-        if runtime::db::platform_db_path(global_dir).exists() {
-            match runtime::db::integrity::check_platform_integrity(global_dir) {
-                Ok(runtime::db::integrity::IntegrityStatus::Ok) => {
+        if ship_substrate::db::platform_db_path(global_dir).exists() {
+            match ship_substrate::db::integrity::check_platform_integrity(global_dir) {
+                Ok(ship_substrate::db::integrity::IntegrityStatus::Ok) => {
                     tracing::info!("shipd: platform.db integrity check passed");
                 }
-                Ok(runtime::db::integrity::IntegrityStatus::ProjectionsCorrupt {
+                Ok(ship_substrate::db::integrity::IntegrityStatus::ProjectionsCorrupt {
                     details,
                 }) => {
                     tracing::warn!(
@@ -161,7 +161,7 @@ impl ShipRuntime {
                     );
                     let dir = global_dir.clone();
                     let report = tokio::task::spawn_blocking(move || {
-                        runtime::db::rebuild::rebuild_projections(&dir)
+                        ship_substrate::db::rebuild::rebuild_projections(&dir)
                     })
                     .await
                     .map_err(|e| anyhow!("projection rebuild task failed: {e}"))??;
@@ -172,7 +172,7 @@ impl ShipRuntime {
                         "shipd: projection rebuild complete"
                     );
                 }
-                Ok(runtime::db::integrity::IntegrityStatus::EventsCorrupt {
+                Ok(ship_substrate::db::integrity::IntegrityStatus::EventsCorrupt {
                     details,
                 }) => {
                     return Err(anyhow!(
@@ -203,39 +203,39 @@ impl ShipRuntime {
         // Use spawn_blocking because the DB layer uses block_in_place internally.
         let dir = global_dir.clone();
         let kernel = tokio::task::spawn_blocking(move || {
-            runtime::home::ensure_layout(&runtime::ShipHome::at(dir.clone()))
+            ship_substrate::home::ensure_layout(&ship_substrate::ShipHome::at(dir.clone()))
                 .context("ensure ship home layout")?;
             // Open data.db + run collections migration first.
-            let _ = runtime::data::DataService::open(&dir)?;
+            let _ = ship_substrate::data::DataService::open(&dir)?;
             // Migrate kv rows from platform.db to kv.db before migration 0002 drops them.
-            runtime::kv::migrate_from_platform_db(&dir)
+            ship_primitives::kv::migrate_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
-            runtime::db::ensure_db_at(&dir)?;
+            ship_substrate::db::ensure_db_at(&dir)?;
             // One-shot drain of the legacy `settings` KV namespace into the
             // daemon_settings table. Idempotent and inexpensive on every boot.
-            if let Err(e) = runtime::config::drain_legacy_settings_kv() {
+            if let Err(e) = ship_primitives::config::drain_legacy_settings_kv() {
                 tracing::warn!("settings drain from legacy KV: {e}");
             }
             // One-shot drain of legacy per-project `runtime::*` KV rows. The
             // ProjectConfig variant is gone; rows are deleted. (Providers
             // now lives in ship.jsonc only.)
-            if let Err(e) = runtime::config::drain_legacy_project_config_kv() {
+            if let Err(e) = ship_primitives::config::drain_legacy_project_config_kv() {
                 tracing::warn!("project config drain from legacy KV: {e}");
             }
             // One-shot drain of the legacy `project` KV namespace into
             // project.registered / project.seen events. Idempotent.
-            if let Err(e) = runtime::projects::drain_legacy_kv() {
+            if let Err(e) = ship_substrate::projects::drain_legacy_kv() {
                 tracing::warn!("projects drain from legacy KV: {e}");
             }
             // One-shot drain of legacy auth.sessions and auth.daemon_owner
             // KV namespaces into events. Idempotent.
-            if let Err(e) = runtime::projections::auth::drain_legacy_sessions_kv() {
+            if let Err(e) = ship_substrate::projections::auth::drain_legacy_sessions_kv() {
                 tracing::warn!("auth sessions drain from legacy KV: {e}");
             }
-            if let Err(e) = runtime::projections::auth::drain_legacy_owner_kv() {
+            if let Err(e) = ship_substrate::projections::auth::drain_legacy_owner_kv() {
                 tracing::warn!("auth owner drain from legacy KV: {e}");
             }
-            runtime::events::init_kernel_router(dir)
+            ship_substrate::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
         })
         .await
@@ -247,7 +247,7 @@ impl ShipRuntime {
         log_event_log_summary(global_dir);
 
         // Best-effort auto-purge: remove trash entries older than 24 hours.
-        match runtime::trash::purge_old_trash(std::time::Duration::from_secs(86400)) {
+        match ship_substrate::trash::purge_old_trash(std::time::Duration::from_secs(86400)) {
             Ok(0) => {}
             Ok(n) => tracing::info!("auto-purged {n} expired trash entries"),
             Err(e) => tracing::warn!("trash auto-purge failed: {e}"),
@@ -262,7 +262,7 @@ impl ShipRuntime {
 
         // Build db-bound service impls before the struct literal so they
         // can share the same `data_service` Arc.
-        let data_service: Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>> =
+        let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
             crate::services::collections::service::CollectionsServiceImpl::arc(
@@ -292,10 +292,10 @@ impl ShipRuntime {
                 let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
                 let root = probe
                     .as_ref()
-                    .and_then(|p| runtime::home::ProjectRoot::discover(p));
-                let home = runtime::ShipHome::at(global_dir.clone());
+                    .and_then(|p| ship_substrate::home::ProjectRoot::discover(p));
+                let home = ship_substrate::ShipHome::at(global_dir.clone());
                 match root.as_ref() {
-                    Some(r) => home.worktree_daemon_dir(&runtime::home::path_hash(r.path())),
+                    Some(r) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(r.path())),
                     None => home.daemon_dir(),
                 }
             },
@@ -465,7 +465,7 @@ impl ShipRuntime {
     ///
     /// On first call, registers built-in collections (currently `artifacts`)
     /// so they are guaranteed present without requiring a schema file.
-    pub async fn data_service(&self) -> Result<tokio::sync::MutexGuard<'_, Option<runtime::data::DataService>>> {
+    pub async fn data_service(&self) -> Result<tokio::sync::MutexGuard<'_, Option<ship_substrate::data::DataService>>> {
         ensure_data_service(&self.data_service, &self.ship_dir).await
     }
 
@@ -475,7 +475,7 @@ impl ShipRuntime {
     /// `ensure_data_service`.
     pub fn data_service_arc(
         &self,
-    ) -> Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>> {
+    ) -> Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> {
         self.data_service.clone()
     }
 
@@ -541,9 +541,9 @@ impl ShipRuntime {
     pub async fn backfill_artifact_content_hashes(&self) {
         let ship_dir = self.ship_dir.clone();
         tokio::task::spawn_blocking(move || {
-            match runtime::data::DataService::open(&ship_dir) {
+            match ship_substrate::data::DataService::open(&ship_dir) {
                 Ok(mut svc) => {
-                    if let Err(e) = runtime::artifacts::gc::backfill_content_hashes(&ship_dir, &mut svc) {
+                    if let Err(e) = ship_primitives::artifacts::gc::backfill_content_hashes(&ship_dir, &mut svc) {
                         tracing::warn!("artifact content_hash backfill failed: {e}");
                     }
                 }
@@ -568,9 +568,9 @@ impl ShipRuntime {
                 let kernel = kernel.clone();
                 async move {
                     loop {
-                        match runtime::data::DataService::open(&ship_dir) {
+                        match ship_substrate::data::DataService::open(&ship_dir) {
                             Ok(mut svc) => {
-                                if let Err(e) = runtime::artifacts::gc::collect_expired(
+                                if let Err(e) = ship_primitives::artifacts::gc::collect_expired(
                                     &ship_dir, &mut svc, &kernel,
                                 ).await {
                                     tracing::warn!("artifact GC run failed: {e}");
@@ -594,8 +594,8 @@ impl ShipRuntime {
         // Pass the user-scope library/ dir; engine joins `triggers/` for the
         // user-scope vector. Project-scope triggers are loaded by the hook
         // engine when a project workspace activates.
-        let library_dir = runtime::ShipHome::at(self.ship_dir.clone()).library_dir();
-        match runtime::hooks::engine::spawn_hook_service(
+        let library_dir = ship_substrate::ShipHome::at(self.ship_dir.clone()).library_dir();
+        match ship_primitives::hooks::engine::spawn_hook_service(
             self.kernel.clone(),
             library_dir,
         )
@@ -603,7 +603,7 @@ impl ShipRuntime {
         {
             Ok(engine) => {
                 // Also start the filesystem watcher for hot-reload.
-                if let Err(e) = runtime::hooks::watcher::spawn_watcher(engine.clone()) {
+                if let Err(e) = ship_primitives::hooks::watcher::spawn_watcher(engine.clone()) {
                     tracing::warn!("hook watcher failed to start: {e}");
                 }
                 let _ = self.hook_engine.set(engine);
@@ -616,14 +616,14 @@ impl ShipRuntime {
     /// The running hook engine, if started.
     pub fn hook_engine(
         &self,
-    ) -> Option<&std::sync::Arc<runtime::hooks::engine::HookEngine>> {
+    ) -> Option<&std::sync::Arc<ship_primitives::hooks::engine::HookEngine>> {
         self.hook_engine.get()
     }
 
     /// The webhook source for the public webhook route, if the engine is running.
     pub fn webhook_source(
         &self,
-    ) -> Option<std::sync::Arc<runtime::hooks::sources::webhook::WebhookSource>> {
+    ) -> Option<std::sync::Arc<ship_primitives::hooks::sources::webhook::WebhookSource>> {
         self.hook_engine.get()?.webhook_source()
     }
 
@@ -635,7 +635,7 @@ impl ShipRuntime {
         if self.config_watcher.get().is_some() {
             return;
         }
-        match runtime::config::spawn_config_watcher(
+        match ship_primitives::config::spawn_config_watcher(
             self.kernel.clone(),
             self.ship_dir.clone(),
             self.workspace_dir.clone(),
@@ -673,7 +673,7 @@ impl ShipRuntime {
     #[cfg(test)]
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
-        let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
+        let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
@@ -681,7 +681,7 @@ impl ShipRuntime {
         let pipelines =
             crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());
-        let data_service: Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>> =
+        let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
             crate::services::collections::service::CollectionsServiceImpl::arc(
@@ -747,7 +747,7 @@ impl ShipRuntime {
         mesh_registry: SharedMeshRegistry,
     ) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
-        let daemon_dir = runtime::ShipHome::at(ship_dir.clone()).daemon_dir();
+        let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
@@ -755,7 +755,7 @@ impl ShipRuntime {
         let pipelines =
             crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());
-        let data_service: Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>> =
+        let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
             crate::services::collections::service::CollectionsServiceImpl::arc(
@@ -865,13 +865,13 @@ impl ShipRuntime {
 /// here so the registration of the built-in artifacts collection happens
 /// exactly once regardless of who holds the mutex first.
 pub(crate) async fn ensure_data_service<'a>(
-    handle: &'a Arc<tokio::sync::Mutex<Option<runtime::data::DataService>>>,
+    handle: &'a Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>>,
     ship_dir: &Path,
-) -> Result<tokio::sync::MutexGuard<'a, Option<runtime::data::DataService>>> {
+) -> Result<tokio::sync::MutexGuard<'a, Option<ship_substrate::data::DataService>>> {
     let mut guard = handle.lock().await;
     if guard.is_none() {
-        let mut svc = runtime::data::DataService::open(ship_dir)?;
-        runtime::artifacts::ensure_artifacts_collection(&mut svc)
+        let mut svc = ship_substrate::data::DataService::open(ship_dir)?;
+        ship_primitives::artifacts::ensure_artifacts_collection(&mut svc)
             .context("registering built-in artifacts collection")?;
         *guard = Some(svc);
     }
@@ -882,7 +882,7 @@ pub(crate) async fn ensure_data_service<'a>(
 ///
 /// Handles the case where the daemon crashed and sessions were never ended.
 fn cleanup_active_sessions_on_startup() {
-    let sessions = match runtime::db::session_drain::list_active_sessions() {
+    let sessions = match ship_substrate::db::session_drain::list_active_sessions() {
         Ok(s) => s,
         Err(e) => {
             tracing::warn!("startup cleanup: failed to list active sessions: {e}");
@@ -900,7 +900,7 @@ fn cleanup_active_sessions_on_startup() {
     );
 
     for session in &sessions {
-        match runtime::db::session_drain::force_end_session(&session.id, "daemon_restart") {
+        match ship_substrate::db::session_drain::force_end_session(&session.id, "daemon_restart") {
             Ok(()) => {
                 tracing::info!(
                     session_id = %session.id,
@@ -923,11 +923,11 @@ fn cleanup_active_sessions_on_startup() {
 /// count ever drops between restarts without a reset, that's the first
 /// thing to investigate.
 fn log_event_log_summary(global_dir: &Path) {
-    if !runtime::db::platform_db_path(global_dir).exists() {
+    if !ship_substrate::db::platform_db_path(global_dir).exists() {
         tracing::info!("shipd: fresh install, no events yet");
         return;
     }
-    let summary = runtime::db::event_log_summary(global_dir);
+    let summary = ship_substrate::db::event_log_summary(global_dir);
     tracing::info!(
         events = summary.event_count,
         latest_event_id = summary.latest_event_id.as_deref().unwrap_or("-"),

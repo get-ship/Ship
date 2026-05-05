@@ -1,6 +1,6 @@
 //! Actor-backed session registry.
 //!
-//! Holds [`runtime::supervisor::ActorHandle`] (the unified spawn primitive)
+//! Holds [`ship_substrate::supervisor::ActorHandle`] (the unified spawn primitive)
 //! plus a session-flavored [`SessionMeta`] sidecar. This is the destination
 //! registry — `SessionRegistry` is the legacy parallel system being retired
 //! kind-by-kind. When the last consumer flips, this is renamed to
@@ -25,8 +25,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
-use runtime::services::provider_adapter::ProviderEvent;
-use runtime::supervisor::ActorHandle;
+use ship_primitives::services::provider_adapter::ProviderEvent;
+use ship_substrate::supervisor::ActorHandle;
 use std::path::PathBuf;
 use tokio::sync::broadcast;
 

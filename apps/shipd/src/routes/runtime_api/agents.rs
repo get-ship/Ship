@@ -7,8 +7,8 @@ use axum::{
     response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{ActorConfig, EventEnvelope};
-use runtime::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::{ActorConfig, EventEnvelope};
+use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 use serde_json::json;
 

@@ -55,11 +55,11 @@ pub fn test_cors_router() -> axum::Router {
 }
 
 use anyhow::{Result, anyhow};
-use runtime::events::daemon::{
+use ship_substrate::events::daemon::{
     PortBindFailedPayload, ShutdownCompletedPayload, StartupCompletedPayload,
     event_types as daemon_events,
 };
-use runtime::events::{EventEnvelope, EventStore, SqliteEventStore};
+use ship_substrate::events::{EventEnvelope, EventStore, SqliteEventStore};
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
@@ -69,7 +69,7 @@ use tokio_util::sync::CancellationToken;
 /// Never set `dev = true` in production.
 ///
 /// `port = None` means "auto-derive": pick the port via
-/// `runtime::home::worktree_port_for(project_root)`, which honors
+/// `ship_substrate::home::worktree_port_for(project_root)`, which honors
 /// `~/.ship/machine/local.jsonc:worktrees.ports[<branch>]` pins and
 /// otherwise hashes the project root into `9315 + N % 100`. If the
 /// derived port is busy, increments up to 10 times before giving up.
@@ -108,10 +108,10 @@ pub async fn run_network(
     let project_probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
     let project_root = project_probe
         .as_ref()
-        .and_then(|p| runtime::home::ProjectRoot::discover(p));
-    let home = runtime::ShipHome::at(global_dir.clone());
+        .and_then(|p| ship_substrate::home::ProjectRoot::discover(p));
+    let home = ship_substrate::ShipHome::at(global_dir.clone());
     let daemon_dir = match project_root.as_ref() {
-        Some(root) => home.worktree_daemon_dir(&runtime::home::path_hash(root.path())),
+        Some(root) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(root.path())),
         None => home.daemon_dir(),
     };
 
@@ -127,10 +127,10 @@ pub async fn run_network(
 
     // Resolve the desired port. Caller-supplied --port wins; otherwise we
     // derive from the project root (path-hash + local.jsonc:worktrees.ports
-    // pin, see runtime::home::worktree_port_for). Outside any project, use
+    // pin, see ship_substrate::home::worktree_port_for). Outside any project, use
     // the historical default.
     let desired_port = port.unwrap_or_else(|| match project_root.as_ref() {
-        Some(root) => runtime::home::worktree_port_for(root.path()),
+        Some(root) => ship_substrate::home::worktree_port_for(root.path()),
         None => 9315,
     });
 
@@ -161,7 +161,7 @@ pub async fn run_network(
     // Register the launch-time project (if any) into the project registry
     // so the launcher / shell sees it on first list. Idempotent.
     if let Some(root) = project_root.as_ref() {
-        if let Err(e) = runtime::projects::register(root.path(), None) {
+        if let Err(e) = ship_substrate::projects::register(root.path(), None) {
             tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
         }
     }
@@ -291,7 +291,7 @@ pub async fn run_network(
     tracing::info!("{identity}");
     eprintln!("{identity}");
 
-    let summary = runtime::db::event_log_summary(&global_dir);
+    let summary = ship_substrate::db::event_log_summary(&global_dir);
     let startup = StartupCompletedPayload {
         pid: std::process::id(),
         port,
@@ -384,7 +384,7 @@ fn emit_daemon_event<P: serde::Serialize>(
 /// supervisor's lock-based pidfile. Returns None if the file is missing,
 /// unparseable, or records a different port.
 fn pidfile_pid_for_port(global_dir: &std::path::Path, port: u16) -> Option<u32> {
-    let path = runtime::ShipHome::at(global_dir.to_path_buf())
+    let path = ship_substrate::ShipHome::at(global_dir.to_path_buf())
         .machine_dir()
         .join("daemon")
         .join("shipd.pid");

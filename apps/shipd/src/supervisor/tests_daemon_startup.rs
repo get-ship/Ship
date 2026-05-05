@@ -4,9 +4,9 @@
 //! from the event store. No job should be lost, stuck, or duplicated.
 //! The startup sequence is: reconcile dispatched → replay completions → dispatch pending.
 
-use runtime::events::job::event_types;
-use runtime::events::EventEnvelope;
-use runtime::projections::job::{project, JobStatus};
+use ship_substrate::events::job::event_types;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::projections::job::{project, JobStatus};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     let job_id = payload["job_id"].as_str().unwrap_or("test");
@@ -248,7 +248,7 @@ fn reconcile_keeps_orphaned_jobs_dispatched() {
         })),
         // No completion — daemon died, process went missing. Simulate
         // what reconcile emits today: an observation event.
-        ev(runtime::events::executor::EXECUTOR_SESSION_DESTROYED, serde_json::json!({
+        ev(ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED, serde_json::json!({
             "executor_kind": "tmux_window",
             "session_name": "orphan",
             "slug": "orphan",
@@ -281,7 +281,7 @@ fn liveness_sweep_retains_terminal_authority() {
         ev(event_types::JOB_DISPATCHED, serde_json::json!({
             "job_id": "j-late", "worktree": "/w", "pid": 99999,
         })),
-        ev(runtime::events::executor::EXECUTOR_SESSION_DESTROYED, serde_json::json!({
+        ev(ship_substrate::events::executor::EXECUTOR_SESSION_DESTROYED, serde_json::json!({
             "executor_kind": "tmux_window",
             "session_name": "late",
             "slug": "late",

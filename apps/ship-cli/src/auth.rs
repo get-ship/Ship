@@ -214,13 +214,13 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
 
 /// Read daemon connection info (port + daemon.token) from ~/.ship/.
 fn daemon_connect() -> Result<(u16, String)> {
-    let home = runtime::ShipHome::from_env();
-    let port: u16 = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Port))
+    let home = ship_substrate::ShipHome::from_env();
+    let port: u16 = std::fs::read_to_string(home.daemon_file(ship_substrate::home::DaemonFile::Port))
         .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?
         .trim()
         .parse()
         .map_err(|_| anyhow::anyhow!("invalid daemon port file"))?;
-    let token = std::fs::read_to_string(home.daemon_file(runtime::DaemonFile::Token))
+    let token = std::fs::read_to_string(home.daemon_file(ship_substrate::home::DaemonFile::Token))
         .map_err(|_| anyhow::anyhow!("daemon token not readable — is the daemon running?"))?
         .trim()
         .to_string();
@@ -318,14 +318,14 @@ pub fn run_logout() -> Result<()> {
     creds.save()?;
     // Clear the daemon-owner binding so the next ship login can bind fresh.
     if let Some(prior) = shipd::auth::attest::daemon_owner() {
-        let payload = runtime::events::types::DaemonOwnerUnbound {};
-        if let Ok(envelope) = runtime::events::EventEnvelope::new(
-            runtime::events::types::event_types::DAEMON_OWNER_UNBOUND,
+        let payload = ship_substrate::events::types::DaemonOwnerUnbound {};
+        if let Ok(envelope) = ship_substrate::events::EventEnvelope::new(
+            ship_substrate::events::types::event_types::DAEMON_OWNER_UNBOUND,
             &prior,
             &payload,
         ) {
-            if let Ok(store) = runtime::persistence::event_store::SqliteEventStore::new() {
-                let _ = runtime::persistence::event_store::EventStore::append(&store, &envelope);
+            if let Ok(store) = ship_substrate::persistence::event_store::SqliteEventStore::new() {
+                let _ = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope);
             }
         }
     }

@@ -133,7 +133,7 @@ impl ShipHome {
     }
 
     /// Per-worktree daemon directory: `machine/daemons/<hash>/`.
-    /// `hash` is the 8-char output of `runtime::home::path_hash(project_root)`.
+    /// `hash` is the 8-char output of `ship_substrate::home::path_hash(project_root)`.
     pub fn worktree_daemon_dir(&self, hash: &str) -> PathBuf {
         self.machine_dir().join("daemons").join(hash)
     }

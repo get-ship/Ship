@@ -19,6 +19,8 @@ path = "src/main.rs"
 
 [dependencies]
 runtime = { path = "../../crates/core/runtime" }
+ship-substrate = { path = "../../crates/core/ship-substrate" }
+ship-primitives = { path = "../../crates/core/ship-primitives" }
 lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }

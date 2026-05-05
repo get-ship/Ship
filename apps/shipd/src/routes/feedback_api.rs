@@ -18,8 +18,8 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use runtime::events::EventEnvelope;
-use runtime::events::feedback::{AuthorKind, FeedbackEvent, FeedbackKind};
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::feedback::{AuthorKind, FeedbackEvent, FeedbackKind};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};

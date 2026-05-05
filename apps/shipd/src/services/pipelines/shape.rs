@@ -5,7 +5,7 @@
 //! These types are serialized straight into the registry op payloads
 //! that `.ship/views/pipelines/*` templates consume.
 
-use runtime::projections::job::{JobRecord, JobStatus};
+use ship_substrate::projections::job::{JobRecord, JobStatus};
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -241,7 +241,7 @@ pub fn current_project_workspace_id() -> Option<String> {
 pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
     let mut walker = std::env::current_dir().ok()?;
     loop {
-        let dir = runtime::ShipHome::project_ship_dir(&walker).join("pipelines");
+        let dir = ship_substrate::ShipHome::project_ship_dir(&walker).join("pipelines");
         if dir.is_dir() {
             for ext in ["yaml", "yml", "jsonc", "json"] {
                 let cand = dir.join(format!("{name}.{ext}"));
@@ -258,9 +258,9 @@ pub fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
 }
 
 pub fn providers_on_path() -> Vec<String> {
-    runtime::agent_export::PROVIDERS
+    ship_primitives::agents::providers::PROVIDERS
         .iter()
-        .filter(|d| runtime::detect_binary(d.binary))
+        .filter(|d| ship_primitives::agents::providers::detect_binary(d.binary))
         .map(|d| d.id.to_string())
         .collect()
 }

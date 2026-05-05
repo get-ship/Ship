@@ -7,11 +7,11 @@ use anyhow::Result;
 use tempfile::tempdir;
 use tokio::sync::mpsc;
 
-use crate::events::kernel_router::{ActorConfig, KernelRouter};
-use crate::events::{ActorStore, EventEnvelope, Mailbox};
-use crate::services::{ServiceHandle, ServiceHandler, spawn_service, run_service};
+use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+use ship_substrate::events::{ActorStore, EventEnvelope, Mailbox};
+use ship_primitives::services::{ServiceHandle, ServiceHandler, spawn_service, run_service};
 #[cfg(feature = "unstable")]
-use crate::services::sync::{SyncConfig, SyncServiceHandler};
+use ship_primitives::services::sync::{SyncConfig, SyncServiceHandler};
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -30,17 +30,17 @@ fn sync_actor_config() -> ActorConfig {
 
 fn setup_router() -> (tempfile::TempDir, KernelRouter) {
     let tmp = tempdir().unwrap();
-    let base = crate::ShipHome::project_ship_dir(tmp.path());
+    let base = ship_substrate::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&base).unwrap();
-    crate::db::ensure_db_at(&base).unwrap();
+    ship_substrate::db::ensure_db_at(&base).unwrap();
     let router = KernelRouter::new(base).unwrap();
     (tmp, router)
 }
 
 fn setup_store(actor_id: &str, write_ns: Vec<String>, read_ns: Vec<String>) -> (tempfile::TempDir, ActorStore) {
     let tmp = tempdir().unwrap();
-    crate::db::ensure_db_at(tmp.path()).unwrap();
-    let db_path = crate::db::platform_db_path(tmp.path());
+    ship_substrate::db::ensure_db_at(tmp.path()).unwrap();
+    let db_path = ship_substrate::db::platform_db_path(tmp.path());
     let store = ActorStore::new(actor_id, db_path, write_ns, read_ns);
     (tmp, store)
 }

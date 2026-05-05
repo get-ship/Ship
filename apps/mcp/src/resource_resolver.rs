@@ -1,15 +1,16 @@
 use std::path::Path;
 
-use runtime::{
-    get_config, get_skill_vars, list_models, list_providers, read_log,
-    sessions::{
-        get_active_session as runtime_get_active_session,
-        list_sessions as runtime_list_sessions,
-    },
+use ship_primitives::agents::providers::{list_models, list_providers};
+use ship_primitives::agents::skill::{get_effective_skill, list_effective_skills};
+use ship_primitives::agents::skill_vars::get_skill_vars;
+use ship_primitives::config::get_config;
+use ship_primitives::sessions::{
+    get_active_session as runtime_get_active_session, list_sessions as runtime_list_sessions,
 };
-use runtime::{get_effective_skill, list_effective_skills, load_jobs_at};
+use ship_substrate::log::read_log;
+use ship_substrate::projections::job::load_jobs_at;
 
-use runtime::projections::job::load_jobs;
+use ship_substrate::projections::job::load_jobs;
 
 use crate::resources::render_events_resource;
 
@@ -21,7 +22,7 @@ pub async fn resolve_resource_uri(
     dir: &Path,
     project_info: impl std::future::Future<Output = String>,
 ) -> Option<String> {
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir);
 
     if uri == "ship://project_info" {
         return Some(project_info.await);
@@ -164,7 +165,7 @@ fn resolve_workspace_uri(uri: &str, ship_dir: &Path) -> Option<String> {
                 let active_agent = runtime::project::ensure_project_id(ship_dir)
                     .ok()
                     .and_then(|pid| {
-                        runtime::projections::compile_state::load(&pid)
+                        ship_substrate::projections::compile_state::load(&pid)
                             .ok()
                             .flatten()
                     })

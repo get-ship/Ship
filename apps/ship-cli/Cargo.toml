@@ -23,6 +23,8 @@ lint = { path = "../../crates/core/lint" }
 lsp = { path = "../../crates/lsp" }
 compiler = { path = "../../crates/core/compiler" }
 runtime = { path = "../../crates/core/runtime" }
+ship-substrate = { path = "../../crates/core/ship-substrate" }
+ship-primitives = { path = "../../crates/core/ship-primitives" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }
 anyhow = { workspace = true }
 toml = { workspace = true }

@@ -3,9 +3,9 @@
 //! Covers the `completed_steps` and `current_step` fields across the full
 //! lifecycle of jobs with a `steps` (DAG pipeline) field.
 
-use runtime::events::EventEnvelope;
-use runtime::events::job::event_types;
-use runtime::projections::job::{JobStatus, project};
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::job::event_types;
+use ship_substrate::projections::job::{JobStatus, project};
 
 fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "test-entity", &payload).unwrap()

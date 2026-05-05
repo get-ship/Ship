@@ -11,8 +11,8 @@ use crate::services::collections::service::{
 };
 use crate::services::specs::shape::{load_body, spec_from_item};
 
-use runtime::events::job::{JobCreatedPayload, event_types};
-use runtime::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
+use ship_substrate::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -52,13 +52,13 @@ pub async fn launch_collection_item(
     let item = collections.get_item(collection, id).await?;
     let spec = spec_from_item(item);
 
-    let job_id = runtime::gen_ulid();
+    let job_id = ship_substrate::gen_ulid();
     let slug = format!("spec-{}", &spec.id);
     let branch = format!("job/{slug}");
     let baseline_sha = runtime::project::get_project_dir(None)
         .ok()
         .and_then(|p| p.parent().map(std::path::Path::to_path_buf))
-        .and_then(|root| runtime::services::orchestrator::git_helpers::resolve_head_sha(&root));
+        .and_then(|root| ship_primitives::services::orchestrator::git_helpers::resolve_head_sha(&root));
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
         slug,
@@ -79,7 +79,7 @@ pub async fn launch_collection_item(
         headless: false,
         baseline_sha,
     };
-    let payload = runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload)
+    let payload = ship_primitives::services::orchestrator::pipeline_loader::ensure_pipeline(payload)
         .map_err(LaunchError::Validation)?;
     let envelope = EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))

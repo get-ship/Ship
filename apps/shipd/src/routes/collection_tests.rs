@@ -10,7 +10,7 @@ mod tests {
 
     /// Write a schema JSONC file into the test daemon's .ship/collections/ dir.
     fn write_schema(daemon: &TestDaemon, id: &str, schema_json: &str) {
-        let schemas_dir = runtime::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("collections");
+        let schemas_dir = ship_substrate::ShipHome::project_ship_dir(daemon.temp_dir.path()).join("collections");
         std::fs::create_dir_all(&schemas_dir).unwrap();
         std::fs::write(schemas_dir.join(format!("{id}.jsonc")), schema_json).unwrap();
     }

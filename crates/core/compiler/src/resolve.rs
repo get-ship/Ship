@@ -89,7 +89,7 @@ pub struct ResolvedConfig {
     /// The compiler uses it to emit HTTP transport config instead of stdio.
     pub studio_mcp_url: Option<String>,
     /// Absolute path to the ship home (e.g. `/home/alice/.ship`). Injected
-    /// by callers (CLI/daemon) that resolve via `runtime::ShipHome`. The
+    /// by callers (CLI/daemon) that resolve via `ship_substrate::ShipHome`. The
     /// compiler is WASM-safe and does not read environment variables —
     /// when this is `None` (e.g. WASM frontends), the compiler emits an
     /// MCP entry without the `SHIP_HOME` env injection.

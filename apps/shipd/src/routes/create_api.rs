@@ -132,13 +132,13 @@ pub async fn create_surface(
                 "name": name,
                 "route": route,
             });
-            if let Ok(envelope) = runtime::events::EventEnvelope::new(
+            if let Ok(envelope) = ship_substrate::events::EventEnvelope::new(
                 "agent.task.complete",
                 &name,
                 &payload,
             ) {
-                let ctx = runtime::events::EmitContext {
-                    caller_kind: runtime::events::CallerKind::Cli,
+                let ctx = ship_substrate::events::EmitContext {
+                    caller_kind: ship_substrate::events::CallerKind::Cli,
                     skill_id: None,
                     project_id: None,
                     session_id: None,

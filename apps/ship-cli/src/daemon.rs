@@ -1,10 +1,10 @@
 use anyhow::{Context, Result};
-use runtime::events::EventEnvelope;
-use runtime::events::daemon::{
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::daemon::{
     CrashedPayload, PidfileAcquiredPayload, PidfileStaleTakenPayload,
     ShutdownCompletedPayload, event_types as daemon_events,
 };
-use runtime::events::{EventStore, SqliteEventStore};
+use ship_substrate::events::{EventStore, SqliteEventStore};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -45,15 +45,15 @@ pub enum DaemonCommand {
 const SHIPD_PORT: u16 = 9315;
 
 fn ship_dir() -> Result<PathBuf> {
-    Ok(runtime::ShipHome::from_env().root().to_path_buf())
+    Ok(ship_substrate::ShipHome::from_env().root().to_path_buf())
 }
 
 fn pid_file() -> Result<PathBuf> {
-    Ok(runtime::home::current_daemon_dir().join("pid"))
+    Ok(ship_substrate::home::current_daemon_dir().join("pid"))
 }
 
 fn log_file() -> Result<PathBuf> {
-    Ok(runtime::ShipHome::from_env()
+    Ok(ship_substrate::ShipHome::from_env()
         .machine_dir()
         .join("logs")
         .join("shipd.log"))
@@ -106,7 +106,7 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
         }
         DaemonCommand::Status => daemon_status(),
         DaemonCommand::Dir => {
-            println!("{}", runtime::home::current_daemon_dir().display());
+            println!("{}", ship_substrate::home::current_daemon_dir().display());
             Ok(())
         }
         DaemonCommand::Cleanup => daemon_cleanup(),
@@ -213,7 +213,7 @@ pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
 
     // Ensure ~/.ship/ and machine/crashes/ exist.
     std::fs::create_dir_all(&global_dir).context("cannot create ~/.ship/ directory")?;
-    let crashes_dir = runtime::ShipHome::at(global_dir.clone())
+    let crashes_dir = ship_substrate::ShipHome::at(global_dir.clone())
         .machine_dir()
         .join("crashes");
     std::fs::create_dir_all(&crashes_dir).context("cannot create ~/.ship/machine/crashes/ directory")?;
@@ -264,8 +264,8 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
     // per-worktree daemons/<hash>/ when launched from a project root, else
     // falls back to the singleton. Crashes still live under machine/crashes
     // because they're not per-worktree.
-    let daemon_dir = runtime::home::current_daemon_dir();
-    let crashes_dir = runtime::ShipHome::at(global_dir.clone())
+    let daemon_dir = ship_substrate::home::current_daemon_dir();
+    let crashes_dir = ship_substrate::ShipHome::at(global_dir.clone())
         .machine_dir()
         .join("crashes");
     // Dev mode forces localhost bind.
@@ -442,7 +442,7 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
 
         let (exit_code, signal) = exit_status_parts(&status);
         let last_known_event_id =
-            runtime::db::event_log_summary(&global_dir).latest_event_id;
+            ship_substrate::db::event_log_summary(&global_dir).latest_event_id;
         let restart_will_be_attempted = restart_count < MAX_RESTARTS;
         emit_supervisor_event(
             &global_dir,
@@ -590,14 +590,14 @@ pub(super) fn daemon_stop_inner() -> Result<()> {
     // ProjectRoot::discover → per-worktree → singleton. If nothing is live,
     // fall back to current_daemon_dir so we still tidy stale pidfiles.
     let cwd = std::env::current_dir().context("cannot determine cwd")?;
-    let daemon_dir = runtime::home::discover_running_daemon(&cwd)
+    let daemon_dir = ship_substrate::home::discover_running_daemon(&cwd)
         .map(|h| h.dir)
-        .unwrap_or_else(runtime::home::current_daemon_dir);
+        .unwrap_or_else(ship_substrate::home::current_daemon_dir);
     stop::daemon_stop_at(&daemon_dir)
 }
 
 fn daemon_status() -> Result<()> {
-    let daemon_dir = runtime::home::current_daemon_dir();
+    let daemon_dir = ship_substrate::home::current_daemon_dir();
     let adapter = supervision::select();
     let supervision_status = adapter.status(&daemon_dir)?;
 
@@ -751,16 +751,16 @@ fn format_relative_time(ts: &str) -> String {
 }
 
 fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
-    use runtime::db::repair;
+    use ship_substrate::db::repair;
 
     let global_dir = runtime::project::get_global_dir()
         .context("resolve global ship dir")?;
-    let db_path = runtime::db::platform_db_path(&global_dir);
+    let db_path = ship_substrate::db::platform_db_path(&global_dir);
     if !db_path.exists() {
         println!("no platform.db at {} — nothing to repair", db_path.display());
         return Ok(());
     }
-    let mut conn = runtime::db::open_db_at(&db_path)?;
+    let mut conn = ship_substrate::db::open_db_at(&db_path)?;
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
@@ -804,11 +804,11 @@ fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
 }
 
 fn daemon_cleanup() -> Result<()> {
-    use runtime::projections::job::{load_jobs, JobStatus};
+    use ship_substrate::projections::job::{load_jobs, JobStatus};
 
     let jobs = load_jobs().context("failed to load job projection")?;
 
-    let repo_dir = if let Ok(dir) = runtime::env::read_raw(runtime::env::Var::RepoDir) {
+    let repo_dir = if let Ok(dir) = ship_substrate::env::read_raw(ship_substrate::env::Var::RepoDir) {
         PathBuf::from(dir)
     } else {
         std::env::current_dir().context("cannot determine working directory")?
@@ -819,7 +819,7 @@ fn daemon_cleanup() -> Result<()> {
         .and_then(|n| n.to_str())
         .map(|s| s.to_string())
         .unwrap_or_else(|| "ship".to_string());
-    let worktrees_base = runtime::config::worktrees_dir(&project_name);
+    let worktrees_base = ship_primitives::config::worktrees_dir(&project_name);
 
     let orphans: Vec<_> = jobs
         .values()
@@ -933,7 +933,7 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
 /// Try to read daemon info and verify it responds to /api/v1/health.
 fn daemon_info_if_healthy() -> Option<(u16, String)> {
     let cwd = std::env::current_dir().ok()?;
-    let handle = runtime::home::discover_running_daemon(&cwd)?;
+    let handle = ship_substrate::home::discover_running_daemon(&cwd)?;
     let port = handle.port;
     let token = handle.token.clone();
 

@@ -7,8 +7,8 @@ use axum::{
     response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{ActorConfig, EventEnvelope};
-use runtime::events::job::{JobCreatedPayload, event_types};
+use ship_substrate::events::{ActorConfig, EventEnvelope};
+use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -77,7 +77,7 @@ pub struct CreateJobRequest {
     tag = "runtime"
 )]
 pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
-    let jobs = match runtime::projections::job::load_jobs_at(state.ship_dir()) {
+    let jobs = match ship_substrate::projections::job::load_jobs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -109,12 +109,12 @@ pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
 
 /// Annotate a job with `process_state` + `notes` for `ship jobs`.
 pub(crate) fn annotate_job(
-    job: &runtime::projections::job::JobRecord,
-    processes: &[runtime::projections::process::ProcessRecord],
-    supervisor_events: &[runtime::events::EventEnvelope],
+    job: &ship_substrate::projections::job::JobRecord,
+    processes: &[ship_substrate::projections::process::ProcessRecord],
+    supervisor_events: &[ship_substrate::events::EventEnvelope],
 ) -> serde_json::Value {
-    use runtime::projections::job::JobStatus;
-    use runtime::projections::process::ProcessStatus;
+    use ship_substrate::projections::job::JobStatus;
+    use ship_substrate::projections::process::ProcessStatus;
 
     let terminal = matches!(
         job.status,
@@ -154,7 +154,7 @@ pub(crate) fn annotate_job(
 /// True if the most recent supervisor.drift_detected for `slug` is newer
 /// than any subsequent supervisor.coherence_restored — i.e. the drift has
 /// not yet been resolved by a sweep action.
-pub(crate) fn drift_active_for_slug(slug: &str, events: &[runtime::events::EventEnvelope]) -> bool {
+pub(crate) fn drift_active_for_slug(slug: &str, events: &[ship_substrate::events::EventEnvelope]) -> bool {
     let mut latest_drift: Option<chrono::DateTime<chrono::Utc>> = None;
     let mut latest_restored: Option<chrono::DateTime<chrono::Utc>> = None;
     for e in events {
@@ -193,10 +193,10 @@ pub(crate) fn truncate(s: &str, max: usize) -> String {
 pub(crate) fn list_processes_at(
     ship_dir: &std::path::Path,
     slug: Option<&str>,
-) -> anyhow::Result<Vec<runtime::projections::process::ProcessRecord>> {
-    runtime::db::ensure_db_at(ship_dir)?;
-    let events = runtime::db::events::list_recent_events_at(ship_dir, 50_000)?;
-    let mut records = runtime::projections::process::project(&events);
+) -> anyhow::Result<Vec<ship_substrate::projections::process::ProcessRecord>> {
+    ship_substrate::db::ensure_db_at(ship_dir)?;
+    let events = ship_substrate::db::events::list_recent_events_at(ship_dir, 50_000)?;
+    let mut records = ship_substrate::projections::process::project(&events);
     if let Some(s) = slug {
         records.retain(|r| r.slug == s);
     }
@@ -208,9 +208,9 @@ pub(crate) fn load_recent_events_by_type(
     ship_dir: &std::path::Path,
     types: &[&str],
     limit: usize,
-) -> anyhow::Result<Vec<runtime::events::EventEnvelope>> {
-    runtime::db::ensure_db_at(ship_dir)?;
-    let events = runtime::db::events::list_recent_events_at(ship_dir, limit)?;
+) -> anyhow::Result<Vec<ship_substrate::events::EventEnvelope>> {
+    ship_substrate::db::ensure_db_at(ship_dir)?;
+    let events = ship_substrate::db::events::list_recent_events_at(ship_dir, limit)?;
     Ok(events
         .into_iter()
         .filter(|e| types.contains(&e.event_type.as_str()))
@@ -221,8 +221,8 @@ pub(crate) fn load_recent_events_by_type(
 
 #[derive(serde::Serialize)]
 pub struct JobDetailResponse {
-    job: runtime::projections::job::JobRecord,
-    step_observations: Vec<runtime::events::job::StepObservedPayload>,
+    job: ship_substrate::projections::job::JobRecord,
+    step_observations: Vec<ship_substrate::events::job::StepObservedPayload>,
     recent_events: Vec<EventSummary>,
 }
 
@@ -254,7 +254,7 @@ pub async fn get_job_detail(
     if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
         return e.into_response();
     }
-    let jobs = match runtime::projections::job::load_jobs_at(state.ship_dir()) {
+    let jobs = match ship_substrate::projections::job::load_jobs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -277,18 +277,18 @@ pub async fn get_job_detail(
         }
     };
 
-    let platform_db = runtime::db::platform_db_path(state.ship_dir());
-    let step_observations = runtime::db::events::query_events_by_entity_and_type_at(
+    let platform_db = ship_substrate::db::platform_db_path(state.ship_dir());
+    let step_observations = ship_substrate::db::events::query_events_by_entity_and_type_at(
         &platform_db, &job_id, "step.observed",
     )
     .unwrap_or_default()
     .into_iter()
     .filter_map(|env| {
-        serde_json::from_str::<runtime::events::job::StepObservedPayload>(&env.payload_json).ok()
+        serde_json::from_str::<ship_substrate::events::job::StepObservedPayload>(&env.payload_json).ok()
     })
     .collect::<Vec<_>>();
 
-    let recent_events = runtime::db::events::query_recent_events_for_entity_at(&platform_db, &job_id, 50)
+    let recent_events = ship_substrate::db::events::query_recent_events_for_entity_at(&platform_db, &job_id, 50)
         .unwrap_or_default()
         .into_iter()
         .map(|env| {
@@ -349,7 +349,7 @@ pub async fn create_job(
     if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
         return e;
     }
-    let job_id = runtime::gen_ulid();
+    let job_id = ship_substrate::gen_ulid();
     let baseline_sha = super::resolve_project_head_sha();
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
@@ -374,7 +374,7 @@ pub async fn create_job(
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps
     // so projections can track pipeline state.
-    let payload = match runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
+    let payload = match ship_primitives::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
         Ok(p) => p,
         Err(e) => {
             return (
@@ -456,7 +456,7 @@ pub async fn cancel_job(
         return e;
     }
 
-    let jobs = match runtime::projections::job::load_jobs_at(state.ship_dir()) {
+    let jobs = match ship_substrate::projections::job::load_jobs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -479,7 +479,7 @@ pub async fn cancel_job(
         }
     };
 
-    use runtime::projections::job::JobStatus;
+    use ship_substrate::projections::job::JobStatus;
     if matches!(
         job.status,
         JobStatus::Failed | JobStatus::Merged | JobStatus::Cancelled | JobStatus::Completed
@@ -496,7 +496,7 @@ pub async fn cancel_job(
         );
     }
 
-    let payload = runtime::events::job::JobCancelledPayload {
+    let payload = ship_substrate::events::job::JobCancelledPayload {
         job_id: job.job_id.clone(),
         slug: slug.clone(),
         reason: req.reason,
@@ -569,7 +569,7 @@ pub async fn end_job(
     if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
         return e;
     }
-    let jobs = match runtime::projections::job::load_jobs() {
+    let jobs = match ship_substrate::projections::job::load_jobs() {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -581,7 +581,7 @@ pub async fn end_job(
 
     let job = match jobs.values()
         .filter(|j| j.slug == req.slug)
-        .find(|j| j.status == runtime::projections::job::JobStatus::Dispatched)
+        .find(|j| j.status == ship_substrate::projections::job::JobStatus::Dispatched)
     {
         Some(j) => j.clone(),
         None => {
@@ -600,7 +600,7 @@ pub async fn end_job(
         if let Some(dh) = state.dispatch_handle() {
             let txs = dh.activity_txs.lock().await;
             if let Some(tx) = txs.get(&req.slug) {
-                let _ = tx.send(runtime::services::orchestrator::StepActivity::TurnEnded);
+                let _ = tx.send(ship_primitives::services::orchestrator::StepActivity::TurnEnded);
                 return (
                     StatusCode::OK,
                     Json(MeshResponse { ok: true, data: serde_json::json!(format!("turn ended for pipeline step '{}'", req.slug)) }),
@@ -612,7 +612,7 @@ pub async fn end_job(
     }
 
     // Single-step job or fallback: emit job.completed directly.
-    let payload = runtime::events::job::JobCompletedPayload {
+    let payload = ship_substrate::events::job::JobCompletedPayload {
         job_id: job.job_id.clone(),
         slug: job.slug.clone(),
     };

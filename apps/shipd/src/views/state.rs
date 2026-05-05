@@ -9,7 +9,7 @@
 //! R0a ships only what the pipelines pilot (R0b) will consume. That is:
 //!
 //! - Pipeline definitions from `.ship/pipelines/*.yaml`
-//! - Pipeline runs (via `runtime::projections::job::load_jobs`)
+//! - Pipeline runs (via `ship_substrate::projections::job::load_jobs`)
 //! - A shared [`Filter`] struct for query-string-driven view filters
 //!
 //! Helpers for specs, git, and settings are intentionally absent. They
@@ -28,7 +28,7 @@ pub use crate::services::skills::view_state::{
     load_skill_file,
 };
 
-use runtime::projections::job::{JobRecord, JobStatus};
+use ship_substrate::projections::job::{JobRecord, JobStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::ErrorKind;
@@ -190,7 +190,7 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     let mut walker = std::env::current_dir().ok();
     let mut project_local = None;
     while let Some(d) = walker.as_ref() {
-        let cand = runtime::ShipHome::project_ship_dir(&d).join("pipelines");
+        let cand = ship_substrate::ShipHome::project_ship_dir(&d).join("pipelines");
         if cand.is_dir() {
             project_local = Some(cand);
             break;
@@ -252,7 +252,7 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
 /// rate, and last-run fields get populated in place.
 pub fn aggregate_pipeline_stats<'a>(
     defs: &mut [PipelineDef],
-    jobs: impl IntoIterator<Item = &'a runtime::projections::job::JobRecord>,
+    jobs: impl IntoIterator<Item = &'a ship_substrate::projections::job::JobRecord>,
 ) {
     let mut by_name: std::collections::HashMap<String, Vec<&JobRecord>> =
         std::collections::HashMap::new();
@@ -373,7 +373,7 @@ fn parse_pipeline_meta(content: &str) -> (String, usize) {
 
 /// All known job records, filtered, sorted by `updated_at` descending.
 pub fn list_pipeline_runs(ship_dir: &Path, filter: &Filter) -> Vec<JobRecord> {
-    let jobs = match runtime::projections::job::load_jobs_at(ship_dir) {
+    let jobs = match ship_substrate::projections::job::load_jobs_at(ship_dir) {
         Ok(j) => j,
         Err(e) => {
             tracing::error!(error = %e, "load_jobs_at failed");

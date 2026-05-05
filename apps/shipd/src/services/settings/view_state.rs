@@ -80,10 +80,10 @@ fn detect_providers(default_id: &str) -> Vec<ProviderRow> {
     // Availability-only: `which <binary>` is sub-millisecond. Version
     // detection spawns the binary and blocks the render — keep off the
     // hot path.
-    runtime::agent_export::PROVIDERS
+    ship_primitives::agents::providers::PROVIDERS
         .iter()
         .map(|d| {
-            let available = runtime::detect_binary(d.binary);
+            let available = ship_primitives::agents::providers::detect_binary(d.binary);
             let (label, glyph) = provider_meta(d.id);
             ProviderRow {
                 id: d.id.to_string(),
@@ -99,7 +99,7 @@ fn detect_providers(default_id: &str) -> Vec<ProviderRow> {
 }
 
 fn setting_string(key: &str) -> String {
-    runtime::config::get_setting(key)
+    ship_primitives::config::get_setting(key)
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(|s| s.to_string()))
@@ -140,7 +140,7 @@ fn build_about() -> AboutInfo {
 }
 
 pub fn build_ctx() -> SettingsCtx {
-    let default_provider = runtime::config::get_setting("defaults.provider")
+    let default_provider = ship_primitives::config::get_setting("defaults.provider")
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(|s| s.to_string()))

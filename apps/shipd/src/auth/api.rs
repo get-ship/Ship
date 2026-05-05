@@ -12,7 +12,7 @@ use axum::extract::{Query, State};
 use axum::response::IntoResponse;
 use axum::Extension;
 use chrono::Utc;
-use runtime::events::CallerKind;
+use ship_substrate::events::CallerKind;
 
 use super::{AuthContext, hex_encode};
 use crate::auth::attest::{
@@ -295,7 +295,7 @@ pub struct AttestResponse {
 /// Configured attestation issuer. Reads `auth.attestation_issuer` setting,
 /// falls back to DEFAULT_ATTESTATION_ISSUER.
 fn configured_attestation_issuer() -> AttestationConfig {
-    let issuer = runtime::get_setting("auth.attestation_issuer")
+    let issuer = ship_primitives::config::get_setting("auth.attestation_issuer")
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(String::from))

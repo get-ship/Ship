@@ -19,7 +19,7 @@
 //! lived, user-driven; the shape is different enough that sharing the
 //! spawn path by copying the ~40 lines of portable-pty boilerplate is
 //! cheaper than generalising the executor. The reader-to-event-parser
-//! adapter trait is shared via `runtime::services::provider_adapter`.
+//! adapter trait is shared via `ship_primitives::services::provider_adapter`.
 
 pub mod types;
 pub mod registry;

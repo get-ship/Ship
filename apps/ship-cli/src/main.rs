@@ -49,7 +49,7 @@ use std::path::PathBuf;
 /// Silently skips if the global dir is unavailable or the router fails to start.
 fn try_init_kernel_router() {
     if let Ok(dir) = runtime::project::get_global_dir() {
-        let _ = runtime::events::init_kernel_router(dir);
+        let _ = ship_substrate::events::init_kernel_router(dir);
     }
 }
 
@@ -232,7 +232,7 @@ fn dispatch_openapi(action: OpenapiCommands) -> Result<()> {
 
 #[cfg(feature = "unstable")]
 fn run_rebuild_projections() -> Result<()> {
-    let report = runtime::db::rebuild::rebuild_projections_default()?;
+    let report = ship_substrate::db::rebuild::rebuild_projections_default()?;
     println!(
         "Rebuilt {} projection(s) from {} event(s) in {}ms",
         report.projections_rebuilt.len(),
@@ -299,7 +299,7 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
     try_init_kernel_router();
     let ship_dir = match path {
         Some(ref p) => {
-            let sd = runtime::ShipHome::project_ship_dir(std::fs::canonicalize(p)?);
+            let sd = ship_substrate::ShipHome::project_ship_dir(std::fs::canonicalize(p)?);
             anyhow::ensure!(
                 sd.exists(),
                 ".ship/ not found in {}. Run: ship init",
@@ -333,7 +333,7 @@ fn run_status(path: Option<PathBuf>) -> Result<()> {
         .transpose()?
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-    let ship_dir = runtime::ShipHome::project_ship_dir(&target);
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(&target);
     let state = profile::ProjectState::load(&ship_dir);
     match state.active_agent {
         Some(ref p) => {
@@ -362,11 +362,11 @@ fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>)
         .transpose()?
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-    if !runtime::ShipHome::project_ship_dir(&project_root).exists() {
+    if !ship_substrate::ShipHome::project_ship_dir(&project_root).exists() {
         anyhow::bail!(".ship/ not found. Run: ship init");
     }
 
-    let state = profile::ProjectState::load(&runtime::ShipHome::project_ship_dir(&project_root));
+    let state = profile::ProjectState::load(&ship_substrate::ShipHome::project_ship_dir(&project_root));
     compile::run_compile(compile::CompileOptions {
         project_root: &project_root,
         output_root: None,

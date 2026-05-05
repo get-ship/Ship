@@ -1,10 +1,10 @@
 use async_trait::async_trait;
-use runtime::events::job::event_types;
-use runtime::events::kernel_router::{ActorConfig, KernelRouter};
-use runtime::events::validator::{CallerKind, EmitContext};
-use runtime::events::EventEnvelope;
-use runtime::projections::job::{project, JobStatus};
-use runtime::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use ship_substrate::events::job::event_types;
+use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
+use ship_substrate::events::validator::{CallerKind, EmitContext};
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::projections::job::{project, JobStatus};
+use ship_primitives::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -31,7 +31,7 @@ fn job_dispatch_config() -> ActorConfig {
 
 fn setup() -> (TempDir, KernelRouter) {
     let dir = TempDir::new().unwrap();
-    let router = KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
+    let router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
     (dir, router)
 }
 
@@ -212,7 +212,7 @@ async fn non_job_events_not_delivered_to_subscriber() {
 /// 2. A `job.dispatched` event for phase 1 is routed to the subscriber
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pipeline_advances_to_next_phase() {
-    use runtime::events::store::{EventStore, SqliteEventStore};
+    use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
     let dir = TempDir::new().unwrap();
     let slug = "pipeline-adv-test";
@@ -265,7 +265,7 @@ async fn pipeline_advances_to_next_phase() {
     store.append(&dispatched).unwrap();
 
     // Set up kernel with a subscriber to capture routed events
-    let mut router = KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
+    let mut router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
     let (_actor_store, mut mb) = router
         .spawn_actor("service.job-dispatch", job_dispatch_config())
         .unwrap();
@@ -484,7 +484,7 @@ mod ports {
     /// Pipeline advancement uses JobExecutor::spawn for the next phase.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn pipeline_advance_uses_executor() {
-        use runtime::events::store::{EventStore, SqliteEventStore};
+        use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
         let dir = TempDir::new().unwrap();
         let slug = "pipe-exec-test";
@@ -536,7 +536,7 @@ mod ports {
             }),
         )).unwrap();
 
-        let mut router = KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
+        let mut router = KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
         let (_s, _mb) = router
             .spawn_actor("service.job-dispatch", super::job_dispatch_config())
             .unwrap();
@@ -591,18 +591,18 @@ fn job_projection_handles_model_and_provider_payload() {
 fn ship_mesh_id_env_overrides_derived_actor_id() {
     let slug = "payments-refactor";
 
-    let without = runtime::env::read_raw(runtime::env::Var::ActorId)
+    let without = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId)
         .ok()
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "agent.rust-runtime.job/payments-refactor".to_string());
     assert_eq!(without, "agent.rust-runtime.job/payments-refactor");
 
-    unsafe { runtime::env::set(runtime::env::Var::ActorId, slug) };
-    let with_mesh_id = runtime::env::read_raw(runtime::env::Var::ActorId)
+    unsafe { ship_substrate::env::set(ship_substrate::env::Var::ActorId, slug) };
+    let with_mesh_id = ship_substrate::env::read_raw(ship_substrate::env::Var::ActorId)
         .ok()
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "agent.rust-runtime.job/payments-refactor".to_string());
-    unsafe { runtime::env::remove(runtime::env::Var::ActorId) };
+    unsafe { ship_substrate::env::remove(ship_substrate::env::Var::ActorId) };
 
     assert_eq!(
         with_mesh_id, slug,
@@ -664,10 +664,10 @@ async fn job_without_depends_on_not_deferred() {
 /// Projection-backed dependency resolution: pending job dispatches when deps complete.
 #[test]
 fn projection_resolves_pending_deps() {
-    use runtime::events::store::{EventStore, SqliteEventStore};
+    use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -699,7 +699,7 @@ fn projection_resolves_pending_deps() {
     )).unwrap();
 
     // Before upstream completes: downstream is Pending with unresolved deps
-    let jobs = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
     let done: std::collections::HashSet<&str> = jobs.values()
         .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
         .map(|j| j.slug.as_str())
@@ -720,7 +720,7 @@ fn projection_resolves_pending_deps() {
     )).unwrap();
 
     // After upstream completes: downstream deps are resolved
-    let jobs = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
     let done: std::collections::HashSet<&str> = jobs.values()
         .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
         .map(|j| j.slug.as_str())
@@ -737,10 +737,10 @@ fn projection_resolves_pending_deps() {
 /// after daemon restart. Scenario S4: pending jobs survive restart.
 #[test]
 fn pending_jobs_recoverable_from_event_store() {
-    use runtime::events::store::{EventStore, SqliteEventStore};
+    use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -762,7 +762,7 @@ fn pending_jobs_recoverable_from_event_store() {
     }
 
     // Simulate restart: load projection from the same DB path
-    let jobs = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
 
     let pending_count = jobs
         .values()
@@ -787,10 +787,10 @@ fn pending_jobs_recoverable_from_event_store() {
 /// Prerequisite for S5: startup reconciliation must detect stale Dispatched jobs.
 #[test]
 fn projection_detects_stale_dispatched_jobs() {
-    use runtime::events::store::{EventStore, SqliteEventStore};
+    use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -865,7 +865,7 @@ fn projection_detects_stale_dispatched_jobs() {
         ))
         .unwrap();
 
-    let jobs = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
 
     assert_eq!(jobs.get("j-pending").unwrap().status, JobStatus::Pending);
     assert_eq!(
@@ -933,10 +933,10 @@ fn failed_event_transitions_dispatched_to_failed() {
 /// The reconciliation logic reads the PID to check process liveness.
 #[test]
 fn dispatched_event_preserves_pid_in_payload() {
-    use runtime::events::store::{EventStore, SqliteEventStore};
+    use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
     let dir = TempDir::new().unwrap();
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -1108,11 +1108,11 @@ mod reliability {
 
     /// Helper: seed event store with a dispatched job.
     fn seed_dispatched_job(
-        store: &runtime::events::store::SqliteEventStore,
+        store: &ship_substrate::events::store::SqliteEventStore,
         job_id: &str,
         slug: &str,
     ) {
-        use runtime::events::store::EventStore;
+        use ship_substrate::events::store::EventStore;
         store
             .append(&ev(
                 event_types::JOB_CREATED,
@@ -1148,23 +1148,23 @@ mod reliability {
     /// 3. If dead, emit job.step_failed
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn reconcile_dead_process_emits_step_failed() {
-        use runtime::events::store::{EventStore, SqliteEventStore};
+        use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
         let dir = TempDir::new().unwrap();
-        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
         seed_dispatched_job(&store, "j-stale", "stale-running");
 
-        let jobs_before = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs_before = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
         assert_eq!(
             jobs_before.get("j-stale").unwrap().status,
             JobStatus::Dispatched
         );
 
         let mut router =
-            runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
+            ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
             .spawn_actor("service.job-dispatch", super::job_dispatch_config())
             .unwrap();
@@ -1182,7 +1182,7 @@ mod reliability {
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
 
-        let jobs_after = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs_after = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
         let job = jobs_after.get("j-stale").unwrap();
         assert_eq!(
             job.status,
@@ -1200,17 +1200,17 @@ mod reliability {
     /// Dead process must NOT be registered in ProcessRegistry.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn reconcile_dead_process_not_registered() {
-        use runtime::events::store::{EventStore, SqliteEventStore};
+        use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
         let dir = TempDir::new().unwrap();
-        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
         seed_dispatched_job(&store, "j-reg", "register-test");
 
         let mut router =
-            runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
+            ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
             .spawn_actor("service.job-dispatch", super::job_dispatch_config())
             .unwrap();
@@ -1237,7 +1237,7 @@ mod reliability {
     /// S5: Dispatched job with live process keeps Dispatched status.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn reconcile_dispatched_job_keeps_status_when_alive() {
-        use runtime::events::store::{EventStore, SqliteEventStore};
+        use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
         struct AliveProcessExecutor;
 
@@ -1258,14 +1258,14 @@ mod reliability {
         }
 
         let dir = TempDir::new().unwrap();
-        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
         seed_dispatched_job(&store, "j-alive", "alive-job");
 
         let mut router =
-            runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
+            ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
             .spawn_actor("service.job-dispatch", super::job_dispatch_config())
             .unwrap();
@@ -1282,7 +1282,7 @@ mod reliability {
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
 
-        let jobs = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
         assert_eq!(
             jobs.get("j-alive").unwrap().status,
             JobStatus::Dispatched,
@@ -1296,7 +1296,7 @@ mod reliability {
     /// register the handle so graceful shutdown can stop it later.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn reconcile_live_process_populates_registry() {
-        use runtime::events::store::{EventStore, SqliteEventStore};
+        use ship_substrate::events::store::{EventStore, SqliteEventStore};
 
         struct AliveProcessExecutor;
 
@@ -1317,14 +1317,14 @@ mod reliability {
         }
 
         let dir = TempDir::new().unwrap();
-        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
         seed_dispatched_job(&store, "j-live-reg", "live-reg");
 
         let mut router =
-            runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
+            ship_substrate::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
             .spawn_actor("service.job-dispatch", super::job_dispatch_config())
             .unwrap();
@@ -1367,7 +1367,7 @@ mod reliability {
 
         assert_eq!(registry.len(), 3);
 
-        let stopped = registry.shutdown_all(Arc::clone(&executor) as Arc<dyn runtime::services::dispatch_ports::JobExecutor>).await;
+        let stopped = registry.shutdown_all(Arc::clone(&executor) as Arc<dyn ship_primitives::services::dispatch_ports::JobExecutor>).await;
 
         assert_eq!(stopped.len(), 3, "shutdown must stop all 3 agents");
         assert_eq!(
@@ -1383,9 +1383,9 @@ mod reliability {
     async fn graceful_shutdown_emits_shutdown_event() {
         let dir = TempDir::new().unwrap();
         let mut router =
-            runtime::events::kernel_router::KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
+            ship_substrate::events::kernel_router::KernelRouter::new(ship_substrate::ShipHome::project_ship_dir(dir.path())).unwrap();
 
-        let config = runtime::events::kernel_router::ActorConfig {
+        let config = ship_substrate::events::kernel_router::ActorConfig {
             namespace: "test.shutdown-observer".to_string(),
             write_namespaces: vec![],
             read_namespaces: vec![],
@@ -1400,7 +1400,7 @@ mod reliability {
         let handle = executor.spawn(&test_job_ctx("evt-test")).await.unwrap();
         registry.register("evt-test", handle);
 
-        super::super::graceful_shutdown(&kernel, &mut registry, Arc::clone(&executor) as Arc<dyn runtime::services::dispatch_ports::JobExecutor>).await;
+        super::super::graceful_shutdown(&kernel, &mut registry, Arc::clone(&executor) as Arc<dyn ship_primitives::services::dispatch_ports::JobExecutor>).await;
 
         let event = mb
             .try_recv()

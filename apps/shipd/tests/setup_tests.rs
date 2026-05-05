@@ -21,7 +21,7 @@ fn view_dir() -> PathBuf {
         .and_then(Path::parent)
         .expect("repo root above apps/shipd")
         .to_path_buf();
-    runtime::ShipHome::project_ship_dir(repo_root).join("views/setup")
+    ship_substrate::ShipHome::project_ship_dir(repo_root).join("views/setup")
 }
 
 fn read_partial(name: &str) -> String {
@@ -137,9 +137,9 @@ fn full_index_renders_with_all_partials_spliced_in() {
         .and_then(Path::parent)
         .expect("views/setup has .ship/ grandparent")
         .to_path_buf();
-    let prior = runtime::env::read_raw(runtime::env::Var::DevProjectDir).ok();
+    let prior = ship_substrate::env::read_raw(ship_substrate::env::Var::DevProjectDir).ok();
     unsafe {
-        runtime::env::set(runtime::env::Var::DevProjectDir, &ship_dir);
+        ship_substrate::env::set(ship_substrate::env::Var::DevProjectDir, &ship_dir);
     }
 
     let index_path = view_dir().join("index.html.j2");
@@ -149,8 +149,8 @@ fn full_index_renders_with_all_partials_spliced_in() {
 
     unsafe {
         match prior {
-            Some(v) => runtime::env::set(runtime::env::Var::DevProjectDir, v),
-            None => runtime::env::remove(runtime::env::Var::DevProjectDir),
+            Some(v) => ship_substrate::env::set(ship_substrate::env::Var::DevProjectDir, v),
+            None => ship_substrate::env::remove(ship_substrate::env::Var::DevProjectDir),
         }
     }
 

@@ -13,10 +13,10 @@ use super::{JobStatusReq, StepDoneReq, job_step_done, update_job_status};
 use crate::project_api::EmitEventReq;
 
 fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
-    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
-    runtime::db::ensure_db_at(&ship_dir).unwrap();
-    let kernel = runtime::events::new_isolated_for_test(ship_dir.clone()).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
+    let kernel = ship_substrate::events::new_isolated_for_test(ship_dir.clone()).unwrap();
     std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(
         ship_dir,
         kernel,
@@ -24,10 +24,10 @@ fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
 }
 
 async fn seed_job(state: &crate::rest_api::ApiState, slug: &str) -> String {
-    use runtime::events::EventEnvelope;
-    use runtime::events::job::{JobCreatedPayload, event_types};
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::events::job::{JobCreatedPayload, event_types};
 
-    let job_id = runtime::gen_ulid();
+    let job_id = ship_substrate::gen_ulid();
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
         slug: slug.to_string(),
@@ -82,9 +82,9 @@ async fn update_job_status_dispatched_advances_projection() {
     // Projection must reflect the dispatch — this is the assertion that
     // proves the daemon's kernel emit drove the projection update, which
     // is precisely what the old direct-write path skipped.
-    let jobs = runtime::projections::job::load_jobs_at(state.ship_dir()).unwrap();
+    let jobs = ship_substrate::projections::job::load_jobs_at(state.ship_dir()).unwrap();
     let rec = jobs.get(&job_id).expect("job projection row missing");
-    use runtime::projections::job::JobStatus;
+    use ship_substrate::projections::job::JobStatus;
     assert!(
         matches!(rec.status, JobStatus::Dispatched),
         "expected Dispatched, got {:?}",

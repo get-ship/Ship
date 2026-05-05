@@ -53,8 +53,8 @@ pub async fn update_job_status(
         require_scope(ac, Scope::EmitEvents)?;
     }
 
-    use runtime::events::EventEnvelope;
-    use runtime::events::job::{
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::events::job::{
         JobBlockedPayload, JobCompletedPayload, JobDispatchedPayload, JobFailedPayload,
         JobGateFailedPayload, JobGatePassedPayload, JobGateRequestedPayload, JobMergedPayload,
         event_types,
@@ -167,7 +167,7 @@ pub async fn update_job_status(
 }
 
 fn resolve_slug(ship_dir: &std::path::Path, job_id: &str) -> String {
-    runtime::projections::job::load_jobs_at(ship_dir)
+    ship_substrate::projections::job::load_jobs_at(ship_dir)
         .ok()
         .and_then(|jobs| jobs.get(job_id).map(|r| r.slug.clone()))
         .unwrap_or_default()
@@ -215,7 +215,7 @@ pub async fn job_step_done(
         require_scope(ac, Scope::EmitEvents)?;
     }
 
-    let jobs = runtime::projections::job::load_jobs_at(state.ship_dir())
+    let jobs = ship_substrate::projections::job::load_jobs_at(state.ship_dir())
         .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string()))?;
     let job = jobs
         .values()
@@ -228,8 +228,8 @@ pub async fn job_step_done(
         err_response(StatusCode::BAD_REQUEST, &format!("no active step for job '{slug}'"))
     })?;
 
-    use runtime::events::EventEnvelope;
-    use runtime::events::job::{StepDoneDeclaredPayload, event_types};
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::events::job::{StepDoneDeclaredPayload, event_types};
 
     let payload = StepDoneDeclaredPayload {
         job_id: job.job_id.clone(),
