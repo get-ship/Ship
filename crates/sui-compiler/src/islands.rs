@@ -26,6 +26,9 @@ pub const SUI_ISLANDS: &[(&str, &str)] = &[
     ("sui-devtools-lint", "sui-devtools"),
     ("sui-devtools-schema", "sui-devtools"),
     ("sui-devtools-signals", "sui-devtools"),
+    ("sui-launcher", "sui-launcher"),
+    ("sui-panel-dock", "sui-panel-dock"),
+    ("sui-nav-top", "sui-nav-top"),
 ];
 
 pub fn island_bundle(tag: &str) -> Option<&'static str> {

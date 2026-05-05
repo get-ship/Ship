@@ -101,6 +101,12 @@ const SUI_COMMAND_BAR_ISLAND_JS: &str =
     include_str!("../assets/sui-islands/sui-command-bar.js");
 const SUI_DEVTOOLS_ISLAND_JS: &str =
     include_str!("../assets/sui-islands/sui-devtools.js");
+const SUI_LAUNCHER_ISLAND_JS: &str =
+    include_str!("../assets/sui-islands/sui-launcher.js");
+const SUI_PANEL_DOCK_ISLAND_JS: &str =
+    include_str!("../assets/sui-islands/sui-panel-dock.js");
+const SUI_NAV_TOP_ISLAND_JS: &str =
+    include_str!("../assets/sui-islands/sui-nav-top.js");
 
 /// `GET /_sui/islands/{bundle}/island.js` — per-island SUI component bundle.
 ///
@@ -117,6 +123,9 @@ pub async fn serve_sui_island(Path(bundle): Path<String>) -> Response {
         "sui-terminal" => SUI_TERMINAL_ISLAND_JS,
         "sui-command-bar" => SUI_COMMAND_BAR_ISLAND_JS,
         "sui-devtools" => SUI_DEVTOOLS_ISLAND_JS,
+        "sui-launcher" => SUI_LAUNCHER_ISLAND_JS,
+        "sui-panel-dock" => SUI_PANEL_DOCK_ISLAND_JS,
+        "sui-nav-top" => SUI_NAV_TOP_ISLAND_JS,
         _ => return not_found("unknown island"),
     };
     Response::builder()

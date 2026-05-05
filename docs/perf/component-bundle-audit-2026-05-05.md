@@ -260,3 +260,45 @@ trivial enough to ride along with an audit. Filed as follow-up.
 - [x] At least 3 specific, actionable recommendations (R1–R4).
 - [x] `cargo test -p sui-compiler` green — no production code changed in
       this job. (See verification below.)
+
+## Verification — R1 applied (job/bundle-perf-followup, 2026-05-05)
+
+Executed R1 in three steps; each step was its own commit + bundle-script
+re-run, with `cargo test -p sui-compiler` and `pnpm -F @ship/ui-components
+test` green at each step.
+
+| step | change | sui-components.js gz | island bundle gz |
+|---|---|---:|---:|
+| baseline | – | **134.8 KiB** | – |
+| R1a | command-bar family → `islands/sui-command-bar/` | **117.3 KiB** (−17.5) | sui-command-bar.js raw 108.5 KiB |
+| R1b | devtools-* family → `islands/sui-devtools/` | **104.1 KiB** (−13.2) | sui-devtools.js raw 90.5 KiB |
+| R1c | sui-launcher / -panel-dock / -nav-top → individual islands | **92.8 KiB** (−11.3) | sui-launcher 22.9 / sui-panel-dock 22.6 / sui-nav-top 16.6 KiB |
+
+**Total** sui-components.js gz drop: **134.8 → 92.8 KiB (−42.0 KiB,
+≈31 % of baseline).** Per-component avg: 1586 B → 1250 B/component
+(76 components remain in the every-page registry; 11 moved to islands).
+Avg target ≤ 800 B/component is closer but not yet hit — R3 (shared
+adoptable stylesheets) is the natural next step to land on the long
+tail that stays in `sui-components.js`.
+
+Family-bundle support added to the islands plumbing:
+
+- `sui_compiler::islands::SUI_ISLANDS` is now a `&[(tag, bundle)]`
+  table — multiple related tags can pack into one asset bundle. The
+  daemon's `serve_sui_island` URL key changed from tag to bundle
+  (`/_sui/islands/<bundle>/island.js`); view payloads return deduped
+  bundle names. Single-tag islands (`sui-terminal`, individual chrome
+  components) keep `tag == bundle`.
+- `scripts/build-bundles.mjs` discovers every `.sui` file inside
+  each `packages/ui-components/src/islands/<bundle>/` and synthesises
+  a multi-import entry, so a family directory yields one packed
+  bundle.
+- `apps/shell2/index.html` script-loads the chrome islands (nav-top,
+  launcher, panel-dock, command-bar, devtools) the shell embeds
+  directly. View-host pages skip them entirely.
+
+R2 (sui-core / sui-extended split) becomes a narrower decision after
+R1: the every-page bundle is now ~31 % lighter and below the rough
+"~80 KiB gz cold load" trigger noted in `scripts/build-bundles.mjs`
+gate comments — a future audit may decide R2 is unnecessary in the
+post-R1 regime. R3/R4/R5 remain as filed follow-up specs.

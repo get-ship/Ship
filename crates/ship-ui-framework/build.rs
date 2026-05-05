@@ -25,6 +25,9 @@ fn main() {
         ("sui-islands/sui-terminal.js", ""),
         ("sui-islands/sui-command-bar.js", ""),
         ("sui-islands/sui-devtools.js", ""),
+        ("sui-islands/sui-launcher.js", ""),
+        ("sui-islands/sui-panel-dock.js", ""),
+        ("sui-islands/sui-nav-top.js", ""),
         ("sui-custom-elements.json", "{}"),
     ];
 
