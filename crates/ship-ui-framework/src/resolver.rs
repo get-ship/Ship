@@ -32,14 +32,19 @@ use crate::render_helpers::view_source as bake_source;
 /// Resolved view: source + captured params + (when on disk) the canonical
 /// source path the resolver landed on. Bake-list hits return
 /// `source_path = None` and an empty params map.
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ResolvedView {
     pub source: String,
     pub params: HashMap<String, String>,
+    /// Canonical on-disk source path. Emitted to TS as a plain string —
+    /// `PathBuf`'s platform-specific encoding doesn't survive JSON.
+    #[cfg_attr(feature = "specta", specta(type = Option<String>))]
     pub source_path: Option<PathBuf>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, serde::Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ResolveError {
     /// Human-readable diagnostic listing the lookups attempted.
     pub message: String,

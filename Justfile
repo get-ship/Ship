@@ -49,8 +49,11 @@ doctor:
     ship doctor
 
 # Run all tests (Rust + loops). For a faster inner loop use test-fast.
+# Also gates the generated TS bindings (`cargo xtask gen-types --check`)
+# so a Rust struct change without a regenerated `generated.ts` fails CI.
 [group('daily')]
 test:
+    cargo xtask gen-types --check
     cargo test --workspace --features unstable
 
 # Library tests only — skips integration suites for fast inner-loop feedback.

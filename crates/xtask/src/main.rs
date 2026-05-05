@@ -23,6 +23,11 @@ fn repo_root() -> PathBuf {
         .to_path_buf()
 }
 
+/// Types whose canonical home is `packages/ship-set/src/generated.ts`:
+/// project config, permissions, skills, agent profiles, runtime workspace +
+/// job/event projections. Consumers (ship-set/types.ts, sdk/types.ts)
+/// import from this file directly; do not move members out of this set
+/// without updating both consumers.
 fn collect_types() -> TypeCollection {
     let mut c = TypeCollection::default();
 
@@ -159,6 +164,55 @@ fn collect_types() -> TypeCollection {
     c
 }
 
+/// Framework data types that cross the daemon ↔ ui-runtime boundary.
+/// Output lands at `packages/ui-runtime/src/generated.ts` and is
+/// re-exported from `@ship/ui-runtime`. Add new entries here whenever a
+/// daemon HTTP/SSE response or a runtime payload struct gains a
+/// `#[derive(Type)]`. Drift between Rust and these registrations is
+/// caught by `cargo xtask gen-types --check` in CI.
+fn collect_framework_types() -> TypeCollection {
+    let mut c = TypeCollection::default();
+
+    // ship-ui-framework — view payload + resolver.
+    c.register::<ship_ui_framework::view_payload::ViewPayload>();
+    c.register::<ship_ui_framework::resolver::ResolvedView>();
+    c.register::<ship_ui_framework::resolver::ResolveError>();
+
+    // shipd::views — view list / manifest / source / write APIs.
+    c.register::<shipd::views::ViewManifest>();
+    c.register::<shipd::views::ViewListEntry>();
+    c.register::<shipd::views::RailMeta>();
+    c.register::<shipd::views::source_api::ViewSourceResponse>();
+    c.register::<shipd::views::write_api::WriteTemplateRequest>();
+    c.register::<shipd::views::write_api::WriteManifestRequest>();
+    c.register::<shipd::views::write_api::WriteResponse>();
+    c.register::<shipd::views::write_api::WriteDiagnostics>();
+    c.register::<shipd::views::write_api::LintFinding>();
+    c.register::<shipd::views::resolve::ManifestRail>();
+
+    // shipd::services::git — overview, diff, status buckets.
+    c.register::<shipd::services::git::state::CommitSummary>();
+    c.register::<shipd::services::git::state::StatusFile>();
+    c.register::<shipd::services::git::state::StatusBuckets>();
+    c.register::<shipd::services::git::state::BranchSummary>();
+    c.register::<shipd::services::git::state::GitOverview>();
+    c.register::<shipd::services::git::state::GitDiff>();
+    c.register::<shipd::services::git::state::GitDiffArgs>();
+    c.register::<shipd::services::git::diff::DiffLine>();
+    c.register::<shipd::services::git::diff::DiffHunk>();
+    c.register::<shipd::services::git::diff::DiffFileView>();
+    c.register::<shipd::services::git::diff::ParsedDiff>();
+
+    // shipd::services::agents — summary list payload.
+    c.register::<shipd::services::agents::view_state::AgentSummary>();
+    c.register::<shipd::services::agents::view_state::AgentsSummariesResponse>();
+
+    // shipd::lint_api — POST /api/v1/lint/view.
+    c.register::<shipd::lint_api::LintViewRequest>();
+
+    c
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().collect();
     let cmd = args.get(1).map(|s| s.as_str()).unwrap_or("help");
@@ -203,9 +257,18 @@ fn gen_types(check: bool) {
     let cloud_out = repo_root().join("packages/cloud-types/src/generated.ts");
     let cloud_content = build_cloud_types(&ts);
 
+    let framework_out = repo_root().join("packages/ui-runtime/src/generated.ts");
+    let framework_content = ts
+        .export(&collect_framework_types())
+        .expect("specta-typescript export failed (framework)");
+
     if check {
         let mut stale = false;
-        for (path, expected) in [(&ui_out, &ui_content), (&cloud_out, &cloud_content)] {
+        for (path, expected) in [
+            (&ui_out, &ui_content),
+            (&cloud_out, &cloud_content),
+            (&framework_out, &framework_content),
+        ] {
             let existing = std::fs::read_to_string(path).unwrap_or_default();
             if existing != *expected {
                 eprintln!("Out of date: {}", path.display());
@@ -224,6 +287,9 @@ fn gen_types(check: bool) {
     eprintln!("Wrote {}", ui_out.display());
     std::fs::write(&cloud_out, &cloud_content).expect("failed to write cloud generated.ts");
     eprintln!("Wrote {}", cloud_out.display());
+    std::fs::write(&framework_out, &framework_content)
+        .expect("failed to write framework generated.ts");
+    eprintln!("Wrote {}", framework_out.display());
 }
 
 /// Build the cloud-side generated.ts: EventEnvelope struct + all event-type

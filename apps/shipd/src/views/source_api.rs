@@ -13,6 +13,7 @@ use crate::rest_api::ApiState;
 use crate::views::router::match_path;
 
 #[derive(Serialize, utoipa::ToSchema)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ViewSourceResponse {
     /// Dotted view name derived from the filesystem path.
     pub view_name: String,
