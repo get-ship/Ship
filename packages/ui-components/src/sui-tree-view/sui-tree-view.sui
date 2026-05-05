@@ -23,6 +23,15 @@
     color: var(--foreground);
   }
   :host([hidden]) { display: none; }
+  ul { list-style: none; margin: 0; padding: 0; }
 </style>
 
+{#if nodes().length > 0}
+<ul role="tree">
+  {#for n of nodes() key={n.id}}
+    <sui-tree-item prop:node={n}></sui-tree-item>
+  {/for}
+</ul>
+{:else}
 <slot></slot>
+{/if}

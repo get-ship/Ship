@@ -137,3 +137,61 @@ describe('<sui-table>', () => {
     expect(headSlot!.closest('thead')).not.toBeNull()
   })
 })
+
+describe('<sui-table> data mode', () => {
+  it('renders column headers from columns prop', async () => {
+    const { el, shadow } = mount(reg, 'sui-table', { variant: 'data' })
+    ;(el as any).columns = [{ field: 'name', label: 'Name' }, { field: 'age', label: 'Age' }]
+    ;(el as any).rows = []
+    await flush()
+    const ths = shadow!.querySelectorAll('th')
+    expect(ths.length).toBe(2)
+    expect(ths[0]!.textContent!.trim()).toBe('Name')
+    expect(ths[1]!.textContent!.trim()).toBe('Age')
+  })
+
+  it('renders rows from rows prop', async () => {
+    const { el, shadow } = mount(reg, 'sui-table', { variant: 'data' })
+    ;(el as any).columns = [{ field: 'name', label: 'Name' }]
+    ;(el as any).rows = [{ id: '1', name: 'Alice' }, { id: '2', name: 'Bob' }]
+    await flush()
+    const tds = shadow!.querySelectorAll('td')
+    expect(tds.length).toBe(2)
+    expect(tds[0]!.textContent).toBe('Alice')
+    expect(tds[1]!.textContent).toBe('Bob')
+  })
+
+  it('clicking a column header sorts rows ascending then descending', async () => {
+    const { el, shadow } = mount(reg, 'sui-table', { variant: 'data' })
+    ;(el as any).columns = [{ field: 'name', label: 'Name' }]
+    ;(el as any).rows = [{ id: '1', name: 'Bob' }, { id: '2', name: 'Alice' }]
+    await flush()
+    const th = shadow!.querySelector('th') as HTMLElement
+    th.click()
+    await flush()
+    const tds = shadow!.querySelectorAll('td')
+    expect(tds[0]!.textContent).toBe('Alice')
+    expect(tds[1]!.textContent).toBe('Bob')
+    // Second click sorts descending
+    th.click()
+    await flush()
+    const tds2 = shadow!.querySelectorAll('td')
+    expect(tds2[0]!.textContent).toBe('Bob')
+    expect(tds2[1]!.textContent).toBe('Alice')
+  })
+
+  it('clicking a row toggles selected class', async () => {
+    const { el, shadow } = mount(reg, 'sui-table', { variant: 'data' })
+    ;(el as any).columns = [{ field: 'name', label: 'Name' }]
+    ;(el as any).rows = [{ id: '1', name: 'Alice' }]
+    await flush()
+    const tr = shadow!.querySelector('tbody tr') as HTMLElement
+    expect(tr.classList.contains('selected')).toBe(false)
+    tr.click()
+    await flush()
+    expect(tr.classList.contains('selected')).toBe(true)
+    tr.click()
+    await flush()
+    expect(tr.classList.contains('selected')).toBe(false)
+  })
+})

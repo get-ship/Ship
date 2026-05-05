@@ -1,6 +1,9 @@
-import { controller } from '@ship/ui-runtime'
+import { controller, signal, derived } from '@ship/ui-runtime'
 import type { Scope } from './sui-table.sui'
+import type { Signal } from '@ship/ui-runtime'
 
+type Row = Record<string, unknown> & { id: string }
+type Column = { field: string; label: string }
 type SortDirection = 'ascending' | 'descending' | 'none'
 
 const lightDomInstalled = new WeakSet<Document>()
@@ -25,7 +28,74 @@ function installLightDomStyles(doc: Document) {
 }
 
 export default controller<Scope>({
+  scope: () => {
+    const rows = signal<Row[]>([])
+    const columns = signal<Column[]>([])
+    const sortKey = signal<string | null>(null)
+    const sortDir = signal<'asc' | 'desc'>('asc')
+    const selected = signal<string[]>([])
+    const sortedRows = derived(() => {
+      const key = sortKey()
+      const dir = sortDir()
+      const data = rows()
+      if (!key) return data
+      return [...data].sort((a, b) => {
+        const av = String(a[key] ?? '')
+        const bv = String(b[key] ?? '')
+        const cmp = av < bv ? -1 : av > bv ? 1 : 0
+        return dir === 'asc' ? cmp : -cmp
+      })
+    })
+    return { rows, columns, sortKey, sortDir, selected, sortedRows }
+  },
+
+  on: {
+    sortBy(s: any, field: string) {
+      if (s.sortKey === field) {
+        s.sortDir = s.sortDir === 'asc' ? 'desc' : 'asc'
+      } else {
+        s.sortKey = field
+        s.sortDir = 'asc'
+      }
+    },
+    toggleSelect(s: any, id: string) {
+      const cur = s.selected as string[]
+      s.selected = cur.includes(id) ? cur.filter((x: string) => x !== id) : [...cur, id]
+    },
+    selectAll(s: any) {
+      s.selected = (s.rows as Row[]).map((r) => r.id)
+    },
+    clearSelection(s: any) {
+      s.selected = []
+    },
+  },
+
   mount(state, host) {
+    const scope = state as unknown as Scope & {
+      rows: Signal<Row[]>; columns: Signal<Column[]>
+    }
+
+    // Wire rows/columns JS properties to their signals so parent can do
+    // prop:rows={list} / prop:columns={cols} (bindProp sets el.rows = value).
+    const rowsSignal = scope.rows as unknown as Signal<Row[]>
+    const colsSignal = scope.columns as unknown as Signal<Column[]>
+
+    const initRows = (host as any).rows
+    if (initRows != null) rowsSignal.set(initRows)
+    const initCols = (host as any).columns
+    if (initCols != null) colsSignal.set(initCols)
+
+    Object.defineProperty(host, 'rows', {
+      configurable: true,
+      get: () => rowsSignal(),
+      set: (v: Row[]) => rowsSignal.set(v),
+    })
+    Object.defineProperty(host, 'columns', {
+      configurable: true,
+      get: () => colsSignal(),
+      set: (v: Column[]) => colsSignal.set(v),
+    })
+
     installLightDomStyles(host.ownerDocument)
 
     const paintSortChevrons = () => {
@@ -57,8 +127,21 @@ export default controller<Scope>({
           chev.setAttribute('aria-hidden', 'true')
           chev.style.cssText =
             'margin-left:4px;display:inline-block;opacity:0.5;transition:transform 120ms var(--ease-out),opacity 120ms var(--ease-out);vertical-align:middle;'
-          chev.innerHTML =
-            '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4l3-2 3 2M2 6l3 2 3-2"/></svg>'
+          const svgNS = 'http://www.w3.org/2000/svg'
+          const svg = document.createElementNS(svgNS, 'svg')
+          svg.setAttribute('width', '10')
+          svg.setAttribute('height', '10')
+          svg.setAttribute('viewBox', '0 0 10 10')
+          svg.setAttribute('fill', 'none')
+          svg.setAttribute('stroke', 'currentColor')
+          svg.setAttribute('stroke-width', '1.5')
+          svg.setAttribute('stroke-linecap', 'round')
+          svg.setAttribute('stroke-linejoin', 'round')
+          svg.setAttribute('aria-hidden', 'true')
+          const path = document.createElementNS(svgNS, 'path')
+          path.setAttribute('d', 'M2 4l3-2 3 2M2 6l3 2 3-2')
+          svg.appendChild(path)
+          chev.appendChild(svg)
           th.appendChild(chev)
         }
       })

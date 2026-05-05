@@ -17,9 +17,56 @@ describe('<sui-tree-view>', () => {
     expect(el.getAttribute('role')).toBe('tree')
   })
 
-  it('has a shadow root with a slot', () => {
+  it('has a shadow root with a slot when no nodes set', () => {
     const { shadow } = mount(reg, 'sui-tree-view', {})
     expect(shadow!.querySelector('slot')).not.toBeNull()
+  })
+
+  it('renders nodes prop as sui-tree-item elements', async () => {
+    const { el, shadow } = mount(reg, 'sui-tree-view', {})
+    ;(el as any).nodes = [
+      { id: '1', label: 'Root A' },
+      { id: '2', label: 'Root B' },
+    ]
+    await flush()
+    const items = shadow!.querySelectorAll('sui-tree-item')
+    expect(items.length).toBe(2)
+  })
+
+  it('renders 3-level nested tree from nodes prop', async () => {
+    const { el, shadow } = mount(reg, 'sui-tree-view', {})
+    const nodes = [{
+      id: '1', label: 'Level 1',
+      children: [{
+        id: '1-1', label: 'Level 2',
+        children: [{ id: '1-1-1', label: 'Level 3' }],
+      }],
+    }]
+    ;(el as any).nodes = nodes
+    await flush()
+
+    // Level 1 item is in tree-view shadow
+    const lvl1 = shadow!.querySelector('sui-tree-item') as HTMLElement & { shadowRoot: ShadowRoot }
+    expect(lvl1).not.toBeNull()
+
+    // Expand level 1 to render level 2
+    const lvl1Row = lvl1.shadowRoot!.querySelector('.row') as HTMLElement
+    lvl1Row.click()
+    await flush()
+
+    // Level 2 item is in lvl1's shadow (inside .children {#for})
+    const lvl2 = lvl1.shadowRoot!.querySelector('sui-tree-item') as HTMLElement & { shadowRoot: ShadowRoot }
+    expect(lvl2).not.toBeNull()
+
+    // Expand level 2 to render level 3
+    const lvl2Row = lvl2.shadowRoot!.querySelector('.row') as HTMLElement
+    lvl2Row.click()
+    await flush()
+
+    // Level 3 item is in lvl2's shadow
+    const lvl3 = lvl2.shadowRoot!.querySelector('sui-tree-item') as HTMLElement
+    expect(lvl3).not.toBeNull()
+    expect(lvl3.shadowRoot!.querySelector('.label')!.textContent).toBe('Level 3')
   })
 })
 
