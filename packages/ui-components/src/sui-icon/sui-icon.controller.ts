@@ -1,22 +1,27 @@
-import { controller, effect } from '@ship/ui-runtime'
-import { LUCIDE_ICONS } from '../../../ship-set/src/web-components/core/lucide-icons.generated'
+import { controller, effect, signal } from '@ship/ui-runtime'
+import {
+  getIconRegistry,
+  getIconSvg,
+  loadIconRegistry,
+  resolveIconName,
+} from './registry'
 import type { Scope } from './sui-icon.sui'
 
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
-const ALIASES: Record<string, string> = {
-  git: 'git-branch',
-  refresh: 'refresh-cw',
-  stop: 'stop-circle',
-  warning: 'triangle-alert',
-}
-
-function resolveName(name: string): string | undefined {
-  if (!name) return undefined
-  if (LUCIDE_ICONS[name]) return name
-  const aliased = ALIASES[name]
-  if (aliased && LUCIDE_ICONS[aliased]) return aliased
-  return undefined
+// Bumped once the registry first lands so all live `<sui-icon>` effects
+// re-resolve their `name`. Tests prime the registry synchronously
+// (see test/setup.ts) and never observe the bump.
+const registryRev = signal(getIconRegistry() ? 1 : 0)
+let kicked = false
+function kickFetch(): void {
+  if (kicked || getIconRegistry()) return
+  kicked = true
+  loadIconRegistry()
+    .then(() => registryRev.set(registryRev() + 1))
+    .catch(() => {
+      kicked = false
+    })
 }
 
 function makeSvg(doc: Document): SVGSVGElement {
@@ -64,7 +69,11 @@ export default controller<Scope>({
     })
 
     const stopRender = effect(() => {
-      const resolved = resolveName(scope.name()) ?? null
+      // Subscribe to the registry-load signal so the effect re-runs
+      // once the lazily-fetched registry lands.
+      registryRev()
+      const requested = scope.name()
+      const resolved = resolveIconName(requested) ?? null
       const label = scope.label()
       if (!resolved) {
         if (svgEl) {
@@ -72,6 +81,9 @@ export default controller<Scope>({
           svgEl = null
         }
         lastResolved = null
+        // If a name was requested but the registry isn't loaded yet,
+        // kick the fetch — the effect re-runs once it lands.
+        if (requested && !getIconRegistry()) kickFetch()
         return
       }
       if (!svgEl) {
@@ -79,7 +91,7 @@ export default controller<Scope>({
         root.insertBefore(svgEl, root.firstChild)
       }
       if (resolved !== lastResolved) {
-        populatePaths(svgEl, LUCIDE_ICONS[resolved]!)
+        populatePaths(svgEl, getIconSvg(resolved)!)
         lastResolved = resolved
       }
       if (label) svgEl.removeAttribute('aria-hidden')

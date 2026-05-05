@@ -66,6 +66,14 @@ const SUI_SDK_CLIENT_JS: &str =
 const SUI_COMPONENTS_JS: &str =
     include_str!("../assets/sui-components.js");
 
+// R4: lucide icon registry served on demand instead of bundled into
+// `sui-components.js`. The `<sui-icon>` controller fetches this on
+// first mount; the table is identical to the one Lit ship-elements
+// import statically, but no longer rides in the every-page components
+// bundle.
+const SUI_LUCIDE_ICONS_JSON: &str =
+    include_str!("../assets/lucide-icons.json");
+
 /// `GET /_sui/dom.js` — bundled `@ship/ui-dom` ESM module.
 pub async fn serve_sui_dom() -> Response {
     js_response_with_dev_override("sui-dom", SUI_DOM_JS).await
@@ -81,6 +89,18 @@ pub async fn serve_sui_sdk_client() -> Response {
 /// element is registered before any view template renders.
 pub async fn serve_sui_components() -> Response {
     js_response_with_dev_override("sui-components", SUI_COMPONENTS_JS).await
+}
+
+/// `GET /_sui/lucide-icons.json` — curated lucide icon registry, fetched
+/// by the `<sui-icon>` controller on first mount. Cached aggressively
+/// because the table only changes when the allowlist changes.
+pub async fn serve_sui_lucide_icons() -> Response {
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/json; charset=utf-8")
+        .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
+        .body(Body::from(SUI_LUCIDE_ICONS_JSON))
+        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
 async fn js_response_with_dev_override(bundle: &str, embedded: &'static str) -> Response {
@@ -381,6 +401,22 @@ mod tests {
     async fn island_unknown_valid_name_returns_404() {
         let resp = serve_sui_island(Path("sui-unknown-widget".to_string())).await;
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn lucide_icons_json_served() {
+        let resp = serve_sui_lucide_icons().await;
+        assert_eq!(resp.status(), StatusCode::OK);
+        let ct = resp.headers().get(header::CONTENT_TYPE).unwrap();
+        assert!(ct.to_str().unwrap().contains("application/json"));
+        let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let body = std::str::from_utf8(&bytes).unwrap();
+        // Sanity-check: a few well-known curated icons are present.
+        assert!(body.contains("\"chevron-right\""));
+        assert!(body.contains("\"git-branch\""));
+        assert!(body.starts_with('{') && body.ends_with('}'));
     }
 
     #[test]

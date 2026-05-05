@@ -43,8 +43,9 @@ pub mod view_payload;
 // SUI's HTTP routes.
 pub use runtime::serve_sui_runtime;
 pub use view::{
-    serve_sui_components, serve_sui_dom, serve_sui_island, serve_sui_sdk_client,
-    serve_sui_view_css, serve_sui_view_setup, serve_sui_view_template, ViewSetupQuery,
+    serve_sui_components, serve_sui_dom, serve_sui_island, serve_sui_lucide_icons,
+    serve_sui_sdk_client, serve_sui_view_css, serve_sui_view_setup,
+    serve_sui_view_template, ViewSetupQuery,
 };
 pub use view_host::serve_view_host;
 pub use view_payload::{serve_view_payload, serve_view_payload_subpath};

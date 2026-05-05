@@ -166,6 +166,10 @@ pub fn build_router(
             axum::routing::get(ship_ui_framework::serve_sui_components),
         )
         .route(
+            "/_sui/lucide-icons.json",
+            axum::routing::get(ship_ui_framework::serve_sui_lucide_icons),
+        )
+        .route(
             "/_sui/islands/{tag}/island.js",
             axum::routing::get(ship_ui_framework::serve_sui_island),
         )

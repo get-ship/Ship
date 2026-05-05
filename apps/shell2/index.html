@@ -9,6 +9,14 @@
   <link rel="stylesheet" href="/api/assets/view-tokens.css" />
   <link rel="stylesheet" href="/src/chrome/layout.css" />
 
+  <!-- R4: lucide icon table is fetched on demand by <sui-icon> rather
+       than bundled into sui-components.js. The shell paints six rail
+       icons (dashboard, pipelines, bot, git-branch, sparkles, palette,
+       play) on first paint, so prefetch the registry while the bundle
+       loads — when the first <sui-icon> mounts, the JSON is already in
+       HTTP cache and the fetch resolves near-instant. -->
+  <link rel="prefetch" href="/_sui/lucide-icons.json" as="fetch" type="application/json" crossorigin />
+
   <!-- Pre-paint theme: read persisted theme before first paint to prevent FOUC. -->
   <script>
     try {

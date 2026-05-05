@@ -1,11 +1,21 @@
 #!/usr/bin/env node
 /**
- * Generate `src/web-components/core/lucide-icons.generated.ts` from
- * the curated icon allowlist (`scripts/lucide-allowlist.json`). For
- * each icon, reads `lucide-static/icons/<name>.svg`, extracts the
- * inner SVG markup (children of the root <svg>), and writes a typed
- * record. The curated approach keeps the bundle small — 1947 icons
- * ship in lucide-static; we ship only what views reference.
+ * Generate the lucide registry in two forms:
+ *
+ *   1. `src/web-components/core/lucide-icons.generated.ts` — typed
+ *      record consumed at build time by Lit `ship-elements` web
+ *      components (ship-icon, ship-error-state, ship-empty-state).
+ *      These ship in `ship-elements.js`, which still loads the table
+ *      synchronously.
+ *
+ *   2. `crates/ship-ui-framework/assets/lucide-icons.json` — the same
+ *      table as plain JSON, served to the page on demand at
+ *      `/_sui/lucide-icons.json`. The SUI `<sui-icon>` controller
+ *      fetches it on first mount instead of bundling the table into
+ *      `sui-components.js` (R4 of the components-bundle audit).
+ *
+ * The curated approach keeps the bundle small — 1947 icons ship in
+ * lucide-static; we ship only what views reference.
  */
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -50,3 +60,16 @@ out += `}\n`
 const dest = join(root, 'src', 'web-components', 'core', 'lucide-icons.generated.ts')
 writeFileSync(dest, out)
 console.log(`wrote ${dest} with ${entries.length} icons`)
+
+// JSON form, served at `/_sui/lucide-icons.json` and `include_str!`'d
+// into the daemon. Sorted keys for deterministic output so the
+// `cargo build`-time content hash only changes when the icon set
+// actually changes.
+const jsonDest = join(
+  root, '..', '..', 'crates', 'ship-ui-framework', 'assets', 'lucide-icons.json',
+)
+const jsonObj = Object.fromEntries(
+  [...entries].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)),
+)
+writeFileSync(jsonDest, JSON.stringify(jsonObj))
+console.log(`wrote ${jsonDest} with ${entries.length} icons`)

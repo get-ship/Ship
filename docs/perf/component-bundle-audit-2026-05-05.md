@@ -356,3 +356,47 @@ test` (356 tests) green.
 
 Filed follow-up: R4 (`job/sui-icon-lazy-registry`) is independent of
 R3 and ready to land when scheduled.
+
+## Verification — R4 applied (job/bundle-perf-r4-lucide, 2026-05-05)
+
+Routed the lucide registry off the every-page bundle:
+
+- `packages/ship-set/scripts/generate-lucide-registry.mjs` now writes
+  `crates/ship-ui-framework/assets/lucide-icons.json` alongside the
+  existing typed `.ts` form. The `.ts` still backs the Lit
+  `ship-elements` consumers (`ship-icon`, `ship-empty-state`,
+  `ship-error-state`) which run synchronously inside the
+  `ship-elements.js` bundle — that bundle is unaffected by R4.
+- `packages/ui-components/src/sui-icon/registry.ts` (new) owns the
+  alias map, the in-flight fetch promise, and `setIconRegistry` /
+  `loadIconRegistry` / `resolveIconName` helpers. The SUI
+  `<sui-icon>` controller no longer imports
+  `lucide-icons.generated.ts`; on first mount with a `name`, it
+  kicks `loadIconRegistry()` and re-renders once the JSON lands via
+  a shared registry-revision signal.
+- `crates/ship-ui-framework/src/view.rs` adds
+  `serve_sui_lucide_icons` (`include_str!`'d, 1-hour `Cache-Control:
+  immutable`); `apps/shipd/src/router.rs` mounts it at
+  `/_sui/lucide-icons.json`.
+- `apps/shell2/index.html` adds `<link rel="prefetch"
+  href="/_sui/lucide-icons.json" as="fetch">` so the registry is
+  warm in HTTP cache by the time the rail's six icons mount —
+  first-paint perf does not regress.
+- `packages/ui-components/test/setup.ts` primes the in-memory
+  registry from the generated `.ts` so existing synchronous test
+  assertions continue to pass without rewrites.
+
+| metric | baseline | after R4 | Δ |
+|---|---:|---:|---:|
+| sui-components.js raw | 588.6 KiB | 577.0 KiB | −11.5 KiB |
+| sui-components.js gz | 91.9 KiB | 88.1 KiB | −3.8 KiB |
+| per-component avg gz | 1238 B | 1187 B | −51 B |
+| /_sui/lucide-icons.json raw | n/a | 13.0 KiB | (cached) |
+
+Slightly better than the audit's prorated estimate (~2 KiB gz) — the
+registry compressed less efficiently as part of the larger bundle
+than as a standalone fetch.
+
+`cargo test -p sui-compiler -p sui-lint` green;
+`cargo test -p ship-ui-framework view::tests::lucide_icons_json_served`
+green; `pnpm -F @ship/ui-components test` (1025 tests) green.
