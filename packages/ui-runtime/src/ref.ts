@@ -50,11 +50,3 @@ export function attachRef<T extends Element>(
   scope[varName] = slot
   return slot
 }
-
-/** Duck-type test for any writable signal/ref slot. */
-export function isRef(v: unknown): v is Ref<Element> {
-  return (
-    typeof v === 'function' &&
-    typeof (v as { set?: unknown }).set === 'function'
-  )
-}

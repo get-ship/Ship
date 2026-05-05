@@ -39,7 +39,7 @@ export type { Signal, Derived } from './signal'
 
 export { shared, isShared, provide, useShared, pickShared } from './context'
 
-export { ref, isRef, attachRef } from './ref'
+export { ref, attachRef } from './ref'
 export type { Ref } from './ref'
 
 export { bindSlotEmpty } from './slot-empty'

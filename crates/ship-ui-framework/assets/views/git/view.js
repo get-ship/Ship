@@ -1,8 +1,8 @@
-// views/git/dist/view.compiled.js
+// views/git/dist/page.compiled.js
 import { bindAttr, bindFor, bindIf, bindText, bindValue, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship/ui-runtime";
 import { collectElementMarkers, hydrateWhileError, hydrateWhileLoading } from "@ship/ui-dom";
 
-// views/git/view.controller.ts
+// views/git/controller.ts
 import { controller, signal, unwrapOr, useFilteredList } from "@ship/ui-runtime";
 var EMPTY_OVERVIEW = {
   workspace_id: null,
@@ -19,7 +19,7 @@ var EMPTY_OVERVIEW = {
   behind: 0
 };
 var read = ({ overview }) => unwrapOr(overview, EMPTY_OVERVIEW);
-var view_controller_default = controller({
+var controller_default = controller({
   scope: () => ({ tab: signal("changes") }),
   derived: {
     branch: (s) => read(s).branch,
@@ -59,16 +59,16 @@ var view_controller_default = controller({
   }
 });
 
-// views/git/dist/view.compiled.js
-var view_compiled_default = view((ctx) => {
+// views/git/dist/page.compiled.js
+var page_compiled_default = view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = /* @__PURE__ */ Object.create(null);
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
   $scope.overview = live(({ ship: ship2, route: route2 }) => ship2.git.overview());
-  if (view_controller_default && typeof view_controller_default.setup === "function") {
-    const __r = view_controller_default.setup(ctx);
+  if (controller_default && typeof controller_default.setup === "function") {
+    const __r = controller_default.setup(ctx);
     if (__r && typeof __r === "object") Object.assign($scope, __r);
   }
   const __renderWhileLoading_0 = () => {
@@ -1112,5 +1112,5 @@ var view_compiled_default = view((ctx) => {
   });
 });
 export {
-  view_compiled_default as default
+  page_compiled_default as default
 };
