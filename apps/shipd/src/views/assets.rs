@@ -33,8 +33,13 @@ const SHIP_ELEMENTS_MANIFEST: &str = include_str!("../../../../packages/ship-set
 
 /// Aggregated Custom Elements Manifest for SUI components (one module per
 /// `<sui-*>` tag). Built by `scripts/build-bundles.mjs` from the
-/// per-component CEMs in `packages/ui-components/src/<tag>/`.
-const SUI_ELEMENTS_MANIFEST: &str = include_str!("../../assets/sui-custom-elements.json");
+/// per-component CEMs in `packages/ui-components/src/<tag>/` and written
+/// to `crates/ship-ui-framework/assets/sui-custom-elements.json`. The
+/// previous path (`apps/shipd/assets/sui-custom-elements.json`) was a
+/// 2-byte `{}` placeholder — every daemon binary shipped without the
+/// real catalog, so ship-ui-studio rendered an empty component list.
+const SUI_ELEMENTS_MANIFEST: &str =
+    include_str!("../../../../crates/ship-ui-framework/assets/sui-custom-elements.json");
 
 /// Token-efficient compact catalog. ~4KB vs the 189KB full CEM.
 /// Derived from the CEM by `pnpm -F @ship/ui catalog`. This is what

@@ -69,23 +69,31 @@ function payloadUrl(r: Route): string {
 
 // ── Mount lifecycle ─────────────────────────────────────────────────
 
+// Each `mountRoute` call gets a monotonic token. When its mount resolves,
+// we check the token against `latestMountToken`: if equal, we're the
+// latest navigation and become the current handle; otherwise we were
+// superseded mid-flight and immediately dispose ourselves so SSE
+// connections + style elements don't leak.
 let currentHandle: { dispose(): void } | null = null
+let latestMountToken = 0
 let currentRoute: Route | null = null
 
 async function mountRoute(r: Route): Promise<void> {
   const slot = document.getElementById('ship-content')
   if (!slot) throw new Error('shell: #ship-content missing from index.html')
 
-  // Tear down the previous mount before swapping. mount() owns DOM
-  // injection — clearing slot.innerHTML before the next call would
-  // race with the new mount's own innerHTML write.
-  currentHandle?.dispose()
-  currentHandle = null
+  const token = ++latestMountToken
 
   // Notify devtools tabs of navigation.
   document.dispatchEvent(new Event('sui:navigate'))
 
-  if (!r) return showLanding(slot)
+  if (!r) {
+    // Landing page replaces the slot directly — dispose the previous
+    // SUI handle since its bindings reference DOM we're about to wipe.
+    currentHandle?.dispose()
+    currentHandle = null
+    return showLanding(slot)
+  }
 
   const w = window as WindowWithSui
   const runtime = await (w.__suiRuntimeReady ?? Promise.resolve(w.__suiRuntime))
@@ -94,6 +102,8 @@ async function mountRoute(r: Route): Promise<void> {
   try {
     const res = await fetch(payloadUrl(r), { credentials: 'same-origin' })
     if (!res.ok) {
+      currentHandle?.dispose()
+      currentHandle = null
       const viewPath = escapeHtml(`${r.view}${r.sub ? '/' + r.sub : ''}`)
       slot.innerHTML = `<div class="shell-error">
   <h2>Page not found</h2>
@@ -103,6 +113,16 @@ async function mountRoute(r: Route): Promise<void> {
       return
     }
     const payload = await res.json()
+
+    // Mount the next view BEFORE disposing the previous. mount() writes
+    // `target.innerHTML = payload.html` and inserts the new <style> as
+    // a sibling of the slot — the OLD view's <style> stays adjacent
+    // until we dispose, so there's never a frame between the old DOM
+    // being cleared and the new CSS being attached. (Pre-fix: dispose
+    // ran first, removing the old <style> immediately, leaving the
+    // old DOM unstyled until the fetch + mount completed — visible as
+    // CSS-loss flicker on every navigation, especially under load.)
+    const previous = currentHandle
     const handle = await runtime.mount(slot, payload, {
       cssScope: 'adjacent',
       // SUI views call `ship.<domain>.<op>()` inside `<data live>`
@@ -111,8 +131,23 @@ async function mountRoute(r: Route): Promise<void> {
       // as views stuck on `Loading…` because the patch never lands.
       ship: shipClient,
     })
+
+    // Race guard for rapid navigation: if a later mountRoute already
+    // bumped the token, we've been superseded. The fresh mount we just
+    // created is detached as soon as that later call's mount() runs
+    // its `target.innerHTML = …`, but its SSE connection + <style>
+    // would leak unless we dispose right now.
+    if (token !== latestMountToken) {
+      handle.dispose()
+      return
+    }
+
     currentHandle = handle
     currentRoute = r
+    // The new mount has replaced slot.innerHTML, so the previous view's
+    // DOM nodes are detached. Run its dispose to close SSE + remove the
+    // stale <style> element. Dispose is idempotent.
+    previous?.dispose()
   } catch (err) {
     slot.innerHTML = `<div class="shell-error">
   <h2>Mount failed</h2>

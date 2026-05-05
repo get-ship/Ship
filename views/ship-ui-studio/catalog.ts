@@ -20,14 +20,32 @@ export interface PropEntry {
   values?: string[]
 }
 
-// All 18 ported set-* components (kept as a static list since
-// CustomElementRegistry has no standard enumeration API).
-const SET_TAGS: string[] = [
-  'sui-status-dot', 'sui-spinner', 'sui-badge', 'sui-chip', 'sui-card',
-  'sui-link', 'sui-divider', 'sui-skeleton', 'sui-stat', 'sui-mark',
-  'sui-kbd', 'sui-avatar', 'sui-progress', 'sui-button', 'sui-tabs',
-  'sui-tab', 'sui-empty-state', 'sui-input',
-]
+// Tags that are owned by chrome / island bundles loaded only when needed
+// (devtools panes, command-bar slots, panel-dock children) and that
+// don't render in isolation in the studio. Keep them out of the
+// catalog so the studio doesn't try to instantiate them with a stub
+// host element that has no slot / shared context.
+const STUDIO_HIDE_TAGS = new Set<string>([
+  'sui-command-bar',
+  'sui-command-palette',
+  'sui-command-chat',
+  'sui-launcher',
+  'sui-panel-dock',
+  'sui-panel-dock-tab',
+  'sui-nav-top',
+  'sui-rail',
+  'sui-rail-item',
+  'sui-rail-section',
+  'sui-status-bar',
+  'sui-toast',
+  'sui-toast-container',
+  'sui-terminal',
+  'sui-devtools-source',
+  'sui-devtools-signals',
+  'sui-devtools-lint',
+  'sui-devtools-schema',
+  'sui-devtools-components',
+])
 
 // Baked SUI views not surfaced by /api/v1/views.
 const BAKED_SUI_VIEWS: CatalogEntry[] = [
@@ -101,13 +119,19 @@ async function loadLitComponents(): Promise<CatalogEntry[]> {
 }
 
 async function loadSuiComponents(): Promise<CatalogEntry[]> {
+  // Source of truth: the daemon's aggregated SUI CEM. Every
+  // component with a `<prop>` declaration shows up here. Filter
+  // out chrome / island tags that don't render standalone.
   const propsByTag = await loadSuiPropMap()
-  return SET_TAGS.map(tag => ({
-    id: tag,
-    tag,
-    kind: 'sui' as const,
-    props: propsByTag[tag] ?? [],
-  }))
+  return Object.keys(propsByTag)
+    .filter(tag => !STUDIO_HIDE_TAGS.has(tag))
+    .sort()
+    .map(tag => ({
+      id: tag,
+      tag,
+      kind: 'sui' as const,
+      props: propsByTag[tag] ?? [],
+    }))
 }
 
 // Fetch the daemon's aggregated SUI CEM and project it down to the prop
