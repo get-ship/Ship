@@ -256,4 +256,57 @@ mod actor_tests {
         assert!(cwd.is_none(), "legacy events leave cwd null");
         assert!(project_id.is_none(), "legacy events leave project_id null");
     }
+
+    // ── Cursor tracking ────────────────────────────────────────────────
+
+    #[test]
+    fn dispatch_writes_projection_cursor() {
+        let (_ship_dir, mut conn) = setup();
+        let bus = bus();
+        let event = actor_created_event("actor-cursor-1", "ws-cursor");
+
+        // Pre-state: no cursor.
+        assert!(bus.cursor_for("actor_state").unwrap().is_none());
+
+        bus.dispatch(&event, &mut conn);
+
+        // Post-state: cursor matches the event's id.
+        let cursor = bus.cursor_for("actor_state").unwrap();
+        assert_eq!(cursor.as_deref(), Some(event.id.as_str()));
+    }
+
+    #[test]
+    fn dispatch_advances_cursor_to_latest_event() {
+        let (_ship_dir, mut conn) = setup();
+        let bus = bus();
+
+        let e1 = actor_created_event("actor-cursor-2", "ws-cursor");
+        let e2 = actor_woke_event("actor-cursor-2", "ws-cursor");
+
+        bus.dispatch(&e1, &mut conn);
+        bus.dispatch(&e2, &mut conn);
+
+        let cursor = bus.cursor_for("actor_state").unwrap();
+        assert_eq!(
+            cursor.as_deref(),
+            Some(e2.id.as_str()),
+            "cursor must point at the latest applied event"
+        );
+    }
+
+    #[test]
+    fn truncate_clears_projection_cursor() {
+        let (_ship_dir, mut conn) = setup();
+        let bus = bus();
+        let event = actor_created_event("actor-cursor-3", "ws-cursor");
+
+        bus.dispatch(&event, &mut conn);
+        assert!(bus.cursor_for("actor_state").unwrap().is_some());
+
+        bus.rebuild(&[], &mut conn).unwrap();
+        assert!(
+            bus.cursor_for("actor_state").unwrap().is_none(),
+            "rebuild must clear the projection cursor"
+        );
+    }
 }

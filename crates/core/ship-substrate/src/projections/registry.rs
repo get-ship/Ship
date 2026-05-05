@@ -5,12 +5,6 @@ use sqlx::SqliteConnection;
 
 use crate::events::EventEnvelope;
 
-// Fallback if tracing is not available — errors are still visible via test output.
-#[allow(unused_macros)]
-macro_rules! log_error {
-    ($($arg:tt)*) => { tracing::warn!($($arg)*) }
-}
-
 /// A projection maintains a derived read model from events.
 ///
 /// Projections are registered with the [`EventBus`]. On each event append,
@@ -29,6 +23,12 @@ pub trait Projection: Send + Sync {
 
     /// Drop all derived state so replay can rebuild from scratch.
     fn truncate(&self, conn: &mut SqliteConnection) -> Result<()>;
+}
+
+/// Per-projection cursor name in the `cursors` table. The format is fixed at
+/// `projection:<name>`; consumers should not write to this prefix directly.
+fn cursor_name(projection_name: &str) -> String {
+    format!("projection:{projection_name}")
 }
 
 /// Dispatches events to registered projections.
@@ -51,27 +51,47 @@ impl EventBus {
     ///
     /// Called synchronously after every event append in 0.2.0.
     /// Handler errors are logged but do not fail the caller —
-    /// the event is already persisted.
+    /// the event is already persisted. On success, the projection's cursor
+    /// in the `cursors` table is bumped to this event's id so an
+    /// incremental rebuild can resume from here.
     pub fn dispatch(&self, event: &EventEnvelope, conn: &mut SqliteConnection) {
         for proj in &self.projections {
-            if proj.event_types().contains(&event.event_type.as_str())
-                && let Err(e) = proj.apply(event, conn)
-            {
-                tracing::warn!(
-                    "[projection:{}] handler failed for {}: {}",
-                    proj.name(),
-                    event.event_type,
-                    e,
-                );
+            if !proj.event_types().contains(&event.event_type.as_str()) {
+                continue;
+            }
+            match proj.apply(event, conn) {
+                Ok(()) => {
+                    if let Err(e) = bump_cursor_with_conn(conn, proj.name(), &event.id) {
+                        tracing::warn!(
+                            "[projection:{}] cursor write failed for {}: {}",
+                            proj.name(),
+                            event.id,
+                            e,
+                        );
+                    }
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        "[projection:{}] handler failed for {}: {}",
+                        proj.name(),
+                        event.event_type,
+                        e,
+                    );
+                }
             }
         }
     }
 
     /// Replay all events through registered projections.
     ///
-    /// Truncates each projection first, then applies events in order.
-    /// This is the correctness guarantee: projections are always rebuildable.
-    pub fn rebuild(&self, events: &[EventEnvelope], conn: &mut SqliteConnection) -> Result<RebuildReport> {
+    /// Truncates each projection first (and clears its cursor), then applies
+    /// events in order. This is the correctness guarantee: projections are
+    /// always rebuildable.
+    pub fn rebuild(
+        &self,
+        events: &[EventEnvelope],
+        conn: &mut SqliteConnection,
+    ) -> Result<RebuildReport> {
         let mut report = RebuildReport {
             events_replayed: 0,
             projections_rebuilt: Vec::new(),
@@ -79,6 +99,8 @@ impl EventBus {
 
         for proj in &self.projections {
             proj.truncate(conn)?;
+            // Clear the cursor so the next live event re-establishes it.
+            crate::db::cursors::delete(&cursor_name(proj.name()))?;
             report.projections_rebuilt.push(proj.name().to_string());
         }
 
@@ -94,6 +116,11 @@ impl EventBus {
     pub fn projection_names(&self) -> Vec<&str> {
         self.projections.iter().map(|p| p.name()).collect()
     }
+
+    /// Read the cursor for a registered projection, if any.
+    pub fn cursor_for(&self, projection_name: &str) -> Result<Option<String>> {
+        crate::db::cursors::get(&cursor_name(projection_name))
+    }
 }
 
 impl Default for EventBus {
@@ -105,4 +132,28 @@ impl Default for EventBus {
 pub struct RebuildReport {
     pub events_replayed: usize,
     pub projections_rebuilt: Vec<String>,
+}
+
+/// Bump the cursor for a projection inside an existing connection. The
+/// `cursors` table lives in platform.db so this is a same-DB write.
+fn bump_cursor_with_conn(
+    conn: &mut SqliteConnection,
+    projection_name: &str,
+    event_id: &str,
+) -> Result<()> {
+    let name = cursor_name(projection_name);
+    crate::db::block_on(async {
+        sqlx::query(
+            "INSERT INTO cursors (name, last_event_id, updated_at)
+             VALUES (?, ?, datetime('now'))
+             ON CONFLICT(name) DO UPDATE SET
+               last_event_id = excluded.last_event_id,
+               updated_at    = excluded.updated_at",
+        )
+        .bind(&name)
+        .bind(event_id)
+        .execute(conn)
+        .await
+    })?;
+    Ok(())
 }
