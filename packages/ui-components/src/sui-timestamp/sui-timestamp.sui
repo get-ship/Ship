@@ -9,8 +9,8 @@
   value (String)   value (string,'') ✓ ISO datetime string, reflect
   format (String)  format (union)    ✓ relative|absolute|both
   ──────────────────────────────────────────────────────────────
-  ARIA: native <time> with datetime  ✓ controller renders it
-    attr; title = abs ISO string
+  ARIA: native <time> with datetime  ✓ template renders it
+    attr; title = abs ISO string        controller sets host.title
   ──────────────────────────────────────────────────────────────
   Timer: setInterval every minute    ✓ clearInterval on disconnect
   ──────────────────────────────────────────────────────────────
@@ -31,4 +31,11 @@
   .abs { color: var(--muted-foreground); margin-left: 4px; }
 </style>
 
-<span bind:this={containerEl}></span>
+{#if value()}
+  <time datetime={value()} part="time">
+    {#if format() === 'absolute'}{absStr()}{:else}{relStr()}{/if}
+  </time>
+  {#if format() === 'both'}
+    <span class="abs" part="abs">({absStr()})</span>
+  {/if}
+{/if}

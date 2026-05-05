@@ -1,8 +1,9 @@
 <!--
   <sui-segmented> — SUI port of <ship-segmented>.
   Segmented control backed by <sui-segmented-option> children. Renders
-  buttons in shadow DOM via controller; arrow-key navigation, Enter/Space
-  activation.
+  buttons in shadow DOM via the {#for} block over `options()`. Light-DOM
+  children are mirrored into the options signal by the controller's
+  MutationObserver. Arrow-key navigation, Enter/Space activation.
 
   Prop parity vs <ship-segmented>
   ────────────────────────────────────────────────────────────────────────
@@ -99,4 +100,19 @@
   }
 </style>
 
-<div class="container" part="container" bind:this={containerEl}></div>
+<div class="container" part="container" bind:this={containerEl}>
+  {#for opt of options() key={opt.value}}
+    <button
+      class="btn"
+      role="radio"
+      type="button"
+      data-value={opt.value}
+      aria-checked={opt.value === value() ? 'true' : 'false'}
+      aria-disabled={(disabled() || opt.disabled) ? 'true' : 'false'}
+      prop:disabled={disabled() || opt.disabled}
+      tabindex={opt.value === value() ? '0' : '-1'}>
+      {#if opt.icon}<span class="btn-icon" aria-hidden="true"><sui-icon prop:name={opt.icon} size="sm"></sui-icon></span>{/if}
+      {opt.label}
+    </button>
+  {/for}
+</div>
