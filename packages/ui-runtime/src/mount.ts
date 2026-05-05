@@ -161,6 +161,10 @@ export async function mount<Scope = Record<string, unknown>>(
 
   // 7. Run hydrate(root, ctx) if the compiled module exposed it.
   const cleanups: Array<() => void> = []
+  // Hoisted ahead of handle declaration so the async-mount branch
+  // can guard against pushing a cleanup into a mount that already
+  // disposed before its async mount() resolved.
+  let disposed = false
   const hydrate = setupRet?.['hydrate']
   if (typeof hydrate === 'function') {
     try {
@@ -179,18 +183,44 @@ export async function mount<Scope = Record<string, unknown>>(
   if (lifecycle?.mount) {
     try {
       const result = lifecycle.mount(lifecycle.state, target) as unknown
-      // Controller mount may return a Promise (async controllers). We
-      // don't await it — the controller drives state reactively — but
-      // we DO want to surface unhandled rejections so authoring bugs
-      // aren't silent.
-      if (
+      // Controller mount may return any of:
+      //   - void                — nothing to clean up
+      //   - () => void          — disposer; idiomatic Solid/Svelte shape
+      //   - Promise<void | () => void> — async mount with optional disposer
+      //
+      // The pre-fix branch only checked for Promise and surfaced
+      // rejections, silently DROPPING the disposer return. 61 of 69
+      // production controllers rely on `return () => …` for cleanup
+      // (every MutationObserver, ResizeObserver, setInterval,
+      // addEventListener tied to a host), so every navigation away
+      // from a mounted view leaked listeners + observers + timers.
+      // Honor the disposer in both sync and async cases.
+      if (typeof result === 'function') {
+        cleanups.push(result as () => void)
+      } else if (
         result &&
         typeof result === 'object' &&
         typeof (result as Promise<unknown>).then === 'function'
       ) {
-        ;(result as Promise<unknown>).catch((err) => {
-          console.error('[sui/mount] controller mount() promise rejected:', err)
-        })
+        ;(result as Promise<unknown>).then(
+          (asyncResult) => {
+            if (typeof asyncResult !== 'function') return
+            const disposer = asyncResult as () => void
+            if (disposed) {
+              // The view was already disposed before the async mount
+              // resolved — run the disposer immediately so its
+              // resources are released, rather than letting it leak.
+              try { disposer() } catch (err) {
+                console.error('[sui/mount] async cleanup threw:', err)
+              }
+            } else {
+              cleanups.push(disposer)
+            }
+          },
+          (err) => {
+            console.error('[sui/mount] controller mount() promise rejected:', err)
+          },
+        )
       }
     } catch (err) {
       console.error('[sui/mount] controller mount() threw:', err)
@@ -211,7 +241,6 @@ export async function mount<Scope = Record<string, unknown>>(
   }
 
   // 10. Build the handle.
-  let disposed = false
   const handle: MountHandle<Scope> = {
     element: target,
     scope: built.scope as unknown as Scope,
