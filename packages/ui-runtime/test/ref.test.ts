@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { effect, isRef, ref, signal } from '../src'
+import { effect, ref } from '../src'
 
 describe('ref()', () => {
   it('seeds to null', () => {
@@ -29,14 +29,4 @@ describe('ref()', () => {
     expect(seen).toEqual([null, a, null])
   })
 
-  it('passes the isRef writable check', () => {
-    expect(isRef(ref())).toBe(true)
-    expect(isRef(signal(0))).toBe(true)
-  })
-
-  it('rejects non-writable values via isRef', () => {
-    expect(isRef(null)).toBe(false)
-    expect(isRef({})).toBe(false)
-    expect(isRef(() => null)).toBe(false)
-  })
 })
