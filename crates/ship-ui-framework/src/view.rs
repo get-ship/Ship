@@ -99,6 +99,8 @@ const SUI_TERMINAL_ISLAND_JS: &str =
     include_str!("../assets/sui-islands/sui-terminal.js");
 const SUI_COMMAND_BAR_ISLAND_JS: &str =
     include_str!("../assets/sui-islands/sui-command-bar.js");
+const SUI_DEVTOOLS_ISLAND_JS: &str =
+    include_str!("../assets/sui-islands/sui-devtools.js");
 
 /// `GET /_sui/islands/{bundle}/island.js` — per-island SUI component bundle.
 ///
@@ -114,6 +116,7 @@ pub async fn serve_sui_island(Path(bundle): Path<String>) -> Response {
     let body: &'static str = match bundle.as_str() {
         "sui-terminal" => SUI_TERMINAL_ISLAND_JS,
         "sui-command-bar" => SUI_COMMAND_BAR_ISLAND_JS,
+        "sui-devtools" => SUI_DEVTOOLS_ISLAND_JS,
         _ => return not_found("unknown island"),
     };
     Response::builder()

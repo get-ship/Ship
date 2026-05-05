@@ -38,7 +38,11 @@
        view-payload `islands`). -->
   <script>
     (function () {
-      var bundles = ['/_sui/components.js', '/_sui/islands/sui-command-bar/island.js'];
+      var bundles = [
+        '/_sui/components.js',
+        '/_sui/islands/sui-command-bar/island.js',
+        '/_sui/islands/sui-devtools/island.js',
+      ];
       bundles.forEach(function (src) {
         var s = document.createElement('script');
         s.type = 'module';

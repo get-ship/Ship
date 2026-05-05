@@ -21,6 +21,11 @@ pub const SUI_ISLANDS: &[(&str, &str)] = &[
     ("sui-command-bar", "sui-command-bar"),
     ("sui-command-palette", "sui-command-bar"),
     ("sui-command-chat", "sui-command-bar"),
+    ("sui-devtools-source", "sui-devtools"),
+    ("sui-devtools-components", "sui-devtools"),
+    ("sui-devtools-lint", "sui-devtools"),
+    ("sui-devtools-schema", "sui-devtools"),
+    ("sui-devtools-signals", "sui-devtools"),
 ];
 
 pub fn island_bundle(tag: &str) -> Option<&'static str> {

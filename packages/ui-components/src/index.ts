@@ -88,12 +88,9 @@ import './sui-tree-view/dist/sui-tree-item.compiled.js'
 import './sui-table/dist/sui-table.compiled.js'
 import './sui-graph-canvas/dist/sui-graph-canvas.compiled.js'
 import './sui-panel-dock/dist/sui-panel-dock.compiled.js'
-import './sui-devtools/dist/sui-devtools-source.compiled.js'
-import './sui-devtools/dist/sui-devtools-components.compiled.js'
-import './sui-devtools/dist/sui-devtools-lint.compiled.js'
-import './sui-devtools/dist/sui-devtools-schema.compiled.js'
-import './sui-devtools/dist/sui-devtools-signals.compiled.js'
+// sui-devtools-* are island-bundled; see islands/sui-devtools/.
 // Island bundles — loaded on demand by hosts that need them. See
 // packages/ui-components/src/islands/<bundle>/:
 //   - sui-terminal       — the terminal pane
 //   - sui-command-bar    — command-bar + command-palette + command-chat
+//   - sui-devtools       — devtools-source + -components + -lint + -schema + -signals

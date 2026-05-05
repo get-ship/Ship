@@ -1,9 +1,9 @@
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest'
-import '../src/sui-devtools/dist/sui-devtools-source.compiled.js'
-import '../src/sui-devtools/dist/sui-devtools-components.compiled.js'
-import '../src/sui-devtools/dist/sui-devtools-lint.compiled.js'
-import '../src/sui-devtools/dist/sui-devtools-schema.compiled.js'
-import '../src/sui-devtools/dist/sui-devtools-signals.compiled.js'
+import '../src/islands/sui-devtools/dist/sui-devtools-source.compiled.js'
+import '../src/islands/sui-devtools/dist/sui-devtools-components.compiled.js'
+import '../src/islands/sui-devtools/dist/sui-devtools-lint.compiled.js'
+import '../src/islands/sui-devtools/dist/sui-devtools-schema.compiled.js'
+import '../src/islands/sui-devtools/dist/sui-devtools-signals.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
