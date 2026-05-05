@@ -1,13 +1,16 @@
 //! Single source of truth for "where does SUI view `<name>` come
 //! from?".
 //!
-//! Resolution order:
+//! Resolution order (each tried in turn until one matches):
 //! 1. Bake list (`counter`, `agents`, `git`) — compile-time `include_str!`.
 //!    Only matches when the request has no sub-path.
-//! 2. `<project_root>/.ship/views/<name>/index.sui`.
-//! 3. With sub-path: `<project_root>/.ship/views/<name>/<seg-1>/.../index.sui`.
-//!    Each segment matches a static directory first, then a `[param]`
-//!    directory that captures the segment value.
+//! 2. `<project_root>/views/<name>/page.sui` — the new view-directory
+//!    convention (page.sui + controller.ts + style.css + manifest.jsonc).
+//!    Sub-paths walk into `[param]` directories under the view root.
+//! 3. `<project_root>/.ship/views/<name>/index.sui` — the legacy
+//!    extension-point convention. Kept as a fallback during the
+//!    transition window; once no project ships views in `.ship/views/`
+//!    this branch can be retired.
 //!
 //! Compiled output is mtime-cached: the resolver re-parses + re-renders
 //! a `.sui` source only when its mtime advances. Cache lookup is keyed
@@ -110,35 +113,51 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
         }
     };
 
-    let views_dir = project.join(".ship").join("views");
-    let root = views_dir.join(name);
-
+    // 2. New convention: project_root/views/<name>/page.sui (with optional
+    //    [param] sub-segments). Tried first so projects that have migrated
+    //    away from .ship/views/ resolve cleanly.
+    let new_root = project.join("views").join(name);
     let mut params: HashMap<String, String> = HashMap::new();
     let mut tried: Vec<PathBuf> = Vec::new();
-    let leaf = walk_disk(&root, &segments, &mut params, &mut tried);
+    let leaf = walk_disk_with_leaf(&new_root, &segments, "page.sui", &mut params, &mut tried);
+    let new_views_root = project.join("views");
     for p in &tried {
         let rel = p
-            .strip_prefix(&views_dir)
-            .map(|r| format!(".ship/views/{}", r.display()))
+            .strip_prefix(&new_views_root)
+            .map(|r| format!("views/{}", r.display()))
             .unwrap_or_else(|_| p.display().to_string());
         attempts.push(rel);
     }
 
-    if let Some(leaf) = leaf {
-        let source = match std::fs::read_to_string(&leaf) {
-            Ok(s) => s,
-            Err(e) => {
-                return Err(ResolveError {
-                    message: format!("failed to read {}: {e}", leaf.display()),
-                });
+    // 3. Legacy fallback: project_root/.ship/views/<name>/index.sui.
+    if leaf.is_none() {
+        params.clear();
+        tried.clear();
+        let views_dir = project.join(".ship").join("views");
+        let root = views_dir.join(name);
+        if let Some(found) =
+            walk_disk_with_leaf(&root, &segments, "index.sui", &mut params, &mut tried)
+        {
+            for p in &tried {
+                let rel = p
+                    .strip_prefix(&views_dir)
+                    .map(|r| format!(".ship/views/{}", r.display()))
+                    .unwrap_or_else(|_| p.display().to_string());
+                attempts.push(rel);
             }
-        };
-        let canonical = leaf.canonicalize().unwrap_or(leaf);
-        return Ok(ResolvedView {
-            source,
-            params,
-            source_path: Some(canonical),
-        });
+            return read_resolved(found, params);
+        }
+        for p in &tried {
+            let rel = p
+                .strip_prefix(&views_dir)
+                .map(|r| format!(".ship/views/{}", r.display()))
+                .unwrap_or_else(|_| p.display().to_string());
+            attempts.push(rel);
+        }
+    }
+
+    if let Some(leaf) = leaf {
+        return read_resolved(leaf, params);
     }
 
     Err(ResolveError {
@@ -150,18 +169,39 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
     })
 }
 
+fn read_resolved(
+    leaf: PathBuf,
+    params: HashMap<String, String>,
+) -> Result<ResolvedView, ResolveError> {
+    let source = match std::fs::read_to_string(&leaf) {
+        Ok(s) => s,
+        Err(e) => {
+            return Err(ResolveError {
+                message: format!("failed to read {}: {e}", leaf.display()),
+            });
+        }
+    };
+    let canonical = leaf.canonicalize().unwrap_or(leaf);
+    Ok(ResolvedView {
+        source,
+        params,
+        source_path: Some(canonical),
+    })
+}
+
 /// Walk segments downward through `dir`, preferring static directories
-/// over `[param]` captures. Returns the path to `index.sui` on success.
-/// Every `index.sui` path inspected is pushed to `tried` so the caller
-/// can render a diagnostic on miss.
-fn walk_disk(
+/// over `[param]` captures. Returns the path to `<leaf_name>` on success.
+/// Every leaf path inspected is pushed to `tried` so the caller can
+/// render a diagnostic on miss.
+fn walk_disk_with_leaf(
     dir: &Path,
     segments: &[&str],
+    leaf_name: &str,
     params: &mut HashMap<String, String>,
     tried: &mut Vec<PathBuf>,
 ) -> Option<PathBuf> {
     if segments.is_empty() {
-        let idx = dir.join("index.sui");
+        let idx = dir.join(leaf_name);
         tried.push(idx.clone());
         return idx.is_file().then_some(idx);
     }
@@ -173,7 +213,7 @@ fn walk_disk(
         for seg in segments {
             idx.push(seg);
         }
-        idx.push("index.sui");
+        idx.push(leaf_name);
         tried.push(idx);
         return None;
     }
@@ -183,7 +223,7 @@ fn walk_disk(
     // Static dir first.
     let static_dir = dir.join(head);
     if static_dir.is_dir()
-        && let Some(found) = walk_disk(&static_dir, tail, params, tried)
+        && let Some(found) = walk_disk_with_leaf(&static_dir, tail, leaf_name, params, tried)
     {
         return Some(found);
     }
@@ -205,7 +245,7 @@ fn walk_disk(
                 continue;
             }
             params.insert(param.to_string(), (*head).to_string());
-            if let Some(found) = walk_disk(&path, tail, params, tried) {
+            if let Some(found) = walk_disk_with_leaf(&path, tail, leaf_name, params, tried) {
                 return Some(found);
             }
             params.remove(param);

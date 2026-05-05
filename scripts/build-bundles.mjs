@@ -109,9 +109,9 @@ const targets = [
   // hydrate helpers (`hydrateText`, `collectTextOpens`) from it. The
   // shared sui-dom.js bundle on the page already exposes them globally
   // via the runtime registry — bundling them again would duplicate code.
-  { name: 'views/agents/view',    entry: 'views/agents/dist/view.compiled.js',  htmlSet: 'views/agents/view.sui',  external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
-  { name: 'views/counter/view',   entry: 'views/counter/dist/view.compiled.js', htmlSet: 'views/counter/view.sui', external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
-  { name: 'views/git/view',       entry: 'views/git/dist/view.compiled.js',     htmlSet: 'views/git/view.sui',     external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
+  { name: 'views/agents/view',    entry: 'views/agents/dist/page.compiled.js',  htmlSet: 'views/agents/page.sui',  external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
+  { name: 'views/counter/view',   entry: 'views/counter/dist/page.compiled.js', htmlSet: 'views/counter/page.sui', external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
+  { name: 'views/git/view',       entry: 'views/git/dist/page.compiled.js',     htmlSet: 'views/git/page.sui',     external: ['@ship/ui-runtime', '@ship/ui-dom', '@ship/ui-sdk-client'] },
 ];
 
 const args = new Set(process.argv.slice(2));

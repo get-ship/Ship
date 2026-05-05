@@ -23,7 +23,12 @@ fn has_paired_ts(source_path: Option<&Path>) -> bool {
     let Some(p) = source_path else { return false; };
     let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else { return false; };
     let dir = p.parent().unwrap_or(Path::new("."));
-    dir.join(format!("{stem}.controller.ts")).exists()
+    let candidate = if stem == "page" {
+        dir.join("controller.ts")
+    } else {
+        dir.join(format!("{stem}.controller.ts"))
+    };
+    candidate.exists()
 }
 
 fn check_instrs(instrs: &[Instr]) -> Result<(), CompileError> {

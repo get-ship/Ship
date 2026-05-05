@@ -165,9 +165,9 @@ fn collect_view_css(name: &str, source_path: Option<&std::path::Path>) -> String
     buf
 }
 
-const AGENTS_VIEW_CSS: &str = include_str!("../../../views/agents/view.css");
-const GIT_VIEW_CSS: &str = include_str!("../../../views/git/view.css");
-const COUNTER_VIEW_CSS: &str = include_str!("../../../views/counter/view.css");
+const AGENTS_VIEW_CSS: &str = include_str!("../../../views/agents/style.css");
+const GIT_VIEW_CSS: &str = include_str!("../../../views/git/style.css");
+const COUNTER_VIEW_CSS: &str = include_str!("../../../views/counter/style.css");
 
 fn baked_css(name: &str) -> Option<&'static str> {
     match name {
@@ -179,7 +179,11 @@ fn baked_css(name: &str) -> Option<&'static str> {
 }
 
 fn push_css_from(buf: &mut String, dir: &std::path::Path) {
-    if let Ok(s) = std::fs::read_to_string(dir.join("index.css"))
+    // New convention is `style.css`; `index.css` and `view.css` are accepted
+    // for legacy `.ship/views/` and bake-list directories during the
+    // transition window.
+    if let Ok(s) = std::fs::read_to_string(dir.join("style.css"))
+        .or_else(|_| std::fs::read_to_string(dir.join("index.css")))
         .or_else(|_| std::fs::read_to_string(dir.join("view.css")))
     {
         if !buf.is_empty() && !buf.ends_with('\n') {

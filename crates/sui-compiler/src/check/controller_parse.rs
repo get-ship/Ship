@@ -55,15 +55,23 @@ impl ParsedController {
     }
 }
 
-/// If a `<stem>.controller.ts` file exists next to `source_path`,
-/// read and parse it. Returns `None` if no paired file, the file
-/// isn't readable, or it doesn't use the `controller({...})` shape
-/// (e.g. `export default null`).
+/// If a paired controller file exists next to `source_path`, read and
+/// parse it. Returns `None` if no paired file, the file isn't readable,
+/// or it doesn't use the `controller({...})` shape (e.g.
+/// `export default null`).
+///
+/// Naming follows the source file's stem:
+///   - `page.sui`  → `controller.ts` (new view-directory convention)
+///   - `<stem>.sui` → `<stem>.controller.ts` (legacy + components)
 pub fn read_paired_controller(source_path: Option<&Path>) -> Option<ParsedController> {
     let p = source_path?;
     let stem = p.file_stem()?.to_str()?;
     let dir = p.parent().unwrap_or(Path::new("."));
-    let ts_path = dir.join(format!("{stem}.controller.ts"));
+    let ts_path = if stem == "page" {
+        dir.join("controller.ts")
+    } else {
+        dir.join(format!("{stem}.controller.ts"))
+    };
     let source = std::fs::read_to_string(&ts_path).ok()?;
     parse(ts_path, source)
 }

@@ -1,6 +1,6 @@
 import { controller, signal, effect, defineRoutes } from '@ship/ui-runtime'
-import type { Scope } from './index.sui'
-import { loadCatalog, type CatalogEntry, type PropEntry } from '../partials/catalog'
+import type { Scope } from './page.sui'
+import { loadCatalog, type CatalogEntry, type PropEntry } from '../catalog'
 
 type StudioFilterKind = 'all' | 'sui' | 'view'
 

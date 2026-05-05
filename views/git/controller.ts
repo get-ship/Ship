@@ -15,7 +15,7 @@
 
 import { controller, signal, unwrapOr, useFilteredList } from '@ship/ui-runtime'
 import type { GitOverview, GitCommit } from '@ship/ui-sdk-client'
-import type { Scope } from './view.sui'
+import type { Scope } from './page.sui'
 
 type GitTab = 'changes' | 'history' | 'branches'
 

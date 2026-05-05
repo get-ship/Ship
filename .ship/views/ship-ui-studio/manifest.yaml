@@ -1,7 +1,0 @@
-# yaml-language-server: $schema=https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json
-name: ship-ui-studio
-type: sui
-rail:
-  label: UI Studio
-  icon: columns
-events: []
