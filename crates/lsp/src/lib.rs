@@ -13,6 +13,7 @@
 //!   tests and any future re-use.
 
 pub mod diagnostics;
+pub mod expr_intel;
 pub mod uri;
 pub mod workspace;
 

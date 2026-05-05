@@ -2083,6 +2083,7 @@ dependencies = [
  "lsp-types",
  "serde",
  "serde_json",
+ "sui-compiler",
  "sui-lint",
  "tempfile",
  "tracing",

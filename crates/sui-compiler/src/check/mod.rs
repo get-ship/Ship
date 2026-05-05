@@ -19,6 +19,12 @@ pub mod pure_derived;
 mod pure_derived_tests;
 pub mod scope_bound;
 mod scope_bound_expr;
+pub mod symbol_table;
+pub mod scope_member;
+pub mod key_identity;
+pub mod bind_this_target;
+pub mod on_callable;
+pub mod for_iterable;
 
 use std::path::Path;
 
@@ -56,6 +62,17 @@ pub fn run(
     // than reject every reference as undeclared.
     if source_path.is_some() {
         scope_bound::check(program, controller.as_ref())?;
+    }
+    // Type-strengthening passes — see crates/sui-compiler/EXPRESSIONS.md.
+    // These run after scope_bound so the user gets the "name not declared"
+    // error first (it's the more common authoring mistake) before the
+    // shape mismatches surface.
+    key_identity::check(program)?;
+    for_iterable::check(program)?;
+    if source_path.is_some() {
+        scope_member::check(program, controller.as_ref())?;
+        bind_this_target::check(program, controller.as_ref())?;
+        on_callable::check(program, controller.as_ref())?;
     }
     Ok(())
 }
@@ -113,6 +130,16 @@ fn validate_mutation_expr(expr: &str, span: crate::diagnostics::Span) -> Result<
         .with_span(span));
     }
     Ok(())
+}
+
+/// Walk every `Expr` in the program and invoke `f` on each. Public so
+/// the type-strengthening checks (`scope_member`, `key_identity`, ...)
+/// can share the traversal instead of re-implementing it five times.
+pub fn visit_exprs<F>(program: &Program, f: &mut F) -> Result<(), CompileError>
+where
+    F: FnMut(&Expr) -> Result<(), CompileError>,
+{
+    visit_program(program, f)
 }
 
 /// Walk every `Expr` in the program and invoke `f` on each.

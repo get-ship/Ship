@@ -28,6 +28,11 @@ use super::scope_bound_expr::check_expr;
 const BUILTINS: &[&str] = &[
     // Setup context.
     "ship", "route", "navigate", "ctx",
+    // Namespace heads — the `check::scope_member` pass type-checks
+    // member access through these so typos are flagged with a
+    // useful "did you mean…" message instead of "scope is not
+    // declared".
+    "scope", "derived", "props",
     // JS standard objects.
     "Math", "JSON", "Object", "Array", "String", "Number", "Boolean", "Date",
     "Symbol", "Map", "Set", "WeakMap", "WeakSet", "Error", "RegExp",
