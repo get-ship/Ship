@@ -32,6 +32,9 @@ pub struct PropDecl {
     pub default: Option<String>,
     pub reflect: bool,
     pub bindable: bool,
+    /// Author-supplied JSDoc description from a `<!-- /** ... */ -->`
+    /// HTML comment immediately preceding the `<prop>` declaration.
+    pub description: Option<String>,
     pub span: Span,
 }
 
