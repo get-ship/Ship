@@ -1,9 +1,16 @@
 use super::project::AgentProfile;
 use super::types::{HookConfig, PermissionConfig};
-use super::runtime_settings::project_ns;
 use ship_substrate::db::kv;
+use ship_substrate::db::kv::KvNamespace;
 use anyhow::Result;
 use std::path::Path;
+
+/// Per-project KV namespace for the agents cache. Same string shape as the
+/// retired ProjectConfig variant (`runtime::<ship_dir>`) so existing rows
+/// flow through the new typed namespace without a data migration.
+fn agents_ns(ship_dir: &Path) -> KvNamespace {
+    KvNamespace::AgentsCache(format!("runtime::{}", ship_dir.display()))
+}
 
 const KEY: &str = "agents";
 
@@ -40,7 +47,7 @@ struct AgentRow {
 }
 
 pub(super) fn get_agents_config(_ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    let rows: Vec<AgentRow> = match kv::get(project_ns(_ship_dir), KEY)? {
+    let rows: Vec<AgentRow> = match kv::get(agents_ns(_ship_dir), KEY)? {
         Some(v) => serde_json::from_value(v).unwrap_or_default(),
         None => return Ok(Vec::new()),
     };
@@ -105,6 +112,6 @@ pub(super) fn save_agents_config(ship_dir: &Path, agents: &[AgentProfile]) -> Re
         });
     }
 
-    kv::set(project_ns(ship_dir), KEY, &serde_json::to_value(&rows)?)?;
+    kv::set(agents_ns(ship_dir), KEY, &serde_json::to_value(&rows)?)?;
     Ok(())
 }

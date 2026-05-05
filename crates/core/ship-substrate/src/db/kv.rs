@@ -20,9 +20,10 @@ pub enum KvNamespace {
     SkillVarsLocal(String),
     /// Skill variable state — project scope; inner = "{ctx}:{skill_id}"
     SkillVarsProject(String),
-    /// Runtime project config cache (providers). Inner =
-    /// `format!("runtime::{}", ship_dir.display())`. Going away in slice 6.
-    ProjectConfig(String),
+    /// Per-project agent profile cache. Inner =
+    /// `format!("runtime::{}", ship_dir.display())`. Will move to file-canonical
+    /// reads of `.ship/agents/<id>.jsonc` once the loader is rewired.
+    AgentsCache(String),
 }
 
 impl KvNamespace {
@@ -31,7 +32,7 @@ impl KvNamespace {
             Self::SkillVarsGlobal(s)   => format!("skill_vars:{s}").into(),
             Self::SkillVarsLocal(s)    => format!("skill_vars.local:{s}").into(),
             Self::SkillVarsProject(s)  => format!("skill_vars.project:{s}").into(),
-            Self::ProjectConfig(s)     => s.as_str().into(),
+            Self::AgentsCache(s)       => s.as_str().into(),
         }
     }
 }
@@ -258,10 +259,10 @@ mod tests {
     #[test]
     fn test_list_keys() {
         let (_tmp, _ship_dir) = setup();
-        set(KvNamespace::ProjectConfig("app".to_string()), "alpha", &json!(1)).unwrap();
-        set(KvNamespace::ProjectConfig("app".to_string()), "beta", &json!(2)).unwrap();
-        set(KvNamespace::ProjectConfig("other".to_string()), "gamma", &json!(3)).unwrap();
-        let keys = list_keys(KvNamespace::ProjectConfig("app".to_string())).unwrap();
+        set(KvNamespace::AgentsCache("app".to_string()), "alpha", &json!(1)).unwrap();
+        set(KvNamespace::AgentsCache("app".to_string()), "beta", &json!(2)).unwrap();
+        set(KvNamespace::AgentsCache("other".to_string()), "gamma", &json!(3)).unwrap();
+        let keys = list_keys(KvNamespace::AgentsCache("app".to_string())).unwrap();
         assert_eq!(keys, vec!["alpha", "beta"]);
     }
 
@@ -282,7 +283,7 @@ mod tests {
 
         // Verify no rows in kv.db (nothing to copy).
         ensure_kv_db_at_with_ship_dir(&ship_dir);
-        let keys = list_keys(KvNamespace::ProjectConfig("test_ns".to_string())).unwrap();
+        let keys = list_keys(KvNamespace::AgentsCache("test_ns".to_string())).unwrap();
         assert!(keys.is_empty());
     }
 

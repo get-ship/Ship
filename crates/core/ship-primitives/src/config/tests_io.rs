@@ -83,7 +83,7 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     // loader path was removed in the home-layout restructure.
 
     // Verify runtime settings stored in kv_state (project-scoped namespace)
-    let providers: Vec<String> = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "providers")?
+    let providers: Vec<String> = ship_substrate::db::kv::get(ship_substrate::db::kv::KvNamespace::AgentsCache(format!("runtime::{}", ship_dir.display())), "providers")?
         .map(|v| serde_json::from_value(v).unwrap())
         .unwrap_or_default();
     assert_eq!(providers, vec!["claude".to_string(), "codex".to_string()]);
@@ -92,7 +92,7 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     // KV checks for them anymore.
 
     // Verify agents stored in kv_state
-    let agents_val = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "agents")?.expect("expected agents in kv");
+    let agents_val = ship_substrate::db::kv::get(ship_substrate::db::kv::KvNamespace::AgentsCache(format!("runtime::{}", ship_dir.display())), "agents")?.expect("expected agents in kv");
     let agents: Vec<serde_json::Value> = serde_json::from_value(agents_val)?;
     assert_eq!(agents.len(), 1);
     assert_eq!(agents[0]["id"], "planning");

@@ -216,6 +216,12 @@ impl ShipRuntime {
             if let Err(e) = runtime::config::drain_legacy_settings_kv() {
                 tracing::warn!("settings drain from legacy KV: {e}");
             }
+            // One-shot drain of legacy per-project `runtime::*` KV rows. The
+            // ProjectConfig variant is gone; rows are deleted. (Providers
+            // now lives in ship.jsonc only.)
+            if let Err(e) = runtime::config::drain_legacy_project_config_kv() {
+                tracing::warn!("project config drain from legacy KV: {e}");
+            }
             // One-shot drain of the legacy `project` KV namespace into
             // project.registered / project.seen events. Idempotent.
             if let Err(e) = runtime::projects::drain_legacy_kv() {

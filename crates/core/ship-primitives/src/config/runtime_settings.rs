@@ -1,10 +1,8 @@
-use super::project::ProjectConfig;
 use ship_substrate::db::daemon_settings;
-use ship_substrate::db::kv;
-use ship_substrate::db::kv::KvNamespace;
+use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
 use anyhow::Result;
 use std::collections::HashMap;
-use std::path::Path;
+use sqlx::Row;
 
 /// Return the default value for a well-known setting key.
 ///
@@ -58,9 +56,6 @@ pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
 /// install is a no-op (UPSERT). Safe to call on every daemon startup;
 /// removes the legacy KV rows after copying.
 pub fn drain_legacy_settings_kv() -> Result<usize> {
-    use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
-    use sqlx::Row;
-
     ensure_kv_db()?;
     let mut conn = open_kv_db()?;
     let rows = block_on(async {
@@ -88,32 +83,19 @@ pub fn drain_legacy_settings_kv() -> Result<usize> {
     Ok(migrated)
 }
 
-/// Derive a project-scoped KV namespace from the ship_dir path.
-/// Each project gets its own namespace so settings don't leak across projects.
-pub(super) fn project_ns(ship_dir: &Path) -> KvNamespace {
-    KvNamespace::ProjectConfig(format!("runtime::{}", ship_dir.display()))
+/// One-shot drain of legacy `providers` rows from the per-project
+/// `runtime::*` KV namespace. Providers now live only in `ship.jsonc`,
+/// so the legacy KV rows can be deleted. Other keys in `runtime::*`
+/// (e.g. the `agents` cache) are preserved. Idempotent.
+pub fn drain_legacy_project_config_kv() -> Result<usize> {
+    ensure_kv_db()?;
+    let mut conn = open_kv_db()?;
+    let result = block_on(async {
+        sqlx::query(
+            "DELETE FROM kv_state WHERE namespace LIKE 'runtime::%' AND key = 'providers'",
+        )
+        .execute(&mut conn)
+        .await
+    })?;
+    Ok(result.rows_affected() as usize)
 }
-
-/// Returns the project's persisted providers list, if any has been written.
-/// None when the project is fresh (no `providers` key in KV yet).
-pub(super) fn get_runtime_settings(ship_dir: &Path) -> Result<Option<Vec<String>>> {
-    let raw = kv::get(project_ns(ship_dir), "providers")?;
-    let Some(raw) = raw else {
-        return Ok(None);
-    };
-    let providers: Vec<String> = serde_json::from_value(raw).unwrap_or_default();
-    Ok(Some(providers))
-}
-
-pub(super) fn save_runtime_settings(ship_dir: &Path, config: &ProjectConfig) -> Result<()> {
-    kv::set(project_ns(ship_dir), "providers", &serde_json::to_value(&config.providers)?)?;
-    Ok(())
-}
-
-pub(super) fn migrate_json_config(_path: &std::path::Path) -> Result<ProjectConfig> {
-    // Legacy JSON config used to carry `statuses` — that field is gone.
-    // Fall back to a fresh default config; the user can repopulate via
-    // Studio if they want their old workflow back.
-    Ok(ProjectConfig::default())
-}
-

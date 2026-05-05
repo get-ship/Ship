@@ -4,9 +4,6 @@ use super::merge::{
 };
 use super::agents::{get_agents_config, save_agents_config};
 use super::project::{ProjectConfig, default_providers};
-use super::runtime_settings::{
-    get_runtime_settings, migrate_json_config, save_runtime_settings,
-};
 use super::types::PRIMARY_CONFIG_FILE;
 use ship_substrate::project::get_global_dir;
 use anyhow::Result;
@@ -21,28 +18,13 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
     };
 
     let primary_path = config_dir.join(PRIMARY_CONFIG_FILE);
-    let json_path = config_dir.join("config.json");
 
-    let mut config = None;
-    if primary_path.exists() {
+    let mut config: ProjectConfig = if primary_path.exists() {
         let content = fs::read_to_string(&primary_path)?;
-        config = Some(serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&content))?);
-    }
-
-    let mut config = if let Some(config) = config {
-        config
-    } else if json_path.exists() {
-        // Legacy JSON config — read what we can and migrate.
-        migrate_json_config(&json_path).unwrap_or_default()
+        serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&content))?
     } else {
         ProjectConfig::default()
     };
-
-    if is_project {
-        if let Some(providers) = get_runtime_settings(&config_dir)? {
-            config.providers = providers;
-        }
-    }
 
     if is_project {
         let agents = get_agents_config(&config_dir)?;
@@ -125,18 +107,18 @@ pub fn save_config(config: &ProjectConfig, project_dir: Option<PathBuf>) -> Resu
     }
 
     // Bootstrap ship.jsonc with project identity before any SQLite-backed writes.
-    // save_runtime_settings/open_project_db resolve the DB key from ship.jsonc:id.
     if !path.exists() {
         write_project_core_config(&path, &effective)?;
     }
 
-    // Project runtime settings + agent bindings live in SQLite.
-    save_runtime_settings(&config_dir, &effective)?;
     // File-backed catalog state (mcp/skills/rules) is indexed into SQLite for agent refs.
     save_mcp_config(&config_dir, &effective.mcp_servers)?;
     save_agents_config(&config_dir, &effective.agents)?;
 
-    // Keep ship.jsonc focused on stable project identity only.
+    // Keep ship.jsonc focused on stable project identity only. Project
+    // providers default via the field's serde default; if the user wants to
+    // narrow at the project level, they edit ship.jsonc directly. (No more
+    // KV side-table.)
     write_project_core_config(&path, &effective)?;
     Ok(())
 }

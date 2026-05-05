@@ -111,7 +111,8 @@ pub use discover::discover_projects;
 pub use watcher::{spawn_config_watcher, ConfigWatcher};
 
 pub use runtime_settings::{
-    drain_legacy_settings_kv, get_all_settings, get_setting, set_setting, setting_default,
+    drain_legacy_project_config_kv, drain_legacy_settings_kv, get_all_settings, get_setting,
+    set_setting, setting_default,
 };
 
 pub use credentials::Credentials;
