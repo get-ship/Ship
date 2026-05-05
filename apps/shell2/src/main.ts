@@ -32,6 +32,10 @@ type WindowWithSui = Window & {
   __suiRuntimeReady?: Promise<SuiRuntime>
 }
 
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
 // ── Routing ─────────────────────────────────────────────────────────
 
 interface Route {
@@ -82,7 +86,12 @@ async function mountRoute(r: Route): Promise<void> {
   try {
     const res = await fetch(payloadUrl(r), { credentials: 'same-origin' })
     if (!res.ok) {
-      slot.innerHTML = `<div class="shell-error">${res.status} ${r.view}${r.sub ? '/' + r.sub : ''}\n${await res.text()}</div>`
+      const viewPath = escapeHtml(`${r.view}${r.sub ? '/' + r.sub : ''}`)
+      slot.innerHTML = `<div class="shell-error">
+  <h2>Page not found</h2>
+  <p>The view <code>${viewPath}</code> isn't registered.</p>
+  <a href="/">← Home</a>
+</div>`
       return
     }
     const payload = await res.json()
@@ -90,7 +99,11 @@ async function mountRoute(r: Route): Promise<void> {
     currentHandle = handle
     currentRoute = r
   } catch (err) {
-    slot.innerHTML = `<div class="shell-error">mount failed: ${(err as Error).message}</div>`
+    slot.innerHTML = `<div class="shell-error">
+  <h2>Mount failed</h2>
+  <p>${escapeHtml((err as Error).message)}</p>
+  <a href="/">← Home</a>
+</div>`
   }
   updateNav(r)
   updateRailActive(r)

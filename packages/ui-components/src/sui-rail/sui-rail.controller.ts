@@ -5,13 +5,10 @@ export default controller<Scope>({
   mount(state, host) {
     const scope = state as unknown as Scope
 
-    // Reactively update toggle button icon + label based on collapsed state.
     const stopIcon = effect(() => {
-      const icon = scope.toggleIcon() as HTMLElement | null
       const btn = scope.toggleBtn() as HTMLElement | null
       const col = scope.collapsed()
-      if (icon) icon.setAttribute('name', col ? 'chevrons-right' : 'chevrons-left')
-      if (btn) btn.setAttribute('aria-label', col ? 'Expand rail' : 'Collapse rail')
+      if (btn) btn.setAttribute('aria-label', col ? 'Show rail' : 'Hide rail')
     })
 
     const onToggle = () => {

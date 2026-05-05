@@ -136,7 +136,7 @@
 </style>
 
 <a class="brand" part="brand" href="/" bind:this={brandLink} aria-label="Ship home" title="Ship home">
-  <sui-icon name="anchor" size="sm" aria-hidden="true"></sui-icon>
+  <sui-icon name="rocket" size="sm" aria-hidden="true"></sui-icon>
 </a>
 <span class="sep" aria-hidden="true"></span>
 <nav class="crumbs" part="crumbs" aria-label="Breadcrumbs" bind:this={breadcrumbsEl}></nav>
@@ -160,8 +160,4 @@
 <sui-button variant="ghost" size="sm" part="fullscreen" bind:this={fullscreenBtn}
   title="Fullscreen (F11)" aria-label="Toggle fullscreen">
   <sui-icon slot="leading" name="maximize"></sui-icon>
-</sui-button>
-<sui-button variant="ghost" size="sm" part="chat-toggle" bind:this={chatToggleBtn}
-  title="Chat (⌘/)" aria-label="Toggle chat drawer">
-  <sui-icon slot="leading" name="message-square-plus"></sui-icon>
 </sui-button>

@@ -67,20 +67,17 @@ describe('<sui-rail>', () => {
     const { el } = mount(reg, 'sui-rail')
     await flush()
     const btn = shadow(el).querySelector<HTMLButtonElement>('.toggle-btn')!
-    expect(btn.getAttribute('aria-label')).toBe('Collapse rail')
+    expect(btn.getAttribute('aria-label')).toBe('Hide rail')
     btn.click()
     await flush()
-    expect(btn.getAttribute('aria-label')).toBe('Expand rail')
+    expect(btn.getAttribute('aria-label')).toBe('Show rail')
   })
 
-  it('toggle icon name changes with collapsed state', async () => {
+  it('toggle button has no sui-icon — uses CSS content for arrow indicator', async () => {
     const { el } = mount(reg, 'sui-rail')
     await flush()
-    const icon = shadow(el).querySelector<HTMLElement>('sui-icon')!
-    expect(icon.getAttribute('name')).toBe('chevrons-left')
-    shadow(el).querySelector<HTMLButtonElement>('.toggle-btn')!.click()
-    await flush()
-    expect(icon.getAttribute('name')).toBe('chevrons-right')
+    const btn = shadow(el).querySelector<HTMLButtonElement>('.toggle-btn')!
+    expect(btn.querySelector('sui-icon')).toBeNull()
   })
 
   it('has a default slot for child items', () => {

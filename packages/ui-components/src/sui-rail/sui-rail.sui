@@ -37,7 +37,6 @@
     background: var(--sidebar, var(--muted));
     border-right: 1px solid var(--border);
     overflow: hidden;
-    transition: width var(--duration-medium, 200ms) var(--ease-out, ease-out);
     user-select: none;
     -webkit-user-select: none;
     /* Inherited custom props consumed by slotted children */
@@ -45,10 +44,12 @@
     --rail-item-justify: flex-start;
   }
   :host([collapsed]) {
-    width: var(--ship-rail-w-collapsed, 48px);
+    width: 32px;
     --rail-label-display: none;
     --rail-item-justify: center;
   }
+  :host([collapsed]) .rail-nav { display: none; }
+  :host([collapsed]) .rail-footer { padding: 4px; justify-content: center; }
   :host([hidden]) { display: none; }
 
   .rail-nav {
@@ -101,6 +102,8 @@
     outline: none;
     box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
   }
+  .toggle-btn::before { content: '◀'; font-size: 10px; line-height: 1; }
+  :host([collapsed]) .toggle-btn::before { content: '▶'; }
 
   @media (prefers-reduced-motion: reduce) {
     :host { transition: none; }
@@ -116,6 +119,6 @@
     class="toggle-btn"
     part="toggle"
     bind:this={toggleBtn}
-    aria-label="Toggle rail"
-  ><sui-icon name="chevrons-left" size="sm" bind:this={toggleIcon}></sui-icon></button>
+    aria-label="Collapse rail"
+  ></button>
 </div>
