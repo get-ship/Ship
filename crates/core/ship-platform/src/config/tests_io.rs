@@ -82,20 +82,19 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     // Legacy per-agent TOML config is no longer read or written — the
     // loader path was removed in the home-layout restructure.
 
-    // Verify runtime settings stored in kv_state (project-scoped namespace)
-    let providers: Vec<String> = crate::kv::get(crate::kv::KvNamespace::AgentsCache(format!("runtime::{}", ship_dir.display())), "providers")?
-        .map(|v| serde_json::from_value(v).unwrap())
-        .unwrap_or_default();
-    assert_eq!(providers, vec!["claude".to_string(), "codex".to_string()]);
+    // Providers live in ship.jsonc (file-canonical) — already asserted above
+    // by virtue of being absent from the KV store.
 
-    // statuses, ai, and git fields were removed from ProjectConfig — no
-    // KV checks for them anymore.
-
-    // Verify agents stored in kv_state
-    let agents_val = crate::kv::get(crate::kv::KvNamespace::AgentsCache(format!("runtime::{}", ship_dir.display())), "agents")?.expect("expected agents in kv");
-    let agents: Vec<serde_json::Value> = serde_json::from_value(agents_val)?;
-    assert_eq!(agents.len(), 1);
-    assert_eq!(agents[0]["id"], "planning");
+    // Verify agent profile written as a per-id .jsonc under .ship/agents/
+    let agent_path = ship_substrate::project::agents_ns(&ship_dir).join("planning.jsonc");
+    assert!(
+        agent_path.is_file(),
+        "expected agent profile at {}",
+        agent_path.display()
+    );
+    let agent_raw = fs::read_to_string(&agent_path)?;
+    let agent_json: serde_json::Value = serde_json::from_str(&agent_raw)?;
+    assert_eq!(agent_json["id"], "planning");
 
     let mcp_cfg = fs::read_to_string(ship_dir.join("mcp.jsonc"))?;
     assert!(mcp_cfg.contains("\"github\""));

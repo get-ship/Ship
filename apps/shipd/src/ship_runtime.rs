@@ -239,6 +239,11 @@ impl ShipRuntime {
             if let Err(e) = ship_platform::projections::auth::drain_legacy_owner_kv() {
                 tracing::warn!("auth owner drain from legacy KV: {e}");
             }
+            // One-shot drain of legacy `runtime::*` agents KV rows into
+            // `<ship_dir>/agents/<id>.jsonc` files. Idempotent.
+            if let Err(e) = ship_platform::config::agents::drain_legacy_kv() {
+                tracing::warn!("agents drain from legacy KV: {e}");
+            }
             ship_substrate::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
         })

@@ -72,7 +72,7 @@ mod discover;
 mod io;
 mod mcp;
 mod merge;
-mod agents;
+pub mod agents;
 mod project;
 mod runtime_settings;
 mod types;
