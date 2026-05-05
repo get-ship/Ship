@@ -7,6 +7,8 @@
 
 import type { Disposer } from './bind'
 import type { Signal } from './signal'
+import { createScope, withScope, type EffectScope } from './effect-scope'
+import { attachHostApi } from './host-api'
 
 // The declarative `component()` factory lives in component-factory.ts to
 // keep this file under the 300-line cap. Re-exported here so the public
@@ -107,6 +109,7 @@ export function defineComponent(
       }
 
       private cleanup: Disposer | undefined
+      private scope: EffectScope | undefined
       private propSignals: Record<string, Signal<unknown>> = {}
       private internals: ElementInternals
 
@@ -117,7 +120,11 @@ export function defineComponent(
 
       connectedCallback() {
         this.dataset.component = tag
-        this.cleanup = factory(this, this.propSignals, this.internals)
+        attachHostApi(this)
+        this.scope = createScope()
+        this.cleanup = withScope(this.scope, () =>
+          factory(this, this.propSignals, this.internals),
+        )
       }
 
       disconnectedCallback() {
@@ -127,6 +134,12 @@ export function defineComponent(
           console.error(`[ship-set:${tag}] cleanup threw:`, e)
         }
         this.cleanup = undefined
+        try {
+          this.scope?.dispose()
+        } catch (e) {
+          console.error(`[ship-set:${tag}] scope dispose threw:`, e)
+        }
+        this.scope = undefined
       }
 
       attributeChangedCallback(attrName: string, _old: string, value: string) {
@@ -164,11 +177,16 @@ export function defineComponent(
     }
 
     private cleanup: Disposer | undefined
+    private scope: EffectScope | undefined
     private propSignals: Record<string, Signal<unknown>> = {}
 
     connectedCallback() {
       this.dataset.component = tag
-      this.cleanup = factory(this, this.propSignals)
+      attachHostApi(this)
+      this.scope = createScope()
+      this.cleanup = withScope(this.scope, () =>
+        factory(this, this.propSignals),
+      )
     }
 
     disconnectedCallback() {
@@ -178,6 +196,12 @@ export function defineComponent(
         console.error(`[ship-set:${tag}] cleanup threw:`, e)
       }
       this.cleanup = undefined
+      try {
+        this.scope?.dispose()
+      } catch (e) {
+        console.error(`[ship-set:${tag}] scope dispose threw:`, e)
+      }
+      this.scope = undefined
     }
 
     attributeChangedCallback(attrName: string, _old: string, value: string) {
