@@ -162,7 +162,7 @@ import './template-hooks'
 // Register <sui-if>, <sui-for>, <sui-match> custom elements.
 import './boundary-elements'
 
-export { suiTonesSheet } from './styles/index'
+export { suiTonesSheet, suiBaseSheet, adoptSuiSheets } from './styles/index'
 
 // F1 mount unification — hosts call mount(target, payload, opts) to put
 // a view on screen. See .artifacts/design-f1-mount-unification.md.

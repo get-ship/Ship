@@ -230,16 +230,11 @@ fn shadow_tones_emits_adopted_style_sheets_call() {
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
-        out.js.contains("suiTonesSheet"),
-        "expected suiTonesSheet import:\n{}",
+        out.js.contains("adoptSuiSheets"),
+        "expected adoptSuiSheets import + call:\n{}",
         out.js
     );
-    assert!(
-        out.js.contains("adoptedStyleSheets"),
-        "expected adoptedStyleSheets call:\n{}",
-        out.js
-    );
-    // Light-DOM (shadow: false) components must NOT get the tone sheet.
+    // Light-DOM (shadow: false) components must NOT get any shared sheet.
     let light_opts = CompileOpts {
         setup_url: None,
         mode: CompileMode::Component,
@@ -256,8 +251,8 @@ fn shadow_tones_emits_adopted_style_sheets_call() {
         light_opts,
     ).expect("compile light");
     assert!(
-        !light_out.js.contains("suiTonesSheet"),
-        "light-DOM component must not import suiTonesSheet:\n{}",
+        !light_out.js.contains("adoptSuiSheets"),
+        "light-DOM component must not import adoptSuiSheets:\n{}",
         light_out.js
     );
 }

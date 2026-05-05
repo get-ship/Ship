@@ -302,3 +302,57 @@ R1: the every-page bundle is now ~31 % lighter and below the rough
 "~80 KiB gz cold load" trigger noted in `scripts/build-bundles.mjs`
 gate comments — a future audit may decide R2 is unnecessary in the
 post-R1 regime. R3/R4/R5 remain as filed follow-up specs.
+
+## Verification — R3 applied (job/bundle-perf-r3-css, 2026-05-05)
+
+Hoisted the two CSS rules duplicated in nearly every shadow component
+into a runtime-side `suiBaseSheet` adopted alongside the existing
+`suiTonesSheet`:
+
+- `:host([hidden]) { display: none !important; }` — present in 69
+  source files (the per-component copies were `display: none` without
+  `!important`; the hoisted form keeps host-level `[hidden]`
+  semantics intact).
+- `@media (prefers-reduced-motion: reduce) { * { transition: none
+  !important; animation: none !important; } }` — present verbatim in
+  7 source files.
+
+Plumbing changes:
+
+- `packages/ui-runtime/src/styles/index.ts` — adds `suiBaseSheet` and
+  a single `adoptSuiSheets(root)` helper that adopts every shared
+  sheet into a shadow root in one call. Re-exported from the runtime
+  index.
+- `crates/sui-compiler/src/emit/styles.rs` (new) — recognises the
+  exact author-form text of the hoisted rules and removes them from
+  the emitted `styles:` string. Conservative: only literal-form
+  matches strip; rules with extra declarations or non-matching inner
+  bodies pass through. Unit-tested with 10 cases including
+  edge-of-strip variants and idempotence.
+- `crates/sui-compiler/src/emit/js.rs` — shadow components now import
+  `adoptSuiSheets` (not the individual sheets) and emit a single
+  `adoptSuiSheets(__root)` call. Replaces the previous ~144-char
+  inline `adoptedStyleSheets = […]` snippet — 119 chars saved per
+  shadow component on top of the styles-string strip.
+
+| metric | baseline | after R3 | Δ |
+|---|---:|---:|---:|
+| sui-components.js raw | 603.3 KiB | 588.6 KiB | −14.7 KiB |
+| sui-components.js gz | 92.8 KiB | 91.9 KiB | −0.9 KiB |
+| sui-runtime.js gz | 15.6 KiB | 15.8 KiB | +0.2 KiB |
+| every-page combined gz | 108.4 KiB | 107.7 KiB | −0.7 KiB |
+| per-component avg gz | 1250 B | 1238 B | −12 B |
+
+Most of the raw-byte savings come from the per-component adoption
+snippet shrinking; gzip already deduplicated the `:host([hidden])`
+literal across components, so the gz drop is smaller than the raw
+drop. The strip plumbing is now in place, so future rule additions
+to `BASE_CSS` cost only the lines themselves — no per-component
+surgery — and any further hoisting compounds on the same emit path.
+
+`cargo test -p sui-compiler -p sui-lint` green; `pnpm -F
+@ship/ui-components test` (1025 tests) and `pnpm -F @ship/ui-runtime
+test` (356 tests) green.
+
+Filed follow-up: R4 (`job/sui-icon-lazy-registry`) is independent of
+R3 and ready to land when scheduled.

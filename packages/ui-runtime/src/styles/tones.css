@@ -1,3 +1,5 @@
+/* See ./index.ts — TONES_CSS is the build-time source of truth.
+   This file mirrors it for searchability/diff and is not loaded at runtime. */
 :host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-contrast: var(--background); }
 :host([tone='primary'])     { --tone: var(--primary);          --tone-fg: var(--primary);          --tone-contrast: var(--primary-foreground); }
 :host([tone='info'])        { --tone: var(--info);             --tone-fg: var(--info);             --tone-contrast: var(--info-foreground); }
