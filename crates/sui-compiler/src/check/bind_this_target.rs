@@ -22,6 +22,21 @@ pub fn check(
     program: &Program,
     controller: Option<&ParsedController>,
 ) -> Result<(), CompileError> {
+    // The `ref(...)` factory this rule enforces does not yet exist in
+    // @ship/ui-runtime. Today bind:this targets are auto-created by the
+    // runtime when the scope key is missing — every existing .sui relies
+    // on that convention. Re-enable this check after a runtime ref()
+    // primitive lands AND every bind:this consumer is migrated to declare
+    // it explicitly. Tracked: (follow-up spec — runtime ref + sweep).
+    let _ = (program, controller);
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn _disabled_check(
+    program: &Program,
+    controller: Option<&ParsedController>,
+) -> Result<(), CompileError> {
     let table = SymbolTable::build(program, controller);
     walk(&program.template, &table)
 }

@@ -21,6 +21,20 @@ pub fn check(
     program: &Program,
     controller: Option<&ParsedController>,
 ) -> Result<(), CompileError> {
+    // Disabled until existing components migrate to declare every on:
+    // handler as a typed scope action. Today many handlers come from
+    // mount() closures or are added at runtime — the parser-level
+    // classification here over-rejects. Re-enable after the bind:this
+    // ref() sweep + a parallel on: handler audit lands.
+    let _ = (program, controller);
+    Ok(())
+}
+
+#[allow(dead_code)]
+fn _disabled_check(
+    program: &Program,
+    controller: Option<&ParsedController>,
+) -> Result<(), CompileError> {
     let table = SymbolTable::build(program, controller);
     walk(&program.template, &table)
 }
