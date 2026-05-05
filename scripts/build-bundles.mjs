@@ -64,17 +64,30 @@ function discoverComponentSources() {
   return results;
 }
 
-// Discover island tags: each subdirectory of src/islands/ is one island.
-function discoverIslandTags() {
+// Discover island bundles: each subdirectory of src/islands/ is one
+// bundle. The bundle's name is the directory name; every `.sui` file
+// inside the directory contributes a component to that bundle (so a
+// family — e.g. command-bar / -palette / -chat — packs into one
+// asset). The synthesised entry imports each compiled stem.
+function discoverIslandBundles() {
   const islandsDir = join(repoRoot, 'packages/ui-components/src/islands');
   if (!existsSync(islandsDir)) return [];
-  return readdirSync(islandsDir, { withFileTypes: true })
-    .filter((e) => e.isDirectory())
-    .map((e) => e.name);
+  const out = [];
+  for (const entry of readdirSync(islandsDir, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const dir = join(islandsDir, entry.name);
+    const stems = readdirSync(dir, { withFileTypes: true })
+      .filter((f) => f.isFile() && f.name.endsWith('.sui'))
+      .map((f) => f.name.replace(/\.sui$/, ''))
+      .sort();
+    if (stems.length === 0) continue;
+    out.push({ bundle: entry.name, stems });
+  }
+  return out;
 }
 
 const componentEntries = discoverComponentSources();
-const islandTags = discoverIslandTags();
+const islandBundles = discoverIslandBundles();
 
 const targets = [
   { name: 'ship-elements',        entry: 'packages/ship-set/src/web-components/index.ts' },
@@ -91,15 +104,20 @@ const targets = [
   // and emitted as separate bundles below.
   { name: 'sui-components',       entry: 'packages/ui-components/src/index.ts',  external: ['@ship/ui-runtime'],
     componentSources: componentEntries },
-  // Per-island bundles — one per packages/ui-components/src/islands/<tag>/.
+  // Per-island bundles — one per packages/ui-components/src/islands/<bundle>/.
   // Each externalises @ship/ui-runtime and @ship/ui-dom so the shared runtime
-  // loads once. Entry is synthesised inline (side-effect import only).
-  ...islandTags.map((tag) => ({
-    name: `sui-islands/${tag}`,
-    islandTag: tag,
-    islandDir: `packages/ui-components/src/islands/${tag}`,
+  // loads once. Family bundles include every `.sui` stem in the bundle dir;
+  // the synthesised entry imports each compiled stem so all related
+  // `customElements.define()` side-effects land in one asset.
+  ...islandBundles.map(({ bundle, stems }) => ({
+    name: `sui-islands/${bundle}`,
+    islandBundle: bundle,
+    islandStems: stems,
+    islandDir: `packages/ui-components/src/islands/${bundle}`,
     external: ['@ship/ui-runtime', '@ship/ui-dom'],
-    componentSources: [{ htmlSet: `packages/ui-components/src/islands/${tag}/${tag}.sui` }],
+    componentSources: stems.map((stem) => ({
+      htmlSet: `packages/ui-components/src/islands/${bundle}/${stem}.sui`,
+    })),
   })),
   // Each view: compile .sui via the Rust compiler first (it
   // emits view.js next to view.ts, re-imports view.ts as setup, and
@@ -247,7 +265,7 @@ async function buildOne(t) {
     }
   }
   // Island targets use a synthesised stdin entry instead of a real file.
-  const isIsland = Boolean(t.islandTag);
+  const isIsland = Boolean(t.islandBundle);
   const entryAbs = isIsland ? null : join(repoRoot, t.entry);
   const outfile = join(assetsDirFor(t.name), `${t.name}.js`);
   const cacheFile = join(cacheDir, `${t.name.replace(/[\\/]/g, '__')}.inputs.json`);
@@ -269,7 +287,9 @@ async function buildOne(t) {
   const buildInput = isIsland
     ? {
         stdin: {
-          contents: `import './dist/${t.islandTag}.compiled.js';`,
+          contents: t.islandStems
+            .map((stem) => `import './dist/${stem}.compiled.js';`)
+            .join('\n'),
           resolveDir: join(repoRoot, t.islandDir),
           loader: 'js',
         },

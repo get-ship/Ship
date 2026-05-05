@@ -23,6 +23,7 @@ fn main() {
         ("sui-sdk-client.js", ""),
         ("sui-components.js", ""),
         ("sui-islands/sui-terminal.js", ""),
+        ("sui-islands/sui-command-bar.js", ""),
         ("sui-custom-elements.json", "{}"),
     ];
 

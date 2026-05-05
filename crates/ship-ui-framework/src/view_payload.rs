@@ -55,9 +55,12 @@ pub struct ViewPayload {
     /// URL of the compiled JS module the runtime imports.
     #[serde(rename = "moduleUrl")]
     pub module_url: String,
-    /// Island tags (`<sui-*>`) used in the template that ship as
-    /// separately-loaded modules. Hosts may pre-load these via
-    /// `<script src=/_sui/islands/<tag>/island.js>` before mount.
+    /// Island bundle names referenced by the template — each ships
+    /// as a separately-loaded module. Hosts may pre-load via
+    /// `<script src=/_sui/islands/<bundle>/island.js>` before mount.
+    /// Family bundles dedupe (e.g. `<sui-command-bar>` and
+    /// `<sui-command-palette>` both resolve to one `sui-command-bar`
+    /// entry).
     pub islands: Vec<String>,
 }
 
@@ -122,9 +125,9 @@ fn serve(name: &str, sub_path: Option<&str>) -> Response {
         Some(s) => format!("/_sui/views/{name}/view.js?sub={s}"),
         None => format!("/_sui/views/{name}/view.js"),
     };
-    let island_tags: Vec<String> = islands::collect_islands(&program.template)
+    let island_bundles: Vec<String> = islands::collect_islands(&program.template)
         .into_iter()
-        .filter(|t| islands::SUI_ISLANDS.contains(&t.as_str()))
+        .map(|s| s.to_string())
         .collect();
     let payload = ViewPayload {
         name: name.to_string(),
@@ -133,7 +136,7 @@ fn serve(name: &str, sub_path: Option<&str>) -> Response {
         css,
         scope: split.init,
         module_url,
-        islands: island_tags,
+        islands: island_bundles,
     };
     json_ok(&payload)
 }

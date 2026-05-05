@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import '../src/sui-command-bar/dist/sui-command-bar.compiled.js'
-import '../src/sui-command-bar/dist/sui-command-palette.compiled.js'
-import '../src/sui-command-bar/dist/sui-command-chat.compiled.js'
+import '../src/islands/sui-command-bar/dist/sui-command-bar.compiled.js'
+import '../src/islands/sui-command-bar/dist/sui-command-palette.compiled.js'
+import '../src/islands/sui-command-bar/dist/sui-command-chat.compiled.js'
 import '../src/sui-dialog/dist/sui-dialog.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
