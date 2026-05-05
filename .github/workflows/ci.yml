@@ -26,6 +26,11 @@ jobs:
           cache: pnpm
       - name: Install JS deps
         run: pnpm install --frozen-lockfile
+      # Build sui-compiler upfront so build-bundles + precompile-sui find the
+      # binary at target/debug/sui-compiler instead of paying `cargo run` per
+      # `.sui` file. Required by scripts/precompile-sui.mjs.
+      - name: Build sui-compiler
+        run: cargo build -p sui-compiler
       - name: Build daemon asset bundles
         run: pnpm build:bundles
       - name: Check silent-error patterns
@@ -42,7 +47,14 @@ jobs:
         run: cargo build -p ship-cli -p mcp -p shipd
       - name: Build (unstable)
         run: cargo build --features unstable -p ship-cli -p mcp -p shipd
-      - name: Test
-        run: cargo test --workspace
+      - name: Cargo test
+        run: cargo test --workspace --features unstable
+      # Runs `pretest` first (scripts/precompile-sui.mjs), which exercises
+      # every framework check baked into the sui-compiler pipeline:
+      # controller-purity, css-token, bind-this-ref, on-callable, and
+      # the rest of the type-strengthening passes. The earlier
+      # `pnpm build:bundles` step covers the same checks for views/*.
+      - name: JS tests (precompiles SUI via pretest hook)
+        run: pnpm -F @ship/ui-components test
       - name: Bundle sui-runtime
         run: pnpm -F @ship/ui-runtime bundle
