@@ -117,7 +117,7 @@
   .message {
     font-size: var(--text-sm);
     color: var(--muted-foreground);
-    transition: opacity var(--duration-normal, 220ms) var(--ease-out, ease);
+    transition: opacity var(--duration-medium, 220ms) var(--ease-out, ease);
     letter-spacing: 0.01em;
   }
   :host([compact]) .message { font-size: var(--text-xs); }

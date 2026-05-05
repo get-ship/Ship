@@ -137,7 +137,8 @@ pub fn compile(source: &str, opts: CompileOpts) -> Result<CompileOutput, Compile
     };
 
     let program = parse::parse(effective_source).map_err(|e| attach_path(e, &opts))?;
-    check::run(&program, opts.source_path.as_deref()).map_err(|e| attach_path(e, &opts))?;
+    check::run(&program, effective_source, opts.source_path.as_deref())
+        .map_err(|e| attach_path(e, &opts))?;
     let bindings = bindings::build(&program);
     let lowered = lower::lower(&program, mode);
 
