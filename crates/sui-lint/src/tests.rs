@@ -139,20 +139,20 @@ fn is_controller_path_recognises_suffix() {
 #[test]
 fn flags_real_offender_in_repo() {
     // Smoke against any still-unported component in the cleanup pass.
-    // sui-toast is one of the larger remaining offenders; this points
+    // sui-theme-picker is one of the remaining offenders; this points
     // at it for now and gets re-pointed (or removed) as ports land.
     let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
-        .join("packages/ui-components/src/sui-toast/sui-toast.controller.ts");
+        .join("packages/ui-components/src/sui-theme-picker/sui-theme-picker.controller.ts");
     if !path.exists() {
         eprintln!("skipping: {} not present", path.display());
         return;
     }
-    let source = std::fs::read_to_string(&path).expect("read sui-toast controller");
+    let source = std::fs::read_to_string(&path).expect("read sui-theme-picker controller");
     let findings = lint_controller_source(&path, &source);
     assert!(
         !findings.is_empty(),
-        "expected sui-toast.controller.ts to report at least one violation; \
+        "expected sui-theme-picker.controller.ts to report at least one violation; \
          got none. Either it's been cleaned up (good!) or the rule regressed — \
          re-point this test at another remaining offender."
     );

@@ -1,19 +1,16 @@
 import { controller, effect, signal } from '@ship/ui-runtime'
 import type { Scope } from './sui-toast.sui'
 
-const TONE_ICON: Record<string, string> = {
-  info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
-  success: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
-  warning:
-    '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>',
-  destructive:
-    '<circle cx="12" cy="12" r="9"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/>',
-  accent: '<path d="M12 2 3 14h7l-1 8 10-12h-7l1-8Z"/>',
-}
-
 type DismissReason = 'manual' | 'timeout' | 'programmatic'
 
+const TONES_WITH_AUTO_ICON = new Set(['info', 'success', 'warning', 'destructive', 'accent'])
+
 export default controller<Scope>({
+  scope: () => {
+    const hasSlottedIcon = signal(false)
+    return { hasSlottedIcon }
+  },
+
   mount(state, host) {
     const scope = state as unknown as Scope
 
@@ -104,81 +101,45 @@ export default controller<Scope>({
 
     scheduleDismiss()
 
-    // Auto-icon setup
-    const hasSlottedIcon = signal(false)
-    let autoIconSvg: SVGSVGElement | null = null
+    const hasSlottedIconSig = scope.hasSlottedIcon as unknown as ReturnType<typeof signal<boolean>>
 
-    const iconSlotEl = scope.iconSlotEl()
+    const slotIsFilled = (slot: HTMLSlotElement): boolean =>
+      slot.assignedNodes({ flatten: true }).some((n) => {
+        if (n.nodeType === Node.ELEMENT_NODE) return true
+        return (n.textContent?.trim().length ?? 0) > 0
+      })
+
+    const iconSlotEl = scope.iconSlotEl() as HTMLSlotElement | null
     if (iconSlotEl) {
-      autoIconSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg') as SVGSVGElement
-      autoIconSvg.setAttribute('viewBox', '0 0 24 24')
-      autoIconSvg.setAttribute('fill', 'none')
-      autoIconSvg.setAttribute('stroke', 'currentColor')
-      autoIconSvg.setAttribute('stroke-width', '2')
-      autoIconSvg.setAttribute('stroke-linecap', 'round')
-      autoIconSvg.setAttribute('stroke-linejoin', 'round')
-      autoIconSvg.setAttribute('aria-hidden', 'true')
-      iconSlotEl.appendChild(autoIconSvg)
-
-      const onIconSlotChange = () => {
-        const filled = iconSlotEl.assignedNodes({ flatten: true }).some((n) => {
-          if (n.nodeType === Node.ELEMENT_NODE) return true
-          return (n.textContent?.trim().length ?? 0) > 0
-        })
-        hasSlottedIcon.set(filled)
-      }
+      const onIconSlotChange = () => hasSlottedIconSig.set(slotIsFilled(iconSlotEl))
       iconSlotEl.addEventListener('slotchange', onIconSlotChange)
+      hasSlottedIconSig.set(slotIsFilled(iconSlotEl))
     }
 
-    // Slot detection for title and actions
-    const titleSlotEl = scope.titleSlotEl()
-    const actionsSlotEl = scope.actionsSlotEl()
+    const titleSlotEl = scope.titleSlotEl() as HTMLSlotElement | null
+    const actionsSlotEl = scope.actionsSlotEl() as HTMLSlotElement | null
 
     if (titleSlotEl) {
-      const onTitleChange = () => {
-        const filled = titleSlotEl.assignedNodes({ flatten: true }).some((n) => {
-          if (n.nodeType === Node.ELEMENT_NODE) return true
-          return (n.textContent?.trim().length ?? 0) > 0
-        })
-        host.toggleAttribute('data-no-title', !filled)
-      }
+      const onTitleChange = () =>
+        host.toggleAttribute('data-no-title', !slotIsFilled(titleSlotEl))
       titleSlotEl.addEventListener('slotchange', onTitleChange)
-      // Initial state
-      host.toggleAttribute('data-no-title', true)
+      host.toggleAttribute('data-no-title', !slotIsFilled(titleSlotEl))
     }
 
     if (actionsSlotEl) {
-      const onActionsChange = () => {
-        const filled = actionsSlotEl.assignedNodes({ flatten: true }).some((n) => {
-          if (n.nodeType === Node.ELEMENT_NODE) return true
-          return (n.textContent?.trim().length ?? 0) > 0
-        })
-        host.toggleAttribute('data-no-actions', !filled)
-      }
+      const onActionsChange = () =>
+        host.toggleAttribute('data-no-actions', !slotIsFilled(actionsSlotEl))
       actionsSlotEl.addEventListener('slotchange', onActionsChange)
-      host.toggleAttribute('data-no-actions', true)
+      host.toggleAttribute('data-no-actions', !slotIsFilled(actionsSlotEl))
     }
 
-    // Reactive: update auto-icon SVG and data-no-icon based on tone and slot state
-    const stopIconEffect = effect(() => {
+    const stopIconAttrEffect = effect(() => {
       const tone = scope.tone()
-      const slotted = hasSlottedIcon()
-      const paths = TONE_ICON[tone]
-
-      if (autoIconSvg) {
-        if (paths && !slotted) {
-          autoIconSvg.innerHTML = paths
-          autoIconSvg.hidden = false
-        } else {
-          autoIconSvg.hidden = true
-        }
-      }
-
-      const hasAutoIcon = !!paths && !slotted
-      host.toggleAttribute('data-no-icon', !hasAutoIcon && !slotted)
+      const slotted = scope.hasSlottedIcon()
+      const hasAuto = TONES_WITH_AUTO_ICON.has(tone)
+      host.toggleAttribute('data-no-icon', !hasAuto && !slotted)
     })
 
-    // Close button click — re-query inside effect since the button is conditional
     const stopCloseEffect = effect(() => {
       const btn = scope.closeBtn()
       if (!btn) return
@@ -187,7 +148,6 @@ export default controller<Scope>({
       return () => btn.removeEventListener('click', onClick)
     })
 
-    // Expose public methods
     const h = host as HTMLElement & { dismiss: typeof dismiss; close: typeof close }
     h.dismiss = dismiss
     h.close = close
@@ -200,7 +160,7 @@ export default controller<Scope>({
       host.removeEventListener('focusin', onPause)
       host.removeEventListener('focusout', onResume)
       host.removeEventListener('keydown', onKeydown)
-      stopIconEffect()
+      stopIconAttrEffect()
       stopCloseEffect()
     }
   },

@@ -1,4 +1,4 @@
-import { controller, effect, signal } from '@ship/ui-runtime'
+import { bindHtml, controller, effect, signal } from '@ship/ui-runtime'
 import type { Scope } from './sui-toast-container.sui'
 
 type ToastPosition =
@@ -99,7 +99,8 @@ export default controller<Scope>({
       if (opts.actionHtml) {
         const wrap = doc.createElement('span')
         wrap.setAttribute('slot', 'actions')
-        wrap.innerHTML = opts.actionHtml
+        const html = opts.actionHtml
+        bindHtml(wrap, () => html)
         t.appendChild(wrap)
       }
       host.appendChild(t)
