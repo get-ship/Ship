@@ -1,4 +1,5 @@
-import { controller } from '@ship/ui-runtime'
+import { controller, signal, derived, effect } from '@ship/ui-runtime'
+import type { Signal } from '@ship/ui-runtime'
 import {
   THEMES,
   applyTheme,
@@ -22,34 +23,11 @@ const GROUPS: Group[] = [
 
 const THEMES_BY_ID = new Map<ThemeId, Theme>(THEMES.map((t) => [t.id, t]))
 
-// Render the inner card markup for a single theme. The wrapping <button>
-// is created in the controller so we can attach event listeners to live
-// element refs rather than re-querying after innerHTML.
-function cardInner(t: Theme): string {
-  return `
-    <span class="tc-bg" data-theme-preview="${t.id}" aria-hidden="true">
-      <span class="tc-overlay"></span>
-      <span class="tc-card">
-        <span class="tc-card-head">
-          <span class="tc-eyebrow">THEME</span>
-          <span class="tc-heading">${t.label}</span>
-        </span>
-        <span class="tc-typo">
-          <span class="tc-body">The quick brown fox</span>
-          <span class="tc-mono">{ build: ok }</span>
-        </span>
-        <span class="tc-controls">
-          <span class="tc-cta">Action</span>
-          <span class="tc-ghost">Cancel</span>
-          <span class="tc-chip tc-chip-accent">New</span>
-          <span class="tc-chip tc-chip-muted">Idle</span>
-        </span>
-      </span>
-    </span>
-    <span class="row">
-      <span class="name">${t.label}</span>
-      <span class="radio" aria-hidden="true"></span>
-    </span>`
+interface ThemeGroup { label: string; themes: Theme[] }
+
+type PopoverEl = HTMLElement & {
+  showPopover?: () => void
+  hidePopover?: () => void
 }
 
 // Inject view-tokens.css (which the daemon bundles with themes.css) into
@@ -59,8 +37,6 @@ function cardInner(t: Theme): string {
 function ensureThemesCssInShadow(host: HTMLElement) {
   const root = host.shadowRoot
   if (!root) return
-  // One link per shadow root; component instances reuse the same href so
-  // the browser HTTP cache hits after the first fetch on the page.
   if (root.querySelector('link[data-sui-theme-preview-styles]')) return
   const link = document.createElement('link')
   link.rel = 'stylesheet'
@@ -69,166 +45,173 @@ function ensureThemesCssInShadow(host: HTMLElement) {
   root.appendChild(link)
 }
 
-interface PopoverApi extends HTMLElement {
-  show?: () => void
-  hide?: () => void
-  toggle?: () => void
-}
-
 export default controller<Scope>({
-  mount(state, host) {
-    const scope = state as unknown as Scope
+  scope: (init) => {
+    const initAny = init as unknown as { persist: Signal<boolean> }
 
+    const activeTheme = signal<ThemeId>(readStoredTheme())
+    const panelOpen = signal(false)
+    const groups = signal<ThemeGroup[]>(
+      GROUPS.map((g) => ({
+        label: g.label,
+        themes: g.ids.map((id) => THEMES_BY_ID.get(id)).filter((t): t is Theme => !!t),
+      })),
+    )
+    const dotColor = derived(() =>
+      THEMES_BY_ID.get(activeTheme())?.swatches[2] ?? 'var(--primary, #3b82f6)',
+    )
+    const triggerLabel = derived(() =>
+      THEMES_BY_ID.get(activeTheme())?.label ?? 'Theme',
+    )
+
+    // Mount populates these so scope-side handlers can dispatch on the
+    // host and drive the native popover. Templates never bind to this.
+    const internals: { host: HTMLElement | null; panel: PopoverEl | null } = {
+      host: null,
+      panel: null,
+    }
+
+    function togglePanel(): void {
+      const panel = internals.panel
+      if (!panel) return
+      if (panelOpen()) panel.hidePopover?.()
+      else panel.showPopover?.()
+    }
+
+    function selectTheme(id: ThemeId): void {
+      const next = applyTheme(id)
+      if (initAny.persist()) persistTheme(next)
+      activeTheme.set(next)
+      const host = internals.host
+      if (host) {
+        host.dispatchEvent(new CustomEvent('sui-theme-change', {
+          detail: { id: next, dark: THEMES_BY_ID.get(next)?.dark ?? false },
+          bubbles: true,
+          composed: true,
+        }))
+      }
+      internals.panel?.hidePopover?.()
+    }
+
+    return {
+      activeTheme,
+      panelOpen,
+      groups,
+      dotColor,
+      triggerLabel,
+      togglePanel,
+      selectTheme,
+      _internals: internals,
+    }
+  },
+
+  mount(state, host) {
+    const scope = state as unknown as {
+      activeTheme: Signal<ThemeId>
+      panelOpen: Signal<boolean>
+      panelEl: () => PopoverEl | null
+      triggerBtn: () => HTMLElement | null
+      _internals: { host: HTMLElement | null; panel: PopoverEl | null }
+    }
+
+    scope._internals.host = host
     ensureThemesCssInShadow(host)
 
-    const popover = scope.popover() as PopoverApi | null
-    const triggerBtn = scope.triggerBtn() as HTMLButtonElement | null
-    const dotEl = scope.dotEl() as HTMLElement | null
-    const labelEl = scope.labelEl() as HTMLElement | null
-    const gridEl = scope.gridEl() as HTMLElement | null
-    if (!gridEl || !triggerBtn) return
+    // Apply stored theme on first mount. Idempotent if the boot script
+    // already applied it — applyTheme just re-dispatches ship:theme:change.
+    applyTheme(readStoredTheme())
 
-    // Build the grid programmatically. The catalog is JS data so this
-    // would otherwise live as a {#each} loop — SUI templates don't support
-    // iteration today, so the controller emits the markup once and
-    // attaches listeners directly to live element refs.
-    const cardEls: HTMLButtonElement[] = []
-    const fragment = document.createDocumentFragment()
-    for (const g of GROUPS) {
-      const section = document.createElement('section')
-      section.className = 'group'
-      section.setAttribute('aria-label', g.label)
-      const head = document.createElement('div')
-      head.className = 'group-h'
-      head.textContent = g.label
-      section.appendChild(head)
-      const rows = document.createElement('div')
-      rows.className = 'group-rows'
-      for (const id of g.ids) {
-        const t = THEMES_BY_ID.get(id)
-        if (!t) continue
-        const card = document.createElement('button')
-        card.type = 'button'
-        card.className = 'card'
-        card.setAttribute('role', 'option')
-        card.dataset.themeCard = id
-        card.setAttribute('aria-label', t.label)
-        card.setAttribute('aria-selected', 'false')
-        card.tabIndex = -1
-        card.innerHTML = cardInner(t)
-        rows.appendChild(card)
-        cardEls.push(card)
+    // Sync panel ref into internals + listen for native open/close so
+    // panelOpen mirrors the popover state (drives aria-expanded).
+    const stopPanelSync = effect(() => {
+      const panel = scope.panelEl()
+      scope._internals.panel = panel
+      if (!panel) return
+      const onToggle = (e: Event) => {
+        const newState = (e as ToggleEvent).newState
+        const open = newState === 'open'
+        if (scope.panelOpen() !== open) scope.panelOpen.set(open)
+        if (open) anchorPanel()
       }
-      section.appendChild(rows)
-      fragment.appendChild(section)
-    }
-    gridEl.replaceChildren(fragment)
+      panel.addEventListener('toggle', onToggle)
+      return () => panel.removeEventListener('toggle', onToggle)
+    })
 
-    function setActive(id: ThemeId) {
-      for (const c of cardEls) {
-        const on = c.dataset.themeCard === id
-        c.setAttribute('aria-selected', on ? 'true' : 'false')
-        c.tabIndex = on ? 0 : -1
-      }
-      paintTrigger(id)
-    }
-
-    function paintTrigger(id: ThemeId) {
-      const t = THEMES_BY_ID.get(id)
-      if (!t) return
-      if (labelEl) labelEl.textContent = t.label
-      if (dotEl) {
-        // Swatches: [bg, card, primary, accent]. Primary drives the dot
-        // since that's the brand-defining color in each theme.
-        dotEl.style.background = t.swatches[2]
-      }
+    function anchorPanel(): void {
+      const panel = scope.panelEl()
+      const trigger = scope.triggerBtn()
+      if (!panel || !trigger) return
+      const r = trigger.getBoundingClientRect()
+      panel.style.top = `${r.bottom + 4}px`
+      panel.style.left = `${Math.max(8, r.right - panel.offsetWidth)}px`
     }
 
-    // ── Initial paint ──────────────────────────────────────────────────
-    const initial = readStoredTheme()
-    // applyTheme is idempotent — if the page boot script already applied
-    // the stored theme, this is a no-op except for the dispatch.
-    applyTheme(initial)
-    setActive(initial)
-
-    // ── Click handler ──────────────────────────────────────────────────
-    function onCardClick(card: HTMLButtonElement) {
-      const id = card.dataset.themeCard
-      if (!isValidTheme(id)) return
-      const next = applyTheme(id)
-      if (scope.persist()) persistTheme(next)
-      setActive(next)
-      // Bridge canonical ship event to a SUI-namespaced event for
-      // listeners that prefer to track a single namespace.
-      host.dispatchEvent(new CustomEvent('sui-theme-change', {
-        detail: { id: next, dark: THEMES_BY_ID.get(next)?.dark ?? false },
-        bubbles: true,
-        composed: true,
-      }))
-      popover?.hide?.()
-    }
-    function onGridClick(e: Event) {
-      const card = (e.target as HTMLElement).closest<HTMLElement>('[data-theme-card]')
-      if (card && card instanceof HTMLButtonElement) onCardClick(card)
-    }
-    gridEl.addEventListener('click', onGridClick)
-
-    // ── Keyboard nav across groups ─────────────────────────────────────
-    function onGridKeydown(e: KeyboardEvent) {
-      const idx = cardEls.findIndex((c) => c === gridEl?.getRootNode().activeElement)
-      const move = (delta: number) => {
-        const next = cardEls[(idx + delta + cardEls.length) % cardEls.length]
-        if (!next) return
-        for (const c of cardEls) c.tabIndex = -1
-        next.tabIndex = 0
-        next.focus()
-        e.preventDefault()
-      }
-      switch (e.key) {
-        case 'ArrowDown': move(1); break
-        case 'ArrowUp':   move(-1); break
-        case 'Home':      cardEls[0]?.focus(); e.preventDefault(); break
-        case 'End':       cardEls[cardEls.length - 1]?.focus(); e.preventDefault(); break
-        case 'Enter':
-        case ' ':
-          (gridEl?.getRootNode() as Document | ShadowRoot).activeElement instanceof HTMLButtonElement
-            && (gridEl?.getRootNode() as Document | ShadowRoot).activeElement?.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-          e.preventDefault()
-          break
-      }
-    }
-    gridEl.addEventListener('keydown', onGridKeydown)
-
-    // ── External theme changes → repaint trigger + selection ───────────
-    // applyTheme dispatches `ship:theme:change` on document; listen so
+    // Sync internal selection to the canonical document event so
     // settings views, devtools, or programmatic callers stay in sync.
     function onExternalChange(e: Event) {
-      const detail = (e as CustomEvent<{ id?: string }>).detail
-      const id = detail?.id
+      const id = (e as CustomEvent<{ id?: string }>).detail?.id
       if (!isValidTheme(id)) return
-      // Avoid feedback loop: setActive does no DOM work if state matches.
-      setActive(id)
+      if (scope.activeTheme() !== id) scope.activeTheme.set(id)
     }
     document.addEventListener('ship:theme:change', onExternalChange)
 
-    // Focus the first card when the popover opens — keyboard users
-    // expect a starting position.
-    function onPopoverToggle(e: Event) {
-      const open = (e as CustomEvent<{ open: boolean }>).detail?.open
-      if (!open) return
-      // Defer to next frame so the popover is laid out before we focus.
-      requestAnimationFrame(() => {
-        const current = cardEls.find((c) => c.getAttribute('aria-selected') === 'true')
-        ;(current ?? cardEls[0])?.focus()
-      })
+    // Arrow-key nav across cards while the panel is open.
+    function onPanelKeydown(e: KeyboardEvent) {
+      const panel = scope.panelEl()
+      if (!panel) return
+      const cards = Array.from(panel.querySelectorAll<HTMLButtonElement>('.card'))
+      if (!cards.length) return
+      const root = panel.getRootNode() as Document | ShadowRoot
+      const idx = cards.findIndex((c) => c === root.activeElement)
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault()
+          cards[(idx + 1 + cards.length) % cards.length]?.focus()
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          cards[(idx - 1 + cards.length) % cards.length]?.focus()
+          break
+        case 'Home':
+          e.preventDefault()
+          cards[0]?.focus()
+          break
+        case 'End':
+          e.preventDefault()
+          cards[cards.length - 1]?.focus()
+          break
+        case 'Escape':
+          e.preventDefault()
+          panel.hidePopover?.()
+          break
+      }
     }
-    popover?.addEventListener('sui-toggle', onPopoverToggle)
+
+    const stopKeyBind = effect(() => {
+      const panel = scope.panelEl()
+      if (!panel) return
+      panel.addEventListener('keydown', onPanelKeydown)
+      return () => panel.removeEventListener('keydown', onPanelKeydown)
+    })
+
+    // Focus the selected card when the panel opens — keyboard users
+    // expect a starting position.
+    const stopFocusOnOpen = effect(() => {
+      if (!scope.panelOpen()) return
+      requestAnimationFrame(() => {
+        const panel = scope.panelEl()
+        if (!panel) return
+        const cards = Array.from(panel.querySelectorAll<HTMLButtonElement>('.card'))
+        const current = cards.find((c) => c.getAttribute('aria-selected') === 'true')
+        ;(current ?? cards[0])?.focus()
+      })
+    })
 
     return () => {
-      gridEl.removeEventListener('click', onGridClick)
-      gridEl.removeEventListener('keydown', onGridKeydown)
       document.removeEventListener('ship:theme:change', onExternalChange)
-      popover?.removeEventListener('sui-toggle', onPopoverToggle)
+      stopPanelSync()
+      stopKeyBind()
+      stopFocusOnOpen()
     }
   },
 })
