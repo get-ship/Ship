@@ -93,15 +93,15 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
                 skill_id
             );
         }
-        // Find the active mode (if any) and extend its skill filter.
+        // Find the active agent (if any) and extend its skill filter.
         if let Some(agent_id) = opts.active_agent
-            && let Some(mode) = library.modes.iter_mut().find(|m| m.id == agent_id)
-            && !mode.skills.is_empty()
+            && let Some(agent) = library.agents.iter_mut().find(|a| a.id == agent_id)
+            && !agent.skills.is_empty()
         {
-            // If mode.skills is empty, all skills are included — nothing to extend.
+            // If agent.skills is empty, all skills are included — nothing to extend.
             for skill_id in &opts.extra_skills {
-                if !mode.skills.contains(skill_id) {
-                    mode.skills.push(skill_id.clone());
+                if !agent.skills.contains(skill_id) {
+                    agent.skills.push(skill_id.clone());
                 }
             }
         }

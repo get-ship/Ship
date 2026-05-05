@@ -32,7 +32,7 @@ pub use types::{
     AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, AiConfig, ArtifactType,
     CatalogCategory, CatalogEntry, CatalogKind, CommandPermissions, FsPermissions, GitConfig,
     HookConfig, HookTrigger, ListAgentsResponse, McpRefs, McpServerConfig, McpServerType,
-    ModeConfig, NamespaceConfig, NetworkPermissions, NetworkPolicy, PermissionConfig, Permissions,
+    AgentConfig, NamespaceConfig, NetworkPermissions, NetworkPolicy, PermissionConfig, Permissions,
     PluginEntry, PluginRefs, PluginsManifest, ProfileMeta, ProfilePermissions, ProfileRules,
     ProjectConfig, PullAgent, PullMcpServer, PullProfile, PullResponse, PullRule, PullSkill, Rule,
     Skill, SkillBundle, SkillRefs, SkillSource, StatusConfig, ToolPermissions, TransferBundle,

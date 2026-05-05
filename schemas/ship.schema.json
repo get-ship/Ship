@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/madvib/ship/main/schemas/ship.schema.json",
   "title": "Ship Project Manifest",
-  "description": "Schema for .ship/ship.jsonc — the Ship project manifest that declares providers, modes, module identity, dependencies, and exports.",
+  "description": "Schema for .ship/ship.jsonc — the Ship project manifest that declares providers, agents, module identity, dependencies, and exports.",
   "type": "object",
   "properties": {
     "$schema": {
@@ -97,10 +97,10 @@
           },
           "additionalProperties": false
         },
-        "modes": {
+        "agents": {
           "type": "array",
-          "items": { "$ref": "#/$defs/ModeConfig" },
-          "description": "Named modes that filter which MCP servers, skills, rules, and hooks are active. Selected per-workspace via `ship set-mode <id>`."
+          "items": { "$ref": "#/$defs/AgentConfig" },
+          "description": "Named agents that filter which MCP servers, skills, rules, and hooks are active. Selected per-workspace via `ship use <id>`."
         },
         "skill_paths": {
           "type": "array",
@@ -187,23 +187,23 @@
   },
   "additionalProperties": false,
   "$defs": {
-    "ModeConfig": {
+    "AgentConfig": {
       "type": "object",
       "required": ["id", "name"],
-      "description": "A named mode that narrows the active configuration. Modes filter which resources are included in compiled output — they don't add, only restrict.",
+      "description": "A named agent profile that narrows the active configuration. Agents filter which resources are included in compiled output — they don't add, only restrict.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Machine-readable mode identifier.",
+          "description": "Machine-readable agent identifier.",
           "pattern": "^[a-z0-9-]+$"
         },
         "name": {
           "type": "string",
-          "description": "Human-readable mode name."
+          "description": "Human-readable agent name."
         },
         "description": {
           "type": "string",
-          "description": "What this mode is for."
+          "description": "What this agent is for."
         },
         "mcp_servers": {
           "type": "array",

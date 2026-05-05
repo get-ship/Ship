@@ -73,7 +73,7 @@ mod git;
 mod io;
 mod mcp;
 mod merge;
-mod modes;
+mod agents;
 mod project;
 mod runtime_settings;
 mod types;

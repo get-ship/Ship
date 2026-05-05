@@ -6,7 +6,7 @@ use tempfile::tempdir;
 fn install_active_agent(project_dir: &std::path::Path, agent: AgentProfile) {
     let mut config = get_config(Some(project_dir.to_path_buf())).expect("get config");
     let id = agent.id.clone();
-    config.modes.push(agent);
+    config.agents.push(agent);
     config.active_agent = Some(id);
     save_config(&config, Some(project_dir.to_path_buf())).expect("save config");
 }

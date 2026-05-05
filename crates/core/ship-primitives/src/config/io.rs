@@ -1,8 +1,8 @@
 use super::mcp::{get_mcp_config, save_mcp_config};
 use super::merge::{
-    merge_mcp_servers, merge_modes, merge_string_lists, write_project_core_config,
+    merge_agents, merge_mcp_servers, merge_string_lists, write_project_core_config,
 };
-use super::modes::{get_modes_config, save_modes_config};
+use super::agents::{get_agents_config, save_agents_config};
 use super::project::{ProjectConfig, default_providers};
 use super::runtime_settings::{
     get_runtime_settings, migrate_json_config, normalize_git_config, save_runtime_settings,
@@ -58,9 +58,9 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
     }
 
     if is_project {
-        let modes = get_modes_config(&config_dir)?;
-        if !modes.is_empty() {
-            config.modes = modes;
+        let agents = get_agents_config(&config_dir)?;
+        if !agents.is_empty() {
+            config.agents = agents;
         }
     }
 
@@ -73,7 +73,7 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
 }
 
 /// Returns a merged view of global + project config.
-/// Project values win; missing project AI/agent/mode/MCP values inherit from global.
+/// Project values win; missing project AI/agent/MCP values inherit from global.
 pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
     let global = get_config(None)?;
     let Some(project_dir) = project_dir else {
@@ -97,7 +97,7 @@ pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<ProjectConfi
         project.providers = global.providers;
     }
 
-    project.modes = merge_modes(&global.modes, &project.modes);
+    project.agents = merge_agents(&global.agents, &project.agents);
     project.mcp_servers = merge_mcp_servers(&global.mcp_servers, &project.mcp_servers);
 
     if project.active_agent.is_none() {
@@ -151,11 +151,11 @@ pub fn save_config(config: &ProjectConfig, project_dir: Option<PathBuf>) -> Resu
         write_project_core_config(&path, &effective)?;
     }
 
-    // Project runtime settings + mode bindings live in SQLite.
+    // Project runtime settings + agent bindings live in SQLite.
     save_runtime_settings(&config_dir, &effective)?;
-    // File-backed catalog state (mcp/skills/rules) is indexed into SQLite for mode refs.
+    // File-backed catalog state (mcp/skills/rules) is indexed into SQLite for agent refs.
     save_mcp_config(&config_dir, &effective.mcp_servers)?;
-    save_modes_config(&config_dir, &effective.modes)?;
+    save_agents_config(&config_dir, &effective.agents)?;
 
     // Keep ship.jsonc focused on stable project identity only.
     write_project_core_config(&path, &effective)?;

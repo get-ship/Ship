@@ -128,7 +128,7 @@ pub struct ProjectConfig {
     pub git: GitConfig,
     pub ai: Option<AiConfig>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub modes: Vec<AgentProfile>,
+    pub agents: Vec<AgentProfile>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mcp_servers: Vec<McpServerConfig>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -199,7 +199,7 @@ impl Default for ProjectConfig {
             statuses: default_statuses(),
             git: GitConfig::default(),
             ai: None,
-            modes: Vec::new(),
+            agents: Vec::new(),
             mcp_servers: Vec::new(),
             active_agent: None,
             agent: AgentLayerConfig::default(),

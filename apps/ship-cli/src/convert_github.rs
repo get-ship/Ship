@@ -20,7 +20,7 @@ pub(crate) struct ConvertResult {
 pub(crate) struct ProjectLibraryJson {
     pub name: Option<String>,
     #[serde(default)]
-    pub modes: Vec<ModeJson>,
+    pub agents: Vec<AgentJson>,
     #[serde(default)]
     pub rules: Vec<RuleJson>,
     #[serde(default)]
@@ -28,7 +28,7 @@ pub(crate) struct ProjectLibraryJson {
 }
 
 #[derive(Deserialize)]
-pub(crate) struct ModeJson {
+pub(crate) struct AgentJson {
     pub name: Option<String>,
     #[serde(flatten)]
     pub extra: serde_json::Value,
@@ -170,14 +170,14 @@ pub fn convert_from_github_with_base(url: &str, base_url: &str) -> Result<()> {
     std::fs::create_dir_all(&rules_dir)?;
 
     let mut n_agents = 0usize;
-    for mode in &library.modes {
-        let name = mode
+    for agent in &library.agents {
+        let name = agent
             .name
             .clone()
             .unwrap_or_else(|| format!("agent-{}", n_agents + 1));
         let safe_name = sanitize_filename(&name);
         let dest = agents_out_dir.join(format!("{}.toml", safe_name));
-        let toml_str = json_value_to_toml(&mode.extra, library.name.as_deref(), &name)?;
+        let toml_str = json_value_to_toml(&agent.extra, library.name.as_deref(), &name)?;
         std::fs::write(&dest, &toml_str)
             .with_context(|| format!("Failed to write agent {}", dest.display()))?;
         n_agents += 1;

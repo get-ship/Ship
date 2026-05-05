@@ -158,12 +158,12 @@ fn resolve_workspace_uri(uri: &str, ship_dir: &Path) -> Option<String> {
             Err(err) => Some(format!("Error: {}", err)),
         };
     }
-    if uri == "ship://modes" {
+    if uri == "ship://agents" {
         return match get_config(Some(ship_dir.to_path_buf())) {
             Ok(config) => {
                 let payload = serde_json::json!({
-                    "active_mode": config.active_agent,
-                    "modes": config.modes,
+                    "active_agent": config.active_agent,
+                    "agents": config.agents,
                 });
                 serde_json::to_string_pretty(&payload).ok()
             }

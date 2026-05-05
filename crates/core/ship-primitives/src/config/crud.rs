@@ -79,7 +79,7 @@ pub fn ensure_standard_dirs(ship_path: &std::path::Path) -> Result<()> {
 // `get_active_agent` reads `ship.jsonc:active_agent` and resolves it to
 // the matching `AgentProfile`. Today MCP's tool-gate is the only live
 // reader; the writer side (`add_agent` / `remove_agent` /
-// `set_active_agent` / `ship mode set`) was scaffolded but never wired
+// `set_active_agent` / `ship use`) was scaffolded but never wired
 // to a CLI surface, so the field is effectively read-only-and-always-None
 // in production. Kept for the read path; rebuild the writer when a real
 // `ship use --persist` style UX lands.
@@ -88,7 +88,7 @@ pub fn get_active_agent(project_dir: Option<PathBuf>) -> Result<Option<AgentProf
     Ok(config
         .active_agent
         .as_ref()
-        .and_then(|id| config.modes.into_iter().find(|m| &m.id == id)))
+        .and_then(|id| config.agents.into_iter().find(|a| &a.id == id)))
 }
 
 // ─── MCP Server Registry CRUD ─────────────────────────────────────────────────

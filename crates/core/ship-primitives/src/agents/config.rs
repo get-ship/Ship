@@ -112,13 +112,13 @@ pub fn resolve_provider_settings_with_agent_override(
     let override_agent = active_agent_override
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .filter(|value| config.modes.iter().any(|mode| mode.id == *value))
+        .filter(|value| config.agents.iter().any(|agent| agent.id == *value))
         .map(str::to_string);
     let active_agent = override_agent.or_else(|| config.active_agent.clone());
-    let mode = config
-        .modes
+    let agent = config
+        .agents
         .iter()
-        .find(|m| active_agent.as_deref() == Some(m.id.as_str()));
+        .find(|a| active_agent.as_deref() == Some(a.id.as_str()));
 
     // ── Providers ─────────────────────────────────────────────────────────────
     // Resolution priority (highest wins):
@@ -137,12 +137,12 @@ pub fn resolve_provider_settings_with_agent_override(
     let providers = if workspace_has_explicit_providers {
         workspace_override_providers
     } else {
-        let mode_providers = mode
-            .filter(|m| !m.target_agents.is_empty())
-            .map(|m| normalize_provider_ids(&m.target_agents))
+        let agent_providers = agent
+            .filter(|a| !a.target_agents.is_empty())
+            .map(|a| normalize_provider_ids(&a.target_agents))
             .unwrap_or_default();
-        if !mode_providers.is_empty() {
-            mode_providers
+        if !agent_providers.is_empty() {
+            agent_providers
         } else {
             let project_providers = normalize_provider_ids(&config.providers);
             if project_providers.is_empty() {
@@ -162,7 +162,7 @@ pub fn resolve_provider_settings_with_agent_override(
     let mut mcp_servers = config.mcp_servers.clone();
 
     // Agent profile filter: if profile restricts servers, retain only allowed IDs.
-    if let Some(m) = mode
+    if let Some(m) = agent
         && !m.mcp_servers.is_empty()
     {
         mcp_servers.retain(|s| m.mcp_servers.contains(&s.id));
@@ -180,7 +180,7 @@ pub fn resolve_provider_settings_with_agent_override(
     let mut skills = list_effective_skills(ship_dir)?;
 
     // Agent profile filter: if profile restricts skills, retain only allowed IDs.
-    if let Some(m) = mode
+    if let Some(m) = agent
         && !m.skills.is_empty()
     {
         skills.retain(|s| m.skills.contains(&s.id));
@@ -196,7 +196,7 @@ pub fn resolve_provider_settings_with_agent_override(
 
     // ── Rules ─────────────────────────────────────────────────────────────────
     let mut rules = list_rules(ship_dir.to_path_buf())?;
-    if let Some(m) = mode
+    if let Some(m) = agent
         && !m.rules.is_empty()
     {
         let allowed: HashSet<String> = m.rules.iter().map(|id| normalize_rule_id(id)).collect();
@@ -319,7 +319,7 @@ mod tests {
                 stdio_server("github", "github-bin"),
                 stdio_server("linear", "linear-bin"),
             ],
-            modes: vec![AgentProfile {
+            agents: vec![AgentProfile {
                 id: "planning".to_string(),
                 name: "Planning".to_string(),
                 mcp_servers: vec!["github".to_string()],
@@ -411,7 +411,7 @@ mod tests {
                 stdio_server("linear", "linear-bin"),
                 stdio_server("figma", "figma-bin"),
             ],
-            modes: vec![AgentProfile {
+            agents: vec![AgentProfile {
                 id: "planning".to_string(),
                 name: "Planning".to_string(),
                 mcp_servers: vec!["github".to_string(), "linear".to_string()],
@@ -554,7 +554,7 @@ mod tests {
 
         let config = ProjectConfig {
             active_agent: Some("planning".to_string()),
-            modes: vec![AgentProfile {
+            agents: vec![AgentProfile {
                 id: "planning".to_string(),
                 name: "Planning".to_string(),
                 skills: vec!["rt-alpha-skill".to_string()],
@@ -595,7 +595,7 @@ mod tests {
 
         let config = ProjectConfig {
             active_agent: Some("planning".to_string()),
-            modes: vec![
+            agents: vec![
                 AgentProfile {
                     id: "planning".to_string(),
                     name: "Planning".to_string(),
@@ -636,9 +636,9 @@ mod tests {
             vec!["rt-code-skill"]
         );
 
-        // Invalid workspace override should not clobber the project active mode.
+        // Invalid workspace override should not clobber the project active agent.
         let invalid_override =
-            resolve_provider_settings_with_agent_override(&ship_dir, None, Some("missing-mode"))?;
+            resolve_provider_settings_with_agent_override(&ship_dir, None, Some("missing-agent"))?;
         assert_eq!(invalid_override.active_agent.as_deref(), Some("planning"));
         assert_eq!(
             invalid_override

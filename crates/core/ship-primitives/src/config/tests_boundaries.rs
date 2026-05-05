@@ -53,7 +53,7 @@ fn get_config_returns_default_for_missing_file() -> anyhow::Result<()> {
     let result = get_config(Some(tmp.path().to_path_buf()));
     assert!(result.is_ok(), "get_config on empty dir must not error");
     let config = result.unwrap();
-    assert!(config.modes.is_empty());
+    assert!(config.agents.is_empty());
     assert!(config.mcp_servers.is_empty());
     Ok(())
 }

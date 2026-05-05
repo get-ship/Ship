@@ -263,7 +263,7 @@ mod tests {
         assert!(ship_path.join("project/features/TEMPLATE.md").is_file());
         assert!(ship_path.join("project/notes/TEMPLATE.md").is_file());
         let cfg = crate::config::get_config(Some(ship_path.clone()))?;
-        assert!(cfg.modes.is_empty());
+        assert!(cfg.agents.is_empty());
         assert!(!ship_path.join("events.ndjson").is_file());
         assert!(ship_path.join("ship.jsonc").is_file());
         assert!(project_skills_dir.join("task-policy/SKILL.md").is_file());

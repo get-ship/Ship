@@ -1,7 +1,7 @@
 use std::collections::HashSet;
 
 use crate::types::{
-    AgentProfile, HookConfig, McpServerConfig, ModeConfig, Permissions, PluginsManifest,
+    AgentConfig, AgentProfile, HookConfig, McpServerConfig, Permissions, PluginsManifest,
     ProjectConfig, Rule, Skill,
 };
 
@@ -111,7 +111,7 @@ pub struct ResolvedConfig {
 pub struct ProjectLibrary {
     /// Agent definitions from `agents/*.jsonc`.
     #[serde(default)]
-    pub modes: Vec<ModeConfig>,
+    pub agents: Vec<AgentConfig>,
     /// Active agent for this resolve (e.g. workspace override).
     #[serde(default)]
     pub active_agent: Option<String>,
@@ -251,7 +251,7 @@ pub fn resolve_library(
     active_agent_override: Option<&str>,
 ) -> ResolvedConfig {
     let config = ProjectConfig {
-        modes: library.modes.clone(),
+        agents: library.agents.clone(),
         active_agent: library.active_agent.clone(),
         mcp_servers: library.mcp_servers.clone(),
         ..Default::default()
@@ -340,22 +340,22 @@ pub fn resolve(
     feature: Option<&WorkspaceOverrides>,
     active_agent_override: Option<&str>,
 ) -> ResolvedConfig {
-    // ── Active mode (resolved first — needed for provider target_agents) ──────
-    let override_mode = active_agent_override
+    // ── Active agent (resolved first — needed for provider target_agents) ─────
+    let override_agent = active_agent_override
         .map(str::trim)
         .filter(|v| !v.is_empty())
-        .filter(|v| config.modes.iter().any(|m| m.id == *v))
+        .filter(|v| config.agents.iter().any(|a| a.id == *v))
         .map(str::to_string);
-    let active_agent = override_mode.or_else(|| config.active_agent.clone());
-    let mode = active_agent
+    let active_agent = override_agent.or_else(|| config.active_agent.clone());
+    let agent = active_agent
         .as_deref()
-        .and_then(|id| config.modes.iter().find(|m| m.id == id));
+        .and_then(|id| config.agents.iter().find(|a| a.id == id));
 
     // ── Providers ─────────────────────────────────────────────────────────────
     // Resolution priority (highest wins):
     // 1. Feature/workspace explicit providers — propagate even if empty (unknown
     //    providers → empty rather than silent fallback).
-    // 2. Mode target_agents — when a mode is active and specifies target agents.
+    // 2. Agent target_agents — when an agent is active and specifies target agents.
     // 3. Project-level providers.
     // 4. Default: ["claude"].
     let feature_has_explicit = feature.is_some_and(|f| !f.providers.is_empty());
@@ -367,12 +367,12 @@ pub fn resolve(
     let providers = if feature_has_explicit {
         feature_providers
     } else {
-        let mode_providers = mode
+        let agent_providers = agent
             .filter(|m| !m.target_agents.is_empty())
             .map(|m| normalize_providers(&m.target_agents))
             .unwrap_or_default();
-        if !mode_providers.is_empty() {
-            mode_providers
+        if !agent_providers.is_empty() {
+            agent_providers
         } else {
             let project = normalize_providers(&config.providers);
             if project.is_empty() {
@@ -394,21 +394,21 @@ pub fn resolve(
 
     // ── MCP servers ───────────────────────────────────────────────────────────
     let mut mcp_servers = config.mcp_servers.clone();
-    apply_mode_server_filter(&mut mcp_servers, mode);
+    apply_agent_server_filter(&mut mcp_servers, agent);
     if let Some(f) = feature {
         apply_workspace_server_filter(&mut mcp_servers, f);
     }
 
     // ── Skills ────────────────────────────────────────────────────────────────
     let mut resolved_skills = skills.to_vec();
-    apply_mode_skill_filter(&mut resolved_skills, mode);
+    apply_agent_skill_filter(&mut resolved_skills, agent);
     if let Some(f) = feature {
         apply_workspace_skill_filter(&mut resolved_skills, f);
     }
 
     // ── Rules ─────────────────────────────────────────────────────────────────
     let mut resolved_rules = rules.to_vec();
-    if let Some(m) = mode
+    if let Some(m) = agent
         && !m.rules.is_empty()
     {
         let allowed: HashSet<String> = m.rules.iter().map(|id| normalize_rule_id(id)).collect();
@@ -492,8 +492,8 @@ fn normalize_rule_id(id: &str) -> String {
     normalized.to_string()
 }
 
-fn apply_mode_server_filter(servers: &mut Vec<McpServerConfig>, mode: Option<&ModeConfig>) {
-    if let Some(m) = mode
+fn apply_agent_server_filter(servers: &mut Vec<McpServerConfig>, agent: Option<&AgentConfig>) {
+    if let Some(m) = agent
         && !m.mcp_servers.is_empty()
     {
         servers.retain(|s| m.mcp_servers.contains(&s.id));
@@ -507,8 +507,8 @@ fn apply_workspace_server_filter(servers: &mut Vec<McpServerConfig>, feature: &W
     }
 }
 
-fn apply_mode_skill_filter(skills: &mut Vec<Skill>, mode: Option<&ModeConfig>) {
-    if let Some(m) = mode
+fn apply_agent_skill_filter(skills: &mut Vec<Skill>, agent: Option<&AgentConfig>) {
+    if let Some(m) = agent
         && !m.skills.is_empty()
     {
         skills.retain(|s| m.skills.contains(&s.id));
@@ -525,7 +525,7 @@ fn apply_workspace_skill_filter(skills: &mut Vec<Skill>, feature: &WorkspaceOver
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{AiConfig, ModeConfig, ProjectConfig};
+    use crate::types::{AiConfig, AgentConfig, ProjectConfig};
 
     fn make_skill(id: &str) -> Skill {
         Skill {
@@ -599,7 +599,7 @@ mod tests {
     fn mode_filters_servers_and_skills() {
         let config = ProjectConfig {
             mcp_servers: vec![make_server("github"), make_server("linear")],
-            modes: vec![ModeConfig {
+            agents: vec![AgentConfig {
                 id: "planning".to_string(),
                 name: "Planning".to_string(),
                 mcp_servers: vec!["github".to_string()],
@@ -687,7 +687,7 @@ mod tests {
     fn mode_target_agents_overrides_project_providers() {
         let config = ProjectConfig {
             providers: vec!["gemini".to_string()],
-            modes: vec![ModeConfig {
+            agents: vec![AgentConfig {
                 id: "cursor-mode".to_string(),
                 name: "Cursor Mode".to_string(),
                 target_agents: vec!["cursor".to_string()],
@@ -703,7 +703,7 @@ mod tests {
     #[test]
     fn feature_providers_override_mode_target_agents() {
         let config = ProjectConfig {
-            modes: vec![ModeConfig {
+            agents: vec![AgentConfig {
                 id: "mode1".to_string(),
                 name: "Mode 1".to_string(),
                 target_agents: vec!["gemini".to_string()],
@@ -733,7 +733,7 @@ mod tests {
     #[test]
     fn mode_rules_strip_numeric_prefix_and_md_suffix() {
         let config = ProjectConfig {
-            modes: vec![ModeConfig {
+            agents: vec![AgentConfig {
                 id: "strict".to_string(),
                 name: "Strict".to_string(),
                 rules: vec!["style".to_string()],
@@ -875,7 +875,7 @@ mod tests {
     fn mode_with_empty_filters_passes_all_through() {
         let config = ProjectConfig {
             mcp_servers: vec![make_server("a"), make_server("b")],
-            modes: vec![ModeConfig {
+            agents: vec![AgentConfig {
                 id: "open".to_string(),
                 name: "Open".to_string(),
                 // All filter arrays empty — should not restrict anything
@@ -906,7 +906,7 @@ mod tests {
     #[test]
     fn nonexistent_mode_override_falls_back_to_project_mode() {
         let config = ProjectConfig {
-            modes: vec![ModeConfig {
+            agents: vec![AgentConfig {
                 id: "planning".to_string(),
                 name: "Planning".to_string(),
                 skills: vec!["plan-skill".to_string()],
@@ -988,14 +988,14 @@ mod tests {
     #[test]
     fn workspace_mode_override_takes_precedence() {
         let config = ProjectConfig {
-            modes: vec![
-                ModeConfig {
+            agents: vec![
+                AgentConfig {
                     id: "planning".to_string(),
                     name: "Planning".to_string(),
                     skills: vec!["plan-skill".to_string()],
                     ..Default::default()
                 },
-                ModeConfig {
+                AgentConfig {
                     id: "code".to_string(),
                     name: "Code".to_string(),
                     skills: vec!["code-skill".to_string()],

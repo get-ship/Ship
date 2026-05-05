@@ -33,7 +33,7 @@ fn collect_types() -> TypeCollection {
     c.register::<compiler::HookTrigger>();
     c.register::<compiler::HookConfig>();
     c.register::<compiler::PermissionConfig>();
-    c.register::<compiler::ModeConfig>();
+    c.register::<compiler::AgentConfig>();
     c.register::<compiler::McpServerType>();
     c.register::<compiler::McpServerConfig>();
     c.register::<compiler::AgentLayerConfig>();

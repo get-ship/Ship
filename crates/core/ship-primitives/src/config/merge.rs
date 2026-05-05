@@ -17,13 +17,13 @@ pub(super) fn merge_string_lists(base: &[String], overlay: &[String]) -> Vec<Str
     merged
 }
 
-pub(super) fn merge_modes(base: &[AgentProfile], overlay: &[AgentProfile]) -> Vec<AgentProfile> {
+pub(super) fn merge_agents(base: &[AgentProfile], overlay: &[AgentProfile]) -> Vec<AgentProfile> {
     let mut merged = base.to_vec();
-    for mode in overlay {
-        if let Some(existing) = merged.iter_mut().find(|m| m.id == mode.id) {
-            *existing = mode.clone();
+    for agent in overlay {
+        if let Some(existing) = merged.iter_mut().find(|a| a.id == agent.id) {
+            *existing = agent.clone();
         } else {
-            merged.push(mode.clone());
+            merged.push(agent.clone());
         }
     }
     merged

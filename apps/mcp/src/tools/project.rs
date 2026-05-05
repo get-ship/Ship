@@ -143,12 +143,12 @@ pub async fn get_project_info(project_dir: &Path) -> String {
     }
 
     if let Some(active_id) = config.active_agent.as_deref() {
-        if let Some(mode) = config.modes.iter().find(|m| m.id == active_id) {
-            out.push_str(&format!("- Mode: {} ({})\n", mode.name, mode.id));
+        if let Some(agent) = config.agents.iter().find(|a| a.id == active_id) {
+            out.push_str(&format!("- Agent: {} ({})\n", agent.name, agent.id));
         }
-    } else if !config.modes.is_empty() {
-        out.push_str("- Mode: none (available: ");
-        let names: Vec<_> = config.modes.iter().map(|m| m.id.as_str()).collect();
+    } else if !config.agents.is_empty() {
+        out.push_str("- Agent: none (available: ");
+        let names: Vec<_> = config.agents.iter().map(|a| a.id.as_str()).collect();
         out.push_str(&names.join(", "));
         out.push_str(")\n");
     }

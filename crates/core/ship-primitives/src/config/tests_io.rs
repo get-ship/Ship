@@ -22,7 +22,7 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
             prompts: vec![],
             context: vec!["project/README.md".to_string()],
         },
-        modes: vec![AgentProfile {
+        agents: vec![AgentProfile {
             id: "planning".to_string(),
             name: "Planning".to_string(),
             ..Default::default()
@@ -49,8 +49,8 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
 
     let ship_config = fs::read_to_string(ship_dir.join(PRIMARY_CONFIG_FILE))?;
     assert!(
-        !ship_config.contains("modes"),
-        "ship.jsonc must not persist mode definitions"
+        !ship_config.contains("\"agents\""),
+        "ship.jsonc must not persist agent definitions"
     );
     assert!(
         !ship_config.contains("mcp_servers"),
@@ -107,11 +107,11 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     let git_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "git")?.unwrap().to_string();
     assert!(git_json.contains("\"ship.jsonc\""));
 
-    // Verify modes stored in kv_state
-    let modes_val = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "modes")?.expect("expected modes in kv");
-    let modes: Vec<serde_json::Value> = serde_json::from_value(modes_val)?;
-    assert_eq!(modes.len(), 1);
-    assert_eq!(modes[0]["id"], "planning");
+    // Verify agents stored in kv_state
+    let agents_val = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "agents")?.expect("expected agents in kv");
+    let agents: Vec<serde_json::Value> = serde_json::from_value(agents_val)?;
+    assert_eq!(agents.len(), 1);
+    assert_eq!(agents[0]["id"], "planning");
 
     let mcp_cfg = fs::read_to_string(ship_dir.join("mcp.jsonc"))?;
     assert!(mcp_cfg.contains("\"github\""));
@@ -141,7 +141,7 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
             ignore: vec!["project/features".to_string()],
             commit: vec!["ship.toml".to_string(), "rules".to_string()],
         },
-        modes: vec![AgentProfile {
+        agents: vec![AgentProfile {
             id: "focus".to_string(),
             name: "Focus".to_string(),
             mcp_servers: vec!["github".to_string()],
@@ -178,8 +178,8 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     assert!(loaded.statuses.iter().any(|status| status.id == "qa"));
     assert!(loaded.git.commit.iter().any(|entry| entry == "rules"));
     assert!(loaded.agent.skills.is_empty());
-    assert_eq!(loaded.modes.len(), 1);
-    assert_eq!(loaded.modes[0].id, "focus");
+    assert_eq!(loaded.agents.len(), 1);
+    assert_eq!(loaded.agents[0].id, "focus");
     assert_eq!(loaded.mcp_servers.len(), 1);
     assert_eq!(loaded.mcp_servers[0].id, "github");
     Ok(())

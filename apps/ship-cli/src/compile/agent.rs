@@ -10,10 +10,10 @@ use crate::agent_config::{AgentConfig, apply_agent_permissions};
 
 pub(crate) fn apply_agent_to_library(
     library: &mut ProjectLibrary,
-    mode_id: &str,
+    agent_id: &str,
     project_root: &Path,
 ) -> Result<()> {
-    let Some(path) = find_agent_file(mode_id, project_root) else {
+    let Some(path) = find_agent_file(agent_id, project_root) else {
         return Ok(());
     };
 
@@ -29,7 +29,7 @@ pub(crate) fn apply_agent_to_library(
         let trimmed = inline.trim();
         if !trimmed.is_empty() {
             library.rules.push(compiler::Rule {
-                file_name: format!("{}.md", mode_id),
+                file_name: format!("{}.md", agent_id),
                 content: trimmed.to_string(),
                 always_apply: true,
                 globs: vec![],
@@ -38,10 +38,10 @@ pub(crate) fn apply_agent_to_library(
         }
     }
 
-    // If agent declares a provider list, inject a ModeConfig so resolve() applies it
+    // If agent declares a provider list, inject an AgentConfig so resolve() applies it
     if !profile.meta.providers.is_empty() {
-        library.modes.push(compiler::ModeConfig {
-            id: mode_id.to_string(),
+        library.agents.push(compiler::AgentConfig {
+            id: agent_id.to_string(),
             name: profile.meta.name.clone(),
             target_agents: profile.meta.providers.clone(),
             mcp_servers: profile.mcp.servers.clone(),
@@ -68,7 +68,7 @@ pub(crate) fn apply_agent_to_library(
 
     // Hooks declared in [hooks] section of agent TOML
     if let Some(cmd) = &profile.hooks.stop {
-        let id = format!("{}-stop", mode_id);
+        let id = format!("{}-stop", agent_id);
         if !library.hooks.iter().any(|h| h.id == id) {
             library.hooks.push(HookConfig {
                 id,
@@ -81,7 +81,7 @@ pub(crate) fn apply_agent_to_library(
         }
     }
     if let Some(cmd) = &profile.hooks.subagent_stop {
-        let id = format!("{}-subagent-stop", mode_id);
+        let id = format!("{}-subagent-stop", agent_id);
         if !library.hooks.iter().any(|h| h.id == id) {
             library.hooks.push(HookConfig {
                 id,
@@ -163,9 +163,9 @@ pub(crate) fn collect_all_skill_refs(library: &ProjectLibrary) -> Vec<String> {
         }
     }
 
-    // From mode configs: skills = [...] filter list
-    for mode in &library.modes {
-        for r in &mode.skills {
+    // From agent configs: skills = [...] filter list
+    for agent in &library.agents {
+        for r in &agent.skills {
             if !refs.contains(r) {
                 refs.push(r.clone());
             }

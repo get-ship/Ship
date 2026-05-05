@@ -105,7 +105,7 @@ pub struct PermissionConfig {
 
 #[cfg_attr(feature = "specta", derive(specta::Type))]
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
-pub struct ModeConfig {
+pub struct AgentConfig {
     pub id: String,
     pub name: String,
     #[serde(default)]
@@ -229,7 +229,7 @@ pub struct ProjectConfig {
     pub providers: Vec<String>,
     pub ai: Option<AiConfig>,
     #[serde(default)]
-    pub modes: Vec<ModeConfig>,
+    pub agents: Vec<AgentConfig>,
     #[serde(default)]
     pub active_agent: Option<String>,
     #[serde(default)]
@@ -254,7 +254,7 @@ impl Default for ProjectConfig {
             statuses: default_statuses(),
             providers: Vec::new(),
             ai: None,
-            modes: Vec::new(),
+            agents: Vec::new(),
             active_agent: None,
             mcp_servers: Vec::new(),
             hooks: Vec::new(),

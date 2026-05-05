@@ -5,7 +5,7 @@ use ship_substrate::db::kv;
 use anyhow::Result;
 use std::path::Path;
 
-const KEY: &str = "modes";
+const KEY: &str = "agents";
 
 /// Strip the optional `NNNN-` numeric prefix and `.md` suffix from a rule
 /// reference so callers see canonical IDs (`rust` rather than `0001-rust.md`).
@@ -22,7 +22,7 @@ fn normalize_rule_external_id(id: &str) -> String {
 
 /// Intermediate row stored in kv_state — mirrors the old agent_config columns.
 #[derive(serde::Serialize, serde::Deserialize)]
-struct ModeRow {
+struct AgentRow {
     id: String,
     name: String,
     description: Option<String>,
@@ -39,13 +39,13 @@ struct ModeRow {
     target_agents_json: String,
 }
 
-pub(super) fn get_modes_config(_ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    let rows: Vec<ModeRow> = match kv::get(project_ns(_ship_dir), KEY)? {
+pub(super) fn get_agents_config(_ship_dir: &Path) -> Result<Vec<AgentProfile>> {
+    let rows: Vec<AgentRow> = match kv::get(project_ns(_ship_dir), KEY)? {
         Some(v) => serde_json::from_value(v).unwrap_or_default(),
         None => return Ok(Vec::new()),
     };
 
-    let mut modes = Vec::new();
+    let mut agents = Vec::new();
     for row in rows {
         let active_tools: Vec<String> =
             serde_json::from_str(&row.active_tools_json).unwrap_or_default();
@@ -60,7 +60,7 @@ pub(super) fn get_modes_config(_ship_dir: &Path) -> Result<Vec<AgentProfile>> {
         let target_agents: Vec<String> =
             serde_json::from_str(&row.target_agents_json).unwrap_or_default();
 
-        modes.push(AgentProfile {
+        agents.push(AgentProfile {
             id: row.id,
             name: row.name,
             description: row.description,
@@ -76,32 +76,32 @@ pub(super) fn get_modes_config(_ship_dir: &Path) -> Result<Vec<AgentProfile>> {
             target_agents,
         });
     }
-    modes.sort_by(|a, b| a.id.cmp(&b.id));
-    Ok(modes)
+    agents.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(agents)
 }
 
-pub(super) fn save_modes_config(ship_dir: &Path, modes: &[AgentProfile]) -> Result<()> {
-    let mut rows = Vec::with_capacity(modes.len());
-    for mode in modes {
-        let normalized_rules: Vec<String> = mode
+pub(super) fn save_agents_config(ship_dir: &Path, agents: &[AgentProfile]) -> Result<()> {
+    let mut rows = Vec::with_capacity(agents.len());
+    for agent in agents {
+        let normalized_rules: Vec<String> = agent
             .rules
             .iter()
             .map(|id| normalize_rule_external_id(id))
             .collect();
-        rows.push(ModeRow {
-            id: mode.id.clone(),
-            name: mode.name.clone(),
-            description: mode.description.clone(),
-            role: mode.role.clone(),
-            tools_preset: mode.tools_preset.clone(),
-            active_tools_json: serde_json::to_string(&mode.active_tools)?,
-            mcp_refs_json: serde_json::to_string(&mode.mcp_servers)?,
-            skill_refs_json: serde_json::to_string(&mode.skills)?,
+        rows.push(AgentRow {
+            id: agent.id.clone(),
+            name: agent.name.clone(),
+            description: agent.description.clone(),
+            role: agent.role.clone(),
+            tools_preset: agent.tools_preset.clone(),
+            active_tools_json: serde_json::to_string(&agent.active_tools)?,
+            mcp_refs_json: serde_json::to_string(&agent.mcp_servers)?,
+            skill_refs_json: serde_json::to_string(&agent.skills)?,
             rule_refs_json: serde_json::to_string(&normalized_rules)?,
-            prompt_id: mode.prompt_id.clone(),
-            hooks_json: serde_json::to_string(&mode.hooks)?,
-            permissions_json: serde_json::to_string(&mode.permissions)?,
-            target_agents_json: serde_json::to_string(&mode.target_agents)?,
+            prompt_id: agent.prompt_id.clone(),
+            hooks_json: serde_json::to_string(&agent.hooks)?,
+            permissions_json: serde_json::to_string(&agent.permissions)?,
+            target_agents_json: serde_json::to_string(&agent.target_agents)?,
         });
     }
 

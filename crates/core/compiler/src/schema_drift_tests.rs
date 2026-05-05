@@ -200,16 +200,16 @@ fn ship_schema_has_provider_defaults() {
 }
 
 #[test]
-fn ship_schema_has_modes() {
+fn ship_schema_has_agents() {
     let schema = load_schema("ship.schema.json");
     let project_props = schema_object_keys(&schema, &["properties", "project", "properties"]);
     assert!(
-        project_props.contains(&"modes".to_string()),
-        "ship.schema.json project section missing modes"
+        project_props.contains(&"agents".to_string()),
+        "ship.schema.json project section missing agents"
     );
 
-    // ModeConfig $def has required fields matching compiler's ModeConfig struct
-    let mode_props = schema_object_keys(&schema, &["$defs", "ModeConfig", "properties"]);
+    // AgentConfig $def has required fields matching compiler's AgentConfig struct
+    let agent_props = schema_object_keys(&schema, &["$defs", "AgentConfig", "properties"]);
     for field in [
         "id",
         "name",
@@ -220,8 +220,8 @@ fn ship_schema_has_modes() {
         "target_agents",
     ] {
         assert!(
-            mode_props.contains(&field.to_string()),
-            "ModeConfig $def missing field '{}'",
+            agent_props.contains(&field.to_string()),
+            "AgentConfig $def missing field '{}'",
             field
         );
     }
