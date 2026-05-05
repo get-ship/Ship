@@ -87,6 +87,21 @@ pub const PROJECT_SEEN: &str = "project.seen";
 /// Project registry — user removed the project from their registry.
 pub const PROJECT_ARCHIVED: &str = "project.archived";
 
+/// Auth — a daemon session (CLI / MCP / Studio-local) was issued.
+/// `entity_id` is the session token. The auth_sessions projection
+/// materializes one row per session.
+pub const AUTH_SESSION_CREATED: &str = "auth.session.created";
+/// Auth — a session was explicitly revoked (e.g. `ship auth revoke`).
+pub const AUTH_SESSION_REVOKED: &str = "auth.session.revoked";
+/// Auth — a session passed its `expires_at_unix`.
+pub const AUTH_SESSION_EXPIRED: &str = "auth.session.expired";
+
+/// Daemon-owner binding — a user paired with this daemon. `entity_id`
+/// is the user_id. The daemon_owner projection materializes the latest.
+pub const DAEMON_OWNER_BOUND: &str = "daemon.owner.bound";
+/// Daemon-owner binding — the user unpaired (`ship logout`).
+pub const DAEMON_OWNER_UNBOUND: &str = "daemon.owner.unbound";
+
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_ACTIVATED,
@@ -156,6 +171,11 @@ pub const ALL: &[&str] = &[
     PROJECT_REGISTERED,
     PROJECT_SEEN,
     PROJECT_ARCHIVED,
+    AUTH_SESSION_CREATED,
+    AUTH_SESSION_REVOKED,
+    AUTH_SESSION_EXPIRED,
+    DAEMON_OWNER_BOUND,
+    DAEMON_OWNER_UNBOUND,
 ];
 
 #[cfg(test)]

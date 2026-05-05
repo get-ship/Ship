@@ -114,6 +114,28 @@ CREATE TABLE IF NOT EXISTS daemon_settings (
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Auth sessions — see ship-substrate/migrations/0001_schema.sql for design.
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token            TEXT PRIMARY KEY NOT NULL,
+  agent_id         TEXT NOT NULL,
+  scopes_json      TEXT NOT NULL,
+  project_id       TEXT,
+  created_at_unix  INTEGER NOT NULL,
+  expires_at_unix  INTEGER NOT NULL,
+  revoked_at_unix  INTEGER,
+  source           TEXT NOT NULL,
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_active
+  ON auth_sessions(token) WHERE revoked_at_unix IS NULL;
+
+CREATE TABLE IF NOT EXISTS daemon_owner (
+  user_id        TEXT PRIMARY KEY NOT NULL,
+  bound_at_unix  INTEGER NOT NULL,
+  source         TEXT NOT NULL,
+  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Project registry — daemon's record of project paths it has seen.
 -- Materialized from project.registered / project.seen / project.archived events.
 CREATE TABLE IF NOT EXISTS projects (

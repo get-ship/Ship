@@ -62,6 +62,8 @@ fn default_bus() -> Arc<EventBus> {
     bus.register(Box::new(SessionProjection::new()));
     bus.register(Box::new(crate::projections::CompileStateProjection));
     bus.register(Box::new(crate::projections::ProjectsProjection));
+    bus.register(Box::new(crate::projections::AuthSessionsProjection));
+    bus.register(Box::new(crate::projections::DaemonOwnerProjection));
     Arc::new(bus)
 }
 

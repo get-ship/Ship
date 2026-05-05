@@ -302,6 +302,47 @@ pub struct SupervisorShuttingDown {
     pub reason: Option<String>,
 }
 
+// -- Auth aggregate ----------------------------------------------------------
+
+/// Payload for `auth.session.created`. `entity_id` is the session token.
+/// Token lookup on every authed request reads the projection by token.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthSessionCreated {
+    pub agent_id: String,
+    /// Granted scopes serialized as JSON (Vec<Scope>). Stored opaquely on the
+    /// envelope so ship-types doesn't depend on shipd's Scope enum.
+    pub scopes_json: String,
+    /// Project scope, if the session is project-bound.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub project_id: Option<String>,
+    pub created_at_unix: i64,
+    pub expires_at_unix: i64,
+    /// How the session was issued: "pair", "attest", "dev", "pairing_code".
+    pub source: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthSessionRevoked {
+    /// Free-text reason for audit ("user", "rotated", "force-revoke").
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AuthSessionExpired {}
+
+// -- Daemon owner ------------------------------------------------------------
+
+/// `entity_id` on the envelope is the user_id.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DaemonOwnerBound {
+    /// How the binding was established: "pair", "attest", "dev".
+    pub source: String,
+    pub bound_at_unix: i64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct DaemonOwnerUnbound {}
+
 // -- Project registry --------------------------------------------------------
 
 /// Payload for `project.registered`. `entity_id` is the project_id (stable

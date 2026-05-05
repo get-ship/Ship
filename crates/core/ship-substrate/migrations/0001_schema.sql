@@ -116,6 +116,33 @@ CREATE TABLE IF NOT EXISTS daemon_settings (
   updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Auth sessions — daemon-scoped bearer tokens issued to local clients
+-- (CLI, MCP agents, Studio-local). Token lookup happens on every authed
+-- request. Soft-delete via `revoked_at_unix` for audit; the projection
+-- is materialized from auth.session.{created,revoked,expired} events.
+CREATE TABLE IF NOT EXISTS auth_sessions (
+  token            TEXT PRIMARY KEY NOT NULL,
+  agent_id         TEXT NOT NULL,
+  scopes_json      TEXT NOT NULL,
+  project_id       TEXT,
+  created_at_unix  INTEGER NOT NULL,
+  expires_at_unix  INTEGER NOT NULL,
+  revoked_at_unix  INTEGER,
+  source           TEXT NOT NULL,
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_auth_sessions_active
+  ON auth_sessions(token) WHERE revoked_at_unix IS NULL;
+
+-- Daemon owner — at most one row, indicating which cloud user paired this
+-- daemon. Materialized from daemon.owner.{bound,unbound} events.
+CREATE TABLE IF NOT EXISTS daemon_owner (
+  user_id        TEXT PRIMARY KEY NOT NULL,
+  bound_at_unix  INTEGER NOT NULL,
+  source         TEXT NOT NULL,
+  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Project registry — daemon's record of project paths it has seen.
 -- Materialized from project.registered / project.seen / project.archived
 -- events. One row per project_id (stable hash of canonical path).

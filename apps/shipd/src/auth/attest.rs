@@ -206,16 +206,27 @@ pub const DAEMON_OWNER_KEY: &str = "user_id";
 
 /// Return the user ID that owns this daemon, or None if not yet bound.
 pub fn daemon_owner() -> Option<String> {
-    runtime::db::kv::get(runtime::db::kv::KvNamespace::AuthDaemonOwner, DAEMON_OWNER_KEY)
+    runtime::projections::auth::current_owner()
         .ok()
         .flatten()
-        .and_then(|v| v.as_str().map(String::from))
+        .map(|row| row.user_id)
 }
 
 /// Bind this daemon to a specific user ID. Called by `ship login`.
+/// Emits `daemon.owner.bound`; the projection's single-row table replaces
+/// any prior binding.
 pub fn set_daemon_owner(user_id: &str) -> anyhow::Result<()> {
-    let value = serde_json::Value::String(user_id.to_string());
-    runtime::db::kv::set(runtime::db::kv::KvNamespace::AuthDaemonOwner, DAEMON_OWNER_KEY, &value)?;
+    let payload = runtime::events::types::DaemonOwnerBound {
+        source: "attest".to_string(),
+        bound_at_unix: chrono::Utc::now().timestamp(),
+    };
+    let envelope = runtime::events::EventEnvelope::new(
+        runtime::events::types::event_types::DAEMON_OWNER_BOUND,
+        user_id,
+        &payload,
+    )?;
+    let store = runtime::persistence::event_store::SqliteEventStore::new()?;
+    runtime::persistence::event_store::EventStore::append(&store, &envelope)?;
     Ok(())
 }
 

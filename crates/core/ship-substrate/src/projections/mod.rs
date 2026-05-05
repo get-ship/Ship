@@ -8,6 +8,7 @@
 //! and rebuilt from the event log at any time via [`rebuild`].
 
 pub mod async_projection;
+pub mod auth;
 pub mod compile_state;
 pub mod job;
 pub mod job_transitions;
@@ -27,6 +28,9 @@ mod tests_session;
 
 pub use actor::ActorProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
+pub use auth::{
+    AuthSessionRow, AuthSessionsProjection, DaemonOwnerProjection, DaemonOwnerRow,
+};
 pub use compile_state::{CompileStateProjection, ProjectCompileState};
 pub use projects::{ProjectRow, ProjectsProjection};
 pub use job::{JobRecord, JobStatus, load_jobs, project as project_jobs};

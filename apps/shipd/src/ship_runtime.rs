@@ -221,6 +221,14 @@ impl ShipRuntime {
             if let Err(e) = runtime::projects::drain_legacy_kv() {
                 tracing::warn!("projects drain from legacy KV: {e}");
             }
+            // One-shot drain of legacy auth.sessions and auth.daemon_owner
+            // KV namespaces into events. Idempotent.
+            if let Err(e) = runtime::projections::auth::drain_legacy_sessions_kv() {
+                tracing::warn!("auth sessions drain from legacy KV: {e}");
+            }
+            if let Err(e) = runtime::projections::auth::drain_legacy_owner_kv() {
+                tracing::warn!("auth owner drain from legacy KV: {e}");
+            }
             runtime::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
         })

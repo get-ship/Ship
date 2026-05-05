@@ -170,13 +170,8 @@ fn bind_daemon_owner(token: &str) -> Result<Option<String>> {
         .and_then(|v| v.as_str())
         .map(String::from);
     if let Some(ref id) = user_id {
-        let value = serde_json::Value::String(id.clone());
-        runtime::db::kv::set(
-            runtime::db::kv::KvNamespace::AuthDaemonOwner,
-            shipd::auth::attest::DAEMON_OWNER_KEY,
-            &value,
-        )
-        .map_err(|e| anyhow::anyhow!("write daemon owner: {e}"))?;
+        shipd::auth::attest::set_daemon_owner(id)
+            .map_err(|e| anyhow::anyhow!("write daemon owner: {e}"))?;
     }
     Ok(user_id)
 }
@@ -322,10 +317,18 @@ pub fn run_logout() -> Result<()> {
     creds.account = None;
     creds.save()?;
     // Clear the daemon-owner binding so the next ship login can bind fresh.
-    let _ = runtime::db::kv::delete(
-        runtime::db::kv::KvNamespace::AuthDaemonOwner,
-        shipd::auth::attest::DAEMON_OWNER_KEY,
-    );
+    if let Some(prior) = shipd::auth::attest::daemon_owner() {
+        let payload = runtime::events::types::DaemonOwnerUnbound {};
+        if let Ok(envelope) = runtime::events::EventEnvelope::new(
+            runtime::events::types::event_types::DAEMON_OWNER_UNBOUND,
+            &prior,
+            &payload,
+        ) {
+            if let Ok(store) = runtime::persistence::event_store::SqliteEventStore::new() {
+                let _ = runtime::persistence::event_store::EventStore::append(&store, &envelope);
+            }
+        }
+    }
     println!("Logged out.");
     Ok(())
 }

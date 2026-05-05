@@ -182,102 +182,122 @@ impl DaemonSession {
     }
 }
 
-/// Serializable form of DaemonSession for KV persistence.
-#[derive(serde::Serialize, serde::Deserialize)]
-struct PersistedSession {
-    token: String,
-    agent_id: String,
-    scopes: Vec<Scope>,
-    workspace_id: Option<String>,
-    created_at_unix: i64,
-    expires_at_unix: i64,
-}
-
 fn now_unix() -> i64 {
     chrono::Utc::now().timestamp()
 }
 
-/// Persist a session to KV, or do nothing for ephemeral sessions.
+/// Persist a session via the event log. Skips ephemeral or no-expiry
+/// sessions (those live only in memory).
 pub fn persist_session(session: &DaemonSession) {
     if session.ephemeral {
         return;
     }
     let Some(expires_at_unix) = session.expires_at_unix else {
-        return; // No expiry = no persist (conservative).
+        return;
     };
     let created_unix = now_unix()
         .saturating_sub(session.created_at.elapsed().as_secs() as i64);
-    let persisted = PersistedSession {
-        token: session.token.clone(),
+    let scopes_json = match serde_json::to_string(&session.scopes) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("session persist: scopes serialize failed: {e}");
+            return;
+        }
+    };
+    let payload = runtime::events::types::AuthSessionCreated {
         agent_id: session.agent_id.clone(),
-        scopes: session.scopes.clone(),
-        workspace_id: session.workspace_id.clone(),
+        scopes_json,
+        project_id: session.workspace_id.clone(),
         created_at_unix: created_unix,
         expires_at_unix,
+        // Source is "persist" until we plumb the actual issuance path
+        // through (pair / attest / dev / pairing_code). The projection
+        // doesn't gate behavior on this; it's audit metadata.
+        source: "persist".to_string(),
     };
-    let value = match serde_json::to_value(&persisted) {
-        Ok(v) => v,
+    let envelope = match runtime::events::EventEnvelope::new(
+        runtime::events::types::event_types::AUTH_SESSION_CREATED,
+        &session.token,
+        &payload,
+    ) {
+        Ok(e) => e,
         Err(e) => {
-            tracing::warn!("session persist: serialize failed: {e}");
+            tracing::warn!("session persist: envelope build failed: {e}");
             return;
         }
     };
-    if let Err(e) = runtime::db::kv::set(runtime::db::kv::KvNamespace::AuthSession, &session.token, &value) {
-        tracing::warn!("session persist: kv write failed: {e}");
+    let store = match runtime::persistence::event_store::SqliteEventStore::new() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("session persist: store open failed: {e}");
+            return;
+        }
+    };
+    if let Err(e) = runtime::persistence::event_store::EventStore::append(&store, &envelope) {
+        tracing::warn!("session persist: append failed: {e}");
     }
 }
 
-/// Remove a session from KV.
+/// Revoke a persisted session via an `auth.session.revoked` event. Soft-
+/// deletes in the projection; row stays for audit.
 pub fn remove_persisted_session(token: &str) {
-    if let Err(e) = runtime::db::kv::delete(runtime::db::kv::KvNamespace::AuthSession, token) {
-        tracing::warn!("session remove: kv delete failed: {e}");
+    let payload = runtime::events::types::AuthSessionRevoked {
+        reason: "user".to_string(),
+    };
+    let envelope = match runtime::events::EventEnvelope::new(
+        runtime::events::types::event_types::AUTH_SESSION_REVOKED,
+        token,
+        &payload,
+    ) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("session revoke: envelope build failed: {e}");
+            return;
+        }
+    };
+    let store = match runtime::persistence::event_store::SqliteEventStore::new() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("session revoke: store open failed: {e}");
+            return;
+        }
+    };
+    if let Err(e) = runtime::persistence::event_store::EventStore::append(&store, &envelope) {
+        tracing::warn!("session revoke: append failed: {e}");
     }
 }
 
-/// Load all non-expired persisted sessions from KV into the registry.
-/// Expired sessions are deleted from KV on the way through.
+/// Load all non-expired sessions from the projection into the in-memory
+/// registry. Same shape as before — drives the daemon's hot-path token
+/// lookup. Expired rows are skipped (they'll be cleaned up by future
+/// auth.session.expired events; out-of-band sweeps not yet implemented).
 pub async fn hydrate_sessions(registry: &SessionRegistry) {
-    let entries = match runtime::db::kv::list_all(runtime::db::kv::KvNamespace::AuthSession) {
+    let rows = match runtime::projections::auth::list_active_sessions() {
         Ok(rows) => rows,
         Err(e) => {
-            tracing::warn!("session hydrate: list_all failed: {e}");
+            tracing::warn!("session hydrate: list failed: {e}");
             return;
         }
     };
-    let now = now_unix();
-    let mut loaded = 0usize;
-    let mut expired = 0usize;
     let mut reg = registry.lock().await;
-    for (token, value) in entries {
-        let persisted: PersistedSession = match serde_json::from_value(value) {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::warn!(token = %token, "session hydrate: deserialize failed: {e}");
-                let _ = runtime::db::kv::delete(runtime::db::kv::KvNamespace::AuthSession, &token);
-                continue;
-            }
-        };
-        if persisted.expires_at_unix <= now {
-            expired += 1;
-            let _ = runtime::db::kv::delete(runtime::db::kv::KvNamespace::AuthSession, &token);
-            continue;
-        }
-        // Approximate created_at Instant: we lose absolute time on restart, but
-        // created_at Instant is only used for ordering/display, not auth.
+    let mut loaded = 0usize;
+    for row in rows {
+        let scopes: Vec<Scope> =
+            serde_json::from_str(&row.scopes_json).unwrap_or_default();
         let session = DaemonSession {
-            token: persisted.token.clone(),
-            agent_id: persisted.agent_id,
-            scopes: persisted.scopes,
-            workspace_id: persisted.workspace_id,
+            token: row.token.clone(),
+            agent_id: row.agent_id,
+            scopes,
+            workspace_id: row.project_id,
             created_at: std::time::Instant::now(),
-            expires_at_unix: Some(persisted.expires_at_unix),
+            expires_at_unix: Some(row.expires_at_unix),
             ephemeral: false,
         };
-        reg.insert(persisted.token, session);
+        reg.insert(row.token, session);
         loaded += 1;
     }
-    if loaded > 0 || expired > 0 {
-        tracing::info!(loaded, expired, "auth: hydrated paired sessions from KV");
+    if loaded > 0 {
+        tracing::info!(loaded, "auth: hydrated sessions from projection");
     }
 }
 
