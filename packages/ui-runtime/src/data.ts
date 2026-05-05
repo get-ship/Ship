@@ -10,6 +10,7 @@
 
 import { applyPatch, type Patch } from './patch'
 import { signal, type Signal } from './signal'
+import { onCleanup } from './effect-scope'
 
 /** Options for `data()` — initial value plus SSE/patch wiring. */
 export interface DataOpts<T> {
@@ -90,12 +91,20 @@ export function data<T>(opts: DataOpts<T>): DataHandle<T> {
   sse.addEventListener('patch', onMessage as EventListener)
   sse.addEventListener('error', onError)
 
-  return {
-    signal: sig,
-    dispose: () => {
-      sse.removeEventListener('patch', onMessage as EventListener)
-      sse.removeEventListener('error', onError)
-      sse.close()
-    },
+  let disposed = false
+  const dispose = (): void => {
+    if (disposed) return
+    disposed = true
+    sse.removeEventListener('patch', onMessage as EventListener)
+    sse.removeEventListener('error', onError)
+    sse.close()
   }
+
+  // Auto-register the disposer with the current effect scope so
+  // callers don't have to remember to call `.dispose()` manually.
+  // Outside any scope this is a no-op; callers that want explicit
+  // control still receive `dispose` on the returned handle.
+  onCleanup(dispose)
+
+  return { signal: sig, dispose }
 }

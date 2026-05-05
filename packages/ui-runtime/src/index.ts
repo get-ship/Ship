@@ -37,6 +37,19 @@
 export { signal, derived, effect, batch, untrack } from './signal'
 export type { Signal, Derived } from './signal'
 
+export {
+  createScope,
+  createChildScope,
+  withScope,
+  onCleanup,
+  currentScope,
+} from './effect-scope'
+export type { EffectScope } from './effect-scope'
+
+// Dev-mode leak detector lives at `@ship/ui-runtime/dev` (separate
+// subpath import so the wrappers don't ship in the production
+// runtime bundle). See packages/ui-runtime/src/dev.ts.
+
 export { shared, isShared, provide, useShared, pickShared } from './context'
 
 export { ref, attachRef } from './ref'

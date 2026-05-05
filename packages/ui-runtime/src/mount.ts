@@ -16,7 +16,7 @@
 import { signal, type Signal } from './signal'
 import type { LiveSignal, LiveState } from './live'
 import { route as makeRoute, type RouteSignals } from './route'
-import { createOwner, withOwner } from './owner'
+import { createScope, withScope } from './effect-scope'
 
 /** View payload as returned by `GET /_sui/views/<name>[/<sub>]`. Keep
  *  in sync with `apps/shipd/src/views/sui_view_payload.rs::ViewPayload`. */
@@ -136,14 +136,14 @@ export async function mount<Scope = Record<string, unknown>>(
     scope: { ...baseScope },
     stateKeys: built.stateKeys,
   }
-  // Run setup() inside an owner scope so any `live()` / `data()` /
+  // Run setup() inside an effect scope so any `live()` / `data()` /
   // hook subscriptions allocated during setup register their
-  // cleanup with this mount. The owner is disposed by `dispose()`
-  // below — without this scope, EventSource subscriptions opened
-  // by `<data live>` views leaked across every navigation and the
-  // tab eventually OOM'd.
-  const owner = createOwner()
-  const setupRet = withOwner(owner, () =>
+  // cleanup with this mount. The scope is disposed by `dispose()`
+  // below — without it, EventSource subscriptions opened by
+  // `<data live>` views leaked across every navigation and tabs
+  // eventually OOM'd.
+  const scope = createScope()
+  const setupRet = withScope(scope, () =>
     mod.default.setup(setupCtx) as Record<string, unknown> | undefined,
   )
 
@@ -261,10 +261,10 @@ export async function mount<Scope = Record<string, unknown>>(
           console.error('[sui/mount] cleanup threw:', err)
         }
       }
-      // Dispose the owner: closes any EventSource subscription opened
+      // Dispose the scope: closes any EventSource subscription opened
       // by `<data live>` / `live()` during setup, plus any other
-      // resource registered via `registerOwnerCleanup`.
-      owner.dispose()
+      // resource registered via `onCleanup`.
+      scope.dispose()
       styleEl?.remove()
     },
     async reload(next: ViewPayload) {

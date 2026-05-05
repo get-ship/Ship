@@ -1,0 +1,124 @@
+# Effect scopes — cleanup ownership
+
+Resources allocated during a view's `setup()` — `EventSource`,
+`MutationObserver`, `setInterval`, custom hook subscriptions — need
+to be released when the view unmounts. The runtime ships an effect
+scope primitive that handles this for you, so you can't accidentally
+leak. (Forgotten cleanups were the root cause of multiple OOM
+crashes during early shell2 development; commit `87cf3223`.)
+
+## API
+
+```ts
+import { onCleanup } from '@ship/ui-runtime'
+```
+
+`onCleanup(fn)` registers a teardown callback with the *current*
+scope. Inside a view's `setup()`, the current scope is the mount's
+scope, so registered cleanups run when the user navigates away.
+
+```ts
+export default view((ctx) => {
+  const ws = new WebSocket('wss://server/feed')
+  onCleanup(() => ws.close())
+  // … rest of setup
+})
+```
+
+Outside a `withScope` block (top-level module init, tests, SSR
+shims), `onCleanup` is a silent no-op. Safe to call defensively from
+any allocator.
+
+## When you DON'T need it
+
+- `signal()` and `derived()` — auto-disposed when their last reader
+  goes away. No cleanup required.
+- `effect()` — already returns a stop fn that the framework calls
+  on dispose if you `return` it from your view's `setup()`.
+- Resources allocated inside a controller's `mount(state, host)` and
+  released via `return () => …`. The mount lifecycle wires that
+  cleanup automatically.
+
+You DO need `onCleanup` for:
+- Allocator helpers like `live()`, `data()`, `useShellContext()` that
+  open subscriptions on the caller's behalf
+- Custom hooks that wrap browser APIs (intersection observers, web
+  socket clients, broadcast channels)
+- One-off allocations inside `setup()` that don't return a disposer
+  to the framework
+
+## Custom scopes
+
+Most callers stick with `onCleanup`. Two cases want explicit scopes:
+
+### `createScope()` — host primitive
+
+If you're authoring a HOST that wants to own a scope (the only
+in-tree example is `mount.ts`), call `createScope()` and run user
+code inside `withScope(scope, () => userCode())`:
+
+```ts
+import { createScope, withScope } from '@ship/ui-runtime'
+
+const scope = createScope()
+withScope(scope, () => userCode())
+// … later
+scope.dispose() // runs every cleanup userCode registered
+```
+
+### `createChildScope()` — sub-lifecycle
+
+When part of your view has its own teardown that's independent of
+the outer mount but should still get cleaned up if the mount goes
+away first, create a child scope:
+
+```ts
+import { createChildScope, withScope } from '@ship/ui-runtime'
+
+const child = createChildScope() // implicitly owned by the current scope
+withScope(child, () => {
+  // every onCleanup here registers on `child`
+})
+// `child.dispose()` releases just this sub-lifecycle
+// `outer scope dispose` also disposes `child` automatically
+```
+
+## Dev-mode leak detection
+
+Wire the leak detector during development to catch missing cleanups
+before they ship:
+
+```ts
+import { enableLeakWarn } from '@ship/ui-runtime/dev'
+
+// Top of your app entry, behind a dev-only branch:
+if (import.meta.env?.DEV) enableLeakWarn()
+```
+
+The detector wraps `EventSource`, `MutationObserver`, `ResizeObserver`,
+`IntersectionObserver`, `setInterval`, and `clearInterval`. When any
+scope disposes with one of those resources still open, you get a
+`console.warn` naming the kind of resource and a sample stack trace.
+
+The wrappers come down via the disposer `enableLeakWarn` returns, or
+the ref-counted shorthand `enableLeakWarnInScope()` which auto-removes
+when the current scope ends. Production bundles that don't import
+from `/dev` don't pay the wrapper cost.
+
+## Dispose ordering
+
+Cleanups run in **reverse insertion order** — last registered runs
+first. This matches the build-up / tear-down direction most people
+intuit (the most recent thing you set up is the first you tear
+down).
+
+A throwing cleanup is logged and the others still run. No partial
+teardown.
+
+## What this primitive replaced
+
+This module subsumes the ad-hoc `owner.ts` that landed alongside the
+first `<data live>` leak fix. The old export names (`createOwner`,
+`withOwner`, `registerOwnerCleanup`) remain as deprecated aliases for
+one release; remove your imports the next time you touch a file
+that uses them.

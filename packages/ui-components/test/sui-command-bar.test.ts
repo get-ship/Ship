@@ -121,20 +121,25 @@ describe('<sui-command-bar>', () => {
     expect(input?.value).toBe('>dashboard')
   })
 
-  it('⌘K opens the bar in find mode', async () => {
+  // ⌘K binding lives in the shell (apps/shell2/src/main.ts), not in
+  // the cb controller. Two listeners fighting over the same key flipped
+  // the bar open and back to closed within ~23ms — see commit
+  // e538a6ec. The shell now owns ⌘K; the bar exposes `host.toggle()`
+  // for it to call. Test that contract instead.
+  it('host.toggle("find") opens the bar in find mode', async () => {
     const { el } = makeBar()
     await flush()
-    key({ key: 'k', metaKey: true })
+    ;(el as CB).toggle('find')
     await flush()
     expect(el.hasAttribute('open')).toBe(true)
     expect(el.getAttribute('mode')).toBe('find')
   })
 
-  it('⌘K toggles closed when open', async () => {
+  it('host.toggle() closes the bar when already open', async () => {
     const { el } = makeBar()
     ;(el as CB).show()
     await flush()
-    key({ key: 'k', metaKey: true })
+    ;(el as CB).toggle()
     await flush()
     expect(el.hasAttribute('open')).toBe(false)
   })
