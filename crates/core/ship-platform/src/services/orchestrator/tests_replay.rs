@@ -155,11 +155,11 @@ async fn reconcile_dispatched_emits_session_destroyed_not_step_failed() {
         .any(|e| e.event_type == "job.step_failed" || e.event_type == "job.failed");
     assert!(!terminal, "reconcile must not emit any terminal job event");
 
-    let jobs = ship_substrate::projections::job::load_jobs().unwrap();
+    let jobs = crate::projections::job::load_jobs().unwrap();
     let job = jobs.get("j-replay-1").expect("seeded job present");
     assert_eq!(
         job.status,
-        ship_substrate::projections::job::JobStatus::Dispatched,
+        crate::projections::job::JobStatus::Dispatched,
         "orphaned job stays Dispatched; liveness sweep owns the terminal call"
     );
     assert!(job.error.is_none());
@@ -180,7 +180,7 @@ mod replay_filter {
     use chrono::{Duration, Utc};
 
     use ship_substrate::events::job::{Pipeline, PipelineStep, StepType};
-    use ship_substrate::projections::job::{JobRecord, JobStatus};
+    use crate::projections::job::{JobRecord, JobStatus};
     use crate::services::orchestrator::replay::{
         MAX_REPLAYS_PER_STARTUP, needs_replay, select_replay_targets,
     };

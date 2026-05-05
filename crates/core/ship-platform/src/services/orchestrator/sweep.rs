@@ -8,7 +8,7 @@ use ship_substrate::events::supervisor::{
     SweepCompletedPayload, SweepStartedPayload,
 };
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::projections::job::{load_jobs, JobRecord, JobStatus};
+use crate::projections::job::{load_jobs, JobRecord, JobStatus};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;

@@ -57,7 +57,7 @@ fn err(status: StatusCode, msg: impl Into<String>) -> axum::response::Response {
         .into_response()
 }
 
-fn record_to_api(record: ship_substrate::projects::ProjectRecord, label: Option<String>) -> Project {
+fn record_to_api(record: ship_platform::projects::ProjectRecord, label: Option<String>) -> Project {
     Project {
         id: record.id,
         name: record.name,
@@ -85,7 +85,7 @@ fn active_id() -> Option<String> {
     tag = "framework"
 )]
 pub async fn list_projects(State(_state): State<ApiState>) -> axum::response::Response {
-    match ship_substrate::projects::list() {
+    match ship_platform::projects::list() {
         Ok(records) => {
             let projects = records
                 .into_iter()
@@ -134,11 +134,11 @@ pub async fn add_project(
     {
         return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }
-    if let Err(e) = ship_substrate::projects::register(&path, None) {
+    if let Err(e) = ship_platform::projects::register(&path, None) {
         return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }
     // Re-list so the response includes the new record + everything else.
-    match ship_substrate::projects::list() {
+    match ship_platform::projects::list() {
         Ok(records) => {
             let projects = records
                 .into_iter()
@@ -172,7 +172,7 @@ pub async fn switch_project(
     State(_state): State<ApiState>,
     Json(req): Json<ProjectSwitchReq>,
 ) -> axum::response::Response {
-    match ship_substrate::projects::get(&req.id) {
+    match ship_platform::projects::get(&req.id) {
         Ok(Some(_)) => {}
         Ok(None) => {
             return err(
@@ -188,7 +188,7 @@ pub async fn switch_project(
         return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }
     // Bump last_seen on switch so the rail's recency order reflects use.
-    let _ = ship_substrate::projects::touch(&req.id);
+    let _ = ship_platform::projects::touch(&req.id);
     (
         StatusCode::OK,
         Json(serde_json::json!({ "ok": true, "active": req.id })),

@@ -18,7 +18,6 @@ pub mod log;
 pub mod persistence;
 pub mod project;
 pub mod projections;
-pub mod projects;
 pub mod services;
 pub mod supervisor;
 pub mod trash;

@@ -9,7 +9,7 @@
 //! in `apply` until a follow-up pass extracts them too.
 
 use super::job::JobStatus;
-use crate::events::job::event_types;
+use ship_substrate::events::job::event_types;
 
 /// Unconditional status transition for an event type.
 ///

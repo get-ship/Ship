@@ -106,9 +106,9 @@ pub async fn handle_job_event(
         && let Some(record) = load_job_record(&envelope.entity_id)
         && matches!(
             record.status,
-            ship_substrate::projections::job::JobStatus::Failed
-                | ship_substrate::projections::job::JobStatus::Merged
-                | ship_substrate::projections::job::JobStatus::Cancelled
+            crate::projections::job::JobStatus::Failed
+                | crate::projections::job::JobStatus::Merged
+                | crate::projections::job::JobStatus::Cancelled
         )
     {
         tracing::warn!(
@@ -302,7 +302,7 @@ async fn maybe_auto_merge(
 ) -> bool {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
     let job_id = payload["job_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
-    let jobs = match ship_substrate::projections::job::load_jobs() {
+    let jobs = match crate::projections::job::load_jobs() {
         Ok(j) => j,
         Err(_) => return false,
     };
@@ -344,8 +344,8 @@ fn is_operator_event(event_type: &str) -> bool {
 /// Used by the terminal-state guard. Returns `None` if the projection
 /// can't be loaded or the job doesn't exist — callers treat that as
 /// "not terminal, proceed" so startup races don't drop events.
-fn load_job_record(entity_id: &str) -> Option<ship_substrate::projections::job::JobRecord> {
-    ship_substrate::projections::job::load_jobs()
+fn load_job_record(entity_id: &str) -> Option<crate::projections::job::JobRecord> {
+    crate::projections::job::load_jobs()
         .ok()?
         .into_iter()
         .map(|(_, v)| v)
@@ -364,7 +364,7 @@ async fn check_and_fail_missing_outputs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     declared: &StepDoneDeclaredPayload,
 ) {
-    let Ok(jobs) = ship_substrate::projections::job::load_jobs() else { return };
+    let Ok(jobs) = crate::projections::job::load_jobs() else { return };
     let Some(job) = jobs.values().find(|j| j.job_id == declared.job_id).cloned() else {
         return;
     };
@@ -389,7 +389,7 @@ async fn run_promotes_for_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &StepObservedPayload,
 ) {
-    let Ok(jobs) = ship_substrate::projections::job::load_jobs() else { return };
+    let Ok(jobs) = crate::projections::job::load_jobs() else { return };
     let Some(job) = jobs.values().find(|j| j.job_id == payload.job_id).cloned() else {
         return;
     };
@@ -410,7 +410,7 @@ async fn evaluate_step_gate(
 ) -> Option<String> {
     use super::gate_rules::{diff_paths, evaluate, GateOutcome};
 
-    let jobs = ship_substrate::projections::job::load_jobs().ok()?;
+    let jobs = crate::projections::job::load_jobs().ok()?;
     let job = jobs.values().find(|j| j.job_id == payload.job_id)?.clone();
     let pipeline = job.steps.as_ref()?;
     let step = pipeline.steps.iter().find(|s| s.id == payload.step_name)?;

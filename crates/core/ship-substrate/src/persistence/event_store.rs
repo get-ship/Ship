@@ -60,10 +60,9 @@ fn default_bus() -> Arc<EventBus> {
     let mut bus = EventBus::new();
     bus.register(Box::new(ActorProjection::new()));
     bus.register(Box::new(SessionProjection::new()));
-    bus.register(Box::new(crate::projections::CompileStateProjection));
-    bus.register(Box::new(crate::projections::ProjectsProjection));
-    bus.register(Box::new(crate::projections::AuthSessionsProjection));
-    bus.register(Box::new(crate::projections::DaemonOwnerProjection));
+    for projection in crate::projections::extra_projections() {
+        bus.register(projection);
+    }
     Arc::new(bus)
 }
 

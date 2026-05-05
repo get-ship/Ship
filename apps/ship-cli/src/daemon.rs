@@ -804,7 +804,7 @@ fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
 }
 
 fn daemon_cleanup() -> Result<()> {
-    use ship_substrate::projections::job::{load_jobs, JobStatus};
+    use ship_platform::projections::job::{load_jobs, JobStatus};
 
     let jobs = load_jobs().context("failed to load job projection")?;
 

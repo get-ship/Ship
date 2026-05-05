@@ -5,7 +5,7 @@
 //! 2. Reconciles jobs stuck in `Dispatched` state after a daemon restart
 
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::projections::job::{load_jobs, JobRecord, JobStatus};
+use crate::projections::job::{load_jobs, JobRecord, JobStatus};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -140,7 +140,7 @@ pub async fn reconcile_dispatched_jobs_at(
     octx: &OrchestratorContext,
     ship_dir: &std::path::Path,
 ) {
-    let jobs = match ship_substrate::projections::job::load_jobs_at(ship_dir) {
+    let jobs = match crate::projections::job::load_jobs_at(ship_dir) {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("job-dispatch: reconcile failed to load jobs: {e}");
@@ -154,7 +154,7 @@ pub async fn reconcile_dispatched_jobs_at(
 async fn reconcile_dispatched_inner(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     octx: &OrchestratorContext,
-    jobs: std::collections::HashMap<String, ship_substrate::projections::job::JobRecord>,
+    jobs: std::collections::HashMap<String, crate::projections::job::JobRecord>,
     _store_dir: Option<&std::path::Path>,
 ) {
     let stale: Vec<_> = jobs

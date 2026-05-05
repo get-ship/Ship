@@ -180,7 +180,7 @@ async fn sweep_registered(
     }
     tracing::warn!(count = dead.len(), "liveness: sweep found dead handles");
 
-    let jobs = match ship_substrate::projections::job::load_jobs() {
+    let jobs = match ship_platform::projections::job::load_jobs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("liveness: failed to load jobs for dead slug lookup: {e}");
@@ -207,9 +207,9 @@ async fn sweep_stale_dispatched(
     kernel: &Arc<Mutex<KernelRouter>>,
     registry: &Arc<Mutex<ProcessRegistry>>,
 ) {
-    use ship_substrate::projections::job::JobStatus;
+    use ship_platform::projections::job::JobStatus;
 
-    let jobs = match ship_substrate::projections::job::load_jobs() {
+    let jobs = match ship_platform::projections::job::load_jobs() {
         Ok(j) => j,
         Err(e) => {
             tracing::warn!("liveness: stale sweep failed to load jobs: {e}");

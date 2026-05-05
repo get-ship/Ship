@@ -1,6 +1,6 @@
 use super::{JobStatus, project};
-use crate::events::EventEnvelope;
-use crate::events::job::event_types;
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::events::job::event_types;
 
 fn make_event(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
     EventEnvelope::new(event_type, "test-entity", &payload).unwrap()
@@ -467,7 +467,7 @@ mod idempotent {
     }
 
     fn project_and_get(events: &[EventEnvelope], job_id: &str) -> super::super::JobRecord {
-        super::super::project(events).get(job_id).cloned().unwrap()
+        super::project(events).get(job_id).cloned().unwrap()
     }
 
     #[test]
@@ -536,7 +536,7 @@ mod idempotent {
         let first = project_and_get(&events, "j-dis");
 
         // Build state, then apply events again on top.
-        let mut map = super::super::project(&events);
+        let mut map = super::project(&events);
         let rec = map.get_mut("j-dis").unwrap();
         for e in &events {
             apply(rec, e);

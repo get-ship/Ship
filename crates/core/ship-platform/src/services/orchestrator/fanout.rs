@@ -16,7 +16,7 @@ use ship_substrate::events::job::{
     FanoutSpec, PipelineStep, StepObservedPayload, StepTrigger, StepType, StepVerdict, event_types,
 };
 use ship_substrate::events::{EventEnvelope, KernelRouter};
-use ship_substrate::projections::job::JobRecord;
+use crate::projections::job::JobRecord;
 use crate::services::dispatch_ports::{JobContext, LaunchProfile, StepInfo};
 use crate::services::orchestrator::emit::{
     emit_process_spawned, emit_step_dispatched_event, emit_step_failed, persist_and_route,
@@ -275,7 +275,7 @@ pub async fn dispatch_fanout_step(
 /// Returns `false` when the projection can't be loaded so we never
 /// swallow a genuine fanout failure.
 fn parent_job_is_terminal(job_id: &str) -> bool {
-    use ship_substrate::projections::job::{load_jobs, JobStatus};
+    use crate::projections::job::{load_jobs, JobStatus};
     match load_jobs() {
         Ok(jobs) => jobs.values().any(|j| {
             j.job_id == job_id

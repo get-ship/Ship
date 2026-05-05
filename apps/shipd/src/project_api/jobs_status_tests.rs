@@ -82,9 +82,9 @@ async fn update_job_status_dispatched_advances_projection() {
     // Projection must reflect the dispatch — this is the assertion that
     // proves the daemon's kernel emit drove the projection update, which
     // is precisely what the old direct-write path skipped.
-    let jobs = ship_substrate::projections::job::load_jobs_at(state.ship_dir()).unwrap();
+    let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir()).unwrap();
     let rec = jobs.get(&job_id).expect("job projection row missing");
-    use ship_substrate::projections::job::JobStatus;
+    use ship_platform::projections::job::JobStatus;
     assert!(
         matches!(rec.status, JobStatus::Dispatched),
         "expected Dispatched, got {:?}",

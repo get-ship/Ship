@@ -54,7 +54,7 @@ pub fn start_session(
     // project isn't registered, leaves project_id as None — registration is
     // explicit, never implicit.
     let project_lookup_path = ship_dir.parent().unwrap_or(ship_dir).to_path_buf();
-    let project_id = ship_substrate::projects::find_by_path(&project_lookup_path)
+    let project_id = crate::projects::find_by_path(&project_lookup_path)
         .ok()
         .flatten()
         .map(|p| p.id);

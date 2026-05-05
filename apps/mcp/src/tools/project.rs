@@ -56,7 +56,7 @@ pub async fn get_effective_project_dir(
     if !actor_id.is_empty()
         && let Ok(Some(actor)) = ship_substrate::projections::actor::get_actor(actor_id)
         && let Some(project_id) = actor.project_id.as_deref()
-        && let Ok(Some(project)) = ship_substrate::projects::get(project_id)
+        && let Ok(Some(project)) = ship_platform::projects::get(project_id)
         && let Ok(dir) = get_project_dir(Some(PathBuf::from(&project.path)))
     {
         return Ok(resolve_project_root(dir));
@@ -110,7 +110,7 @@ fn resolve_project_root(ship_dir: PathBuf) -> PathBuf {
 fn active_agent_for_project(project_dir: &Path) -> Option<String> {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(project_dir);
     let project_id = runtime::project::ensure_project_id(&ship_dir).ok()?;
-    ship_substrate::projections::compile_state::load(&project_id)
+    ship_platform::projections::compile_state::load(&project_id)
         .ok()
         .flatten()
         .and_then(|s| s.active_agent)

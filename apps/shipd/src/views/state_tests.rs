@@ -3,7 +3,7 @@
 
 use super::{filter_and_sort, partition_runs, status_token, Filter, RunCategory};
 use chrono::{TimeZone, Utc};
-use ship_substrate::projections::job::{JobRecord, JobStatus};
+use ship_platform::projections::job::{JobRecord, JobStatus};
 use std::collections::HashMap;
 
 fn mk(slug: &str, agent: &str, status: JobStatus, ts_secs: i64) -> JobRecord {

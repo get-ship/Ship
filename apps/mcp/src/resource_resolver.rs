@@ -8,9 +8,9 @@ use ship_platform::sessions::{
     get_active_session as runtime_get_active_session, list_sessions as runtime_list_sessions,
 };
 use ship_substrate::log::read_log;
-use ship_substrate::projections::job::load_jobs_at;
+use ship_platform::projections::job::load_jobs_at;
 
-use ship_substrate::projections::job::load_jobs;
+use ship_platform::projections::job::load_jobs;
 
 use crate::resources::render_events_resource;
 
@@ -165,7 +165,7 @@ fn resolve_workspace_uri(uri: &str, ship_dir: &Path) -> Option<String> {
                 let active_agent = runtime::project::ensure_project_id(ship_dir)
                     .ok()
                     .and_then(|pid| {
-                        ship_substrate::projections::compile_state::load(&pid)
+                        ship_platform::projections::compile_state::load(&pid)
                             .ok()
                             .flatten()
                     })

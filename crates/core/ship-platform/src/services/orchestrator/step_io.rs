@@ -377,7 +377,7 @@ pub(crate) fn ensure_within(base: &Path, candidate: &Path) -> std::io::Result<()
 
 /// Load the pipeline for a job from the projection (for promote resolution).
 fn load_pipeline_for_job(job_id: &str) -> Option<ship_substrate::events::job::Pipeline> {
-    ship_substrate::projections::job::load_jobs()
+    crate::projections::job::load_jobs()
         .ok()?
         .into_iter()
         .find(|(_, j)| j.job_id == job_id)

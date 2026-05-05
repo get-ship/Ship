@@ -8,15 +8,10 @@
 //! and rebuilt from the event log at any time via [`rebuild`].
 
 pub mod async_projection;
-pub mod auth;
-pub mod compile_state;
-pub mod job;
-pub mod job_transitions;
 pub mod process;
-pub mod projects;
 pub mod spawn;
 pub mod actor;
-mod registry;
+pub mod registry;
 mod session;
 
 #[cfg(test)]
@@ -28,13 +23,27 @@ mod tests_session;
 
 pub use actor::ActorProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
-pub use auth::{
-    AuthSessionRow, AuthSessionsProjection, DaemonOwnerProjection, DaemonOwnerRow,
-};
-pub use compile_state::{CompileStateProjection, ProjectCompileState};
-pub use projects::{ProjectRow, ProjectsProjection};
-pub use job::{JobRecord, JobStatus, load_jobs, project as project_jobs};
 pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
 pub use session::SessionProjection;
 pub use spawn::{ProjectionHandle, spawn_with_failure_counter};
+
+use std::sync::OnceLock;
+
+/// Factory that produces additional projections to register on the default
+/// event bus. Set at application startup by higher-layer crates (typically
+/// `ship_platform::install_default_projections`); read by
+/// `SqliteEventStore::default_bus`.
+type ExtraProjectionsFactory = Box<dyn Fn() -> Vec<Box<dyn Projection>> + Send + Sync>;
+static EXTRA_PROJECTIONS: OnceLock<ExtraProjectionsFactory> = OnceLock::new();
+
+/// Install a factory for additional projections beyond the substrate L0
+/// defaults. Idempotent — second and later calls are silently ignored.
+/// Call this once at app startup before any `SqliteEventStore` is constructed.
+pub fn install_extra_projections_factory(factory: ExtraProjectionsFactory) {
+    let _ = EXTRA_PROJECTIONS.set(factory);
+}
+
+pub fn extra_projections() -> Vec<Box<dyn Projection>> {
+    EXTRA_PROJECTIONS.get().map(|f| f()).unwrap_or_default()
+}

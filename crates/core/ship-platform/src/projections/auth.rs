@@ -8,8 +8,8 @@
 use anyhow::Result;
 use sqlx::{Row, SqliteConnection};
 
-use crate::db::block_on;
-use crate::projections::registry::Projection;
+use ship_substrate::db::block_on;
+use ship_substrate::projections::registry::Projection;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types::{
     AUTH_SESSION_CREATED, AUTH_SESSION_EXPIRED, AUTH_SESSION_REVOKED, DAEMON_OWNER_BOUND,
@@ -137,8 +137,8 @@ fn apply_session_terminal(
 /// Look up an active (not revoked, not expired) session by token. Used on
 /// every authenticated request — single-PK lookup against `auth_sessions`.
 pub fn active_session(token: &str) -> Result<Option<AuthSessionRow>> {
-    crate::db::ensure_db()?;
-    let mut conn = crate::db::open_db()?;
+    ship_substrate::db::ensure_db()?;
+    let mut conn = ship_substrate::db::open_db()?;
     let now = chrono::Utc::now().timestamp();
     let row = block_on(async {
         sqlx::query(
@@ -157,8 +157,8 @@ pub fn active_session(token: &str) -> Result<Option<AuthSessionRow>> {
 
 /// List all live (non-revoked, non-expired) sessions — for hydrate at startup.
 pub fn list_active_sessions() -> Result<Vec<AuthSessionRow>> {
-    crate::db::ensure_db()?;
-    let mut conn = crate::db::open_db()?;
+    ship_substrate::db::ensure_db()?;
+    let mut conn = ship_substrate::db::open_db()?;
     let now = chrono::Utc::now().timestamp();
     let rows = block_on(async {
         sqlx::query(
@@ -192,9 +192,9 @@ fn session_row(row: sqlx::sqlite::SqliteRow) -> AuthSessionRow {
 /// materializes equivalent state. Idempotent: re-running on a drained
 /// install is a no-op (KV namespace empty after drain).
 pub fn drain_legacy_sessions_kv() -> Result<usize> {
-    use crate::db::{block_on, ensure_kv_db, open_kv_db};
-    use crate::events::EventEnvelope;
-    use crate::persistence::event_store::{EventStore, SqliteEventStore};
+    use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
     use ship_types::payload::AuthSessionCreated;
 
     ensure_kv_db()?;
@@ -315,9 +315,9 @@ fn apply_owner_unbound(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
 /// One-shot drain of the legacy `auth.daemon_owner` KV namespace into a
 /// `daemon.owner.bound` event. Idempotent.
 pub fn drain_legacy_owner_kv() -> Result<usize> {
-    use crate::db::{block_on, ensure_kv_db, open_kv_db};
-    use crate::events::EventEnvelope;
-    use crate::persistence::event_store::{EventStore, SqliteEventStore};
+    use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
     use ship_types::payload::DaemonOwnerBound;
 
     ensure_kv_db()?;
@@ -361,8 +361,8 @@ pub fn drain_legacy_owner_kv() -> Result<usize> {
 
 /// Read the current daemon owner, if any.
 pub fn current_owner() -> Result<Option<DaemonOwnerRow>> {
-    crate::db::ensure_db()?;
-    let mut conn = crate::db::open_db()?;
+    ship_substrate::db::ensure_db()?;
+    let mut conn = ship_substrate::db::open_db()?;
     let row = block_on(async {
         sqlx::query("SELECT user_id, bound_at_unix, source FROM daemon_owner LIMIT 1")
             .fetch_optional(&mut conn)

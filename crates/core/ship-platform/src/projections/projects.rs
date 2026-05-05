@@ -6,8 +6,8 @@
 use anyhow::Result;
 use sqlx::{Row, SqliteConnection};
 
-use crate::db::block_on;
-use crate::projections::registry::Projection;
+use ship_substrate::db::block_on;
+use ship_substrate::projections::registry::Projection;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types::{PROJECT_ARCHIVED, PROJECT_REGISTERED, PROJECT_SEEN};
 use ship_types::payload::{ProjectArchived, ProjectRegistered, ProjectSeen};
@@ -110,8 +110,8 @@ fn apply_archived(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<
 
 /// List all live (non-archived) projects, sorted by last_seen_at desc.
 pub fn list_active() -> Result<Vec<ProjectRow>> {
-    crate::db::ensure_db()?;
-    let mut conn = crate::db::open_db()?;
+    ship_substrate::db::ensure_db()?;
+    let mut conn = ship_substrate::db::open_db()?;
     let rows = block_on(async {
         sqlx::query(
             "SELECT id, path, name, label, created_at, last_seen_at, archived_at \
@@ -125,8 +125,8 @@ pub fn list_active() -> Result<Vec<ProjectRow>> {
 
 /// Lookup by id.
 pub fn get(id: &str) -> Result<Option<ProjectRow>> {
-    crate::db::ensure_db()?;
-    let mut conn = crate::db::open_db()?;
+    ship_substrate::db::ensure_db()?;
+    let mut conn = ship_substrate::db::open_db()?;
     let row = block_on(async {
         sqlx::query(
             "SELECT id, path, name, label, created_at, last_seen_at, archived_at \
@@ -141,8 +141,8 @@ pub fn get(id: &str) -> Result<Option<ProjectRow>> {
 
 /// Lookup by path.
 pub fn find_by_path(path: &str) -> Result<Option<ProjectRow>> {
-    crate::db::ensure_db()?;
-    let mut conn = crate::db::open_db()?;
+    ship_substrate::db::ensure_db()?;
+    let mut conn = ship_substrate::db::open_db()?;
     let row = block_on(async {
         sqlx::query(
             "SELECT id, path, name, label, created_at, last_seen_at, archived_at \

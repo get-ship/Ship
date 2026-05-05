@@ -356,9 +356,9 @@ mod tests {
         .into_response();
         assert_eq!(response.status(), StatusCode::OK);
 
-        let jobs = ship_substrate::projections::job::load_jobs_at(state.ship_dir()).unwrap();
+        let jobs = ship_platform::projections::job::load_jobs_at(state.ship_dir()).unwrap();
         let job = jobs.get(&job_id).unwrap();
-        assert_eq!(job.status, ship_substrate::projections::job::JobStatus::Cancelled);
+        assert_eq!(job.status, ship_platform::projections::job::JobStatus::Cancelled);
 
         // Confirm the cancelled event actually landed.
         let events = ship_substrate::db::events::query_recent_events_for_entity_at(

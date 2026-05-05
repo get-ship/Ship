@@ -27,6 +27,24 @@ pub mod transport;
 pub use profile::{ActorKind, ActorProfile, Transport as TransportKind};
 pub use transport::{ChildHandle, HeadlessTransport, PtyTransport, Transport};
 
+use std::path::Path;
+use std::sync::OnceLock;
+
+/// Optional resolver that maps a working-directory path to a project id.
+/// Installed by the platform crate (`ship_platform::projects`); used by
+/// `spawn_actor` to attribute the emitted `actor.created` event to a
+/// project. When unset, project_id is left None.
+type ProjectIdResolver = Box<dyn Fn(&Path) -> Option<String> + Send + Sync>;
+static PROJECT_ID_RESOLVER: OnceLock<ProjectIdResolver> = OnceLock::new();
+
+pub fn install_project_id_resolver(resolver: ProjectIdResolver) {
+    let _ = PROJECT_ID_RESOLVER.set(resolver);
+}
+
+fn resolve_project_id(path: &Path) -> Option<String> {
+    PROJECT_ID_RESOLVER.get().and_then(|f| f(path))
+}
+
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -148,10 +166,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
     let emit_pid = child.pid();
     std::thread::spawn(move || {
         let cwd = emit_profile.work_dir.to_string_lossy().to_string();
-        let project_id = crate::projects::find_by_path(&emit_profile.work_dir)
-            .ok()
-            .flatten()
-            .map(|p| p.id);
+        let project_id = resolve_project_id(&emit_profile.work_dir);
         let payload = crate::events::types::ActorCreated {
             kind: emit_profile.kind.as_str().to_string(),
             environment_type: "local".to_string(),

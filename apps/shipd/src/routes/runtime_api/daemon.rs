@@ -16,10 +16,10 @@ use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
-    use ship_substrate::projections::job::JobStatus;
+    use ship_platform::projections::job::JobStatus;
 
     let ship_dir = state.ship_dir();
-    let jobs = ship_substrate::projections::job::load_jobs_at(ship_dir).unwrap_or_default();
+    let jobs = ship_platform::projections::job::load_jobs_at(ship_dir).unwrap_or_default();
     let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
     for j in jobs.values() {
         let key = match j.status {

@@ -61,38 +61,6 @@ fn envelope_from_row_platform_without_target_actor_id() {
 }
 
 #[test]
-fn envelope_from_row_job_projection_sets_target_actor_id_none() {
-    // The job projection uses a 13-col SELECT (no target_actor_id column).
-    // After dedup, load_jobs_from_conn must still produce valid EventEnvelopes
-    // with target_actor_id = None.
-    let (_tmp, ship_dir) = setup();
-    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
-
-    let job_ev = EventEnvelope::new(
-        "job.created",
-        "test-entity",
-        &serde_json::json!({
-            "job_id": "j-envelope-test",
-            "slug": "envelope-test",
-            "agent": "test",
-            "branch": "job/envelope-test",
-            "spec_path": "spec.md",
-            "plan_id": null
-        }),
-    )
-    .unwrap()
-    .with_target("actor-99"); // target set, but job projection ignores it
-
-    store.append(&job_ev).unwrap();
-
-    let jobs = crate::projections::job::load_jobs_at(&ship_dir).unwrap();
-    let rec = jobs.get("j-envelope-test").unwrap();
-    assert_eq!(rec.slug, "envelope-test");
-    // The job projection's row_to_envelope omits target_actor_id —
-    // after dedup this should be None (not panic).
-}
-
-#[test]
 fn envelope_round_trip_preserves_all_fields() {
     let (_tmp, _ship_dir) = setup();
     let store = SqliteEventStore::new().unwrap();

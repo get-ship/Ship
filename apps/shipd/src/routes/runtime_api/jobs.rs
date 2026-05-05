@@ -77,7 +77,7 @@ pub struct CreateJobRequest {
     tag = "runtime"
 )]
 pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
-    let jobs = match ship_substrate::projections::job::load_jobs_at(state.ship_dir()) {
+    let jobs = match ship_platform::projections::job::load_jobs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -109,11 +109,11 @@ pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
 
 /// Annotate a job with `process_state` + `notes` for `ship jobs`.
 pub(crate) fn annotate_job(
-    job: &ship_substrate::projections::job::JobRecord,
+    job: &ship_platform::projections::job::JobRecord,
     processes: &[ship_substrate::projections::process::ProcessRecord],
     supervisor_events: &[ship_substrate::events::EventEnvelope],
 ) -> serde_json::Value {
-    use ship_substrate::projections::job::JobStatus;
+    use ship_platform::projections::job::JobStatus;
     use ship_substrate::projections::process::ProcessStatus;
 
     let terminal = matches!(
@@ -221,7 +221,7 @@ pub(crate) fn load_recent_events_by_type(
 
 #[derive(serde::Serialize)]
 pub struct JobDetailResponse {
-    job: ship_substrate::projections::job::JobRecord,
+    job: ship_platform::projections::job::JobRecord,
     step_observations: Vec<ship_substrate::events::job::StepObservedPayload>,
     recent_events: Vec<EventSummary>,
 }
@@ -254,7 +254,7 @@ pub async fn get_job_detail(
     if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
         return e.into_response();
     }
-    let jobs = match ship_substrate::projections::job::load_jobs_at(state.ship_dir()) {
+    let jobs = match ship_platform::projections::job::load_jobs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -456,7 +456,7 @@ pub async fn cancel_job(
         return e;
     }
 
-    let jobs = match ship_substrate::projections::job::load_jobs_at(state.ship_dir()) {
+    let jobs = match ship_platform::projections::job::load_jobs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -479,7 +479,7 @@ pub async fn cancel_job(
         }
     };
 
-    use ship_substrate::projections::job::JobStatus;
+    use ship_platform::projections::job::JobStatus;
     if matches!(
         job.status,
         JobStatus::Failed | JobStatus::Merged | JobStatus::Cancelled | JobStatus::Completed
@@ -569,7 +569,7 @@ pub async fn end_job(
     if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
         return e;
     }
-    let jobs = match ship_substrate::projections::job::load_jobs() {
+    let jobs = match ship_platform::projections::job::load_jobs() {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -581,7 +581,7 @@ pub async fn end_job(
 
     let job = match jobs.values()
         .filter(|j| j.slug == req.slug)
-        .find(|j| j.status == ship_substrate::projections::job::JobStatus::Dispatched)
+        .find(|j| j.status == ship_platform::projections::job::JobStatus::Dispatched)
     {
         Some(j) => j.clone(),
         None => {

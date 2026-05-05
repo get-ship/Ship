@@ -11,8 +11,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use crate::events::job::event_types;
-use crate::events::EventEnvelope;
+use ship_substrate::events::job::event_types;
+use ship_substrate::events::EventEnvelope;
 
 /// Current status of a job, derived from its event sequence.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
@@ -57,10 +57,10 @@ pub struct JobRecord {
     pub provider_meta: Option<serde_json::Value>,
     /// Legacy linear pipeline phases.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pipeline: Option<Vec<crate::events::job::PipelinePhase>>,
+    pub pipeline: Option<Vec<ship_substrate::events::job::PipelinePhase>>,
     /// DAG pipeline steps.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub steps: Option<crate::events::job::Pipeline>,
+    pub steps: Option<ship_substrate::events::job::Pipeline>,
     /// Index of the currently active pipeline phase (legacy).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_phase: Option<usize>,
@@ -298,9 +298,9 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                             .filter_map(|v| v.as_str().map(str::to_string))
                             .collect()
                     });
-                let pipeline: Option<Vec<crate::events::job::PipelinePhase>> =
+                let pipeline: Option<Vec<ship_substrate::events::job::PipelinePhase>> =
                     serde_json::from_value(p["pipeline"].clone()).ok();
-                let steps: Option<crate::events::job::Pipeline> =
+                let steps: Option<ship_substrate::events::job::Pipeline> =
                     serde_json::from_value(p["steps"].clone()).ok();
                 let record = JobRecord {
                     job_id: job_id.clone(),
@@ -348,7 +348,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
 
 /// Load all job events from the platform DB and return the projected state.
 pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
-    use crate::db::{db_path, ensure_db, open_db_at};
+    use ship_substrate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
     let mut conn = open_db_at(&db_path()?)?;
@@ -360,10 +360,10 @@ pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
 ///
 /// Preferred in tests to avoid thread-local / env var isolation issues.
 pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRecord>> {
-    use crate::db::{ensure_db_at, open_db_at};
+    use ship_substrate::db::{ensure_db_at, open_db_at};
 
     ensure_db_at(ship_dir)?;
-    let mut conn = open_db_at(&crate::db::platform_db_path(ship_dir))?;
+    let mut conn = open_db_at(&ship_substrate::db::platform_db_path(ship_dir))?;
 
     load_jobs_from_conn(&mut conn)
 }
@@ -371,8 +371,8 @@ pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRec
 fn load_jobs_from_conn(
     conn: &mut sqlx::SqliteConnection,
 ) -> Result<HashMap<String, JobRecord>> {
-    use crate::db::block_on;
-    use crate::db::envelope::envelope_from_row;
+    use ship_substrate::db::block_on;
+    use ship_substrate::db::envelope::envelope_from_row;
 
     const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
         causation_id, project_id, session_id, \

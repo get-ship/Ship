@@ -21,6 +21,10 @@ fn write_if_missing(path: &Path, content: &str) -> Result<()> {
 /// Lightweight project bootstrap for runtime unit tests.
 /// The full production project scaffolding lives in `ship-module-project`.
 pub fn init_project(base_dir: PathBuf) -> Result<PathBuf> {
+    // Idempotent: install platform-level projection set + supervisor
+    // hooks before any SqliteEventStore is constructed downstream.
+    ship_platform::install_defaults();
+
     let ship_path = base_dir.join(SHIP_DIR_NAME);
     fs::create_dir_all(&ship_path)?;
 

@@ -206,7 +206,7 @@ pub const DAEMON_OWNER_KEY: &str = "user_id";
 
 /// Return the user ID that owns this daemon, or None if not yet bound.
 pub fn daemon_owner() -> Option<String> {
-    ship_substrate::projections::auth::current_owner()
+    ship_platform::projections::auth::current_owner()
         .ok()
         .flatten()
         .map(|row| row.user_id)

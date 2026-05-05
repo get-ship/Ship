@@ -18,9 +18,9 @@ use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use crate::events::EventEnvelope;
-use crate::home::path_hash;
-use crate::persistence::event_store::{EventStore, SqliteEventStore};
+use ship_substrate::events::EventEnvelope;
+use ship_substrate::home::path_hash;
+use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::projections::projects;
 use ship_types::event_types::{PROJECT_ARCHIVED, PROJECT_REGISTERED, PROJECT_SEEN};
 use ship_types::payload::{ProjectArchived, ProjectRegistered, ProjectSeen};
@@ -146,7 +146,7 @@ pub fn touch(id: &str) -> Result<bool> {
 /// materializes equivalent state. Idempotent: re-running on a drained
 /// install is a no-op (KV namespace is empty after drain).
 pub fn drain_legacy_kv() -> Result<usize> {
-    use crate::db::{block_on, ensure_kv_db, open_kv_db};
+    use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
     use sqlx::Row;
 
     ensure_kv_db()?;
@@ -209,10 +209,10 @@ mod tests {
 
     fn fresh_db() -> TempDir {
         let tmp = TempDir::new().unwrap();
-        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
-        crate::testutil::init_project_minimal(tmp.path().to_path_buf()).unwrap();
-        crate::db::ensure_db().unwrap();
+        crate::testutil::init_project(tmp.path().to_path_buf()).unwrap();
+        ship_substrate::db::ensure_db().unwrap();
         tmp
     }
 

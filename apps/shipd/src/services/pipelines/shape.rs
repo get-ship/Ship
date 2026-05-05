@@ -5,7 +5,7 @@
 //! These types are serialized straight into the registry op payloads
 //! that `.ship/views/pipelines/*` templates consume.
 
-use ship_substrate::projections::job::{JobRecord, JobStatus};
+use ship_platform::projections::job::{JobRecord, JobStatus};
 use serde::Serialize;
 use std::path::PathBuf;
 

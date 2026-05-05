@@ -78,7 +78,7 @@ pub async fn handle_job_cleanup(
 
     let slug = if !payload_slug.is_empty() {
         payload_slug.to_string()
-    } else if let Ok(jobs) = ship_substrate::projections::job::load_jobs() {
+    } else if let Ok(jobs) = crate::projections::job::load_jobs() {
         jobs.values()
             .find(|j| j.job_id == job_id || j.job_id == envelope.entity_id)
             .map(|j| j.slug.clone())
@@ -109,7 +109,7 @@ pub async fn finalize_pipeline_if_done(
         None => return,
     };
 
-    let jobs = match ship_substrate::projections::job::load_jobs() {
+    let jobs = match crate::projections::job::load_jobs() {
         Ok(j) => j,
         Err(_) => return,
     };
@@ -188,7 +188,7 @@ pub async fn handle_job_cancelled(
 
     // Ensure tmux session + worktree are gone. Look up branch from the
     // projection so delete_branch can run.
-    let branch = ship_substrate::projections::job::load_jobs()
+    let branch = crate::projections::job::load_jobs()
         .ok()
         .and_then(|jobs| {
             jobs.values()

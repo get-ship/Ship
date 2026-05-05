@@ -3,7 +3,7 @@ use ship_substrate::events::job::event_types;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::validator::{CallerKind, EmitContext};
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::projections::job::{project, JobStatus};
+use ship_platform::projections::job::{project, JobStatus};
 use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -699,7 +699,7 @@ fn projection_resolves_pending_deps() {
     )).unwrap();
 
     // Before upstream completes: downstream is Pending with unresolved deps
-    let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
     let done: std::collections::HashSet<&str> = jobs.values()
         .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
         .map(|j| j.slug.as_str())
@@ -720,7 +720,7 @@ fn projection_resolves_pending_deps() {
     )).unwrap();
 
     // After upstream completes: downstream deps are resolved
-    let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
     let done: std::collections::HashSet<&str> = jobs.values()
         .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
         .map(|j| j.slug.as_str())
@@ -762,7 +762,7 @@ fn pending_jobs_recoverable_from_event_store() {
     }
 
     // Simulate restart: load projection from the same DB path
-    let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
 
     let pending_count = jobs
         .values()
@@ -865,7 +865,7 @@ fn projection_detects_stale_dispatched_jobs() {
         ))
         .unwrap();
 
-    let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
+    let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
 
     assert_eq!(jobs.get("j-pending").unwrap().status, JobStatus::Pending);
     assert_eq!(
@@ -1157,7 +1157,7 @@ mod reliability {
 
         seed_dispatched_job(&store, "j-stale", "stale-running");
 
-        let jobs_before = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs_before = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
         assert_eq!(
             jobs_before.get("j-stale").unwrap().status,
             JobStatus::Dispatched
@@ -1182,7 +1182,7 @@ mod reliability {
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
 
-        let jobs_after = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs_after = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
         let job = jobs_after.get("j-stale").unwrap();
         assert_eq!(
             job.status,
@@ -1282,7 +1282,7 @@ mod reliability {
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
 
-        let jobs = ship_substrate::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let jobs = ship_platform::projections::job::load_jobs_at(&ship_dir).unwrap();
         assert_eq!(
             jobs.get("j-alive").unwrap().status,
             JobStatus::Dispatched,

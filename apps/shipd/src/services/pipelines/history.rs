@@ -1,7 +1,7 @@
 //! `pipelines.history(limit?, offset?, q?, pipeline?)` — paginated
 //! history rows for the dedicated history view.
 
-use ship_substrate::projections::job::JobRecord;
+use ship_platform::projections::job::JobRecord;
 use serde::Serialize;
 use std::collections::BTreeSet;
 use std::path::Path;

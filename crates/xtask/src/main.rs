@@ -92,8 +92,8 @@ fn collect_types() -> TypeCollection {
     // ── Daemon / runtime types ─────────────────────────────────────────────
 
     // projections/job.rs
-    c.register::<ship_substrate::projections::job::JobRecord>();
-    c.register::<ship_substrate::projections::job::JobStatus>();
+    c.register::<ship_platform::projections::job::JobRecord>();
+    c.register::<ship_platform::projections::job::JobStatus>();
 
     // events/job.rs (job event payloads)
     c.register::<ship_substrate::events::job::JobCreatedPayload>();

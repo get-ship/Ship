@@ -12,7 +12,7 @@ use ship_substrate::events::job::event_types;
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::store::{EventStore, SqliteEventStore};
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::projections::job::{load_jobs_at, JobStatus};
+use ship_platform::projections::job::{load_jobs_at, JobStatus};
 use ship_platform::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
 use ship_platform::services::orchestrator::OrchestratorContext;
 use std::path::PathBuf;

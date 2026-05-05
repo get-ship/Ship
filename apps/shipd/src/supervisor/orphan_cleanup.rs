@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use ship_substrate::events::executor::DestructionCause;
 use ship_substrate::events::KernelRouter;
-use ship_substrate::projections::job::{load_jobs, JobStatus};
+use ship_platform::projections::job::{load_jobs, JobStatus};
 use ship_platform::services::orchestrator::emit::emit_executor_session_destroyed;
 use tokio::sync::Mutex;
 

@@ -50,10 +50,9 @@ pub fn rebuild_projections(ship_dir: &Path) -> Result<RebuildReport> {
     let mut bus = EventBus::new();
     bus.register(Box::new(SessionProjection::new()));
     bus.register(Box::new(ActorProjection::new()));
-    bus.register(Box::new(crate::projections::CompileStateProjection));
-    bus.register(Box::new(crate::projections::ProjectsProjection));
-    bus.register(Box::new(crate::projections::AuthSessionsProjection));
-    bus.register(Box::new(crate::projections::DaemonOwnerProjection));
+    for projection in crate::projections::extra_projections() {
+        bus.register(projection);
+    }
 
     let report = bus.rebuild(&events, &mut conn)?;
     let duration_ms = start.elapsed().as_millis() as u64;

@@ -201,6 +201,10 @@ impl ShipRuntime {
         //    ensure_db_at — migration 0002 drops kv_state from platform.db.
         //
         // Use spawn_blocking because the DB layer uses block_in_place internally.
+        // Install platform-level projections + supervisor hooks before
+        // any SqliteEventStore is constructed.
+        ship_platform::install_defaults();
+
         let dir = global_dir.clone();
         let kernel = tokio::task::spawn_blocking(move || {
             ship_substrate::home::ensure_layout(&ship_substrate::ShipHome::at(dir.clone()))
@@ -224,15 +228,15 @@ impl ShipRuntime {
             }
             // One-shot drain of the legacy `project` KV namespace into
             // project.registered / project.seen events. Idempotent.
-            if let Err(e) = ship_substrate::projects::drain_legacy_kv() {
+            if let Err(e) = ship_platform::projects::drain_legacy_kv() {
                 tracing::warn!("projects drain from legacy KV: {e}");
             }
             // One-shot drain of legacy auth.sessions and auth.daemon_owner
             // KV namespaces into events. Idempotent.
-            if let Err(e) = ship_substrate::projections::auth::drain_legacy_sessions_kv() {
+            if let Err(e) = ship_platform::projections::auth::drain_legacy_sessions_kv() {
                 tracing::warn!("auth sessions drain from legacy KV: {e}");
             }
-            if let Err(e) = ship_substrate::projections::auth::drain_legacy_owner_kv() {
+            if let Err(e) = ship_platform::projections::auth::drain_legacy_owner_kv() {
                 tracing::warn!("auth owner drain from legacy KV: {e}");
             }
             ship_substrate::events::init_kernel_router(dir)

@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use ship_substrate::events::job::{event_types, StepObservedPayload, StepTrigger, StepVerdict};
 use ship_substrate::events::kernel_router::{ActorConfig, KernelRouter};
 use ship_substrate::events::EventEnvelope;
-use ship_substrate::projections::job::{load_jobs, JobStatus};
+use crate::projections::job::{load_jobs, JobStatus};
 use crate::services::dispatch_ports::{
     AgentPlatform, ExecutorHandle, ExitSignal, IsolationStrategy, JobContext, JobExecutor,
     ProcessRegistryPort,

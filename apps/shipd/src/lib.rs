@@ -161,7 +161,7 @@ pub async fn run_network(
     // Register the launch-time project (if any) into the project registry
     // so the launcher / shell sees it on first list. Idempotent.
     if let Some(root) = project_root.as_ref() {
-        if let Err(e) = ship_substrate::projects::register(root.path(), None) {
+        if let Err(e) = ship_platform::projects::register(root.path(), None) {
             tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
         }
     }

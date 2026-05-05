@@ -272,7 +272,7 @@ pub fn remove_persisted_session(token: &str) {
 /// lookup. Expired rows are skipped (they'll be cleaned up by future
 /// auth.session.expired events; out-of-band sweeps not yet implemented).
 pub async fn hydrate_sessions(registry: &SessionRegistry) {
-    let rows = match ship_substrate::projections::auth::list_active_sessions() {
+    let rows = match ship_platform::projections::auth::list_active_sessions() {
         Ok(rows) => rows,
         Err(e) => {
             tracing::warn!("session hydrate: list failed: {e}");

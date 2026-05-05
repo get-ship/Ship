@@ -6,8 +6,8 @@
 use anyhow::Result;
 use sqlx::{SqliteConnection, Row};
 
-use crate::db::block_on;
-use crate::projections::registry::Projection;
+use ship_substrate::db::block_on;
+use ship_substrate::projections::registry::Projection;
 use ship_types::envelope::EventEnvelope;
 use ship_types::event_types::COMPILE_COMPLETED;
 use ship_types::payload::CompileCompleted;
@@ -79,8 +79,8 @@ impl Projection for CompileStateProjection {
 /// Read the materialized compile state for a project. None if there's never
 /// been a `compile.completed` event for that project.
 pub fn load(project_id: &str) -> Result<Option<ProjectCompileState>> {
-    crate::db::ensure_db()?;
-    let mut conn = crate::db::open_db()?;
+    ship_substrate::db::ensure_db()?;
+    let mut conn = ship_substrate::db::open_db()?;
     let row = block_on(async {
         sqlx::query(
             "SELECT project_id, active_agent, compiled_at, ship_version, provider, plugins_installed_json \
@@ -108,14 +108,14 @@ pub fn load(project_id: &str) -> Result<Option<ProjectCompileState>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::{ensure_db, open_db};
-    use crate::projections::EventBus;
+    use ship_substrate::db::{ensure_db, open_db};
+    use ship_substrate::projections::EventBus;
     use ship_types::envelope::EventEnvelope;
 
     fn setup() -> sqlx::SqliteConnection {
-        let global = crate::project::get_global_dir().unwrap();
+        let global = ship_substrate::project::get_global_dir().unwrap();
         let base = global.parent().unwrap().to_path_buf();
-        crate::testutil::init_project_minimal(base).unwrap();
+        crate::testutil::init_project(base).unwrap();
         ensure_db().unwrap();
         open_db().unwrap()
     }

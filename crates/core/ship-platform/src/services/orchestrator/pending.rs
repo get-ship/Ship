@@ -2,7 +2,7 @@
 //!
 //! Called on startup and after job.completed/job.merged to unblock queued jobs.
 
-use ship_substrate::projections::job::{load_jobs, JobStatus};
+use crate::projections::job::{load_jobs, JobStatus};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
