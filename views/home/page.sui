@@ -1,5 +1,3 @@
-<state name="seen" value="0" />
-
 <div class="home">
   <home-hero prop:title={'Welcome to Ship'}></home-hero>
 
