@@ -178,7 +178,7 @@ export interface ControllerShape<Scope = object> {
    * tier-2+ controllers. Author writes idiomatic TypeScript inside
    * the factory; types flow through inference.
    */
-  scope?: (init: ViewScope<Scope>) => Record<string, unknown>
+  scope?: (init: ViewScope<Scope>, host?: Element) => Record<string, unknown>
 
   /** Pure memos. Each key is a function `(scope) => T`. */
   derived?: DerivedSection<Scope>

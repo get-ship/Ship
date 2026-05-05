@@ -72,8 +72,9 @@ export function resolveController(
   // `scope:` factory runs first — its returned entries become part of
   // the merged scope before any other section. Idiomatic TypeScript
   // closure: signals, derived, hooks, shared wrappers all live here.
+  // Pass ctx.host as second arg so consumers can call useShared(host, tag).
   const scopeAdds = shape.scope
-    ? (shape.scope as (s: unknown) => Record<string, unknown>)(baseScope)
+    ? (shape.scope as (s: unknown, h?: Element) => Record<string, unknown>)(baseScope, ctx.host)
     : {}
   Object.assign(baseScope, scopeAdds)
 
