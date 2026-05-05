@@ -7,10 +7,14 @@ use std::collections::HashMap;
 use std::path::Path;
 
 /// Return the default value for a well-known setting key.
+///
+/// Defaults are reserved for non-identity infrastructure choices (terminal
+/// program, daemon port). Identity-shaped values like "which AI provider"
+/// or "which model" never default — those need explicit user input on first
+/// run, since silently picking an AI the user hasn't installed or paid for
+/// is a footgun.
 pub fn setting_default(key: &str) -> Option<&'static str> {
     match key {
-        "defaults.provider" => Some("claude"),
-        "defaults.model" => Some("sonnet"),
         "terminal.program" => Some("tmux"),
         "daemon.port" => Some("9315"),
         _ => None,
@@ -33,10 +37,8 @@ pub fn set_setting(key: &str, value: serde_json::Value) -> Result<()> {
 /// Return all persisted settings merged with defaults.
 pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
     let mut map = HashMap::new();
-    // Seed with defaults.
+    // Seed only with non-identity infrastructure defaults.
     for (key, default) in &[
-        ("defaults.provider", "claude"),
-        ("defaults.model", "sonnet"),
         ("terminal.program", "tmux"),
         ("daemon.port", "9315"),
     ] {
