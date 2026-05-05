@@ -38,6 +38,7 @@
 //! boundaries by walking SSR'd `<sui-{kind} key="…">` elements and
 //! dispatching to the matching attach handler on the setup return.
 
+use super::styles::strip_shared_rules;
 use super::template_emit::TemplateEmitter;
 use super::util::{camel_of, js_ident};
 use super::writer::{js_string, Writer};
@@ -89,7 +90,7 @@ fn emit_imports(w: &mut Writer, lowered: &Lowered, opts: &CompileOpts) {
     let is_shadow = opts.component_meta.as_ref().map(|m| m.shadow).unwrap_or(false);
     let mut imports: Vec<String> = lowered.runtime_imports.iter().map(|s| s.to_string()).collect();
     if is_shadow {
-        let sym = "suiTonesSheet".to_string();
+        let sym = "adoptSuiSheets".to_string();
         if !imports.contains(&sym) {
             imports.push(sym);
             imports.sort();
@@ -132,8 +133,14 @@ fn emit_component_export(w: &mut Writer, program: &Program, body: Writer, opts: 
     if meta.shadow {
         w.line("shadow: true,");
     }
-    if !program.styles.is_empty() {
-        w.line(&format!("styles: {},", js_string(&program.styles)));
+    let is_shadow = meta.shadow;
+    let emitted_styles = if is_shadow {
+        strip_shared_rules(&program.styles)
+    } else {
+        program.styles.clone()
+    };
+    if !emitted_styles.trim().is_empty() {
+        w.line(&format!("styles: {},", js_string(&emitted_styles)));
     }
     w.line("setup(ctx) {");
     w.push_str(&body.into_string());
@@ -240,7 +247,7 @@ fn emit_setup_body(
         tpl_w.line("const __root = host.shadowRoot ?? host;");
         let is_shadow = opts.component_meta.as_ref().map(|m| m.shadow).unwrap_or(false);
         if is_shadow {
-            tpl_w.line("if (suiTonesSheet && __root instanceof ShadowRoot) { try { __root.adoptedStyleSheets = [suiTonesSheet, ...(__root.adoptedStyleSheets ?? [])]; } catch {} }");
+            tpl_w.line("adoptSuiSheets(__root);");
         }
         emitter.emit_top_level(&mut tpl_w, &program.template, "__root", "__cleanups");
         if opts.setup_url.is_some() {
