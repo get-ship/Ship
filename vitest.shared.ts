@@ -10,14 +10,13 @@
 
 import type { ViteUserConfig as VitestUserConfig } from 'vitest/config'
 
+const MAX_FORKS = Number(process.env.VITEST_MAX_FORKS ?? 2)
+
 export const SHIP_VITEST_DEFAULTS: NonNullable<VitestUserConfig['test']> = {
   pool: 'forks',
-  poolOptions: {
-    forks: {
-      maxForks: Number(process.env.VITEST_MAX_FORKS ?? 2),
-      minForks: 1,
-    },
-  },
+  // vitest 4 lifted poolOptions.forks.* to top-level.
+  maxForks: MAX_FORKS,
+  minForks: 1,
   // Hang detection. A test stuck in a never-resolving Promise would
   // otherwise hold a fork open indefinitely.
   testTimeout: 10_000,

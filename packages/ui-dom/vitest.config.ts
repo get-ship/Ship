@@ -6,6 +6,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '@ship/ui-runtime': resolve(__dirname, '../ui-runtime/src/index.ts'),
+      '@ship/ui-dom': resolve(__dirname, 'src/index.ts'),
     },
     // sui-compiler emits `view.js` next to `view.sui` and the paired `view.ts`
     // (see scripts/build-bundles.mjs::compileSui). Tests target the controller
