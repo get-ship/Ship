@@ -79,22 +79,20 @@ import './sui-copy-button/dist/sui-copy-button.compiled.js'
 import './sui-json-view/dist/sui-json-view.compiled.js'
 import './sui-diff/dist/sui-diff.compiled.js'
 import './sui-markdown/dist/sui-markdown.compiled.js'
-import './sui-nav-top/dist/sui-nav-top.compiled.js'
-import './sui-launcher/dist/sui-launcher.compiled.js'
+// sui-nav-top + sui-launcher are island-bundled; see islands/.
 import './sui-toolbar/dist/sui-toolbar.compiled.js'
 import './sui-app-icon/dist/sui-app-icon.compiled.js'
 import './sui-tree-view/dist/sui-tree-view.compiled.js'
 import './sui-tree-view/dist/sui-tree-item.compiled.js'
 import './sui-table/dist/sui-table.compiled.js'
 import './sui-graph-canvas/dist/sui-graph-canvas.compiled.js'
-import './sui-panel-dock/dist/sui-panel-dock.compiled.js'
-import './sui-devtools/dist/sui-devtools-source.compiled.js'
-import './sui-devtools/dist/sui-devtools-components.compiled.js'
-import './sui-devtools/dist/sui-devtools-lint.compiled.js'
-import './sui-devtools/dist/sui-devtools-schema.compiled.js'
-import './sui-devtools/dist/sui-devtools-signals.compiled.js'
-import './sui-command-bar/dist/sui-command-bar.compiled.js'
-import './sui-command-bar/dist/sui-command-palette.compiled.js'
-import './sui-command-bar/dist/sui-command-chat.compiled.js'
-// sui-terminal is an island bundle — loaded only by views that use it.
-// See packages/ui-components/src/islands/sui-terminal/.
+// sui-panel-dock is island-bundled; see islands/sui-panel-dock/.
+// sui-devtools-* are island-bundled; see islands/sui-devtools/.
+// Island bundles — loaded on demand by hosts that need them. See
+// packages/ui-components/src/islands/<bundle>/:
+//   - sui-terminal       — the terminal pane
+//   - sui-command-bar    — command-bar + command-palette + command-chat
+//   - sui-devtools       — devtools-source + -components + -lint + -schema + -signals
+//   - sui-launcher       — global app launcher chrome
+//   - sui-panel-dock     — bottom panel-dock chrome
+//   - sui-nav-top        — top nav chrome

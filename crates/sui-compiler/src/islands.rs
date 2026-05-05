@@ -2,28 +2,59 @@ use std::collections::BTreeSet;
 
 use crate::ir::Instr;
 
-/// Compile-time list of SUI island tags — heavy components shipped as
-/// separate per-island bundles rather than inlined into sui-components.js.
+/// Compile-time map of `<sui-*>` island tags to their bundle name —
+/// each bundle ships as a separate `/_sui/islands/<bundle>/island.js`
+/// file rather than inlined into `sui-components.js`.
+///
+/// Most tags are their own bundle (`tag == bundle`). Family bundles
+/// pack multiple tags that share controllers/styles into a single
+/// asset (e.g. the command-bar family); the tag→bundle column lets the
+/// daemon serve one file regardless of which family member appears in
+/// a template.
 ///
 /// Adding a new island: drop the source under
-/// `packages/ui-components/src/islands/<tag>/`, add the tag here, rebuild.
-/// The daemon route handler and build pipeline pick it up automatically.
-pub const SUI_ISLANDS: &[&str] = &["sui-terminal"];
+/// `packages/ui-components/src/islands/<bundle>/`, list its tag here,
+/// rebuild. The daemon route handler and build pipeline pick it up
+/// automatically.
+pub const SUI_ISLANDS: &[(&str, &str)] = &[
+    ("sui-terminal", "sui-terminal"),
+    ("sui-command-bar", "sui-command-bar"),
+    ("sui-command-palette", "sui-command-bar"),
+    ("sui-command-chat", "sui-command-bar"),
+    ("sui-devtools-source", "sui-devtools"),
+    ("sui-devtools-components", "sui-devtools"),
+    ("sui-devtools-lint", "sui-devtools"),
+    ("sui-devtools-schema", "sui-devtools"),
+    ("sui-devtools-signals", "sui-devtools"),
+    ("sui-launcher", "sui-launcher"),
+    ("sui-panel-dock", "sui-panel-dock"),
+    ("sui-nav-top", "sui-nav-top"),
+];
 
-/// Walk `instrs` recursively and return every distinct island tag encountered,
-/// sorted (BTreeSet). Used by the JS emitter and the SSR fragment handler.
-pub fn collect_islands(instrs: &[Instr]) -> BTreeSet<String> {
+pub fn island_bundle(tag: &str) -> Option<&'static str> {
+    SUI_ISLANDS.iter().find(|(t, _)| *t == tag).map(|(_, b)| *b)
+}
+
+pub fn is_island_bundle(name: &str) -> bool {
+    SUI_ISLANDS.iter().any(|(_, b)| *b == name)
+}
+
+/// Walk `instrs` recursively and return every distinct island BUNDLE
+/// the template needs (deduped — multiple tags from the same family
+/// resolve to one entry). Used by the JS emitter and the SSR fragment
+/// handler so the host can fetch each bundle exactly once.
+pub fn collect_islands(instrs: &[Instr]) -> BTreeSet<&'static str> {
     let mut found = BTreeSet::new();
     visit(instrs, &mut found);
     found
 }
 
-fn visit(instrs: &[Instr], found: &mut BTreeSet<String>) {
+fn visit(instrs: &[Instr], found: &mut BTreeSet<&'static str>) {
     for instr in instrs {
         match instr {
             Instr::Element(el) => {
-                if SUI_ISLANDS.contains(&el.tag.as_str()) {
-                    found.insert(el.tag.clone());
+                if let Some(bundle) = island_bundle(el.tag.as_str()) {
+                    found.insert(bundle);
                 }
                 visit(&el.children, found);
             }

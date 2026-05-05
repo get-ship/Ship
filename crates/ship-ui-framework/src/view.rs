@@ -33,7 +33,7 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use sui_compiler::{CompileOpts, compile, islands::SUI_ISLANDS};
+use sui_compiler::{CompileOpts, compile, islands::is_island_bundle};
 
 use crate::bundle::bundle_view;
 use crate::resolver::{ResolvedView, resolve};
@@ -97,18 +97,35 @@ async fn js_response_with_dev_override(bundle: &str, embedded: &'static str) -> 
 
 const SUI_TERMINAL_ISLAND_JS: &str =
     include_str!("../assets/sui-islands/sui-terminal.js");
+const SUI_COMMAND_BAR_ISLAND_JS: &str =
+    include_str!("../assets/sui-islands/sui-command-bar.js");
+const SUI_DEVTOOLS_ISLAND_JS: &str =
+    include_str!("../assets/sui-islands/sui-devtools.js");
+const SUI_LAUNCHER_ISLAND_JS: &str =
+    include_str!("../assets/sui-islands/sui-launcher.js");
+const SUI_PANEL_DOCK_ISLAND_JS: &str =
+    include_str!("../assets/sui-islands/sui-panel-dock.js");
+const SUI_NAV_TOP_ISLAND_JS: &str =
+    include_str!("../assets/sui-islands/sui-nav-top.js");
 
-/// `GET /_sui/islands/{tag}/island.js` — per-island SUI component bundle.
+/// `GET /_sui/islands/{bundle}/island.js` — per-island SUI component bundle.
 ///
-/// Only serves tags listed in `sui_compiler::islands::SUI_ISLANDS`. Any
-/// other name returns 404 so malformed view output can't induce arbitrary
-/// path probing.
-pub async fn serve_sui_island(Path(tag): Path<String>) -> Response {
-    if !SUI_ISLANDS.contains(&tag.as_str()) {
+/// `bundle` matches an entry's bundle column in
+/// `sui_compiler::islands::SUI_ISLANDS`. Family bundles pack multiple
+/// related tags together; the URL is keyed on bundle, not tag. Unknown
+/// names 404 so malformed view output can't induce arbitrary path
+/// probing.
+pub async fn serve_sui_island(Path(bundle): Path<String>) -> Response {
+    if !is_island_bundle(&bundle) {
         return not_found("unknown island");
     }
-    let body: &'static str = match tag.as_str() {
+    let body: &'static str = match bundle.as_str() {
         "sui-terminal" => SUI_TERMINAL_ISLAND_JS,
+        "sui-command-bar" => SUI_COMMAND_BAR_ISLAND_JS,
+        "sui-devtools" => SUI_DEVTOOLS_ISLAND_JS,
+        "sui-launcher" => SUI_LAUNCHER_ISLAND_JS,
+        "sui-panel-dock" => SUI_PANEL_DOCK_ISLAND_JS,
+        "sui-nav-top" => SUI_NAV_TOP_ISLAND_JS,
         _ => return not_found("unknown island"),
     };
     Response::builder()
