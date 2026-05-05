@@ -1,0 +1,13 @@
+// Route metadata for views/home/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "home",
+  "path": "/",
+  "title": "Home",
+  "layout": "default",
+  "auth": "public",
+  "rail": {
+    "label": "Home",
+    "icon": "home"
+  }
+}

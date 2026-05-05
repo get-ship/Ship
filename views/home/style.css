@@ -1,0 +1,26 @@
+.home {
+  max-width: 36rem;
+  margin: 4rem auto;
+  font-family: system-ui, sans-serif;
+}
+
+.home .counter {
+  margin: 2rem 0;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border, #d0d7de);
+  border-radius: 0.5rem;
+  background: var(--background-elevated, #fff);
+}
+
+.home .counter button {
+  font: inherit;
+  margin-top: 0.75rem;
+  padding: 0.4rem 0.9rem;
+  cursor: pointer;
+}
+
+.home p.caption {
+  color: var(--muted-foreground, #57606a);
+  font-size: 0.875rem;
+  margin-top: 1.5rem;
+}

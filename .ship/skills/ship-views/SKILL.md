@@ -25,24 +25,85 @@ For HTML-blob cases (markdown rendering, third-party SVG generators, icon-pack s
 
 ## File layout
 
+The canonical view directory shape (see ADR `view-directory-convention`):
+
 ```
 views/<name>/                 # first-party view, baked into shipd
-  view.sui                    # template (required)
-  view.controller.ts          # paired controller (optional, auto-detected)
-  view.css                    # styles (optional, daemon auto-links)
-  manifest.yaml               # name, type: sui, rail, events, packs
-  package.json
-  [param]/view.sui            # parameterised sub-route
+  page.sui                    # route entry — required
+  controller.ts               # paired controller — optional
+  style.css                   # page-scoped styles — optional, daemon auto-links
+  manifest.jsonc              # route metadata — required
+  dist/                       # generated artifacts (compiler emits here)
+  _components/                # view-private widgets — optional
+    <view>-<tag>/
+      <view>-<tag>.sui
+      <view>-<tag>.controller.ts
+      dist/
 
-.ship/views/<name>/           # extension-point view, project-local
-  index.sui
-  index.controller.ts
-  manifest.yaml
+.ship/views/<name>/           # extension-point view, project-local; same shape
+  page.sui
+  controller.ts
+  manifest.jsonc
   partials/                   # reusable fragments
-  [param]/index.sui
 ```
 
-Convention is the contract. Filename stem identifies the view; `.controller.ts` paired siblings are auto-detected. Plain `.ts` files are not controllers — they're helpers, types, or tests.
+Five rules:
+
+1. **`page.sui` is the route entry.** The filename stem says what the file IS — a page, not a reusable widget. Reusable widgets live under `packages/ui-components/src/sui-*/`.
+2. **`controller.ts`, no stem prefix.** The directory IS the view; pairing is unambiguous. Inside `_components/<tag>/`, the `<tag>.controller.ts` rule from `ship-components` applies.
+3. **`style.css` for page-scoped styles.** Linked automatically. Use `<style>` blocks inside `.sui` for component-scoped styles.
+4. **`manifest.jsonc` is required.** JSONC, not YAML. See "Manifest" below.
+5. **`_components/` for view-private widgets.** Tag MUST prefix with the view name (`home-hero` for `views/home/`) so two views can each ship their own `<my-list>` without colliding on `customElements.define`.
+
+Plain `.ts` files (not `controller.ts`, not under `_components/`) are helpers, types, or tests.
+
+Migration note: existing `views/agents/`, `views/counter/`, `views/git/` still use the legacy `view.sui` / `view.controller.ts` / `view.css` shape. They migrate in a separate job once the daemon resolver picks up the new convention. The router (`packages/ship-set/src/router/`) ignores legacy directories — it only walks views that ship a `manifest.jsonc`.
+
+### Worked example: `views/home/`
+
+```
+views/home/
+  page.sui
+  controller.ts
+  style.css
+  manifest.jsonc
+  _components/
+    home-hero/
+      home-hero.sui
+      home-hero.controller.ts
+```
+
+Manifest:
+
+```jsonc
+// views/home/manifest.jsonc
+{
+  "name": "home",
+  "path": "/",
+  "title": "Home",
+  "layout": "default",
+  "auth": "public",
+  "rail": { "label": "Home", "icon": "home" }
+}
+```
+
+Page composes the view-private widget:
+
+```html
+<!-- views/home/page.sui -->
+<state name="seen" value="0" />
+<div class="home">
+  <home-hero prop:title={'Welcome to Ship'}></home-hero>
+  <button on:click={() => seen.set(seen() + 1)}>Bump</button>
+</div>
+```
+
+Scaffold a new view:
+
+```sh
+node scripts/scaffold-view.mjs settings
+node scripts/scaffold-view.mjs settings --component settings-toolbar
+```
 
 ## Template surface (compact)
 
@@ -195,21 +256,28 @@ unwrapOr(sig, fallback)   // T
 
 ## Manifest
 
-```yaml
-# .ship/views/<name>/manifest.yaml
-name: my-view
-type: sui                        # discriminates from j2 stack
-rail:                            # optional — exposes the view in the shell rail
-  label: My View
-  icon: sparkles
-events:
-  - config.changed
-  - workspace.
-packs:
-  - editor                       # heavy-island bundles loaded on demand
+```jsonc
+// views/<name>/manifest.jsonc — JSONC, the house format
+{
+  "name": "my-view",        // stable identity; matches directory
+  "path": "/my-view",       // URL pattern — `/path` or `/path/[param]`
+  "title": "My View",       // <title> when mounted
+  "layout": "default",      // layout slot key
+  "auth": "public",         // "public" | "user" | "admin"
+  "rail": {                 // optional — shell rail entry
+    "label": "My View",
+    "icon": "sparkles"
+  },
+  "preload": [              // optional — SDK calls warmed before mount
+    "ship.workspaces.list()"
+  ],
+  "events": [               // optional — SSE channels to subscribe to
+    "config.changed"
+  ]
+}
 ```
 
-For daemon route shapes, the SSR + attach pipeline, and the marker contract, see `references/manifests-routes.md`.
+The router (`packages/ship-set/src/router/`) walks `views/` at build/start time and registers each `manifest.jsonc`. URL → view module resolution and `[param]` capture happen there. For daemon route shapes, the SSR + attach pipeline, and the marker contract, see `references/manifests-routes.md`.
 
 ## Hard rules
 
