@@ -14,13 +14,16 @@ use lsp_types::notification::{
     DidChangeTextDocument, DidCloseTextDocument, DidOpenTextDocument, DidSaveTextDocument,
     Notification as _, PublishDiagnostics,
 };
-use lsp_types::request::{Request as _, Shutdown};
+use lsp_types::request::{
+    Completion, GotoDefinition, HoverRequest, Request as _, Shutdown,
+};
 use lsp_types::{
-    Diagnostic, InitializeParams, OneOf, PublishDiagnosticsParams, ServerCapabilities,
+    CompletionOptions, CompletionResponse, Diagnostic, InitializeParams, OneOf,
+    PublishDiagnosticsParams, ServerCapabilities, TextDocumentPositionParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, Url,
 };
 
-use crate::{diagnostics, uri, workspace};
+use crate::{diagnostics, expr_intel, uri, workspace};
 
 /// Run the LSP server on stdio until the client sends `exit`.
 pub fn run_stdio() -> Result<()> {
@@ -41,7 +44,12 @@ pub fn run_stdio() -> Result<()> {
 fn server_capabilities() -> ServerCapabilities {
     ServerCapabilities {
         text_document_sync: Some(TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL)),
-        definition_provider: Some(OneOf::Left(false)),
+        definition_provider: Some(OneOf::Left(true)),
+        hover_provider: Some(lsp_types::HoverProviderCapability::Simple(true)),
+        completion_provider: Some(CompletionOptions {
+            trigger_characters: Some(vec![".".into()]),
+            ..Default::default()
+        }),
         ..Default::default()
     }
 }
@@ -61,7 +69,7 @@ fn main_loop(connection: &Connection) -> Result<()> {
                 if connection.handle_shutdown(&req).context("shutdown check")? {
                     return Ok(());
                 }
-                handle_request(connection, req)?;
+                handle_request(connection, &docs, req)?;
             }
             Message::Response(_) => {
                 // We don't issue server->client requests in v1.
@@ -74,14 +82,78 @@ fn main_loop(connection: &Connection) -> Result<()> {
     Ok(())
 }
 
-fn handle_request(_conn: &Connection, req: Request) -> Result<()> {
-    // Only `shutdown` is meaningful in v1, and `handle_shutdown` above
-    // already answered it. Anything else gets a MethodNotFound-style
-    // empty response so noisy clients don't stall.
-    if req.method != Shutdown::METHOD {
-        tracing::debug!(method = %req.method, "unhandled LSP request");
+fn handle_request(conn: &Connection, docs: &Docs, req: Request) -> Result<()> {
+    match req.method.as_str() {
+        HoverRequest::METHOD => {
+            let id = req.id.clone();
+            let params = cast_req::<HoverRequest>(req)?;
+            let result = expr_intel_at(docs, &params.text_document_position_params)
+                .and_then(|(text, path, off)| expr_intel::hover(&text, &path, off));
+            send_response(conn, id, result)
+        }
+        GotoDefinition::METHOD => {
+            let id = req.id.clone();
+            let params = cast_req::<GotoDefinition>(req)?;
+            let result = expr_intel_at(docs, &params.text_document_position_params)
+                .and_then(|(text, path, off)| expr_intel::goto_definition(&text, &path, off));
+            send_response(conn, id, result)
+        }
+        Completion::METHOD => {
+            let id = req.id.clone();
+            let params = cast_req::<Completion>(req)?;
+            let items = expr_intel_at(docs, &params.text_document_position)
+                .map(|(text, path, off)| expr_intel::completion(&text, &path, off))
+                .unwrap_or_default();
+            let result: Option<CompletionResponse> = if items.is_empty() {
+                None
+            } else {
+                Some(CompletionResponse::Array(items))
+            };
+            send_response(conn, id, result)
+        }
+        Shutdown::METHOD => Ok(()),
+        other => {
+            tracing::debug!(method = %other, "unhandled LSP request");
+            Ok(())
+        }
     }
+}
+
+fn expr_intel_at(
+    docs: &Docs,
+    params: &TextDocumentPositionParams,
+) -> Option<(String, std::path::PathBuf, usize)> {
+    let uri = &params.text_document.uri;
+    let text = docs.text.get(uri).cloned()?;
+    let path = uri::url_to_path(uri).ok()?;
+    if !uri::is_view_source(&path) {
+        return None;
+    }
+    let offset = expr_intel::position_to_offset(&text, params.position);
+    Some((text, path, offset))
+}
+
+fn send_response<T: serde::Serialize>(
+    conn: &Connection,
+    id: lsp_server::RequestId,
+    result: T,
+) -> Result<()> {
+    let payload = serde_json::to_value(result).context("encode LSP response")?;
+    let resp = Response { id, result: Some(payload), error: None };
+    conn.sender
+        .send(Message::Response(resp))
+        .context("send LSP response")?;
     Ok(())
+}
+
+fn cast_req<R>(req: Request) -> Result<R::Params>
+where
+    R: lsp_types::request::Request,
+    R::Params: serde::de::DeserializeOwned,
+{
+    req.extract::<R::Params>(R::METHOD)
+        .map(|(_, p)| p)
+        .map_err(|e: ExtractError<Request>| anyhow::anyhow!("request cast {}: {:?}", R::METHOD, e))
 }
 
 fn handle_notification(

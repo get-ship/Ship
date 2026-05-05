@@ -1,0 +1,5 @@
+<ul>
+  {#for x of 3}
+    <li>x</li>
+  {/for}
+</ul>

@@ -1,14 +1,29 @@
-//! Expression validator. Mirrors the rules in
-//! `packages/ui-dom/src/template/expr.ts`:
+//! Expression validator + grammar entry points.
 //!
-//!  - statements (`;` outside of strings) are forbidden.
-//!  - assignments (`=` not part of a comparison or arrow) are forbidden.
-//!  - arrow functions are forbidden unless `allow_arrow` is set.
-//!  - empty expressions are forbidden.
+//! Two flavours of expression analysis live here:
 //!
-//! The compiler does not parse a JS AST. Validation walks the source
-//! tracking string-literal state so the checks ignore characters
-//! inside `'='` or `` `=>` `` literals.
+//! 1. [`validate`] — fast byte-level cross-check of the legacy rules
+//!    from `packages/ui-dom/src/template/expr.ts` (no statements, no
+//!    assignments outside compares / arrows, no empty expressions).
+//!    The compiler emits the source byte-for-byte and pairs this
+//!    pass with the renderable-subset check in `check::expr_subset`,
+//!    so the runtime sees the same shape the validator approved.
+//!
+//! 2. [`grammar`] — a recursive-descent parser that produces an AST
+//!    for the subset documented in `crates/sui-compiler/EXPRESSIONS.md`.
+//!    Downstream type-strengthening checks (`check::scope_member`,
+//!    `check::key_identity`, ...) and LSP intelligence walk the AST
+//!    rather than re-implementing the byte-level scan five more
+//!    times.
+//!
+//! Both flavours share span semantics — diagnostics surface byte
+//! ranges into the original `.sui` source.
+
+pub mod ast;
+pub mod grammar;
+
+pub use ast::{Arg, Ast, AstKind, ObjEntry, ObjKey, TemplatePart};
+pub use grammar::{parse_expression, parse_expression_with_arrows, ParseError};
 
 use crate::diagnostics::{CompileError, Span};
 
