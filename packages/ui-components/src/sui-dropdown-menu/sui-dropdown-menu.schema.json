@@ -1,0 +1,16 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-dropdown-menu",
+    "props": [
+      {
+        "name": "open",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

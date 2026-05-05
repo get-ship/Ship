@@ -1,0 +1,94 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-checkbox",
+    "props": [
+      {
+        "name": "checked",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "indeterminate",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "disabled",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "required",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "invalid",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "tone",
+        "default": "default",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "primary",
+          "info",
+          "success",
+          "warning",
+          "destructive",
+          "accent",
+          "muted"
+        ]
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      {
+        "name": "name",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "value",
+        "default": "on",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "label",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

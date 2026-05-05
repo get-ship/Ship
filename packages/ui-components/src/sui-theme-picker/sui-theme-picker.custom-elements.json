@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-theme-picker.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiThemePicker",
+          "tagName": "sui-theme-picker",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "placement",
+              "type": {
+                "text": "'top' | 'top-end' | 'bottom' | 'bottom-end' | 'left' | 'left-end' | 'right' | 'right-end'"
+              },
+              "default": "bottom-end",
+              "values": [
+                "top",
+                "top-end",
+                "bottom",
+                "bottom-end",
+                "left",
+                "left-end",
+                "right",
+                "right-end"
+              ]
+            },
+            {
+              "name": "label-style",
+              "type": {
+                "text": "'text' | 'compact'"
+              },
+              "default": "text",
+              "values": [
+                "text",
+                "compact"
+              ]
+            },
+            {
+              "name": "persist",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "placement",
+              "type": {
+                "text": "'top' | 'top-end' | 'bottom' | 'bottom-end' | 'left' | 'left-end' | 'right' | 'right-end'"
+              },
+              "attribute": "placement",
+              "default": "bottom-end",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "labelStyle",
+              "type": {
+                "text": "'text' | 'compact'"
+              },
+              "attribute": "label-style",
+              "default": "text",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "persist",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "persist",
+              "default": "true",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-theme-picker",
+          "declaration": {
+            "name": "SuiThemePicker",
+            "module": "sui-theme-picker.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

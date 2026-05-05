@@ -1,0 +1,30 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-timeline-item",
+    "props": [
+      {
+        "name": "tone",
+        "default": "default",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "at",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "interactive",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

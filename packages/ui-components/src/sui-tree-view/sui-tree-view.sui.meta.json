@@ -1,0 +1,28 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "if",
+      "expr": "nodes().length > 0",
+      "deps": [
+        "nodes"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "for",
+      "expr": "nodes()",
+      "deps": [
+        "nodes"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "prop:node",
+      "expr": "n",
+      "deps": [
+        "n"
+      ]
+    }
+  ]
+}

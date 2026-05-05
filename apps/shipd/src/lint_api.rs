@@ -6,8 +6,10 @@ use axum::{Extension, Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 
 use crate::auth::{AuthContext, Scope, require_scope};
+use crate::views::write_api::LintFinding;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct LintViewRequest {
     /// Named view to lint. Daemon resolves the view directory.
     pub name: Option<String>,
@@ -15,26 +17,14 @@ pub struct LintViewRequest {
     pub source: Option<String>,
 }
 
-#[derive(Serialize)]
-struct LintFinding {
-    file: String,
-    line: usize,
-    col: usize,
-    rule: &'static str,
-    severity: &'static str,
-    message: String,
-}
-
-impl From<&lint::Finding> for LintFinding {
-    fn from(f: &lint::Finding) -> Self {
-        Self {
-            file: f.file.display().to_string(),
-            line: f.line,
-            col: f.col,
-            rule: f.rule,
-            severity: f.severity.as_str(),
-            message: f.message.clone(),
-        }
+fn finding_from(f: &lint::Finding) -> LintFinding {
+    LintFinding {
+        file: f.file.display().to_string(),
+        line: f.line,
+        col: f.col,
+        rule: f.rule.to_string(),
+        severity: f.severity.as_str().to_string(),
+        message: f.message.clone(),
     }
 }
 
@@ -65,7 +55,7 @@ pub async fn lint_view(
         return json_err(StatusCode::BAD_REQUEST, "provide 'name' or 'source'");
     };
 
-    let payload: Vec<LintFinding> = findings.iter().map(LintFinding::from).collect();
+    let payload: Vec<LintFinding> = findings.iter().map(finding_from).collect();
     (
         StatusCode::OK,
         Json(serde_json::json!({ "ok": true, "data": { "findings": payload } })),

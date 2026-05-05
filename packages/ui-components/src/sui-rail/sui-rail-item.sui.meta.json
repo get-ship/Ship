@@ -1,0 +1,76 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "itemEl",
+      "deps": [
+        "itemEl"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:href",
+      "expr": "href() || '#'",
+      "deps": [
+        "href"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:aria-current",
+      "expr": "active() ? 'page' : null",
+      "deps": [
+        "active"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "attr:aria-disabled",
+      "expr": "disabled() ? 'true' : null",
+      "deps": [
+        "disabled"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "attr:title",
+      "expr": "label()",
+      "deps": [
+        "label"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "attr:name",
+      "expr": "icon()",
+      "deps": [
+        "icon"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "text",
+      "expr": "label()",
+      "deps": [
+        "label"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "bind:this",
+      "expr": "badgeEl",
+      "deps": [
+        "badgeEl"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "text",
+      "expr": "badge()",
+      "deps": [
+        "badge"
+      ]
+    }
+  ]
+}

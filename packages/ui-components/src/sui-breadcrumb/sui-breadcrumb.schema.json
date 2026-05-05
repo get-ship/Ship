@@ -1,0 +1,16 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-breadcrumb",
+    "props": [
+      {
+        "name": "separator",
+        "default": "/",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

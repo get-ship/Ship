@@ -1,0 +1,85 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "attr:role",
+      "expr": "tone() === 'destructive' || tone() === 'warning' ? 'alert' : 'status'",
+      "deps": [
+        "tone"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:aria-live",
+      "expr": "tone() === 'destructive' || tone() === 'warning' ? 'assertive' : 'polite'",
+      "deps": [
+        "tone"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "bind:this",
+      "expr": "iconSlotEl",
+      "deps": [
+        "iconSlotEl"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "if",
+      "expr": "!hasSlottedIcon()",
+      "deps": [
+        "hasSlottedIcon"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "match",
+      "expr": "tone()",
+      "deps": [
+        "tone"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "bind:this",
+      "expr": "titleSlotEl",
+      "deps": [
+        "titleSlotEl"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "bind:this",
+      "expr": "actionsSlotEl",
+      "deps": [
+        "actionsSlotEl"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "if",
+      "expr": "dismissible()",
+      "deps": [
+        "dismissible"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "bind:this",
+      "expr": "closeBtn",
+      "deps": [
+        "closeBtn"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "if",
+      "expr": "showProgress() && duration() > 0",
+      "deps": [
+        "showProgress",
+        "duration"
+      ]
+    }
+  ]
+}

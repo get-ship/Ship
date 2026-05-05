@@ -1,0 +1,20 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "navSlot",
+      "deps": [
+        "navSlot"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "bind:this",
+      "expr": "toggleBtn",
+      "deps": [
+        "toggleBtn"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "if",
+      "expr": "staged().length === 0",
+      "deps": [
+        "staged"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "for",
+      "expr": "staged()",
+      "deps": [
+        "staged"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:data-id",
+      "expr": "a.id",
+      "deps": [
+        "a"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "text",
+      "expr": "a.kind",
+      "deps": [
+        "a"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "attr:title",
+      "expr": "a.note ?? ''",
+      "deps": [
+        "a"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "text",
+      "expr": "a.note ?? '(no note)'",
+      "deps": [
+        "a"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "on:click",
+      "expr": "() => emitRemove(a.id)",
+      "deps": [
+        "emitRemove",
+        "a"
+      ]
+    }
+  ]
+}

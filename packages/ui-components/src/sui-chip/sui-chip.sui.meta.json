@@ -1,0 +1,20 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "if",
+      "expr": "removable()",
+      "deps": [
+        "removable"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "bind:this",
+      "expr": "removeBtn",
+      "deps": [
+        "removeBtn"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,78 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-separator.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiSeparator",
+          "tagName": "sui-separator",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "orientation",
+              "type": {
+                "text": "'horizontal' | 'vertical'"
+              },
+              "default": "horizontal",
+              "values": [
+                "horizontal",
+                "vertical"
+              ]
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'solid' | 'dashed'"
+              },
+              "default": "solid",
+              "values": [
+                "solid",
+                "dashed"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "orientation",
+              "type": {
+                "text": "'horizontal' | 'vertical'"
+              },
+              "attribute": "orientation",
+              "default": "horizontal",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'solid' | 'dashed'"
+              },
+              "attribute": "variant",
+              "default": "solid",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-separator",
+          "declaration": {
+            "name": "SuiSeparator",
+            "module": "sui-separator.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

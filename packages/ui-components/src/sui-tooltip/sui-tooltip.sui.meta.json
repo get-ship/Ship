@@ -1,0 +1,20 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "defaultSlot",
+      "deps": [
+        "defaultSlot"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "bind:this",
+      "expr": "bubbleEl",
+      "deps": [
+        "bubbleEl"
+      ]
+    }
+  ]
+}

@@ -13,7 +13,27 @@
 // future server-side narrowing to per-row patches lights up without an
 // SDK change.
 
-import { applyPatch, type LiveSignal, type LiveSource, type Patch } from '@ship/ui-runtime'
+import {
+  applyPatch,
+  type AgentsSummariesResponse,
+  type GitDiff,
+  type GitDiffArgs,
+  type GitOverview,
+  type LiveSignal,
+  type LiveSource,
+  type Patch,
+} from '@ship/ui-runtime'
+
+export type {
+  AgentSummary,
+  AgentsSummariesResponse,
+  BranchSummary as GitBranch,
+  CommitSummary as GitCommit,
+  GitDiff,
+  GitDiffArgs,
+  GitOverview,
+  StatusFile as GitFileEntry,
+} from '@ship/ui-runtime'
 
 /** Public Ship SDK surface as exposed to view setups. */
 export interface ShipSDK {
@@ -38,81 +58,6 @@ export interface ShipSDK {
      */
     diff(args: GitDiffArgs): LiveSource<GitDiff>
   }
-}
-
-export interface GitDiffArgs {
-  /** Commit SHA, or `'WORKING'` for the working-tree diff. */
-  commit: string
-  /** Optional workspace scope (defaults to the daemon's project root). */
-  workspace_id?: string
-}
-
-export interface GitDiff {
-  sha: string
-  short_sha: string
-  is_working: boolean
-  diff_text: string
-  parsed: unknown
-}
-
-/** Shape of `agents.summaries()` payload — matches the daemon registry. */
-export interface AgentsSummariesResponse {
-  items: AgentSummary[]
-}
-
-/** Repo-overview payload. Mirrors `services::registry::"git.overview"`. */
-export interface GitOverview {
-  workspace_id: string | null
-  branch: string
-  head_short: string
-  clean: boolean
-  total_changed: number
-  staged: GitFileEntry[]
-  modified: GitFileEntry[]
-  untracked: GitFileEntry[]
-  commits: GitCommit[]
-  branches: GitBranch[]
-  ahead: number
-  behind: number
-}
-
-export interface GitFileEntry {
-  path: string
-  status?: string
-}
-
-export interface GitCommit {
-  sha: string
-  short_sha: string
-  subject: string
-  author: string
-  date: string
-  additions: number
-  deletions: number
-}
-
-export interface GitBranch {
-  name: string
-  active: boolean
-  upstream?: string
-  ahead: number
-  behind: number
-}
-
-/** One agent card's worth of data. Mirrors `services::agents::view_state::AgentSummary`. */
-export interface AgentSummary {
-  id: string
-  name: string
-  description: string
-  skills_count: number
-  providers_count: number
-  mcp_count: number
-  rules_count: number
-  letter: string
-  source: string
-  providers: string[]
-  tags: string[]
-  active: boolean
 }
 
 /** Options accepted by `createClient`. */

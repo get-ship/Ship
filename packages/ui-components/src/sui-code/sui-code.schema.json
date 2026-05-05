@@ -1,0 +1,23 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-code",
+    "props": [
+      {
+        "name": "lang",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "block",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

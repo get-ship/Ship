@@ -1,0 +1,41 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-segmented",
+    "props": [
+      {
+        "name": "value",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md"
+        ]
+      },
+      {
+        "name": "disabled",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "name",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

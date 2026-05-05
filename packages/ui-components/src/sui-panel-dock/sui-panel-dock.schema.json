@@ -1,0 +1,30 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-panel-dock",
+    "props": [
+      {
+        "name": "active-tab",
+        "default": "terminal",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "storage-key",
+        "default": "ship-dock",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "resizing",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

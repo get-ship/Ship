@@ -1,0 +1,52 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-icon",
+    "props": [
+      {
+        "name": "name",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      {
+        "name": "tone",
+        "default": "default",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "info",
+          "success",
+          "warning",
+          "destructive",
+          "accent",
+          "muted",
+          "primary"
+        ]
+      },
+      {
+        "name": "label",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

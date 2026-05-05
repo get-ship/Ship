@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-button.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiButton",
+          "tagName": "sui-button",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'solid' | 'soft' | 'outline' | 'ghost' | 'default'"
+              },
+              "default": "default",
+              "values": [
+                "solid",
+                "soft",
+                "outline",
+                "ghost",
+                "default"
+              ]
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "type",
+              "type": {
+                "text": "'button' | 'submit' | 'reset'"
+              },
+              "default": "button",
+              "values": [
+                "button",
+                "submit",
+                "reset"
+              ]
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "pressed",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "expanded",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'solid' | 'soft' | 'outline' | 'ghost' | 'default'"
+              },
+              "attribute": "variant",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "type",
+              "type": {
+                "text": "'button' | 'submit' | 'reset'"
+              },
+              "attribute": "type",
+              "default": "button",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "disabled",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "loading",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "pressed",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "pressed",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "expanded",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "expanded",
+              "default": "",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-button",
+          "declaration": {
+            "name": "SuiButton",
+            "module": "sui-button.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

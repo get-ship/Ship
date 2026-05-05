@@ -1,0 +1,46 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-spinner",
+    "props": [
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "xs",
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      {
+        "name": "tone",
+        "default": "default",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "primary",
+          "info",
+          "success",
+          "warning",
+          "destructive",
+          "accent",
+          "muted"
+        ]
+      },
+      {
+        "name": "label",
+        "default": "Loading",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-field",
+    "props": [
+      {
+        "name": "invalid",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

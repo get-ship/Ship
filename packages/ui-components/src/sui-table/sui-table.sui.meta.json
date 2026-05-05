@@ -1,0 +1,105 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "if",
+      "expr": "variant() === 'data'",
+      "deps": [
+        "variant"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:aria-label",
+      "expr": "label() || null",
+      "deps": [
+        "label"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "for",
+      "expr": "columns()",
+      "deps": [
+        "columns"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "on:click",
+      "expr": "() => sortBy(c.field)",
+      "deps": [
+        "sortBy",
+        "c"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "class:sorted",
+      "expr": "sortKey() === c.field",
+      "deps": [
+        "sortKey",
+        "c"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "text",
+      "expr": "c.label",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "for",
+      "expr": "sortedRows()",
+      "deps": [
+        "sortedRows"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "class:selected",
+      "expr": "selected().includes(r.id)",
+      "deps": [
+        "selected",
+        "r"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "on:click",
+      "expr": "() => toggleSelect(r.id)",
+      "deps": [
+        "toggleSelect",
+        "r"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "for",
+      "expr": "columns()",
+      "deps": [
+        "columns"
+      ]
+    },
+    {
+      "key": "b10",
+      "kind": "text",
+      "expr": "r[c.field]",
+      "deps": [
+        "r",
+        "c"
+      ]
+    },
+    {
+      "key": "b11",
+      "kind": "attr:aria-label",
+      "expr": "label() || null",
+      "deps": [
+        "label"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-breadcrumb-item.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiBreadcrumbItem",
+          "tagName": "sui-breadcrumb-item",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "href",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "active",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-breadcrumb-item",
+          "declaration": {
+            "name": "SuiBreadcrumbItem",
+            "module": "sui-breadcrumb-item.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

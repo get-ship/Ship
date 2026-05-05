@@ -1,0 +1,52 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "if",
+      "expr": "navigable()",
+      "deps": [
+        "navigable"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "bind:this",
+      "expr": "tileEl",
+      "deps": [
+        "tileEl"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:href",
+      "expr": "navigable()",
+      "deps": [
+        "navigable"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "attr:target",
+      "expr": "target() || null",
+      "deps": [
+        "target"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "attr:rel",
+      "expr": "rel() || null",
+      "deps": [
+        "rel"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "bind:this",
+      "expr": "tileEl",
+      "deps": [
+        "tileEl"
+      ]
+    }
+  ]
+}

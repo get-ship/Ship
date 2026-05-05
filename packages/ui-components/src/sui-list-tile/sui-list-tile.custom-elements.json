@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-list-tile.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiListTile",
+          "tagName": "sui-list-tile",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "variant",
+              "type": {
+                "text": "string"
+              },
+              "default": "row"
+            },
+            {
+              "name": "interactive",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "navigable",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "density",
+              "type": {
+                "text": "string"
+              },
+              "default": "normal"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "string"
+              },
+              "default": "default"
+            },
+            {
+              "name": "target",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "rel",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "variant",
+              "default": "row",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "interactive",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "interactive",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "navigable",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "navigable",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "selected",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "disabled",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "density",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "density",
+              "default": "normal",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "target",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "target",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rel",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "rel",
+              "default": "",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-list-tile",
+          "declaration": {
+            "name": "SuiListTile",
+            "module": "sui-list-tile.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

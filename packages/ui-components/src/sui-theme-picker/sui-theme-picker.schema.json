@@ -1,0 +1,44 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-theme-picker",
+    "props": [
+      {
+        "name": "placement",
+        "default": "bottom-end",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "top",
+          "top-end",
+          "bottom",
+          "bottom-end",
+          "left",
+          "left-end",
+          "right",
+          "right-end"
+        ]
+      },
+      {
+        "name": "label-style",
+        "default": "text",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "text",
+          "compact"
+        ]
+      },
+      {
+        "name": "persist",
+        "default": "true",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

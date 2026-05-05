@@ -1,0 +1,124 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-badge.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiBadge",
+          "tagName": "sui-badge",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'solid' | 'soft' | 'outline'"
+              },
+              "default": "soft",
+              "values": [
+                "solid",
+                "soft",
+                "outline"
+              ]
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'solid' | 'soft' | 'outline'"
+              },
+              "attribute": "variant",
+              "default": "soft",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "pill",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-badge",
+          "declaration": {
+            "name": "SuiBadge",
+            "module": "sui-badge.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

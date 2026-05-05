@@ -1,0 +1,20 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "labelEl",
+      "deps": [
+        "labelEl"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "if",
+      "expr": "required()",
+      "deps": [
+        "required"
+      ]
+    }
+  ]
+}

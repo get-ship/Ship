@@ -1,0 +1,36 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "if",
+      "expr": "block()",
+      "deps": [
+        "block"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:aria-label",
+      "expr": "lang() ? lang() + ' code block' : 'code block'",
+      "deps": [
+        "lang"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "if",
+      "expr": "lang()",
+      "deps": [
+        "lang"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "text",
+      "expr": "lang()",
+      "deps": [
+        "lang"
+      ]
+    }
+  ]
+}

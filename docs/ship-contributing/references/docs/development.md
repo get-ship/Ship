@@ -105,6 +105,41 @@ just rebuild      # Full rebuild: clean, build, wasm, pnpm install, db-migrate
 just check-gates  # Verify both stable and unstable configurations compile
 ```
 
+### Generated TS bindings (`cargo xtask gen-types`)
+
+The `xtask` crate (`crates/xtask/`) emits TypeScript types from Rust
+structs via [specta](https://docs.rs/specta). Three files are produced:
+
+| Output | Source registration | Consumers |
+|--------|---------------------|-----------|
+| `packages/ship-set/src/generated.ts` | `collect_types()` | `@ship/set/types`, `@ship/sdk` |
+| `packages/cloud-types/src/generated.ts` | `build_cloud_types()` | Cloudflare worker, cloud event router |
+| `packages/ui-runtime/src/generated.ts` | `collect_framework_types()` | `@ship/ui-runtime`, `@ship/ui-sdk-client` |
+
+**When you add a new Rust struct that crosses the daemon ↔ runtime
+boundary:**
+
+1. Derive `specta::Type` (gated on the crate's `specta` feature):
+
+   ```rust
+   #[derive(Serialize)]
+   #[cfg_attr(feature = "specta", derive(specta::Type))]
+   pub struct ViewSomething { /* … */ }
+   ```
+
+2. Register it in `crates/xtask/src/main.rs` — `collect_framework_types()`
+   for daemon ↔ runtime data, `collect_types()` for project config.
+3. Run `cargo xtask gen-types` and commit the regenerated `.ts` file.
+4. Import the generated type in TS via `@ship/ui-runtime` (re-exported
+   from `packages/ui-runtime/src/index.ts`) — never hand-write a
+   parallel `interface`.
+
+**CI gating.** `just test` runs `cargo xtask gen-types --check` before
+the test suite. The check fails when the on-disk `.ts` files differ
+from what the current Rust source would produce — i.e. someone changed
+a struct without regenerating. Fix by running `cargo xtask gen-types`
+and committing the result.
+
 ## Rust Workspace
 
 The workspace is split across `apps/` (binaries) and `crates/core/` (libraries).

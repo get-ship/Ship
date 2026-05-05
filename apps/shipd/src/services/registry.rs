@@ -108,9 +108,12 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         "agents.list" => Ok(json!({
             "items": crate::services::agents::state::list(&files),
         })),
-        "agents.summaries" => Ok(json!({
-            "items": crate::services::agents::view_state::list_agents(state.ship_dir()),
-        })),
+        "agents.summaries" => {
+            let resp = crate::services::agents::view_state::AgentsSummariesResponse {
+                items: crate::services::agents::view_state::list_agents(state.ship_dir()),
+            };
+            serde_json::to_value(&resp).map_err(|e| RegistryError::service(e.to_string()))
+        }
         "agents.detail" => {
             let id = required_str(args, "id")?;
             let detail = crate::services::agents::view_state::load_agent(state.ship_dir(), id)
@@ -847,20 +850,21 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             let buckets = crate::services::git::read::load_status_buckets(&root);
             let (ahead, behind) = crate::services::git::read::load_ahead_behind(&root)
                 .unwrap_or((0, 0));
-            Ok(json!({
-                "workspace_id": workspace_id,
-                "branch": crate::services::git::read::load_branch(&root),
-                "head_short": crate::services::git::read::load_head_short(&root),
-                "clean": buckets.clean,
-                "total_changed": buckets.total,
-                "staged": buckets.staged,
-                "modified": buckets.modified,
-                "untracked": buckets.untracked,
-                "commits": crate::services::git::read::load_log(&root, None, limit),
-                "branches": crate::services::git::read::load_branches(&root),
-                "ahead": ahead,
-                "behind": behind,
-            }))
+            let overview = crate::services::git::state::GitOverview {
+                workspace_id: workspace_id.map(str::to_string),
+                branch: crate::services::git::read::load_branch(&root),
+                head_short: crate::services::git::read::load_head_short(&root),
+                clean: buckets.clean,
+                total_changed: buckets.total,
+                staged: buckets.staged,
+                modified: buckets.modified,
+                untracked: buckets.untracked,
+                commits: crate::services::git::read::load_log(&root, None, limit),
+                branches: crate::services::git::read::load_branches(&root),
+                ahead,
+                behind,
+            };
+            serde_json::to_value(&overview).map_err(|e| RegistryError::service(e.to_string()))
         }
         "git.diff" => {
             let commit = required_str(args, "commit")?.trim();
@@ -886,13 +890,14 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             } else {
                 (commit.to_string(), commit.chars().take(7).collect())
             };
-            Ok(json!({
-                "sha": sha,
-                "short_sha": short_sha,
-                "is_working": is_working,
-                "diff_text": diff_text,
-                "parsed": parsed,
-            }))
+            let diff = crate::services::git::state::GitDiff {
+                sha,
+                short_sha,
+                is_working,
+                diff_text,
+                parsed,
+            };
+            serde_json::to_value(&diff).map_err(|e| RegistryError::service(e.to_string()))
         }
         "git.annotations" => {
             let file = required_str(args, "file")?;

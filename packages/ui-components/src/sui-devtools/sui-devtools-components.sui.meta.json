@@ -1,0 +1,140 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:value",
+      "expr": "filter",
+      "deps": [
+        "filter"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "text",
+      "expr": "shown().length",
+      "deps": [
+        "shown"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "text",
+      "expr": "entries().length",
+      "deps": [
+        "entries"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "bind:this",
+      "expr": "bodyEl",
+      "deps": [
+        "bodyEl"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "if",
+      "expr": "entries().length === 0",
+      "deps": [
+        "entries"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "for",
+      "expr": "shown()",
+      "deps": [
+        "shown"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "text",
+      "expr": "entry.tag",
+      "deps": [
+        "entry"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "text",
+      "expr": "entry.firstDesc",
+      "deps": [
+        "entry"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "attr:data-tag",
+      "expr": "entry.tag",
+      "deps": [
+        "entry"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "text",
+      "expr": "entry.snippet",
+      "deps": [
+        "entry"
+      ]
+    },
+    {
+      "key": "b10",
+      "kind": "if",
+      "expr": "entry.attributes.length > 0",
+      "deps": [
+        "entry"
+      ]
+    },
+    {
+      "key": "b11",
+      "kind": "for",
+      "expr": "entry.attributes",
+      "deps": [
+        "entry"
+      ]
+    },
+    {
+      "key": "b12",
+      "kind": "text",
+      "expr": "attr.name",
+      "deps": [
+        "attr"
+      ]
+    },
+    {
+      "key": "b13",
+      "kind": "text",
+      "expr": "attr.default ? '=' + attr.default : ''",
+      "deps": [
+        "attr"
+      ]
+    },
+    {
+      "key": "b14",
+      "kind": "text",
+      "expr": "attr.description ?? ''",
+      "deps": [
+        "attr"
+      ]
+    },
+    {
+      "key": "b15",
+      "kind": "if",
+      "expr": "entry.slots.length > 0",
+      "deps": [
+        "entry"
+      ]
+    },
+    {
+      "key": "b16",
+      "kind": "text",
+      "expr": "entry.slotsLabel",
+      "deps": [
+        "entry"
+      ]
+    }
+  ]
+}

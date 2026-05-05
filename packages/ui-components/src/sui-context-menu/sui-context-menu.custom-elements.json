@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-context-menu.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiContextMenu",
+          "tagName": "sui-context-menu",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "open",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-context-menu",
+          "declaration": {
+            "name": "SuiContextMenu",
+            "module": "sui-context-menu.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

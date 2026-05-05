@@ -1,0 +1,44 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-stat",
+    "props": [
+      {
+        "name": "tone",
+        "default": "default",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "primary",
+          "info",
+          "success",
+          "warning",
+          "destructive",
+          "accent"
+        ]
+      },
+      {
+        "name": "interactive",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      }
+    ]
+  }
+}

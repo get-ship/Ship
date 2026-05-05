@@ -1,0 +1,44 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "on:click",
+      "expr": "openFind",
+      "deps": [
+        "openFind"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "text",
+      "expr": "triggerLabel()",
+      "deps": [
+        "triggerLabel"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "style:background",
+      "expr": "dotBg()",
+      "deps": [
+        "dotBg"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "bind:this",
+      "expr": "dialogRef",
+      "deps": [
+        "dialogRef"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "if",
+      "expr": "isChat()",
+      "deps": [
+        "isChat"
+      ]
+    }
+  ]
+}

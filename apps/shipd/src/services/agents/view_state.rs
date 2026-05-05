@@ -20,6 +20,7 @@ use super::super::jsonc::{first_letter, parse_file, resolve_array_field};
 pub(crate) use super::super::jsonc::strip_jsonc;
 
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct AgentSummary {
     pub id: String,
     pub name: String,
@@ -39,6 +40,13 @@ pub struct AgentSummary {
     /// True when the agent is currently participating in an active session /
     /// job. Today unchecked — reserved for runtime wiring. Defaults false.
     pub active: bool,
+}
+
+/// Wire shape of `ship.agents.summaries()`.
+#[derive(Clone, Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct AgentsSummariesResponse {
+    pub items: Vec<AgentSummary>,
 }
 
 #[derive(Clone, Debug, Serialize)]

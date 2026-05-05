@@ -1,0 +1,127 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-error-state.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiErrorState",
+          "tagName": "sui-error-state",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "body",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'inline'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "inline"
+              ]
+            },
+            {
+              "name": "icon",
+              "type": {
+                "text": "string"
+              },
+              "default": "alert-circle"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "title",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "body",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "body",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'inline'"
+              },
+              "attribute": "variant",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "icon",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "icon",
+              "default": "alert-circle"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-error-state",
+          "declaration": {
+            "name": "SuiErrorState",
+            "module": "sui-error-state.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

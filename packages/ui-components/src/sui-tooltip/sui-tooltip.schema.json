@@ -1,0 +1,22 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-tooltip",
+    "props": [
+      {
+        "name": "placement",
+        "default": "top",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "top",
+          "bottom",
+          "left",
+          "right"
+        ]
+      }
+    ]
+  }
+}

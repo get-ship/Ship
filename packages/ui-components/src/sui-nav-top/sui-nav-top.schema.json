@@ -1,0 +1,16 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-nav-top",
+    "props": [
+      {
+        "name": "path",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

@@ -192,3 +192,34 @@ export { suiTonesSheet, suiBaseSheet, adoptSuiSheets } from './styles/index'
 // a view on screen. See .artifacts/design-f1-mount-unification.md.
 export { mount } from './mount'
 export type { ViewPayload, MountOptions, MountHandle } from './mount'
+
+// Generated daemon ↔ runtime data contract. Authored by `cargo xtask
+// gen-types` from Rust source; do not edit `generated.ts` by hand.
+export type {
+  AgentSummary,
+  AgentsSummariesResponse,
+  BranchSummary,
+  CommitSummary,
+  DiffFileView,
+  DiffHunk,
+  DiffLine,
+  GitDiff,
+  GitDiffArgs,
+  GitOverview,
+  LintFinding,
+  LintViewRequest,
+  ManifestRail,
+  ParsedDiff,
+  RailMeta,
+  ResolveError,
+  ResolvedView,
+  StatusBuckets,
+  StatusFile,
+  ViewListEntry,
+  ViewManifest,
+  ViewSourceResponse,
+  WriteDiagnostics,
+  WriteManifestRequest,
+  WriteResponse,
+  WriteTemplateRequest,
+} from './generated'

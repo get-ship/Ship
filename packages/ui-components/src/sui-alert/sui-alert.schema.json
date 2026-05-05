@@ -1,0 +1,30 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-alert",
+    "props": [
+      {
+        "name": "tone",
+        "default": "info",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "info",
+          "success",
+          "warning",
+          "destructive",
+          "muted"
+        ]
+      },
+      {
+        "name": "dismissible",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

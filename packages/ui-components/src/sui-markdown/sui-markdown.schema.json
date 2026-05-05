@@ -1,0 +1,16 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-markdown",
+    "props": [
+      {
+        "name": "value",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

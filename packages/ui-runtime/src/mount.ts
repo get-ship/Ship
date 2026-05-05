@@ -17,23 +17,16 @@ import { signal, type Signal } from './signal'
 import type { LiveSignal, LiveState } from './live'
 import { route as makeRoute, type RouteSignals } from './route'
 import { createScope, withScope } from './effect-scope'
+import type { ViewPayload as GeneratedViewPayload } from './generated'
 
-/** View payload as returned by `GET /_sui/views/<name>[/<sub>]`. Keep
- *  in sync with `apps/shipd/src/views/sui_view_payload.rs::ViewPayload`. */
-export interface ViewPayload<Scope = Record<string, unknown>> {
-  name: string
-  sub?: string
-  /** SSR-rendered template body. No doctype, no script island. */
-  html: string
-  /** Concatenated stylesheet (parent + sub when applicable). May be empty. */
-  css: string
-  /** Initial scope values — same shape attach() reads from the JSON island. */
-  scope: Scope
-  /** URL of the compiled JS module. */
-  moduleUrl: string
-  /** `<sui-*>` island tags used in the template. */
-  islands?: string[]
-}
+/**
+ * Wire shape returned by `GET /_sui/views/<name>[/<sub>]`. The base type
+ * is generated from `crates/ship-ui-framework/src/view_payload.rs::ViewPayload`
+ * via `cargo xtask gen-types`. The local generic specializes `scope` —
+ * Rust ships it as untyped JSON; per-view modules narrow it here.
+ */
+export type ViewPayload<Scope = Record<string, unknown>> =
+  Omit<GeneratedViewPayload, 'scope'> & { scope: Scope }
 
 export interface MountOptions {
   ship?: unknown

@@ -18,8 +18,10 @@ fn escape_html(s: &str) -> String {
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct DiffLine {
     /// "add" | "del" | "context" — matches the component `type` attribute.
+    #[cfg_attr(feature = "specta", specta(type = String))]
     pub kind: &'static str,
     pub content: String,
     pub old_num: Option<u32>,
@@ -27,12 +29,14 @@ pub struct DiffLine {
 }
 
 #[derive(Clone, Debug, Serialize, Default)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct DiffHunk {
     pub header: String,
     pub lines: Vec<DiffLine>,
 }
 
 #[derive(Clone, Debug, Serialize, Default)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct DiffFileView {
     pub path: String,
     pub additions: u32,
@@ -41,6 +45,7 @@ pub struct DiffFileView {
 }
 
 #[derive(Clone, Debug, Serialize, Default)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ParsedDiff {
     pub files: Vec<DiffFileView>,
     pub total_additions: u32,

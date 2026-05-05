@@ -1,0 +1,75 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-timestamp.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiTimestamp",
+          "tagName": "sui-timestamp",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "format",
+              "type": {
+                "text": "'relative' | 'absolute' | 'both'"
+              },
+              "default": "relative",
+              "values": [
+                "relative",
+                "absolute",
+                "both"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "value",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "format",
+              "type": {
+                "text": "'relative' | 'absolute' | 'both'"
+              },
+              "attribute": "format",
+              "default": "relative",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-timestamp",
+          "declaration": {
+            "name": "SuiTimestamp",
+            "module": "sui-timestamp.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "text",
+      "expr": "label()",
+      "deps": [
+        "label"
+      ]
+    }
+  ]
+}

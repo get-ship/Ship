@@ -1,0 +1,53 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-markdown.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiMarkdown",
+          "tagName": "sui-markdown",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "value",
+              "default": "",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-markdown",
+          "declaration": {
+            "name": "SuiMarkdown",
+            "module": "sui-markdown.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

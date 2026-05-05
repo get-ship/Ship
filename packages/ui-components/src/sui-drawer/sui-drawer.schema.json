@@ -1,0 +1,46 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-drawer",
+    "props": [
+      {
+        "name": "open",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "side",
+        "default": "right",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "right",
+          "left"
+        ]
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      {
+        "name": "dismissible",
+        "default": "true",
+        "reflect": false,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

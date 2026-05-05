@@ -1,0 +1,44 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-tab",
+    "props": [
+      {
+        "name": "name",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "label",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "count",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "disabled",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "active",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

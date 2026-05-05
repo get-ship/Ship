@@ -1,0 +1,28 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "controlSlot",
+      "deps": [
+        "controlSlot"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "bind:this",
+      "expr": "hintEl",
+      "deps": [
+        "hintEl"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "bind:this",
+      "expr": "errorEl",
+      "deps": [
+        "errorEl"
+      ]
+    }
+  ]
+}

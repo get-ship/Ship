@@ -33,7 +33,8 @@ pub(crate) struct ManifestFile {
 /// View identity for the shell rail / launcher. No preference data —
 /// pin state, order, default-pinned are user settings (tier 2 storage:
 /// daemon-backed `shell.rail.*` keys), not per-view config.
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, serde::Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ManifestRail {
     pub label: Option<String>,
     pub icon: Option<String>,

@@ -1,0 +1,23 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-breadcrumb-item",
+    "props": [
+      {
+        "name": "href",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "active",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-app-icon",
+    "props": [
+      {
+        "name": "name",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "variant",
+        "default": "glyph",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "glyph",
+          "tile",
+          "solid"
+        ]
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      {
+        "name": "radius",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "label",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

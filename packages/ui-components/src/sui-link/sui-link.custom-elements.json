@@ -1,0 +1,150 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-link.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiLink",
+          "tagName": "sui-link",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "external",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'underline' | 'subtle'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "underline",
+                "subtle"
+              ]
+            },
+            {
+              "name": "target",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "rel",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "href",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "external",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "external",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'underline' | 'subtle'"
+              },
+              "attribute": "variant",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "target",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "target",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "rel",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "rel",
+              "default": ""
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-link",
+          "declaration": {
+            "name": "SuiLink",
+            "module": "sui-link.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

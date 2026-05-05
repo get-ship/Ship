@@ -1,0 +1,30 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-diff",
+    "props": [
+      {
+        "name": "from",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "to",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "value",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

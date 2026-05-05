@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-annotation-list.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiAnnotationList",
+          "tagName": "sui-annotation-list",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [],
+          "members": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-annotation-list",
+          "declaration": {
+            "name": "SuiAnnotationList",
+            "module": "sui-annotation-list.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

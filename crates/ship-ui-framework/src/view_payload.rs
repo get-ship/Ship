@@ -36,9 +36,11 @@ use sui_compiler::{bindings, islands, parse, render};
 
 use crate::resolver::resolve;
 
-/// Shape returned by `GET /_sui/views/<name>[/<sub>]`. Keep in sync with
-/// the `ViewPayload` TS interface in `@ship/ui-runtime`.
+/// Shape returned by `GET /_sui/views/<name>[/<sub>]`. The TS shape lives
+/// in `packages/ui-runtime/src/generated.ts` and is regenerated from this
+/// struct via `cargo xtask gen-types`.
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ViewPayload {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -1,0 +1,84 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "containerEl",
+      "deps": [
+        "containerEl"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "bind:this",
+      "expr": "trackEl",
+      "deps": [
+        "trackEl"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "bind:this",
+      "expr": "fillEl",
+      "deps": [
+        "fillEl"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "attr:tabindex",
+      "expr": "disabled() ? '-1' : '0'",
+      "deps": [
+        "disabled"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "attr:aria-valuemin",
+      "expr": "min()",
+      "deps": [
+        "min"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "attr:aria-valuemax",
+      "expr": "max()",
+      "deps": [
+        "max"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "attr:aria-valuenow",
+      "expr": "value()",
+      "deps": [
+        "value"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "attr:aria-label",
+      "expr": "label() || 'slider'",
+      "deps": [
+        "label"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "attr:aria-disabled",
+      "expr": "disabled() ? 'true' : 'false'",
+      "deps": [
+        "disabled"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "bind:this",
+      "expr": "thumbEl",
+      "deps": [
+        "thumbEl"
+      ]
+    }
+  ]
+}

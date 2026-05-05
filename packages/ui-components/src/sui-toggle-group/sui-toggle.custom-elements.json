@@ -1,0 +1,130 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-toggle.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiToggle",
+          "tagName": "sui-toggle",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "pressed",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'outline' | 'ghost'"
+              },
+              "default": "outline",
+              "values": [
+                "outline",
+                "ghost"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "pressed",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "pressed",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "disabled",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "value",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'outline' | 'ghost'"
+              },
+              "attribute": "variant",
+              "default": "outline",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-toggle",
+          "declaration": {
+            "name": "SuiToggle",
+            "module": "sui-toggle.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

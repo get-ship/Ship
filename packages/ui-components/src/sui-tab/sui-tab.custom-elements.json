@@ -1,0 +1,121 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-tab.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiTab",
+          "tagName": "sui-tab",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "count",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "name",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "count",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "count",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "disabled",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "active",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-tab",
+          "declaration": {
+            "name": "SuiTab",
+            "module": "sui-tab.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

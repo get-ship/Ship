@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-segmented-option.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiSegmentedOption",
+          "tagName": "sui-segmented-option",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "icon",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "value",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "icon",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "icon",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "disabled",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-segmented-option",
+          "declaration": {
+            "name": "SuiSegmentedOption",
+            "module": "sui-segmented-option.sui"
+          }
+        }
+      ]
+    }
+  ]
+}
