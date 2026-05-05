@@ -1,17 +1,23 @@
-// Register <sui-if>, <sui-for>, <sui-match> as inert custom elements.
+// Register SSR boundary markers as inert custom elements.
 //
-// These are SSR boundary markers emitted by the Rust walker. Registering them
-// ensures consistent parsing and allows stylesheets to target them reliably.
-// Each element is an inert HTMLElement — the attach runtime does all the work.
+// These tags are emitted by the Rust walker as anchors for control-flow
+// blocks: <sui-if>/<sui-for>/<sui-match> (R5 control flow), and
+// <sui-while-loading>/<sui-while-error> ({#while-loading} / {#while-error}
+// async boundaries). Registering them ensures consistent parsing,
+// stable styling, and prevents `customElements.get(tag)` consumers
+// from treating them as unknown elements. Each element is inert —
+// the attach runtime does all the work.
 
 if (typeof customElements !== 'undefined') {
-  if (!customElements.get('sui-if')) {
-    customElements.define('sui-if', class extends HTMLElement {})
-  }
-  if (!customElements.get('sui-for')) {
-    customElements.define('sui-for', class extends HTMLElement {})
-  }
-  if (!customElements.get('sui-match')) {
-    customElements.define('sui-match', class extends HTMLElement {})
+  for (const tag of [
+    'sui-if',
+    'sui-for',
+    'sui-match',
+    'sui-while-loading',
+    'sui-while-error',
+  ]) {
+    if (!customElements.get(tag)) {
+      customElements.define(tag, class extends HTMLElement {})
+    }
   }
 }

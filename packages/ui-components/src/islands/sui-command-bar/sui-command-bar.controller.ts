@@ -109,18 +109,25 @@ export default controller<Scope>({
     let lastSpaceAt = 0
 
     // ── Open/close effect ──────────────────────────────────────────
+    // The first effect run fires synchronously during this controller's
+    // mount, before the child <sui-dialog>'s connectedCallback has had
+    // a chance to attach `.show`/`.close` to its host. Calling close()
+    // on the bare element throws "is not a function". Guard with
+    // typeof checks so the initial closed → closed no-op is silent and
+    // subsequent transitions go through cleanly once the dialog is
+    // ready.
     const stopOpenSync = effect(() => {
       const isOpen = open()
       host.setAttribute('data-state', isOpen ? 'open' : 'closed')
       if (isOpen) {
-        dialogRef?.show()
+        if (typeof dialogRef?.show === 'function') dialogRef.show()
         queueMicrotask(() => {
           const pal = host.shadowRoot?.querySelector('sui-command-palette')
           const inp = pal?.shadowRoot?.querySelector('.cb-search') as HTMLInputElement | null
           inp?.focus()
         })
       } else {
-        dialogRef?.close()
+        if (typeof dialogRef?.close === 'function') dialogRef.close()
         host.dispatchEvent(new CustomEvent('sui-command:cancel', {
           detail: { mode: mode() }, bubbles: true, composed: true,
         }))
