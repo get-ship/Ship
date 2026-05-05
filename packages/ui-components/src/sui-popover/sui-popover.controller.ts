@@ -1,4 +1,4 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, effect, bindNativeEvent, slotted } from '@ship/ui-runtime'
 import type { Scope } from './sui-popover.sui'
 
 // Per-instance anchor-name so multiple popovers on a page each address
@@ -44,21 +44,14 @@ export default controller<Scope>({
     // double-toggle and steal focus management from the browser.
     // We DO set the ARIA attributes the popover attribute doesn't infer
     // (haspopup) and reflect aria-expanded from the toggle event.
-    function wireTrigger() {
-      const slot = triggerSlot as HTMLSlotElement | null
-      if (!slot) return
-      const els = slot.assignedElements({ flatten: true }) as HTMLElement[]
-      for (const el of els) {
-        // popovertarget is the native wiring. Setting it is enough; the
-        // browser will toggle the panel on click/Enter/Space.
+    slotted(scope.triggerSlot as () => HTMLSlotElement | null, (els) => {
+      for (const el of els as HTMLElement[]) {
         el.setAttribute('popovertarget', panelId)
         el.setAttribute('aria-haspopup', 'dialog')
         el.setAttribute('aria-controls', panelId)
         el.setAttribute('aria-expanded', scope.open() ? 'true' : 'false')
       }
-    }
-    wireTrigger()
-    triggerSlot?.addEventListener('slotchange', wireTrigger)
+    })
 
     // ── Native toggle event → reflect into scope.open + emit sui-toggle
     function onToggle(ev: Event) {
@@ -77,30 +70,23 @@ export default controller<Scope>({
         el.setAttribute('aria-expanded', nowOpen ? 'true' : 'false')
       }
 
-      host.dispatchEvent(new CustomEvent('sui-toggle', {
-        detail: { open: nowOpen },
-        bubbles: true,
-        composed: true,
-      }))
+      host.emit!('sui-toggle', { open: nowOpen })
 
       if (nowOpen && !anchorSupported) positionFallback()
     }
-    panelEl.addEventListener('toggle', onToggle)
+    bindNativeEvent(panelEl, 'toggle', onToggle as EventListener)
 
     // ── Public methods (delegate to native) ────────────────────────────
-    type PopoverHost = HTMLElement & {
-      show: () => void
-      hide: () => void
-      toggle: () => void
-    }
-    ;(host as PopoverHost).show = () => panelEl.showPopover?.()
-    ;(host as PopoverHost).hide = () => panelEl.hidePopover?.()
-    ;(host as PopoverHost).toggle = () =>
-      typeof panelEl.togglePopover === 'function'
-        ? void panelEl.togglePopover()
-        : (panelEl.matches?.(':popover-open')
-            ? panelEl.hidePopover?.()
-            : panelEl.showPopover?.())
+    host.expose!({
+      show: () => panelEl.showPopover?.(),
+      hide: () => panelEl.hidePopover?.(),
+      toggle: () =>
+        typeof panelEl.togglePopover === 'function'
+          ? void panelEl.togglePopover()
+          : (panelEl.matches?.(':popover-open')
+              ? panelEl.hidePopover?.()
+              : panelEl.showPopover?.()),
+    })
 
     // ── Drive native popover from `open` prop ──────────────────────────
     // Consumer flips the attribute → effect calls show/hide. Native
@@ -167,17 +153,11 @@ export default controller<Scope>({
       positionFallback()
     }
     if (!anchorSupported) {
-      window.addEventListener('resize', onWindowChange)
-      window.addEventListener('scroll', onWindowChange, { capture: true, passive: true })
+      bindNativeEvent(window, 'resize', onWindowChange)
+      bindNativeEvent(window, 'scroll', onWindowChange, { capture: true, passive: true })
     }
 
     return () => {
-      triggerSlot?.removeEventListener('slotchange', wireTrigger)
-      panelEl?.removeEventListener('toggle', onToggle)
-      if (!anchorSupported) {
-        window.removeEventListener('resize', onWindowChange)
-        window.removeEventListener('scroll', onWindowChange, { capture: true } as EventListenerOptions)
-      }
       stopOpenSync()
     }
   },

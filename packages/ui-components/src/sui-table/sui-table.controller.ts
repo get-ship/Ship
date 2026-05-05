@@ -1,4 +1,4 @@
-import { controller, signal, derived } from '@ship/ui-runtime'
+import { controller, signal, derived, bindNativeEvent } from '@ship/ui-runtime'
 import type { Scope } from './sui-table.sui'
 import type { Signal } from '@ship/ui-runtime'
 
@@ -169,13 +169,7 @@ export default controller<Scope>({
       })
       th.setAttribute('aria-sort', next)
       paintSortChevrons()
-      host.dispatchEvent(
-        new CustomEvent('sui-sort', {
-          detail: { key, direction: next },
-          bubbles: true,
-          composed: true,
-        }),
-      )
+      host.emit!('sui-sort', { key, direction: next })
     }
 
     const onHeaderClick = (e: MouseEvent) => {
@@ -204,18 +198,12 @@ export default controller<Scope>({
       if (!tr) return
       const rowId = tr.getAttribute('data-row-id')
       if (!rowId) return
-      host.dispatchEvent(
-        new CustomEvent('sui-row-click', {
-          detail: { id: rowId, index: tr.rowIndex },
-          bubbles: true,
-          composed: true,
-        }),
-      )
+      host.emit!('sui-row-click', { id: rowId, index: tr.rowIndex })
     }
 
-    host.addEventListener('click', onHeaderClick)
-    host.addEventListener('click', onRowClick)
-    host.addEventListener('keydown', onHeaderKey)
+    bindNativeEvent(host, 'click', onHeaderClick as EventListener)
+    bindNativeEvent(host, 'click', onRowClick as EventListener)
+    bindNativeEvent(host, 'keydown', onHeaderKey as EventListener)
 
     enhanceSortableHeaders()
     syncEmptyState()
@@ -227,9 +215,6 @@ export default controller<Scope>({
     observer.observe(host, { childList: true, subtree: true })
 
     return () => {
-      host.removeEventListener('click', onHeaderClick)
-      host.removeEventListener('click', onRowClick)
-      host.removeEventListener('keydown', onHeaderKey)
       observer.disconnect()
     }
   },
