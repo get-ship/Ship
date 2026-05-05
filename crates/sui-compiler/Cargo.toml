@@ -18,6 +18,7 @@ serde_json = { workspace = true, features = ["preserve_order"] }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
+libc = { workspace = true }
 
 # SUI lint substrate — controller-purity rule and (Phase 2+) other
 # authoring-discipline rules. Compile-time hard wall: any finding

@@ -8,19 +8,28 @@ const repoRoot = resolve(__dirname, '../..')
 // Prefer the pre-built debug binary; fall back to `cargo run` if absent.
 const compilerBin = resolve(repoRoot, 'target/debug/sui-compiler')
 
+// Wrap the sui-compiler invocation with a wall-clock + virtual-memory cap.
+// A buggy or pathological .sui input can drive the compiler into unbounded
+// allocation; without these caps a single bad file takes down the WSL VM
+// (observed: 19+GB RSS before the kernel OOM-killer fires). 30s wall + 2GB
+// virt is generous for any real .sui file and dies cleanly on runaways.
 function compileSui(suiPath: string, outDir: string, stem: string): void {
   const hasbin = existsSync(compilerBin)
-  const cmd = hasbin ? compilerBin : 'cargo'
-  const args = hasbin
-    ? ['build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
-    : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
-  const result = spawnSync(cmd, args, {
+  const inner = hasbin
+    ? [compilerBin, 'build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
+    : ['cargo', 'run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
+  const args = ['--as=2147483648', 'timeout', '30', ...inner]
+  const result = spawnSync('prlimit', args, {
     cwd: repoRoot,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
   })
   if (result.status !== 0) {
-    throw new Error(`sui-compiler failed for ${suiPath}:\n${result.stderr || result.stdout}`)
+    const reason =
+      result.status === 124 ? 'timed out after 30s'
+      : result.signal === 'SIGKILL' || result.status === 137 ? 'exceeded 2GB virtual memory cap'
+      : `exit ${result.status}`
+    throw new Error(`sui-compiler ${reason} for ${suiPath}:\n${result.stderr || result.stdout}`)
   }
 }
 

@@ -49,8 +49,15 @@ impl<'a> Parser<'a> {
                 out.push(Node::Element(self.parse_element()?));
                 continue;
             }
-            // Text run — read up to the next `<`.
+            // Text run — read up to the next `<`. A stray `<` that wasn't
+            // recognized as a tag start (e.g. the JS less-than operator inside
+            // a `{#if x < y}` template expression) must be consumed as text;
+            // otherwise the loop body below never advances `self.i` and we
+            // spin forever pushing empty text nodes.
             let start = self.i;
+            if self.bytes[self.i] == b'<' {
+                self.i += 1;
+            }
             while self.i < self.bytes.len() && self.bytes[self.i] != b'<' {
                 self.i += 1;
             }

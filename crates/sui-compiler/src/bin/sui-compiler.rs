@@ -5,11 +5,47 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::process;
+use std::thread;
+use std::time::Duration;
 
 use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 
 use sui_compiler::{compile, CompileMode, ComponentMeta, CompileOpts};
+
+/// Hard caps on virtual memory and wall-clock time. A bug in the
+/// compiler (or a pathological input) must never be able to OOM the
+/// host: a single uncaught `Vec::with_capacity` once allocated 19+GB
+/// before the kernel killed the process and took down the surrounding
+/// VM. These bounds guarantee a clean death long before that.
+///
+/// Generous for any real input: a single `.sui` file compiles in
+/// milliseconds with <100MB RSS. A directory of hundreds compiles in
+/// seconds. Hitting either cap is a bug to file, not a knob to tune.
+/// To override (e.g. unusually large project, deliberate stress run),
+/// set `SUI_COMPILER_NO_LIMITS=1`.
+const MEM_CAP_BYTES: u64 = 2 * 1024 * 1024 * 1024; // 2 GB virtual memory
+const WALL_CAP_SECS: u64 = 60;
+
+fn install_resource_bounds() {
+    if std::env::var_os("SUI_COMPILER_NO_LIMITS").is_some() {
+        return;
+    }
+    // SAFETY: setrlimit with valid resource id and rlimit struct is sound.
+    unsafe {
+        let lim = libc::rlimit { rlim_cur: MEM_CAP_BYTES as libc::rlim_t, rlim_max: MEM_CAP_BYTES as libc::rlim_t };
+        libc::setrlimit(libc::RLIMIT_AS, &lim);
+    }
+    thread::Builder::new()
+        .name("sui-compiler-watchdog".into())
+        .spawn(|| {
+            thread::sleep(Duration::from_secs(WALL_CAP_SECS));
+            eprintln!("sui-compiler: aborted after {WALL_CAP_SECS}s wall-clock cap");
+            process::abort();
+        })
+        .expect("spawn watchdog thread");
+}
 
 #[derive(Parser)]
 #[command(name = "sui-compiler", about = "AOT compiler for .sui files")]
@@ -64,6 +100,7 @@ impl From<ModeArg> for CompileMode {
 }
 
 fn main() -> Result<()> {
+    install_resource_bounds();
     let cli = Cli::parse();
     match cli.cmd {
         Command::Build { input, out, mode, no_dts, styles, component_name } => {
