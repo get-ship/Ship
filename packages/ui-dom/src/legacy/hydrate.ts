@@ -11,11 +11,11 @@ import { extendScope, render, type Scope } from '../template/render'
 import { mountData } from './directives/data'
 import { mountState } from './directives/state'
 import { registerComponent } from './directives/component'
-import {
-  getTemplateHook,
-  route as makeRoute,
-  type RouteSignals,
-} from '@ship/ui-runtime'
+import { getTemplateHook } from '@ship/ui-runtime'
+// R2: route lives at the `/route` subpath now; the barrel doesn't
+// re-export it. Legacy hydrate imports it directly so this file
+// keeps working without forcing the barrel back to its old shape.
+import { route as makeRoute, type RouteSignals } from '@ship/ui-runtime/route'
 // Built-in `<use-*>` hooks register on barrel import. The legacy
 // hydrate flow is the only path that resolves `<use-*>` against the
 // registry, so the legacy bundle owns triggering registration — the

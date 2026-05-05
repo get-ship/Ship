@@ -10,6 +10,10 @@ export default defineConfig({
         replacement: resolve(__dirname, '../ui-runtime/src/template-hooks/index.ts'),
       },
       {
+        find: '@ship/ui-runtime/route',
+        replacement: resolve(__dirname, '../ui-runtime/src/route/index.ts'),
+      },
+      {
         find: '@ship/ui-runtime',
         replacement: resolve(__dirname, '../ui-runtime/src/index.ts'),
       },
