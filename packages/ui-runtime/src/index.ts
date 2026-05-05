@@ -72,6 +72,15 @@ export type { Disposer } from './bind'
 export { on, matchesKey } from './on'
 export type { OnOptions, Modifier } from './on'
 
+export {
+  emit,
+  expose,
+  attachHostApi,
+  bindNativeEvent,
+  slotted,
+  bindHostAttr,
+} from './host-api'
+
 export { applyPatch, applyPatches, tokenizePath } from './patch'
 export type { Patch, PatchOp, PathToken } from './patch'
 
