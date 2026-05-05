@@ -14,8 +14,6 @@ use crate::db::{block_on, ensure_kv_db, open_kv_db};
 /// namespaces are not accepted; use this enum instead.
 #[derive(Debug, Clone)]
 pub enum KvNamespace {
-    /// Push/pull sync position cursors — ephemeral
-    SyncCursor,
     /// Auth session tokens — ephemeral
     AuthSession,
     /// Auth daemon-owner binding — ephemeral
@@ -45,7 +43,6 @@ pub enum KvNamespace {
 impl KvNamespace {
     fn as_str(&self) -> std::borrow::Cow<'_, str> {
         match self {
-            Self::SyncCursor        => "sync".into(),
             Self::AuthSession       => "auth.sessions".into(),
             Self::AuthDaemonOwner   => "auth.daemon_owner".into(),
             Self::CronState         => "cron.last_fire".into(),
@@ -260,15 +257,15 @@ mod tests {
     #[test]
     fn test_get_missing_returns_none() {
         let (_tmp, _ship_dir) = setup();
-        assert!(get(KvNamespace::SyncCursor, "missing").unwrap().is_none());
+        assert!(get(KvNamespace::Settings, "missing").unwrap().is_none());
     }
 
     #[test]
     fn test_delete() {
         let (_tmp, _ship_dir) = setup();
-        set(KvNamespace::SyncCursor, "key", &json!(42)).unwrap();
-        delete(KvNamespace::SyncCursor, "key").unwrap();
-        assert!(get(KvNamespace::SyncCursor, "key").unwrap().is_none());
+        set(KvNamespace::Settings, "key", &json!(42)).unwrap();
+        delete(KvNamespace::Settings, "key").unwrap();
+        assert!(get(KvNamespace::Settings, "key").unwrap().is_none());
     }
 
     #[test]

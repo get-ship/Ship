@@ -11,9 +11,10 @@ use std::time::Duration;
 
 use anyhow::Result;
 
+use ship_substrate::db::cursors;
 use ship_substrate::events::{ActorStore, EventEnvelope, query_events_since};
 use crate::services::ServiceHandler;
-use crate::sync::{PushResponse, SyncClient, get_cursor, set_cursor};
+use crate::sync::{PushResponse, SyncClient};
 
 const PUSH_SCOPE_PREFIX: &str = "push:platform";
 
@@ -86,13 +87,13 @@ impl SyncServiceHandler {
 
     fn push_cycle(&mut self, store: &ActorStore) -> Result<()> {
         let scope = self.push_scope();
-        let cursor = get_cursor(&scope)?;
+        let cursor = cursors::get(&scope)?;
         let events = query_events_since(cursor.as_deref(), true)?;
         if events.is_empty() {
             return Ok(());
         }
         let resp = self.client.push_platform_events(&self.config.project_id, &events)?;
-        set_cursor(&scope, &resp.cursor)?;
+        cursors::set(&scope, &resp.cursor)?;
         self.elevated_since_push = 0;
         let payload = serde_json::json!({
             "event_count": resp.accepted,
@@ -161,7 +162,6 @@ mod tests {
     use super::*;
     use ship_substrate::db::{block_on, db_path, ensure_db, open_db_at};
     use crate::testutil::init_project;
-    use crate::sync::get_cursor;
     use tempfile::tempdir;
 
     struct MockTransport {
@@ -250,7 +250,7 @@ mod tests {
 
         let scope = format!("push:platform:{}", config.project_id);
         assert_eq!(
-            get_cursor(&scope).unwrap(),
+            cursors::get(&scope).unwrap(),
             Some("01JBBBBBBBBBBBBBBBBBBBBBBBB".to_string())
         );
     }
@@ -276,7 +276,7 @@ mod tests {
         handler.push_cycle(&store).unwrap();
 
         let scope = format!("push:platform:{}", config.project_id);
-        assert!(get_cursor(&scope).unwrap().is_none());
+        assert!(cursors::get(&scope).unwrap().is_none());
     }
 
     #[test]
@@ -297,7 +297,7 @@ mod tests {
 
         let scope = format!("push:platform:{}", config.project_id);
         assert!(
-            get_cursor(&scope).unwrap().is_none(),
+            cursors::get(&scope).unwrap().is_none(),
             "cursor must not advance on transport failure"
         );
     }

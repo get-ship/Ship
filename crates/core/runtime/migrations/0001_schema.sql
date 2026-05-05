@@ -97,6 +97,16 @@ BEGIN
   SELECT RAISE(FAIL, 'events table is immutable -- use append only');
 END;
 
+-- Bookmarks: sync push/pull positions and per-projection rebuild cursors.
+-- One row per named cursor; value is the last-applied event id (ULID).
+-- Naming convention: `{purpose}:{scope}` — e.g. `push:platform:{project_id}`,
+-- `projection:auth_sessions`. Names are opaque to the table.
+CREATE TABLE IF NOT EXISTS cursors (
+  name           TEXT PRIMARY KEY,
+  last_event_id  TEXT NOT NULL,
+  updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Actors — one row per running or terminated kernel actor (chat, pipeline,
 -- service, shell). The dashboard renders every running thing from this
 -- table; recency comes from `last_event_at` which is bumped by triggers
