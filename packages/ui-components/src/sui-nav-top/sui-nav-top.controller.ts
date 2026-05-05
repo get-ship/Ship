@@ -120,7 +120,6 @@ export default controller<Scope>({
     const studioBtn = scope.studioBtn() as HTMLElement | null
     const dockToggleBtn = scope.dockToggleBtn() as HTMLElement | null
     const fullscreenBtn = scope.fullscreenBtn() as HTMLElement | null
-    const chatToggleBtn = scope.chatToggleBtn() as HTMLElement | null
 
     const onBrand = (e: MouseEvent) => {
       e.preventDefault()
@@ -147,17 +146,12 @@ export default controller<Scope>({
       if (document.fullscreenElement) void document.exitFullscreen()
       else void document.documentElement.requestFullscreen()
     }
-    const onChatToggle = () =>
-      host.dispatchEvent(
-        new CustomEvent('sui:chat:toggle', { bubbles: true, composed: true }),
-      )
 
     brandLink?.addEventListener('click', onBrand)
     railToggleBtn?.addEventListener('click', onRailToggle)
     studioBtn?.addEventListener('click', onStudio)
     dockToggleBtn?.addEventListener('click', onDockToggle)
     fullscreenBtn?.addEventListener('click', onFullscreen)
-    chatToggleBtn?.addEventListener('click', onChatToggle)
 
     host.dispatchEvent(
       new CustomEvent('sui:nav-top:ready', { bubbles: true, composed: true }),

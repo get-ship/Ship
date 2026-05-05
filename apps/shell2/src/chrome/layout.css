@@ -86,7 +86,7 @@ body.dock-open #ship-panel-dock {
 /* body.rail-collapsed mirrors [collapsed] on sui-rail — used by other layout
    elements that need to know the rail state without querying the component. */
 body.rail-collapsed #ship-rail {
-  width: var(--ship-rail-w-collapsed, 48px);
+  width: 32px;
 }
 
 /* body.edit-mode — sui-edit-overlay watches this via MutationObserver.
@@ -150,12 +150,18 @@ body.dock-open.dock-popout #ship-panel-dock {
 }
 
 .shell-error {
-  padding: 2rem;
-  font-family: var(--font-mono, ui-monospace, monospace);
-  color: var(--destructive-foreground, #fff);
-  background: var(--destructive, #c33);
-  white-space: pre-wrap;
+  display: grid;
+  place-items: center;
+  padding: 4rem 2rem;
+  min-height: 50vh;
+  color: var(--muted-foreground);
+  text-align: center;
+  gap: 1rem;
 }
+.shell-error h2 { font-size: 1.5rem; color: var(--foreground); margin: 0; }
+.shell-error p  { margin: 0; }
+.shell-error a  { color: var(--primary); text-decoration: none; }
+.shell-error a:hover { text-decoration: underline; }
 
 .shell-empty {
   padding: 2rem;
