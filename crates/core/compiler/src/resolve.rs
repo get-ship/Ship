@@ -252,10 +252,15 @@ pub fn resolve_library(
 ) -> ResolvedConfig {
     let config = ProjectConfig {
         agents: library.agents.clone(),
-        active_agent: library.active_agent.clone(),
         mcp_servers: library.mcp_servers.clone(),
         ..Default::default()
     };
+    // Library carries an active_agent — feed it into resolve as the override
+    // when no explicit override was given. The compiler crate has no
+    // implicit fallback; the input has to specify what's active.
+    let active_agent_override = active_agent_override
+        .map(str::to_string)
+        .or_else(|| library.active_agent.clone());
     let mut resolved = resolve(
         &config,
         &library.skills,
@@ -263,7 +268,7 @@ pub fn resolve_library(
         &library.permissions,
         &library.hooks,
         feature,
-        active_agent_override,
+        active_agent_override.as_deref(),
     );
     resolved.plugins = library.plugins.clone();
     // Merge provider_defaults with agent-level *_settings_extra.
@@ -341,12 +346,11 @@ pub fn resolve(
     active_agent_override: Option<&str>,
 ) -> ResolvedConfig {
     // ── Active agent (resolved first — needed for provider target_agents) ─────
-    let override_agent = active_agent_override
+    let active_agent = active_agent_override
         .map(str::trim)
         .filter(|v| !v.is_empty())
         .filter(|v| config.agents.iter().any(|a| a.id == *v))
         .map(str::to_string);
-    let active_agent = override_agent.or_else(|| config.active_agent.clone());
     let agent = active_agent
         .as_deref()
         .and_then(|id| config.agents.iter().find(|a| a.id == id));
@@ -606,7 +610,6 @@ mod tests {
                 skills: vec!["alpha".to_string()],
                 ..Default::default()
             }],
-            active_agent: Some("planning".to_string()),
             ..Default::default()
         };
         let skills = vec![make_skill("alpha"), make_skill("beta")];
@@ -617,7 +620,7 @@ mod tests {
             &Permissions::default(),
             &[],
             None,
-            None,
+            Some("planning"),
         );
         assert_eq!(resolved.mcp_servers.len(), 1);
         assert_eq!(resolved.mcp_servers[0].id, "github");
@@ -693,10 +696,9 @@ mod tests {
                 target_agents: vec!["cursor".to_string()],
                 ..Default::default()
             }],
-            active_agent: Some("cursor-mode".to_string()),
             ..Default::default()
         };
-        let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, None);
+        let resolved = resolve(&config, &[], &[], &Permissions::default(), &[], None, Some("cursor-mode"));
         assert_eq!(resolved.providers, vec!["cursor"]);
     }
 
@@ -709,7 +711,6 @@ mod tests {
                 target_agents: vec!["gemini".to_string()],
                 ..Default::default()
             }],
-            active_agent: Some("mode1".to_string()),
             ..Default::default()
         };
         let feature = WorkspaceOverrides {
@@ -739,7 +740,6 @@ mod tests {
                 rules: vec!["style".to_string()],
                 ..Default::default()
             }],
-            active_agent: Some("strict".to_string()),
             ..Default::default()
         };
         let rules = vec![
@@ -765,7 +765,7 @@ mod tests {
             &Permissions::default(),
             &[],
             None,
-            None,
+            Some("strict"),
         );
         assert_eq!(resolved.rules.len(), 1);
         assert_eq!(resolved.rules[0].file_name, "001-style.md");
@@ -884,7 +884,6 @@ mod tests {
                 rules: vec![],
                 ..Default::default()
             }],
-            active_agent: Some("open".to_string()),
             ..Default::default()
         };
         let skills = vec![make_skill("x"), make_skill("y")];
@@ -901,10 +900,15 @@ mod tests {
         assert_eq!(resolved.skills.len(), 2);
     }
 
-    // ── Nonexistent mode override ignored ───────────────────────────────
+    // ── Nonexistent agent override ignored ──────────────────────────────
 
     #[test]
-    fn nonexistent_mode_override_falls_back_to_project_mode() {
+    fn nonexistent_agent_override_yields_no_active() {
+        // ProjectConfig no longer carries `active_agent` — that lives in
+        // the `project_compile_state` projection, sourced from
+        // `compile.completed` events. With no implicit fallback, a bogus
+        // override resolves to "no active agent" rather than silently
+        // selecting some project-level default.
         let config = ProjectConfig {
             agents: vec![AgentConfig {
                 id: "planning".to_string(),
@@ -912,7 +916,6 @@ mod tests {
                 skills: vec!["plan-skill".to_string()],
                 ..Default::default()
             }],
-            active_agent: Some("planning".to_string()),
             ..Default::default()
         };
         let skills = vec![make_skill("plan-skill"), make_skill("other")];
@@ -925,8 +928,7 @@ mod tests {
             None,
             Some("nonexistent"),
         );
-        // nonexistent mode override is discarded, falls back to project active_mode
-        assert_eq!(resolved.active_agent.as_deref(), Some("planning"));
+        assert!(resolved.active_agent.is_none());
     }
 
     // ── resolve_library passthrough fields ─────────────────────────────
@@ -1002,7 +1004,6 @@ mod tests {
                     ..Default::default()
                 },
             ],
-            active_agent: Some("planning".to_string()),
             ..Default::default()
         };
         let skills = vec![make_skill("plan-skill"), make_skill("code-skill")];
@@ -1014,7 +1015,7 @@ mod tests {
             &Permissions::default(),
             &[],
             None,
-            None,
+            Some("planning"),
         );
         assert_eq!(planning.active_agent.as_deref(), Some("planning"));
 

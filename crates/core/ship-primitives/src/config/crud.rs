@@ -76,19 +76,25 @@ pub fn ensure_standard_dirs(ship_path: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
-// `get_active_agent` reads `ship.jsonc:active_agent` and resolves it to
-// the matching `AgentProfile`. Today MCP's tool-gate is the only live
-// reader; the writer side (`add_agent` / `remove_agent` /
-// `set_active_agent` / `ship use`) was scaffolded but never wired
-// to a CLI surface, so the field is effectively read-only-and-always-None
-// in production. Kept for the read path; rebuild the writer when a real
-// `ship use --persist` style UX lands.
+/// Resolve the `AgentProfile` for the project's currently-active agent.
+/// "Active" is defined as the agent recorded by the latest `compile.completed`
+/// event materialized in `project_compile_state`. Returns None when the
+/// project has never been compiled or when the recorded agent id no longer
+/// exists in the project's agents list. Callers pass the ship_dir
+/// (`<project>/.ship/`).
 pub fn get_active_agent(project_dir: Option<PathBuf>) -> Result<Option<AgentProfile>> {
+    let Some(ship_dir) = project_dir.clone() else {
+        return Ok(None);
+    };
+    let project_id = ship_substrate::project::ensure_project_id(&ship_dir)?;
+    let Some(state) = ship_substrate::projections::compile_state::load(&project_id)? else {
+        return Ok(None);
+    };
+    let Some(active_id) = state.active_agent else {
+        return Ok(None);
+    };
     let config = get_config(project_dir)?;
-    Ok(config
-        .active_agent
-        .as_ref()
-        .and_then(|id| config.agents.into_iter().find(|a| &a.id == id)))
+    Ok(config.agents.into_iter().find(|a| a.id == active_id))
 }
 
 // ─── MCP Server Registry CRUD ─────────────────────────────────────────────────

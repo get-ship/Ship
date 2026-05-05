@@ -11,7 +11,6 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
 
     let config = ProjectConfig {
         providers: vec!["claude".to_string(), "codex".to_string()],
-        active_agent: Some("planning".to_string()),
         ai: Some(AiConfig {
             provider: Some("codex".to_string()),
             model: Some("gpt-5".to_string()),
@@ -94,10 +93,6 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
         .unwrap_or_default();
     assert_eq!(providers, vec!["claude".to_string(), "codex".to_string()]);
 
-    let active_agent: Option<String> = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "active_agent")?
-        .and_then(|v| serde_json::from_value(v).ok());
-    assert_eq!(active_agent.as_deref(), Some("planning"));
-
     let statuses_json = ship_substrate::db::kv::get(super::runtime_settings::project_ns(&ship_dir), "statuses")?.unwrap().to_string();
     assert!(statuses_json.contains("\"backlog\""));
 
@@ -126,7 +121,6 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
 
     let config = ProjectConfig {
         providers: vec!["gemini".to_string()],
-        active_agent: Some("focus".to_string()),
         ai: Some(AiConfig {
             provider: Some("codex".to_string()),
             model: Some("gpt-5".to_string()),
@@ -166,7 +160,6 @@ fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     let loaded = get_config(Some(ship_dir))?;
 
     assert_eq!(loaded.providers, vec!["gemini".to_string()]);
-    assert_eq!(loaded.active_agent.as_deref(), Some("focus"));
     assert_eq!(
         loaded
             .ai

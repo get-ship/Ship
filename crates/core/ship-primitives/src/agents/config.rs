@@ -109,12 +109,11 @@ pub fn resolve_provider_settings_with_agent_override(
     let config = get_config(Some(ship_dir.to_path_buf()))?;
 
     // ── Active agent ──────────────────────────────────────────────────────────
-    let override_agent = active_agent_override
+    let active_agent = active_agent_override
         .map(str::trim)
         .filter(|value| !value.is_empty())
         .filter(|value| config.agents.iter().any(|agent| agent.id == *value))
         .map(str::to_string);
-    let active_agent = override_agent.or_else(|| config.active_agent.clone());
     let agent = config
         .agents
         .iter()
@@ -325,7 +324,7 @@ mod tests {
                 mcp_servers: vec!["github".to_string()],
                 ..Default::default()
             }],
-            active_agent: Some("planning".to_string()),
+            // active_agent removed — pass via override
             ..Default::default()
         };
         save_config(&config, Some(ship_dir.clone()))?;
@@ -417,7 +416,7 @@ mod tests {
                 mcp_servers: vec!["github".to_string(), "linear".to_string()],
                 ..Default::default()
             }],
-            active_agent: Some("planning".to_string()),
+            // active_agent removed — pass via override
             ..Default::default()
         };
         save_config(&config, Some(ship_dir.clone()))?;
@@ -553,7 +552,7 @@ mod tests {
         )?;
 
         let config = ProjectConfig {
-            active_agent: Some("planning".to_string()),
+            // active_agent removed — pass via override
             agents: vec![AgentProfile {
                 id: "planning".to_string(),
                 name: "Planning".to_string(),
@@ -594,7 +593,7 @@ mod tests {
         create_skill(&ship_dir, "rt-code-skill", "Code Skill", "code body")?;
 
         let config = ProjectConfig {
-            active_agent: Some("planning".to_string()),
+            // active_agent removed — pass via override
             agents: vec![
                 AgentProfile {
                     id: "planning".to_string(),

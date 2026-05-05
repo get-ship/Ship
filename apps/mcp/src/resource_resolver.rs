@@ -161,8 +161,16 @@ fn resolve_workspace_uri(uri: &str, ship_dir: &Path) -> Option<String> {
     if uri == "ship://agents" {
         return match get_config(Some(ship_dir.to_path_buf())) {
             Ok(config) => {
+                let active_agent = runtime::project::ensure_project_id(ship_dir)
+                    .ok()
+                    .and_then(|pid| {
+                        runtime::projections::compile_state::load(&pid)
+                            .ok()
+                            .flatten()
+                    })
+                    .and_then(|s| s.active_agent);
                 let payload = serde_json::json!({
-                    "active_agent": config.active_agent,
+                    "active_agent": active_agent,
                     "agents": config.agents,
                 });
                 serde_json::to_string_pretty(&payload).ok()

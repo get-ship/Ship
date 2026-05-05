@@ -231,8 +231,6 @@ pub struct ProjectConfig {
     #[serde(default)]
     pub agents: Vec<AgentConfig>,
     #[serde(default)]
-    pub active_agent: Option<String>,
-    #[serde(default)]
     pub mcp_servers: Vec<McpServerConfig>,
     #[serde(default)]
     pub hooks: Vec<HookConfig>,
@@ -255,7 +253,6 @@ impl Default for ProjectConfig {
             providers: Vec::new(),
             ai: None,
             agents: Vec::new(),
-            active_agent: None,
             mcp_servers: Vec::new(),
             hooks: Vec::new(),
             namespaces: Vec::new(),

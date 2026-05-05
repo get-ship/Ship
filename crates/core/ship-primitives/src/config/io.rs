@@ -40,11 +40,10 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
     config.git = normalize_git_config(config.git);
 
     if is_project {
-        if let Some((providers, active_agent, statuses, ai, git)) =
+        if let Some((providers, statuses, ai, git)) =
             get_runtime_settings(&config_dir)?
         {
             config.providers = providers;
-            config.active_agent = active_agent;
             if let Some(statuses) = statuses {
                 config.statuses = statuses;
             }
@@ -99,10 +98,6 @@ pub fn get_effective_config(project_dir: Option<PathBuf>) -> Result<ProjectConfi
 
     project.agents = merge_agents(&global.agents, &project.agents);
     project.mcp_servers = merge_mcp_servers(&global.mcp_servers, &project.mcp_servers);
-
-    if project.active_agent.is_none() {
-        project.active_agent = global.active_agent;
-    }
 
     Ok(project)
 }

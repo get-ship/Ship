@@ -104,6 +104,18 @@ fn resolve_project_root(ship_dir: PathBuf) -> PathBuf {
     }
 }
 
+/// Resolve the active agent for a project from the compile-state projection.
+/// Returns None when the project has never been compiled. The argument is
+/// the project root (with `.ship/` appended internally to find ship.jsonc).
+fn active_agent_for_project(project_dir: &Path) -> Option<String> {
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
+    let project_id = runtime::project::ensure_project_id(&ship_dir).ok()?;
+    runtime::projections::compile_state::load(&project_id)
+        .ok()
+        .flatten()
+        .and_then(|s| s.active_agent)
+}
+
 /// Build the full project context snapshot used by resources.
 pub async fn get_project_info(project_dir: &Path) -> String {
     let name = get_project_name(project_dir);
@@ -142,7 +154,8 @@ pub async fn get_project_info(project_dir: &Path) -> String {
         out.push_str("- Session: none (call start_session to begin)\n");
     }
 
-    if let Some(active_id) = config.active_agent.as_deref() {
+    let active_agent_id = active_agent_for_project(project_dir);
+    if let Some(active_id) = active_agent_id.as_deref() {
         if let Some(agent) = config.agents.iter().find(|a| a.id == active_id) {
             out.push_str(&format!("- Agent: {} ({})\n", agent.name, agent.id));
         }
