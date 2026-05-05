@@ -18,7 +18,27 @@ pub fn static_resource_list() -> Vec<rmcp::model::Annotated<RawResource>> {
         RawResource::new("ship://events", "Event Stream").no_annotation(),
         RawResource::new("ship://jobs", "Jobs").no_annotation(),
         RawResource::new("ship://mesh", "Mesh Agents").no_annotation(),
+        components_resource(),
     ]
+}
+
+fn components_resource() -> rmcp::model::Annotated<RawResource> {
+    RawResource {
+        uri: "ship://components".to_string(),
+        name: "Components".to_string(),
+        title: Some("SUI Component Catalog".to_string()),
+        description: Some(
+            "Aggregated Custom Elements Manifest for every <sui-*> primitive — \
+             tagName, attributes, slots, parts, events, CSS custom properties. \
+             The canonical agent-side catalog source."
+                .to_string(),
+        ),
+        mime_type: Some("application/json".to_string()),
+        size: None,
+        icons: None,
+        meta: None,
+    }
+    .no_annotation()
 }
 
 fn tmpl(uri: &str, name: &str, mime: &str) -> rmcp::model::Annotated<RawResourceTemplate> {
@@ -71,6 +91,11 @@ pub fn static_resource_template_list() -> Vec<rmcp::model::Annotated<RawResource
         tmpl("ship://events/{limit}", "Recent Events", "text/plain"),
         tmpl("ship://skills/{id}", "Skill", "text/markdown"),
         tmpl("ship://jobs/{id}", "Job", "application/json"),
+        tmpl(
+            "ship://components/{tag}",
+            "Component CEM",
+            "application/json",
+        ),
     ]
 }
 
