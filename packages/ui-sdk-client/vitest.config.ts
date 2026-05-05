@@ -3,9 +3,12 @@ import { resolve } from 'node:path'
 
 export default defineConfig({
   resolve: {
-    alias: {
-      '@ship/ui-runtime': resolve(__dirname, '../ui-runtime/src/index.ts'),
-    },
+    alias: [
+      // Subpaths first — vite alias matches longest-prefix.
+      { find: '@ship/ui-runtime/patch', replacement: resolve(__dirname, '../ui-runtime/src/patch.ts') },
+      { find: '@ship/ui-runtime/route', replacement: resolve(__dirname, '../ui-runtime/src/route/index.ts') },
+      { find: '@ship/ui-runtime', replacement: resolve(__dirname, '../ui-runtime/src/index.ts') },
+    ],
   },
   test: {
     include: ['test/**/*.test.ts'],

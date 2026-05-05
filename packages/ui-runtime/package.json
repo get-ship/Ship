@@ -10,7 +10,8 @@
     ".": "./src/index.ts",
     "./template-hooks": "./src/template-hooks/index.ts",
     "./dev": "./src/dev.ts",
-    "./route": "./src/route/index.ts"
+    "./route": "./src/route/index.ts",
+    "./patch": "./src/patch.ts"
   },
   "files": [
     "src",

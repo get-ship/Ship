@@ -14,15 +14,18 @@
 // SDK change.
 
 import {
-  applyPatch,
   type AgentsSummariesResponse,
   type GitDiff,
   type GitDiffArgs,
   type GitOverview,
   type LiveSignal,
   type LiveSource,
-  type Patch,
 } from '@ship/ui-runtime'
+// R3: applyPatch + Patch live at the /patch subpath now (the runtime
+// barrel no longer re-exports them). sdk-client uses them to mutate
+// the live signal in place when the daemon streams a partial patch
+// (op !== 'set').
+import { applyPatch, type Patch } from '@ship/ui-runtime/patch'
 
 export type {
   AgentSummary,
