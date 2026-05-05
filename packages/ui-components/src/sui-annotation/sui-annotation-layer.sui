@@ -119,5 +119,27 @@
 
 <div class="surface" part="surface">
   <slot></slot>
-  <div class="overlay" part="overlay" bind:this={overlayEl}></div>
+  <div class="overlay" part="overlay" bind:this={overlayEl}>
+    {#if dragVisible()}
+      <div class="drag-rect" style={dragRectStyle()}></div>
+    {/if}
+    {#for m of markers() key={m.id}}
+      <sui-annotation-marker
+        prop:kind={m.kind}
+        prop:index={m.index}
+        prop:rect={m.rect}
+        prop:x={m.pos.x}
+        prop:y={m.pos.y}
+      ></sui-annotation-marker>
+    {/for}
+    {#if pending()}
+      <div class="popover" data-annotation-popover style={popoverStyle()} on:pointerdown={(e) => e.stopPropagation()}>
+        <textarea part="note-input" placeholder="Add a note…" bind:value={noteText} on:keydown={onNoteKeydown}></textarea>
+        <div class="popover-actions">
+          <button type="button" on:click={cancelPending}>Cancel</button>
+          <button type="button" data-primary on:click={sendNote}>Send</button>
+        </div>
+      </div>
+    {/if}
+  </div>
 </div>
