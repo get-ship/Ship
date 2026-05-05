@@ -171,18 +171,43 @@
 </style>
 
 <div class="resize" role="separator" aria-orientation="horizontal" aria-label="Resize panel" bind:this={resizeHandle}></div>
-<div class="tabstrip" role="tablist" bind:this={tabstrip}></div>
-<div class="toolbar" data-toolbar="terminal"><slot name="toolbar:terminal"></slot></div>
-<div class="toolbar" data-toolbar="source"><slot name="toolbar:source"></slot></div>
-<div class="toolbar" data-toolbar="signals"><slot name="toolbar:signals"></slot></div>
-<div class="toolbar" data-toolbar="lint"><slot name="toolbar:lint"></slot></div>
-<div class="toolbar" data-toolbar="schema"><slot name="toolbar:schema"></slot></div>
-<div class="toolbar" data-toolbar="components"><slot name="toolbar:components"></slot></div>
-<div class="bodies" bind:this={bodies}>
-  <slot name="terminal"></slot>
-  <slot name="source"></slot>
-  <slot name="signals"></slot>
-  <slot name="lint"></slot>
-  <slot name="schema"></slot>
-  <slot name="components"></slot>
+<div class="tabstrip" role="tablist">
+  {#for t of tabs() key={t.id}}
+    <button
+      class="tab"
+      role="tab"
+      type="button"
+      aria-selected={t.id === activeTab() ? 'true' : 'false'}
+      tabindex={t.id === activeTab() ? '0' : '-1'}
+      data-tab={t.id}
+      on:click={() => activate(t.id)}>
+      <sui-icon prop:name={t.icon} size="sm"></sui-icon>
+      <span>{t.label}</span>
+      {#if t.live && t.id === activeTab()}
+        <span class="live-dot" aria-hidden="true"></span>
+      {/if}
+      {#if t.count != null}
+        <span class="count">{t.count.toLocaleString()}</span>
+      {/if}
+    </button>
+  {/for}
+  <span class="tools">
+    <button class="tool" type="button" aria-label="Clear" title="Clear" data-action="clear" on:click={onClear}><sui-icon name="refresh-ccw" size="sm"></sui-icon></button>
+    <button class="tool" type="button" aria-label="Pop out" title="Pop out" data-action="popout" on:click={onPopout}><sui-icon name="maximize-2" size="sm"></sui-icon></button>
+    <button class="tool" type="button" aria-label="Close panel" title="Close (⌘J)" data-action="close" on:click={onClose}><sui-icon name="x" size="sm"></sui-icon></button>
+  </span>
+</div>
+<div class="toolbar" data-toolbar="terminal" hidden={activeTab() !== 'terminal'}><slot name="toolbar:terminal"></slot></div>
+<div class="toolbar" data-toolbar="source" hidden={activeTab() !== 'source'}><slot name="toolbar:source"></slot></div>
+<div class="toolbar" data-toolbar="signals" hidden={activeTab() !== 'signals'}><slot name="toolbar:signals"></slot></div>
+<div class="toolbar" data-toolbar="lint" hidden={activeTab() !== 'lint'}><slot name="toolbar:lint"></slot></div>
+<div class="toolbar" data-toolbar="schema" hidden={activeTab() !== 'schema'}><slot name="toolbar:schema"></slot></div>
+<div class="toolbar" data-toolbar="components" hidden={activeTab() !== 'components'}><slot name="toolbar:components"></slot></div>
+<div class="bodies">
+  <slot name="terminal" data-active={activeTab() === 'terminal'}></slot>
+  <slot name="source" data-active={activeTab() === 'source'}></slot>
+  <slot name="signals" data-active={activeTab() === 'signals'}></slot>
+  <slot name="lint" data-active={activeTab() === 'lint'}></slot>
+  <slot name="schema" data-active={activeTab() === 'schema'}></slot>
+  <slot name="components" data-active={activeTab() === 'components'}></slot>
 </div>
