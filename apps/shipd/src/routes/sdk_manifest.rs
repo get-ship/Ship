@@ -305,7 +305,12 @@ pub async fn query_sdk(
 /// Case-insensitive substring match. Rank = match position (lower = better),
 /// ties broken by id length. Cap at 20 results.
 fn search(q: &str, p: &Parsed) -> Vec<SdkSearchHit> {
-    let needle = q.to_ascii_lowercase();
+    let needle = q.trim().to_ascii_lowercase();
+    // Empty query → no results. `hay.find("")` matches everything which
+    // would silently return 20 random hits and waste a roundtrip.
+    if needle.is_empty() {
+        return Vec::new();
+    }
     let mut ranked: Vec<(usize, usize, SdkSearchHit)> = Vec::new();
 
     let mut push = |kind: &'static str, id: &str, summary: String, path: String| {

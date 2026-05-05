@@ -209,8 +209,16 @@ impl ArtifactService {
         // path. Resolve from the record's stored relative path, not from
         // this row's id.
         let abs = self.global_dir.join(&record.path);
-        let bytes = std::fs::read(&abs)
-            .with_context(|| format!("reading blob {}", abs.display()))?;
+        let bytes = match std::fs::read(&abs) {
+            Ok(b) => b,
+            // Metadata exists but the blob file is gone — present as a
+            // missing artifact rather than an internal error. Lets the
+            // route map this case to 404 instead of 500.
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(e) => {
+                return Err(e).with_context(|| format!("reading blob {}", abs.display()));
+            }
+        };
         Ok(Some((record, bytes)))
     }
 

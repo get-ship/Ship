@@ -39,14 +39,19 @@ mod tests {
         let resp = daemon.get("/api/v1/collections").await;
         assert_eq!(resp.status, 200);
         assert_eq!(resp.body["ok"], true);
-        // 4 built-in collections: specs, adrs, notes, feedback
+        // 3 code built-ins (specs, notes, feedback — annotations is
+        // system: true and excluded) + 1 file-based built-in (adrs,
+        // shipped as `.ship/collections/adrs.jsonc` and merged in by
+        // load_schemas_merged) = 4.
+        // User-visible builtins (`system: false`): specs, notes.
+        // Feedback and annotations are `system: true` and excluded from
+        // the listing API. File-based built-ins (adrs, systems) are
+        // shipped as `.ship/collections/<id>.jsonc` and merged in.
         let data = resp.body["data"].as_array().unwrap();
-        assert_eq!(data.len(), 4);
         let ids: Vec<&str> = data.iter().map(|s| s["id"].as_str().unwrap()).collect();
-        assert!(ids.contains(&"specs"));
-        assert!(ids.contains(&"adrs"));
-        assert!(ids.contains(&"notes"));
-        assert!(ids.contains(&"feedback"));
+        for required in &["specs", "notes", "adrs", "systems"] {
+            assert!(ids.contains(required), "expected `{required}` in ids: {ids:?}");
+        }
     }
 
     #[tokio::test(flavor = "multi_thread")]

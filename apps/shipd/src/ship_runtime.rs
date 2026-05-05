@@ -378,6 +378,10 @@ impl ShipRuntime {
         &self.ship_dir
     }
 
+    pub fn daemon_dir(&self) -> &Path {
+        &self.daemon_dir
+    }
+
     /// `RulesService` accessor — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules::*`
     /// call through this rather than reaching into runtime state.

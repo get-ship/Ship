@@ -90,6 +90,8 @@ impl TestDaemon {
             )
             .with_state(api_state.clone());
 
+        // Per production routing (apps/shipd/src/router.rs), these live
+        // directly at /api/v1/{projects,sessions,agents/active,events}.
         let runtime_routes = Router::new()
             .route(
                 "/projects",
@@ -100,7 +102,7 @@ impl TestDaemon {
                 axum::routing::get(crate::runtime_api::list_sessions),
             )
             .route(
-                "/agents",
+                "/agents/active",
                 axum::routing::get(crate::runtime_api::list_agents),
             )
             .route(
@@ -158,13 +160,16 @@ impl TestDaemon {
             .with_state(api_state.clone());
 
         // Inject a default CLI AuthContext so handlers can extract it.
+        // Mount under /api/v1 to match the production router (apps/shipd/
+        // src/router.rs); the test paths in artifacts_api_tests and
+        // collection_tests use /api/v1/* canonical URLs.
         let default_auth = Self::cli_auth();
         let router = Router::new()
-            .nest("/api", api_routes)
-            .nest("/api", capabilities_routes)
-            .nest("/api", collection_routes)
-            .nest("/api", artifacts_routes)
-            .nest("/api/v1/runtime", runtime_routes)
+            .nest("/api/v1", api_routes)
+            .nest("/api/v1", capabilities_routes)
+            .nest("/api/v1", collection_routes)
+            .nest("/api/v1", artifacts_routes)
+            .nest("/api/v1", runtime_routes)
             .layer(axum::Extension(default_auth));
 
         Self {

@@ -54,8 +54,11 @@ fn failed(job_id: &str, error: &str) -> EventEnvelope {
 /// Project detection must check for git worktree status.
 #[test]
 fn project_detection_handles_worktrees() {
+    // Worktree detection lives in ship-substrate's project module
+    // (path resolution + git discovery are L0). The test pre-dated the
+    // substrate split.
     let source = std::fs::read_to_string(
-        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/runtime/src/project.rs")
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/ship-substrate/src/project.rs")
     ).unwrap();
     assert!(
         source.contains("worktree") || source.contains("git_common_dir"),

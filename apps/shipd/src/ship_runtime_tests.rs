@@ -120,15 +120,19 @@ async fn job_manager_accessible() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn shutdown_cleans_files() {
-    let (dir, rt) = make_runtime().await;
-    let base = dir.path();
-    let home = ship_substrate::ShipHome::at(base.to_path_buf());
-    let token_path = home.daemon_file(ship_substrate::home::DaemonFile::Token);
-    let port_path = home.daemon_file(ship_substrate::home::DaemonFile::Port);
-    let pid_path = home.daemon_file(ship_substrate::home::DaemonFile::Pid);
+    let (_dir, rt) = make_runtime().await;
+    // Use the runtime's actual daemon_dir — tests previously assumed
+    // the singleton path (`machine/daemon/`) but ShipRuntime::new
+    // selects the worktree path (`machine/daemons/<hash>/`) when
+    // launched from inside a project root, which is what cargo test
+    // does.
+    let daemon_dir = rt.daemon_dir().to_path_buf();
+    let token_path = daemon_dir.join("token");
+    let port_path = daemon_dir.join("port");
+    let pid_path = daemon_dir.join("pid");
 
     // Simulate the files that run_network writes on startup.
-    std::fs::create_dir_all(token_path.parent().unwrap()).unwrap();
+    std::fs::create_dir_all(&daemon_dir).unwrap();
     std::fs::write(&token_path, "test-token").unwrap();
     std::fs::write(&port_path, "9999").unwrap();
     std::fs::write(&pid_path, "12345").unwrap();

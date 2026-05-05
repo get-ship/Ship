@@ -16,7 +16,7 @@ async fn harness_provides_clean_environment() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn harness_get_returns_json() {
     let daemon = TestDaemon::new().await;
-    let resp = daemon.get("/api/v1/runtime/projects").await;
+    let resp = daemon.get("/api/v1/projects").await;
     assert_eq!(resp.status, 200);
     assert!(resp.body["projects"].is_array());
 }
@@ -419,7 +419,7 @@ async fn mesh_send_to_unknown_agent_does_not_crash() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn runtime_projects_via_harness_returns_ok() {
     let daemon = TestDaemon::new().await;
-    let resp = daemon.get("/api/v1/runtime/projects").await;
+    let resp = daemon.get("/api/v1/projects").await;
     assert_eq!(resp.status, 200);
     assert!(resp.body["projects"].is_array());
 }

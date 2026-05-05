@@ -28,8 +28,15 @@ mod tests {
         assert_eq!(data["mime"], "text/plain");
         assert_eq!(data["size"], 8);
         assert!(data["id"].as_str().unwrap().len() >= 8);
-        // Stored relative path begins with `blobs/`.
-        assert!(data["path"].as_str().unwrap().starts_with("blobs/"));
+        // Stored relative path includes `blobs/<prefix>/<id>`. For
+        // project-scoped uploads (the default) the prefix is the
+        // project slug; covered explicitly by the
+        // blob_stored_under_project_slug test.
+        assert!(
+            data["path"].as_str().unwrap().contains("blobs/"),
+            "expected blobs/ in path, got {}",
+            data["path"]
+        );
     }
 
     #[tokio::test(flavor = "multi_thread")]

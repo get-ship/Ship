@@ -110,15 +110,18 @@ fn routing_falls_back_for_non_server_mode_provider_even_if_registry_has_entry() 
 }
 
 #[test]
-fn capabilities_filter_for_server_mode_yields_codex_and_opencode() {
+fn capabilities_filter_for_server_mode_yields_codex() {
+    // opencode's server_mode is currently false (see
+    // ship-platform/src/services/providers/opencode.rs — temporarily
+    // disabled until the session code matches the current adapter shape).
+    // codex is the only server-capable provider until that re-enables.
     let server_capable: Vec<&str> = capabilities()
         .into_iter()
         .filter(|(_, c)| c.server_mode)
         .map(|(id, _)| id)
         .collect();
     assert!(server_capable.contains(&"codex"), "got: {server_capable:?}");
-    assert!(server_capable.contains(&"opencode"), "got: {server_capable:?}");
-    assert_eq!(server_capable.len(), 2, "got: {server_capable:?}");
+    assert_eq!(server_capable.len(), 1, "got: {server_capable:?}");
 }
 
 #[test]

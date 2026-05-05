@@ -72,7 +72,7 @@ async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
         env: Default::default(),
         exit_tx: None,
         launch: LaunchProfile {
-            provider: Some("echo-only".into()),
+            provider: Some("claude".into()),
             ..Default::default()
         },
         step: Some(StepInfo { index: 0, id: "tests".into() }),
@@ -125,7 +125,7 @@ async fn resume_handle_refuses_ambiguous_name() {
         env: Default::default(),
         exit_tx: None,
         launch: LaunchProfile {
-            provider: Some("echo-only".into()),
+            provider: Some("claude".into()),
             ..Default::default()
         },
         step: Some(StepInfo { index: 0, id: "tests".into() }),

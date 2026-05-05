@@ -26,6 +26,11 @@ fn fresh_state() -> (ApiState, TempDir) {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
+    // Register built-in collection schemas so create_item against the
+    // `annotations` table doesn't fail with "no such table".
+    let mut data = ship_substrate::data::DataService::open(&ship_dir).unwrap();
+    ship_platform::collections::builtin::register_builtin_schemas(&mut data).unwrap();
+    drop(data);
     let kernel = Arc::new(tokio::sync::Mutex::new(
         ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));

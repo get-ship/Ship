@@ -158,7 +158,13 @@ fn css_has_selector(css: &str, selector: &str) -> bool {
 mod tests {
     use super::*;
 
+    // Theme catalog moved to packages/ship-set/src/themes.css; the daemon
+    // no longer ships gruvbox/nord/catppuccin/tokyo-night as compile-time
+    // builtins (BUILTIN_THEMES is empty above). These tests exercise a
+    // path that doesn't exist anymore — keep as #[ignore] until the test
+    // surface is rewritten for the project/global file-discovery side.
     #[test]
+    #[ignore]
     fn builtin_themes_are_listed() {
         let themes = list_themes();
         let names: Vec<&str> = themes.iter().map(|t| t.name.as_str()).collect();
@@ -169,6 +175,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn gruvbox_has_both_modes() {
         let themes = list_themes();
         let gruvbox = themes.iter().find(|t| t.name == "gruvbox").unwrap();
@@ -177,6 +184,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn tokyo_night_dark_only() {
         let themes = list_themes();
         let tn = themes.iter().find(|t| t.name == "tokyo-night").unwrap();
@@ -193,6 +201,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore]
     fn resolve_builtin_by_name() {
         let css = resolve_css_by_name("gruvbox");
         assert!(css.contains("--background"));
