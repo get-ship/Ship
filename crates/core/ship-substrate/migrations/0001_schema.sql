@@ -107,6 +107,15 @@ CREATE TABLE IF NOT EXISTS cursors (
   updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Machine-wide daemon settings (terminal.program, daemon.port, etc.).
+-- One row per key. Replaces the `settings` namespace in kv.db; daemon-managed
+-- values that need ACID alongside event writes belong here, not in KV.
+CREATE TABLE IF NOT EXISTS daemon_settings (
+  key         TEXT PRIMARY KEY NOT NULL,
+  value_json  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Project compile state — what was produced by the last `ship compile` for
 -- each project. Materialized from `compile.completed` events; the latest
 -- event's payload IS the truth. CLI `ship status` reads here; daemon reads

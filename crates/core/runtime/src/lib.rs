@@ -71,7 +71,7 @@ pub use config::catalog::{CatalogEntry, CatalogKind, list_catalog, list_catalog_
 pub use config::{
     AgentLayerConfig, AgentProfile, HookConfig, HookTrigger, McpServerConfig,
     McpServerType, PermissionConfig, ProjectConfig,
-    add_mcp_server, ensure_standard_dirs,
+    add_mcp_server, drain_legacy_settings_kv, ensure_standard_dirs,
     get_active_agent, get_all_settings, get_config, get_effective_config,
     get_setting, list_mcp_servers,
     remove_mcp_server, save_config,

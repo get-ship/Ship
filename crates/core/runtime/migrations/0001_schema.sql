@@ -107,6 +107,13 @@ CREATE TABLE IF NOT EXISTS cursors (
   updated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+-- Machine-wide daemon settings; replaces the `settings` KV namespace.
+CREATE TABLE IF NOT EXISTS daemon_settings (
+  key         TEXT PRIMARY KEY NOT NULL,
+  value_json  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- Project compile state — what was produced by the last `ship compile` for
 -- each project. Materialized from `compile.completed` events.
 CREATE TABLE IF NOT EXISTS project_compile_state (

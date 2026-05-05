@@ -110,7 +110,9 @@ pub use crud::{
 pub use discover::discover_projects;
 pub use watcher::{spawn_config_watcher, ConfigWatcher};
 
-pub use runtime_settings::{get_all_settings, get_setting, set_setting, setting_default};
+pub use runtime_settings::{
+    drain_legacy_settings_kv, get_all_settings, get_setting, set_setting, setting_default,
+};
 
 pub use credentials::Credentials;
 pub use library::LibrarySettings;

@@ -211,6 +211,11 @@ impl ShipRuntime {
             runtime::db::kv::migrate_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
             runtime::db::ensure_db_at(&dir)?;
+            // One-shot drain of the legacy `settings` KV namespace into the
+            // daemon_settings table. Idempotent and inexpensive on every boot.
+            if let Err(e) = runtime::config::drain_legacy_settings_kv() {
+                tracing::warn!("settings drain from legacy KV: {e}");
+            }
             runtime::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))
         })

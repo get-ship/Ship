@@ -1,4 +1,5 @@
 use super::project::ProjectConfig;
+use ship_substrate::db::daemon_settings;
 use ship_substrate::db::kv;
 use ship_substrate::db::kv::KvNamespace;
 use anyhow::Result;
@@ -20,23 +21,23 @@ pub fn setting_default(key: &str) -> Option<&'static str> {
     }
 }
 
-/// Get a single setting, falling back to the default.
+/// Get a single setting from the daemon_settings table, falling back to the
+/// hardcoded default.
 pub fn get_setting(key: &str) -> Result<Option<serde_json::Value>> {
-    if let Some(val) = kv::get(KvNamespace::Settings, key)? {
+    if let Some(val) = daemon_settings::get(key)? {
         return Ok(Some(val));
     }
     Ok(setting_default(key).map(|d| serde_json::Value::String(d.to_string())))
 }
 
-/// Set a single setting.
+/// Set a single setting in daemon_settings.
 pub fn set_setting(key: &str, value: serde_json::Value) -> Result<()> {
-    kv::set(KvNamespace::Settings, key, &value)
+    daemon_settings::set(key, &value)
 }
 
 /// Return all persisted settings merged with defaults.
 pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
     let mut map = HashMap::new();
-    // Seed only with non-identity infrastructure defaults.
     for (key, default) in &[
         ("terminal.program", "tmux"),
         ("daemon.port", "9315"),
@@ -46,11 +47,45 @@ pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
             serde_json::Value::String((*default).to_string()),
         );
     }
-    // Overlay persisted values.
-    for (key, value) in kv::list_all(KvNamespace::Settings)? {
+    for (key, value) in daemon_settings::list_all()? {
         map.insert(key, value);
     }
     Ok(map)
+}
+
+/// One-shot drain of the legacy KV `settings` namespace into the
+/// daemon_settings table. Idempotent: re-running on an already-drained
+/// install is a no-op (UPSERT). Safe to call on every daemon startup;
+/// removes the legacy KV rows after copying.
+pub fn drain_legacy_settings_kv() -> Result<usize> {
+    use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
+    use sqlx::Row;
+
+    ensure_kv_db()?;
+    let mut conn = open_kv_db()?;
+    let rows = block_on(async {
+        sqlx::query("SELECT key, value_json FROM kv_state WHERE namespace = 'settings'")
+            .fetch_all(&mut conn)
+            .await
+    })?;
+    if rows.is_empty() {
+        return Ok(0);
+    }
+    let mut migrated = 0usize;
+    for row in &rows {
+        let key: String = row.get(0);
+        let json_str: String = row.get(1);
+        let value: serde_json::Value =
+            serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null);
+        daemon_settings::set(&key, &value)?;
+        migrated += 1;
+    }
+    block_on(async {
+        sqlx::query("DELETE FROM kv_state WHERE namespace = 'settings'")
+            .execute(&mut conn)
+            .await
+    })?;
+    Ok(migrated)
 }
 
 /// Derive a project-scoped KV namespace from the ship_dir path.

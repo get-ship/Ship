@@ -18,8 +18,6 @@ pub enum KvNamespace {
     AuthSession,
     /// Auth daemon-owner binding — ephemeral
     AuthDaemonOwner,
-    /// User-facing settings (defaults.provider, defaults.model, daemon.port…)
-    Settings,
     /// Skill variable state — global (machine-wide) scope; inner = skill_id
     SkillVarsGlobal(String),
     /// Skill variable state — local scope; inner = "{ctx}:{skill_id}"
@@ -38,7 +36,6 @@ impl KvNamespace {
         match self {
             Self::AuthSession       => "auth.sessions".into(),
             Self::AuthDaemonOwner   => "auth.daemon_owner".into(),
-            Self::Settings          => "settings".into(),
             Self::SkillVarsGlobal(s)   => format!("skill_vars:{s}").into(),
             Self::SkillVarsLocal(s)    => format!("skill_vars.local:{s}").into(),
             Self::SkillVarsProject(s)  => format!("skill_vars.project:{s}").into(),
@@ -238,24 +235,24 @@ mod tests {
     #[test]
     fn test_set_overwrites() {
         let (_tmp, _ship_dir) = setup();
-        set(KvNamespace::Settings, "theme", &json!("dark")).unwrap();
-        set(KvNamespace::Settings, "theme", &json!("light")).unwrap();
-        let val = get(KvNamespace::Settings, "theme").unwrap().unwrap();
+        set(KvNamespace::AuthDaemonOwner, "theme", &json!("dark")).unwrap();
+        set(KvNamespace::AuthDaemonOwner, "theme", &json!("light")).unwrap();
+        let val = get(KvNamespace::AuthDaemonOwner, "theme").unwrap().unwrap();
         assert_eq!(val, json!("light"));
     }
 
     #[test]
     fn test_get_missing_returns_none() {
         let (_tmp, _ship_dir) = setup();
-        assert!(get(KvNamespace::Settings, "missing").unwrap().is_none());
+        assert!(get(KvNamespace::AuthDaemonOwner, "missing").unwrap().is_none());
     }
 
     #[test]
     fn test_delete() {
         let (_tmp, _ship_dir) = setup();
-        set(KvNamespace::Settings, "key", &json!(42)).unwrap();
-        delete(KvNamespace::Settings, "key").unwrap();
-        assert!(get(KvNamespace::Settings, "key").unwrap().is_none());
+        set(KvNamespace::AuthDaemonOwner, "key", &json!(42)).unwrap();
+        delete(KvNamespace::AuthDaemonOwner, "key").unwrap();
+        assert!(get(KvNamespace::AuthDaemonOwner, "key").unwrap().is_none());
     }
 
     #[test]
