@@ -1,4 +1,4 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, bindHtml } from '@ship/ui-runtime'
 import type { Scope } from './sui-markdown.sui'
 
 function escape(s: string): string {
@@ -76,13 +76,8 @@ export function renderMarkdown(src: string): string {
 export default controller<Scope>({
   mount(state) {
     const scope = state as unknown as Scope
-
-    const stopEffect = effect(() => {
-      const el = scope.contentEl() as HTMLElement | null
-      if (!el) return
-      el.innerHTML = renderMarkdown(scope.value() ?? '')
-    })
-
-    return () => stopEffect()
+    const el = scope.contentEl() as HTMLElement | null
+    if (!el) return () => {}
+    return bindHtml(el, () => renderMarkdown(scope.value() ?? ''))
   },
 })

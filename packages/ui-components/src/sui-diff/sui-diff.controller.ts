@@ -1,4 +1,4 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, bindHtml } from '@ship/ui-runtime'
 import type { Scope } from './sui-diff.sui'
 
 type Line = { kind: 'add' | 'del' | 'ctx' | 'hunk'; text: string }
@@ -61,14 +61,13 @@ export default controller<Scope>({
     if (!host.hasAttribute('role')) host.setAttribute('role', 'region')
     if (!host.hasAttribute('aria-label')) host.setAttribute('aria-label', 'diff')
 
-    const stopEffect = effect(() => {
-      const el = scope.contentEl() as HTMLElement | null
-      if (!el) return
+    const el = scope.contentEl() as HTMLElement | null
+    if (!el) return () => {}
 
+    return bindHtml(el, () => {
       const value = scope.value()
       const from = scope.from()
       const to = scope.to()
-
       let lines: Line[]
       if (value) {
         lines = parseUnified(value)
@@ -77,10 +76,7 @@ export default controller<Scope>({
       } else {
         lines = []
       }
-
-      el.innerHTML = renderLines(lines)
+      return renderLines(lines)
     })
-
-    return () => stopEffect()
   },
 })

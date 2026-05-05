@@ -1,4 +1,4 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, bindHtml } from '@ship/ui-runtime'
 import type { Scope } from './sui-graph-canvas.sui'
 
 export interface GraphNode {
@@ -108,8 +108,7 @@ function nodeBodyHtml(host: HTMLElement, n: GraphNode): string {
     .replace(/\$\{id\}/g, esc(n.id))
 }
 
-function renderGraph(
-  canvas: HTMLElement,
+function renderGraphHtml(
   host: HTMLElement,
   nodesRaw: string,
   edgesRaw: string,
@@ -117,7 +116,7 @@ function renderGraph(
   height: number,
   layout: string,
   selectedId: string,
-): void {
+): string {
   const nodes = coerce<GraphNode>(nodesRaw, [])
   const edges = coerce<GraphEdge>(edgesRaw, [])
   const pos = computePositions(nodes, width, height, layout)
@@ -147,9 +146,10 @@ function renderGraph(
     })
     .join('')
 
-  canvas.innerHTML =
+  return (
     `<svg class="edges" part="edges" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none" aria-hidden="true">${edgePaths}</svg>` +
     nodeDivs
+  )
 }
 
 export default controller<Scope>({
@@ -159,14 +159,17 @@ export default controller<Scope>({
     const canvas = scope.canvasEl() as HTMLElement | null
     if (!canvas) return
 
-    const stopRender = effect(() => {
+    const inner = canvas.ownerDocument.createElement('div')
+    canvas.appendChild(inner)
+
+    const stopRender = bindHtml(inner, () => {
       const nodesRaw = scope.nodes() as string
       const edgesRaw = scope.edges() as string
       const width = (scope.width() as number) || 1000
       const height = (scope.height() as number) || 600
       const layout = (scope.layout() as string) || 'positioned'
       const selectedId = scope.selectedId() as string
-      renderGraph(canvas, host, nodesRaw, edgesRaw, width, height, layout, selectedId)
+      return renderGraphHtml(host, nodesRaw, edgesRaw, width, height, layout, selectedId)
     })
 
     let lastHoveredId = ''
