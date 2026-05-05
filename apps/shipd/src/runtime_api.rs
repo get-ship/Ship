@@ -103,7 +103,7 @@ fn resolve_project_head_sha() -> Option<String> {
 fn git_worktrees() -> Option<Vec<(String, String)>> {
     let project_ship = runtime::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
-    let output = std::process::Command::new("git")
+    let output = crate::spawn_bounded::Cmd::new("git")
         .args(["worktree", "list", "--porcelain"])
         .current_dir(project_root)
         .output()

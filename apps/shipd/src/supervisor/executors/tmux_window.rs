@@ -64,7 +64,7 @@ pub(crate) fn step_log_rel(index: usize, step_id: &str) -> String {
 
 /// Is the tmux binary on PATH and responsive to `-V`?
 pub(crate) fn tmux_available() -> bool {
-    std::process::Command::new("tmux")
+    crate::spawn_bounded::Cmd::new("tmux")
         .arg("-V")
         .output()
         .map(|o| o.status.success())
@@ -73,7 +73,7 @@ pub(crate) fn tmux_available() -> bool {
 
 /// Does a tmux session by this name already exist?
 fn session_exists(name: &str) -> bool {
-    std::process::Command::new("tmux")
+    crate::spawn_bounded::Cmd::new("tmux")
         .args(["has-session", "-t", name])
         .status()
         .map(|s| s.success())
@@ -100,7 +100,7 @@ fn create_window(session: &str, step_id: &str, work_dir: &str) -> Result<String>
             "tmux new-window",
         )
     };
-    let out = std::process::Command::new("tmux")
+    let out = crate::spawn_bounded::Cmd::new("tmux")
         .args(args)
         .output()
         .map_err(|e| anyhow!("{label} failed: {e}"))?;
@@ -116,7 +116,7 @@ fn create_window(session: &str, step_id: &str, work_dir: &str) -> Result<String>
 
 /// True if `window_id` (e.g. `@29`) is still listed in `session`.
 fn window_id_exists(session: &str, window_id: &str) -> bool {
-    let Ok(out) = std::process::Command::new("tmux")
+    let Ok(out) = crate::spawn_bounded::Cmd::new("tmux")
         .args(["list-windows", "-t", session, "-F", "#{window_id}"])
         .output()
     else {
@@ -134,7 +134,7 @@ fn window_id_exists(session: &str, window_id: &str) -> bool {
 /// zero or multiple matches — on rehydration we would rather mark the job
 /// failed than risk attaching to the wrong window.
 fn find_unique_window_by_name(session: &str, name: &str) -> Option<String> {
-    let out = std::process::Command::new("tmux")
+    let out = crate::spawn_bounded::Cmd::new("tmux")
         .args(["list-windows", "-t", session,
                "-F", "#{window_id} #{window_name}"])
         .output()
@@ -186,7 +186,7 @@ impl JobExecutor for TmuxWindowExecutor {
         let log_rel = step_log_rel(step_idx, &step_id);
         let teed = format!("{shell_cmd} 2>&1 | tee -a {log_rel}");
 
-        let status = std::process::Command::new("tmux")
+        let status = crate::spawn_bounded::Cmd::new("tmux")
             .args(["send-keys", "-t", &window_target, &teed, "Enter"])
             .status()
             .map_err(|e| anyhow!("tmux send-keys failed: {e}"))?;
@@ -229,7 +229,7 @@ impl JobExecutor for TmuxWindowExecutor {
             None => return Ok(()),
         };
         let target = format!("{}:{}", state.session, state.window);
-        let _ = std::process::Command::new("tmux")
+        let _ = crate::spawn_bounded::Cmd::new("tmux")
             .args(["kill-window", "-t", &target])
             .status();
         Ok(())
@@ -241,7 +241,7 @@ impl JobExecutor for TmuxWindowExecutor {
             None => return Ok(()),
         };
         let target = format!("{}:{}", state.session, state.window);
-        let status = std::process::Command::new("tmux")
+        let status = crate::spawn_bounded::Cmd::new("tmux")
             .args(["send-keys", "-t", &target, message, "Enter"])
             .status()
             .map_err(|e| anyhow!("tmux send-keys failed: {e}"))?;

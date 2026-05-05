@@ -34,9 +34,10 @@ pub(crate) fn create_worktree(
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("worktree path is not valid UTF-8"))?;
 
-    let status = std::process::Command::new("git")
+    let status = crate::spawn_bounded::Cmd::new("git")
         .args(["worktree", "add", path_str, branch])
         .current_dir(repo_dir())
+        .timeout_secs(60)
         .status()
         .map_err(|e| anyhow::anyhow!("failed to run git: {e}"))?;
 
@@ -44,9 +45,10 @@ pub(crate) fn create_worktree(
         // Branch may not exist yet — create it from base_branch.
         let base = base_branch.unwrap_or("HEAD");
         let args = vec!["worktree", "add", path_str, "-b", branch, base];
-        let status2 = std::process::Command::new("git")
+        let status2 = crate::spawn_bounded::Cmd::new("git")
             .args(&args)
             .current_dir(repo_dir())
+            .timeout_secs(60)
             .status()
             .map_err(|e| anyhow::anyhow!("failed to run git: {e}"))?;
         if !status2.success() {
@@ -73,9 +75,13 @@ pub(crate) fn compile_agent_config(
         .parent()
         .map(|dir| dir.join("ship"))
         .unwrap_or_else(|| std::path::PathBuf::from("ship"));
-    let output = std::process::Command::new(&ship_bin)
+    // `ship use` may compile per-agent SUI scaffolds. Use a generous wall-clock
+    // budget so legitimate compiles finish, but still cap virtual memory so a
+    // runaway compile dies cleanly instead of taking down the daemon's host.
+    let output = crate::spawn_bounded::Cmd::new(&ship_bin)
         .args(["use", agent_id])
         .current_dir(worktree_path)
+        .timeout_secs(120)
         .output()
         .map_err(|e| anyhow::anyhow!("failed to run ship: {e}"))?;
 
@@ -95,7 +101,7 @@ pub(crate) fn ensure_tmux_session(
     worktree_path: &std::path::Path,
 ) -> Result<()> {
     // Check if session/window already exists.
-    let check = std::process::Command::new("tmux")
+    let check = crate::spawn_bounded::Cmd::new("tmux")
         .args(["has-session", "-t", session_name])
         .status();
 
@@ -112,14 +118,14 @@ pub(crate) fn ensure_tmux_session(
     // Try creating a window in the "ship" session first (works with tmux -CC / iTerm2).
     // Falls back to a new detached session if "ship" session doesn't exist.
     let parent_session = "ship";
-    let has_parent = std::process::Command::new("tmux")
+    let has_parent = crate::spawn_bounded::Cmd::new("tmux")
         .args(["has-session", "-t", parent_session])
         .status()
         .map(|s| s.success())
         .unwrap_or(false);
 
     if has_parent {
-        let status = std::process::Command::new("tmux")
+        let status = crate::spawn_bounded::Cmd::new("tmux")
             .args(["new-window", "-t", parent_session, "-n", session_name, "-c", path_str])
             .status()
             .map_err(|e| anyhow::anyhow!("failed to run tmux: {e}"))?;
@@ -130,7 +136,7 @@ pub(crate) fn ensure_tmux_session(
         // Fall through to new-session if new-window failed
     }
 
-    let status = std::process::Command::new("tmux")
+    let status = crate::spawn_bounded::Cmd::new("tmux")
         .args(["new-session", "-d", "-s", session_name, "-c", path_str])
         .status()
         .map_err(|e| anyhow::anyhow!("failed to run tmux: {e}"))?;
@@ -151,7 +157,7 @@ pub(crate) fn send_agent_command(session_name: &str, providers: &[String]) {
 
     // Try window in "ship" session first, fall back to standalone session
     let window_target = format!("ship:{session_name}");
-    let target = if std::process::Command::new("tmux")
+    let target = if crate::spawn_bounded::Cmd::new("tmux")
         .args(["has-session", "-t", "ship"])
         .status()
         .map(|s| s.success())
@@ -162,7 +168,7 @@ pub(crate) fn send_agent_command(session_name: &str, providers: &[String]) {
         session_name
     };
 
-    let result = std::process::Command::new("tmux")
+    let result = crate::spawn_bounded::Cmd::new("tmux")
         .args(["send-keys", "-t", target, &cmd, "Enter"])
         .status();
 
@@ -173,7 +179,7 @@ pub(crate) fn send_agent_command(session_name: &str, providers: &[String]) {
 
 /// Kill a tmux session by name. No-op if session does not exist.
 pub(crate) fn kill_tmux_session(session_name: &str) -> Result<()> {
-    let status = std::process::Command::new("tmux")
+    let status = crate::spawn_bounded::Cmd::new("tmux")
         .args(["kill-session", "-t", session_name])
         .status();
     match status {
@@ -191,9 +197,10 @@ pub(crate) fn remove_worktree(worktree_path: &std::path::Path) -> Result<()> {
     let path_str = worktree_path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("worktree path is not valid UTF-8"))?;
-    let status = std::process::Command::new("git")
+    let status = crate::spawn_bounded::Cmd::new("git")
         .args(["worktree", "remove", path_str, "--force"])
         .current_dir(repo_dir())
+        .timeout_secs(60)
         .status()
         .map_err(|e| anyhow::anyhow!("failed to run git: {e}"))?;
     if !status.success() {
@@ -207,7 +214,7 @@ pub(crate) fn remove_worktree(worktree_path: &std::path::Path) -> Result<()> {
 
 /// Delete a local git branch. No-op if branch does not exist.
 pub(crate) fn delete_branch(branch: &str) -> Result<()> {
-    let status = std::process::Command::new("git")
+    let status = crate::spawn_bounded::Cmd::new("git")
         .args(["branch", "-D", branch])
         .current_dir(repo_dir())
         .status()
