@@ -16,6 +16,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, statSync, renameSyn
 import { gzipSync } from 'node:zlib';
 import { basename, dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { spawnBoundedOrThrow } from './spawn-bounded.mjs';
 
 const repoRoot = resolve(fileURLToPath(import.meta.url), '..', '..');
 // Assets split between two destinations:
@@ -180,7 +181,6 @@ function hashTree(entryAbs) {
  */
 async function compileSui(suiPath, opts = {}) {
   const { mode = 'view', cssPath = null } = opts;
-  const { spawnSync } = await import('node:child_process');
   const inputAbs = join(repoRoot, suiPath);
   const outDir = dirname(inputAbs);
   const stem = basename(inputAbs).replace(/\.sui$/, '');
@@ -197,14 +197,14 @@ async function compileSui(suiPath, opts = {}) {
   if (cssPath) {
     args.push('--styles', join(repoRoot, cssPath));
   }
-  const result = spawnSync('cargo', args, {
-    cwd: repoRoot, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'],
+  // Wrap in `prlimit + timeout` so a runaway compile (pathological input,
+  // unbounded allocation) dies cleanly instead of taking down the host.
+  // 90s wall is generous: cold `cargo run` rebuilds the compiler before
+  // first compile.
+  spawnBoundedOrThrow('cargo', args, `sui-compiler ${suiPath}`, {
+    cwd: repoRoot,
+    timeoutSecs: 90,
   });
-  if (result.status !== 0) {
-    throw new Error(
-      `sui-compiler failed for ${suiPath}:\n${result.stderr || result.stdout}`,
-    );
-  }
   if (mode === 'component') {
     // Rename <stem>.js → <stem>.compiled.js so the build artifact is
     // visibly distinct from the .ts source next to it.

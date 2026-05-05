@@ -1,36 +1,25 @@
 import { defineConfig } from 'vitest/config'
 import { resolve, dirname, basename } from 'node:path'
 import { existsSync, readFileSync, renameSync } from 'node:fs'
-import { spawnSync } from 'node:child_process'
 import { SHIP_VITEST_DEFAULTS } from '../../vitest.shared'
+// @ts-expect-error — JS module, no .d.ts.
+import { spawnBoundedOrThrow } from '../../scripts/spawn-bounded.mjs'
 
 const repoRoot = resolve(__dirname, '../..')
-// Prefer the pre-built debug binary; fall back to `cargo run` if absent.
 const compilerBin = resolve(repoRoot, 'target/debug/sui-compiler')
 
-// Wrap the sui-compiler invocation with a wall-clock + virtual-memory cap.
-// A buggy or pathological .sui input can drive the compiler into unbounded
-// allocation; without these caps a single bad file takes down the WSL VM
-// (observed: 19+GB RSS before the kernel OOM-killer fires). 30s wall + 2GB
-// virt is generous for any real .sui file and dies cleanly on runaways.
+// Test-time fallback for the watch/HMR loop. The `pretest` hook (see
+// package.json) precompiles every .sui ahead of vitest, so cold runs
+// never hit this path. spawnBoundedOrThrow wraps the child in
+// `prlimit + timeout` so a buggy compile dies cleanly without taking the
+// host VM with it.
 function compileSui(suiPath: string, outDir: string, stem: string): void {
-  const hasbin = existsSync(compilerBin)
-  const inner = hasbin
-    ? [compilerBin, 'build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
-    : ['cargo', 'run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
-  const args = ['--as=2147483648', 'timeout', '30', ...inner]
-  const result = spawnSync('prlimit', args, {
-    cwd: repoRoot,
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  })
-  if (result.status !== 0) {
-    const reason =
-      result.status === 124 ? 'timed out after 30s'
-      : result.signal === 'SIGKILL' || result.status === 137 ? 'exceeded 2GB virtual memory cap'
-      : `exit ${result.status}`
-    throw new Error(`sui-compiler ${reason} for ${suiPath}:\n${result.stderr || result.stdout}`)
-  }
+  const hasBin = existsSync(compilerBin)
+  const cmd = hasBin ? compilerBin : 'cargo'
+  const args = hasBin
+    ? ['build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
+    : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--out', outDir, '--component-name', stem, '--no-dts']
+  spawnBoundedOrThrow(cmd, args, `sui-compiler ${suiPath}`, { cwd: repoRoot })
 }
 
 export default defineConfig({
