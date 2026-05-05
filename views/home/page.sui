@@ -1,0 +1,15 @@
+<state name="seen" value="0" />
+
+<div class="home">
+  <home-hero prop:title={'Welcome to Ship'}></home-hero>
+
+  <section class="counter">
+    <p>You've opened the home page <strong>{seen()}</strong> times this session.</p>
+    <button data-test="bump" on:click={() => seen.set(seen() + 1)}>Bump</button>
+  </section>
+
+  <p class="caption">
+    Proof view for the new directory convention — page.sui + controller.ts +
+    style.css + manifest.jsonc, with a view-private widget under _components/.
+  </p>
+</div>
