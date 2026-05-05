@@ -137,23 +137,24 @@ fn is_controller_path_recognises_suffix() {
 }
 
 #[test]
-fn flags_real_offender_in_repo() {
-    // Smoke against any still-unported component in the cleanup pass.
-    // sui-theme-picker is one of the remaining offenders; this points
-    // at it for now and gets re-pointed (or removed) as ports land.
-    let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../..")
-        .join("packages/ui-components/src/sui-theme-picker/sui-theme-picker.controller.ts");
-    if !path.exists() {
-        eprintln!("skipping: {} not present", path.display());
-        return;
-    }
-    let source = std::fs::read_to_string(&path).expect("read sui-theme-picker controller");
-    let findings = lint_controller_source(&path, &source);
+fn flags_synthetic_innerhtml_offender() {
+    // Synthetic source matching the pattern Phase 1.5 cleaned up. Real
+    // controllers in the repo are now all clean, so a smoke against any
+    // specific file would pass for the wrong reason. This keeps the rule
+    // exercised end-to-end against the kind of code it's meant to catch.
+    let path = std::path::PathBuf::from("synthetic/sui-foo/sui-foo.controller.ts");
+    let source = r#"
+import { controller } from '@ship/ui-runtime'
+export default controller({
+  mount(state, host) {
+    const root = host.shadowRoot
+    if (root) root.innerHTML = '<div></div>'
+  },
+})
+"#;
+    let findings = lint_controller_source(&path, source);
     assert!(
         !findings.is_empty(),
-        "expected sui-theme-picker.controller.ts to report at least one violation; \
-         got none. Either it's been cleaned up (good!) or the rule regressed — \
-         re-point this test at another remaining offender."
+        "expected synthetic .innerHTML write to report a violation; got none — rule regressed."
     );
 }
