@@ -1,4 +1,4 @@
-import { controller, signal, derived, effect } from '@ship/ui-runtime'
+import { controller, signal, derived, effect, ref } from '@ship/ui-runtime'
 import type { Signal } from '@ship/ui-runtime'
 import {
   THEMES,
@@ -93,6 +93,9 @@ export default controller<Scope>({
       internals.panel?.hidePopover?.()
     }
 
+    const triggerBtn = ref<HTMLButtonElement>(null)
+    const panelEl = ref<HTMLDivElement>(null)
+
     return {
       activeTheme,
       panelOpen,
@@ -101,6 +104,8 @@ export default controller<Scope>({
       triggerLabel,
       togglePanel,
       selectTheme,
+      triggerBtn,
+      panelEl,
       _internals: internals,
     }
   },

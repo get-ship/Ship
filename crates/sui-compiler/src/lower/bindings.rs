@@ -42,10 +42,11 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered, is_view: bool, dep
             }
         }
         AttrInstr::BindThis { .. } => {
-            // The component setup body emits `signal(...)` inline.
-            // Views resolve the ref via the attach manifest with no
-            // runtime helper needed.
-            out.runtime_imports.insert("signal");
+            // The component setup body emits `attachRef(...)` — it
+            // reuses an author-declared `ref(null)` slot if the
+            // controller's scope: factory pre-declared one, otherwise
+            // installs a fresh signal seeded with the element.
+            out.runtime_imports.insert("attachRef");
             if direct_emit {
                 out.dom_imports.insert("collectElementMarkers");
                 out.dom_imports.insert("hydrateRef");

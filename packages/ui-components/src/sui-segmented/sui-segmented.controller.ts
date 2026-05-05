@@ -1,4 +1,4 @@
-import { controller, signal, effect } from '@ship/ui-runtime'
+import { controller, signal, effect, ref } from '@ship/ui-runtime'
 import type { Signal } from '@ship/ui-runtime'
 import type { Scope } from './sui-segmented.sui'
 
@@ -21,7 +21,8 @@ const cssEscape = (s: string): string =>
 export default controller<Scope>({
   scope: () => {
     const options = signal<Option[]>([])
-    return { options }
+    const containerEl = ref<HTMLDivElement>(null)
+    return { options, containerEl }
   },
 
   mount(state, host) {

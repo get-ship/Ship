@@ -1,4 +1,4 @@
-import { controller, signal, derived, effect } from '@ship/ui-runtime'
+import { controller, signal, derived, effect, ref } from '@ship/ui-runtime'
 import type { Scope } from './sui-devtools-source.sui'
 
 interface ViewSource { view_name: string; template_path: string; template: string; manifest_filename: string | null; manifest: string | null; scope: string }
@@ -41,7 +41,11 @@ export default controller<Scope>({
       return s.template_path.slice(idx + marker.length)
     })
 
-    return { src, draft, saving, diagnostics, diagMsg, loading, loadError, isDirty, showDiag, editorValue, editorReadonly, manifestLangVal, templateRelPath }
+    const headerEl = ref<HTMLDivElement>(null)
+    const templateEditorEl = ref<HTMLElement>(null)
+    const manifestEditorEl = ref<HTMLElement>(null)
+
+    return { src, draft, saving, diagnostics, diagMsg, loading, loadError, isDirty, showDiag, editorValue, editorReadonly, manifestLangVal, templateRelPath, headerEl, templateEditorEl, manifestEditorEl }
   },
 
   mount(state, host) {

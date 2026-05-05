@@ -217,15 +217,117 @@ fn collect_scope_kinds(
         k
     };
     let obj_end = skip_balanced(bytes, obj_start, end);
+    let factory_body_start = start;
+    let factory_body_end = obj_start;
     walk_object_entries(
         bytes,
         obj_start + 1,
         obj_end.saturating_sub(1),
         |name, key_offset, value_start, value_end| {
-            let kind = classify_scope_value(bytes, value_start, value_end);
+            let mut kind = classify_scope_value(bytes, value_start, value_end);
+            // Shorthand entries (e.g. `{ foo }`) classify as Other based
+            // on the immediate value span; resolve them by looking up
+            // the binding in the factory body before the return object.
+            if kind == ScopeKind::Other && is_shorthand(bytes, name, value_start, value_end) {
+                kind = classify_local_binding(bytes, name, factory_body_start, factory_body_end);
+            }
             into.insert(name.to_string(), ScopeEntry { offset: key_offset, kind });
         },
     );
+}
+
+/// Returns true when the value-span is just the key ident (shorthand
+/// property-init like `{ foo }`).
+fn is_shorthand(bytes: &[u8], name: &str, start: usize, end: usize) -> bool {
+    let s = skip_trivia(bytes, start);
+    if s >= end || s + name.len() > end {
+        return false;
+    }
+    if !std::str::from_utf8(&bytes[s..s + name.len()])
+        .map(|w| w == name)
+        .unwrap_or(false)
+    {
+        return false;
+    }
+    // Nothing after the ident other than trivia / commas inside the slice.
+    let after = skip_trivia(bytes, s + name.len());
+    after >= end
+}
+
+/// Walk the factory body for a top-level `const NAME = …` /
+/// `function NAME …` / `async function NAME …` declaration and
+/// classify the right-hand side. Returns Other if no binding is found
+/// or the binding's RHS isn't a recognised shape.
+fn classify_local_binding(
+    bytes: &[u8],
+    name: &str,
+    start: usize,
+    end: usize,
+) -> ScopeKind {
+    let nb = name.as_bytes();
+    let mut i = start;
+    while i < end {
+        // Match `function NAME` / `async function NAME`.
+        if bytes[i..].starts_with(b"function") {
+            let mut j = i + 8;
+            j = skip_trivia(bytes, j);
+            if j + nb.len() <= end
+                && &bytes[j..j + nb.len()] == nb
+                && (j + nb.len() == end || !is_ident_cont(bytes[j + nb.len()]))
+            {
+                return ScopeKind::Action;
+            }
+        }
+        // Match `const NAME = …` / `let NAME = …`.
+        let kw_len = if bytes[i..].starts_with(b"const") {
+            5
+        } else if bytes[i..].starts_with(b"let") {
+            3
+        } else {
+            0
+        };
+        if kw_len > 0 {
+            let mut j = i + kw_len;
+            // Must be a non-ident boundary before kw and after.
+            let prev_ok = i == start || !is_ident_cont(bytes[i - 1]);
+            let post_ok = j < end && !is_ident_cont(bytes[j]);
+            if prev_ok && post_ok {
+                j = skip_trivia(bytes, j);
+                if j + nb.len() <= end
+                    && &bytes[j..j + nb.len()] == nb
+                    && (j + nb.len() >= end || !is_ident_cont(bytes[j + nb.len()]))
+                {
+                    let mut k = skip_trivia(bytes, j + nb.len());
+                    // Skip optional `: TYPE`.
+                    if k < end && bytes[k] == b':' {
+                        k += 1;
+                        // Walk until `=` at top level (skip nested angles/brackets).
+                        let mut depth: i32 = 0;
+                        while k < end {
+                            let c = bytes[k];
+                            if depth == 0 && c == b'=' {
+                                break;
+                            }
+                            match c {
+                                b'<' | b'(' | b'{' | b'[' => depth += 1,
+                                b'>' | b')' | b'}' | b']' => depth -= 1,
+                                _ => {}
+                            }
+                            k += 1;
+                        }
+                    }
+                    if k < end && bytes[k] == b'=' {
+                        k = skip_trivia(bytes, k + 1);
+                        // Use existing classifier on the RHS slice.
+                        let rhs_end = end;
+                        return classify_scope_value(bytes, k, rhs_end);
+                    }
+                }
+            }
+        }
+        i += 1;
+    }
+    ScopeKind::Other
 }
 
 fn classify_scope_value(bytes: &[u8], start: usize, end: usize) -> ScopeKind {
@@ -233,10 +335,15 @@ fn classify_scope_value(bytes: &[u8], start: usize, end: usize) -> ScopeKind {
     if i >= end {
         return ScopeKind::Other;
     }
-    // Arrow shapes: `(x) => …` / `x => …` / `() => …` => Action.
+    // Arrow shapes: `(x) => …` / `(x): T => …` / `x => …` / `() => …` => Action.
     if bytes[i] == b'(' {
         let close = skip_balanced(bytes, i, end);
-        let after = skip_trivia(bytes, close);
+        let mut after = skip_trivia(bytes, close);
+        // Optional return-type annotation: `(...): T => …`.
+        if after < end && bytes[after] == b':' {
+            after = skip_type_annotation(bytes, after + 1, end);
+            after = skip_trivia(bytes, after);
+        }
         if after + 1 < end && bytes[after] == b'=' && bytes[after + 1] == b'>' {
             return ScopeKind::Action;
         }
@@ -247,10 +354,15 @@ fn classify_scope_value(bytes: &[u8], start: usize, end: usize) -> ScopeKind {
             i += 1;
         }
         let word = std::str::from_utf8(&bytes[s..i]).unwrap_or("");
-        let after = skip_trivia(bytes, i);
+        let mut after = skip_trivia(bytes, i);
         // `name => …` arrow shorthand.
         if after + 1 < end && bytes[after] == b'=' && bytes[after + 1] == b'>' {
             return ScopeKind::Action;
+        }
+        // Skip TS generic type-args, e.g. `ref<HTMLButtonElement>(null)`.
+        if after < end && bytes[after] == b'<' {
+            after = skip_generic_args(bytes, after, end);
+            after = skip_trivia(bytes, after);
         }
         if after < end && bytes[after] == b'(' {
             return match word {
@@ -262,6 +374,60 @@ fn classify_scope_value(bytes: &[u8], start: usize, end: usize) -> ScopeKind {
         }
     }
     ScopeKind::Other
+}
+
+/// Walk a TS type annotation starting at the character after the
+/// leading `:`. Stops when an `=>` token or top-level `=`/`,`/`)`/`}`
+/// is reached. Tracks `<>`, `()`, `{}`, `[]` depth.
+fn skip_type_annotation(bytes: &[u8], start: usize, end: usize) -> usize {
+    let mut k = start;
+    let mut depth: i32 = 0;
+    while k < end {
+        let c = bytes[k];
+        if depth == 0 {
+            // `=>` is the arrow start.
+            if c == b'=' && k + 1 < end && bytes[k + 1] == b'>' {
+                return k;
+            }
+            if matches!(c, b',' | b';' | b'=' | b')' | b'}' | b']') {
+                return k;
+            }
+        }
+        match c {
+            b'<' | b'(' | b'{' | b'[' => depth += 1,
+            b'>' | b')' | b'}' | b']' => depth -= 1,
+            _ => {}
+        }
+        if depth < 0 {
+            return k;
+        }
+        k += 1;
+    }
+    end
+}
+
+/// Skip a TypeScript generic-args block starting at `bytes[start] == b'<'`.
+/// Counts `<>` depth and returns the index immediately after the
+/// matching `>`. If the block is malformed, returns `end`.
+fn skip_generic_args(bytes: &[u8], start: usize, end: usize) -> usize {
+    let mut k = start;
+    let mut depth = 0i32;
+    while k < end {
+        match bytes[k] {
+            b'<' => depth += 1,
+            b'>' => {
+                depth -= 1;
+                if depth == 0 {
+                    return k + 1;
+                }
+            }
+            // Strings / comments unlikely inside type args; bail on them.
+            b'"' | b'\'' | b'`' => return end,
+            _ => {}
+        }
+        k += 1;
+    }
+    end
 }
 
 /// Visit `key: value` entries within an object literal slice. The
@@ -417,6 +583,41 @@ mod tests {
         assert_eq!(t.kind_of_scope("doubled"), Some(ScopeKind::Derived));
         assert_eq!(t.kind_of_scope("handle"), Some(ScopeKind::Action));
         assert_eq!(t.kind_of_scope("plain"), Some(ScopeKind::Other));
+    }
+
+    #[test]
+    fn classifies_shorthand_arrow_const() {
+        let c = ctrl(
+            r#"export default controller({
+                scope: () => {
+                    const inc = (e) => 1;
+                    const typed = (e: KeyboardEvent): void => { return };
+                    function dec() { return 2 }
+                    const n = signal(0);
+                    return { inc, typed, dec, n };
+                },
+            });"#,
+        );
+        let t = SymbolTable::build(&empty_program(), Some(&c));
+        assert_eq!(t.kind_of_scope("inc"), Some(ScopeKind::Action));
+        assert_eq!(t.kind_of_scope("typed"), Some(ScopeKind::Action));
+        assert_eq!(t.kind_of_scope("dec"), Some(ScopeKind::Action));
+        assert_eq!(t.kind_of_scope("n"), Some(ScopeKind::Signal));
+    }
+
+    #[test]
+    fn classifies_ref_with_ts_generic() {
+        let c = ctrl(
+            r#"export default controller({
+                scope: () => ({
+                    btn: ref<HTMLButtonElement>(null),
+                    list: signal<string[]>([]),
+                }),
+            });"#,
+        );
+        let t = SymbolTable::build(&empty_program(), Some(&c));
+        assert_eq!(t.kind_of_scope("btn"), Some(ScopeKind::Ref));
+        assert_eq!(t.kind_of_scope("list"), Some(ScopeKind::Signal));
     }
 
     #[test]

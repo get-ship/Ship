@@ -1,4 +1,4 @@
-import { controller, signal } from '@ship/ui-runtime'
+import { controller, signal, ref } from '@ship/ui-runtime'
 import type { Signal } from '@ship/ui-runtime'
 import type { Scope } from './sui-panel-dock.sui'
 
@@ -58,7 +58,9 @@ export default controller<Scope>({
       )
     }
 
-    return { tabs, activate, onClear, onPopout, onClose }
+    const resizeHandle = ref<HTMLElement>(null)
+
+    return { tabs, resizeHandle, activate, onClear, onPopout, onClose }
   },
 
   mount(state, host) {

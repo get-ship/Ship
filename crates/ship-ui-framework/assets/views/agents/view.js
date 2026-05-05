@@ -1,4 +1,4 @@
-// views/agents/view.js
+// views/agents/dist/view.compiled.js
 import { bindAttr, bindFor, bindIf, bindText, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship/ui-runtime";
 import { collectElementMarkers, collectTextOpens, hydrateOn, hydrateText, hydrateWhileError, hydrateWhileLoading } from "@ship/ui-dom";
 
@@ -14,8 +14,8 @@ var view_controller_default = controller({
   }
 });
 
-// views/agents/view.js
-var view_default = view((ctx) => {
+// views/agents/dist/view.compiled.js
+var view_compiled_default = view((ctx) => {
   const { ship, route, navigate } = ctx;
   const $scope = /* @__PURE__ */ Object.create(null);
   $scope.ship = ship;
@@ -549,5 +549,5 @@ var view_default = view((ctx) => {
   });
 });
 export {
-  view_default as default
+  view_compiled_default as default
 };
