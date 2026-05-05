@@ -20,28 +20,26 @@
 import { test, expect } from '@playwright/test'
 import { waitForAttach } from './_helpers'
 
-test('studio: tiles render with item.id text content', async ({ page }) => {
+test('studio: catalog items render with item.id text content', async ({ page }) => {
   await page.goto('/sui/ship-ui-studio')
   await waitForAttach(page)
 
-  const tiles = page.locator('[data-test="tile"]')
-  await expect(tiles.first()).toBeVisible({ timeout: 20_000 })
+  const items = page.locator('[data-test="catalog-item"]')
+  await expect(items.first()).toBeVisible({ timeout: 20_000 })
 
-  // At least a handful of tiles must be present (one per component
-  // catalog entry — should be 100+ in the live workspace).
-  const count = await tiles.count()
+  const count = await items.count()
   expect(count).toBeGreaterThan(10)
 
-  // Every visible tile must have non-empty text in its `<code>`
+  // Every catalog item must have non-empty text in its `<code>`
   // (rendered from `{item.id}`). Pre-Phase-2 these were blank.
-  const ids = await tiles.locator('code.tile-name').allTextContents()
+  const ids = await items.locator('code.catalog-item-name').allTextContents()
   expect(ids.length).toBe(count)
   const empty = ids.filter((s) => s.trim() === '')
   expect(empty.length).toBe(0)
 
   // Sanity check: the badge text from `{item.kind}` is also populated
-  // for at least the first tile.
-  const firstBadge = tiles.first().locator('ship-badge')
+  // for at least the first item.
+  const firstBadge = items.first().locator('sui-badge')
   await expect(firstBadge).not.toHaveText(/^\s*$/)
 })
 
