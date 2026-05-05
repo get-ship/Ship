@@ -26,7 +26,6 @@ export default controller<Scope>({
 
     return () => {
       stopSync()
-      host.removeEventListener('keydown', onKeydown)
     }
   },
 })

@@ -1,4 +1,4 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, effect, bindNativeEvent } from '@ship/ui-runtime'
 import type { Scope } from './sui-dropdown-menu.sui'
 
 let _seq = 0
@@ -107,10 +107,7 @@ export default controller<Scope>({
     const onItemClick = (e: Event) => {
       const target = (e.target as HTMLElement).closest('[data-value]') as HTMLElement | null
       if (!target) return
-      host.dispatchEvent(new CustomEvent('sui-select', {
-        detail: { value: target.dataset.value ?? '' },
-        bubbles: true, composed: true,
-      }))
+      host.emit!('sui-select', { value: target.dataset.value ?? '' })
       closePanel()
     }
 
@@ -132,12 +129,12 @@ export default controller<Scope>({
       }
     }
 
-    triggerWrap?.addEventListener('click', onTriggerClick)
-    panelEl.addEventListener('toggle', onToggle)
-    panelEl.addEventListener('click', onItemClick)
-    host.addEventListener('keydown', onKeydown)
-    triggerSlot?.addEventListener('slotchange', setupTrigger)
-    panelEl?.addEventListener('slotchange' as unknown as 'click', setupItems)
+    if (triggerWrap) bindNativeEvent(triggerWrap, 'click', onTriggerClick)
+    bindNativeEvent(panelEl, 'toggle', onToggle as EventListener)
+    bindNativeEvent(panelEl, 'click', onItemClick)
+    bindNativeEvent(host, 'keydown', onKeydown as EventListener)
+    if (triggerSlot) bindNativeEvent(triggerSlot, 'slotchange', setupTrigger)
+    bindNativeEvent(panelEl, 'slotchange', setupItems)
 
     const stopSync = effect(() => {
       const wantOpen = scope.open()
@@ -146,11 +143,6 @@ export default controller<Scope>({
     })
 
     return () => {
-      triggerWrap?.removeEventListener('click', onTriggerClick)
-      panelEl.removeEventListener('toggle', onToggle)
-      panelEl.removeEventListener('click', onItemClick)
-      host.removeEventListener('keydown', onKeydown)
-      triggerSlot?.removeEventListener('slotchange', setupTrigger)
       if (typeaheadTimer) clearTimeout(typeaheadTimer)
       stopSync()
     }

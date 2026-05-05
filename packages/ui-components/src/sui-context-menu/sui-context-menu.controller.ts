@@ -1,4 +1,4 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, effect, bindNativeEvent } from '@ship/ui-runtime'
 import type { Scope } from './sui-context-menu.sui'
 
 let _seq = 0
@@ -77,8 +77,7 @@ export default controller<Scope>({
       panelEl?.hidePopover?.()
     }
 
-    ;(host as HTMLElement & { show(x: number, y: number): void }).show = doShow
-    ;(host as HTMLElement & { close(): void }).close = doClose
+    host.expose!({ show: doShow as never, close: doClose })
 
     // ── Events ───────────────────────────────────────────────────────────
     const onContextMenu = (e: MouseEvent) => {
@@ -92,20 +91,17 @@ export default controller<Scope>({
       if (nowOpen !== scope.open()) scope.open.set(nowOpen)
       host.setAttribute('data-state', nowOpen ? 'open' : 'closed')
       if (nowOpen) {
-        host.dispatchEvent(new CustomEvent('sui-open', { bubbles: true, composed: true }))
+        host.emit!('sui-open')
         queueMicrotask(() => { setupItems(); focusItem(0) })
       } else {
-        host.dispatchEvent(new CustomEvent('sui-close', { bubbles: true, composed: true }))
+        host.emit!('sui-close')
       }
     }
 
     const onItemClick = (e: Event) => {
       const target = (e.target as HTMLElement).closest('[data-value]') as HTMLElement | null
       if (!target) return
-      host.dispatchEvent(new CustomEvent('sui-select', {
-        detail: { value: target.dataset.value ?? '' },
-        bubbles: true, composed: true,
-      }))
+      host.emit!('sui-select', { value: target.dataset.value ?? '' })
       doClose()
     }
 
@@ -134,11 +130,11 @@ export default controller<Scope>({
       }
     }
 
-    triggerSlot?.addEventListener('slotchange', wireTrigger)
+    if (triggerSlot) bindNativeEvent(triggerSlot, 'slotchange', wireTrigger)
     wireTrigger()
-    panelEl.addEventListener('toggle', onToggle)
-    panelEl.addEventListener('click', onItemClick)
-    host.addEventListener('keydown', onKeydown)
+    bindNativeEvent(panelEl, 'toggle', onToggle as EventListener)
+    bindNativeEvent(panelEl, 'click', onItemClick)
+    bindNativeEvent(host, 'keydown', onKeydown as EventListener)
 
     const stopSync = effect(() => {
       host.setAttribute('data-state', scope.open() ? 'open' : 'closed')
@@ -147,10 +143,6 @@ export default controller<Scope>({
     return () => {
       const els = triggerSlot?.assignedElements({ flatten: true }) as HTMLElement[] ?? []
       for (const el of els) el.removeEventListener('contextmenu', onContextMenu)
-      triggerSlot?.removeEventListener('slotchange', wireTrigger)
-      panelEl.removeEventListener('toggle', onToggle)
-      panelEl.removeEventListener('click', onItemClick)
-      host.removeEventListener('keydown', onKeydown)
       if (typeaheadTimer) clearTimeout(typeaheadTimer)
       stopSync()
     }

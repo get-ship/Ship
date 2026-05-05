@@ -1,4 +1,4 @@
-import { controller, effect, signal } from '@ship/ui-runtime'
+import { controller, effect, signal, bindNativeEvent } from '@ship/ui-runtime'
 import type { Scope } from './sui-launcher.sui'
 import { type ApiView, type Project, humanize, renderHead, renderFoot, renderBody } from './render'
 
@@ -129,18 +129,18 @@ export default controller<Scope>({
     })
 
     // ── mask click ────────────────────────────────────────────
-    maskEl?.addEventListener('click', () => doClose())
+    if (maskEl) bindNativeEvent(maskEl, 'click', () => doClose())
 
     // ── filter input ──────────────────────────────────────────
-    filterInput?.addEventListener('input', () => {
+    if (filterInput) bindNativeEvent(filterInput, 'input', () => {
       if (filterTimer) clearTimeout(filterTimer)
       filterTimer = setTimeout(() => {
         filter.set(filterInput.value)
         cursor.set(0)
       }, 80)
     })
-    filterInput?.addEventListener('keydown', (e: KeyboardEvent) => {
-      if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) onGlobalKey(e)
+    if (filterInput) bindNativeEvent(filterInput, 'keydown', (e) => {
+      if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes((e as KeyboardEvent).key)) onGlobalKey(e as KeyboardEvent)
     })
 
     // ── global key handler ────────────────────────────────────
@@ -172,12 +172,12 @@ export default controller<Scope>({
         if (!row) return
         e.preventDefault()
         if (e.metaKey || e.ctrlKey) {
-          host.dispatchEvent(new CustomEvent('sui:launcher:open-pane', { detail: { name: row.name }, bubbles: true, composed: true }))
+          host.emit!('sui:launcher:open-pane', { name: row.name })
         }
         navigate(row.name)
       }
     }
-    document.addEventListener('keydown', onGlobalKey)
+    bindNativeEvent(document, 'keydown', onGlobalKey as EventListener)
 
     function scrollCursor(): void {
       requestAnimationFrame(() => {
@@ -211,7 +211,7 @@ export default controller<Scope>({
       const next = cur.includes(name) ? cur.filter((n) => n !== name) : [...cur, name]
       pins.set(next)
       await savePins(next)
-      host.dispatchEvent(new CustomEvent('sui:rail:pins-changed', { detail: { pins: next }, bubbles: true, composed: true }))
+      host.emit!('sui:rail:pins-changed', { pins: next })
     }
 
     function doClose(): void {
@@ -241,21 +241,18 @@ export default controller<Scope>({
       const next = [...without.slice(0, idx), src, ...without.slice(idx)]
       pins.set(next)
       await savePins(next)
-      host.dispatchEvent(new CustomEvent('sui:rail:pins-changed', { detail: { pins: next }, bubbles: true, composed: true }))
+      host.emit!('sui:rail:pins-changed', { pins: next })
     }
     function onDragEnd(): void { dragName = null; dragOver = null }
 
     // ── external open/close events ────────────────────────────
     const onExtOpen = () => scope.open.set(true)
     const onExtClose = () => doClose()
-    document.addEventListener('sui:launcher:open', onExtOpen)
-    document.addEventListener('sui:launcher:close', onExtClose)
+    bindNativeEvent(document, 'sui:launcher:open', onExtOpen)
+    bindNativeEvent(document, 'sui:launcher:close', onExtClose)
 
     return () => {
       stopHead(); stopBody(); stopOpen()
-      document.removeEventListener('keydown', onGlobalKey)
-      document.removeEventListener('sui:launcher:open', onExtOpen)
-      document.removeEventListener('sui:launcher:close', onExtClose)
       if (filterTimer) clearTimeout(filterTimer)
     }
   },
