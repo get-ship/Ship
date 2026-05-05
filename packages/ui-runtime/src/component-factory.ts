@@ -8,7 +8,7 @@
 // handled by the wrapped factory so component() can stay declarative
 // and the underlying defineComponent stays unchanged.
 
-import { defineComponent } from './component'
+import { defineComponent, camelOf } from './component'
 import type { ComponentSchema } from './component'
 import {
   decodeBoolean,
@@ -141,9 +141,6 @@ const decoderFor = (def: PropDef<unknown>): Decoder<unknown> => {
       return decodeJson(def.default ?? [])
   }
 }
-
-const camelOf = (attr: string): string =>
-  attr.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase())
 
 const encodeAttr = (def: PropDef<unknown>, value: unknown): string | null => {
   if (value === undefined || value === null) return null

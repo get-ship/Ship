@@ -2,6 +2,186 @@
 import { bindAttr, bindFor, bindIf, bindText, bindValue, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship/ui-runtime";
 import { collectElementMarkers, hydrateWhileError, hydrateWhileLoading } from "@ship/ui-dom";
 
+// packages/ui-runtime/src/template-hooks/index.ts
+import { registerTemplateHook } from "@ship/ui-runtime";
+
+// packages/ui-runtime/src/template-hooks/kbd.ts
+import { matchesKey } from "@ship/ui-runtime";
+var useKbdHook = {
+  name: "kbd",
+  attrs: { shortcuts: "literal", resolve: "literal" },
+  children: true,
+  factory: (ctx) => {
+    const { shortcuts, resolve } = ctx.attrs;
+    if (!shortcuts || shortcuts.length === 0) return;
+    const handler = (event) => {
+      for (const sc of shortcuts) {
+        if (matchesKey(event, sc.key)) {
+          const fn = resolve(sc.action);
+          if (fn) fn(event);
+          return;
+        }
+      }
+    };
+    document.addEventListener("keydown", handler);
+    ctx.cleanup(() => document.removeEventListener("keydown", handler));
+  }
+};
+
+// packages/ui-runtime/src/template-hooks/click-outside.ts
+var useClickOutsideHook = {
+  name: "click-outside",
+  attrs: { target: "binding", action: "binding" },
+  factory: (ctx) => {
+    const { target, action } = ctx.attrs;
+    if (!target || !action) return;
+    const handler = (event) => {
+      const t = event.target;
+      if (t instanceof Node && target.contains(t)) return;
+      action(event);
+    };
+    document.addEventListener("mousedown", handler, true);
+    ctx.cleanup(() => document.removeEventListener("mousedown", handler, true));
+  }
+};
+
+// packages/ui-runtime/src/template-hooks/shell.ts
+var useShellHook = {
+  name: "shell",
+  attrs: { as: "literal" },
+  factory: (_ctx) => {
+    return typeof window !== "undefined" && window.__shipShell || {};
+  }
+};
+
+// packages/ui-runtime/src/template-hooks/focus-trap.ts
+var FOCUSABLE = 'a[href],area[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled]),iframe,object,embed,[tabindex]:not([tabindex="-1"]),[contenteditable]';
+function focusables(el) {
+  return Array.from(el.querySelectorAll(FOCUSABLE)).filter(
+    (e) => !e.closest("[hidden]") && e.getAttribute("aria-hidden") !== "true"
+  );
+}
+var useFocusTrapHook = {
+  name: "focus-trap",
+  attrs: { target: "binding" },
+  factory: (ctx) => {
+    const { target } = ctx.attrs;
+    if (!target) return;
+    const previously = document.activeElement;
+    const all = focusables(target);
+    if (all.length > 0) all[0].focus();
+    const handler = (e) => {
+      if (e.key !== "Tab") return;
+      const els = focusables(target);
+      if (!els.length) {
+        e.preventDefault();
+        return;
+      }
+      const first = els[0];
+      const last = els[els.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener("keydown", handler);
+    ctx.cleanup(() => {
+      document.removeEventListener("keydown", handler);
+      previously?.focus();
+    });
+  }
+};
+
+// packages/ui-runtime/src/template-hooks/clipboard.ts
+var useClipboardHook = {
+  name: "clipboard",
+  attrs: { text: "binding", onCopy: "binding" },
+  factory: (ctx) => {
+    const { text, onCopy } = ctx.attrs;
+    if (text === void 0 || text === null) return;
+    const handler = () => {
+      const value = typeof text === "function" ? text() : text;
+      navigator.clipboard.writeText(value).then(() => {
+        onCopy?.();
+      });
+    };
+    ctx.el.addEventListener("click", handler);
+    ctx.cleanup(() => ctx.el.removeEventListener("click", handler));
+  }
+};
+
+// packages/ui-runtime/src/template-hooks/title.ts
+import { effect } from "@ship/ui-runtime";
+var useTitleHook = {
+  name: "title",
+  attrs: { text: "binding" },
+  factory: (ctx) => {
+    const { text } = ctx.attrs;
+    if (text === void 0 || text === null) return;
+    const prev = document.title;
+    const dispose = effect(() => {
+      document.title = typeof text === "function" ? text() : text;
+    });
+    ctx.cleanup(() => {
+      dispose();
+      document.title = prev;
+    });
+  }
+};
+
+// packages/ui-runtime/src/template-hooks/scroll-anchor.ts
+var useScrollAnchorHook = {
+  name: "scroll-anchor",
+  attrs: { id: "literal" },
+  factory: (ctx) => {
+    const { id } = ctx.attrs;
+    if (!id) return;
+    const { el } = ctx;
+    const check = () => {
+      if (window.location.hash === `#${id}`) {
+        el.scrollIntoView({ behavior: "smooth" });
+      }
+    };
+    window.addEventListener("hashchange", check);
+    check();
+    ctx.cleanup(() => window.removeEventListener("hashchange", check));
+  }
+};
+
+// packages/ui-runtime/src/template-hooks/intersection.ts
+var useIntersectionHook = {
+  name: "intersection",
+  attrs: { on: "binding" },
+  factory: (ctx) => {
+    const { on: on2 } = ctx.attrs;
+    if (!on2 || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) on2(entry);
+      }
+    });
+    observer.observe(ctx.el);
+    ctx.cleanup(() => observer.disconnect());
+  }
+};
+
+// packages/ui-runtime/src/template-hooks/index.ts
+registerTemplateHook(useKbdHook);
+registerTemplateHook(useClickOutsideHook);
+registerTemplateHook(useShellHook);
+registerTemplateHook(useFocusTrapHook);
+registerTemplateHook(useClipboardHook);
+registerTemplateHook(useTitleHook);
+registerTemplateHook(useScrollAnchorHook);
+registerTemplateHook(useIntersectionHook);
+
 // views/git/controller.ts
 import { controller, signal, unwrapOr, useFilteredList } from "@ship/ui-runtime";
 var EMPTY_OVERVIEW = {

@@ -17,7 +17,7 @@
 // on the element.
 
 import type { TemplateHook, TemplateHookContext } from '../controller'
-import { matchesKey } from '../on'
+import { matchesKey } from '@ship/ui-runtime'
 
 /** A single `<on key="..." action="..." />` record inside `<use-kbd>`. */
 export interface KbdShortcut {

@@ -239,6 +239,91 @@ the SUI compiler emits `attachRef($scope, ...)` calls into compiled
 view modules (see `crates/sui-compiler/src/lower/bindings.rs:49`).
 The `isRef` symbol has no such producer.
 
+## Follow-up applied: R1 + R5 (`job/runtime-perf-followup`)
+
+R1 and R5 from the recommendations above have now landed.
+
+### R5 — inlined `camelOf`
+
+`component-factory.ts:145` had a private duplicate of the `camelOf`
+defined and exported by `component.ts:210`. The local copy was
+removed; `component-factory` now imports `camelOf` from `./component`
+(the cycle the audit flagged is a no-op in practice — `component-factory`
+already imports `defineComponent` from the same module). Pure cleanup,
+~24 B gz.
+
+### R1 — built-in template hooks load with the view
+
+The eight built-in `<use-*>` hooks (`kbd`, `click-outside`, `shell`,
+`focus-trap`, `clipboard`, `title`, `scroll-anchor`, `intersection`)
+no longer ride the `@ship/ui-runtime` entry. Instead:
+
+1. `template-hooks/index.ts` now sources `registerTemplateHook` via
+   the package's bare specifier (`@ship/ui-runtime`) so when the
+   barrel is bundled into a view, the registration writes into the
+   runtime's *shared* registry singleton — not an inlined-and-stranded
+   copy. Hook factories that need runtime helpers
+   (`matchesKey`, `effect`) import them through the same bare
+   specifier so view bundles externalise the dep.
+2. `packages/ui-runtime/src/index.ts` drops the `import './template-hooks'`
+   side-effect and re-exports the registry surface directly from
+   `./template-hooks/registry`. The eight hook modules are no longer
+   reachable from the runtime entry's import graph, so esbuild
+   tree-shakes them out of `sui-runtime.js`.
+3. The package exposes a `./template-hooks` subpath via
+   `package.json#exports` so consumers can import the barrel by
+   name.
+4. `sui-compiler` now sets a `uses_template_hooks` flag in the
+   `Lowered` summary whenever a template contains a `<use-*>`
+   element, and the JS emitter drops a side-effect
+   `import "@ship/ui-runtime/template-hooks";` into the compiled view
+   module. Views without `<use-*>` get nothing extra.
+5. `scripts/build-bundles.mjs` adds a tiny esbuild plugin
+   (`inline-runtime-subpaths`) for any bundle that externalises
+   `@ship/ui-runtime`: subpath imports under that package resolve to
+   their workspace source so esbuild bundles the hook code *into the
+   view that asked for it* instead of leaving an unresolvable
+   external import.
+6. `@ship/ui-dom/legacy/hydrate.ts` side-effect-imports
+   `@ship/ui-runtime/template-hooks` so legacy hydrate consumers
+   (tests + parse-on-the-client callers) keep registering the eight
+   built-ins. The runtime entry no longer does this for them.
+   `packages/ui-dom/vitest.config.ts` adds a matching alias for the
+   subpath so the test environment can resolve it.
+
+### Verification
+
+`node scripts/build-bundles.mjs --force`:
+
+| asset | before | after | delta |
+|---|---:|---:|---:|
+| `sui-runtime.js` raw | 65 855 B | 60 525 B | −5 330 B |
+| `sui-runtime.js` gz | 16 116 B | 14 899 B | **−1 217 B** |
+| `views/git/view.js` gz | 6 666 B | 8 021 B | +1 355 B |
+| `views/counter/view.js` gz | 1 060 B | 1 060 B | 0 |
+| `views/agents/view.js` gz | 4 016 B | 4 016 B | 0 |
+
+Net: hook-less views (counter, agents) drop 1.2 KB gz on cold load.
+Hook-using views (git) pay an extra ~1.4 KB inline because the
+barrel bundles all eight built-ins; per-hook subpath splitting (so
+`views/git/view.js` only inlines `kbd`) is the obvious next
+tightening — see `job/runtime-template-hooks-split` in the
+suggested follow-ups.
+
+Tests:
+- `cargo test -p sui-compiler` — 7 unit + 3 integration green.
+- `pnpm -F @ship/ui-runtime test` — 354 passed, 5 skipped.
+- `pnpm -F @ship/ui-dom test` — 74 passed; the one pre-existing
+  failure (`test/git-view.test.ts` — bad import path
+  `views/git/view.controller`) is unrelated and reproduces at HEAD.
+
+The pre-existing audit baseline (15 924 B gz at the time the report
+was written) had drifted upward to 16 116 B gz at HEAD before this
+follow-up landed. With R1 + R5 applied, `sui-runtime.js` is now
+**14 899 B gz** — back below the audit's headline number and
+comfortably under the 15.6 KiB target threshold the original
+acceptance check called for.
+
 ## Suggested follow-up specs
 
 1. `job/runtime-template-hooks-split` — implements R1 (per-hook
@@ -261,4 +346,7 @@ inside the gate's "target" band for the first time since F1.
       kind of "trivial cleanup" follow-up — R1 through R4 are real
       bundle-shape changes).
 - [x] `pnpm -F @ship/ui-runtime test` green — 354 passed, 5 skipped
-      after the `isRef` removal.
+      after the `isRef` removal and again after R1 + R5 landed.
+- [x] R1 + R5 applied (`job/runtime-perf-followup`): `sui-runtime.js`
+      gz 14 899 B (down from 16 116 B at HEAD pre-follow-up;
+      audit-time baseline was 15 924 B).

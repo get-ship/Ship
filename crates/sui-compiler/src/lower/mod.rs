@@ -30,6 +30,12 @@ pub struct Lowered {
     pub dom_imports: BTreeSet<&'static str>,
     /// `true` if the user's setup file is referenced anywhere.
     pub uses_setup: bool,
+    /// `true` if the template contains any `<use-*>` element. The
+    /// emitter drops a side-effect import of
+    /// `@ship/ui-runtime/template-hooks` so the eight built-in hooks
+    /// register on view module load — `@ship/ui-runtime`'s entry no
+    /// longer ships them, so views that need them have to ask.
+    pub uses_template_hooks: bool,
 }
 
 /// Walk the program, build a `Lowered` summary.
@@ -73,6 +79,9 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
             }
         }
         Instr::Element(el) => {
+            if el.tag.starts_with("use-") {
+                out.uses_template_hooks = true;
+            }
             for a in &el.attrs {
                 bindings::collect_attr_imports(a, out, is_view, *depth);
             }
