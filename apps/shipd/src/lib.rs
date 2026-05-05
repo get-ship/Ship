@@ -129,6 +129,13 @@ pub async fn run_network(
     // but they can't flip the --dev flag on the daemon process they didn't start.
     let host = if dev { "127.0.0.1".to_string() } else { host };
     pairing::set_dev_mode(dev);
+    if dev {
+        if let Some(ref ws) = workspace_dir {
+            if let Err(e) = ship_ui_framework::dev_assets::install(ws.clone()) {
+                tracing::warn!("shipd: dev_assets install failed: {e}");
+            }
+        }
+    }
     let global_dir = runtime::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
 
