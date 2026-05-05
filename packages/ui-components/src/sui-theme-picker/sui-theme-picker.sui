@@ -342,7 +342,7 @@
                   </span>
                   <span class="tc-typo">
                     <span class="tc-body">The quick brown fox</span>
-                    <span class="tc-mono">&#123; build: ok &#125;</span>
+                    <span class="tc-mono">{'{ build: ok }'}</span>
                   </span>
                   <span class="tc-controls">
                     <span class="tc-cta">Action</span>

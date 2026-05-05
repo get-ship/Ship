@@ -39,6 +39,23 @@ pub mod view;
 pub mod view_host;
 pub mod view_payload;
 
+#[cfg(test)]
+pub(crate) mod test_lock {
+    //! One process-wide mutex shared by every test that mutates the
+    //! `SHIP_DEV_PROJECT_DIR` env var. Both the resolver and the
+    //! view_payload suite did this with their OWN mutex; under
+    //! `cargo test`'s parallel runner they raced and one suite saw
+    //! the other's tempdir, surfacing as `view not found: cachey`
+    //! (or similar) flakes. Funnel both through a single static.
+    use std::sync::Mutex;
+
+    static TEST_ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    pub fn lock() -> std::sync::MutexGuard<'static, ()> {
+        TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
+}
+
 // Re-exports the daemon (and any other axum host) consumes to register
 // SUI's HTTP routes.
 pub use runtime::serve_sui_runtime;

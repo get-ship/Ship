@@ -257,7 +257,7 @@ var page_compiled_default = view((ctx) => {
     const __e7 = document.createElement("p");
     __e7.setAttribute("class", "git-loading");
     __e7.setAttribute("data-test", "loading");
-    const __t8 = document.createTextNode("Loading repo overview&hellip;");
+    const __t8 = document.createTextNode("Loading repo overview\u2026");
     __e7.appendChild(__t8);
     __frag5.appendChild(__e7);
     return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
@@ -326,12 +326,12 @@ var page_compiled_default = view((ctx) => {
         const __t86 = document.createTextNode("");
         __e85.appendChild(__t86);
         __c79.push(bindText(__t86, () => $scope2.c.short_sha));
-        const __t87 = document.createTextNode(" &middot; ");
+        const __t87 = document.createTextNode(" \xB7 ");
         __e85.appendChild(__t87);
         const __t88 = document.createTextNode("");
         __e85.appendChild(__t88);
         __c79.push(bindText(__t88, () => $scope2.c.author));
-        const __t89 = document.createTextNode(" &middot; ");
+        const __t89 = document.createTextNode(" \xB7 ");
         __e85.appendChild(__t89);
         const __t90 = document.createTextNode("");
         __e85.appendChild(__t90);
@@ -857,12 +857,12 @@ var page_compiled_default = view((ctx) => {
         const __t196 = document.createTextNode("");
         __e195.appendChild(__t196);
         __c189.push(bindText(__t196, () => $scope2.c.short_sha));
-        const __t197 = document.createTextNode(" &middot; ");
+        const __t197 = document.createTextNode(" \xB7 ");
         __e195.appendChild(__t197);
         const __t198 = document.createTextNode("");
         __e195.appendChild(__t198);
         __c189.push(bindText(__t198, () => $scope2.c.author));
-        const __t199 = document.createTextNode(" &middot; ");
+        const __t199 = document.createTextNode(" \xB7 ");
         __e195.appendChild(__t199);
         const __t200 = document.createTextNode("");
         __e195.appendChild(__t200);
@@ -1149,7 +1149,7 @@ var page_compiled_default = view((ctx) => {
         const __t28 = document.createTextNode("");
         __e24.appendChild(__t28);
         __c19.push(bindText(__t28, () => $scope.behind() > 0 ? " \xE2\x86\x93" + $scope.behind() : ""));
-        const __t29 = document.createTextNode("\n          &middot;\n          ");
+        const __t29 = document.createTextNode("\n          \xB7\n          ");
         __e24.appendChild(__t29);
         const __e30 = document.createElement("span");
         __e30.setAttribute("class", "git-mono");

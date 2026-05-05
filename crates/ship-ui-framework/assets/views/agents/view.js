@@ -32,7 +32,7 @@ var page_compiled_default = view((ctx) => {
     const __e15 = document.createElement("p");
     __e15.setAttribute("class", "loading-copy");
     __e15.setAttribute("data-test", "loading");
-    const __t16 = document.createTextNode("Loading agents&hellip;");
+    const __t16 = document.createTextNode("Loading agents\u2026");
     __e15.appendChild(__t16);
     __frag13.appendChild(__e15);
     return { nodes: Array.from(__frag13.childNodes), cleanup: () => {
@@ -304,7 +304,7 @@ var page_compiled_default = view((ctx) => {
         __e58.appendChild(__e59);
         const __e63 = document.createElement("span");
         __e63.setAttribute("class", "agents-card-sep");
-        const __t64 = document.createTextNode("&middot;");
+        const __t64 = document.createTextNode("\xB7");
         __e63.appendChild(__t64);
         __e58.appendChild(__e63);
         const __e65 = document.createElement("span");
@@ -316,7 +316,7 @@ var page_compiled_default = view((ctx) => {
         __e58.appendChild(__e65);
         const __e68 = document.createElement("span");
         __e68.setAttribute("class", "agents-card-sep");
-        const __t69 = document.createTextNode("&middot;");
+        const __t69 = document.createTextNode("\xB7");
         __e68.appendChild(__t69);
         __e58.appendChild(__e68);
         const __e70 = document.createElement("span");

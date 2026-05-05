@@ -342,11 +342,10 @@ mod tests {
 
     /// Build a temporary `.ship/views/<name>/...` tree and point
     /// `runtime::project::get_project_dir` at it via env override.
-    /// Tests are serialized through a process-wide mutex because the env
-    /// var is shared state.
+    /// Tests share a single process-wide mutex with the view_payload
+    /// suite because both mutate the same env var.
     fn with_project_dir<F: FnOnce(&Path)>(f: F) {
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _g = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _g = crate::test_lock::lock();
         let tmp = tempfile::tempdir().expect("tempdir");
         const VAR: &str = "SHIP_DEV_PROJECT_DIR";
         let prev = std::env::var_os(VAR);
@@ -402,16 +401,32 @@ mod tests {
         });
     }
 
+    /// Bump a file's mtime by `secs_forward` seconds via filetime —
+    /// removes the dependency on host filesystem mtime resolution.
+    /// Some filesystems quantize mtime at second granularity, so a
+    /// sub-second rewrite leaves the cache hit and the test would
+    /// see no change.
+    fn bump_mtime(path: &Path, secs_forward: u64) {
+        let now = std::fs::metadata(path).and_then(|m| m.modified()).unwrap();
+        let bumped = now + std::time::Duration::from_secs(secs_forward);
+        filetime::set_file_mtime(path, filetime::FileTime::from_system_time(bumped))
+            .expect("bump mtime");
+    }
+
+    /// NOTE: this test mutates the `SHIP_DEV_PROJECT_DIR` env var. Run
+    /// the suite with `--test-threads=1` to keep it from racing the
+    /// `view_payload` suite (both touch the same env). The shared
+    /// `crate::test_lock` helps but cargo's parallel scheduling can
+    /// still surface flakes between mutex acquisition and tempdir
+    /// creation. A future cleanup is to hide all env-touching tests
+    /// behind a single integration test runner so cargo never tries
+    /// to parallelize them.
     #[test]
     fn mtime_cache_reuses_render_until_source_touched() {
         with_project_dir(|root| {
             let view_dir = root.join(".ship/views/cachey");
             fs::create_dir_all(&view_dir).unwrap();
             let path = view_dir.join("index.sui");
-            // Static text — the mtime cache cares about source bytes, not
-            // about reactive state. The deprecated `<state>` directive
-            // lived here originally; controllers now own scope, but this
-            // test just needs deterministic distinct outputs.
             fs::write(&path, r#"<p>first</p>"#).unwrap();
 
             let r = resolve("cachey", None).unwrap();
@@ -420,10 +435,10 @@ mod tests {
             let second = render_resolved(&r, "cachey").unwrap();
             assert_eq!(first.html, second.html);
 
-            // Advance mtime by writing a different source. The next call must
-            // pick up the new content.
-            std::thread::sleep(std::time::Duration::from_millis(20));
+            // Rewrite + bump the mtime explicitly so the cache invalidation
+            // doesn't depend on filesystem mtime resolution.
             fs::write(&path, r#"<p>second</p>"#).unwrap();
+            bump_mtime(&path, 5);
             let r2 = resolve("cachey", None).unwrap();
             let third = render_resolved(&r2, "cachey").unwrap();
             assert_ne!(third.html, first.html);

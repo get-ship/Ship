@@ -327,14 +327,14 @@ export default controller<Scope>({
     }
 
     // ── Global keyboard listener ───────────────────────────────────
+    // Cmd/Ctrl+K is owned by the shell (apps/shell2/src/main.ts) which
+    // calls `host.toggle('find')` on this element. Both listeners
+    // running together raced — the cb listener flipped open=true,
+    // then shell2's listener (also seeing the same keypress) called
+    // toggle() which flipped it straight back to false 23ms later.
+    // Keep Escape (close) and double-space (open in AI mode) here
+    // since those are intrinsic to the bar, not shell-wide bindings.
     const onDocKeydown = (e: KeyboardEvent) => {
-      const meta = e.metaKey || e.ctrlKey
-      if (meta && e.key.toLowerCase() === 'k') {
-        e.preventDefault()
-        if (open()) open.set(false)
-        else { mode.set('find'); value.set(''); selectedIdx.set(0); open.set(true) }
-        return
-      }
       if (e.key === 'Escape' && open()) { open.set(false); return }
       if (e.key === ' ' && !open()) {
         const t = e.target as HTMLElement | null

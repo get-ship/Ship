@@ -84,18 +84,121 @@ impl Element {
     }
 }
 
-/// Decode the small set of HTML entities the preprocess step emits.
-/// Anything else passes through verbatim.
+/// Decode HTML entities found in `.sui` text content + attribute values.
+///
+/// Supports:
+///   * The five XML core entities (`&amp;`, `&lt;`, `&gt;`, `&quot;`,
+///     `&apos;`).
+///   * A curated list of common typographic / symbol entities authors
+///     reach for (`&middot;`, `&hellip;`, `&copy;`, etc.). Without
+///     this, templates using `&middot;` rendered the literal text
+///     `&middot;` to the page (visible bug in `views/git/page.sui`
+///     where every `<a> &middot; <b>` pair surfaced as undecoded HTML).
+///   * Numeric character references — both decimal `&#NNN;` and
+///     hexadecimal `&#xHEX;` / `&#XHEX;`.
+///
+/// Anything unrecognized passes through verbatim. The decoder is
+/// linear-time over the input plus the named-entity replace passes.
 pub fn decode_entities(s: &str) -> String {
     if !s.contains('&') {
         return s.to_string();
     }
-    s.replace("&quot;", "\"")
+    let mut out = s
+        .replace("&quot;", "\"")
         .replace("&amp;", "&")
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&apos;", "'")
-        .replace("&nbsp;", "\u{a0}")
+        .replace("&nbsp;", "\u{a0}");
+    for (named, repl) in NAMED_ENTITIES {
+        if out.contains(named) {
+            out = out.replace(named, repl);
+        }
+    }
+    decode_numeric_refs(&out)
+}
+
+const NAMED_ENTITIES: &[(&str, &str)] = &[
+    ("&middot;", "·"),
+    ("&hellip;", "…"),
+    ("&copy;", "©"),
+    ("&reg;", "®"),
+    ("&trade;", "™"),
+    ("&mdash;", "—"),
+    ("&ndash;", "–"),
+    ("&laquo;", "«"),
+    ("&raquo;", "»"),
+    ("&lsquo;", "\u{2018}"),
+    ("&rsquo;", "\u{2019}"),
+    ("&ldquo;", "\u{201C}"),
+    ("&rdquo;", "\u{201D}"),
+    ("&bull;", "•"),
+    ("&deg;", "°"),
+    ("&plusmn;", "±"),
+    ("&times;", "×"),
+    ("&divide;", "÷"),
+    ("&euro;", "€"),
+    ("&pound;", "£"),
+    ("&yen;", "¥"),
+    ("&sect;", "§"),
+    ("&para;", "¶"),
+    ("&dagger;", "†"),
+    ("&Dagger;", "‡"),
+    ("&permil;", "‰"),
+    ("&prime;", "′"),
+    ("&Prime;", "″"),
+    ("&larr;", "←"),
+    ("&uarr;", "↑"),
+    ("&rarr;", "→"),
+    ("&darr;", "↓"),
+    ("&harr;", "↔"),
+    ("&crarr;", "↵"),
+];
+
+/// Decode `&#NNN;` and `&#xHEX;` numeric character references in place.
+/// Unrecognized refs (out-of-range, bad digits, missing semicolon) pass
+/// through verbatim. Operates on byte indices but only branches on the
+/// ASCII `&#…;` pattern so multi-byte UTF-8 is forwarded safely.
+fn decode_numeric_refs(s: &str) -> String {
+    if !s.contains("&#") {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'&' && i + 1 < bytes.len() && bytes[i + 1] == b'#' {
+            let body_start = i + 2;
+            let mut end = body_start;
+            while end < bytes.len() && end - body_start < 8 && bytes[end] != b';' {
+                end += 1;
+            }
+            if end < bytes.len() && bytes[end] == b';' {
+                let body = &s[body_start..end];
+                let codepoint = if let Some(hex) = body.strip_prefix(['x', 'X']) {
+                    u32::from_str_radix(hex, 16).ok()
+                } else {
+                    body.parse::<u32>().ok()
+                };
+                if let Some(cp) = codepoint
+                    && let Some(c) = char::from_u32(cp)
+                {
+                    out.push(c);
+                    i = end + 1;
+                    continue;
+                }
+            }
+        }
+        // Forward one UTF-8 character at a time. `s.is_char_boundary(i)`
+        // is true whenever `i` sits at the start of a UTF-8 sequence
+        // (or at end-of-string).
+        let next_boundary = (i + 1..=bytes.len())
+            .find(|&j| s.is_char_boundary(j))
+            .unwrap_or(bytes.len());
+        out.push_str(&s[i..next_boundary]);
+        i = next_boundary;
+    }
+    out
 }
 
 #[cfg(test)]

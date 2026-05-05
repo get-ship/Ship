@@ -274,12 +274,13 @@ mod tests {
     use super::*;
     use std::fs;
 
-    static RESOLVER_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     const VAR: &str = "SHIP_DEV_PROJECT_DIR";
 
     /// Set `SHIP_DEV_PROJECT_DIR` to the given path for the duration of the
     /// returned guard, restoring the previous value on drop. Tests that
-    /// touch the env must hold the lock, so they're serialized.
+    /// touch the env must hold the shared `crate::test_lock` mutex so
+    /// they're serialized with the resolver test suite (both mutate the
+    /// same env var).
     struct EnvGuard {
         _lock: std::sync::MutexGuard<'static, ()>,
         prev: Option<std::ffi::OsString>,
@@ -293,7 +294,7 @@ mod tests {
         }
     }
     fn lock_with_dir(p: &std::path::Path) -> EnvGuard {
-        let lock = RESOLVER_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let lock = crate::test_lock::lock();
         let prev = std::env::var_os(VAR);
         unsafe { std::env::set_var(VAR, p); }
         EnvGuard { _lock: lock, prev }

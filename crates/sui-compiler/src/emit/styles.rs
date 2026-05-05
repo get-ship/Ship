@@ -25,6 +25,15 @@
 
 /// Remove shared base-sheet rules from `styles`. Returns the stripped
 /// CSS. Idempotent — running it twice produces the same result.
+///
+/// Operates on byte indices so the matchers can fast-path against
+/// ASCII patterns, but copies multi-byte UTF-8 by char-boundary so
+/// non-ASCII content (like the rail's `◀` / `▶` toggle glyphs)
+/// survives intact. The earlier `bytes[i] as char` loop truncated
+/// each UTF-8 byte to a Latin-1 code unit, so `◀` (e2 97 80) showed
+/// up downstream as `â—€` and esbuild serialized that as the byte
+/// escape `\xE2\x97\x80` in the bundled JS — visible as mojibake in
+/// the rendered shadow CSS.
 pub fn strip_shared_rules(styles: &str) -> String {
     let mut out = String::with_capacity(styles.len());
     let bytes = styles.as_bytes();
@@ -53,8 +62,13 @@ pub fn strip_shared_rules(styles: &str) -> String {
             i = j;
             continue;
         }
-        out.push(bytes[i] as char);
-        i += 1;
+        // Forward one full UTF-8 character so multi-byte sequences
+        // aren't sliced byte-by-byte into Latin-1.
+        let next_boundary = (i + 1..=bytes.len())
+            .find(|&j| styles.is_char_boundary(j))
+            .unwrap_or(bytes.len());
+        out.push_str(&styles[i..next_boundary]);
+        i = next_boundary;
     }
     out
 }
