@@ -4,6 +4,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
+import suiPlugin from "@ship/vite-plugin-sui";
+
 /**
  * Walk up from this config to find the workspace root (the dir
  * containing the cargo workspace's `Cargo.toml`). Used to locate the
@@ -92,6 +94,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     base: "/",
+    // vite-plugin-sui handles `.sui` imports in views shell2 mounts during
+    // dev. Adds .sui to the resolve extensions and routes `.sui` files
+    // through sui-compiler with HMR via Vite's handleHotUpdate.
+    plugins: [suiPlugin()],
     server: {
       port: vitePort,
       strictPort: true,

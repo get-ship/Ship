@@ -221,6 +221,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 }
                 RuntimeCommands::Doctor => runtime_cmd::run_doctor(),
             },
+            Commands::Build { target } => runtime_cmd::run_build(target),
             Commands::Uninstall { yes } => uninstall::run(yes),
             Commands::Help => {
                 use clap::CommandFactory;

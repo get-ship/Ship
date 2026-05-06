@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'bun:test'
 import { resolve } from 'node:path'
 
-import { defaultDetect } from '../src/detect.js'
+import { defaultDetect } from '../src/detect'
 
 describe('defaultDetect', () => {
   it('flags <dir>/<dir>.sui as a component named <dir>', () => {

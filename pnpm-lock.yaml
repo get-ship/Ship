@@ -199,6 +199,9 @@ importers:
       '@ship/ui-sdk-client':
         specifier: workspace:*
         version: link:../../packages/ui-sdk-client
+      '@ship/vite-plugin-sui':
+        specifier: workspace:*
+        version: link:../../packages/vite-plugin-sui
     devDependencies:
       playwright:
         specifier: ^1.59.1

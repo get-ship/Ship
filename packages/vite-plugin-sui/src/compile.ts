@@ -2,7 +2,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, join } from 'node:path'
 
-import type { ViteFileMode } from './types.js'
+import type { ViteFileMode } from './types.ts'
 
 export interface CompileResult {
   /** Emitted JS module text. */

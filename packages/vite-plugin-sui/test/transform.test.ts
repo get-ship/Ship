@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'bun:test'
 
-import suiPlugin from '../src/index.js'
+import suiPlugin from '../src/index'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const fixturesDir = join(here, 'fixtures')

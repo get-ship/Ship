@@ -1,6 +1,6 @@
 import { basename, dirname } from 'node:path'
 
-import type { ViteFileMode } from './types.js'
+import type { ViteFileMode } from './types.ts'
 
 /**
  * Default component-vs-view detection.

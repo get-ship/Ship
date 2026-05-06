@@ -4,12 +4,12 @@ import { dirname, isAbsolute, join, resolve } from 'node:path'
 
 import type { Plugin } from 'vite'
 
-import { compileSui } from './compile.js'
-import { defaultDetect } from './detect.js'
-import type { Options, ViteFileMode } from './types.js'
+import { compileSui } from './compile.ts'
+import { defaultDetect } from './detect.ts'
+import type { Options, ViteFileMode } from './types.ts'
 
-export type { Options, ViteFileMode } from './types.js'
-export { defaultDetect } from './detect.js'
+export type { Options, ViteFileMode } from './types.ts'
+export { defaultDetect } from './detect.ts'
 
 export default function suiPlugin(opts: Options = {}): Plugin {
   let resolvedCompiler: string | null = null

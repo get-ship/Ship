@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 use runtime::ShipHome;
-use runtime::toolchain::{InstallOptions, ensure_present, install, update};
+use runtime::toolchain::{BuildOptions, InstallOptions, build, ensure_present, install, update};
 
 pub fn run_install(
     bun: Option<PathBuf>,
@@ -64,4 +64,10 @@ pub fn run_doctor() -> Result<()> {
         }
         Err(e) => Err(anyhow::Error::new(e)),
     }
+}
+
+pub fn run_build(target: Option<String>) -> Result<()> {
+    let home = ShipHome::from_env();
+    build(&home, BuildOptions { repo_root: None, target })?;
+    Ok(())
 }

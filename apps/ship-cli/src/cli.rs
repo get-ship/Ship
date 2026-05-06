@@ -293,6 +293,16 @@ pub enum Commands {
         action: RuntimeCommands,
     },
 
+    /// Build all asset bundles via the Vite + sui-compiler pipeline (replaces
+    /// `node scripts/build-bundles.mjs`). Equivalent to `bun scripts/build-bundles-vite.mjs`
+    /// running through the bundled toolchain at ~/.ship/runtime/.
+    Build {
+        /// Restrict to a single bundle target (e.g. sui-runtime, sui-components,
+        /// views/counter/view, sui-islands/sui-command-bar).
+        #[arg(long)]
+        target: Option<String>,
+    },
+
     /// Uninstall Ship from this machine (stops daemon, removes ~/.ship, scrubs PATH)
     Uninstall {
         /// Skip the confirmation prompt
