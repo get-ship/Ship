@@ -1,0 +1,17 @@
+{
+  "name": "spike-bun-vite",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Step 1 of vite-plugin-bun job — spike to validate Bun + Vite + custom plugin compose end-to-end. Not a deliverable; not in the pnpm workspace.",
+  "scripts": {
+    "dev": ".local/bun run vite",
+    "build": ".local/bun run vite build",
+    "preview": ".local/bun run vite preview"
+  },
+  "devDependencies": {
+    "vite": "^7.3.1",
+    "@vitejs/plugin-legacy": "^8.0.1",
+    "terser": "^5.36.0"
+  }
+}
