@@ -287,6 +287,12 @@ pub enum Commands {
         action: DaemonCommands,
     },
 
+    /// Manage the bundled JS toolchain at ~/.ship/runtime/ (Bun + Vite + sui-compiler)
+    Runtime {
+        #[command(subcommand)]
+        action: RuntimeCommands,
+    },
+
     /// Uninstall Ship from this machine (stops daemon, removes ~/.ship, scrubs PATH)
     Uninstall {
         /// Skip the confirmation prompt
@@ -302,6 +308,38 @@ pub enum Commands {
         #[command(subcommand)]
         action: OpenapiCommands,
     },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum RuntimeCommands {
+    /// Install or repair ~/.ship/runtime/ from local sources (Bun on PATH +
+    /// in-repo target/release/sui-compiler by default; override with --bun /
+    /// --sui-compiler).
+    Install {
+        /// Path to the Bun binary to copy in. Defaults to `which bun`.
+        #[arg(long, value_name = "PATH")]
+        bun: Option<PathBuf>,
+        /// Path to the sui-compiler binary to copy in. Defaults to a walk-up
+        /// search for target/release/sui-compiler from cwd.
+        #[arg(long = "sui-compiler", value_name = "PATH")]
+        sui_compiler: Option<PathBuf>,
+        /// Skip the post-install `bun install` step that populates node_modules/.
+        /// Used by tests; rarely needed in real workflows.
+        #[arg(long)]
+        skip_bun_install: bool,
+    },
+    /// Wipe ~/.ship/runtime/ and reinstall fresh. Same flags as install.
+    Update {
+        #[arg(long, value_name = "PATH")]
+        bun: Option<PathBuf>,
+        #[arg(long = "sui-compiler", value_name = "PATH")]
+        sui_compiler: Option<PathBuf>,
+        #[arg(long)]
+        skip_bun_install: bool,
+    },
+    /// Verify the toolchain is healthy. Reports the first missing or
+    /// non-executable component, and exits non-zero on any failure.
+    Doctor,
 }
 
 #[derive(Subcommand, Debug)]

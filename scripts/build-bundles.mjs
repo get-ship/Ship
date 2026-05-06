@@ -307,9 +307,15 @@ async function buildOne(t) {
     setup(build) {
       build.onResolve({ filter: /^@ship\/ui-runtime\/.+/ }, async (args) => {
         const sub = args.path.slice('@ship/ui-runtime/'.length);
-        return {
-          path: join(repoRoot, 'packages/ui-runtime/src', `${sub}/index.ts`),
-        };
+        // Subpath exports may be a directory with index.ts (template-hooks/)
+        // or a flat file (patch.ts, route.ts → patch.ts is single-file in
+        // the source tree even though `route` is a dir). Prefer the dir
+        // form, fall back to the .ts file. Mirror package.json exports
+        // logic without re-implementing the resolver wholesale.
+        const dirEntry = join(repoRoot, 'packages/ui-runtime/src', `${sub}/index.ts`);
+        const fileEntry = join(repoRoot, 'packages/ui-runtime/src', `${sub}.ts`);
+        const path = existsSync(dirEntry) ? dirEntry : fileEntry;
+        return { path };
       });
     },
   };
