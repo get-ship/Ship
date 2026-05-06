@@ -19,15 +19,17 @@ use axum::{
 const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
 
 /// `GET /_sui/runtime.js` — serves the bundled `@ship/ui-runtime` module.
+///
+/// The hot-reload override that previously pointed dev-mode requests at a
+/// freshly-rebuilt bundle is gone — Vite's dev server (Step 6 of the
+/// vite-plugin-bun migration) owns HMR end-to-end, pushing module
+/// updates straight to the browser. The daemon now always serves the
+/// `include_str!`-baked production bundle at this path.
 pub async fn serve_sui_runtime() -> Response {
-    let (body, cache_control) = match crate::dev_assets::override_for("sui-runtime").await {
-        Some(bytes) => (Body::from(bytes), "no-cache"),
-        None => (Body::from(SUI_RUNTIME_JS), "public, max-age=3600, immutable"),
-    };
     Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(header::CACHE_CONTROL, cache_control)
-        .body(body)
+        .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
+        .body(Body::from(SUI_RUNTIME_JS))
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
