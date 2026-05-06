@@ -1,4 +1,4 @@
-// views/agents/dist/page.compiled.js
+// views/agents/page.sui
 import { bindAttr, bindFor, bindIf, bindText, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship/ui-runtime";
 import { collectElementMarkers, collectTextOpens, hydrateOn, hydrateText, hydrateWhileError, hydrateWhileLoading } from "@ship/ui-dom";
 
@@ -14,17 +14,18 @@ var controller_default = controller({
   }
 });
 
-// views/agents/dist/page.compiled.js
-var page_compiled_default = view((ctx) => {
+// views/agents/page.sui
+var page_default = view((ctx) => {
   const { ship, route, navigate } = ctx;
-  const $scope = /* @__PURE__ */ Object.create(null);
+  const $scope = Object.create(null);
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
   $scope.agents = live(() => ship.agents.summaries());
   if (controller_default && typeof controller_default.setup === "function") {
     const __r = controller_default.setup(ctx);
-    if (__r && typeof __r === "object") Object.assign($scope, __r);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
   const __renderWhileLoading_0 = () => {
     const __frag13 = document.createDocumentFragment();
@@ -32,14 +33,14 @@ var page_compiled_default = view((ctx) => {
     const __e15 = document.createElement("p");
     __e15.setAttribute("class", "loading-copy");
     __e15.setAttribute("data-test", "loading");
-    const __t16 = document.createTextNode("Loading agents\u2026");
+    const __t16 = document.createTextNode("Loading agents…");
     __e15.appendChild(__t16);
     __frag13.appendChild(__e15);
     return { nodes: Array.from(__frag13.childNodes), cleanup: () => {
-      for (const c of __c14) try {
-        c();
-      } catch (e) {
-      }
+      for (const c of __c14)
+        try {
+          c();
+        } catch (e) {}
     } };
   };
   const __renderWhileError_0 = (err) => {
@@ -58,10 +59,10 @@ var page_compiled_default = view((ctx) => {
       __c20.push(bindText(__t23, () => $scope2.err.message));
       __frag19.appendChild(__e21);
       return { nodes: Array.from(__frag19.childNodes), cleanup: () => {
-        for (const c of __c20) try {
-          c();
-        } catch (e) {
-        }
+        for (const c of __c20)
+          try {
+            c();
+          } catch (e) {}
       } };
     })(__childScope18);
   };
@@ -99,10 +100,10 @@ var page_compiled_default = view((ctx) => {
               __c81.push(bindText(__t83, () => $scope3.p));
               __frag80.appendChild(__e82);
               return { nodes: Array.from(__frag80.childNodes), cleanup: () => {
-                for (const c of __c81) try {
-                  c();
-                } catch (e) {
-                }
+                for (const c of __c81)
+                  try {
+                    c();
+                  } catch (e) {}
               } };
             })(__childScope79);
           }
@@ -110,7 +111,8 @@ var page_compiled_default = view((ctx) => {
         const __wireBoundary_b23 = (anchor2) => bindIf({
           anchor: anchor2,
           test: () => {
-            if ($scope2.a.providers.length > 4) return 0;
+            if ($scope2.a.providers.length > 4)
+              return 0;
             return -1;
           },
           branches: [
@@ -128,10 +130,10 @@ var page_compiled_default = view((ctx) => {
               __c86.push(bindText(__t89, () => $scope2.a.providers.length - 4));
               __frag85.appendChild(__e87);
               return { nodes: Array.from(__frag85.childNodes), cleanup: () => {
-                for (const c of __c86) try {
-                  c();
-                } catch (e) {
-                }
+                for (const c of __c86)
+                  try {
+                    c();
+                  } catch (e) {}
               } };
             }
           ]
@@ -139,7 +141,8 @@ var page_compiled_default = view((ctx) => {
         const __wireBoundary_b19 = (anchor2) => bindIf({
           anchor: anchor2,
           test: () => {
-            if ($scope2.a.providers && $scope2.a.providers.length > 0) return 0;
+            if ($scope2.a.providers && $scope2.a.providers.length > 0)
+              return 0;
             return -1;
           },
           branches: [
@@ -157,10 +160,10 @@ var page_compiled_default = view((ctx) => {
               __c76.push(__wireBoundary_b23(__ifAnchor84));
               __frag75.appendChild(__e77);
               return { nodes: Array.from(__frag75.childNodes), cleanup: () => {
-                for (const c of __c76) try {
-                  c();
-                } catch (e) {
-                }
+                for (const c of __c76)
+                  try {
+                    c();
+                  } catch (e) {}
               } };
             }
           ]
@@ -168,7 +171,8 @@ var page_compiled_default = view((ctx) => {
         const __wireBoundary_b26 = (anchor2) => bindIf({
           anchor: anchor2,
           test: () => {
-            if ($scope2.a.active) return 0;
+            if ($scope2.a.active)
+              return 0;
             return -1;
           },
           branches: [
@@ -186,14 +190,16 @@ var page_compiled_default = view((ctx) => {
               __e97.setAttribute("pulse", "");
               __e97.setAttribute("label", "Active session");
               __e96.appendChild(__e97);
-              const __t98 = document.createTextNode("\n                      active session\n                    ");
+              const __t98 = document.createTextNode(`
+                      active session
+                    `);
               __e96.appendChild(__t98);
               __frag94.appendChild(__e96);
               return { nodes: Array.from(__frag94.childNodes), cleanup: () => {
-                for (const c of __c95) try {
-                  c();
-                } catch (e) {
-                }
+                for (const c of __c95)
+                  try {
+                    c();
+                  } catch (e) {}
               } };
             }
           ]
@@ -217,10 +223,10 @@ var page_compiled_default = view((ctx) => {
               __c102.push(bindText(__t104, () => $scope3.t));
               __frag101.appendChild(__e103);
               return { nodes: Array.from(__frag101.childNodes), cleanup: () => {
-                for (const c of __c102) try {
-                  c();
-                } catch (e) {
-                }
+                for (const c of __c102)
+                  try {
+                    c();
+                  } catch (e) {}
               } };
             })(__childScope100);
           }
@@ -228,7 +234,8 @@ var page_compiled_default = view((ctx) => {
         const __wireBoundary_b29 = (anchor2) => bindIf({
           anchor: anchor2,
           test: () => {
-            if (($scope2.a.tags || []).length > 2) return 0;
+            if (($scope2.a.tags || []).length > 2)
+              return 0;
             return -1;
           },
           branches: [
@@ -246,10 +253,10 @@ var page_compiled_default = view((ctx) => {
               __c107.push(bindText(__t110, () => ($scope2.a.tags || []).length - 2));
               __frag106.appendChild(__e108);
               return { nodes: Array.from(__frag106.childNodes), cleanup: () => {
-                for (const c of __c107) try {
-                  c();
-                } catch (e) {
-                }
+                for (const c of __c107)
+                  try {
+                    c();
+                  } catch (e) {}
               } };
             }
           ]
@@ -304,7 +311,7 @@ var page_compiled_default = view((ctx) => {
         __e58.appendChild(__e59);
         const __e63 = document.createElement("span");
         __e63.setAttribute("class", "agents-card-sep");
-        const __t64 = document.createTextNode("\xB7");
+        const __t64 = document.createTextNode("·");
         __e63.appendChild(__t64);
         __e58.appendChild(__e63);
         const __e65 = document.createElement("span");
@@ -316,7 +323,7 @@ var page_compiled_default = view((ctx) => {
         __e58.appendChild(__e65);
         const __e68 = document.createElement("span");
         __e68.setAttribute("class", "agents-card-sep");
-        const __t69 = document.createTextNode("\xB7");
+        const __t69 = document.createTextNode("·");
         __e68.appendChild(__t69);
         __e58.appendChild(__e68);
         const __e70 = document.createElement("span");
@@ -357,10 +364,10 @@ var page_compiled_default = view((ctx) => {
         __e48.appendChild(__e52);
         __frag46.appendChild(__e48);
         return { nodes: Array.from(__frag46.childNodes), cleanup: () => {
-          for (const c of __c47) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c47)
+            try {
+              c();
+            } catch (e) {}
         } };
       })(__childScope45);
     }
@@ -368,7 +375,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b7 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.items().length === 0) return 0;
+      if ($scope.items().length === 0)
+        return 0;
       return 1;
     },
     branches: [
@@ -385,37 +393,42 @@ var page_compiled_default = view((ctx) => {
         const __t33 = document.createTextNode("No agents yet");
         __e32.appendChild(__t33);
         __e31.appendChild(__e32);
-        const __t34 = document.createTextNode("\n          Drop a JSONC file under\n          ");
+        const __t34 = document.createTextNode(`
+          Drop a JSONC file under
+          `);
         __e31.appendChild(__t34);
         const __e35 = document.createElement("code");
         __e35.setAttribute("class", "agents-empty-code");
         const __t36 = document.createTextNode(".ship/agents/");
         __e35.appendChild(__t36);
         __e31.appendChild(__e35);
-        const __t37 = document.createTextNode("\n          or create one from the Studio.\n          ");
+        const __t37 = document.createTextNode(`
+          or create one from the Studio.
+          `);
         __e31.appendChild(__t37);
         const __e38 = document.createElement("sui-button");
         __e38.setAttribute("slot", "action");
         __e38.setAttribute("tone", "primary");
         __e38.setAttribute("variant", "solid");
-        __c30.push(on(__e38, "click", (function() {
+        __c30.push(on(__e38, "click", function() {
           const __h = $scope.newAgent;
-          return typeof __h === "function" ? __h.bind(void 0) : (() => {
-          });
-        })(), { modifiers: [] }));
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
         const __e39 = document.createElement("sui-icon");
         __e39.setAttribute("slot", "leading");
         __e39.setAttribute("name", "plus");
         __e38.appendChild(__e39);
-        const __t40 = document.createTextNode("\n            New agent\n          ");
+        const __t40 = document.createTextNode(`
+            New agent
+          `);
         __e38.appendChild(__t40);
         __e31.appendChild(__e38);
         __frag29.appendChild(__e31);
         return { nodes: Array.from(__frag29.childNodes), cleanup: () => {
-          for (const c of __c30) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c30)
+            try {
+              c();
+            } catch (e) {}
         } };
       },
       () => {
@@ -430,10 +443,10 @@ var page_compiled_default = view((ctx) => {
         __c42.push(__wireBoundary_b9(__forAnchor44));
         __frag41.appendChild(__e43);
         return { nodes: Array.from(__frag41.childNodes), cleanup: () => {
-          for (const c of __c42) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c42)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -441,7 +454,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b6 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.agents().kind === "ok") return 0;
+      if ($scope.agents().kind === "ok")
+        return 0;
       return -1;
     },
     branches: [
@@ -452,10 +466,10 @@ var page_compiled_default = view((ctx) => {
         __frag26.appendChild(__ifAnchor28);
         __c27.push(__wireBoundary_b7(__ifAnchor28));
         return { nodes: Array.from(__frag26.childNodes), cleanup: () => {
-          for (const c of __c27) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c27)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -491,16 +505,17 @@ var page_compiled_default = view((ctx) => {
       const __e10 = document.createElement("sui-button");
       __e10.setAttribute("tone", "primary");
       __e10.setAttribute("variant", "solid");
-      __cleanups.push(on(__e10, "click", (function() {
+      __cleanups.push(on(__e10, "click", function() {
         const __h = $scope.newAgent;
-        return typeof __h === "function" ? __h.bind(void 0) : (() => {
-        });
-      })(), { modifiers: [] }));
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
       const __e11 = document.createElement("sui-icon");
       __e11.setAttribute("slot", "leading");
       __e11.setAttribute("name", "plus");
       __e10.appendChild(__e11);
-      const __t12 = document.createTextNode("\n        New agent\n      ");
+      const __t12 = document.createTextNode(`
+        New agent
+      `);
       __e10.appendChild(__t12);
       __e2.appendChild(__e10);
       __e1.appendChild(__e2);
@@ -516,41 +531,46 @@ var page_compiled_default = view((ctx) => {
       __e0.appendChild(__e1);
       container.appendChild(__e0);
       return () => {
-        for (const c of __cleanups) try {
-          c();
-        } catch (e) {
-        }
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
       };
     },
     hydrate(root, ctx2) {
       const __cleanups = [];
       const __t = collectTextOpens(root);
       const __m = collectElementMarkers(root);
-      if (__t["b0"]) __cleanups.push(hydrateText(__t["b0"], () => $scope.total()));
-      if (__t["b1"]) __cleanups.push(hydrateText(__t["b1"], () => $scope.total() === 1 ? "" : "s"));
-      if (__m["b2"]) __cleanups.push(hydrateOn(__m["b2"], "click", (function() {
-        const __h = $scope.newAgent;
-        return typeof __h === "function" ? __h.bind(void 0) : (() => {
-        });
-      })(), []));
-      if (__m["b3"]) __cleanups.push(hydrateWhileLoading(__m["b3"], "b3", () => $scope.agents(), __renderWhileLoading_0));
-      if (__m["b4"]) __cleanups.push(hydrateWhileError(__m["b4"], "b4", () => $scope.agents(), __renderWhileError_0));
+      if (__t["b0"])
+        __cleanups.push(hydrateText(__t["b0"], () => $scope.total()));
+      if (__t["b1"])
+        __cleanups.push(hydrateText(__t["b1"], () => $scope.total() === 1 ? "" : "s"));
+      if (__m["b2"])
+        __cleanups.push(hydrateOn(__m["b2"], "click", function() {
+          const __h = $scope.newAgent;
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b3"])
+        __cleanups.push(hydrateWhileLoading(__m["b3"], "b3", () => $scope.agents(), __renderWhileLoading_0));
+      if (__m["b4"])
+        __cleanups.push(hydrateWhileError(__m["b4"], "b4", () => $scope.agents(), __renderWhileError_0));
       if (__m["b6"]) {
         const __t2 = __m["b6"];
         const __doc = __t2.ownerDocument ?? document;
         const __anchor = __t2.nodeType === 1 ? __doc.createComment("if") : __t2;
-        if (__t2.nodeType === 1 && __t2.parentNode) __t2.parentNode.replaceChild(__anchor, __t2);
+        if (__t2.nodeType === 1 && __t2.parentNode)
+          __t2.parentNode.replaceChild(__anchor, __t2);
         __cleanups.push(__wireBoundary_b6(__anchor));
       }
       return () => {
-        for (const c of __cleanups) try {
-          c();
-        } catch (e) {
-        }
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
       };
     }
   });
 });
 export {
-  page_compiled_default as default
+  page_default as default
 };

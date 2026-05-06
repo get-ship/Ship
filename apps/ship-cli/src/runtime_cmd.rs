@@ -10,45 +10,31 @@ use std::path::PathBuf;
 use anyhow::Result;
 
 use runtime::ShipHome;
-use runtime::toolchain::{BuildOptions, InstallOptions, build, ensure_present, install, update};
+use runtime::toolchain::{InstallOptions, ensure_present, install, update};
 
-pub fn run_install(
-    bun: Option<PathBuf>,
-    sui_compiler: Option<PathBuf>,
-    skip_bun_install: bool,
-) -> Result<()> {
+pub fn run_install(bun: Option<PathBuf>, sui_compiler: Option<PathBuf>) -> Result<()> {
     let home = ShipHome::from_env();
     let opts = InstallOptions {
         bun_source: bun,
         sui_compiler_source: sui_compiler,
-        skip_bun_install,
+        bundler_ts_source: None,
         clean: false,
     };
     install(&home, opts)?;
-    println!(
-        "ship runtime: installed at {}",
-        home.runtime_dir().display()
-    );
+    println!("ship runtime: installed at {}", home.runtime_dir().display());
     Ok(())
 }
 
-pub fn run_update(
-    bun: Option<PathBuf>,
-    sui_compiler: Option<PathBuf>,
-    skip_bun_install: bool,
-) -> Result<()> {
+pub fn run_update(bun: Option<PathBuf>, sui_compiler: Option<PathBuf>) -> Result<()> {
     let home = ShipHome::from_env();
     let opts = InstallOptions {
         bun_source: bun,
         sui_compiler_source: sui_compiler,
-        skip_bun_install,
+        bundler_ts_source: None,
         clean: true,
     };
     update(&home, opts)?;
-    println!(
-        "ship runtime: updated at {}",
-        home.runtime_dir().display()
-    );
+    println!("ship runtime: updated at {}", home.runtime_dir().display());
     Ok(())
 }
 
@@ -56,18 +42,9 @@ pub fn run_doctor() -> Result<()> {
     let home = ShipHome::from_env();
     match ensure_present(&home) {
         Ok(()) => {
-            println!(
-                "ship runtime: healthy — {} ✓",
-                home.runtime_dir().display()
-            );
+            println!("ship runtime: healthy — {} ✓", home.runtime_dir().display());
             Ok(())
         }
         Err(e) => Err(anyhow::Error::new(e)),
     }
-}
-
-pub fn run_build(target: Option<String>) -> Result<()> {
-    let home = ShipHome::from_env();
-    build(&home, BuildOptions { repo_root: None, target })?;
-    Ok(())
 }

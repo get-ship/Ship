@@ -102,6 +102,12 @@ pub struct ShipRuntime {
     started_at: std::time::Instant,
     /// Hook engine (external source adapters + hot-reload watcher).
     hook_engine: std::sync::OnceLock<std::sync::Arc<runtime::hooks::engine::HookEngine>>,
+    /// Bun bundler worker — owned here, lazily started on first access.
+    /// `Bundler::start` is synchronous (it spawns a child and returns a
+    /// handle), so a `std::sync::OnceLock` is the right primitive — using
+    /// `tokio::sync::OnceCell` would require `get_or_init` to take an
+    /// `async` initializer.
+    pub bundler: std::sync::OnceLock<runtime::bundler::Bundler>,
 }
 
 impl ShipRuntime {
@@ -259,6 +265,7 @@ impl ShipRuntime {
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
+            bundler: std::sync::OnceLock::new(),
         })
     }
 
@@ -357,6 +364,23 @@ impl ShipRuntime {
     /// Attached project workspace, if the daemon was launched with one.
     pub fn workspace_dir(&self) -> Option<&Path> {
         self.workspace_dir.as_deref()
+    }
+
+    /// Lazily start and return the Bun bundler worker.
+    ///
+    /// The worker process is spawned on first call and supervised thereafter.
+    /// The repo root defaults to the workspace dir (or cwd as fallback) since
+    /// that's where `packages/` and `views/` live.
+    pub fn bundler(&self) -> &runtime::bundler::Bundler {
+        self.bundler.get_or_init(|| {
+            let home = runtime::ShipHome::at(self.ship_dir.clone());
+            let repo_root = self
+                .workspace_dir
+                .clone()
+                .or_else(|| std::env::current_dir().ok())
+                .unwrap_or_else(|| self.ship_dir.clone());
+            runtime::bundler::Bundler::start(&home, repo_root)
+        })
     }
 
     /// Stable project slug for the attached workspace. `None` when the daemon

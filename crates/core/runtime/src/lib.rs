@@ -1,5 +1,6 @@
 pub mod actor;
 pub mod agents;
+pub mod bundler;
 pub mod collections;
 pub mod config;
 pub mod data;

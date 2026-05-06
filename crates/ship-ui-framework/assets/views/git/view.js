@@ -1,186 +1,7 @@
-// views/git/dist/page.compiled.js
+// views/git/page.sui
 import { bindAttr, bindFor, bindIf, bindText, bindValue, bindWhileError, bindWhileLoading, data, live, on, view } from "@ship/ui-runtime";
 import { collectElementMarkers, hydrateWhileError, hydrateWhileLoading } from "@ship/ui-dom";
-
-// packages/ui-runtime/src/template-hooks/index.ts
-import { registerTemplateHook } from "@ship/ui-runtime";
-
-// packages/ui-runtime/src/template-hooks/kbd.ts
-import { matchesKey } from "@ship/ui-runtime";
-var useKbdHook = {
-  name: "kbd",
-  attrs: { shortcuts: "literal", resolve: "literal" },
-  children: true,
-  factory: (ctx) => {
-    const { shortcuts, resolve } = ctx.attrs;
-    if (!shortcuts || shortcuts.length === 0) return;
-    const handler = (event) => {
-      for (const sc of shortcuts) {
-        if (matchesKey(event, sc.key)) {
-          const fn = resolve(sc.action);
-          if (fn) fn(event);
-          return;
-        }
-      }
-    };
-    document.addEventListener("keydown", handler);
-    ctx.cleanup(() => document.removeEventListener("keydown", handler));
-  }
-};
-
-// packages/ui-runtime/src/template-hooks/click-outside.ts
-var useClickOutsideHook = {
-  name: "click-outside",
-  attrs: { target: "binding", action: "binding" },
-  factory: (ctx) => {
-    const { target, action } = ctx.attrs;
-    if (!target || !action) return;
-    const handler = (event) => {
-      const t = event.target;
-      if (t instanceof Node && target.contains(t)) return;
-      action(event);
-    };
-    document.addEventListener("mousedown", handler, true);
-    ctx.cleanup(() => document.removeEventListener("mousedown", handler, true));
-  }
-};
-
-// packages/ui-runtime/src/template-hooks/shell.ts
-var useShellHook = {
-  name: "shell",
-  attrs: { as: "literal" },
-  factory: (_ctx) => {
-    return typeof window !== "undefined" && window.__shipShell || {};
-  }
-};
-
-// packages/ui-runtime/src/template-hooks/focus-trap.ts
-var FOCUSABLE = 'a[href],area[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),button:not([disabled]),iframe,object,embed,[tabindex]:not([tabindex="-1"]),[contenteditable]';
-function focusables(el) {
-  return Array.from(el.querySelectorAll(FOCUSABLE)).filter(
-    (e) => !e.closest("[hidden]") && e.getAttribute("aria-hidden") !== "true"
-  );
-}
-var useFocusTrapHook = {
-  name: "focus-trap",
-  attrs: { target: "binding" },
-  factory: (ctx) => {
-    const { target } = ctx.attrs;
-    if (!target) return;
-    const previously = document.activeElement;
-    const all = focusables(target);
-    if (all.length > 0) all[0].focus();
-    const handler = (e) => {
-      if (e.key !== "Tab") return;
-      const els = focusables(target);
-      if (!els.length) {
-        e.preventDefault();
-        return;
-      }
-      const first = els[0];
-      const last = els[els.length - 1];
-      if (e.shiftKey) {
-        if (document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        }
-      } else {
-        if (document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    };
-    document.addEventListener("keydown", handler);
-    ctx.cleanup(() => {
-      document.removeEventListener("keydown", handler);
-      previously?.focus();
-    });
-  }
-};
-
-// packages/ui-runtime/src/template-hooks/clipboard.ts
-var useClipboardHook = {
-  name: "clipboard",
-  attrs: { text: "binding", onCopy: "binding" },
-  factory: (ctx) => {
-    const { text, onCopy } = ctx.attrs;
-    if (text === void 0 || text === null) return;
-    const handler = () => {
-      const value = typeof text === "function" ? text() : text;
-      navigator.clipboard.writeText(value).then(() => {
-        onCopy?.();
-      });
-    };
-    ctx.el.addEventListener("click", handler);
-    ctx.cleanup(() => ctx.el.removeEventListener("click", handler));
-  }
-};
-
-// packages/ui-runtime/src/template-hooks/title.ts
-import { effect } from "@ship/ui-runtime";
-var useTitleHook = {
-  name: "title",
-  attrs: { text: "binding" },
-  factory: (ctx) => {
-    const { text } = ctx.attrs;
-    if (text === void 0 || text === null) return;
-    const prev = document.title;
-    const dispose = effect(() => {
-      document.title = typeof text === "function" ? text() : text;
-    });
-    ctx.cleanup(() => {
-      dispose();
-      document.title = prev;
-    });
-  }
-};
-
-// packages/ui-runtime/src/template-hooks/scroll-anchor.ts
-var useScrollAnchorHook = {
-  name: "scroll-anchor",
-  attrs: { id: "literal" },
-  factory: (ctx) => {
-    const { id } = ctx.attrs;
-    if (!id) return;
-    const { el } = ctx;
-    const check = () => {
-      if (window.location.hash === `#${id}`) {
-        el.scrollIntoView({ behavior: "smooth" });
-      }
-    };
-    window.addEventListener("hashchange", check);
-    check();
-    ctx.cleanup(() => window.removeEventListener("hashchange", check));
-  }
-};
-
-// packages/ui-runtime/src/template-hooks/intersection.ts
-var useIntersectionHook = {
-  name: "intersection",
-  attrs: { on: "binding" },
-  factory: (ctx) => {
-    const { on: on2 } = ctx.attrs;
-    if (!on2 || typeof IntersectionObserver === "undefined") return;
-    const observer = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) on2(entry);
-      }
-    });
-    observer.observe(ctx.el);
-    ctx.cleanup(() => observer.disconnect());
-  }
-};
-
-// packages/ui-runtime/src/template-hooks/index.ts
-registerTemplateHook(useKbdHook);
-registerTemplateHook(useClickOutsideHook);
-registerTemplateHook(useShellHook);
-registerTemplateHook(useFocusTrapHook);
-registerTemplateHook(useClipboardHook);
-registerTemplateHook(useTitleHook);
-registerTemplateHook(useScrollAnchorHook);
-registerTemplateHook(useIntersectionHook);
+import"@ship/ui-runtime/template-hooks";
 
 // views/git/controller.ts
 import { controller, signal, unwrapOr, useFilteredList } from "@ship/ui-runtime";
@@ -219,9 +40,9 @@ var controller_default = controller({
     recentBranches: (s) => read(s).branches.slice(0, 6)
   },
   use: (s) => ({
-    // Filter on subject, short sha, or author — three needles, one query.
     commitFilter: useFilteredList(() => read(s).commits, (c, q) => {
-      if (!q) return true;
+      if (!q)
+        return true;
       const needle = q.toLowerCase();
       return c.subject.toLowerCase().includes(needle) || c.short_sha.toLowerCase().includes(needle) || c.author.toLowerCase().includes(needle);
     })
@@ -239,17 +60,18 @@ var controller_default = controller({
   }
 });
 
-// views/git/dist/page.compiled.js
-var page_compiled_default = view((ctx) => {
+// views/git/page.sui
+var page_default = view((ctx) => {
   const { ship, route, navigate } = ctx;
-  const $scope = /* @__PURE__ */ Object.create(null);
+  const $scope = Object.create(null);
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
   $scope.overview = live(() => ship.git.overview());
   if (controller_default && typeof controller_default.setup === "function") {
     const __r = controller_default.setup(ctx);
-    if (__r && typeof __r === "object") Object.assign($scope, __r);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
   const __renderWhileLoading_0 = () => {
     const __frag5 = document.createDocumentFragment();
@@ -257,14 +79,14 @@ var page_compiled_default = view((ctx) => {
     const __e7 = document.createElement("p");
     __e7.setAttribute("class", "git-loading");
     __e7.setAttribute("data-test", "loading");
-    const __t8 = document.createTextNode("Loading repo overview\u2026");
+    const __t8 = document.createTextNode("Loading repo overview…");
     __e7.appendChild(__t8);
     __frag5.appendChild(__e7);
     return { nodes: Array.from(__frag5.childNodes), cleanup: () => {
-      for (const c of __c6) try {
-        c();
-      } catch (e) {
-      }
+      for (const c of __c6)
+        try {
+          c();
+        } catch (e) {}
     } };
   };
   const __renderWhileError_0 = (err) => {
@@ -283,10 +105,10 @@ var page_compiled_default = view((ctx) => {
       __c12.push(bindText(__t15, () => $scope2.err.message));
       __frag11.appendChild(__e13);
       return { nodes: Array.from(__frag11.childNodes), cleanup: () => {
-        for (const c of __c12) try {
-          c();
-        } catch (e) {
-        }
+        for (const c of __c12)
+          try {
+            c();
+          } catch (e) {}
       } };
     })(__childScope10);
   };
@@ -326,12 +148,12 @@ var page_compiled_default = view((ctx) => {
         const __t86 = document.createTextNode("");
         __e85.appendChild(__t86);
         __c79.push(bindText(__t86, () => $scope2.c.short_sha));
-        const __t87 = document.createTextNode(" \xB7 ");
+        const __t87 = document.createTextNode(" · ");
         __e85.appendChild(__t87);
         const __t88 = document.createTextNode("");
         __e85.appendChild(__t88);
         __c79.push(bindText(__t88, () => $scope2.c.author));
-        const __t89 = document.createTextNode(" \xB7 ");
+        const __t89 = document.createTextNode(" · ");
         __e85.appendChild(__t89);
         const __t90 = document.createTextNode("");
         __e85.appendChild(__t90);
@@ -359,10 +181,10 @@ var page_compiled_default = view((ctx) => {
         __e80.appendChild(__e91);
         __frag78.appendChild(__e80);
         return { nodes: Array.from(__frag78.childNodes), cleanup: () => {
-          for (const c2 of __c79) try {
-            c2();
-          } catch (e) {
-          }
+          for (const c2 of __c79)
+            try {
+              c2();
+            } catch (e) {}
         } };
       })(__childScope77);
     }
@@ -370,7 +192,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b25 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.recentCommits().length === 0) return 0;
+      if ($scope.recentCommits().length === 0)
+        return 0;
       return 1;
     },
     branches: [
@@ -383,10 +206,10 @@ var page_compiled_default = view((ctx) => {
         __e72.appendChild(__t73);
         __frag70.appendChild(__e72);
         return { nodes: Array.from(__frag70.childNodes), cleanup: () => {
-          for (const c of __c71) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c71)
+            try {
+              c();
+            } catch (e) {}
         } };
       },
       () => {
@@ -396,10 +219,10 @@ var page_compiled_default = view((ctx) => {
         __frag74.appendChild(__forAnchor76);
         __c75.push(__wireBoundary_b26(__forAnchor76));
         return { nodes: Array.from(__frag74.childNodes), cleanup: () => {
-          for (const c of __c75) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c75)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -446,17 +269,17 @@ var page_compiled_default = view((ctx) => {
         __e119.setAttribute("class", "git-deltas");
         const __t120 = document.createTextNode("");
         __e119.appendChild(__t120);
-        __c111.push(bindText(__t120, () => $scope2.b.ahead > 0 ? "\xE2\x86\x91" + $scope2.b.ahead : ""));
+        __c111.push(bindText(__t120, () => $scope2.b.ahead > 0 ? "â" + $scope2.b.ahead : ""));
         const __t121 = document.createTextNode("");
         __e119.appendChild(__t121);
-        __c111.push(bindText(__t121, () => $scope2.b.behind > 0 ? " \xE2\x86\x93" + $scope2.b.behind : ""));
+        __c111.push(bindText(__t121, () => $scope2.b.behind > 0 ? " â" + $scope2.b.behind : ""));
         __e112.appendChild(__e119);
         __frag110.appendChild(__e112);
         return { nodes: Array.from(__frag110.childNodes), cleanup: () => {
-          for (const c of __c111) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c111)
+            try {
+              c();
+            } catch (e) {}
         } };
       })(__childScope109);
     }
@@ -464,7 +287,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b34 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.recentBranches().length === 0) return 0;
+      if ($scope.recentBranches().length === 0)
+        return 0;
       return 1;
     },
     branches: [
@@ -477,10 +301,10 @@ var page_compiled_default = view((ctx) => {
         __e104.appendChild(__t105);
         __frag102.appendChild(__e104);
         return { nodes: Array.from(__frag102.childNodes), cleanup: () => {
-          for (const c of __c103) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c103)
+            try {
+              c();
+            } catch (e) {}
         } };
       },
       () => {
@@ -490,10 +314,10 @@ var page_compiled_default = view((ctx) => {
         __frag106.appendChild(__forAnchor108);
         __c107.push(__wireBoundary_b35(__forAnchor108));
         return { nodes: Array.from(__frag106.childNodes), cleanup: () => {
-          for (const c of __c107) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c107)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -521,10 +345,10 @@ var page_compiled_default = view((ctx) => {
         __c136.push(bindText(__t138, () => $scope2.f.path));
         __frag135.appendChild(__e137);
         return { nodes: Array.from(__frag135.childNodes), cleanup: () => {
-          for (const c of __c136) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c136)
+            try {
+              c();
+            } catch (e) {}
         } };
       })(__childScope134);
     }
@@ -532,7 +356,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b41 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.staged().length > 0) return 0;
+      if ($scope.staged().length > 0)
+        return 0;
       return -1;
     },
     branches: [
@@ -555,10 +380,10 @@ var page_compiled_default = view((ctx) => {
         __c127.push(__wireBoundary_b43(__forAnchor133));
         __frag126.appendChild(__e128);
         return { nodes: Array.from(__frag126.childNodes), cleanup: () => {
-          for (const c of __c127) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c127)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -586,10 +411,10 @@ var page_compiled_default = view((ctx) => {
         __c150.push(bindText(__t152, () => $scope2.f.path));
         __frag149.appendChild(__e151);
         return { nodes: Array.from(__frag149.childNodes), cleanup: () => {
-          for (const c of __c150) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c150)
+            try {
+              c();
+            } catch (e) {}
         } };
       })(__childScope148);
     }
@@ -597,7 +422,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b45 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.modified().length > 0) return 0;
+      if ($scope.modified().length > 0)
+        return 0;
       return -1;
     },
     branches: [
@@ -620,10 +446,10 @@ var page_compiled_default = view((ctx) => {
         __c141.push(__wireBoundary_b47(__forAnchor147));
         __frag140.appendChild(__e142);
         return { nodes: Array.from(__frag140.childNodes), cleanup: () => {
-          for (const c of __c141) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c141)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -651,10 +477,10 @@ var page_compiled_default = view((ctx) => {
         __c164.push(bindText(__t166, () => $scope2.f.path));
         __frag163.appendChild(__e165);
         return { nodes: Array.from(__frag163.childNodes), cleanup: () => {
-          for (const c of __c164) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c164)
+            try {
+              c();
+            } catch (e) {}
         } };
       })(__childScope162);
     }
@@ -662,7 +488,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b49 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.untracked().length > 0) return 0;
+      if ($scope.untracked().length > 0)
+        return 0;
       return -1;
     },
     branches: [
@@ -685,10 +512,10 @@ var page_compiled_default = view((ctx) => {
         __c155.push(__wireBoundary_b51(__forAnchor161));
         __frag154.appendChild(__e156);
         return { nodes: Array.from(__frag154.childNodes), cleanup: () => {
-          for (const c of __c155) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c155)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -696,7 +523,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b20 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.clean()) return 0;
+      if ($scope.clean())
+        return 0;
       return 1;
     },
     branches: [
@@ -722,7 +550,8 @@ var page_compiled_default = view((ctx) => {
         __e54.appendChild(__e55);
         const __e57 = document.createElement("p");
         __e57.setAttribute("class", "git-hero-sub");
-        const __t58 = document.createTextNode("\n                  Nothing to commit on ");
+        const __t58 = document.createTextNode(`
+                  Nothing to commit on `);
         __e57.appendChild(__t58);
         const __e59 = document.createElement("span");
         __e59.setAttribute("class", "git-mono");
@@ -730,7 +559,8 @@ var page_compiled_default = view((ctx) => {
         __e59.appendChild(__t60);
         __c49.push(bindText(__t60, () => $scope.branch()));
         __e57.appendChild(__e59);
-        const __t61 = document.createTextNode(".\n                  ");
+        const __t61 = document.createTextNode(`.
+                  `);
         __e57.appendChild(__t61);
         const __t62 = document.createTextNode("");
         __e57.appendChild(__t62);
@@ -769,10 +599,10 @@ var page_compiled_default = view((ctx) => {
         __e50.appendChild(__e65);
         __frag48.appendChild(__e50);
         return { nodes: Array.from(__frag48.childNodes), cleanup: () => {
-          for (const c of __c49) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c49)
+            try {
+              c();
+            } catch (e) {}
         } };
       },
       () => {
@@ -791,10 +621,10 @@ var page_compiled_default = view((ctx) => {
         __c123.push(__wireBoundary_b49(__ifAnchor153));
         __frag122.appendChild(__e124);
         return { nodes: Array.from(__frag122.childNodes), cleanup: () => {
-          for (const c of __c123) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c123)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -802,7 +632,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b19 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.tab() === "changes") return 0;
+      if ($scope.tab() === "changes")
+        return 0;
       return -1;
     },
     branches: [
@@ -813,10 +644,10 @@ var page_compiled_default = view((ctx) => {
         __frag45.appendChild(__ifAnchor47);
         __c46.push(__wireBoundary_b20(__ifAnchor47));
         return { nodes: Array.from(__frag45.childNodes), cleanup: () => {
-          for (const c of __c46) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c46)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -857,12 +688,12 @@ var page_compiled_default = view((ctx) => {
         const __t196 = document.createTextNode("");
         __e195.appendChild(__t196);
         __c189.push(bindText(__t196, () => $scope2.c.short_sha));
-        const __t197 = document.createTextNode(" \xB7 ");
+        const __t197 = document.createTextNode(" · ");
         __e195.appendChild(__t197);
         const __t198 = document.createTextNode("");
         __e195.appendChild(__t198);
         __c189.push(bindText(__t198, () => $scope2.c.author));
-        const __t199 = document.createTextNode(" \xB7 ");
+        const __t199 = document.createTextNode(" · ");
         __e195.appendChild(__t199);
         const __t200 = document.createTextNode("");
         __e195.appendChild(__t200);
@@ -890,10 +721,10 @@ var page_compiled_default = view((ctx) => {
         __e190.appendChild(__e201);
         __frag188.appendChild(__e190);
         return { nodes: Array.from(__frag188.childNodes), cleanup: () => {
-          for (const c2 of __c189) try {
-            c2();
-          } catch (e) {
-          }
+          for (const c2 of __c189)
+            try {
+              c2();
+            } catch (e) {}
         } };
       })(__childScope187);
     }
@@ -901,7 +732,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b57 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.commitFilter.filtered().length === 0) return 0;
+      if ($scope.commitFilter.filtered().length === 0)
+        return 0;
       return 1;
     },
     branches: [
@@ -919,10 +751,10 @@ var page_compiled_default = view((ctx) => {
         __e180.appendChild(__e181);
         __frag178.appendChild(__e180);
         return { nodes: Array.from(__frag178.childNodes), cleanup: () => {
-          for (const c of __c179) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c179)
+            try {
+              c();
+            } catch (e) {}
         } };
       },
       () => {
@@ -935,10 +767,10 @@ var page_compiled_default = view((ctx) => {
         __c184.push(__wireBoundary_b59(__forAnchor186));
         __frag183.appendChild(__e185);
         return { nodes: Array.from(__frag183.childNodes), cleanup: () => {
-          for (const c of __c184) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c184)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -946,7 +778,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b53 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.tab() === "history") return 0;
+      if ($scope.tab() === "history")
+        return 0;
       return -1;
     },
     branches: [
@@ -979,10 +812,10 @@ var page_compiled_default = view((ctx) => {
         __c169.push(__wireBoundary_b57(__ifAnchor177));
         __frag168.appendChild(__e170);
         return { nodes: Array.from(__frag168.childNodes), cleanup: () => {
-          for (const c of __c169) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c169)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -1032,17 +865,17 @@ var page_compiled_default = view((ctx) => {
         __e233.setAttribute("class", "git-deltas");
         const __t234 = document.createTextNode("");
         __e233.appendChild(__t234);
-        __c224.push(bindText(__t234, () => $scope2.b.ahead > 0 ? "\xE2\x86\x91" + $scope2.b.ahead : ""));
+        __c224.push(bindText(__t234, () => $scope2.b.ahead > 0 ? "â" + $scope2.b.ahead : ""));
         const __t235 = document.createTextNode("");
         __e233.appendChild(__t235);
-        __c224.push(bindText(__t235, () => $scope2.b.behind > 0 ? " \xE2\x86\x93" + $scope2.b.behind : ""));
+        __c224.push(bindText(__t235, () => $scope2.b.behind > 0 ? " â" + $scope2.b.behind : ""));
         __e225.appendChild(__e233);
         __frag223.appendChild(__e225);
         return { nodes: Array.from(__frag223.childNodes), cleanup: () => {
-          for (const c of __c224) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c224)
+            try {
+              c();
+            } catch (e) {}
         } };
       })(__childScope222);
     }
@@ -1050,7 +883,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b68 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.branches().length === 0) return 0;
+      if ($scope.branches().length === 0)
+        return 0;
       return 1;
     },
     branches: [
@@ -1067,10 +901,10 @@ var page_compiled_default = view((ctx) => {
         __e215.appendChild(__e216);
         __frag213.appendChild(__e215);
         return { nodes: Array.from(__frag213.childNodes), cleanup: () => {
-          for (const c of __c214) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c214)
+            try {
+              c();
+            } catch (e) {}
         } };
       },
       () => {
@@ -1083,10 +917,10 @@ var page_compiled_default = view((ctx) => {
         __c219.push(__wireBoundary_b69(__forAnchor221));
         __frag218.appendChild(__e220);
         return { nodes: Array.from(__frag218.childNodes), cleanup: () => {
-          for (const c of __c219) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c219)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -1094,7 +928,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b67 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.tab() === "branches") return 0;
+      if ($scope.tab() === "branches")
+        return 0;
       return -1;
     },
     branches: [
@@ -1108,10 +943,10 @@ var page_compiled_default = view((ctx) => {
         __c210.push(__wireBoundary_b68(__ifAnchor212));
         __frag209.appendChild(__e211);
         return { nodes: Array.from(__frag209.childNodes), cleanup: () => {
-          for (const c of __c210) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c210)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -1119,7 +954,8 @@ var page_compiled_default = view((ctx) => {
   const __wireBoundary_b3 = (anchor) => bindIf({
     anchor,
     test: () => {
-      if ($scope.overview().kind === "ok") return 0;
+      if ($scope.overview().kind === "ok")
+        return 0;
       return -1;
     },
     branches: [
@@ -1145,11 +981,13 @@ var page_compiled_default = view((ctx) => {
         __e24.appendChild(__e25);
         const __t27 = document.createTextNode("");
         __e24.appendChild(__t27);
-        __c19.push(bindText(__t27, () => $scope.ahead() > 0 ? " \xE2\x86\x91" + $scope.ahead() : ""));
+        __c19.push(bindText(__t27, () => $scope.ahead() > 0 ? " â" + $scope.ahead() : ""));
         const __t28 = document.createTextNode("");
         __e24.appendChild(__t28);
-        __c19.push(bindText(__t28, () => $scope.behind() > 0 ? " \xE2\x86\x93" + $scope.behind() : ""));
-        const __t29 = document.createTextNode("\n          \xB7\n          ");
+        __c19.push(bindText(__t28, () => $scope.behind() > 0 ? " â" + $scope.behind() : ""));
+        const __t29 = document.createTextNode(`
+          ·
+          `);
         __e24.appendChild(__t29);
         const __e30 = document.createElement("span");
         __e30.setAttribute("class", "git-mono");
@@ -1179,11 +1017,10 @@ var page_compiled_default = view((ctx) => {
         __e37.setAttribute("name", "changes");
         __c19.push(bindAttr(__e37, "active", () => $scope.tab() === "changes"));
         __c19.push(bindAttr(__e37, "count", () => $scope.totalChanged() + ""));
-        __c19.push(on(__e37, "click", (function() {
-          const __h = (() => $scope.tab.set("changes"));
-          return typeof __h === "function" ? __h.bind(void 0) : (() => {
-          });
-        })(), { modifiers: [] }));
+        __c19.push(on(__e37, "click", function() {
+          const __h = () => $scope.tab.set("changes");
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
         const __t38 = document.createTextNode("Changes");
         __e37.appendChild(__t38);
         __e36.appendChild(__e37);
@@ -1191,11 +1028,10 @@ var page_compiled_default = view((ctx) => {
         __e39.setAttribute("name", "history");
         __c19.push(bindAttr(__e39, "active", () => $scope.tab() === "history"));
         __c19.push(bindAttr(__e39, "count", () => $scope.commitsCount() + ""));
-        __c19.push(on(__e39, "click", (function() {
-          const __h = (() => $scope.tab.set("history"));
-          return typeof __h === "function" ? __h.bind(void 0) : (() => {
-          });
-        })(), { modifiers: [] }));
+        __c19.push(on(__e39, "click", function() {
+          const __h = () => $scope.tab.set("history");
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
         const __t40 = document.createTextNode("History");
         __e39.appendChild(__t40);
         __e36.appendChild(__e39);
@@ -1203,11 +1039,10 @@ var page_compiled_default = view((ctx) => {
         __e41.setAttribute("name", "branches");
         __c19.push(bindAttr(__e41, "active", () => $scope.tab() === "branches"));
         __c19.push(bindAttr(__e41, "count", () => $scope.branchesCount() + ""));
-        __c19.push(on(__e41, "click", (function() {
-          const __h = (() => $scope.tab.set("branches"));
-          return typeof __h === "function" ? __h.bind(void 0) : (() => {
-          });
-        })(), { modifiers: [] }));
+        __c19.push(on(__e41, "click", function() {
+          const __h = () => $scope.tab.set("branches");
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), { modifiers: [] }));
         const __t42 = document.createTextNode("Branches");
         __e41.appendChild(__t42);
         __e36.appendChild(__e41);
@@ -1226,10 +1061,10 @@ var page_compiled_default = view((ctx) => {
         __c19.push(__wireBoundary_b67(__ifAnchor208));
         __frag18.appendChild(__e43);
         return { nodes: Array.from(__frag18.childNodes), cleanup: () => {
-          for (const c of __c19) try {
-            c();
-          } catch (e) {
-          }
+          for (const c of __c19)
+            try {
+              c();
+            } catch (e) {}
         } };
       }
     ]
@@ -1264,33 +1099,36 @@ var page_compiled_default = view((ctx) => {
       __cleanups.push(__wireBoundary_b3(__ifAnchor17));
       container.appendChild(__e4);
       return () => {
-        for (const c of __cleanups) try {
-          c();
-        } catch (e) {
-        }
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
       };
     },
     hydrate(root, ctx2) {
       const __cleanups = [];
       const __m = collectElementMarkers(root);
-      if (__m["b0"]) __cleanups.push(hydrateWhileLoading(__m["b0"], "b0", () => $scope.overview(), __renderWhileLoading_0));
-      if (__m["b1"]) __cleanups.push(hydrateWhileError(__m["b1"], "b1", () => $scope.overview(), __renderWhileError_0));
+      if (__m["b0"])
+        __cleanups.push(hydrateWhileLoading(__m["b0"], "b0", () => $scope.overview(), __renderWhileLoading_0));
+      if (__m["b1"])
+        __cleanups.push(hydrateWhileError(__m["b1"], "b1", () => $scope.overview(), __renderWhileError_0));
       if (__m["b3"]) {
         const __t = __m["b3"];
         const __doc = __t.ownerDocument ?? document;
         const __anchor = __t.nodeType === 1 ? __doc.createComment("if") : __t;
-        if (__t.nodeType === 1 && __t.parentNode) __t.parentNode.replaceChild(__anchor, __t);
+        if (__t.nodeType === 1 && __t.parentNode)
+          __t.parentNode.replaceChild(__anchor, __t);
         __cleanups.push(__wireBoundary_b3(__anchor));
       }
       return () => {
-        for (const c of __cleanups) try {
-          c();
-        } catch (e) {
-        }
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
       };
     }
   });
 });
 export {
-  page_compiled_default as default
+  page_default as default
 };

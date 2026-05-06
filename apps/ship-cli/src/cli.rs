@@ -293,16 +293,6 @@ pub enum Commands {
         action: RuntimeCommands,
     },
 
-    /// Build all asset bundles via the Vite + sui-compiler pipeline (replaces
-    /// `node scripts/build-bundles.mjs`). Equivalent to `bun scripts/build-bundles-vite.mjs`
-    /// running through the bundled toolchain at ~/.ship/runtime/.
-    Build {
-        /// Restrict to a single bundle target (e.g. sui-runtime, sui-components,
-        /// views/counter/view, sui-islands/sui-command-bar).
-        #[arg(long)]
-        target: Option<String>,
-    },
-
     /// Uninstall Ship from this machine (stops daemon, removes ~/.ship, scrubs PATH)
     Uninstall {
         /// Skip the confirmation prompt
@@ -323,8 +313,8 @@ pub enum Commands {
 #[derive(Subcommand, Debug)]
 pub enum RuntimeCommands {
     /// Install or repair ~/.ship/runtime/ from local sources (Bun on PATH +
-    /// in-repo target/release/sui-compiler by default; override with --bun /
-    /// --sui-compiler).
+    /// in-repo target/release/sui-compiler + runtime-assets/bundler.ts by
+    /// default; override with --bun / --sui-compiler).
     Install {
         /// Path to the Bun binary to copy in. Defaults to `which bun`.
         #[arg(long, value_name = "PATH")]
@@ -333,10 +323,6 @@ pub enum RuntimeCommands {
         /// search for target/release/sui-compiler from cwd.
         #[arg(long = "sui-compiler", value_name = "PATH")]
         sui_compiler: Option<PathBuf>,
-        /// Skip the post-install `bun install` step that populates node_modules/.
-        /// Used by tests; rarely needed in real workflows.
-        #[arg(long)]
-        skip_bun_install: bool,
     },
     /// Wipe ~/.ship/runtime/ and reinstall fresh. Same flags as install.
     Update {
@@ -344,8 +330,6 @@ pub enum RuntimeCommands {
         bun: Option<PathBuf>,
         #[arg(long = "sui-compiler", value_name = "PATH")]
         sui_compiler: Option<PathBuf>,
-        #[arg(long)]
-        skip_bun_install: bool,
     },
     /// Verify the toolchain is healthy. Reports the first missing or
     /// non-executable component, and exits non-zero on any failure.

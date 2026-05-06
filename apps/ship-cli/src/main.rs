@@ -213,15 +213,14 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 run_daemon(cmd)
             }
             Commands::Runtime { action } => match action {
-                RuntimeCommands::Install { bun, sui_compiler, skip_bun_install } => {
-                    runtime_cmd::run_install(bun, sui_compiler, skip_bun_install)
+                RuntimeCommands::Install { bun, sui_compiler } => {
+                    runtime_cmd::run_install(bun, sui_compiler)
                 }
-                RuntimeCommands::Update { bun, sui_compiler, skip_bun_install } => {
-                    runtime_cmd::run_update(bun, sui_compiler, skip_bun_install)
+                RuntimeCommands::Update { bun, sui_compiler } => {
+                    runtime_cmd::run_update(bun, sui_compiler)
                 }
                 RuntimeCommands::Doctor => runtime_cmd::run_doctor(),
             },
-            Commands::Build { target } => runtime_cmd::run_build(target),
             Commands::Uninstall { yes } => uninstall::run(yes),
             Commands::Help => {
                 use clap::CommandFactory;
