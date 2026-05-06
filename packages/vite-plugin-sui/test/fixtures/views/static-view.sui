@@ -1,0 +1,4 @@
+<div class="hello">
+  <h1>Static</h1>
+  <p>No state, no events. Smallest possible view.</p>
+</div>
