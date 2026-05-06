@@ -2,8 +2,7 @@
   "name": "ship-monorepo",
   "private": true,
   "scripts": {
-    "build:bundles": "node scripts/build-bundles.mjs",
-    "build:bundles:watch": "node scripts/build-bundles.mjs --watch",
+    "build:bundles": "bun scripts/build-bundles-vite.mjs",
     "build:jinja-docs": "node scripts/build-jinja-docs.mjs",
     "test:rust": "cargo test",
     "wasm": "wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm",

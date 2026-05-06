@@ -23,9 +23,10 @@ cd "$(dirname "$0")/../.."
 # the bundler can pick up its outputs if anything depends on them.
 node packages/ship-set/scripts/generate-lucide-registry.mjs
 
-# Bundle SUI assets. The script's own incremental cache makes this a
-# no-op when nothing changed.
-node scripts/build-bundles.mjs
+# Bundle SUI + Lit assets via Vite. Step 5 of the vite-plugin-bun job
+# replaced the esbuild path here. Per-target Vite invocations live in
+# scripts/build-bundles-vite.mjs and are driven by `vite.config.ts`.
+apps/spike-bun-vite/.local/bun scripts/build-bundles-vite.mjs
 
 cargo build -p shipd -p ship-cli
 
