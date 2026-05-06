@@ -6,3 +6,5 @@
 // import from here when they want the leak detector wired in.
 
 export { enableLeakWarn, enableLeakWarnInScope } from './scope-resource-warn'
+export { subscribeHmr } from './dev/hmr'
+export type { HmrHandle } from './dev/hmr'

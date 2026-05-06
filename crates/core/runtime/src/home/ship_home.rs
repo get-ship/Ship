@@ -21,9 +21,7 @@ const MACHINE_DAEMON_DIR: &str = "daemon";
 const RUNTIME_DIR: &str = "runtime";
 const RUNTIME_BUN: &str = "bun";
 const RUNTIME_SUI_COMPILER: &str = "sui-compiler";
-const RUNTIME_NODE_MODULES: &str = "node_modules";
-const RUNTIME_PACKAGE_JSON: &str = "package.json";
-const RUNTIME_LOCK: &str = "bun.lock";
+const RUNTIME_BUNDLER_TS: &str = "bundler.ts";
 const SETTINGS_FILE: &str = "settings.jsonc";
 const LOCAL_FILE: &str = "local.jsonc";
 const CREDENTIALS_FILE: &str = "credentials.jsonc";
@@ -196,24 +194,11 @@ impl ShipHome {
         self.runtime_dir().join(RUNTIME_SUI_COMPILER)
     }
 
-    /// `~/.ship/runtime/node_modules/` — bundled JS dependency tree
-    /// (vite, @ship/vite-plugin-sui, peer deps).
-    pub fn runtime_node_modules(&self) -> PathBuf {
-        self.runtime_dir().join(RUNTIME_NODE_MODULES)
+    /// `~/.ship/runtime/bundler.ts` — the Bun worker script.
+    pub fn runtime_bundler_ts(&self) -> PathBuf {
+        self.runtime_dir().join(RUNTIME_BUNDLER_TS)
     }
 
-    /// `~/.ship/runtime/package.json` — pinned versions for the bundled
-    /// JS toolchain. Read-only at runtime; written only by
-    /// `ship runtime install`.
-    pub fn runtime_package_json(&self) -> PathBuf {
-        self.runtime_dir().join(RUNTIME_PACKAGE_JSON)
-    }
-
-    /// `~/.ship/runtime/bun.lock` — Bun's lockfile pinning the
-    /// node_modules tree.
-    pub fn runtime_lockfile(&self) -> PathBuf {
-        self.runtime_dir().join(RUNTIME_LOCK)
-    }
 }
 
 #[cfg(test)]

@@ -1,7 +1,0 @@
-<prop name="label" type="string" default="Hello" />
-
-<style>
-  :host { display: inline-flex; }
-</style>
-
-<button>{label()}</button>

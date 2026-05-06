@@ -1,25 +1,16 @@
 //! Cargo validates SUI bundle production.
 //!
 //! `include_str!` in `src/view.rs` bakes bundle outputs into the
-//! framework binary at compile time. The bundles are produced by Vite
-//! via the bundled toolchain at `~/.ship/runtime/`:
+//! framework binary at compile time. The bundles are produced by the
+//! Bun bundler worker at `~/.ship/runtime/bundler.ts`:
 //!
-//!   * `scripts/build-bundles-vite.mjs` (or `ship build`) — drives Vite
-//!     through `vite.config.ts` for sui-runtime.js, sui-dom.js,
+//!   * `bun run ~/.ship/runtime/bundler.ts` (or `just dev-build-all`) —
+//!     runs the in-process Bun bundler for sui-runtime.js, sui-dom.js,
 //!     sui-sdk-client.js, sui-components.js, sui-islands/*.js, and
-//!     views/{agents,counter,git}/view.js. Lit bundles
-//!     (ship-elements/code-editor/markdown-editor/terminal) ship to
-//!     apps/shipd/assets/ via the same script.
+//!     views/*/view.js. Lit bundles (ship-elements/code-editor/
+//!     markdown-editor/terminal) ship to apps/shipd/assets/.
 //!   * `packages/ship-set/scripts/generate-lucide-registry.mjs` —
 //!     lucide-icons.json
-//!
-//! That script invokes the Rust sui-compiler binary (release build) for
-//! per-file `.sui` ahead-of-time compile, but it does not run nested
-//! cargo — so the old build-lock-deadlock concern from the esbuild era
-//! no longer applies. Even so, build.rs does not invoke the script
-//! directly; cargo's `rerun-if-changed=` covers the inputs and the user
-//! runs the script (or `ship build`, or `just dev-restart`) when source
-//! changes warrant a rebuild.
 //!
 //! What this build script DOES is verify the assets are populated.
 //! Pre-existing failure mode: `cargo build` on a fresh clone wrote
@@ -28,8 +19,8 @@
 //! now panic with a clear message so the failure is immediate and
 //! actionable.
 //!
-//! On a fresh clone, run `ship runtime install && pnpm install &&
-//! ship build && node packages/ship-set/scripts/generate-lucide-registry.mjs`
+//! On a fresh clone, run `ship runtime install && just dev-build-all &&
+//! node packages/ship-set/scripts/generate-lucide-registry.mjs`
 //! before `cargo build`. `just dev-restart` does this for you.
 
 use std::fs;
@@ -59,9 +50,7 @@ const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/ui-dom/src",
     "packages/ui-components/src",
     "packages/ui-sdk-client/src",
-    "scripts/build-bundles-vite.mjs",
-    "vite.config.ts",
-    "packages/vite-plugin-sui/src",
+    "runtime-assets/bundler.ts",
     "packages/ship-set/scripts/generate-lucide-registry.mjs",
 ];
 
@@ -111,11 +100,10 @@ fn main() {
             .join("\n");
         panic!(
             "build.rs: SUI bundle assets are missing or empty.\n{lines}\n\n\
-             Bundles are produced by Vite via the bundled toolchain at\n\
-             `~/.ship/runtime/`. Run:\n\n  \
+             Bundles are produced by the Bun worker at\n\
+             `~/.ship/runtime/bundler.ts`. Run:\n\n  \
              ship runtime install   # one-time, populates ~/.ship/runtime/\n  \
-             pnpm install\n  \
-             ship build             # or `bun scripts/build-bundles-vite.mjs`\n  \
+             just dev-build-all     # or: bun run ~/.ship/runtime/bundler.ts (one-shot)\n  \
              node packages/ship-set/scripts/generate-lucide-registry.mjs\n\n\
              then re-run `cargo build`. `just dev-restart` does this for you."
         );

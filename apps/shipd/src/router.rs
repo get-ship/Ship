@@ -150,6 +150,10 @@ pub fn build_router(
             axum::routing::get(views::sui_hmr::serve_hmr_client_js),
         )
         .route(
+            "/_sui/dev/hmr",
+            axum::routing::get(views::sui_hmr::serve_bundle_hmr),
+        )
+        .route(
             "/_sui/runtime.js",
             axum::routing::get(ship_ui_framework::serve_sui_runtime),
         )

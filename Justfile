@@ -53,32 +53,49 @@ status:
 doctor:
     ship doctor
 
-# Populate ~/.ship/runtime/ from local sources for dev: bun from the spike's
-# vendored copy, sui-compiler from the workspace target/release/. Idempotent.
-# Equivalent to `ship runtime install --bun … --sui-compiler …` with the
-# paths pre-resolved.
+# Populate ~/.ship/runtime/ from local sources for dev: bun from $BUN_PATH
+# (defaulting to a `bun` on PATH), sui-compiler from target/release/.
+# Idempotent. Run once after a fresh clone.
 [group('daily')]
 dev-runtime-install:
+    #!/usr/bin/env bash
+    set -euo pipefail
     cargo build -p sui-compiler --release
-    ./target/debug/ship runtime install \
-        --bun apps/spike-bun-vite/.local/bun \
-        --sui-compiler target/release/sui-compiler
+    cargo build -p ship-cli
+    BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
+    if [ -z "$BUN_BIN" ] || [ ! -x "$BUN_BIN" ]; then
+        echo "no bun on PATH; install via \`curl -fsSL https://bun.sh/install | bash\` or set BUN_PATH" >&2
+        exit 1
+    fi
+    ./target/debug/ship runtime install --bun "$BUN_BIN" --sui-compiler target/release/sui-compiler
 
 # Same as dev-runtime-install but wipes ~/.ship/runtime/ first.
 [group('daily')]
 dev-runtime-update:
+    #!/usr/bin/env bash
+    set -euo pipefail
     cargo build -p sui-compiler --release
-    ./target/debug/ship runtime update \
-        --bun apps/spike-bun-vite/.local/bun \
-        --sui-compiler target/release/sui-compiler
+    cargo build -p ship-cli
+    BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
+    if [ -z "$BUN_BIN" ] || [ ! -x "$BUN_BIN" ]; then
+        echo "no bun on PATH; install via \`curl -fsSL https://bun.sh/install | bash\` or set BUN_PATH" >&2
+        exit 1
+    fi
+    ./target/debug/ship runtime update --bun "$BUN_BIN" --sui-compiler target/release/sui-compiler
 
-# Build the SUI runtime bundles (sui-runtime/sui-dom/sui-sdk-client) via
-# Vite, replacing the esbuild path in scripts/build-bundles.mjs for those
-# targets. Lit + per-component + per-island + per-view bundles still use
-# the legacy esbuild script — see Step 5b for those.
+# Build all asset bundles via the Bun bundler worker. Uses bun pinned in
+# ~/.ship/runtime/ when present; otherwise falls back to bun on PATH.
 [group('daily')]
-dev-bundles-vite:
-    apps/spike-bun-vite/.local/bun scripts/build-bundles-vite.mjs
+dev-build-all:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    BUN_BIN="$HOME/.ship/runtime/bun"
+    if [ ! -x "$BUN_BIN" ]; then BUN_BIN="$(command -v bun || true)"; fi
+    if [ -z "$BUN_BIN" ] || [ ! -x "$BUN_BIN" ]; then
+        echo "no bun binary; run \`just dev-runtime-install\`" >&2
+        exit 1
+    fi
+    "$BUN_BIN" run runtime-assets/bundler.ts --all
 
 # Run all tests (Rust + loops + integration). For a faster inner loop use test-fast.
 # Gates the generated TS bindings (`cargo xtask gen-types --check`) too,

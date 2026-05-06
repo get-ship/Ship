@@ -1,4 +1,4 @@
-// views/counter/dist/page.compiled.js
+// views/counter/page.sui
 import { bindText, on, view } from "@ship/ui-runtime";
 import { collectElementMarkers, collectTextOpens, hydrateOn, hydrateText } from "@ship/ui-dom";
 
@@ -8,16 +8,17 @@ var controller_default = controller({
   scope: () => ({ count: signal(0) })
 });
 
-// views/counter/dist/page.compiled.js
-var page_compiled_default = view((ctx) => {
+// views/counter/page.sui
+var page_default = view((ctx) => {
   const { ship, route, navigate } = ctx;
-  const $scope = /* @__PURE__ */ Object.create(null);
+  const $scope = Object.create(null);
   $scope.ship = ship;
   $scope.route = route;
   $scope.navigate = navigate;
   if (controller_default && typeof controller_default.setup === "function") {
     const __r = controller_default.setup(ctx);
-    if (__r && typeof __r === "object") Object.assign($scope, __r);
+    if (__r && typeof __r === "object")
+      Object.assign($scope, __r);
   }
   return Object.assign({}, $scope, {
     __mount(container) {
@@ -40,31 +41,28 @@ var page_compiled_default = view((ctx) => {
       __e0.appendChild(__e3);
       const __e7 = document.createElement("button");
       __e7.setAttribute("data-test", "dec");
-      __cleanups.push(on(__e7, "click", (function() {
-        const __h = (() => $scope.count.set($scope.count() - 1));
-        return typeof __h === "function" ? __h.bind(void 0) : (() => {
-        });
-      })(), { modifiers: [] }));
+      __cleanups.push(on(__e7, "click", function() {
+        const __h = () => $scope.count.set($scope.count() - 1);
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
       const __t8 = document.createTextNode("-");
       __e7.appendChild(__t8);
       __e0.appendChild(__e7);
       const __e9 = document.createElement("button");
       __e9.setAttribute("data-test", "inc");
-      __cleanups.push(on(__e9, "click", (function() {
-        const __h = (() => $scope.count.set($scope.count() + 1));
-        return typeof __h === "function" ? __h.bind(void 0) : (() => {
-        });
-      })(), { modifiers: [] }));
+      __cleanups.push(on(__e9, "click", function() {
+        const __h = () => $scope.count.set($scope.count() + 1);
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
       const __t10 = document.createTextNode("+");
       __e9.appendChild(__t10);
       __e0.appendChild(__e9);
       const __e11 = document.createElement("button");
       __e11.setAttribute("data-test", "reset");
-      __cleanups.push(on(__e11, "click", (function() {
-        const __h = (() => $scope.count.set(0));
-        return typeof __h === "function" ? __h.bind(void 0) : (() => {
-        });
-      })(), { modifiers: [] }));
+      __cleanups.push(on(__e11, "click", function() {
+        const __h = () => $scope.count.set(0);
+        return typeof __h === "function" ? __h.bind(undefined) : () => {};
+      }(), { modifiers: [] }));
       const __t12 = document.createTextNode("reset");
       __e11.appendChild(__t12);
       __e0.appendChild(__e11);
@@ -75,41 +73,42 @@ var page_compiled_default = view((ctx) => {
       __e0.appendChild(__e13);
       container.appendChild(__e0);
       return () => {
-        for (const c of __cleanups) try {
-          c();
-        } catch (e) {
-        }
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
       };
     },
     hydrate(root, ctx2) {
       const __cleanups = [];
       const __t = collectTextOpens(root);
       const __m = collectElementMarkers(root);
-      if (__t["b0"]) __cleanups.push(hydrateText(__t["b0"], () => $scope.count()));
-      if (__m["b1"]) __cleanups.push(hydrateOn(__m["b1"], "click", (function() {
-        const __h = (() => $scope.count.set($scope.count() - 1));
-        return typeof __h === "function" ? __h.bind(void 0) : (() => {
-        });
-      })(), []));
-      if (__m["b2"]) __cleanups.push(hydrateOn(__m["b2"], "click", (function() {
-        const __h = (() => $scope.count.set($scope.count() + 1));
-        return typeof __h === "function" ? __h.bind(void 0) : (() => {
-        });
-      })(), []));
-      if (__m["b3"]) __cleanups.push(hydrateOn(__m["b3"], "click", (function() {
-        const __h = (() => $scope.count.set(0));
-        return typeof __h === "function" ? __h.bind(void 0) : (() => {
-        });
-      })(), []));
+      if (__t["b0"])
+        __cleanups.push(hydrateText(__t["b0"], () => $scope.count()));
+      if (__m["b1"])
+        __cleanups.push(hydrateOn(__m["b1"], "click", function() {
+          const __h = () => $scope.count.set($scope.count() - 1);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b2"])
+        __cleanups.push(hydrateOn(__m["b2"], "click", function() {
+          const __h = () => $scope.count.set($scope.count() + 1);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
+      if (__m["b3"])
+        __cleanups.push(hydrateOn(__m["b3"], "click", function() {
+          const __h = () => $scope.count.set(0);
+          return typeof __h === "function" ? __h.bind(undefined) : () => {};
+        }(), []));
       return () => {
-        for (const c of __cleanups) try {
-          c();
-        } catch (e) {
-        }
+        for (const c of __cleanups)
+          try {
+            c();
+          } catch (e) {}
       };
     }
   });
 });
 export {
-  page_compiled_default as default
+  page_default as default
 };
