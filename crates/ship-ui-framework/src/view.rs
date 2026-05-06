@@ -76,19 +76,19 @@ const SUI_LUCIDE_ICONS_JSON: &str =
 
 /// `GET /_sui/dom.js` — bundled `@ship/ui-dom` ESM module.
 pub async fn serve_sui_dom() -> Response {
-    js_response_with_dev_override("sui-dom", SUI_DOM_JS).await
+    js_response(SUI_DOM_JS)
 }
 
 /// `GET /_sui/sdk-client.js` — bundled `@ship/ui-sdk-client` ESM module.
 pub async fn serve_sui_sdk_client() -> Response {
-    js_response_with_dev_override("sui-sdk-client", SUI_SDK_CLIENT_JS).await
+    js_response(SUI_SDK_CLIENT_JS)
 }
 
 /// `GET /_sui/components.js` — bundled `@ship/ui-components` ESM module.
 /// Imported as a side-effect from the shell so every `<set-*>` custom
 /// element is registered before any view template renders.
 pub async fn serve_sui_components() -> Response {
-    js_response_with_dev_override("sui-components", SUI_COMPONENTS_JS).await
+    js_response(SUI_COMPONENTS_JS)
 }
 
 /// `GET /_sui/lucide-icons.json` — curated lucide icon registry, fetched
@@ -101,18 +101,6 @@ pub async fn serve_sui_lucide_icons() -> Response {
         .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
         .body(Body::from(SUI_LUCIDE_ICONS_JSON))
         .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
-}
-
-async fn js_response_with_dev_override(bundle: &str, embedded: &'static str) -> Response {
-    match crate::dev_assets::override_for(bundle).await {
-        Some(bytes) => Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-            .header(header::CACHE_CONTROL, "no-cache")
-            .body(Body::from(bytes))
-            .unwrap_or_else(|_| Response::new(Body::from("response build failed"))),
-        None => js_response(embedded),
-    }
 }
 
 const SUI_TERMINAL_ISLAND_JS: &str =
@@ -154,21 +142,12 @@ pub async fn serve_sui_island(Path(bundle): Path<String>) -> Response {
         "sui-nav-top" => SUI_NAV_TOP_ISLAND_JS,
         _ => return not_found("unknown island"),
     };
-    let dev_key = format!("sui-islands/{bundle}");
-    match crate::dev_assets::override_for(&dev_key).await {
-        Some(bytes) => Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-            .header(header::CACHE_CONTROL, "no-cache")
-            .body(Body::from(bytes))
-            .unwrap_or_else(|_| Response::new(Body::from("response build failed"))),
-        None => Response::builder()
-            .status(StatusCode::OK)
-            .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-            .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
-            .body(Body::from(embedded))
-            .unwrap_or_else(|_| Response::new(Body::from("response build failed"))),
-    }
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .header(header::CACHE_CONTROL, "public, max-age=3600, immutable")
+        .body(Body::from(embedded))
+        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
 /// `GET /_sui/views/{name}/view.sui` — the raw template source

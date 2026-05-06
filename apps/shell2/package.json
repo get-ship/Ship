@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ship/ui-sdk-client": "workspace:*"
+    "@ship/ui-sdk-client": "workspace:*",
+    "@ship/vite-plugin-sui": "workspace:*"
   },
   "devDependencies": {
     "playwright": "^1.59.1",

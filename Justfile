@@ -53,6 +53,33 @@ status:
 doctor:
     ship doctor
 
+# Populate ~/.ship/runtime/ from local sources for dev: bun from the spike's
+# vendored copy, sui-compiler from the workspace target/release/. Idempotent.
+# Equivalent to `ship runtime install --bun … --sui-compiler …` with the
+# paths pre-resolved.
+[group('daily')]
+dev-runtime-install:
+    cargo build -p sui-compiler --release
+    ./target/debug/ship runtime install \
+        --bun apps/spike-bun-vite/.local/bun \
+        --sui-compiler target/release/sui-compiler
+
+# Same as dev-runtime-install but wipes ~/.ship/runtime/ first.
+[group('daily')]
+dev-runtime-update:
+    cargo build -p sui-compiler --release
+    ./target/debug/ship runtime update \
+        --bun apps/spike-bun-vite/.local/bun \
+        --sui-compiler target/release/sui-compiler
+
+# Build the SUI runtime bundles (sui-runtime/sui-dom/sui-sdk-client) via
+# Vite, replacing the esbuild path in scripts/build-bundles.mjs for those
+# targets. Lit + per-component + per-island + per-view bundles still use
+# the legacy esbuild script — see Step 5b for those.
+[group('daily')]
+dev-bundles-vite:
+    apps/spike-bun-vite/.local/bun scripts/build-bundles-vite.mjs
+
 # Run all tests (Rust + loops + integration). For a faster inner loop use test-fast.
 # Gates the generated TS bindings (`cargo xtask gen-types --check`) too,
 # so a Rust struct change without a regenerated `generated.ts` fails CI.

@@ -1,20 +1,25 @@
 //! Cargo validates SUI bundle production.
 //!
 //! `include_str!` in `src/view.rs` bakes bundle outputs into the
-//! framework binary at compile time. The bundles are produced by Node
-//! scripts:
+//! framework binary at compile time. The bundles are produced by Vite
+//! via the bundled toolchain at `~/.ship/runtime/`:
 //!
-//!   * `scripts/build-bundles.mjs` — esbuild for sui-runtime.js,
-//!     sui-dom.js, sui-sdk-client.js, sui-components.js,
-//!     sui-islands/*.js, and views/{agents,counter,git}/view.js
+//!   * `scripts/build-bundles-vite.mjs` (or `ship build`) — drives Vite
+//!     through `vite.config.ts` for sui-runtime.js, sui-dom.js,
+//!     sui-sdk-client.js, sui-components.js, sui-islands/*.js, and
+//!     views/{agents,counter,git}/view.js. Lit bundles
+//!     (ship-elements/code-editor/markdown-editor/terminal) ship to
+//!     apps/shipd/assets/ via the same script.
 //!   * `packages/ship-set/scripts/generate-lucide-registry.mjs` —
 //!     lucide-icons.json
 //!
-//! Those scripts run nested cargo (`cargo run -p sui-compiler`) so we
-//! can NOT invoke them from build.rs — the inner cargo would deadlock
-//! waiting on the parent's build lock. They run from `scripts/dev/
-//! start.sh` (and the dev-mode hot-reload watcher in `dev_assets.rs`)
-//! instead.
+//! That script invokes the Rust sui-compiler binary (release build) for
+//! per-file `.sui` ahead-of-time compile, but it does not run nested
+//! cargo — so the old build-lock-deadlock concern from the esbuild era
+//! no longer applies. Even so, build.rs does not invoke the script
+//! directly; cargo's `rerun-if-changed=` covers the inputs and the user
+//! runs the script (or `ship build`, or `just dev-restart`) when source
+//! changes warrant a rebuild.
 //!
 //! What this build script DOES is verify the assets are populated.
 //! Pre-existing failure mode: `cargo build` on a fresh clone wrote
@@ -23,18 +28,9 @@
 //! now panic with a clear message so the failure is immediate and
 //! actionable.
 //!
-//! On a fresh clone, run `pnpm install && node scripts/build-bundles.mjs
-//! && node packages/ship-set/scripts/generate-lucide-registry.mjs`
+//! On a fresh clone, run `ship runtime install && pnpm install &&
+//! ship build && node packages/ship-set/scripts/generate-lucide-registry.mjs`
 //! before `cargo build`. `just dev-restart` does this for you.
-//!
-//! Cargo's `rerun-if-changed=` covers the asset paths plus every input
-//! recorded in `apps/shipd/assets/.cache/*.inputs.json` so source
-//! edits invalidate the cached binary correctly.
-//!
-//! Phase 1 of the move toward Rust-side bundling. Phase 2 lifts script
-//! invocation into a `crates/sui-bundler/` crate; Phase 3 replaces
-//! esbuild + nested-cargo sui-compiler with rolldown + an in-process
-//! Rust compiler. See `.artifacts/job-spec-rolldown-migration.md`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -63,7 +59,9 @@ const COARSE_SOURCE_ROOTS: &[&str] = &[
     "packages/ui-dom/src",
     "packages/ui-components/src",
     "packages/ui-sdk-client/src",
-    "scripts/build-bundles.mjs",
+    "scripts/build-bundles-vite.mjs",
+    "vite.config.ts",
+    "packages/vite-plugin-sui/src",
     "packages/ship-set/scripts/generate-lucide-registry.mjs",
 ];
 
@@ -113,10 +111,11 @@ fn main() {
             .join("\n");
         panic!(
             "build.rs: SUI bundle assets are missing or empty.\n{lines}\n\n\
-             Bundles are produced by Node scripts that invoke nested cargo,\n\
-             so cargo cannot orchestrate them from build.rs. Run:\n\n  \
+             Bundles are produced by Vite via the bundled toolchain at\n\
+             `~/.ship/runtime/`. Run:\n\n  \
+             ship runtime install   # one-time, populates ~/.ship/runtime/\n  \
              pnpm install\n  \
-             node scripts/build-bundles.mjs\n  \
+             ship build             # or `bun scripts/build-bundles-vite.mjs`\n  \
              node packages/ship-set/scripts/generate-lucide-registry.mjs\n\n\
              then re-run `cargo build`. `just dev-restart` does this for you."
         );

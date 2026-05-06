@@ -31,7 +31,6 @@
 //! rest of the framework stays opaque to it.
 
 pub mod bundle;
-pub mod dev_assets;
 pub mod render_helpers;
 pub mod resolver;
 pub mod runtime;

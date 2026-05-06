@@ -33,6 +33,7 @@ mod mcp_serve;
 mod paths;
 mod profile;
 mod publish;
+mod runtime_cmd;
 mod ship_run;
 mod validate;
 mod vars;
@@ -40,7 +41,7 @@ mod openapi;
 mod workspace_cmd;
 
 use anyhow::Result;
-use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, LintCommands, McpCommands, OpenapiCommands, WorkspaceCommands};
+use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, LintCommands, McpCommands, OpenapiCommands, RuntimeCommands, WorkspaceCommands};
 use std::path::PathBuf;
 
 /// Initialize the global KernelRouter for CLI commands that emit events.
@@ -211,6 +212,16 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 };
                 run_daemon(cmd)
             }
+            Commands::Runtime { action } => match action {
+                RuntimeCommands::Install { bun, sui_compiler, skip_bun_install } => {
+                    runtime_cmd::run_install(bun, sui_compiler, skip_bun_install)
+                }
+                RuntimeCommands::Update { bun, sui_compiler, skip_bun_install } => {
+                    runtime_cmd::run_update(bun, sui_compiler, skip_bun_install)
+                }
+                RuntimeCommands::Doctor => runtime_cmd::run_doctor(),
+            },
+            Commands::Build { target } => runtime_cmd::run_build(target),
             Commands::Uninstall { yes } => uninstall::run(yes),
             Commands::Help => {
                 use clap::CommandFactory;

@@ -130,13 +130,13 @@ pub async fn run_network(
     // but they can't flip the --dev flag on the daemon process they didn't start.
     let host = if dev { "127.0.0.1".to_string() } else { host };
     pairing::set_dev_mode(dev);
-    if dev {
-        if let Some(ref ws) = workspace_dir {
-            if let Err(e) = ship_ui_framework::dev_assets::install(ws.clone()) {
-                tracing::warn!("shipd: dev_assets install failed: {e}");
-            }
-        }
-    }
+    // The dev_assets HMR watcher used to live here. Vite's dev server
+    // (Step 6 of vite-plugin-bun) owns hot-reload end-to-end now —
+    // module updates flow over Vite's WebSocket directly to the
+    // browser, the daemon serves the production-baked bundles
+    // unchanged. `workspace_dir` is still passed in for other dev
+    // hooks; no-op here.
+    let _ = (dev, &workspace_dir);
     let global_dir = runtime::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
 

@@ -16,6 +16,7 @@ pub mod persistence;
 pub mod project;
 pub mod registry;
 pub mod projections;
+pub mod toolchain;
 pub mod workspace;
 pub mod supervisor;
 
