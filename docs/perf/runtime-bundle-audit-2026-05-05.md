@@ -1,5 +1,13 @@
 # `sui-runtime.js` bundle audit — 2026-05-05
 
+> **Bundler note (2026-05-05):** the Ship pipeline migrated from esbuild to
+> Vite + `@ship/vite-plugin-sui` (job `vite-plugin-bun`). The numbers below
+> are the esbuild baseline used for the migration's "within 10 %" parity
+> gate. Vite's output for `sui-runtime.js` came in 2.2 % smaller (58 738 B
+> raw); see `.artifacts/spike-bun-vite-result.md` for the full sweep. The
+> attribution methodology is bundler-agnostic — re-running it on the new
+> Vite output is a follow-up.
+
 Snapshot taken on `job/runtime-bundle-audit` against the build-bundles
 output of `crates/ship-ui-framework/assets/sui-runtime.js`. Methodology
 mirrors the components-bundle audit: re-bundle the entry
