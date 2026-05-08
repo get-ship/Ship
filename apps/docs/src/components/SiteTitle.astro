@@ -1,0 +1,44 @@
+---
+// Custom SiteTitle. Theme-aware <ship-mark> web component (registered by
+// /ship-elements.js loaded in head). Image fallback inside the element shows
+// before custom-element upgrade and is hidden by shadow DOM after upgrade
+// (since ship-mark renders no <slot>). The "Private Beta" badge lives on the
+// right side of the nav (see Header.astro), not here.
+import logo from "../assets/logo.svg";
+---
+
+<a href="/" class="site-title">
+  <ship-mark size="md" aria-hidden="true">
+    <img src={logo.src} alt="" class="site-mark-fallback" />
+  </ship-mark>
+  <span class="site-title-text">SHIP</span>
+</a>
+
+<style>
+  .site-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.625rem;
+    color: var(--sl-color-text-accent);
+    text-decoration: none;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .site-title ship-mark {
+    width: 28px;
+    height: 28px;
+    flex: none;
+    display: inline-flex;
+  }
+  .site-mark-fallback {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  .site-title-text {
+    font-family: var(--font-display, inherit);
+    font-size: 1.05rem;
+    letter-spacing: 0.04em;
+    color: var(--foreground, var(--sl-color-text-accent));
+  }
+</style>

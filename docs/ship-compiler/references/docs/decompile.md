@@ -163,6 +163,6 @@ Callers that need high-fidelity preservation should operate on `.ship/` directly
 
 ## Related
 
-- [Compiler Overview](/reference/compiler/) — forward direction.
-- [Compilation Pipeline](/reference/compiler/pipeline/) — stages in detail.
-- [Provider Outputs](/reference/compiler/providers/) — what compile writes, per provider.
+- [Compiler Overview](/compiler/) — forward direction.
+- [Compilation Pipeline](/compiler/pipeline/) — stages in detail.
+- [Provider Outputs](/compiler/providers/) — what compile writes, per provider.

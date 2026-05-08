@@ -89,6 +89,6 @@ This flow is fragile — the orchestrator unblock depends on the `human.response
 
 ## Related
 
-- [Orchestrator](/reference/runtime/orchestrator/) — emits `job.blocked`, consumes `human.response` (where implemented).
-- [Events](/reference/runtime/events/) — `job.` namespace, `human.` namespace (not in the reserved list today — open for expansion).
-- [Daemon](/reference/runtime/daemon/) — where webhook routes live.
+- [Orchestrator](/runtime/orchestrator/) — emits `job.blocked`, consumes `human.response` (where implemented).
+- [Events](/runtime/events/) — `job.` namespace, `human.` namespace (not in the reserved list today — open for expansion).
+- [Daemon](/runtime/daemon/) — where webhook routes live.

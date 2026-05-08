@@ -3,6 +3,7 @@ group: Collections
 title: Querying
 section: reference
 order: 3
+audience: internal
 ---
 
 # Querying

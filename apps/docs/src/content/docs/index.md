@@ -6,7 +6,7 @@ description: Ship — the multi-agent coordination runtime. Compile declarative 
 The multi-agent coordination runtime. Declarative config compiles to provider-native artifacts; pipelines run across git worktrees; events coordinate everything.
 
 <div style="display: flex; gap: 0.75rem; margin: 1rem 0 2rem;">
-  <a href="/reference/getting-started/"><ship-button tone="primary">Get Started →</ship-button></a>
+  <a href="/getting-started/"><ship-button tone="primary">Get Started →</ship-button></a>
   <a href="https://getship.dev/registry"><ship-button variant="outline">Registry</ship-button></a>
 </div>
 
@@ -53,17 +53,17 @@ The docs are split by audience — pick the one that matches what you're doing.
 <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; margin: 1.5rem 0;">
 
 <ship-card padding="md" interactive>
-<strong slot="header"><a href="/reference/getting-started/" style="text-decoration: none; color: inherit;">Guide →</a></strong>
+<strong slot="header"><a href="/getting-started/" style="text-decoration: none; color: inherit;">Guide →</a></strong>
 Install, init, your first project. How skills, agents, and pipelines fit together.
 </ship-card>
 
 <ship-card padding="md" interactive>
-<strong slot="header"><a href="/reference/cli/" style="text-decoration: none; color: inherit;">Reference →</a></strong>
+<strong slot="header"><a href="/cli/" style="text-decoration: none; color: inherit;">Reference →</a></strong>
 CLI commands, MCP tools, schemas, config shape. Look things up.
 </ship-card>
 
 <ship-card padding="md" interactive>
-<strong slot="header"><a href="/reference/smart-skills/" style="text-decoration: none; color: inherit;">Extensions →</a></strong>
+<strong slot="header"><a href="/smart-skills/" style="text-decoration: none; color: inherit;">Extensions →</a></strong>
 Build on Ship. Seven extension mechanisms: skills, agents, views, pipelines, artifacts, collections, triggers.
 </ship-card>
 

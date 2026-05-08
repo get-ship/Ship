@@ -3,6 +3,7 @@ group: Component Packs
 title: Testing
 order: 5
 description: The minimum every pack component ships — render, attrs, events, keyboard.
+audience: internal
 ---
 
 Every pack component ships with a colocated `.test.ts` file. The bar

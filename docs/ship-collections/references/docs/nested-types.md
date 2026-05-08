@@ -3,6 +3,7 @@ group: Collections
 title: Nested types
 section: reference
 order: 3
+audience: internal
 ---
 
 # Nested types

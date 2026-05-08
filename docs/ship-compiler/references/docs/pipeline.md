@@ -3,6 +3,7 @@ group: Compiler
 order: 2
 title: Compilation Pipeline
 description: Each pipeline stage in detail -- loading, resolution merge order, compilation, and template variable resolution.
+audience: internal
 ---
 
 # Compilation Pipeline

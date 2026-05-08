@@ -2,6 +2,7 @@
 group: Agents
 title: Agent Configuration
 order: 2
+audience: internal
 ---
 
 # Agent Configuration

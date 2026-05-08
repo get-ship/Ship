@@ -3,6 +3,7 @@ group: Compiler
 order: 1
 title: Compiler Overview
 description: The pure transformation pipeline -- ProjectLibrary to ResolvedConfig to CompileOutput -- and its WASM target.
+audience: internal
 ---
 
 # Compiler Overview

@@ -144,7 +144,7 @@ The projection-upsert half would happen eventually via the event bus anyway, but
 
 ## Related
 
-- [Sessions](/reference/runtime/sessions/) — the work-interval primitive inside a workspace.
-- [Persistence](/reference/runtime/persistence/) — how workspace events are stored.
-- [Projections](/reference/runtime/projections/) — the `workspace` table as a derived read model.
-- [Orchestrator](/reference/runtime/orchestrator/) — how pipelines run across a workspace.
+- [Sessions](/runtime/sessions/) — the work-interval primitive inside a workspace.
+- [Persistence](/runtime/persistence/) — how workspace events are stored.
+- [Projections](/runtime/projections/) — the `workspace` table as a derived read model.
+- [Orchestrator](/runtime/orchestrator/) — how pipelines run across a workspace.

@@ -3,6 +3,7 @@ group: Architecture
 order: 3
 title: Kernel
 description: Event routing primitives — the persist-before-deliver contract, actor mailboxes, namespace subscriptions, and the split between the pure crate and the runtime wrapper.
+audience: internal
 ---
 
 The kernel is the event routing core. It decides when an event is durable, who sees it, and in what order. Nothing about files, databases, or HTTP — that's for the runtime. This page walks through the contract and how the pieces fit.

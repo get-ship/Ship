@@ -3,6 +3,7 @@ group: Contributing
 title: Coding Standards
 description: Commit conventions, file limits, TDD, type safety, and architecture rules.
 order: 3
+audience: internal
 ---
 
 # Coding Standards

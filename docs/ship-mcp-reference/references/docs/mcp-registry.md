@@ -3,6 +3,7 @@ group: HTTP API
 order: 10
 title: MCP Registry Proxy
 description: Daemon endpoint that proxies the official MCP server registry with local caching and a curated fallback list.
+audience: internal
 ---
 
 # MCP Registry Proxy
@@ -57,7 +58,7 @@ Proxies the [Model Context Protocol server registry](https://registry.modelconte
 
 ## Curated fallback list
 
-The fallback list is maintained in `apps/shipd/src/mcp_registry/fallback.rs`. It mirrors the `CURATED_FALLBACK` constant from the original `apps/web/src/lib/mcp-registry.ts`. To update it:
+The fallback list is maintained in `apps/shipd/src/mcp_registry/fallback.rs`. To update it:
 
 1. Edit `fallback.rs` — add, remove, or update `McpServer` structs.
 2. Update `VETTED_IDS` in `apps/shipd/src/mcp_registry/mod.rs` if vetted status changes.

@@ -5,29 +5,19 @@ section: guide
 order: 1
 ---
 
-# Introduction
+Ship is a runtime for building custom apps with agentic workflows. You author the pieces — agents, structured data, pipelines, and live views — and Ship runs them as one application. It's for any kind of work, not just code, and it works with the CLI agents you already use: Claude Code, Cursor, Gemini, Codex, OpenCode.
 
-Ship is a package manager and runtime for AI agents. Install skills and agents from the registry, customize them for your projects, and let Ship handle the rest.
+## What you author
 
-## What Ship does
+- **Agents** — composed of skills, MCP servers, and permissions. One profile compiles to every supported provider.
+- **Skills** — instruction sets with typed variables. One skill, personalized output per user and project.
+- **Pipelines** — multi-step work with gates, retries, and parallel branches.
+- **Views** — live HTML surfaces over your data. Authored as templates; the app renders.
+- **Collections** — schema-backed structured data. Queryable, event-driven.
+- **Artifacts** — files agents and pipelines produce. Tracked, addressable, renderable in views.
+- **Triggers** — reactive rules that match events and run actions.
 
-- **Skills** — install, publish, and personalize agent capabilities. Smart skills adapt to each user and project through typed variables.
-- **Agents** — compose skills, tools, permissions, and rules into profiles that work across Claude Code, Cursor, Gemini, Codex, and OpenCode.
-- **Studio** — a visual IDE connected to your local projects. Browse the registry, configure agents, edit skills, set preferences.
-- **Registry** — share skills and agents publicly at getship.dev, or keep them private to your team.
+## Where to go next
 
-## Getting started
-
-Get started in three commands:
-
-```bash
-curl -fsSL https://getship.dev/install | sh
-cd your-project
-ship init
-```
-
-`ship init` scaffolds `.ship/`, creates a `dev` agent, and compiles provider-native config files automatically. Your project is ready to use with Claude Code, Gemini, Codex, or OpenCode immediately.
-
-For a visual interface, run `ship studio --open` to browse the registry, configure agents, and edit skills in the browser.
-
-Continue to [Installation](./installation).
+- [First Launch](./first-run/) — what to expect the first time you open Ship.
+- [Your First Agent](./first-project/) — set up an agent in a real project.

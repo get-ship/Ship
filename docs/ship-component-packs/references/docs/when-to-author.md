@@ -19,7 +19,7 @@ filter.
 | You want to render status-colored text or a pill. | `<ship-badge tone="…">` or `<ship-chip tone="…">`. The fixed tone vocabulary already covers `success / warning / destructive / info / accent / muted`. |
 | You want a custom chart. | Check `packages/ship-set/src/web-components/viz/` first — sparkline, line, area, bar, donut, heatmap, gauge, meter, progress-ring are already there. |
 | You want a code editor, terminal, or markdown editor. | Use the existing islands: `ship-code-editor`, `ship-terminal`, `ship-markdown-editor`. |
-| You want a view-local JS hook. | You don't. Either a macro, a `data-effect="…"`, or an existing element covers it. See the [SDK rules](/reference/sdk/rules/). |
+| You want a view-local JS hook. | You don't. Either a macro, a `data-effect="…"`, or an existing element covers it. See the [SDK rules](/sdk/rules/). |
 
 ## You DO need a pack if…
 

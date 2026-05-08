@@ -3,6 +3,7 @@ group: MCP Tools
 order: 2
 title: Tool Reference
 description: Every MCP tool with parameters, grouped by domain. Stable and experimental tools marked.
+audience: internal
 ---
 
 # Tool Reference

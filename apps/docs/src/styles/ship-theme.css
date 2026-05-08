@@ -163,7 +163,7 @@ ship-tooltip:defined {
  * styling, but some themes render them at the heading scale. Clamp to a
  * compact, monospaced row that matches normal sidebar entries.
  * ------------------------------------------------------------------------- */
-nav.sidebar a[href*="/reference/http-api/operations/"] {
+nav.sidebar a[href*="/http-api/operations/"] {
   font-family: var(--__sl-font-mono, ui-monospace, monospace);
   font-size: 0.78rem;
   font-weight: 500;
@@ -173,7 +173,7 @@ nav.sidebar a[href*="/reference/http-api/operations/"] {
   text-transform: none;
   word-break: break-word;
 }
-nav.sidebar a[href*="/reference/http-api/operations/"][aria-current="page"] {
+nav.sidebar a[href*="/http-api/operations/"][aria-current="page"] {
   font-weight: 600;
 }
 

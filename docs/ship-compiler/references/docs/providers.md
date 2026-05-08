@@ -3,6 +3,7 @@ group: Compiler
 order: 3
 title: Provider Outputs
 description: What each provider receives -- output paths, formats, and feature support matrix.
+audience: internal
 ---
 
 # Provider Outputs

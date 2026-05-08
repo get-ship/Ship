@@ -159,9 +159,9 @@ Author-written view templates (in `.ship/views/`) are NOT sanitized — the auth
 `assets.rs` + the `head()` Jinja macro load:
 
 - Fonts — @fontsource-variable/syne, @fontsource-variable/dm-sans.
-- Design tokens — `packages/ui/src/tokens.css` served as `/assets/ship-tokens.css`.
-- Themes — `packages/ui/src/themes.css`.
-- ship-elements — the web-component bundle built via `packages/ui/scripts/bundle-elements`. Served as `/assets/ship-elements.js`.
+- Design tokens — `packages/ship-set/src/tokens.css` served as `/assets/ship-tokens.css`.
+- Themes — `packages/ship-set/src/themes.css`.
+- ship-elements — the web-component bundle built from `packages/ship-set/`. Served as `/assets/ship-elements.js`.
 - Datastar — the reactive runtime, vendored under `apps/shipd/assets/datastar.js`.
 
 All loaded from shipd's own assets dir, not per-view. View authors don't think about bundling.
@@ -205,7 +205,7 @@ Integration-level testing happens via `apps/shipd/src/views/*_tests.rs` which sp
 
 ## Related
 
-- [Views Overview](/reference/views/) — user-facing intro.
-- [Manifest & SDK Reference](/reference/views/reference/) — public fields and macros.
-- [Kernel](/reference/architecture/kernel/) — SSE streams subscribe here.
-- [Collections](/reference/runtime/collections/) — the most common data source.
+- [Views Overview](/views/) — user-facing intro.
+- [Manifest & SDK Reference](/views/) — public fields and macros.
+- [Kernel](/architecture/kernel/) — SSE streams subscribe here.
+- [Collections](/runtime/collections/) — the most common data source.

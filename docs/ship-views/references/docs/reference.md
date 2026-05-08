@@ -3,6 +3,7 @@ group: Views
 order: 2
 title: Manifest & SDK Reference
 description: manifest.json fields, the _ship.html.j2 macro surface, signal/bind/event conventions, view context variables.
+audience: internal
 ---
 
 A view is `manifest.json` + `index.html.j2` plus optional assets. This page lists every field, macro, and convention.

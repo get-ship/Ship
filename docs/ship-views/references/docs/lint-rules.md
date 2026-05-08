@@ -3,6 +3,7 @@ group: Views
 order: 4
 title: Lint Rule Catalog
 description: Every rule the view linter ships, with severity, category, description, and an example violation + fix. Rule IDs are a stable contract — see the stability policy.
+audience: internal
 ---
 
 # Lint Rule Catalog

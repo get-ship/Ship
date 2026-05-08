@@ -60,7 +60,7 @@ No framing protocol beyond WebSocket. Terminal resize isn't handled today — th
 
 Session token-backed. `AuthContext.has_scope(Scope::WriteWorkspace)` is the single check. PTY access is as privileged as any other workspace write because pasting into a terminal is arbitrary code execution.
 
-See [Scopes](/reference/runtime/scopes/) for the scope model.
+See [Scopes](/runtime/scopes/) for the scope model.
 
 ## Edge cases
 
@@ -76,6 +76,6 @@ See [Scopes](/reference/runtime/scopes/) for the scope model.
 
 ## Related
 
-- [Supervisor](/reference/runtime/supervisor/) — `TmuxWindowExecutor` creates the sessions the bridge attaches to.
-- [Scopes](/reference/runtime/scopes/) — `Scope::WriteWorkspace` gates PTY access.
-- [Daemon](/reference/runtime/daemon/) — where this route is registered.
+- [Supervisor](/runtime/supervisor/) — `TmuxWindowExecutor` creates the sessions the bridge attaches to.
+- [Scopes](/runtime/scopes/) — `Scope::WriteWorkspace` gates PTY access.
+- [Daemon](/runtime/daemon/) — where this route is registered.

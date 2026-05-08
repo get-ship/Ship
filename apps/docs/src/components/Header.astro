@@ -22,6 +22,9 @@ const shouldRenderSearch =
     {shouldRenderSearch && <Search />}
   </div>
   <div class="sl-hidden md:sl-flex print:hidden right-group">
+    <a class="beta-badge" href="https://getship.dev/download" rel="noopener">
+      Private Beta
+    </a>
     <div class="sl-flex social-icons">
       <SocialIcons />
     </div>
@@ -51,6 +54,24 @@ const shouldRenderSearch =
     .social-icons {
       gap: 1rem;
       align-items: center;
+    }
+    .beta-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: var(--primary, currentColor);
+      background: color-mix(in oklab, var(--primary, currentColor) 12%, transparent);
+      border: 1px solid color-mix(in oklab, var(--primary, currentColor) 30%, transparent);
+      text-decoration: none;
+      transition: background 150ms ease;
+      white-space: nowrap;
+    }
+    .beta-badge:hover {
+      background: color-mix(in oklab, var(--primary, currentColor) 20%, transparent);
     }
     .social-icons::after {
       content: '';

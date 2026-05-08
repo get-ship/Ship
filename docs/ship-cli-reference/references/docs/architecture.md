@@ -114,7 +114,7 @@ These commands emit events via the init-on-first-use `KernelRouter` — `try_ini
 
 These commands POST to `http://127.0.0.1:{port}` using the daemon token.
 
-- `ship run <pipeline>` — POSTs to `/api/runtime/jobs` (see [Architecture: ship run trace](/reference/architecture/#ship-run-end-to-end-trace)).
+- `ship run <pipeline>` — POSTs to `/api/runtime/jobs` (see [Architecture: ship run trace](/architecture/#ship-run-end-to-end-trace)).
 - `ship jobs` — GETs `/api/runtime/jobs` for the current projection.
 - `ship job <slug>` — single-job operations (status, cancel, tail).
 - `ship workspace *` — some subcommands go through the daemon for pipeline coordination.
@@ -199,6 +199,6 @@ CLI integration tests that need a daemon spawn shipd in-process under `tokio::te
 
 ## Related
 
-- [Commands](/reference/cli/commands/) — public-facing per-command reference.
-- [Daemon](/reference/runtime/daemon/) — the other side of the HTTP boundary.
-- [Architecture Overview](/reference/architecture/) — where the CLI sits in the system.
+- [Commands](/cli/commands/) — public-facing per-command reference.
+- [Daemon](/runtime/daemon/) — the other side of the HTTP boundary.
+- [Architecture Overview](/architecture/) — where the CLI sits in the system.

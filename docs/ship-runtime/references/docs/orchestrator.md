@@ -223,7 +223,7 @@ Callers don't hand-build envelopes for these common cases.
 
 ## Related
 
-- [Kernel](/reference/architecture/kernel/) — where orchestrator events flow.
-- [Events](/reference/runtime/events/) — event types the orchestrator emits and consumes.
-- [Supervisor](/reference/runtime/supervisor/) — process dispatch and executor plumbing shipd hosts.
-- [Mesh](/reference/runtime/mesh/) — how the orchestrator's peer actors route inter-agent messages.
+- [Kernel](/architecture/kernel/) — where orchestrator events flow.
+- [Events](/runtime/events/) — event types the orchestrator emits and consumes.
+- [Supervisor](/runtime/supervisor/) — process dispatch and executor plumbing shipd hosts.
+- [Mesh](/runtime/mesh/) — how the orchestrator's peer actors route inter-agent messages.

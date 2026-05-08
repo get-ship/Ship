@@ -1,32 +1,45 @@
 ---
 group: Views
 order: 1
-title: Views Overview
-description: The extension mechanism for user-facing HTML surfaces in Ship. Daemon-rendered Jinja templates with ship-elements components and Datastar reactivity.
+title: Views
+description: Custom UI in your Ship app — server-rendered Jinja templates with live reactivity. No build step.
 ---
 
-A view is a folder in `.ship/views/<name>/` that shipd serves at `http://localhost:{port}/views/<name>/`. One `index.html.j2` template plus a `manifest.json` is enough to ship a live-updating UI. No build step, no framework to install — drop the files in place, reload, see your changes.
+A view is a folder you drop into `.ship/views/`. The runtime serves it at `http://localhost:9315/views/<name>/`. One template plus a small manifest, and your app has a new live-updating screen.
 
-## What a view gives you
+## What you get
 
-- **Server-rendered HTML** — the browser gets ready-to-read markup; no client-side routing or framework boot.
-- **Live reactivity** — Datastar attributes on elements + SSE from shipd keep signals and DOM in sync. Type in an input, data updates immediately.
-- **Ship component library** — `<ship-card>`, `<ship-input>`, `<ship-button>`, and the rest render with the platform's design system automatically.
-- **Access to runtime data** — Jinja templates read collections, events, workspaces, sessions directly via the view context. No API calls from the browser.
-- **Subscription to events** — the manifest declares which event types the view listens to; shipd delivers them over SSE so the template re-renders automatically.
+<ship-card padding="md">
+<strong slot="header">Server-rendered HTML</strong>
+The browser receives ready-to-read markup. No client-side framework boot, no hydration step, no build pipeline.
+</ship-card>
 
-## When to author a view
+<ship-card padding="md">
+<strong slot="header">Live reactivity</strong>
+Bindings keep signals and DOM in sync; the runtime pushes updates over SSE. Type in an input — the view reflects it instantly.
+</ship-card>
 
-Views are the right choice for:
+<ship-card padding="md">
+<strong slot="header">Direct access to your data</strong>
+Templates read collections, events, workspaces, and sessions through the view context. No API calls from the browser.
+</ship-card>
 
-- A UI surface tied to a collection (browse/edit/create items).
-- A dashboard summarizing runtime state (workspace status, job queue, event log).
-- A canvas-style interaction where an agent renders HTML and the user annotates or approves.
-- Anything you'd otherwise embed in Studio but that doesn't need Studio's SPA infrastructure.
+<ship-card padding="md">
+<strong slot="header">Ship's component library</strong>
+`<ship-card>`, `<ship-input>`, `<ship-button>`, and the rest render with the platform's design system automatically.
+</ship-card>
 
-They're **not** for: arbitrary standalone web apps (use `apps/` for those), static marketing pages (`apps/site`), or anything that needs its own build pipeline.
+## When to author one
 
-## Minimal example
+Reach for a view when you want:
+
+- A UI tied to a collection — browse, edit, create items.
+- A dashboard summarizing runtime state.
+- A canvas surface where an agent renders HTML and you annotate, approve, or reply.
+
+A view is the right tool when you want to extend the app with something new. It is **not** the place for a standalone marketing site, an arbitrary third-party app, or anything that needs its own build pipeline.
+
+## A minimal view
 
 `.ship/views/hello/manifest.json`:
 
@@ -46,50 +59,23 @@ They're **not** for: arbitrary standalone web apps (use `apps/` for those), stat
 <html>
 <head>{{ head('Hello') }}</head>
 <body>
-<div class="ship-view" {{ signal('name', 'world') }}>
-  <ship-card>
-    <h1>Hello, <span data-text="$name"></span>!</h1>
-    <ship-input data-bind="name" placeholder="Your name"></ship-input>
-  </ship-card>
-</div>
+  <div class="ship-view" {{ signal('name', 'world') }}>
+    <ship-card>
+      <h1>Hello, <span data-text="$name"></span>!</h1>
+      <ship-input data-bind="name" placeholder="Your name"></ship-input>
+    </ship-card>
+  </div>
 </body>
 </html>
 ```
 
-Load `/views/hello/`. Type. The heading updates as you type. That's the full loop — no server round-trip, no build step.
+Open `/views/hello/` in your browser. Type. The heading updates as you type. That's the whole loop — no server round-trip, no rebuild.
 
-## Request flow
+## Live updates from elsewhere
 
-When the browser requests `/views/hello/`:
+When your view declares `events` in its manifest, the runtime pushes matching events over SSE and re-renders the affected fragment automatically. Author once, watch updates flow in from agents, pipelines, and your own actions.
 
-1. shipd's view handler looks up `.ship/views/hello/manifest.json`.
-2. Reads `index.html.j2`.
-3. Renders it through Jinja with the view context — collections, events, workspace state.
-4. Serves the rendered HTML. Includes the ship-elements bundle and Datastar runtime via script tags.
+## Next
 
-Subsequent live updates flow over SSE — shipd keeps a connection open, pushes new events as they arrive in the kernel, and the page's Datastar directives re-render the affected regions.
-
-For an event-driven update: the manifest declares `events: ["collection.item_created"]`; when a matching event fires in the kernel, shipd pushes a fragment over SSE; the page swaps it in place.
-
-## Views vs Studio vs static sites
-
-| Surface | Purpose | How authored |
-|---|---|---|
-| **View** (`.ship/views/*`) | Extend Ship's daemon-served UI for a specific domain | Jinja template + manifest |
-| **Shell** (`apps/shell`) | The daemon-connected UI — agents, settings, skills IDE | Cloudflare Worker + Hono |
-| **Marketing site** (`apps/site`) | Public-facing content | Astro site |
-
-Views are the extension mechanism. Studio is a first-party consumer of the same kernel+runtime, not an extension — you don't author "a new Studio" the way you author "a new view."
-
-## Canvas views
-
-A special case of views. Canvas views are ephemeral, agent-owned surfaces for bi-directional interaction — an agent emits HTML, the user annotates/approves/clicks, the agent sees the feedback. Canvas artifacts live in the `files` collection tagged `collection_id: "canvas"`; the `view.open` MCP tool opens one.
-
-See the `ship-views` bundled skill (`.ship/skills/ship-views/SKILL.md`) for authoring patterns including canvas. This doc skill covers what Ship provides; the bundled skill covers how to use it well.
-
-## Related
-
-- [Manifest & SDK reference](/reference/views/reference/) — every field, every macro.
-- [Views runtime](/reference/views/runtime/) — how shipd serves views.
-- [Collections](/reference/collections/) — the most common data source for views.
-- [ship-elements](https://getship.dev/set) — the component library views render with.
+- [Editor integration](./editor-integration/) — set up the Ship LSP for inline lint diagnostics.
+- [Setup view](./setup-view/) — the first-launch wizard, used as a worked example.

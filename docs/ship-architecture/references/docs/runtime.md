@@ -3,6 +3,7 @@ group: Architecture
 order: 2
 title: Runtime
 description: What the runtime owns -- workspaces, sessions, events, jobs, file claims, targets, capabilities, skill vars, skill paths, and the platform database.
+audience: internal
 ---
 
 # Runtime

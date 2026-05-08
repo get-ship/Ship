@@ -148,8 +148,8 @@ Used by CLI subcommands (`ship daemon status`, `ship daemon stop`).
 
 ## Related
 
-- [Scopes](/reference/runtime/scopes/) — auth middleware and token types.
-- [Supervisor](/reference/runtime/supervisor/) — everything the orchestrator needs from the host.
-- [Orchestrator](/reference/runtime/orchestrator/) — started by `JobManager::init` → `subscribe_job_events`.
-- [Mesh](/reference/runtime/mesh/) — spawned by `spawn_mesh_service`.
-- [PTY Bridge](/reference/runtime/pty-bridge/) — `/api/workspaces/:id/pty` handler.
+- [Scopes](/runtime/scopes/) — auth middleware and token types.
+- [Supervisor](/runtime/supervisor/) — everything the orchestrator needs from the host.
+- [Orchestrator](/runtime/orchestrator/) — started by `JobManager::init` → `subscribe_job_events`.
+- [Mesh](/runtime/mesh/) — spawned by `spawn_mesh_service`.
+- [PTY Bridge](/runtime/pty-bridge/) — `/api/workspaces/:id/pty` handler.

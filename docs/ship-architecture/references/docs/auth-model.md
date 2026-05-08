@@ -1,3 +1,10 @@
+---
+group: Architecture
+title: Daemon Authentication Model
+description: How shipd authenticates HTTP callers and scopes what each can do.
+audience: internal
+---
+
 # Daemon authentication model
 
 The Ship daemon (`shipd`) exposes HTTP endpoints on localhost. Because anything running
@@ -5,7 +12,7 @@ as the same user can reach those endpoints, the daemon authenticates every calle
 scopes what each can do.
 
 This document is for contributors. For user-facing docs, see
-[Connecting Studio to your daemon](/reference/studio/auth/).
+[Connecting Studio to your daemon](/studio/auth/).
 
 ## Token types
 

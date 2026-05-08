@@ -1,69 +1,54 @@
 ---
 group: Collections
-title: Overview
+title: Collections
 section: guide
 order: 1
 ---
 
-# Collections
+A **collection** is a typed dataset. You declare its shape in a small JSONC file; Ship gives you storage, queries, real-time events, and agent access — all without writing a database layer.
 
-A collection is a typed dataset. You define a schema in `.ship/collections/`, and Ship gives you storage, a query API, event emission, and agent access.
+## When to reach for a collection
 
-## When to use collections
+<ship-card padding="md">
+<strong slot="header">Structured records</strong>
+Tasks, ADRs, customer interviews, content drafts — anything you'd otherwise put in a Notion database or an Airtable base.
+</ship-card>
 
-- Structured data that agents and humans create and query (ADRs, tasks, content)
-- Any data a view needs to display, filter, and edit
-- Anything you'd put in a Notion database or Airtable base
+<ship-card padding="md">
+<strong slot="header">Data your views display</strong>
+A view's template can read collection items directly. List, filter, edit — no API plumbing required.
+</ship-card>
 
-## How it works
+<ship-card padding="md">
+<strong slot="header">A target for triggers</strong>
+A trigger can insert into or update a collection in response to an event, turning automation into structured records.
+</ship-card>
 
-1. Define a schema in `.ship/collections/<id>.jsonc`
-2. Ship creates a table in `.ship/data.db` with typed columns
-3. Use the REST API or MCP tools to create, query, update, delete items
-4. Views fetch collection data and render it however they choose
-5. Events fire on every mutation — views and agents react in real time
+## A small example
 
-## Quick start
-
-Create a schema:
+`.ship/collections/task.jsonc`:
 
 ```jsonc
-// .ship/collections/task.jsonc
 {
   "id": "task",
   "name": "Task",
   "fields": {
-    "title": { "type": "string", "required": true },
-    "status": { "type": "enum", "values": ["todo", "doing", "done"] },
+    "title":    { "type": "string", "required": true },
+    "status":   { "type": "enum", "values": ["todo", "doing", "done"] },
     "priority": { "type": "number" }
   }
 }
 ```
 
-Create an item via the REST API:
+That's enough to get a typed table, a CRUD API, an MCP surface for agents, and live events on every change. No code, no migrations.
 
-```bash
-curl -X POST /api/collections/task/items \
-  -H 'Content-Type: application/json' \
-  -d '{"data": {"title": "Write docs", "status": "todo", "priority": 1}}'
-```
+## What you get
 
-Query items:
+- **Typed storage.** Ship creates a real table for each collection in your project's local database.
+- **Query, sort, filter.** A simple structured query language for finding what you want.
+- **Live events.** `collection.item_*` events fire on every mutation; views and triggers can listen.
+- **Agent access.** Agents can read and write collections via MCP without you wiring up custom tools.
 
-```bash
-curl -X POST /api/collections/task/query \
-  -H 'Content-Type: application/json' \
-  -d '{"collection": "task", "filter": {"status": "todo"}, "sort": {"priority": -1}}'
-```
+## Next
 
-## Architecture
-
-Collections sit on top of the data service — a managed SQLite database at `.ship/data.db`. Each collection gets its own table with real typed columns. The data service is available to any Ship extension, not just collections.
-
-```
-.ship/collections/<id>.jsonc    → schema definition
-.ship/data.db               → SQLite storage (managed by daemon)
-/api/collections/...        → REST API
-MCP tools                   → agent access (create_doc, query_docs, etc.)
-collection.item_* events    → real-time reactivity
-```
+- [Views over collections](./views/) — how to render collection data in a Ship view.

@@ -182,7 +182,7 @@ From `ship-types::event_types`:
 
 ## Related
 
-- [Workspaces](/reference/runtime/workspaces/) — sessions live inside a workspace.
-- [Projections](/reference/runtime/projections/) — `SessionProjection` maintains the `workspace_session` table.
-- [Platform DB](/reference/runtime/platform-db/) — `workspace_session` and `workspace_session_record` tables.
-- [Hooks](/reference/runtime/hooks/) — `SessionEnd` and `Stop` hook triggers.
+- [Workspaces](/runtime/workspaces/) — sessions live inside a workspace.
+- [Projections](/runtime/projections/) — `SessionProjection` maintains the `workspace_session` table.
+- [Platform DB](/runtime/platform-db/) — `workspace_session` and `workspace_session_record` tables.
+- [Hooks](/runtime/hooks/) — `SessionEnd` and `Stop` hook triggers.

@@ -50,7 +50,7 @@ Map of `path → constraint-or-table`. Two shapes:
 }
 ```
 
-The short form (string) is a version constraint. The table form carries additional fields for git-specific pinning. See [Registry](/reference/runtime/registry/) for constraint syntax and resolution.
+The short form (string) is a version constraint. The table form carries additional fields for git-specific pinning. See [Registry](/runtime/registry/) for constraint syntax and resolution.
 
 ### exports
 
@@ -97,7 +97,7 @@ pub struct LockPackage {
 - `ShipLock::default()` — fresh lockfile with version=1 and empty packages.
 - Serialization goes through `toml` crate. Deterministic because `BTreeMap` orders keys and `Vec` preserves insertion order.
 
-Writers beyond the compiler live in `runtime::registry::install_helpers` (`load_lock_if_present`, `write_lock_atomic`, `should_write_lock`). See [Registry](/reference/runtime/registry/).
+Writers beyond the compiler live in `runtime::registry::install_helpers` (`load_lock_if_present`, `write_lock_atomic`, `should_write_lock`). See [Registry](/runtime/registry/).
 
 ### Integrity path
 
@@ -141,5 +141,5 @@ The compiler's job is the format: parse manifests and lockfiles, serialize them 
 
 ## Related
 
-- [Registry](/reference/runtime/registry/) — dependency resolver, install, hash computation.
-- [Compilation Pipeline](/reference/compiler/pipeline/) — manifest feeds into the compile pipeline via `ProjectLibrary`.
+- [Registry](/runtime/registry/) — dependency resolver, install, hash computation.
+- [Compilation Pipeline](/compiler/pipeline/) — manifest feeds into the compile pipeline via `ProjectLibrary`.

@@ -138,6 +138,6 @@ Handlers extract via `Extension(auth): Extension<AuthContext>` and call `require
 
 ## Related
 
-- [Daemon](/reference/runtime/daemon/) — startup wires token + session registry.
-- [PTY Bridge](/reference/runtime/pty-bridge/) — uses `Scope::WriteWorkspace`.
-- [Events](/reference/runtime/events/) — `EmitEvents` and `LogProgress` scopes gate event emission for untrusted callers.
+- [Daemon](/runtime/daemon/) — startup wires token + session registry.
+- [PTY Bridge](/runtime/pty-bridge/) — uses `Scope::WriteWorkspace`.
+- [Events](/runtime/events/) — `EmitEvents` and `LogProgress` scopes gate event emission for untrusted callers.

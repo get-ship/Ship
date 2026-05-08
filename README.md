@@ -2,7 +2,7 @@
 
 **Don't just build. Ship.**
 
-Ship is a runtime for AI agent teams. Not a harness — a runtime. It gives agents coordination primitives, compiles configuration to every provider, and lets you build multi-agent workflows the way you want them.
+Ship is a runtime for AI agent teams. Not a harness — a runtime. It gives agents coordination primitives, compiles configuration to every provider, and lets you build multi-agent systems the way you want them.
 
 ## Compiler
 
@@ -29,6 +29,18 @@ ship use my-agent        # compile + write all provider files
 ship compile             # compile without activating
 ```
 
+## What you author
+
+Ship gives you seven primitives. You define them in `.ship/`; the runtime makes them real.
+
+- **Agents** — provider-portable profiles (skills, MCP servers, permissions)
+- **Skills** — markdown templates compiled into agent context with progressive disclosure
+- **Artifacts** — typed working files agents read and write
+- **Collections** — structured, queryable data (ADRs, systems, anything you schema)
+- **Pipelines** — declarative multi-step work; the runtime dispatches and routes completion
+- **Views** — daemon-served UI surfaces (Jinja + Datastar) for inspection and authoring
+- **Triggers** — event-sourced reactions that fire on runtime state changes
+
 ## Smart Skills
 
 Skills are markdown templates compiled into agent context. They use progressive disclosure — agents load only what they need via `active_tools`, so a large reference doesn't bloat every context.
@@ -46,16 +58,9 @@ Skills are shareable packages. The registry at [getship.dev](https://getship.dev
 ship add github.com/acme/agent-skills    # install a skill package
 ```
 
-## Workflows
+## Pipelines
 
-The runtime exposes coordination primitives to agents via `ship mcp serve`:
-
-- **Workspaces** — units of work mapped to git branches and worktrees
-- **Sessions** — tracked visits with goals, progress notes, and summaries
-- **Jobs** — work items with status, ownership, and completion signals
-- **Events** — append-only log of every state change
-
-You define the pipeline. Ship dispatches steps in order and routes completion signals.
+Declarative multi-step work. You define the pipeline; the runtime dispatches steps in order and routes completion signals.
 
 ```yaml
 # .ship/pipelines/feature.yaml
@@ -69,14 +74,7 @@ steps:
     after: [gate]
 ```
 
-```bash
-ship mcp serve          # stdio (wired via .mcp.json)
-ship mcp serve --http   # HTTP for remote agents
-```
-
-## Artifacts
-
-Agents write working files to `.artifacts/` — a gitignored scratchpad visible in Ship Studio. Specs, mockups, screenshots, reports. Studio surfaces them inline with viewers for markdown, images, and canvas.
+Each invocation is a **run** with status, ownership, and a completion signal. Steps emit events, and triggers can fan out from there.
 
 ## Agent Profiles
 
@@ -109,27 +107,26 @@ ship publish                   # publish your own
 
 Every dependency is pinned in `ship.lock` with the exact commit and SHA-256 tree hash.
 
-## Observability
+## Runtime
 
-Early days, but Ship Studio gives you a live view into what agents are doing: job queue, pipeline state, session timelines, and artifact output. The event log underpins everything — every state change is recorded.
+The daemon (`shipd`) is the runtime. It's event-sourced — every state change is recorded — and supervises agents through workspaces, sessions, and runs. Most of that is plumbing you don't write against directly; you author the seven primitives above and the runtime tracks the rest.
 
-## Studio
+The daemon also serves the browser UI on `http://localhost:9315`, including the in-app Studios:
 
-Browser-based control plane connecting to the local `shipd` daemon.
+- **Agent Studio** — manage profiles, skills, servers, permissions
+- **Skills Studio** — author and preview skill markdown
+- **Views Studio** — author daemon-served views
 
-- **Jobs** — live queue with pipeline state and agent logs
-- **Sessions** — per-workspace agent activity timeline
-- **Artifacts** — inline file viewer for agent output
-- **Agents** — manage profiles, skills, servers, permissions
-- **Skills IDE** — author and preview skill markdown
+Agents reach the runtime through MCP:
 
 ```bash
-ship daemon start
+ship mcp serve          # stdio (wired via .mcp.json)
+ship mcp serve --http   # HTTP for remote agents
 ```
 
 ## Service Mesh
 
-Agents in a running Ship cluster can discover and message each other through the runtime mesh. The story here is still developing — it's infrastructure for coordination patterns that go beyond simple pipelines.
+Agents in a running Ship cluster discover and message each other through the runtime mesh. Supervisor primitives (spawn, channels, kill-tree) let pipelines coordinate beyond linear step ordering. The story here is still developing — expect the surface to evolve.
 
 ## Get Started
 
@@ -161,4 +158,4 @@ cargo install --path apps/ship-cli --path apps/shipd
 
 ## Status
 
-Ship is in active development. The compiler, package manager, and CLI are stable. The runtime, Studio, and mesh are growing — breaking changes on that surface should be expected.
+Ship is in active development. The compiler, package manager, and CLI are stable. The runtime, daemon-served UI, and mesh are growing — breaking changes on that surface should be expected.

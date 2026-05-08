@@ -1,25 +1,32 @@
 ---
 group: Pipelines
 order: 1
-title: Pipelines Overview
-description: Declarative DAGs of steps the runtime walks automatically. When to use one, how dispatch works, where they live.
+title: Pipelines
+description: Multi-step work as a declarative DAG. Steps can run in parallel, gates pause for review, runs are resumable.
 ---
 
-A pipeline is a DAG of steps declared in `.ship/pipelines/<name>.yaml`. When a job uses a pipeline, the runtime walks the DAG: root steps run first, and as each step completes the orchestrator finds newly unblocked dependents and dispatches them. The loop continues until every step is done or the pipeline halts on an error or human gate.
+A pipeline is a YAML file that describes multi-step work — who does what, what waits on what, and where humans review. You author it once in `.ship/pipelines/<name>.yaml`; the runtime walks the steps, dispatches each agent, and routes completion signals downstream.
 
-## When a pipeline helps
+## When to reach for a pipeline
 
-Reach for a pipeline when:
+<ship-card padding="md">
+<strong slot="header">Distinct phases</strong>
+Write → review → merge. Each phase wants a different agent, possibly a different model.
+</ship-card>
 
-- The work has more than one distinct phase (write → review → merge).
-- Phases need different agents or different models (a fast sonnet reviewer after an opus implementer).
-- Steps can run in parallel once shared work finishes (web + api branches after a shared setup).
-- You want a gate — an agent that reviews a diff and passes/fails before merge.
-- You need a `human:` step that pauses until explicitly unblocked.
+<ship-card padding="md">
+<strong slot="header">Parallel work</strong>
+Two branches that can run independently after some shared setup, then converge.
+</ship-card>
 
-Skip the pipeline when a single agent run is enough. A one-off `ship run` against a single agent doesn't need ceremony.
+<ship-card padding="md">
+<strong slot="header">Gates and approvals</strong>
+A reviewer agent (or a human) decides whether the work moves on.
+</ship-card>
 
-## Minimal example
+If a single agent run is enough, skip the pipeline. Pipelines pay off when you have orchestration to express.
+
+## A small example
 
 `.ship/pipelines/tdd.yaml`:
 
@@ -47,53 +54,26 @@ Run it:
 ship run tdd --spec spec.md
 ```
 
-The orchestrator creates a job on `job/<slug>`, allocates a git worktree, and dispatches `test` first. When `test` completes, `impl` fires. When `impl` completes, `review` fires as a gate. If the gate passes and `auto_merge` is set (see Reference), the job merges to the parent branch; otherwise it sits Completed.
+The runtime allocates an isolated workspace, runs the test agent, then the implementation agent, then opens a review gate. If the gate passes (and `auto_merge` is set in the pipeline), the work merges back to your parent branch.
 
-## What happens when you `ship run`
+## Short form for sequential pipelines
 
-1. CLI parses the pipeline YAML and normalizes it.
-2. POSTs `job.created` to `shipd`.
-3. Kernel persists; orchestrator's mailbox receives the event.
-4. Orchestrator runs `ensure_pipeline(payload)` (already run by the handler, idempotent here).
-5. Orchestrator calls `isolation.prepare` — git worktree created.
-6. First step's agent spawns in the worktree.
-7. Agent finishes, emits `job.step_completed`.
-8. Kernel persists + delivers back to orchestrator.
-9. `advance_pipeline` finds the next unblocked step, dispatches.
-10. Loop until drained.
-
-See the [architecture overview sequence diagram](/reference/architecture/) for the `ship run` trace in detail, and [Orchestrator](/reference/runtime/orchestrator/) for pipeline advancement internals.
-
-## Short form — agents only
-
-If every step is an agent run and they're strictly sequential, drop the `steps` array and list agents:
+When every step is an agent run and they're strictly sequential, drop the `steps` array and list agents:
 
 ```yaml
 name: quick
 agents: [planner, coder, reviewer]
 ```
 
-Normalized to three sequential steps: `planner` → `coder` → `reviewer`. Short form is for one-line pipelines; when you need branches, merges, or gates, use the explicit `steps` form.
+This expands to three sequential steps. Use the explicit `steps` form when you need branches, gates, or parallel work.
 
-## Where pipelines live
+## What you get
 
-- Authored: `.ship/pipelines/<name>.yaml`.
-- Referenced: `pipeline:` frontmatter field in a job spec (`.artifacts/*-spec.md`), or the `--pipeline` flag on `ship run`.
-- Persisted at dispatch: parsed into `JobCreatedPayload.steps` before the event lands in the event log. Replay on daemon startup reads the parsed form, not the YAML — so editing a pipeline file after dispatch doesn't affect in-flight jobs.
-
-## Not covered here
-
-- The YAML schema in detail — see [Reference](/reference/pipelines/reference/).
-- Orchestrator internals (pipeline advancement, gate retry, replay) — see [Orchestrator](/reference/runtime/orchestrator/).
-- The `ship-jobs` crate that owns the types — see [ship-jobs](/reference/pipelines/ship-jobs/).
-
-## Artifact I/O (phase 2)
-
-Step-to-step artifact passing via `produces`/`consumes`/`promotes` declarations is a **phase-2 deliverable**. In phase 1, agents use the [`artifact_upload`/`artifact_get` MCP tools](/reference/artifacts/) directly to share files across steps — the pipeline orchestrator does not yet manage artifact routing automatically.
+- **Resumable runs.** A run that crashed at 2am picks up where it stopped — the runtime replays from its event log.
+- **Observable.** Every step transition is an event. The dashboard shows live state across the run.
+- **Composable.** Pipelines can call other pipelines as nested steps.
 
 ## Related
 
-- [Orchestrator](/reference/runtime/orchestrator/) — how pipelines execute at runtime.
-- [Workspaces](/reference/runtime/workspaces/) — where pipelines run.
-- [Triggers](/reference/triggers/) — a trigger with a `pipeline.trigger` action dispatches a pipeline run.
-- [Artifacts](/reference/artifacts/) — the artifact store agents use for step I/O.
+- [Competing approaches](./competing-approaches/) — fan out K agents, judge picks the best result.
+- [Triggers](/triggers/) — fire a pipeline when an event matches.

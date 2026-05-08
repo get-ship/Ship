@@ -10,7 +10,7 @@ audience: internal
 
 Runtime state. Path: `~/.ship/platform.db`. Lives at `crates/core/runtime/src/db/`.
 
-Ship has a second SQLite database — `~/.ship/data.db` — that holds user content collections (specs, ADRs, notes, feedback). `platform.db` and `data.db` are separate files with separate migrations and separate responsibilities. See [Collections](/reference/runtime/collections/) for the data side.
+Ship has a second SQLite database — `~/.ship/data.db` — that holds user content collections (specs, ADRs, notes, feedback). `platform.db` and `data.db` are separate files with separate migrations and separate responsibilities. See [Collections](/runtime/collections/) for the data side.
 
 ## Two databases, clear split
 
@@ -149,7 +149,7 @@ Used throughout runtime: skill variable storage (`skill_vars:{id}`), managed sta
 
 ## Rebuild
 
-`crates/core/runtime/src/db/rebuild.rs` — projection rebuild from the event log. Drop projection tables (workspaces, sessions, jobs, etc.), replay `events` in insertion order, reconstruct them. Used on daemon startup when event-log integrity suggests projection drift. See [Projections](/reference/runtime/projections/) for details.
+`crates/core/runtime/src/db/rebuild.rs` — projection rebuild from the event log. Drop projection tables (workspaces, sessions, jobs, etc.), replay `events` in insertion order, reconstruct them. Used on daemon startup when event-log integrity suggests projection drift. See [Projections](/runtime/projections/) for details.
 
 ## Event log summary on startup
 
@@ -180,6 +180,6 @@ ensure_db().unwrap();
 
 ## Related
 
-- [Persistence](/reference/runtime/persistence/) — `EventStore`, `SqliteEventStore`, `ActorStore`.
-- [Projections](/reference/runtime/projections/) — read-model rebuild from the event log.
-- [Kernel](/reference/architecture/kernel/) — routing contract, `EventSink` integration.
+- [Persistence](/runtime/persistence/) — `EventStore`, `SqliteEventStore`, `ActorStore`.
+- [Projections](/runtime/projections/) — read-model rebuild from the event log.
+- [Kernel](/architecture/kernel/) — routing contract, `EventSink` integration.

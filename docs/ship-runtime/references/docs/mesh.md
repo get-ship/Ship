@@ -113,6 +113,6 @@ Co-located in `runtime/src/services/mesh_tests.rs` and `runtime/src/services/int
 
 ## Related
 
-- [Kernel](/reference/architecture/kernel/) — routing contract; mesh envelopes go through it.
-- [Events](/reference/runtime/events/) — `mesh.` namespace sits in `KERNEL_NAMESPACES`.
-- [Orchestrator](/reference/runtime/orchestrator/) — another service actor, same `ServiceHandler` pattern.
+- [Kernel](/architecture/kernel/) — routing contract; mesh envelopes go through it.
+- [Events](/runtime/events/) — `mesh.` namespace sits in `KERNEL_NAMESPACES`.
+- [Orchestrator](/runtime/orchestrator/) — another service actor, same `ServiceHandler` pattern.

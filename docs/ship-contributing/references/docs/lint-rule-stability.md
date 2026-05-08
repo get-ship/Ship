@@ -3,6 +3,7 @@ group: Contributing
 order: 5
 title: Lint Rule Stability Policy
 description: Rule IDs are a public contract. This page documents what we promise about renames, additions, removals, and severity changes.
+audience: internal
 ---
 
 # Lint Rule Stability Policy

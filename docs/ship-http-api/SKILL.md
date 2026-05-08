@@ -10,6 +10,6 @@ authors: [ship]
 
 `shipd` exposes a local REST API used by the CLI, MCP server, Studio, and third-party clients. The surface is described by a versioned OpenAPI document and rendered into per-operation pages at build time.
 
-- **[Overview](/reference/http-api/)** — base URL, authentication, error handling.
-- **[Error Codes](/reference/http-api/errors/)** — canonical `ErrorResponse` codes, HTTP statuses, and remediation.
-- **Operations** — auto-generated from `apps/docs/openapi.json` under `/reference/http-api/operations/`.
+- **[Overview](/http-api/)** — base URL, authentication, error handling.
+- **[Error Codes](/http-api/errors/)** — canonical `ErrorResponse` codes, HTTP statuses, and remediation.
+- **Operations** — auto-generated from `apps/docs/openapi.json` under `/http-api/operations/`.

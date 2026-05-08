@@ -85,6 +85,27 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
 </StarlightPage>
 
 <script>
+  // Some components don't render visibly without children or props (closed-by-
+  // default overlays, group wrappers, etc.). After custom-element upgrade,
+  // detect previews that collapsed to 0×0 and replace with a tag-name hint
+  // matching the explicit overlay style.
+  const swapEmpty = () => {
+    document.querySelectorAll<HTMLElement>('.idx-card-preview').forEach((preview) => {
+      const child = preview.firstElementChild as HTMLElement | null;
+      if (!child) return;
+      if (child.classList.contains('idx-overlay-hint')) return;
+      const w = child.offsetWidth;
+      const h = child.offsetHeight;
+      if (w < 4 || h < 4) {
+        const tag = child.tagName.toLowerCase();
+        preview.innerHTML = `<code class="idx-overlay-hint">${tag}</code>`;
+        preview.parentElement?.classList.add('idx-card-overlay');
+      }
+    });
+  };
+  // Wait for the elements bundle to upgrade everything, then check.
+  requestAnimationFrame(() => requestAnimationFrame(swapEmpty));
+
   const input = document.querySelector<HTMLInputElement>('[data-idx-search]');
   const pills = document.querySelectorAll<HTMLButtonElement>('.idx-pill');
   const cards = document.querySelectorAll<HTMLElement>('[data-idx-card]');
@@ -156,13 +177,17 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
   }
   .idx-pill {
     appearance: none;
+    display: inline-flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 12px;
     border: 1px solid var(--sl-color-gray-5);
     background: var(--sl-color-black);
     color: var(--sl-color-gray-2);
-    padding: 5px 11px;
     font: inherit;
     font-size: 12px;
     font-weight: 500;
+    line-height: 1;
     border-radius: 999px;
     cursor: pointer;
   }
@@ -199,20 +224,21 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
   }
   .idx-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 380px));
+    gap: 14px;
+    justify-content: start;
   }
   .idx-card {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 14px;
+    gap: 14px;
+    padding: 20px;
     border: 1px solid var(--sl-color-gray-5);
-    border-radius: 10px;
+    border-radius: 12px;
     background: var(--sl-color-black);
     text-decoration: none;
     color: inherit;
-    min-height: 140px;
+    min-height: 180px;
     transition: border-color 120ms ease-out, transform 120ms ease-out;
   }
   .idx-card:hover {
@@ -223,8 +249,8 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
     flex: 1;
     display: grid;
     place-items: center;
-    padding: 10px 4px;
-    min-height: 56px;
+    padding: 12px 8px;
+    min-height: 88px;
   }
   .idx-card-meta { display: flex; align-items: center; gap: 8px; }
   .idx-card-tag {

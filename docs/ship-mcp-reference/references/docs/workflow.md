@@ -3,6 +3,7 @@ group: MCP Tools
 order: 4
 title: Workflow Patterns
 description: The three-mode workflow -- planning, orchestration, and gate -- using workspaces, sessions, and jobs.
+audience: internal
 ---
 
 # Workflow Patterns
