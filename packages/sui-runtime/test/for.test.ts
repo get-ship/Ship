@@ -321,4 +321,117 @@ describe('bindFor — update callback', () => {
   })
 })
 
+describe('bindFor — duplicate keys', () => {
+  it('warns on duplicate key with message identifying the offending key + indices', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const $list = signal<Item[]>([
+      { id: 'a', label: 'first' },
+      { id: 'a', label: 'duplicate' },
+      { id: 'b', label: 'b' },
+    ])
+    const dispose = bindForSignal(
+      anchor,
+      $list,
+      (it) => it.id,
+      (it) => {
+        const li = document.createElement('li')
+        li.textContent = it.label
+        return { nodes: [li] }
+      },
+    )
+
+    expect(warn).toHaveBeenCalled()
+    const msg = warn.mock.calls[0]!.join(' ')
+    expect(msg).toMatch(/duplicate key/)
+    expect(msg).toMatch(/a/)
+    // Indices included so the user can find the offending items.
+    expect(msg).toMatch(/at index 1/)
+
+    dispose()
+    warn.mockRestore()
+    document.body.innerHTML = ''
+  })
+
+  it('warns N-1 times for N collisions on a single key, once per duplicate item', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    // Initial: clean — 1 item, no duplicate.
+    const $list = signal<Item[]>([{ id: 'a', label: 'one' }])
+    const dispose = bindForSignal(
+      anchor,
+      $list,
+      (it) => it.id,
+      (it) => {
+        const li = document.createElement('li')
+        li.textContent = it.label
+        return { nodes: [li] }
+      },
+    )
+    expect(warn).not.toHaveBeenCalled()
+
+    // Two items, same key → 1 duplicate at index 1.
+    $list.set([
+      { id: 'x', label: '1' },
+      { id: 'x', label: '2' },
+    ])
+    expect(warn).toHaveBeenCalledTimes(1)
+
+    // Three items, same key → 2 duplicates (indices 1 and 2 collide
+    // with 0). Adds 2 more warnings (total 3).
+    $list.set([
+      { id: 'y', label: '1' },
+      { id: 'y', label: '2' },
+      { id: 'y', label: '3' },
+    ])
+    expect(warn).toHaveBeenCalledTimes(3)
+
+    dispose()
+    warn.mockRestore()
+    document.body.innerHTML = ''
+  })
+
+  it('no warning for unique keys', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+
+    const $list = signal<Item[]>([
+      { id: 'a', label: 'a' },
+      { id: 'b', label: 'b' },
+      { id: 'c', label: 'c' },
+    ])
+    const dispose = bindForSignal(
+      anchor,
+      $list,
+      (it) => it.id,
+      (it) => {
+        const li = document.createElement('li')
+        li.textContent = it.label
+        return { nodes: [li] }
+      },
+    )
+    expect(warn).not.toHaveBeenCalled()
+    $list.set([
+      { id: 'a', label: 'a' },
+      { id: 'd', label: 'd' },
+    ])
+    expect(warn).not.toHaveBeenCalled()
+
+    dispose()
+    warn.mockRestore()
+    document.body.innerHTML = ''
+  })
+})
+
 

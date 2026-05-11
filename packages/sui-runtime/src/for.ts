@@ -92,6 +92,23 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
     for (let i = 0; i < next.length; i++) {
       const item = next[i]!
       const k = key(item, i)
+      if (nextKeys.has(k)) {
+        // Duplicate key: silent overwrite would drop the earlier item
+        // from the rendered output. Warn once per render — the user's
+        // key function is broken (or the list contains duplicate
+        // identity). Reconciliation continues using last-wins to keep
+        // the DOM in a consistent state.
+        console.warn(
+          '[sui] {#for}: duplicate key',
+          k,
+          'at index',
+          i,
+          '(prior at',
+          nextKeys.get(k)!.index,
+          '); the earlier item will be dropped from the rendered output.',
+          'Fix the key function so each item maps to a unique value.',
+        )
+      }
       nextKeys.set(k, { item, index: i })
     }
 
