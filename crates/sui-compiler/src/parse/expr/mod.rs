@@ -3,7 +3,7 @@
 //! Two flavours of expression analysis live here:
 //!
 //! 1. [`validate`] — fast byte-level cross-check of the legacy rules
-//!    from `packages/ui-dom/src/template/expr.ts` (no statements, no
+//!    from `packages/sui-dom/src/template/expr.ts` (no statements, no
 //!    assignments outside compares / arrows, no empty expressions).
 //!    The compiler emits the source byte-for-byte and pairs this
 //!    pass with the renderable-subset check in `check::expr_subset`,

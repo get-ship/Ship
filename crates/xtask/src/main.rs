@@ -165,18 +165,18 @@ fn collect_types() -> TypeCollection {
 }
 
 /// Framework data types that cross the daemon ↔ ui-runtime boundary.
-/// Output lands at `packages/ui-runtime/src/generated.ts` and is
-/// re-exported from `@ship/ui-runtime`. Add new entries here whenever a
+/// Output lands at `packages/sui-runtime/src/generated.ts` and is
+/// re-exported from `@ship/sui-runtime`. Add new entries here whenever a
 /// daemon HTTP/SSE response or a runtime payload struct gains a
 /// `#[derive(Type)]`. Drift between Rust and these registrations is
 /// caught by `cargo xtask gen-types --check` in CI.
 fn collect_framework_types() -> TypeCollection {
     let mut c = TypeCollection::default();
 
-    // ship-ui-framework — view payload + resolver.
-    c.register::<ship_ui_framework::view_payload::ViewPayload>();
-    c.register::<ship_ui_framework::resolver::ResolvedView>();
-    c.register::<ship_ui_framework::resolver::ResolveError>();
+    // ship-sui — view payload + resolver.
+    c.register::<ship_sui::view_payload::ViewPayload>();
+    c.register::<ship_sui::resolver::ResolvedView>();
+    c.register::<ship_sui::resolver::ResolveError>();
 
     // shipd::views — view list / manifest / source / write APIs.
     c.register::<shipd::views::ViewManifest>();
@@ -257,7 +257,7 @@ fn gen_types(check: bool) {
     let cloud_out = repo_root().join("packages/cloud-types/src/generated.ts");
     let cloud_content = build_cloud_types(&ts);
 
-    let framework_out = repo_root().join("packages/ui-runtime/src/generated.ts");
+    let framework_out = repo_root().join("packages/sui-runtime/src/generated.ts");
     let framework_content = ts
         .export(&collect_framework_types())
         .expect("specta-typescript export failed (framework)");

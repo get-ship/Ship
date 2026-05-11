@@ -1,4 +1,4 @@
-import { controller } from '@ship/ui-runtime'
+import { controller } from '@ship/sui-runtime'
 
 export default controller({
   derived: {

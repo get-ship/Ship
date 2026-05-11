@@ -68,7 +68,7 @@ fn multi_stmt_fails_without_ts() {
 #[test]
 fn multi_stmt_passes_with_sibling_controller_ts() {
     let dir = tempfile::tempdir().expect("create tempdir");
-    let controller_src = "import { controller, signal } from '@ship/ui-runtime'\n\
+    let controller_src = "import { controller, signal } from '@ship/sui-runtime'\n\
         export default controller({\n\
           scope: () => ({ x: signal(0), y: signal(0) }),\n\
         })\n";

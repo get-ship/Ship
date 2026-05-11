@@ -1,6 +1,6 @@
 //! Template grammar scan.
 //!
-//! Mirrors `packages/ui-dom/src/template/{tokenize,compile,
+//! Mirrors `packages/sui-dom/src/template/{tokenize,compile,
 //! compile-blocks}.ts`. The flow:
 //!
 //!   parse children of <root> → flat token list

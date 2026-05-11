@@ -27,7 +27,7 @@ compiler = { path = "../../crates/core/compiler" }
 # (sui_data, sui_sse, sui_mutation, sui_agent_push) still live here
 # because they reach into ApiState/services/auth — moving them needs
 # a `ship-runtime` extraction first.
-ship-ui-framework = { path = "../../crates/ship-ui-framework" }
+ship-sui = { path = "../../crates/ship-sui" }
 # SUI compiler — used directly by the daemon-coupled handlers
 # above. Once those move, this dependency goes too.
 sui-compiler = { path = "../../crates/sui-compiler" }
@@ -94,7 +94,7 @@ unstable = ["runtime/unstable"]
 # Enable derive(Type) on every public daemon data struct so xtask can
 # emit TypeScript bindings via `cargo xtask gen-types`. Production
 # binaries omit this feature; specta isn't pulled into the daemon.
-specta = ["dep:specta", "ship-ui-framework/specta"]
+specta = ["dep:specta", "ship-sui/specta"]
 
 [dev-dependencies]
 http-body-util = "0.1"

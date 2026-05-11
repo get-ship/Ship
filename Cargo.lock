@@ -4002,18 +4002,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "ship-types"
+name = "ship-sui"
 version = "0.1.0"
 dependencies = [
- "chrono",
- "serde",
- "serde_json",
+ "ship-sui-host",
+ "ship-sui-server",
  "specta",
- "ulid",
 ]
 
 [[package]]
-name = "ship-ui-framework"
+name = "ship-sui-host"
+version = "0.1.0"
+dependencies = [
+ "filetime",
+ "serde",
+ "serde_json",
+ "specta",
+ "sui-compiler",
+ "sui-signals",
+ "tempfile",
+]
+
+[[package]]
+name = "ship-sui-server"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -4026,6 +4037,7 @@ dependencies = [
  "runtime",
  "serde",
  "serde_json",
+ "ship-sui-host",
  "specta",
  "sui-compiler",
  "sui-signals",
@@ -4033,6 +4045,17 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tracing",
+]
+
+[[package]]
+name = "ship-types"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "specta",
+ "ulid",
 ]
 
 [[package]]
@@ -4073,7 +4096,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "ship-jobs",
- "ship-ui-framework",
+ "ship-sui",
  "specta",
  "sui-compiler",
  "sui-signals",
@@ -6087,8 +6110,8 @@ dependencies = [
  "runtime",
  "serde",
  "serde_json",
+ "ship-sui",
  "ship-types",
- "ship-ui-framework",
  "shipd",
  "specta",
  "specta-typescript",

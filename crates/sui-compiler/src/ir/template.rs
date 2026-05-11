@@ -1,6 +1,6 @@
 //! Template IR — the instruction tree the emitter walks.
 //!
-//! Mirrors `packages/ui-dom/src/template/compile.ts`'s `Instr`
+//! Mirrors `packages/sui-dom/src/template/compile.ts`'s `Instr`
 //! type. The emitter's job is to translate each instruction into the
 //! matching runtime call.
 

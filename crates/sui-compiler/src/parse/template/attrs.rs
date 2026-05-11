@@ -1,5 +1,5 @@
 //! Attribute classifier. Maps each attribute on an element to an
-//! `AttrInstr`. Mirrors `packages/ui-dom/src/bindings/attr-compile.ts`.
+//! `AttrInstr`. Mirrors `packages/sui-dom/src/bindings/attr-compile.ts`.
 
 use crate::diagnostics::{CompileError, Span};
 use crate::ir::*;

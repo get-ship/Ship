@@ -1,6 +1,6 @@
 //! Compile-time CSS rule stripping.
 //!
-//! R3 (bundle-perf): rules that exist verbatim in `@ship/ui-runtime`'s
+//! R3 (bundle-perf): rules that exist verbatim in `@ship/sui-runtime`'s
 //! `suiBaseSheet` are duplicated across nearly every shadow component's
 //! `<style>` block. The runtime adopts `suiBaseSheet` into every shadow
 //! root, so the per-component copies are dead weight in the bundle.
@@ -11,7 +11,7 @@
 //! different whitespace, ordering, or extra declarations is left alone
 //! so authors keep control of edge cases.
 //!
-//! See `packages/ui-runtime/src/styles/index.ts` (`BASE_CSS`) for the
+//! See `packages/sui-runtime/src/styles/index.ts` (`BASE_CSS`) for the
 //! source-of-truth list of rules adopted at runtime; the patterns
 //! below must mirror that set.
 //!

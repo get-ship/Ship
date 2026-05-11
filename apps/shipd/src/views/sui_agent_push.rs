@@ -11,7 +11,7 @@
 //!    The auth middleware in `crate::auth` runs before this handler.
 //! 2. **View-root scoping** is enforced by the runtime, not the daemon.
 //!    The selector is forwarded verbatim. The runtime in
-//!    `packages/ui-dom/src/attach.ts` queries against
+//!    `packages/sui-dom/src/attach.ts` queries against
 //!    `[data-sui-root][data-view="<name>"]`, never `document` — so a
 //!    selector like `body > .ship-shell` finds no match and the patch
 //!    is dropped with a console warning.
@@ -56,7 +56,7 @@ use crate::auth::AuthContext;
 use crate::scopes::Scope;
 use super::sui_patch_channel;
 use super::sui_patches::{PatchElements, format_patch_elements};
-use ship_ui_framework::render_helpers::is_valid_view_name;
+use ship_sui::render_helpers::is_valid_view_name;
 
 /// Response body for a successful patch-elements publish.
 #[derive(Debug, Serialize)]

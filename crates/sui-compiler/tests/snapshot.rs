@@ -164,7 +164,7 @@ fn comment_and_whitespace_snapshot() {
 }
 
 /// R2: views that reference `route` in template expressions must emit
-/// `import { route as __routeFactory } from "@ship/ui-runtime/route"` and
+/// `import { route as __routeFactory } from "@ship/sui-runtime/route"` and
 /// use `ctx.route ?? __routeFactory()` for `$scope.route`. Views that don't
 /// reference `route` must not include the import.
 #[test]
@@ -181,7 +181,7 @@ fn route_view_emits_route_import() {
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
-        out.js.contains("import { route as __routeFactory } from \"@ship/ui-runtime/route\""),
+        out.js.contains("import { route as __routeFactory } from \"@ship/sui-runtime/route\""),
         "expected route subpath import, got:\n{}",
         out.js
     );
@@ -206,8 +206,8 @@ fn routeless_view_omits_route_import() {
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
-        !out.js.contains("@ship/ui-runtime/route"),
-        "routeless view must not import @ship/ui-runtime/route, got:\n{}",
+        !out.js.contains("@ship/sui-runtime/route"),
+        "routeless view must not import @ship/sui-runtime/route, got:\n{}",
         out.js
     );
     assert!(

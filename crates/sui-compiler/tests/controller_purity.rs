@@ -55,7 +55,7 @@ fn clean_controller_compiles() {
     fs::write(
         dir.path().join("view.controller.ts"),
         r#"
-            import { controller } from '@ship/ui-runtime'
+            import { controller } from '@ship/sui-runtime'
             export default controller({
               mount: (_state, host) => {
                 host.addEventListener('click', () => {})

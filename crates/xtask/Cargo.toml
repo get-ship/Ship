@@ -14,7 +14,7 @@ compiler = { path = "../core/compiler", features = ["specta"] }
 runtime = { path = "../core/runtime" }
 # TODO(Phase 4): sui-compiler will replace sail-compiler here once available.
 ship-types = { path = "../core/ship-types", features = ["specta"] }
-ship-ui-framework = { path = "../ship-ui-framework", features = ["specta"] }
+ship-sui = { path = "../ship-sui", features = ["specta"] }
 shipd = { path = "../../apps/shipd", features = ["specta"] }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 specta-typescript = "0.0.9"

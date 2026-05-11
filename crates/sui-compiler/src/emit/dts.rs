@@ -33,9 +33,9 @@ pub fn emit_dts(program: &Program) -> String {
 
     let needs_live_state = members.iter().any(|(_, t)| t.contains("LiveState"));
     let import_line = if needs_live_state {
-        "import type { Signal, LiveState } from '@ship/ui-runtime'\n"
+        "import type { Signal, LiveState } from '@ship/sui-runtime'\n"
     } else {
-        "import type { Signal } from '@ship/ui-runtime'\n"
+        "import type { Signal } from '@ship/sui-runtime'\n"
     };
 
     let mut out = String::with_capacity(256);

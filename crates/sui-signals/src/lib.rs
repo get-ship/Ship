@@ -1,7 +1,7 @@
 //! Fine-grained reactive signals for the Ship daemon.
 //!
 //! All primitives are `Send + Sync` and safe to share across tokio tasks.
-//! The algorithm mirrors `packages/ui-runtime/src/signal.ts`:
+//! The algorithm mirrors `packages/sui-runtime/src/signal.ts`:
 //! signals are sources, `derived` values are memoized computeds, and
 //! `effect` subscribes and re-runs on dependency change. Reads inside a
 //! tracked scope (effect / derived) auto-subscribe; writes notify synchronously

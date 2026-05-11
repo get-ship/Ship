@@ -6,7 +6,7 @@
 //! in jsdom and compare serialized HTML) lives in
 //! `tests/parity_runner.mjs`. It is gated on `RUN_PARITY=1` because
 //! it requires the workspace to be installed (`pnpm install`) so the
-//! TypeScript sources of `@ship/ui-dom` and `@ship/ui-runtime`
+//! TypeScript sources of `@ship/sui-dom` and `@ship/sui-runtime`
 //! resolve at runtime.
 
 use std::fs;
@@ -156,7 +156,7 @@ fn for_iteration_emit_has_no_scope_tdz() {
 
 /// Full hydrate-and-compare parity. Opt-in: requires the workspace's
 /// JS dependencies to be installed (`pnpm install`) so that
-/// `@ship/ui-dom` and `@ship/ui-runtime` resolve.
+/// `@ship/sui-dom` and `@ship/sui-runtime` resolve.
 #[test]
 fn full_parity_with_interpreter() {
     if std::env::var("RUN_PARITY").is_err() {

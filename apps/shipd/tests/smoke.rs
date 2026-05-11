@@ -292,7 +292,7 @@ async fn sui_route_serves_view_host_static() {
     assert!(ct.contains("text/html"));
     let body = res.text().await.unwrap();
     // Static page: hosts mount() against /_sui/views/<name>.
-    assert!(body.contains("import { mount } from '@ship/ui-runtime'"));
+    assert!(body.contains("import { mount } from '@ship/sui-runtime'"));
     assert!(body.contains("/_sui/views/"));
     // Importmap precedes any module script (browser freezes on first module
     // fetch otherwise).

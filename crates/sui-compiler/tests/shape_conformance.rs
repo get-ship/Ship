@@ -115,12 +115,12 @@ fn compile_one(path: &Path, repo: &Path) -> Result<String, String> {
 }
 
 fn write_tsconfig(temp_dir: &Path, repo: &Path) {
-    let runtime_index = repo.join("packages/ui-runtime/src/index.ts");
-    let runtime_template_hooks = repo.join("packages/ui-runtime/src/template-hooks/index.ts");
-    let runtime_route = repo.join("packages/ui-runtime/src/route/index.ts");
-    let runtime_dev = repo.join("packages/ui-runtime/src/dev.ts");
-    let ui_dom_index = repo.join("packages/ui-dom/src/index.ts");
-    let ui_dom_legacy = repo.join("packages/ui-dom/src/legacy/index.ts");
+    let runtime_index = repo.join("packages/sui-runtime/src/index.ts");
+    let runtime_template_hooks = repo.join("packages/sui-runtime/src/template-hooks/index.ts");
+    let runtime_route = repo.join("packages/sui-runtime/src/route/index.ts");
+    let runtime_dev = repo.join("packages/sui-runtime/src/dev.ts");
+    let ui_dom_index = repo.join("packages/sui-dom/src/index.ts");
+    let ui_dom_legacy = repo.join("packages/sui-dom/src/legacy/index.ts");
 
     // tsconfig: allowJs without checkJs. tsc resolves the named
     // imports against the runtime / ui-dom public surface and reports
@@ -129,7 +129,7 @@ fn write_tsconfig(temp_dir: &Path, repo: &Path) {
     // already gates on missing exports; this layer adds tsc's own
     // module-resolution view as a cross-check (catches subtle subpath
     // issues — e.g. the compiler started importing from
-    // `@ship/ui-runtime/foo` and that subpath doesn't exist).
+    // `@ship/sui-runtime/foo` and that subpath doesn't exist).
     //
     // We deliberately stop short of `checkJs: true`. The compiled
     // output is intentionally untyped scaffolding (Object.create(null)
@@ -157,12 +157,12 @@ fn write_tsconfig(temp_dir: &Path, repo: &Path) {
             "types": [],
             "baseUrl": ".",
             "paths": {
-                "@ship/ui-runtime": [runtime_index.to_string_lossy()],
-                "@ship/ui-runtime/template-hooks": [runtime_template_hooks.to_string_lossy()],
-                "@ship/ui-runtime/route": [runtime_route.to_string_lossy()],
-                "@ship/ui-runtime/dev": [runtime_dev.to_string_lossy()],
-                "@ship/ui-dom": [ui_dom_index.to_string_lossy()],
-                "@ship/ui-dom/legacy": [ui_dom_legacy.to_string_lossy()],
+                "@ship/sui-runtime": [runtime_index.to_string_lossy()],
+                "@ship/sui-runtime/template-hooks": [runtime_template_hooks.to_string_lossy()],
+                "@ship/sui-runtime/route": [runtime_route.to_string_lossy()],
+                "@ship/sui-runtime/dev": [runtime_dev.to_string_lossy()],
+                "@ship/sui-dom": [ui_dom_index.to_string_lossy()],
+                "@ship/sui-dom/legacy": [ui_dom_legacy.to_string_lossy()],
             },
         },
         "include": ["**/*.js"],
@@ -196,8 +196,8 @@ fn extract_named_imports(js: &str, module: &str) -> Vec<(String, String)> {
             continue;
         }
         // Match exact module spec to avoid false positives where one
-        // module is a prefix of another (e.g. `@ship/ui-runtime` vs
-        // `@ship/ui-runtime/template-hooks`).
+        // module is a prefix of another (e.g. `@ship/sui-runtime` vs
+        // `@ship/sui-runtime/template-hooks`).
         let from_spec = format!("from \"{module}\"");
         if !l.contains(&from_spec) {
             continue;
@@ -305,10 +305,10 @@ fn structural_check(
     js_files: &[(PathBuf, String, String)],
     repo: &Path,
 ) -> Vec<String> {
-    let runtime_idx = repo.join("packages/ui-runtime/src/index.ts");
-    let runtime_hooks_idx = repo.join("packages/ui-runtime/src/template-hooks/index.ts");
-    let runtime_route_idx = repo.join("packages/ui-runtime/src/route/index.ts");
-    let dom_idx = repo.join("packages/ui-dom/src/index.ts");
+    let runtime_idx = repo.join("packages/sui-runtime/src/index.ts");
+    let runtime_hooks_idx = repo.join("packages/sui-runtime/src/template-hooks/index.ts");
+    let runtime_route_idx = repo.join("packages/sui-runtime/src/route/index.ts");
+    let dom_idx = repo.join("packages/sui-dom/src/index.ts");
 
     let runtime_exports = extract_exports(&runtime_idx);
     let runtime_hook_exports = extract_exports(&runtime_hooks_idx);
@@ -317,7 +317,7 @@ fn structural_check(
 
     let mut errors = Vec::new();
     for (src, _temp_name, js) in js_files {
-        for (name, module) in extract_named_imports(js, "@ship/ui-runtime") {
+        for (name, module) in extract_named_imports(js, "@ship/sui-runtime") {
             if !runtime_exports.contains(&name) {
                 errors.push(format!(
                     "{}: imports `{name}` from `{module}` — not exported by runtime",
@@ -325,7 +325,7 @@ fn structural_check(
                 ));
             }
         }
-        for (name, module) in extract_named_imports(js, "@ship/ui-runtime/template-hooks") {
+        for (name, module) in extract_named_imports(js, "@ship/sui-runtime/template-hooks") {
             if !runtime_hook_exports.contains(&name) {
                 errors.push(format!(
                     "{}: imports `{name}` from `{module}` — not exported",
@@ -333,7 +333,7 @@ fn structural_check(
                 ));
             }
         }
-        for (name, module) in extract_named_imports(js, "@ship/ui-runtime/route") {
+        for (name, module) in extract_named_imports(js, "@ship/sui-runtime/route") {
             // The import uses `as` alias: `import { route as __routeFactory }`.
             // extract_named_imports returns the local alias, so strip any
             // `as <alias>` suffix to recover the original export name.
@@ -344,12 +344,12 @@ fn structural_check(
             };
             if !runtime_route_exports.contains(&export_name) {
                 errors.push(format!(
-                    "{}: imports `{name}` from `{module}` — not exported by @ship/ui-runtime/route",
+                    "{}: imports `{name}` from `{module}` — not exported by @ship/sui-runtime/route",
                     src.display()
                 ));
             }
         }
-        for (name, module) in extract_named_imports(js, "@ship/ui-dom") {
+        for (name, module) in extract_named_imports(js, "@ship/sui-dom") {
             if !dom_exports.contains(&name) {
                 errors.push(format!(
                     "{}: imports `{name}` from `{module}` — not exported by ui-dom",
@@ -451,7 +451,7 @@ fn every_sui_typechecks_against_runtime_dts() {
     // fixtures (the `<sanitized>.sui.js` files we wrote). tsc walks
     // imported modules and may surface errors in workspace files
     // outside our test surface (the runtime source isn't strict-clean
-    // at HEAD; `packages/ui-runtime/src/context.ts` and
+    // at HEAD; `packages/sui-runtime/src/context.ts` and
     // `scope-resource-warn.ts` have pre-existing errors that this
     // job is out-of-scope to fix). Those errors aren't a shape-
     // conformance signal — they'd fire even if every `.sui` was

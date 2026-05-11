@@ -27,7 +27,7 @@ fn ignores_null_default() {
 #[test]
 fn extracts_simple_sections() {
     let src = r#"
-import { controller } from '@ship/ui-runtime'
+import { controller } from '@ship/sui-runtime'
 export default controller<Scope>({
   derived: { x: () => 1 },
   on: { go: (s) => {} },

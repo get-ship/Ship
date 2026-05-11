@@ -8,7 +8,7 @@
 //!
 //! 2. **SUI bundle HMR** (`/_sui/dev/hmr`): forwards `module_changed` events
 //!    from the Bun bundler worker. Emits `module-changed` and `compile-error`
-//!    events. The browser-side `subscribeHmr()` in `@ship/ui-runtime/dev`
+//!    events. The browser-side `subscribeHmr()` in `@ship/sui-runtime/dev`
 //!    opens this stream to get in-place view updates without reload.
 //!    Only active when the bundler worker is running.
 //!
@@ -176,7 +176,7 @@ pub fn publish_bundle_event(event: BundleModuleEvent) {
 
 /// `GET /_sui/dev/hmr` — SSE stream of bundler module-changed events.
 ///
-/// The browser-side `subscribeHmr()` helper in `@ship/ui-runtime/dev`
+/// The browser-side `subscribeHmr()` helper in `@ship/sui-runtime/dev`
 /// subscribes here. Events are `module-changed` and `compile-error`
 /// kinds with JSON payloads.
 pub async fn serve_bundle_hmr() -> Response {
@@ -200,27 +200,38 @@ pub async fn serve_bundle_hmr() -> Response {
         .unwrap_or_else(|_| Response::new(Body::from("sse build failed")))
 }
 
-/// `GET /_sui/hmr-client.js` — minimal client that subscribes and
-/// reloads on update. Inline because it's tiny and we don't want to
-/// pull in a build step.
+/// `GET /_sui/hmr-client.js` — minimal client that subscribes to both
+/// ship-set HMR and bundle HMR SSE streams. Inline because it's tiny.
 pub async fn serve_hmr_client_js() -> Response {
     let body = r#"
-// ship-set HMR client. Subscribes to /_sui/hmr; reloads on component updates.
-// v1: full reload (preserves nothing). v1.5: swap customElements
-// definition + walk instances. Listed at docs/ship-set/10-dev-tooling.md.
+// HMR client. Subscribes to ship-set changes and bundler module changes.
+// Full reload on any event. Inline, no build step needed.
 (function () {
   if (typeof EventSource === 'undefined') return;
-  const es = new EventSource('/_sui/hmr');
-  es.addEventListener('component:update', (ev) => {
-    try {
-      const { tag } = JSON.parse(ev.data);
-      console.info('[ship-set:hmr] reloading for', tag);
-    } catch {}
+
+  const reload = (label) => {
+    console.info('[hmr] reloading for', label);
     location.reload();
+  };
+
+  // Ship-set component changes (.set files in .ship/sui/).
+  var es1 = new EventSource('/_sui/hmr');
+  es1.addEventListener('component:update', function (ev) {
+    try { var d = JSON.parse(ev.data); reload('component:' + d.tag); } catch (e) {}
+    reload('component');
   });
-  es.addEventListener('error', () => {
-    // Reconnect handled by browser; suppress noise.
+  es1.addEventListener('error', function () {});
+
+  // Bundler module changes (sui-runtime, sui-dom, components, views).
+  var es2 = new EventSource('/_sui/dev/hmr');
+  es2.addEventListener('module-changed', function (ev) {
+    try { var d = JSON.parse(ev.data); reload(d.target || 'bundle'); } catch (e) {}
+    reload('bundle');
   });
+  es2.addEventListener('compile-error', function (ev) {
+    try { var d = JSON.parse(ev.data); console.error('[hmr] compile error:', d.target, d.message); } catch (e) {}
+  });
+  es2.addEventListener('error', function () {});
 })();
 "#;
     Response::builder()

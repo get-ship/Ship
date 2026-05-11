@@ -505,7 +505,7 @@ mod tests {
     fn hover_resolves_scope_member() {
         let dir = tempfile::tempdir().unwrap();
         let sui = "<p>{scope.count()}</p>";
-        let ts = r#"import { controller, signal } from '@ship/ui-runtime'
+        let ts = r#"import { controller, signal } from '@ship/sui-runtime'
 export default controller({ scope: () => ({ count: signal(0) }) })
 "#;
         let path = write_pair(&dir, sui, ts);
@@ -524,7 +524,7 @@ export default controller({ scope: () => ({ count: signal(0) }) })
     fn goto_resolves_to_controller() {
         let dir = tempfile::tempdir().unwrap();
         let sui = "<p>{scope.count()}</p>";
-        let ts = r#"import { controller, signal } from '@ship/ui-runtime'
+        let ts = r#"import { controller, signal } from '@ship/sui-runtime'
 export default controller({ scope: () => ({ count: signal(0) }) })
 "#;
         let path = write_pair(&dir, sui, ts);
@@ -542,7 +542,7 @@ export default controller({ scope: () => ({ count: signal(0) }) })
     fn completion_after_scope_dot_lists_keys() {
         let dir = tempfile::tempdir().unwrap();
         let sui = "<p>{scope.}</p>";
-        let ts = r#"import { controller, signal } from '@ship/ui-runtime'
+        let ts = r#"import { controller, signal } from '@ship/sui-runtime'
 export default controller({ scope: () => ({ count: signal(0), inc: (e) => e }) })
 "#;
         let path = write_pair(&dir, sui, ts);

@@ -39,7 +39,7 @@ pub mod components;
 // Moving them needs a `ship-runtime` extraction first; tracked separately.
 // Truly framework-level pieces (view_payload, view_host, asset bundles,
 // resolver, render_helpers, bundle, runtime asset) live in
-// crates/ship-ui-framework/.
+// crates/ship-sui/.
 pub mod sui_data;
 pub mod sui_data_resolvers;
 pub mod sui_hmr;

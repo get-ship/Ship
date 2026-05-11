@@ -3,7 +3,7 @@ name = "sui-compiler"
 version = "0.1.0"
 edition = "2024"
 publish = false
-description = "Ahead-of-time compiler for `.sui` source files. Emits ESM JS that hydrates against `@ship/ui-runtime` without re-parsing at load time."
+description = "Ahead-of-time compiler for `.sui` source files. Emits ESM JS that hydrates against `@ship/sui-runtime` without re-parsing at load time."
 
 [lib]
 path = "src/lib.rs"

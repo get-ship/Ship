@@ -11,7 +11,7 @@ fn lint(source: &str) -> Vec<crate::Finding> {
 #[test]
 fn clean_controller_passes() {
     let src = r#"
-        import { controller, signal } from '@ship/ui-runtime'
+        import { controller, signal } from '@ship/sui-runtime'
         export default controller({
           mount: (state, host) => {
             const count = signal(0)
@@ -144,7 +144,7 @@ fn flags_synthetic_innerhtml_offender() {
     // exercised end-to-end against the kind of code it's meant to catch.
     let path = std::path::PathBuf::from("synthetic/sui-foo/sui-foo.controller.ts");
     let source = r#"
-import { controller } from '@ship/ui-runtime'
+import { controller } from '@ship/sui-runtime'
 export default controller({
   mount(state, host) {
     const root = host.shadowRoot

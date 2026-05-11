@@ -26,7 +26,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use sui_compiler::{bindings, keys::BindingKind, parse};
 
-use ship_ui_framework::render_helpers::{is_valid_view_name, not_found, view_source};
+use ship_sui::render_helpers::{is_valid_view_name, not_found, render_view_source};
 use crate::rest_api::ApiState;
 use crate::services::registry;
 
@@ -47,7 +47,7 @@ pub async fn serve_sui_mutation(
     if !is_valid_view_name(&name) {
         return not_found(&format!("invalid view name: {name}"));
     }
-    let source = match view_source(&name) {
+    let source = match render_view_source(&name) {
         Some(s) => s,
         None => return not_found(&format!("view not found: views/{name}/view.sui")),
     };

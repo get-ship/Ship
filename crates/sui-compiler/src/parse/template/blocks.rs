@@ -1,5 +1,5 @@
 //! Block parsers for `{#if}`, `{#for}`, `{#match}`, `{#while-loading}`,
-//! `{#while-error}`. Mirrors `packages/ui-dom/src/template/compile-blocks.ts`.
+//! `{#while-error}`. Mirrors `packages/sui-dom/src/template/compile-blocks.ts`.
 //!
 //! `for_header.rs` owns the gnarly header tokenization
 //! (`X of items key={…}`) so this file stays under the line cap.

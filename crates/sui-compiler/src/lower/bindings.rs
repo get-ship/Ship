@@ -1,5 +1,5 @@
 //! Per-attribute import collection. Mirrors the runtime helpers
-//! exposed in `packages/ui-runtime/src/index.ts`.
+//! exposed in `packages/sui-runtime/src/index.ts`.
 
 use crate::ir::*;
 use crate::lower::Lowered;

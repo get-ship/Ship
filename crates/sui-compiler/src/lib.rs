@@ -1,8 +1,8 @@
 //! `sui-compiler` — ahead-of-time compiler for `.sui` files.
 //!
 //! Same semantics as the Phase-2 interpreter
-//! (`packages/ui-dom`); everything that can be resolved at build
-//! time is. The emitted ESM module imports from `@ship/ui-runtime`
+//! (`packages/sui-dom`); everything that can be resolved at build
+//! time is. The emitted ESM module imports from `@ship/sui-runtime`
 //! and constructs the rendered tree directly, with no parser code in
 //! the runtime payload.
 //!

@@ -1,5 +1,5 @@
 //! Source preprocessor — exact mirror of
-//! `packages/ui-dom/src/preprocess.ts`.
+//! `packages/sui-dom/src/preprocess.ts`.
 //!
 //! Two transforms run before the HTML parser sees the source:
 //!  1. Quote unquoted brace attributes — `disabled={x || y}` becomes

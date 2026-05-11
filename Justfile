@@ -246,16 +246,44 @@ shell-dev:
 shell2-dev:
     @scripts/dev/shell2-start.sh
 
-# Full SUI dev stack — restart daemon, then start shell2 on top.
-# After this finishes booting, open http://127.0.0.1:3200/ship-ui-studio
-# in your browser. Ctrl-C kills shell2; daemon keeps running.
+# Start (or restart after Rust changes) the full SUI dev stack.
+# If the daemon is already running, it stays running (JS edits don't need
+# a restart thanks to assets.rs disk-read). Fresh bundles are built so
+# JS changes are picked up immediately.
+# Ctrl-C kills shell2; daemon keeps running. Run `just dev-stop` to stop.
 [group('daily')]
 sui-dev:
-    @just dev-restart
-    @echo ""
-    @echo "→ shell2 → http://127.0.0.1:3200/"
-    @echo "→ studio → http://127.0.0.1:3200/ship-ui-studio"
-    @just shell2-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+    . scripts/dev/_lib.sh
+    d=$(daemon_dir)
+    if [ -f "$d/pid" ] && kill -0 "$(cat "$d/pid")" 2>/dev/null; then
+        port=$(cat "$d/port" 2>/dev/null || echo "?")
+        echo "daemon already running (pid $(cat "$d/pid"), port $port)"
+    else
+        echo "starting daemon..."
+        just reap 2>&1 | sed 's/^/  /'
+        scripts/dev/start.sh 2>&1 | sed 's/^/  /'
+    fi
+    d=$(daemon_dir)
+    port=$(cat "$d/port" 2>/dev/null || echo "?")
+    pf=$(vite_pid_file)
+    if [ -f "$pf" ] && kill -0 "$(cat "$pf")" 2>/dev/null; then
+        echo "shell2 already running (pid $(cat "$pf"))"
+    else
+        kill_vite 2>/dev/null || true
+        pnpm --filter shell2 dev &
+        echo $! > "$pf"
+        echo "shell2 starting (pid $(cat "$pf"))"
+    fi
+    vite_port=$(( 3200 + port - 9315 ))
+    echo ""
+    echo "  studio  → http://127.0.0.1:${vite_port}/ship-ui-studio"
+    echo "  shell2  → http://127.0.0.1:${vite_port}/"
+    echo "  daemon  → http://127.0.0.1:${port}/"
+    echo "  logs    → ~/.ship/machine/logs/shipd.log"
+    echo ""
+    echo "  Ctrl-C stops shell2. Daemon keeps running."
 
 # Build CLI + MCP + shipd (unstable dev build).
 [group('occasional')]
