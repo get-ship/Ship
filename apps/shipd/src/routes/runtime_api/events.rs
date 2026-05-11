@@ -106,20 +106,9 @@ pub async fn poll_events(
     )
 }
 
-pub(crate) struct ActorGuard {
-    pub(crate) actor_id: String,
-    pub(crate) kernel: crate::routes::rest_api::SharedKernel,
-}
-
-impl Drop for ActorGuard {
-    fn drop(&mut self) {
-        let actor_id = self.actor_id.clone();
-        let kernel = self.kernel.clone();
-        tokio::spawn(async move {
-            let _ = kernel.lock().await.stop_actor(&actor_id);
-        });
-    }
-}
+// `ActorGuard` moved to `ship_runtime` (alongside `SharedKernel`) so
+// views can use it without violating the module DAG (views → routes is
+// banned by check-module-dag).
 
 /// GET /api/v1/runtime/events — SSE stream of all kernel events.
 #[utoipa::path(
@@ -163,7 +152,7 @@ pub async fn event_stream(
         })?
     };
 
-    let guard = ActorGuard {
+    let guard = crate::ship_runtime::ActorGuard {
         actor_id,
         kernel: state.kernel().clone(),
     };

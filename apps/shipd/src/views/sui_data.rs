@@ -96,7 +96,7 @@ fn resolved_stream(
                 None
             }
         };
-        let _guard = crate::routes::runtime_api::ActorGuard {
+        let _guard = crate::ship_runtime::ActorGuard {
             actor_id,
             kernel: state.kernel().clone(),
         };

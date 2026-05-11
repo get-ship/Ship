@@ -149,6 +149,28 @@ pub struct ShipRuntime {
 /// Returns None if the id doesn't match a known worktree.
 pub type WorktreeResolver = Arc<dyn Fn(&str) -> Option<PathBuf> + Send + Sync>;
 
+/// RAII guard that stops a kernel actor when dropped. Used by SSE
+/// handlers (`routes::runtime_api`, `views::*`) so disconnect/cancel
+/// cleans up the spawned actor without leaking mailbox state.
+///
+/// Lives here next to `SharedKernel` so consumers across `routes/`,
+/// `views/`, and any future SSE-producing module can reach it without
+/// the module-DAG-violating `views → routes` import path.
+pub struct ActorGuard {
+    pub actor_id: String,
+    pub kernel: SharedKernel,
+}
+
+impl Drop for ActorGuard {
+    fn drop(&mut self) {
+        let actor_id = self.actor_id.clone();
+        let kernel = self.kernel.clone();
+        tokio::spawn(async move {
+            let _ = kernel.lock().await.stop_actor(&actor_id);
+        });
+    }
+}
+
 /// Production worktree resolver: branch name → worktree path via
 /// `git worktree list`, falling back to the current project root if the
 /// id matches the current branch. Replaces the legacy free function

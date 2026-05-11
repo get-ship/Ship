@@ -166,7 +166,7 @@ pub async fn serve_view_sse(
                 None
             }
         };
-        let _guard = crate::routes::runtime_api::ActorGuard {
+        let _guard = crate::ship_runtime::ActorGuard {
             actor_id,
             kernel: state.kernel().clone(),
         };

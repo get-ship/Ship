@@ -2,7 +2,7 @@
 # check-raw-env-reads.sh
 #
 # Flag raw `env::var("SHIP_*")` reads outside the canonical
-# `crates/core/runtime/src/env.rs` module. Per ADR
+# `crates/core/ship-substrate/src/env.rs` module. Per ADR
 # `home-layout-and-scope-convention`, `env::read(Var::…)` is the single
 # accessor.
 
@@ -11,7 +11,7 @@ set -u
 cd "$(dirname "$0")/../.."
 
 SEARCH_PATHS=(crates apps)
-ALLOW_FILE="crates/core/runtime/src/env.rs"
+ALLOW_FILE="crates/core/ship-substrate/src/env.rs"
 
 # Matches `env::var("SHIP_…")` and `env::var("SHIPD_…")`.
 PATTERN='env::var\("SHIPD?_'

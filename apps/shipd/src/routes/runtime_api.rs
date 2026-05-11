@@ -119,7 +119,6 @@ pub use agents::{SteerAgentRequest, list_agents, steer_agent, stop_agent};
 pub use daemon::{daemon_status, rebuild_projections};
 pub use dispatch::{DispatchRequest, dispatch_pipeline};
 pub use events::{EventsPollQuery, event_stream, poll_events};
-pub(crate) use events::ActorGuard;
 pub use jobs::{
     CancelJobRequest, CreateJobRequest, EventSummary, JobDetailResponse, JobEndRequest,
     cancel_job, create_job, end_job, get_job_detail, list_jobs,
