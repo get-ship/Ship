@@ -1,5 +1,0 @@
-[mcp.servers.linear]
-id = "linear"
-command = "npx"
-scope = "project"
-server_type = "stdio"
