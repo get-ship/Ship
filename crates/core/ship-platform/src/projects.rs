@@ -177,16 +177,18 @@ pub fn drain_legacy_kv() -> Result<usize> {
             created_at: record.created_at.clone(),
         };
         let env = EventEnvelope::new(PROJECT_REGISTERED, &id, &registered)?;
-        let _ = store.append(&env);
+        store.append(&env)?;
         // Then emit seen with the persisted last_seen_at to preserve order.
         let seen = ProjectSeen {
             seen_at: record.last_seen_at.clone(),
         };
         let env = EventEnvelope::new(PROJECT_SEEN, &id, &seen)?;
-        let _ = store.append(&env);
+        store.append(&env)?;
         migrated += 1;
     }
 
+    // KV delete only after every event was persisted — protects against
+    // partial-append + KV-drop losing project records silently.
     block_on(async {
         sqlx::query("DELETE FROM kv_state WHERE namespace = 'project'")
             .execute(&mut conn)

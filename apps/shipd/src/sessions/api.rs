@@ -292,7 +292,11 @@ pub async fn session_message(
             .with_context(Some(&workspace_id), Some(&id))
             .with_target(&id);
         let ctx = auth.to_daemon_emit_context();
-        let _ = state.kernel().lock().await.emit(envelope, &ctx).await;
+        if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
+            // Event-sourced audit gap if dropped silently — log at warn so
+            // a missing studio.chat_turn shows up in operator dashboards.
+            tracing::warn!(error = %e, session_id = %id, "studio.chat_turn emit failed");
+        }
     }
 
     // Persistent-session agents live in ActorRegistry. Delivery branches

@@ -120,7 +120,11 @@ pub async fn pair_init(
         // Dev sessions are ephemeral — not persisted to KV.
         let session_token = generate_session_token()
             .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "token gen failed"))?;
-        let _ = reg.confirm(&pairing.code, session_token.clone());
+        if let Err(e) = reg.confirm(&pairing.code, session_token.clone()) {
+            // Dev-mode session is minted regardless (inserted directly below),
+            // so this just leaves a stale pairing-code entry. Worth logging.
+            tracing::warn!(error = ?e, code = %pairing.code, "dev-mode pairing confirm failed");
+        }
         drop(reg);
         use crate::auth::scopes::DaemonSession;
         let session = DaemonSession {
