@@ -4,7 +4,7 @@ use axum::{Json, extract::{Path, State}, http::StatusCode};
 
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
-use super::{err_response, ok_response, resolve_worktree};
+use super::{err_response, ok_response};
 
 /// Strip JSONC comments (// and /* */) and trailing commas to produce valid JSON.
 fn strip_jsonc_comments(input: &str) -> String {
@@ -110,7 +110,7 @@ pub async fn list_agents(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let agents_dir = ship_substrate::ShipHome::project_ship_dir(&worktree).join("agents");
 
     if !agents_dir.exists() {
@@ -185,7 +185,7 @@ pub async fn list_skills(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(&worktree);
 
     // Use read_skill_paths to discover all skill directories (respects skill_paths config)

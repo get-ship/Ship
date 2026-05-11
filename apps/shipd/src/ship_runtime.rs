@@ -139,6 +139,36 @@ pub struct ShipRuntime {
     /// `ArtifactsService` impl — ninth mr-02 migration. Db-bound;
     /// shares the `data_service` Arc with the runtime.
     artifacts: std::sync::Arc<dyn crate::services::artifacts::service::ArtifactsService>,
+    /// Worktree resolver — production uses `git worktree list`; tests
+    /// override with an in-memory map. See `resolve_worktree` method and
+    /// `new_test_with_worktree_resolver` test ctor.
+    worktree_resolver: WorktreeResolver,
+}
+
+/// Resolves a workspace-id (branch name) to its filesystem worktree path.
+/// Returns None if the id doesn't match a known worktree.
+pub type WorktreeResolver = Arc<dyn Fn(&str) -> Option<PathBuf> + Send + Sync>;
+
+/// Production worktree resolver: branch name → worktree path via
+/// `git worktree list`, falling back to the current project root if the
+/// id matches the current branch. Replaces the legacy free function
+/// `crate::project_api::resolve_worktree` lookup; both share the
+/// `worktree_path_for_branch` + `current_branch_at` helpers in
+/// `project_api/mod.rs`.
+pub fn default_worktree_resolver() -> WorktreeResolver {
+    Arc::new(|id: &str| {
+        if let Some(path) = crate::project_api::worktree_path_for_branch(id) {
+            return Some(path);
+        }
+        if let Ok(project_ship) = ship_application::project::get_project_dir(None)
+            && let Some(root) = project_ship.parent()
+            && let Some(current_branch) = crate::project_api::current_branch_at(root)
+            && current_branch == id
+        {
+            return Some(root.to_path_buf());
+        }
+        None
+    })
 }
 
 impl ShipRuntime {
@@ -351,6 +381,25 @@ impl ShipRuntime {
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
             bundler: std::sync::OnceLock::new(),
+            worktree_resolver: default_worktree_resolver(),
+        })
+    }
+
+    /// Resolve a workspace-id (branch name) to its worktree path.
+    /// Wraps the configured `worktree_resolver` with a 404 response on miss.
+    pub fn resolve_worktree(
+        &self,
+        id: &str,
+    ) -> Result<PathBuf, (axum::http::StatusCode, axum::Json<crate::routes::rest_api::MeshResponse>)>
+    {
+        (self.worktree_resolver)(id).ok_or_else(|| {
+            (
+                axum::http::StatusCode::NOT_FOUND,
+                axum::Json(crate::routes::rest_api::MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(format!("workspace '{id}' not found")),
+                }),
+            )
         })
     }
 
@@ -773,6 +822,8 @@ impl ShipRuntime {
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
+            bundler: std::sync::OnceLock::new(),
+            worktree_resolver: default_worktree_resolver(),
         }
     }
 
@@ -847,7 +898,23 @@ impl ShipRuntime {
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
+            bundler: std::sync::OnceLock::new(),
+            worktree_resolver: default_worktree_resolver(),
         }
+    }
+
+    /// Test ctor variant — accepts a custom `WorktreeResolver` so tests
+    /// can map workspace ids to their tempdir paths instead of consulting
+    /// the daemon's CWD via `git worktree list`. See `project_api/tests.rs`.
+    #[cfg(test)]
+    pub fn new_test_with_worktree_resolver(
+        ship_dir: std::path::PathBuf,
+        kernel: SharedKernel,
+        worktree_resolver: WorktreeResolver,
+    ) -> Self {
+        let mut rt = Self::new_test(ship_dir, kernel);
+        rt.worktree_resolver = worktree_resolver;
+        rt
     }
 
     /// Clean up daemon files on shutdown.

@@ -6,7 +6,7 @@ use serde::Deserialize;
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
 
-use super::{err_response, ok_response, resolve_worktree, safe_resolve};
+use super::{err_response, ok_response, safe_resolve};
 
 pub(crate) fn file_type_from_ext(path: &std::path::Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {
@@ -94,7 +94,7 @@ pub async fn list_session_files(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let session_dir = worktree.join(".artifacts");
 
     if !session_dir.exists() {
@@ -128,7 +128,7 @@ pub async fn read_session_file(
     State(state): State<ApiState>,
     Path((id, file_path)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let session_dir = worktree.join(".artifacts");
     let requested = session_dir.join(&file_path);
     let target = safe_resolve(&session_dir, &requested)?;
@@ -204,7 +204,7 @@ pub async fn write_session_file(
     Json(body): Json<WriteFileReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let session_dir = worktree.join(".artifacts");
     // session_dir may not exist yet; create it first so canonicalize succeeds.
     std::fs::create_dir_all(&session_dir).map_err(|e| {
@@ -257,7 +257,7 @@ pub async fn delete_session_file(
     Path((id, file_path)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let session_dir = worktree.join(".artifacts");
     let requested = session_dir.join(&file_path);
     let target = safe_resolve(&session_dir, &requested)?;

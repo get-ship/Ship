@@ -39,43 +39,16 @@ use crate::routes::rest_api::{ApiState, MeshResponse};
 /// which has a `.ship/` dir and would pass the old "exists" check.
 /// Writes would then land in `~/.ship/pipelines/` instead of the real
 /// project root. We now only trust the DB answer when `path` is set.
-pub(crate) fn resolve_worktree(
-    ship_dir: &std::path::Path,
-    id: &str,
-) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
-    let _ = ship_dir;
-    // 1. Workspace name is a branch — resolve to its actual worktree path
-    //    via `git worktree list`. This gives artifact scope per worktree:
-    //    /home/user/ship/.artifacts/ for main
-    //    /home/user/ship-worktrees/fix/.artifacts/ for fix branch
-    if let Some(path) = worktree_path_for_branch(id) {
-        return Ok(path);
-    }
-
-    // 3. The daemon's active project root — only if id matches the
-    //    current branch. get_project_dir walks up from CWD looking for
-    //    .ship/, so it lands on the real project even if the daemon was
-    //    started with a global ship_dir.
-    if let Ok(project_ship) = ship_application::project::get_project_dir(None)
-        && let Some(root) = project_ship.parent()
-        && let Some(current_branch) = current_branch_at(root)
-        && current_branch == id
-    {
-        return Ok(root.to_path_buf());
-    }
-
-    Err((
-        StatusCode::NOT_FOUND,
-        Json(MeshResponse {
-            ok: false,
-            data: json!(format!("workspace '{id}' not found")),
-        }),
-    ))
-}
+// Production worktree resolution: branch → worktree path, falling back
+// to the current project root if the id matches the current branch.
+// This logic lives in `ship_runtime::default_worktree_resolver()`, which
+// is what handlers actually reach via `state.resolve_worktree(id)`. The
+// `worktree_path_for_branch` and `current_branch_at` helpers below
+// remain pub(crate) so the default resolver can call them.
 
 /// Read the current branch name at `root` via `git rev-parse`. None on any
 /// failure (not a git repo, detached HEAD, git missing).
-fn current_branch_at(root: &std::path::Path) -> Option<String> {
+pub(crate) fn current_branch_at(root: &std::path::Path) -> Option<String> {
     let output = crate::spawn_bounded::Cmd::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(root)

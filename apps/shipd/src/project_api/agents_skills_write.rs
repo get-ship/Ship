@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
-use super::{err_response, ok_response, resolve_worktree, safe_resolve};
+use super::{err_response, ok_response, safe_resolve};
 
 // ── Path safety ──────────────────────────────────────────────────────────────
 
@@ -86,7 +86,7 @@ pub async fn write_agent(
     Json(body): Json<WriteAgentReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let agents_dir = ship_substrate::ShipHome::project_ship_dir(&worktree).join("agents");
 
     std::fs::create_dir_all(&agents_dir).map_err(|e| {
@@ -157,7 +157,7 @@ pub async fn write_skill_file(
     Json(body): Json<WriteFileReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
 
     validate_skill_id(&skill_id)?;
 
@@ -211,7 +211,7 @@ pub async fn delete_skill_file(
     Path((id, skill_id, file_path)): Path<(String, String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
 
     validate_skill_id(&skill_id)?;
 
@@ -256,7 +256,7 @@ pub async fn get_skill_vars(
     State(state): State<ApiState>,
     Path((id, skill_id)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(&worktree);
 
     validate_skill_id(&skill_id)?;
@@ -308,7 +308,7 @@ pub async fn set_skill_var(
     Json(body): Json<SetVarReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
-    let worktree = resolve_worktree(state.ship_dir(), &id)?;
+    let worktree = state.resolve_worktree(&id)?;
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(&worktree);
 
     validate_skill_id(&skill_id)?;
