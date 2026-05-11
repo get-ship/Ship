@@ -21,7 +21,6 @@ pub mod auth;
 pub mod transport;
 mod daemon;
 mod first_run;
-mod handler;
 pub mod services;
 mod human_gateway;
 pub mod managers;
