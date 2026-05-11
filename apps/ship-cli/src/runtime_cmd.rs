@@ -1,16 +1,16 @@
-//! `ship runtime ...` — thin transport over `runtime::toolchain::*`.
+//! `ship runtime ...` — thin transport over `ship_application::toolchain::*`.
 //!
 //! All policy lives in the runtime crate; this file only translates clap
 //! enums into call arguments and prints results. New behaviors belong in
-//! `crates/core/runtime/src/toolchain/` so the MCP transport can reuse
+//! `crates/core/ship-application/src/toolchain/` so the MCP transport can reuse
 //! them without duplicating logic.
 
 use std::path::PathBuf;
 
 use anyhow::Result;
 
-use runtime::ShipHome;
-use runtime::toolchain::{InstallOptions, ensure_present, install, update};
+use ship_substrate::ShipHome;
+use ship_application::toolchain::{InstallOptions, ensure_present, install, update};
 
 pub fn run_install(bun: Option<PathBuf>, sui_compiler: Option<PathBuf>) -> Result<()> {
     let home = ShipHome::from_env();

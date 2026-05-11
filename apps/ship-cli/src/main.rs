@@ -26,6 +26,7 @@ mod job;
 mod jobs;
 mod lint;
 mod procs;
+mod runtime_cmd;
 mod tail;
 mod loader;
 mod logging;
@@ -223,6 +224,15 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 run_daemon(cmd)
             }
             Commands::Doctor => doctor::run(),
+            Commands::Runtime { action } => match action {
+                cli::RuntimeCommands::Install { bun, sui_compiler } => {
+                    runtime_cmd::run_install(bun, sui_compiler)
+                }
+                cli::RuntimeCommands::Update { bun, sui_compiler } => {
+                    runtime_cmd::run_update(bun, sui_compiler)
+                }
+                cli::RuntimeCommands::Doctor => runtime_cmd::run_doctor(),
+            },
             Commands::Uninstall { yes } => uninstall::run(yes),
             Commands::Help => {
                 use clap::CommandFactory;

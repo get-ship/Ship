@@ -6,6 +6,7 @@
 pub mod bundler;
 pub mod project;
 pub mod services;
+pub mod toolchain;
 
 #[cfg(test)]
 mod tests {

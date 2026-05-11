@@ -290,6 +290,12 @@ pub enum Commands {
     /// Diagnose ship setup — build identity, daemon status, home layout
     Doctor,
 
+    /// Manage the bundled JS toolchain at ~/.ship/runtime/ (Bun + sui-compiler + bundler.ts)
+    Runtime {
+        #[command(subcommand)]
+        action: RuntimeCommands,
+    },
+
     /// Uninstall Ship from this machine (stops daemon, removes ~/.ship, scrubs PATH)
     Uninstall {
         /// Skip the confirmation prompt
@@ -468,4 +474,30 @@ pub enum ConfigCommands {
     List,
     /// Show config file path
     Path,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum RuntimeCommands {
+    /// Install or repair ~/.ship/runtime/ from local sources (Bun on PATH +
+    /// in-repo target/release/sui-compiler + runtime-assets/bundler.ts by
+    /// default; override with --bun / --sui-compiler).
+    Install {
+        /// Path to the Bun binary to copy in. Defaults to `which bun`.
+        #[arg(long, value_name = "PATH")]
+        bun: Option<PathBuf>,
+        /// Path to the sui-compiler binary to copy in. Defaults to a walk-up
+        /// search for target/release/sui-compiler from cwd.
+        #[arg(long = "sui-compiler", value_name = "PATH")]
+        sui_compiler: Option<PathBuf>,
+    },
+    /// Wipe ~/.ship/runtime/ and reinstall fresh. Same flags as install.
+    Update {
+        #[arg(long, value_name = "PATH")]
+        bun: Option<PathBuf>,
+        #[arg(long = "sui-compiler", value_name = "PATH")]
+        sui_compiler: Option<PathBuf>,
+    },
+    /// Verify the toolchain is healthy. Reports the first missing or
+    /// non-executable component, and exits non-zero on any failure.
+    Doctor,
 }

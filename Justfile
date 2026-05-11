@@ -40,6 +40,36 @@ status:
 doctor:
     ship doctor
 
+# Populate ~/.ship/runtime/ from local sources for dev: bun from $BUN_PATH
+# (defaulting to a `bun` on PATH), sui-compiler from target/release/.
+# Idempotent. Run once after a fresh clone.
+[group('daily')]
+dev-runtime-install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build -p sui-compiler --release
+    cargo build -p ship-cli
+    BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
+    if [ -z "$BUN_BIN" ] || [ ! -x "$BUN_BIN" ]; then
+        echo "no bun on PATH; install via \`curl -fsSL https://bun.sh/install | bash\` or set BUN_PATH" >&2
+        exit 1
+    fi
+    ./target/debug/ship runtime install --bun "$BUN_BIN" --sui-compiler target/release/sui-compiler
+
+# Same as dev-runtime-install but wipes ~/.ship/runtime/ first.
+[group('daily')]
+dev-runtime-update:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    cargo build -p sui-compiler --release
+    cargo build -p ship-cli
+    BUN_BIN="${BUN_PATH:-$(command -v bun || true)}"
+    if [ -z "$BUN_BIN" ] || [ ! -x "$BUN_BIN" ]; then
+        echo "no bun on PATH; install via \`curl -fsSL https://bun.sh/install | bash\` or set BUN_PATH" >&2
+        exit 1
+    fi
+    ./target/debug/ship runtime update --bun "$BUN_BIN" --sui-compiler target/release/sui-compiler
+
 # Run all tests (Rust + loops). For a faster inner loop use test-fast.
 [group('daily')]
 test:
