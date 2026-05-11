@@ -21,8 +21,8 @@
  * Filed as a follow-up for the next imperative-engine port.
  */
 
-import { controller, effect } from '@ship/ui-runtime'
-import type { Signal } from '@ship/ui-runtime'
+import { controller, effect } from '@ship/sui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 
 // Import Scope from the compiler-emitted .d.ts (produced alongside the .sui).
 // This module resolves after `node scripts/build-bundles.mjs` compiles the

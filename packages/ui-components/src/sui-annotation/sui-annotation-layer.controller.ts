@@ -1,6 +1,6 @@
-import { controller, signal, derived, ref } from '@ship/ui-runtime'
+import { controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-annotation-layer.sui'
-import type { Signal } from '@ship/ui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 import { type AnnotationEvent, buildAnnotationEvent } from './sui-annotation.internals'
 
 type Mode = 'off' | 'point' | 'region'

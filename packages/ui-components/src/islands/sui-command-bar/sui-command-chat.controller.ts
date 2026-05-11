@@ -1,4 +1,4 @@
-import { controller, derived, useShared } from '@ship/ui-runtime'
+import { controller, derived, useShared } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-chat.sui'
 import type { Scope as BarScope } from './sui-command-bar.sui'
 import { type SessionSummary, navigateTo } from './types'

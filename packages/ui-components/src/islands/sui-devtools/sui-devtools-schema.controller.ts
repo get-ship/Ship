@@ -1,4 +1,4 @@
-import { controller, signal, derived } from '@ship/ui-runtime'
+import { controller, signal, derived } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-schema.sui'
 
 interface ArgDescriptor { name: string; kind: string; required?: boolean }

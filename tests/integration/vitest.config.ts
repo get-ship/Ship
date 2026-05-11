@@ -16,23 +16,23 @@ const repoRoot = resolve(__dirname, '..', '..')
 export default defineConfig({
   resolve: {
     alias: {
-      '@ship/ui-runtime/template-hooks': resolve(
+      '@ship/sui-runtime/template-hooks': resolve(
         repoRoot,
-        'packages/ui-runtime/src/template-hooks/index.ts',
+        'packages/sui-runtime/src/template-hooks/index.ts',
       ),
-      '@ship/ui-runtime/dev': resolve(
+      '@ship/sui-runtime/dev': resolve(
         repoRoot,
-        'packages/ui-runtime/src/dev.ts',
+        'packages/sui-runtime/src/dev.ts',
       ),
-      '@ship/ui-runtime': resolve(repoRoot, 'packages/ui-runtime/src/index.ts'),
-      '@ship/ui-dom/legacy': resolve(
+      '@ship/sui-runtime': resolve(repoRoot, 'packages/sui-runtime/src/index.ts'),
+      '@ship/sui-dom/legacy': resolve(
         repoRoot,
-        'packages/ui-dom/src/legacy/index.ts',
+        'packages/sui-dom/src/legacy/index.ts',
       ),
-      '@ship/ui-dom': resolve(repoRoot, 'packages/ui-dom/src/index.ts'),
-      '@ship/ui-sdk-client': resolve(
+      '@ship/sui-dom': resolve(repoRoot, 'packages/sui-dom/src/index.ts'),
+      '@ship/sdk-client': resolve(
         repoRoot,
-        'packages/ui-sdk-client/src/index.ts',
+        'packages/ship-sdk-client/src/index.ts',
       ),
     },
   },

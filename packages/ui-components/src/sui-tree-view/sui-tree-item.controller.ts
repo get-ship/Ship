@@ -1,6 +1,6 @@
-import { controller, signal, derived, effect, ref } from '@ship/ui-runtime'
+import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-tree-item.sui'
-import type { Signal } from '@ship/ui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 import type { TreeNode } from './sui-tree-view.controller'
 
 export default controller<Scope>({

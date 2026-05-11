@@ -1,6 +1,6 @@
-import { controller, signal, derived, bindNativeEvent } from '@ship/ui-runtime'
+import { controller, signal, derived, bindNativeEvent } from '@ship/sui-runtime'
 import type { Scope } from './sui-table.sui'
-import type { Signal } from '@ship/ui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 
 type Row = Record<string, unknown> & { id: string }
 type Column = { field: string; label: string }

@@ -1,4 +1,4 @@
-import { controller, signal, ref, effect } from '@ship/ui-runtime'
+import { controller, signal, ref, effect } from '@ship/sui-runtime'
 import type { Scope } from './sui-pagination.sui'
 
 export default controller<Scope>({

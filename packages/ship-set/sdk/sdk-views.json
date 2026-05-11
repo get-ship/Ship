@@ -10,7 +10,7 @@
       "description": "Live interaction surface Ã¢ÂÂ agent-created HTML artifacts with annotation + feedback round-trip",
       "rail": {
         "label": "Canvas",
-        "icon": "image"
+        "icon": "frame"
       },
       "events": [
         "collection.item_created",
@@ -20,15 +20,6 @@
         "studio.annotation.created"
       ]
     },
-    "chats": {
-      "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
-      "name": "chats",
-      "type": "component",
-      "rail": {
-        "label": "Chats",
-        "icon": "messages-square"
-      }
-    },
     "git": {
       "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
       "name": "git",
@@ -37,11 +28,20 @@
       "claims": [],
       "rail": {
         "label": "Git",
-        "icon": "git"
+        "icon": "git-branch"
       },
       "packs": [
         "git"
       ]
+    },
+    "mesh": {
+      "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
+      "name": "mesh",
+      "type": "component",
+      "rail": {
+        "label": "Mesh",
+        "icon": "network"
+      }
     },
     "pipelines": {
       "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
@@ -50,7 +50,7 @@
       "claims": [],
       "rail": {
         "label": "Pipelines",
-        "icon": "play"
+        "icon": "workflow"
       },
       "packs": [
         "editor"
@@ -70,6 +70,10 @@
       "name": "setup",
       "type": "html",
       "description": "First-run setup wizard (welcome Ã¢ÂÂ workspace Ã¢ÂÂ provider Ã¢ÂÂ done)",
+      "rail": {
+        "label": "Setup",
+        "icon": "rocket"
+      },
       "signals": {
         "step": {
           "type": "number",
@@ -187,13 +191,13 @@
       "claims": [],
       "rail": {
         "label": "Specs",
-        "icon": "file"
+        "icon": "file-text"
       }
     },
     "theme-studio": {
       "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
       "name": "theme-studio",
-      "type": "component",
+      "type": "html",
       "rail": {
         "label": "Theme Studio",
         "icon": "palette"
@@ -212,10 +216,6 @@
       "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
     },
     "dashboard": {
-      "source": "manifest.yaml",
-      "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
-    },
-    "data": {
       "source": "manifest.yaml",
       "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
     },

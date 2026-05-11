@@ -1,4 +1,4 @@
-import { controller, effect, bindNativeEvent } from '@ship/ui-runtime'
+import { controller, effect, bindNativeEvent } from '@ship/sui-runtime'
 import type { Scope } from './sui-dropdown-menu.sui'
 
 let _seq = 0

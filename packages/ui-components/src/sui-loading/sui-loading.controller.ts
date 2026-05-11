@@ -1,4 +1,4 @@
-import { controller } from '@ship/ui-runtime'
+import { controller } from '@ship/sui-runtime'
 import type { Scope } from './sui-loading.sui'
 
 const DEFAULT_MESSAGES = ['Waking daemon', 'Warming routes', 'Fetching state', 'Hydrating shell']

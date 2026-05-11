@@ -1,6 +1,6 @@
-import { controller, signal } from '@ship/ui-runtime'
+import { controller, signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-annotation-list.sui'
-import type { Signal } from '@ship/ui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 import type { AnnotationEvent } from './sui-annotation.internals'
 
 export default controller<Scope>({

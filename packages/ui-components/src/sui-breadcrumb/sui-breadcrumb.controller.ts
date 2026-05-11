@@ -1,5 +1,5 @@
-import { controller, signal } from '@ship/ui-runtime'
-import type { Signal } from '@ship/ui-runtime'
+import { controller, signal } from '@ship/sui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-breadcrumb.sui'
 
 interface Item {

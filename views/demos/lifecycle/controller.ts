@@ -1,4 +1,4 @@
-import { controller, signal } from '@ship/ui-runtime'
+import { controller, signal } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 interface LogLine { k: number; text: string }

@@ -3,38 +3,12 @@
   "version": "0.1.0",
   "$schema": "https://ship.design/schemas/sdk-urls.schema.json",
   "entries": {
-    "POST /api/actor/spawn": {
-      "method": "POST",
-      "path": "/api/actor/spawn",
-      "purpose": "create",
-      "params": [],
-      "summary": null,
-      "description": null,
-      "request": {
-        "$ref": "#/components/schemas/ActorSpawnReq"
-      },
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "GET /api/agents": {
-      "method": "GET",
-      "path": "/api/agents",
-      "purpose": "read",
-      "params": [],
-      "summary": "GET /api/runtime/agents",
-      "description": null,
-      "request": null,
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
     "GET /api/assets/custom-elements.json": {
       "method": "GET",
       "path": "/api/assets/custom-elements.json",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/assets/custom-elements.json",
+      "summary": "GET /api/v1/runtime/assets/custom-elements.json",
       "description": null,
       "request": null,
       "response": null
@@ -44,7 +18,7 @@
       "path": "/api/assets/datastar.js",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/assets/datastar.js",
+      "summary": "GET /api/v1/runtime/assets/datastar.js",
       "description": null,
       "request": null,
       "response": null
@@ -74,7 +48,7 @@
       "path": "/api/assets/ship-code-editor.js",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/assets/ship-code-editor.js",
+      "summary": "GET /api/v1/runtime/assets/ship-code-editor.js",
       "description": null,
       "request": null,
       "response": null
@@ -84,7 +58,7 @@
       "path": "/api/assets/ship-elements.js",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/assets/ship-elements.js",
+      "summary": "GET /api/v1/runtime/assets/ship-elements.js",
       "description": null,
       "request": null,
       "response": null
@@ -94,7 +68,7 @@
       "path": "/api/assets/ship-elements.md",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/assets/ship-elements.md\nCompact, token-efficient catalog for agent context.",
+      "summary": "GET /api/v1/runtime/assets/ship-elements.md\nCompact, token-efficient catalog for agent context.",
       "description": null,
       "request": null,
       "response": null
@@ -114,7 +88,7 @@
       "path": "/api/assets/ship-markdown-editor.js",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/assets/ship-markdown-editor.js",
+      "summary": "GET /api/v1/runtime/assets/ship-markdown-editor.js",
       "description": null,
       "request": null,
       "response": null
@@ -124,7 +98,7 @@
       "path": "/api/assets/ship-terminal.js",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/assets/ship-terminal.js",
+      "summary": "GET /api/v1/runtime/assets/ship-terminal.js",
       "description": null,
       "request": null,
       "response": null
@@ -134,14 +108,40 @@
       "path": "/api/assets/view-tokens.css",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/assets/view-tokens.css",
+      "summary": "GET /api/v1/runtime/assets/view-tokens.css",
       "description": null,
       "request": null,
       "response": null
     },
-    "GET /api/capabilities": {
+    "POST /api/v1/actor/spawn": {
+      "method": "POST",
+      "path": "/api/v1/actor/spawn",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/ActorSpawnReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/v1/agents": {
       "method": "GET",
-      "path": "/api/capabilities",
+      "path": "/api/v1/agents",
+      "purpose": "read",
+      "params": [],
+      "summary": "GET /api/v1/runtime/agents",
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/v1/capabilities": {
+      "method": "GET",
+      "path": "/api/v1/capabilities",
       "purpose": "read",
       "params": [],
       "summary": null,
@@ -151,9 +151,9 @@
         "$ref": "#/components/schemas/CapabilitiesResponse"
       }
     },
-    "POST /api/chat/send": {
+    "POST /api/v1/chat/send": {
       "method": "POST",
-      "path": "/api/chat/send",
+      "path": "/api/v1/chat/send",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -163,9 +163,9 @@
       },
       "response": null
     },
-    "POST /api/create/{surface}": {
+    "POST /api/v1/create/{surface}": {
       "method": "POST",
-      "path": "/api/create/{surface}",
+      "path": "/api/v1/create/{surface}",
       "purpose": "create",
       "params": [
         "surface"
@@ -179,22 +179,22 @@
         "$ref": "#/components/schemas/CreateResponse"
       }
     },
-    "GET /api/events": {
+    "GET /api/v1/events": {
       "method": "GET",
-      "path": "/api/events",
+      "path": "/api/v1/events",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/events — SSE stream of all kernel events.",
+      "summary": "GET /api/v1/runtime/events — SSE stream of all kernel events.",
       "description": null,
       "request": null,
       "response": null
     },
-    "POST /api/events/emit": {
+    "POST /api/v1/events/emit": {
       "method": "POST",
-      "path": "/api/events/emit",
+      "path": "/api/v1/events/emit",
       "purpose": "create",
       "params": [],
-      "summary": "POST /api/events/emit",
+      "summary": "POST /api/v1/events/emit",
       "description": null,
       "request": {
         "$ref": "#/components/schemas/EmitEventReq"
@@ -203,9 +203,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/events/route": {
+    "POST /api/v1/events/route": {
       "method": "POST",
-      "path": "/api/events/route",
+      "path": "/api/v1/events/route",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -217,24 +217,24 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/jobs": {
+    "GET /api/v1/jobs": {
       "method": "GET",
-      "path": "/api/jobs",
+      "path": "/api/v1/jobs",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/jobs",
+      "summary": "GET /api/v1/runtime/jobs",
       "description": "Returns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
       "request": null,
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/jobs/dispatch": {
+    "POST /api/v1/jobs/dispatch": {
       "method": "POST",
-      "path": "/api/jobs/dispatch",
+      "path": "/api/v1/jobs/dispatch",
       "purpose": "create",
       "params": [],
-      "summary": "POST /api/jobs/dispatch",
+      "summary": "POST /api/v1/jobs/dispatch",
       "description": "UI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
       "request": {
         "$ref": "#/components/schemas/DispatchRequest"
@@ -243,12 +243,12 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/jobs/end": {
+    "POST /api/v1/jobs/end": {
       "method": "POST",
-      "path": "/api/jobs/end",
+      "path": "/api/v1/jobs/end",
       "purpose": "create",
       "params": [],
-      "summary": "POST /api/runtime/jobs/end — signal that a provider turn ended for a job.",
+      "summary": "POST /api/v1/runtime/jobs/end — signal that a provider turn ended for a job.",
       "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
       "request": {
         "$ref": "#/components/schemas/JobEndRequest"
@@ -257,9 +257,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/jobs/{job_id}/status": {
+    "POST /api/v1/jobs/{job_id}/status": {
       "method": "POST",
-      "path": "/api/jobs/{job_id}/status",
+      "path": "/api/v1/jobs/{job_id}/status",
       "purpose": "create",
       "params": [
         "job_id"
@@ -273,14 +273,14 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/jobs/{slug}/step-done": {
+    "POST /api/v1/jobs/{slug}/step-done": {
       "method": "POST",
-      "path": "/api/jobs/{slug}/step-done",
+      "path": "/api/v1/jobs/{slug}/step-done",
       "purpose": "create",
       "params": [
         "slug"
       ],
-      "summary": "POST /api/jobs/{slug}/step-done — agent declares the current pipeline step\ncomplete. Daemon resolves the active step from the projection, builds a\n`step.done_declared` envelope, and routes it through the kernel.",
+      "summary": "POST /api/v1/jobs/{slug}/step-done — agent declares the current pipeline step\ncomplete. Daemon resolves the active step from the projection, builds a\n`step.done_declared` envelope, and routes it through the kernel.",
       "description": null,
       "request": {
         "$ref": "#/components/schemas/StepDoneReq"
@@ -289,9 +289,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/mesh/broadcast": {
+    "POST /api/v1/mesh/broadcast": {
       "method": "POST",
-      "path": "/api/mesh/broadcast",
+      "path": "/api/v1/mesh/broadcast",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -303,9 +303,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/mesh/discover": {
+    "GET /api/v1/mesh/discover": {
       "method": "GET",
-      "path": "/api/mesh/discover",
+      "path": "/api/v1/mesh/discover",
       "purpose": "read",
       "params": [],
       "summary": null,
@@ -315,9 +315,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/mesh/events/{agent_id}": {
+    "GET /api/v1/mesh/events/{agent_id}": {
       "method": "GET",
-      "path": "/api/mesh/events/{agent_id}",
+      "path": "/api/v1/mesh/events/{agent_id}",
       "purpose": "read",
       "params": [
         "agent_id"
@@ -327,9 +327,9 @@
       "request": null,
       "response": null
     },
-    "POST /api/mesh/register": {
+    "POST /api/v1/mesh/register": {
       "method": "POST",
-      "path": "/api/mesh/register",
+      "path": "/api/v1/mesh/register",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -341,9 +341,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/mesh/send": {
+    "POST /api/v1/mesh/send": {
       "method": "POST",
-      "path": "/api/mesh/send",
+      "path": "/api/v1/mesh/send",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -355,9 +355,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/mesh/status": {
+    "POST /api/v1/mesh/status": {
       "method": "POST",
-      "path": "/api/mesh/status",
+      "path": "/api/v1/mesh/status",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -369,9 +369,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/projects": {
+    "GET /api/v1/projects": {
       "method": "GET",
-      "path": "/api/projects",
+      "path": "/api/v1/projects",
       "purpose": "read",
       "params": [],
       "summary": null,
@@ -381,9 +381,9 @@
         "$ref": "#/components/schemas/ProjectsResponse"
       }
     },
-    "POST /api/projects": {
+    "POST /api/v1/projects": {
       "method": "POST",
-      "path": "/api/projects",
+      "path": "/api/v1/projects",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -395,9 +395,9 @@
         "$ref": "#/components/schemas/ProjectsResponse"
       }
     },
-    "POST /api/projects/switch": {
+    "POST /api/v1/projects/switch": {
       "method": "POST",
-      "path": "/api/projects/switch",
+      "path": "/api/v1/projects/switch",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -407,9 +407,9 @@
       },
       "response": null
     },
-    "GET /api/providers": {
+    "GET /api/v1/providers": {
       "method": "GET",
-      "path": "/api/providers",
+      "path": "/api/v1/providers",
       "purpose": "read",
       "params": [],
       "summary": null,
@@ -419,9 +419,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/providers/installed": {
+    "GET /api/v1/providers/installed": {
       "method": "GET",
-      "path": "/api/providers/installed",
+      "path": "/api/v1/providers/installed",
       "purpose": "read",
       "params": [],
       "summary": null,
@@ -431,33 +431,33 @@
         "$ref": "#/components/schemas/InstalledProvidersResponse"
       }
     },
-    "POST /api/rebuild-projections": {
+    "POST /api/v1/rebuild-projections": {
       "method": "POST",
-      "path": "/api/rebuild-projections",
+      "path": "/api/v1/rebuild-projections",
       "purpose": "create",
       "params": [],
-      "summary": "POST /api/runtime/rebuild-projections — rebuild all projections from events.",
+      "summary": "POST /api/v1/runtime/rebuild-projections — rebuild all projections from events.",
       "description": null,
       "request": null,
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/sessions": {
+    "GET /api/v1/sessions": {
       "method": "GET",
-      "path": "/api/sessions",
+      "path": "/api/v1/sessions",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/sessions[?workspace_id=<id>]",
+      "summary": "GET /api/v1/runtime/sessions[?workspace_id=<id>]",
       "description": null,
       "request": null,
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "POST /api/sessions/spawn": {
+    "POST /api/v1/sessions/spawn": {
       "method": "POST",
-      "path": "/api/sessions/spawn",
+      "path": "/api/v1/sessions/spawn",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -469,9 +469,9 @@
         "$ref": "#/components/schemas/SpawnResponse"
       }
     },
-    "GET /api/sessions/{id}": {
+    "GET /api/v1/sessions/{id}": {
       "method": "GET",
-      "path": "/api/sessions/{id}",
+      "path": "/api/v1/sessions/{id}",
       "purpose": "read",
       "params": [
         "id"
@@ -483,9 +483,9 @@
         "$ref": "#/components/schemas/SessionMetaWire"
       }
     },
-    "DELETE /api/sessions/{id}": {
+    "DELETE /api/v1/sessions/{id}": {
       "method": "DELETE",
-      "path": "/api/sessions/{id}",
+      "path": "/api/v1/sessions/{id}",
       "purpose": "delete",
       "params": [
         "id"
@@ -495,9 +495,9 @@
       "request": null,
       "response": null
     },
-    "GET /api/sessions/{id}/events": {
+    "GET /api/v1/sessions/{id}/events": {
       "method": "GET",
-      "path": "/api/sessions/{id}/events",
+      "path": "/api/v1/sessions/{id}/events",
       "purpose": "read",
       "params": [
         "id"
@@ -507,9 +507,9 @@
       "request": null,
       "response": null
     },
-    "POST /api/sessions/{id}/input": {
+    "POST /api/v1/sessions/{id}/input": {
       "method": "POST",
-      "path": "/api/sessions/{id}/input",
+      "path": "/api/v1/sessions/{id}/input",
       "purpose": "create",
       "params": [
         "id"
@@ -521,9 +521,9 @@
       },
       "response": null
     },
-    "POST /api/sessions/{id}/message": {
+    "POST /api/v1/sessions/{id}/message": {
       "method": "POST",
-      "path": "/api/sessions/{id}/message",
+      "path": "/api/v1/sessions/{id}/message",
       "purpose": "create",
       "params": [
         "id"
@@ -535,9 +535,9 @@
       },
       "response": null
     },
-    "POST /api/sessions/{id}/reply": {
+    "POST /api/v1/sessions/{id}/reply": {
       "method": "POST",
-      "path": "/api/sessions/{id}/reply",
+      "path": "/api/v1/sessions/{id}/reply",
       "purpose": "create",
       "params": [
         "id"
@@ -549,9 +549,9 @@
       },
       "response": null
     },
-    "GET /api/sessions/{id}/stream": {
+    "GET /api/v1/sessions/{id}/stream": {
       "method": "GET",
-      "path": "/api/sessions/{id}/stream",
+      "path": "/api/v1/sessions/{id}/stream",
       "purpose": "sse",
       "params": [
         "id"
@@ -561,9 +561,9 @@
       "request": null,
       "response": null
     },
-    "GET /api/settings": {
+    "GET /api/v1/settings": {
       "method": "GET",
-      "path": "/api/settings",
+      "path": "/api/v1/settings",
       "purpose": "read",
       "params": [],
       "summary": null,
@@ -573,9 +573,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "PUT /api/settings": {
+    "PUT /api/v1/settings": {
       "method": "PUT",
-      "path": "/api/settings",
+      "path": "/api/v1/settings",
       "purpose": "update",
       "params": [],
       "summary": null,
@@ -587,9 +587,9 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/settings/{key}": {
+    "GET /api/v1/settings/{key}": {
       "method": "GET",
-      "path": "/api/settings/{key}",
+      "path": "/api/v1/settings/{key}",
       "purpose": "read",
       "params": [
         "key"
@@ -601,19 +601,19 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/ship/schema": {
+    "GET /api/v1/ship/schema": {
       "method": "GET",
-      "path": "/api/ship/schema",
+      "path": "/api/v1/ship/schema",
       "purpose": "read",
       "params": [],
-      "summary": "`GET /api/ship/schema` — catalog of every `ship.<domain>.<op>` the\nregistry exposes. Consumers:\n- `@ship/shell` TS SDK: codegen typed `window.ship.*` methods\n- Lint: flag template calls that don't match a known op\n- MCP server: auto-register ops as tools\n- Third-party view authors: editor autocomplete via `/api/ship/schema`",
+      "summary": "`GET /api/v1/ship/schema` — catalog of every `ship.<domain>.<op>` the\nregistry exposes. Consumers:\n- `@ship/shell` TS SDK: codegen typed `window.ship.*` methods\n- Lint: flag template calls that don't match a known op\n- MCP server: auto-register ops as tools\n- Third-party view authors: editor autocomplete via `/api/v1/ship/schema`",
       "description": null,
       "request": null,
       "response": null
     },
-    "GET /api/sse/{path}": {
+    "GET /api/v1/sse/{path}": {
       "method": "GET",
-      "path": "/api/sse/{path}",
+      "path": "/api/v1/sse/{path}",
       "purpose": "read",
       "params": [
         "path"
@@ -623,9 +623,9 @@
       "request": null,
       "response": null
     },
-    "POST /api/themes/contrast": {
+    "POST /api/v1/themes/contrast": {
       "method": "POST",
-      "path": "/api/themes/contrast",
+      "path": "/api/v1/themes/contrast",
       "purpose": "create",
       "params": [],
       "summary": null,
@@ -637,9 +637,9 @@
         "$ref": "#/components/schemas/ContrastReport"
       }
     },
-    "GET /api/v/{path}": {
+    "GET /api/v1/v/{path}": {
       "method": "GET",
-      "path": "/api/v/{path}",
+      "path": "/api/v1/v/{path}",
       "purpose": "read",
       "params": [
         "path"
@@ -649,9 +649,9 @@
       "request": null,
       "response": null
     },
-    "GET /api/view-source/{path}": {
+    "GET /api/v1/view-source/{path}": {
       "method": "GET",
-      "path": "/api/view-source/{path}",
+      "path": "/api/v1/view-source/{path}",
       "purpose": "read",
       "params": [
         "path"
@@ -663,9 +663,9 @@
         "$ref": "#/components/schemas/ViewSourceResponse"
       }
     },
-    "POST /api/views/{name}/fork": {
+    "POST /api/v1/views/{name}/fork": {
       "method": "POST",
-      "path": "/api/views/{name}/fork",
+      "path": "/api/v1/views/{name}/fork",
       "purpose": "create",
       "params": [
         "name"
@@ -677,9 +677,9 @@
         "$ref": "#/components/schemas/WriteResponse"
       }
     },
-    "PUT /api/views/{name}/manifest": {
+    "PUT /api/v1/views/{name}/manifest": {
       "method": "PUT",
-      "path": "/api/views/{name}/manifest",
+      "path": "/api/v1/views/{name}/manifest",
       "purpose": "update",
       "params": [
         "name"
@@ -693,9 +693,9 @@
         "$ref": "#/components/schemas/WriteResponse"
       }
     },
-    "PUT /api/views/{name}/template": {
+    "PUT /api/v1/views/{name}/template": {
       "method": "PUT",
-      "path": "/api/views/{name}/template",
+      "path": "/api/v1/views/{name}/template",
       "purpose": "update",
       "params": [
         "name"
@@ -709,12 +709,12 @@
         "$ref": "#/components/schemas/WriteResponse"
       }
     },
-    "GET /api/workspaces": {
+    "GET /api/v1/workspaces": {
       "method": "GET",
-      "path": "/api/workspaces",
+      "path": "/api/v1/workspaces",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/workspaces",
+      "summary": "GET /api/v1/runtime/workspaces",
       "description": "Returns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
       "request": null,
       "response": {

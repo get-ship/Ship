@@ -1,4 +1,4 @@
-import { controller, effect } from '@ship/ui-runtime'
+import { controller, effect } from '@ship/sui-runtime'
 import type { Scope } from './sui-toggle-group.sui'
 
 type ToggleEl = HTMLElement & { focusButton?(): void }

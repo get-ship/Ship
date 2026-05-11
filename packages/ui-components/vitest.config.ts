@@ -25,10 +25,10 @@ function compileSui(suiPath: string, stem: string): void {
 export default defineConfig({
   resolve: {
     alias: {
-      '@ship/ui-runtime': resolve(__dirname, '../ui-runtime/src/index.ts'),
-      // @ship/ui-dom/legacy is aliased for the test-only `*.compiled.js` shim; not bundled into production.
-      '@ship/ui-dom/legacy': resolve(__dirname, '../ui-dom/src/legacy/index.ts'),
-      '@ship/ui-dom': resolve(__dirname, '../ui-dom/src/index.ts'),
+      '@ship/sui-runtime': resolve(__dirname, '../ui-runtime/src/index.ts'),
+      // @ship/sui-dom/legacy is aliased for the test-only `*.compiled.js` shim; not bundled into production.
+      '@ship/sui-dom/legacy': resolve(__dirname, '../ui-dom/src/legacy/index.ts'),
+      '@ship/sui-dom': resolve(__dirname, '../ui-dom/src/index.ts'),
       // No-op stub: WebGL addon throws "WebGL2 not supported" in JSDOM.
       '@xterm/addon-webgl': resolve(__dirname, 'test/__mocks__/addon-webgl.ts'),
     },
@@ -94,7 +94,7 @@ export default defineConfig({
         const base = id.slice(prefix.length)
         const htmlSet = `${base}.html.set`
         return [
-          `import { hydrate } from '@ship/ui-dom/legacy'`,
+          `import { hydrate } from '@ship/sui-dom/legacy'`,
           `import template from ${JSON.stringify(htmlSet)}`,
           `if (typeof document !== 'undefined') {`,
           `  const __c = document.createElement('div')`,

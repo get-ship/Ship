@@ -1,4 +1,4 @@
-import { bindAttr, bindNativeEvent, controller, onCleanup } from '@ship/ui-runtime'
+import { bindAttr, bindNativeEvent, controller, onCleanup } from '@ship/sui-runtime'
 import type { Scope } from './sui-input.sui'
 
 let _idSeq = 0

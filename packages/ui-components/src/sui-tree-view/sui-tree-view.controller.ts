@@ -1,6 +1,6 @@
-import { controller, signal } from '@ship/ui-runtime'
+import { controller, signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-tree-view.sui'
-import type { Signal } from '@ship/ui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 
 export interface TreeNode {
   id: string

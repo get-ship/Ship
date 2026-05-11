@@ -1,4 +1,4 @@
-import { bindHtml, controller, effect, signal } from '@ship/ui-runtime'
+import { bindHtml, controller, effect, signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-toast-container.sui'
 
 type ToastPosition =

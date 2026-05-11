@@ -1,5 +1,5 @@
-import { controller, signal, derived, effect, ref } from '@ship/ui-runtime'
-import type { Signal } from '@ship/ui-runtime'
+import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 import {
   THEMES,
   applyTheme,

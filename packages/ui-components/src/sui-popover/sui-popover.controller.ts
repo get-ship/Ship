@@ -1,4 +1,4 @@
-import { controller, effect, bindNativeEvent, slotted } from '@ship/ui-runtime'
+import { controller, effect, bindNativeEvent, slotted } from '@ship/sui-runtime'
 import type { Scope } from './sui-popover.sui'
 
 // Per-instance anchor-name so multiple popovers on a page each address

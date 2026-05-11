@@ -84,7 +84,7 @@ const sui = `<!--
 writeFileSync(join(baseDir, `${tag}.sui`), sui)
 
 if (wantController) {
-  const ts = `import { controller } from '@ship/ui-runtime'
+  const ts = `import { controller } from '@ship/sui-runtime'
 import type { Scope } from './${tag}.sui'
 
 export default controller<Scope>({

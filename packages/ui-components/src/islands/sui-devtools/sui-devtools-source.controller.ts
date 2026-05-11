@@ -1,4 +1,4 @@
-import { controller, signal, derived, effect, ref } from '@ship/ui-runtime'
+import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-source.sui'
 
 interface ViewSource { view_name: string; template_path: string; template: string; manifest_filename: string | null; manifest: string | null; scope: string }

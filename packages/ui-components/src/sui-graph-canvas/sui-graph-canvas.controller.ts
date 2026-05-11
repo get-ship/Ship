@@ -1,4 +1,4 @@
-import { controller, bindHtml } from '@ship/ui-runtime'
+import { controller, bindHtml } from '@ship/sui-runtime'
 import type { Scope } from './sui-graph-canvas.sui'
 
 export interface GraphNode {

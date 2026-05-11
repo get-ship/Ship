@@ -1,5 +1,5 @@
-import { controller, derived, signal } from '@ship/ui-runtime'
-import type { Signal } from '@ship/ui-runtime'
+import { controller, derived, signal } from '@ship/sui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-nav-top.sui'
 
 interface ApiView {

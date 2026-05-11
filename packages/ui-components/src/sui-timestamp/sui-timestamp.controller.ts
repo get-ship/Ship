@@ -1,5 +1,5 @@
-import { controller, signal, derived, effect } from '@ship/ui-runtime'
-import type { Signal } from '@ship/ui-runtime'
+import { controller, signal, derived, effect } from '@ship/sui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-timestamp.sui'
 import { absoluteIso, formatRelative } from './sui-timestamp'
 

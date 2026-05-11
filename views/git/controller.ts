@@ -13,8 +13,8 @@
 // a template hook (`<use-kbd>` for tab keyboard shortcuts), envelope
 // unwrap via `unwrapOr`, signal-passing into the hook factory.
 
-import { controller, signal, unwrapOr, useFilteredList } from '@ship/ui-runtime'
-import type { GitOverview, GitCommit } from '@ship/ui-sdk-client'
+import { controller, signal, unwrapOr, useFilteredList } from '@ship/sui-runtime'
+import type { GitOverview, GitCommit } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
 
 type GitTab = 'changes' | 'history' | 'branches'

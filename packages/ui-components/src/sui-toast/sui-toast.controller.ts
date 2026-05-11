@@ -1,4 +1,4 @@
-import { controller, effect, ref, signal } from '@ship/ui-runtime'
+import { controller, effect, ref, signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-toast.sui'
 
 type DismissReason = 'manual' | 'timeout' | 'programmatic'

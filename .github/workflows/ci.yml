@@ -67,4 +67,4 @@ jobs:
       - name: JS tests (precompiles SUI via pretest hook)
         run: pnpm -F @ship/ui-components test
       - name: Bundle sui-runtime
-        run: pnpm -F @ship/ui-runtime bundle
+        run: pnpm -F @ship/sui-runtime bundle

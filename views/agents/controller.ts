@@ -1,4 +1,4 @@
-import { controller, unwrap } from '@ship/ui-runtime'
+import { controller, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({

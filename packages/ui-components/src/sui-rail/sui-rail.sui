@@ -15,14 +15,19 @@
       by setting/removing the [collapsed] attribute.
   ─────────────────────────────────────────────────────────────────────────────
   Slots: (default) — accepts <sui-rail-item> and <sui-rail-section> children
-  Parts: nav, footer, toggle
+  Parts: nav, footer, toggle, project-badge, project-popover, launcher-btn, create-btn
   ─────────────────────────────────────────────────────────────────────────────
   CSS custom properties emitted for co-located children:
     --rail-label-display  block | none     drives label visibility on items
     --rail-item-justify   flex-start | center  drives icon centering on items
   Both properties are inherited by slotted sui-rail-item / sui-rail-section
-  children, which consume them in their own shadow styles.
+  children, which consume them in their own styles.
   ─────────────────────────────────────────────────────────────────────────────
+  Footer:
+    The footer exposes parts for shell-level feature wiring. The shell
+    populates the project badge, popover, launcher and create buttons via
+    standard DOM APIs. The rail is a passive container — all feature
+    logic lives in apps/shell2/src/main.ts.
 -->
 
 <prop name="collapsed" type="bool" default="false" reflect />
@@ -39,17 +44,15 @@
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-    /* Inherited custom props consumed by slotted children */
     --rail-label-display: flex;
     --rail-item-justify: flex-start;
   }
   :host([collapsed]) {
-    width: 32px;
+    width: 48px;
     --rail-label-display: none;
     --rail-item-justify: center;
   }
-  :host([collapsed]) .rail-nav { display: none; }
-  :host([collapsed]) .rail-footer { padding: 4px; justify-content: center; }
+  :host([collapsed]) .rail-footer { padding: 4px; }
   :host([hidden]) { display: none; }
 
   .rail-nav {
@@ -68,11 +71,79 @@
 
   .rail-footer {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    justify-content: flex-end;
+    gap: 4px;
     padding: var(--space-2, 8px);
     border-top: 1px solid var(--border);
     flex-shrink: 0;
+  }
+  :host([collapsed]) .rail-footer {
+    gap: 4px;
+  }
+
+  .project-badge {
+    appearance: none;
+    background: var(--primary);
+    color: var(--primary-foreground, white);
+    border: none;
+    border-radius: 6px;
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .project-badge:hover {
+    background: color-mix(in oklch, var(--primary) 80%, black);
+  }
+  .project-badge:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+  }
+
+  .footer-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    width: 100%;
+  }
+  :host([collapsed]) .footer-actions {
+    flex-direction: column;
+    width: auto;
+  }
+
+  .footer-btn {
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm, 4px);
+    padding: 4px;
+    color: var(--muted-foreground);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    transition:
+      background-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
+      border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .footer-btn:hover {
+    background: color-mix(in oklch, var(--foreground) 8%, transparent);
+    border-color: var(--border);
+    color: var(--foreground);
+  }
+  .footer-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
   }
 
   .toggle-btn {
@@ -105,20 +176,132 @@
   .toggle-btn::before { content: '◀'; font-size: 10px; line-height: 1; }
   :host([collapsed]) .toggle-btn::before { content: '▶'; }
 
+  .project-popover-container {
+    position: relative;
+  }
+
+  .project-popover {
+    position: absolute;
+    bottom: 100%;
+    left: 8px;
+    margin-bottom: 4px;
+    min-width: 200px;
+    background: var(--popover, var(--card, white));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 8px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 100;
+    overflow: hidden;
+  }
+  .project-popover[hidden] {
+    display: none;
+  }
+  .project-popover-title {
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .project-popover-row {
+    padding: 8px 12px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+  }
+  .project-popover-row:hover {
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+  }
+  .project-popover-row.active {
+    background: color-mix(in oklch, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
+  .project-popover-row-name {
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .project-popover-row-path {
+    font-size: 11px;
+    color: var(--muted-foreground);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .project-popover-sep {
+    height: 1px;
+    background: var(--border);
+    margin: 4px 0;
+  }
+  .project-popover-row.add {
+    color: var(--primary);
+    font-weight: 500;
+  }
+  .project-popover-empty {
+    padding: 12px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+
   @media (prefers-reduced-motion: reduce) {
     :host { transition: none; }
   }
 </style>
 
 <nav class="rail-nav" part="nav">
-  <slot bind:this={navSlot}></slot>
+  <slot></slot>
 </nav>
 <div class="rail-footer" part="footer">
   <button
     type="button"
-    class="toggle-btn"
-    part="toggle"
-    bind:this={toggleBtn}
-    aria-label="Collapse rail"
+    class="project-badge"
+    part="project-badge"
+    data-rail="project-badge"
+    aria-label="Switch project"
   ></button>
+  <div class="project-popover-container">
+    <div
+      class="project-popover"
+      part="project-popover"
+      data-rail="project-popover"
+      hidden
+    >
+      <div class="project-popover-title">Projects</div>
+      <div data-rail="project-list"></div>
+      <div class="project-popover-sep"></div>
+      <div class="project-popover-row add" data-rail="add-project">
+        <span>+ Add project</span>
+      </div>
+    </div>
+  </div>
+  <div class="footer-actions">
+    <button
+      type="button"
+      class="footer-btn"
+      part="launcher-btn"
+      data-rail="launcher"
+      aria-label="Open launcher"
+    >
+      <sui-icon name="folder" size="sm"></sui-icon>
+    </button>
+    <button
+      type="button"
+      class="footer-btn"
+      part="create-btn"
+      data-rail="create"
+      aria-label="Create new"
+    >
+      <sui-icon name="plus" size="sm"></sui-icon>
+    </button>
+    <button
+      type="button"
+      class="toggle-btn"
+      part="toggle"
+      data-rail="toggle"
+      aria-label="Collapse rail"
+    ></button>
+  </div>
 </div>

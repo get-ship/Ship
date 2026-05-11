@@ -1,6 +1,6 @@
-import { controller, signal, derived, effect, ref, shared } from '@ship/ui-runtime'
+import { controller, signal, derived, effect, ref, shared } from '@ship/sui-runtime'
 import type { Scope } from './sui-command-bar.sui'
-import type { Signal } from '@ship/ui-runtime'
+import type { Signal } from '@ship/sui-runtime'
 import {
   type BarMode, type SessionSummary, type AgentSummary, type ThreadLine, type CreateSurface,
   NAV_DESTINATIONS, SLASH_COMMANDS, CREATE_SURFACES, detectMode, isKebab, navigateTo,

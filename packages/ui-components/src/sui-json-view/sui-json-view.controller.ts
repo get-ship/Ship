@@ -1,4 +1,4 @@
-import { controller, bindHtml } from '@ship/ui-runtime'
+import { controller, bindHtml } from '@ship/sui-runtime'
 import type { Scope } from './sui-json-view.sui'
 
 type JsonValue = null | boolean | number | string | JsonValue[] | { [k: string]: JsonValue }

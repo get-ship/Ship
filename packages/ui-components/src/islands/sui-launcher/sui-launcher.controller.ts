@@ -1,4 +1,4 @@
-import { controller, effect, signal, bindNativeEvent } from '@ship/ui-runtime'
+import { controller, effect, signal, bindNativeEvent } from '@ship/sui-runtime'
 import type { Scope } from './sui-launcher.sui'
 import { type ApiView, type Project, humanize, renderHead, renderFoot, renderBody } from './render'
 

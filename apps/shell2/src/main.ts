@@ -13,7 +13,10 @@
 //   7. Rail: <sui-rail> along the left edge; persists collapsed state.
 //   8. Status bar: <sui-status-bar> along the bottom; polls workspaces.
 
-import { createClient, type ShipSDK } from '@ship/ui-sdk-client'
+import { createClient, type ShipSDK } from '@ship/sdk-client'
+import { shipFetch, gitStatus } from '@ship/sdk'
+import { initRailFeatures } from './rail-features'
+import { KernelBridge } from './kernel-bridge'
 
 interface MountFn {
   (
@@ -28,6 +31,54 @@ interface MountFn {
 
 // Single SDK client instance, shared across every mounted view.
 const shipClient: ShipSDK = createClient()
+
+// ── window.ship API ──────────────────────────────────────────────────
+
+const kernelBridge = new KernelBridge()
+
+function initShipApi(): void {
+  window.ship = {
+    navigate(path: string) {
+      history.pushState({}, '', path)
+      document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
+    },
+    back() { history.back() },
+    current() { return { path: location.pathname } },
+    notify(message: string, tone?: 'success' | 'warning' | 'error' | 'info') {
+      document.dispatchEvent(new CustomEvent('sui:notify', {
+        detail: { title: message, tone, duration: 5000 },
+        bubbles: true,
+      }))
+    },
+    subscribe: kernelBridge.subscribe.bind(kernelBridge),
+    chat: {
+      open() { document.dispatchEvent(new CustomEvent('sui:chat:toggle', { bubbles: true })) },
+      send(message: string) {
+        document.dispatchEvent(new CustomEvent('sui:chat:send', { detail: { message }, bubbles: true }))
+      },
+    },
+    command() {
+      document.dispatchEvent(new CustomEvent('ship:bar:open', { bubbles: true }))
+    },
+  }
+}
+
+declare global {
+  interface Window {
+    ship?: {
+      navigate(path: string): void
+      back(): void
+      current(): { path: string }
+      notify(message: string, tone?: 'success' | 'warning' | 'error' | 'info'): void
+      subscribe(namespace: string, handler: (event: { event_type: string; entity: string; timestamp: string; payload: unknown; [k: string]: unknown }) => () => void): () => void
+      chat: {
+        open(): void
+        send(message: string): void
+      }
+      command(): void
+    }
+  }
+}
 
 interface SuiRuntime {
   mount: MountFn
@@ -304,18 +355,13 @@ async function updateStatus(): Promise<void> {
   // worktree the daemon is serving — so the status bar mis-labeled the
   // branch on linked worktrees.
   try {
-    const res = await fetch('/api/v1/git/status', { credentials: 'same-origin' })
-    if (res.ok) {
-      const envelope = await res.json()
-      const branch = envelope?.data?.branch ?? envelope?.branch ?? 'unknown'
-      statusBar.setAttribute('branch', branch)
-      statusBar.setAttribute('agents', '')
-      if (!daemonOnline) {
-        statusBar.setAttribute('online', '')
-        daemonOnline = true
-      }
-    } else {
-      markOffline()
+    const envelope = await shipFetch<{ data?: { branch?: string }; branch?: string }>(gitStatus())
+    const branch = envelope?.data?.branch ?? envelope?.branch ?? 'unknown'
+    statusBar.setAttribute('branch', branch)
+    statusBar.setAttribute('agents', '')
+    if (!daemonOnline) {
+      statusBar.setAttribute('online', '')
+      daemonOnline = true
     }
   } catch {
     markOffline()
@@ -364,30 +410,19 @@ function onSuiNotify(e: Event): void {
   const detail = ((e as CustomEvent).detail ?? {}) as SuiNotifyDetail
   const container = getToastContainer()
   if (!container) return
-  container.show({
-    tone: detail.tone,
-    title: detail.title ?? detail.message,
-    description: detail.description,
-    duration: detail.duration,
-    dismissible: detail.dismissible,
-    showProgress: detail.showProgress,
-    actionHtml: detail.actionHtml,
-  })
+  const opts: Parameters<ToastContainer['show']>[0] = {}
+  if (detail.tone !== undefined) opts.tone = detail.tone
+  const title = detail.title ?? detail.message
+  if (title !== undefined) opts.title = title
+  if (detail.description !== undefined) opts.description = detail.description
+  if (detail.duration !== undefined) opts.duration = detail.duration
+  if (detail.dismissible !== undefined) opts.dismissible = detail.dismissible
+  if (detail.showProgress !== undefined) opts.showProgress = detail.showProgress
+  if (detail.actionHtml !== undefined) opts.actionHtml = detail.actionHtml
+  container.show(opts)
 }
 
 document.addEventListener('sui:notify', onSuiNotify)
-
-function dispatchDemoToast(): void {
-  document.dispatchEvent(new CustomEvent('sui:notify', {
-    detail: {
-      tone: 'success',
-      title: 'Ship notification',
-      description: 'Toast bridge is working end to end.',
-      duration: 5000,
-    },
-    bubbles: true,
-  }))
-}
 
 // ── Boot ────────────────────────────────────────────────────────────
 
@@ -494,7 +529,9 @@ window.addEventListener('popstate', () => {
   }
 })
 
+initShipApi()
 initRail()
+initRailFeatures()
 setInterval(() => void updateStatus(), 15000)
 void updateStatus()
 

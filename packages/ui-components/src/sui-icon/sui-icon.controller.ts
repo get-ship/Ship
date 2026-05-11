@@ -1,4 +1,4 @@
-import { controller, effect, signal } from '@ship/ui-runtime'
+import { controller, effect, signal } from '@ship/sui-runtime'
 import {
   getIconRegistry,
   getIconSvg,

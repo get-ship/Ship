@@ -91,7 +91,7 @@ function discoverIslandBundles(): BundleTarget[] {
       // imports use absolute paths so the tmp location is irrelevant.
       entry: '<virtual>',
       virtualEntry: suiPaths.map((p) => `import ${JSON.stringify(p)}`).join('\n') + '\n',
-      external: ['@ship/ui-runtime', '@ship/ui-dom'],
+      external: ['@ship/sui-runtime', '@ship/sui-dom'],
       outFile: `sui-islands/${e.name}.js`,
     })
   }
@@ -113,7 +113,7 @@ function discoverViewBundles(): BundleTarget[] {
     out.push({
       name: `views/${e.name}/view`,
       entry: pageSui,
-      external: ['@ship/ui-runtime', '@ship/ui-runtime/template-hooks', '@ship/ui-dom', '@ship/ui-sdk-client'],
+      external: ['@ship/sui-runtime', '@ship/sui-runtime/template-hooks', '@ship/sui-dom', '@ship/sdk-client'],
       outFile: `views/${e.name}/view.js`,
     })
   }
@@ -125,13 +125,13 @@ const TARGETS: BundleTarget[] = [
   { name: 'ship-code-editor', entry: 'packages/ship-set/src/web-components/islands/ship-code-editor.ts' },
   { name: 'ship-markdown-editor', entry: 'packages/ship-set/src/web-components/islands/ship-markdown-editor.ts' },
   { name: 'ship-terminal', entry: 'packages/ship-set/src/web-components/islands/ship-terminal.ts' },
-  { name: 'sui-runtime', entry: 'packages/ui-runtime/src/index.ts' },
-  { name: 'sui-dom', entry: 'packages/ui-dom/src/index.ts', external: ['@ship/ui-runtime'] },
-  { name: 'sui-sdk-client', entry: 'packages/ui-sdk-client/src/index.ts', external: ['@ship/ui-runtime'] },
+  { name: 'sui-runtime', entry: 'packages/sui-runtime/src/index.ts' },
+  { name: 'sui-dom', entry: 'packages/sui-dom/src/index.ts', external: ['@ship/sui-runtime'] },
+  { name: 'sui-sdk-client', entry: 'packages/ship-sdk-client/src/index.ts', external: ['@ship/sui-runtime'] },
   {
     name: 'sui-components',
     entry: 'packages/ui-components/src/index.ts',
-    external: ['@ship/ui-runtime'],
+    external: ['@ship/sui-runtime'],
   },
   ...discoverIslandBundles(),
   ...discoverViewBundles(),

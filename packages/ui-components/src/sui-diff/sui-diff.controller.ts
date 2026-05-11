@@ -1,4 +1,4 @@
-import { controller, bindHtml } from '@ship/ui-runtime'
+import { controller, bindHtml } from '@ship/sui-runtime'
 import type { Scope } from './sui-diff.sui'
 
 type Line = { kind: 'add' | 'del' | 'ctx' | 'hunk'; text: string }

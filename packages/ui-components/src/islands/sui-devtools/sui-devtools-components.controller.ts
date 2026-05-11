@@ -1,4 +1,4 @@
-import { controller, signal, derived, ref } from '@ship/ui-runtime'
+import { controller, signal, derived, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-devtools-components.sui'
 
 interface CemAttr { name: string; description?: string; type?: { text?: string }; default?: string }

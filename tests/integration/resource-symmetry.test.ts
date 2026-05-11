@@ -37,7 +37,7 @@ import {
   type LiveSource,
   type LiveState,
   type ViewPayload,
-} from '@ship/ui-runtime'
+} from '@ship/sui-runtime'
 import {
   installWrappers,
   snapshot,
