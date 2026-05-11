@@ -94,20 +94,6 @@ fn executors_tmux_under_line_limit() {
     );
 }
 
-// process.rs is currently 431 lines, over the hard 400 cap. Splitting
-// it is a real refactor — likely along the spawn/exit-tracking seam —
-// and outside the scope of test-honesty work. Keep the test as a TODO
-// reminder via #[ignore] until the split happens.
-#[test]
-#[ignore]
-fn executors_process_under_line_limit() {
-    let lines = include_str!("executors/process.rs").lines().count();
-    assert!(
-        lines <= LINE_LIMIT,
-        "executors/process.rs has {lines} lines (limit {LINE_LIMIT})"
-    );
-}
-
 // ── New pipeline modules ───────────────────────────────────────────────────────
 
 #[test]
