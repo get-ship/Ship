@@ -20,9 +20,7 @@ pub mod sessions;
 pub mod auth;
 pub mod transport;
 mod daemon;
-mod first_run;
 pub mod services;
-mod human_gateway;
 pub mod managers;
 pub mod project_api;
 pub mod routes;
@@ -153,7 +151,7 @@ pub async fn run_network(
     rt.backfill_artifact_content_hashes().await;
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
-    human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
+    daemon::human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
     rt.start_hook_engine().await;
     rt.start_config_watcher();
 
@@ -356,7 +354,7 @@ pub async fn run_network(
     // First-run UX: if `data.db` doesn't exist yet, open the default
     // browser at `/setup` once the listener is bound. Harmless no-op on
     // subsequent starts; suppressible via `SHIP_NO_BROWSER=1`.
-    first_run::maybe_open_setup(&global_dir, port);
+    daemon::first_run::maybe_open_setup(&global_dir, port);
 
     axum::serve(listener, app)
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })
