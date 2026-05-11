@@ -7,7 +7,7 @@ use serde_json::{json, Map, Value};
 use utoipa::OpenApi;
 
 pub fn extract() -> Result<Value> {
-    let spec = shipd::openapi::ApiDoc::openapi();
+    let spec = shipd::routes::openapi::ApiDoc::openapi();
     let json_text = spec.to_json()?;
     let root: Value = serde_json::from_str(&json_text)?;
     let mut out = Map::new();

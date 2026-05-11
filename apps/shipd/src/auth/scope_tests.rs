@@ -8,7 +8,7 @@ use axum::Extension;
 use tempfile::TempDir;
 
 use crate::auth::{AuthContext, Scope};
-use crate::rest_api::*;
+use crate::routes::rest_api::*;
 use crate::test_harness::TestDaemon;
 
 fn make_api_state(dir: &TempDir) -> ApiState {
@@ -110,8 +110,8 @@ async fn worker_can_send_mesh_message() {
 // Worker tokens must be rejected by the dispatch endpoint so sub-agents
 // can't spawn top-level jobs on behalf of the user.
 
-fn dispatch_req(pipeline: &str) -> crate::runtime_api::DispatchRequest {
-    crate::runtime_api::DispatchRequest {
+fn dispatch_req(pipeline: &str) -> crate::routes::runtime_api::DispatchRequest {
+    crate::routes::runtime_api::DispatchRequest {
         pipeline: pipeline.into(),
         spec: None,
         provider: None,
@@ -132,7 +132,7 @@ async fn worker_cannot_create_jobs() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
 
-    let resp = crate::runtime_api::dispatch_pipeline(
+    let resp = crate::routes::runtime_api::dispatch_pipeline(
         axum::extract::State(state),
         Extension(worker_auth()),
         Json(dispatch_req("test-pipeline")),
@@ -197,10 +197,10 @@ async fn minimal_scope_cannot_route_events() {
     )
     .unwrap();
 
-    let resp = crate::actor_api::event_route(
+    let resp = crate::routes::actor_api::event_route(
         axum::extract::State(state),
         Extension(auth),
-        Json(crate::actor_api::EventRouteReq {
+        Json(crate::routes::actor_api::EventRouteReq {
             envelope,
             workspace_id: None,
             session_id: None,

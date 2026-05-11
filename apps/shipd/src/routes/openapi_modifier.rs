@@ -18,7 +18,7 @@ use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityRequirement
 use utoipa::openapi::ServerBuilder;
 use utoipa::Modify;
 
-use crate::openapi_types::PUBLIC_PATHS;
+use crate::routes::openapi_types::PUBLIC_PATHS;
 
 pub struct SecurityAndServer;
 

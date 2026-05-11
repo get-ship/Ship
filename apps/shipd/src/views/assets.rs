@@ -69,7 +69,7 @@ const VIEW_TOKENS_CSS: &str = concat!(
     path = "/api/assets/datastar.js",
     responses(
         (status = 200, description = "Datastar client bundle", content_type = "application/javascript"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
@@ -90,7 +90,7 @@ pub async fn serve_datastar_js() -> axum::response::Response {
     path = "/api/assets/view-tokens.css",
     responses(
         (status = 200, description = "Design tokens + base CSS for views", content_type = "text/css"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
@@ -113,7 +113,7 @@ pub async fn serve_view_tokens() -> axum::response::Response {
     path = "/api/assets/ship-elements.js",
     responses(
         (status = 200, description = "Web-component element bundle", content_type = "application/javascript"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
@@ -134,7 +134,7 @@ pub async fn serve_ship_elements() -> axum::response::Response {
     path = "/api/assets/custom-elements.json",
     responses(
         (status = 200, description = "Custom Elements Manifest (CEM)", content_type = "application/json"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
@@ -171,7 +171,7 @@ const SHIP_TERMINAL_JS: &str = include_str!("../../assets/ship-terminal.js");
     path = "/api/assets/ship-code-editor.js",
     responses(
         (status = 200, description = "Code editor island bundle", content_type = "application/javascript"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
@@ -192,7 +192,7 @@ pub async fn serve_code_editor() -> axum::response::Response {
     path = "/api/assets/ship-markdown-editor.js",
     responses(
         (status = 200, description = "Markdown editor island bundle", content_type = "application/javascript"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
@@ -213,7 +213,7 @@ pub async fn serve_markdown_editor() -> axum::response::Response {
     path = "/api/assets/ship-terminal.js",
     responses(
         (status = 200, description = "Terminal island bundle", content_type = "application/javascript"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
@@ -295,7 +295,7 @@ pub async fn serve_jinja_macros_md() -> axum::response::Response {
     path = "/api/assets/ship-elements.md",
     responses(
         (status = 200, description = "Compact element catalog for agent context", content_type = "text/markdown"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
@@ -317,13 +317,13 @@ pub async fn serve_elements_catalog() -> axum::response::Response {
     path = "/api/assets/theme.css",
     responses(
         (status = 200, description = "Active theme CSS overrides", content_type = "text/css"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
 )]
 pub async fn serve_theme_css() -> axum::response::Response {
-    let css = crate::themes::resolve_theme_css();
+    let css = crate::routes::themes::resolve_theme_css();
     axum::response::Response::builder()
         .status(StatusCode::OK)
         .header(axum::http::header::CONTENT_TYPE, "text/css; charset=utf-8")
@@ -340,13 +340,13 @@ pub async fn serve_theme_css() -> axum::response::Response {
     path = "/api/v1/themes",
     responses(
         (status = 200, description = "Available themes", content_type = "application/json"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
 )]
 pub async fn serve_themes_list() -> axum::response::Response {
-    let themes = crate::themes::list_themes();
+    let themes = crate::routes::themes::list_themes();
     let json = serde_json::to_string(&themes).unwrap_or_else(|_| "[]".to_string());
     axum::response::Response::builder()
         .status(StatusCode::OK)

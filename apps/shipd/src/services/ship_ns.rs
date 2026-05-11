@@ -16,7 +16,7 @@ use minijinja::value::{Kwargs, Object, ObjectRepr, Value};
 use minijinja::{Error, ErrorKind, State};
 use std::sync::Arc;
 
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::services::registry;
 
 /// Root `ship` namespace. Exposes service domains + request context.

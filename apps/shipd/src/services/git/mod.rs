@@ -39,7 +39,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use crate::access::RuntimeAccess;
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::views::stream::{ViewSse, ViewStream};
 use state::GitError;
 

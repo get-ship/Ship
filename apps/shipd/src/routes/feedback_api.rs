@@ -27,7 +27,7 @@ use tokio::sync::Mutex;
 use ulid::Ulid;
 
 use crate::auth::AuthContext;
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::views::session::SessionError;
 
 /// Daemon-scoped state for feedback ingress. Holds agent rate-limit
@@ -101,10 +101,10 @@ impl FeedbackGuard {
     request_body(content_type = "application/json", description = "FeedbackEvent — kind, author_kind, target, payload"),
     responses(
         (status = 200, description = "Feedback accepted"),
-        (status = 400, description = "Invalid feedback payload", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 429, description = "Rate limited", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid feedback payload", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 429, description = "Rate limited", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]

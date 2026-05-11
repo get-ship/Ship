@@ -37,17 +37,6 @@ pub mod supervised;
 pub mod supervisor;
 pub mod webhook_ext;
 
-// Re-export per-domain handler modules at the crate root so existing
-// `crate::artifacts_api::*` etc. imports continue to resolve. mr-04
-// moves the source files under `routes/`; the import surface is
-// unchanged.
-pub use routes::{
-    actor_api, actors_api, annotations_api, artifacts_api, collection_api, create_api,
-    feedback_api, hooks_api, lint_api, logs_api, openapi, openapi_modifier, openapi_types,
-    projects_api, rest_api, runtime_api, sdk_manifest, settings_api, shell_assets, specs_api,
-    themes, themes_api, view_errors_api, view_sessions_api,
-};
-
 #[cfg(test)]
 pub mod test_harness;
 #[cfg(test)]

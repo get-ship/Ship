@@ -175,11 +175,11 @@ async fn multiple_agents_connect_concurrently() {
     for i in 0..5 {
         let state = daemon.state.clone();
         handles.push(tokio::spawn(async move {
-            let req = crate::rest_api::MeshRegisterReq {
+            let req = crate::routes::rest_api::MeshRegisterReq {
                 agent_id: format!("agent.concurrent-{i}"),
                 capabilities: vec!["test".into()],
             };
-            crate::rest_api::mesh_register(
+            crate::routes::rest_api::mesh_register(
                 axum::extract::State(state),
                 axum::Extension(crate::test_harness::TestDaemon::cli_auth()),
                 axum::extract::Json(req),
@@ -308,10 +308,10 @@ async fn concurrent_mesh_register_same_agent() {
     let state2 = daemon.state.clone();
 
     let h1 = tokio::spawn(async move {
-        crate::rest_api::mesh_register(
+        crate::routes::rest_api::mesh_register(
             axum::extract::State(state1),
             axum::Extension(crate::test_harness::TestDaemon::cli_auth()),
-            axum::extract::Json(crate::rest_api::MeshRegisterReq {
+            axum::extract::Json(crate::routes::rest_api::MeshRegisterReq {
                 agent_id: "agent.race".into(),
                 capabilities: vec!["v1".into()],
             }),
@@ -319,10 +319,10 @@ async fn concurrent_mesh_register_same_agent() {
         .await;
     });
     let h2 = tokio::spawn(async move {
-        crate::rest_api::mesh_register(
+        crate::routes::rest_api::mesh_register(
             axum::extract::State(state2),
             axum::Extension(crate::test_harness::TestDaemon::cli_auth()),
-            axum::extract::Json(crate::rest_api::MeshRegisterReq {
+            axum::extract::Json(crate::routes::rest_api::MeshRegisterReq {
                 agent_id: "agent.race".into(),
                 capabilities: vec!["v2".into()],
             }),

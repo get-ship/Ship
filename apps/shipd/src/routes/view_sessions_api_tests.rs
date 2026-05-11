@@ -7,7 +7,7 @@ use tempfile::TempDir;
 use tower::ServiceExt;
 
 use crate::auth::AuthContext;
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::ship_runtime::ShipRuntime;
 
 fn router_for(state: ApiState, auth: AuthContext) -> Router {

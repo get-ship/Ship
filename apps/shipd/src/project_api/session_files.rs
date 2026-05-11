@@ -4,7 +4,7 @@ use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 use super::{err_response, ok_response, resolve_worktree, safe_resolve};
 
@@ -84,9 +84,9 @@ pub(super) fn collect_files_recursive(
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Files list under .artifacts/", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -118,9 +118,9 @@ pub async fn list_session_files(
     ),
     responses(
         (status = 200, description = "File content (data-URI for images, text otherwise)", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "File not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "File not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -189,11 +189,11 @@ pub struct WriteFileReq {
     request_body = WriteFileReq,
     responses(
         (status = 200, description = "File written", body = MeshResponse),
-        (status = 400, description = "Path escapes base directory", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Path escapes base directory", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -244,10 +244,10 @@ pub async fn write_session_file(
     ),
     responses(
         (status = 200, description = "File deleted", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "File not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "File not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "project"
 )]

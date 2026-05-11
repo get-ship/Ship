@@ -12,7 +12,7 @@ use tempfile::TempDir;
 use tokio::sync::Mutex;
 
 use ship_substrate::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope, KernelRouter};
-use crate::rest_api::{ApiState, MeshRegisterReq, mesh_register};
+use crate::routes::rest_api::{ApiState, MeshRegisterReq, mesh_register};
 use crate::test_harness::TestDaemon;
 
 fn make_kernel(dir: &TempDir) -> KernelRouter {

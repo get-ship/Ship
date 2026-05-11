@@ -18,7 +18,7 @@
 use serde_json::{Value, json};
 use std::path::Path;
 
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::services::files::{FilesService, Scope};
 
 /// Structured error returned from a registry call. Rendered verbatim

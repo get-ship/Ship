@@ -4,7 +4,7 @@
 use serde_json::{Value, json};
 
 use super::{RegistryError, html_escape, optional_usize, parse_scope, required_str};
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::services::files::{FilesService, Scope};
 use std::path::Path;
 

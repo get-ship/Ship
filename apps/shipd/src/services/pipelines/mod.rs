@@ -33,7 +33,7 @@ use axum::response::Json;
 use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use super::files::Scope;
 use service::PutArgs;
 
@@ -173,14 +173,14 @@ pub async fn dispatch(
     } else {
         merged = serde_json::json!({ "pipeline": name });
     }
-    let req: crate::runtime_api::DispatchRequest = match serde_json::from_value(merged) {
+    let req: crate::routes::runtime_api::DispatchRequest = match serde_json::from_value(merged) {
         Ok(r) => r,
         Err(e) => return err(
             StatusCode::BAD_REQUEST, "bad_body",
             format!("dispatch body: {e}"),
         ).into_response(),
     };
-    crate::runtime_api::dispatch_pipeline(state, auth, Json(req)).await.into_response()
+    crate::routes::runtime_api::dispatch_pipeline(state, auth, Json(req)).await.into_response()
 }
 
 /// POST /api/v1/pipelines/runs/{slug}/cancel — delegates to the job-level
@@ -192,11 +192,11 @@ pub async fn cancel_run(
     Json(body): Json<serde_json::Value>,
 ) -> axum::response::Response {
     use axum::response::IntoResponse;
-    let req: crate::runtime_api::CancelJobRequest =
-        serde_json::from_value(body).unwrap_or(crate::runtime_api::CancelJobRequest {
+    let req: crate::routes::runtime_api::CancelJobRequest =
+        serde_json::from_value(body).unwrap_or(crate::routes::runtime_api::CancelJobRequest {
             reason: "operator-cancelled".to_string(),
         });
-    crate::runtime_api::cancel_job(state, auth, Path(slug), Json(req))
+    crate::routes::runtime_api::cancel_job(state, auth, Path(slug), Json(req))
         .await
         .into_response()
 }

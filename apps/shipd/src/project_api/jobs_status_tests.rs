@@ -12,7 +12,7 @@ use tempfile::TempDir;
 use super::{JobStatusReq, StepDoneReq, job_step_done, update_job_status};
 use crate::project_api::EmitEventReq;
 
-fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
+fn make_api_state(dir: &TempDir) -> crate::routes::rest_api::ApiState {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
@@ -23,7 +23,7 @@ fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
     ))
 }
 
-async fn seed_job(state: &crate::rest_api::ApiState, slug: &str) -> String {
+async fn seed_job(state: &crate::routes::rest_api::ApiState, slug: &str) -> String {
     use ship_substrate::events::EventEnvelope;
     use ship_substrate::events::job::{JobCreatedPayload, event_types};
 

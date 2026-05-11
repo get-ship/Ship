@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize, utoipa::IntoParams)]
 pub struct EventsPollQuery {
@@ -39,8 +39,8 @@ pub struct EventsPollQuery {
     params(EventsPollQuery),
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -108,7 +108,7 @@ pub async fn poll_events(
 
 pub(crate) struct ActorGuard {
     pub(crate) actor_id: String,
-    pub(crate) kernel: crate::rest_api::SharedKernel,
+    pub(crate) kernel: crate::routes::rest_api::SharedKernel,
 }
 
 impl Drop for ActorGuard {
@@ -128,8 +128,8 @@ impl Drop for ActorGuard {
     path = "/api/v1/events",
     responses(
         (status = 200, description = "SSE stream of kernel events"),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]

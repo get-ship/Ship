@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
 use crate::auth::{AuthContext, Scope};
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -87,8 +87,8 @@ fn cached_providers() -> Vec<ProviderStatus> {
     path = "/api/v1/settings",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "settings"
 )]
@@ -120,10 +120,10 @@ pub async fn list_settings(
     request_body = SettingsUpdateReq,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 403, description = "insufficient scope", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 403, description = "insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "settings"
 )]
@@ -166,9 +166,9 @@ pub async fn update_setting(
     params(("key" = String, Path, description = "Setting key (e.g. defaults.provider)")),
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "setting not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "setting not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "settings"
 )]
@@ -207,8 +207,8 @@ pub async fn get_setting(
     path = "/api/v1/providers",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "settings"
 )]

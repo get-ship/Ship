@@ -5,7 +5,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use serde::Deserialize;
 
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct ChatSendRequest {

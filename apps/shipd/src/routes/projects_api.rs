@@ -15,7 +15,7 @@ use axum::response::IntoResponse;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 
 #[derive(Serialize, Deserialize, Clone, Debug, utoipa::ToSchema)]
 pub struct Project {

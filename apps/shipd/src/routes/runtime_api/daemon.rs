@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
     use ship_platform::projections::job::JobStatus;
@@ -78,9 +78,9 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
     path = "/api/v1/rebuild-projections",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 409, description = "rebuild already running", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 409, description = "rebuild already running", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]

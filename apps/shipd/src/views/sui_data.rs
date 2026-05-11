@@ -26,7 +26,7 @@ use std::pin::Pin;
 use super::sui_data_resolvers::{
     ParsedExpr, parse_expr, resolve as resolve_value, subscribe_namespaces,
 };
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 
 #[derive(Debug, Deserialize)]
 pub struct DataQuery {
@@ -96,7 +96,7 @@ fn resolved_stream(
                 None
             }
         };
-        let _guard = crate::runtime_api::ActorGuard {
+        let _guard = crate::routes::runtime_api::ActorGuard {
             actor_id,
             kernel: state.kernel().clone(),
         };

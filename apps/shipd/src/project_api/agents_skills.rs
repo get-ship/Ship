@@ -2,7 +2,7 @@
 
 use axum::{Json, extract::{Path, State}, http::StatusCode};
 
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 use super::{err_response, ok_response, resolve_worktree};
 
@@ -100,9 +100,9 @@ fn strip_trailing_commas(input: &str) -> String {
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Agents discovered in .ship/agents/", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -175,9 +175,9 @@ pub async fn list_agents(
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Skills discovered in .ship/skills/", body = MeshResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "project"
 )]

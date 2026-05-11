@@ -40,7 +40,7 @@ fn test_branch(name: &str) -> String {
 /// branch so the project_api handlers' workspace gate
 /// (resolve_workspace_root in mod.rs) can match the branch against the
 /// current git HEAD. Without this the handlers reject with 404.
-fn create_test_workspace(dir: &TempDir) -> (String, crate::rest_api::ApiState) {
+fn create_test_workspace(dir: &TempDir) -> (String, crate::routes::rest_api::ApiState) {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
@@ -73,12 +73,12 @@ fn init_git_with_branch(root: &std::path::Path, branch: &str) {
         .status();
 }
 
-fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
+fn make_api_state(dir: &TempDir) -> crate::routes::rest_api::ApiState {
     let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
     make_api_state_with_dir(&ship_dir)
 }
 
-fn make_api_state_with_dir(ship_dir: &std::path::Path) -> crate::rest_api::ApiState {
+fn make_api_state_with_dir(ship_dir: &std::path::Path) -> crate::routes::rest_api::ApiState {
     std::fs::create_dir_all(ship_dir).unwrap();
     ship_substrate::db::ensure_db_at(ship_dir).unwrap();
     let kernel = ship_substrate::events::init_kernel_router(ship_dir.to_path_buf()).unwrap();

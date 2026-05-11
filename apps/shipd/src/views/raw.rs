@@ -17,7 +17,7 @@ use axum::{
 };
 use serde::Serialize;
 
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::views::templates;
 
 #[allow(dead_code)] // used by wrap() which is called from the raw view handler below
@@ -73,9 +73,9 @@ fn wrap(title: &str, inner: &str) -> Option<String> {
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "Raw view shell HTML with session cookie", content_type = "text/html"),
-        (status = 400, description = "Invalid view name", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid view name", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "views"
 )]

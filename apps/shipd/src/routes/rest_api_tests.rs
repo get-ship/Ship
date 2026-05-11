@@ -8,7 +8,7 @@ use axum::Extension;
 use tempfile::TempDir;
 
 use crate::auth::AuthContext;
-use crate::rest_api::*;
+use crate::routes::rest_api::*;
 use crate::test_harness::TestDaemon;
 
 fn make_api_state(dir: &TempDir) -> ApiState {

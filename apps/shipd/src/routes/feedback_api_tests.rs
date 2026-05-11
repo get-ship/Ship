@@ -9,7 +9,7 @@ use ulid::Ulid;
 
 use super::FeedbackGuard;
 use crate::auth::AuthContext;
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::ship_runtime::ShipRuntime;
 
 fn router_for(state: ApiState, auth: AuthContext) -> Router {
@@ -22,7 +22,7 @@ fn router_for(state: ApiState, auth: AuthContext) -> Router {
         // exercise the view-scoped routing branch through the same harness.
         .route(
             "/api/v1/view-sessions",
-            axum::routing::post(crate::view_sessions_api::open_session),
+            axum::routing::post(crate::routes::view_sessions_api::open_session),
         )
         .with_state(state)
         .layer(axum::Extension(auth))

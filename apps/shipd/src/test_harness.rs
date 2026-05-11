@@ -11,7 +11,7 @@ use tempfile::TempDir;
 use tower::ServiceExt;
 
 use crate::auth::AuthContext;
-use crate::rest_api::{ApiState, SharedKernel};
+use crate::routes::rest_api::{ApiState, SharedKernel};
 
 /// Self-contained test daemon — temp dir, kernel, router, clean teardown.
 pub struct TestDaemon {
@@ -58,35 +58,35 @@ impl TestDaemon {
         let api_routes = Router::new()
             .route(
                 "/mesh/register",
-                axum::routing::post(crate::rest_api::mesh_register),
+                axum::routing::post(crate::routes::rest_api::mesh_register),
             )
             .route(
                 "/mesh/send",
-                axum::routing::post(crate::rest_api::mesh_send),
+                axum::routing::post(crate::routes::rest_api::mesh_send),
             )
             .route(
                 "/mesh/broadcast",
-                axum::routing::post(crate::rest_api::mesh_broadcast),
+                axum::routing::post(crate::routes::rest_api::mesh_broadcast),
             )
             .route(
                 "/mesh/discover",
-                axum::routing::get(crate::rest_api::mesh_discover),
+                axum::routing::get(crate::routes::rest_api::mesh_discover),
             )
             .route(
                 "/mesh/status",
-                axum::routing::post(crate::rest_api::mesh_status_update),
+                axum::routing::post(crate::routes::rest_api::mesh_status_update),
             )
             .route(
                 "/mesh/events/{agent_id}",
-                axum::routing::get(crate::rest_api::mesh_events),
+                axum::routing::get(crate::routes::rest_api::mesh_events),
             )
             .route(
                 "/actor/spawn",
-                axum::routing::post(crate::actor_api::actor_spawn),
+                axum::routing::post(crate::routes::actor_api::actor_spawn),
             )
             .route(
                 "/events/route",
-                axum::routing::post(crate::actor_api::event_route),
+                axum::routing::post(crate::routes::actor_api::event_route),
             )
             .with_state(api_state.clone());
 
@@ -95,67 +95,67 @@ impl TestDaemon {
         let runtime_routes = Router::new()
             .route(
                 "/projects",
-                axum::routing::get(crate::projects_api::list_projects),
+                axum::routing::get(crate::routes::projects_api::list_projects),
             )
             .route(
                 "/sessions",
-                axum::routing::get(crate::runtime_api::list_sessions),
+                axum::routing::get(crate::routes::runtime_api::list_sessions),
             )
             .route(
                 "/agents/active",
-                axum::routing::get(crate::runtime_api::list_agents),
+                axum::routing::get(crate::routes::runtime_api::list_agents),
             )
             .route(
                 "/events",
-                axum::routing::get(crate::runtime_api::event_stream),
+                axum::routing::get(crate::routes::runtime_api::event_stream),
             )
             .with_state(api_state.clone());
 
         let capabilities_routes = Router::new()
             .route(
                 "/capabilities",
-                axum::routing::get(crate::rest_api::capabilities),
+                axum::routing::get(crate::routes::rest_api::capabilities),
             );
 
         let artifacts_routes = Router::new()
             .route(
                 "/artifacts",
-                axum::routing::post(crate::artifacts_api::upload_artifact)
-                    .get(crate::artifacts_api::list_artifacts),
+                axum::routing::post(crate::routes::artifacts_api::upload_artifact)
+                    .get(crate::routes::artifacts_api::list_artifacts),
             )
             .route(
                 "/artifacts/{id}",
-                axum::routing::get(crate::artifacts_api::download_artifact)
-                    .delete(crate::artifacts_api::delete_artifact),
+                axum::routing::get(crate::routes::artifacts_api::download_artifact)
+                    .delete(crate::routes::artifacts_api::delete_artifact),
             )
             .layer(axum::extract::DefaultBodyLimit::max(
-                crate::artifacts_api::MAX_UPLOAD_BYTES,
+                crate::routes::artifacts_api::MAX_UPLOAD_BYTES,
             ))
             .with_state(api_state.clone());
 
         let collection_routes = Router::new()
             .route(
                 "/collections",
-                axum::routing::get(crate::collection_api::list_collections)
-                    .post(crate::collection_api::create_collection),
+                axum::routing::get(crate::routes::collection_api::list_collections)
+                    .post(crate::routes::collection_api::create_collection),
             )
             .route(
                 "/collections/{collection}/schema",
-                axum::routing::get(crate::collection_api::get_schema),
+                axum::routing::get(crate::routes::collection_api::get_schema),
             )
             .route(
                 "/collections/{collection}/items",
-                axum::routing::post(crate::collection_api::create_item),
+                axum::routing::post(crate::routes::collection_api::create_item),
             )
             .route(
                 "/collections/{collection}/items/{item_id}",
-                axum::routing::get(crate::collection_api::get_item)
-                    .put(crate::collection_api::update_item)
-                    .delete(crate::collection_api::delete_item),
+                axum::routing::get(crate::routes::collection_api::get_item)
+                    .put(crate::routes::collection_api::update_item)
+                    .delete(crate::routes::collection_api::delete_item),
             )
             .route(
                 "/collections/{collection}/query",
-                axum::routing::post(crate::collection_api::query_items),
+                axum::routing::post(crate::routes::collection_api::query_items),
             )
             .with_state(api_state.clone());
 

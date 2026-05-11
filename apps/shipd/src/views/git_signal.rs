@@ -18,7 +18,7 @@ use ship_substrate::gen_ulid;
 use serde_json::Value;
 use sui_signals::Signal;
 
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::services::registry;
 
 /// The canonical git.overview signal. `Null` until first resolver run.
@@ -76,7 +76,7 @@ async fn run_updater(state: ApiState) {
             return;
         }
     };
-    let _guard = crate::runtime_api::ActorGuard {
+    let _guard = crate::routes::runtime_api::ActorGuard {
         actor_id,
         kernel: state.kernel().clone(),
     };

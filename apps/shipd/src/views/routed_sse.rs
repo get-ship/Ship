@@ -22,7 +22,7 @@ use ship_substrate::gen_ulid;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::views::router::match_path;
 use crate::views::stream::{ViewSse, ViewStream};
 
@@ -173,7 +173,7 @@ pub async fn serve_view_sse_routed(
                 None
             }
         };
-        let _guard = crate::runtime_api::ActorGuard {
+        let _guard = crate::routes::runtime_api::ActorGuard {
             actor_id,
             kernel: state.kernel().clone(),
         };

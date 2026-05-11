@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ---- Procs / events / daemon status (slice 6) ----
 
@@ -35,8 +35,8 @@ pub struct ProcsQuery {
     params(ProcsQuery),
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]

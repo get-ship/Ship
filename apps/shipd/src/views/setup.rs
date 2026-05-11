@@ -52,7 +52,7 @@ const PLACEHOLDER_HTML: &str = r#"<!doctype html>
     responses(
         (status = 200, description = "Setup wizard HTML", content_type = "text/html"),
         (status = 303, description = "Redirect to / when a workspace already exists"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"
@@ -75,7 +75,7 @@ pub async fn setup_handler() -> Response {
     path = "/",
     responses(
         (status = 303, description = "Redirect to /setup or /shell/ depending on first-run state"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "views"

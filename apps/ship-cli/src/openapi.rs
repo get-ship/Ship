@@ -3,7 +3,7 @@
 use anyhow::Result;
 
 pub fn run(pretty: bool) -> Result<()> {
-    let json: String = shipd::openapi::to_json(pretty)?;
+    let json: String = shipd::routes::openapi::to_json(pretty)?;
     println!("{json}");
     Ok(())
 }

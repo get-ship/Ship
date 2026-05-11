@@ -29,7 +29,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use sui_signals;
 
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use super::sui_data_resolvers::{parse_expr, resolve as resolve_value, subscribe_namespaces};
 use super::sui_patch_channel;
 use super::sui_patches::format_patch_signals;
@@ -198,7 +198,7 @@ async fn run_data_source(
             None
         }
     };
-    let _guard = crate::runtime_api::ActorGuard {
+    let _guard = crate::routes::runtime_api::ActorGuard {
         actor_id,
         kernel: state.kernel().clone(),
     };

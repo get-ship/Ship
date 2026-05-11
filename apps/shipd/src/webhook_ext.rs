@@ -47,10 +47,10 @@ pub type SharedKernelRef = Arc<Mutex<KernelRouter>>;
         description = "Raw request body forwarded to the trigger's handler. Content-type is opaque to the daemon.",
     ),
     responses(
-        (status = 200, description = "Trigger accepted the request", body = crate::openapi_types::WebhookAck),
-        (status = 401, description = "Missing or invalid x-ship-webhook-secret header", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "No trigger registered for this path", body = crate::openapi_types::ErrorResponse),
-        (status = 429, description = "Trigger rate limit exceeded", body = crate::openapi_types::ErrorResponse),
+        (status = 200, description = "Trigger accepted the request", body = crate::routes::openapi_types::WebhookAck),
+        (status = 401, description = "Missing or invalid x-ship-webhook-secret header", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "No trigger registered for this path", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 429, description = "Trigger rate limit exceeded", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "hooks"

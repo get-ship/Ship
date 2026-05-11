@@ -17,7 +17,7 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct ContrastRequest {

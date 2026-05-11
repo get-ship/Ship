@@ -14,11 +14,14 @@ use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
 
 use crate::{
-    NetworkServer, actor_api, actors_api, annotations_api, artifacts_api, auth, feedback_api, hooks_api,
-    human_webhook, lint_api, logs_api, openapi, project_api,
-    rest_api, runtime_api, sdk_manifest, services, settings_api, shell_assets,
-    ship_runtime, specs_api, supervisor, view_errors_api, view_sessions_api,
-    views, collection_api, create_api, themes_api, sessions, projects_api, webhook_ext,
+    NetworkServer, auth, human_webhook, project_api, services, ship_runtime, supervisor,
+    sessions, views, webhook_ext,
+};
+use crate::routes::{
+    actor_api, actors_api, annotations_api, artifacts_api, collection_api, create_api,
+    feedback_api, hooks_api, lint_api, logs_api, openapi, projects_api, rest_api, runtime_api,
+    sdk_manifest, settings_api, shell_assets, specs_api, themes_api, view_errors_api,
+    view_sessions_api,
 };
 use crate::auth::{attest, pairing, scopes, session};
 use crate::transport::{cors, pty as pty_handler};
@@ -231,7 +234,7 @@ pub fn build_router(
         // JSON / Form extractors still enforce axum's `DefaultBodyLimit`
         // (2 MB) on their own — this layer only sets the outer ceiling.
         .layer(tower_http::limit::RequestBodyLimitLayer::new(
-            crate::artifacts_api::MAX_UPLOAD_BYTES,
+            crate::routes::artifacts_api::MAX_UPLOAD_BYTES,
         ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
@@ -558,7 +561,7 @@ pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Res
     path = "/api/health",
     responses(
         (status = 200, description = "Daemon health snapshot with supervised task status"),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     security(),
     tag = "health"

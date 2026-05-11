@@ -81,7 +81,7 @@ use std::path::PathBuf;
 use axum::{Json, http::StatusCode};
 use serde::Serialize;
 
-use crate::rest_api::MeshResponse;
+use crate::routes::rest_api::MeshResponse;
 
 pub use assets::{
     serve_code_editor, serve_datastar_js, serve_elements_catalog, serve_elements_manifest,

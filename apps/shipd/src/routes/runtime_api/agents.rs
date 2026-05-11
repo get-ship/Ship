@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 /// GET /api/v1/runtime/agents
 #[utoipa::path(
@@ -22,8 +22,8 @@ use crate::rest_api::{ApiState, MeshResponse};
     path = "/api/v1/agents",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -102,9 +102,9 @@ pub struct SteerAgentRequest {
     path = "/api/v1/agents/{slug}/stop",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "agent not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "agent not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -159,10 +159,10 @@ pub async fn stop_agent(
     request_body = SteerAgentRequest,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "agent not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "agent not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]

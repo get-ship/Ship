@@ -35,9 +35,8 @@
 
 // ── Route handler submodules ────────────────────────────────────────────
 //
-// modular-runtime-04 PR 4: handler files live at `routes/<x>_api.rs`.
-// They are re-exported at the crate root from `lib.rs` so existing
-// imports (`crate::artifacts_api`, etc.) continue to resolve.
+// Handler files live at `routes/<x>_api.rs`. Callers import them as
+// `crate::routes::<x>_api::*` (or `shipd::routes::<x>_api::*` externally).
 
 pub mod actor_api;
 pub mod actors_api;

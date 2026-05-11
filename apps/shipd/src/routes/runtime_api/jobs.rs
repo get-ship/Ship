@@ -13,7 +13,7 @@ use serde::Deserialize;
 use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ---- Job request types ----
 
@@ -71,8 +71,8 @@ pub struct CreateJobRequest {
     path = "/api/v1/jobs",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -240,9 +240,9 @@ pub struct EventSummary {
     path = "/api/v1/jobs/{job_id}",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "job not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "job not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -334,10 +334,10 @@ pub async fn get_job_detail(
     request_body = CreateJobRequest,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 409, description = "job slug already exists", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 409, description = "job slug already exists", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -438,11 +438,11 @@ pub(crate) fn default_cancel_reason() -> String {
     request_body = CancelJobRequest,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "job not found", body = crate::openapi_types::ErrorResponse),
-        (status = 409, description = "job already finished", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "job not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 409, description = "job already finished", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -555,9 +555,9 @@ pub struct JobEndRequest {
     request_body = JobEndRequest,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]

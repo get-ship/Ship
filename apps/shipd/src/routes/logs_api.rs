@@ -24,7 +24,7 @@ use axum::{
 use futures::stream::Stream;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::supervisor::helpers::worktrees_dir;
 
 /// How often we check the file for new bytes.

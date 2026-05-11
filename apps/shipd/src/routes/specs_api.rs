@@ -15,7 +15,7 @@ use serde::Deserialize;
 use std::collections::HashMap;
 
 use crate::access::RuntimeAccess;
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 use crate::services::collections::service::{
     CollectionsService, CreateItemArgs, Error as CollectionsError, UpdateItemArgs,
 };
@@ -140,7 +140,7 @@ pub struct UpdateSpecRequest {
     path = "/api/v1/specs",
     responses(
         (status = 200, description = "List of specs", body = MeshResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "specs"
 )]
@@ -176,8 +176,8 @@ pub async fn list_specs(State(state): State<ApiState>) -> impl IntoResponse {
     params(("id" = String, Path, description = "Spec id")),
     responses(
         (status = 200, description = "Spec detail with body", body = MeshResponse),
-        (status = 404, description = "Spec not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Spec not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "specs"
 )]
@@ -205,8 +205,8 @@ pub async fn get_spec(
     request_body = CreateSpecRequest,
     responses(
         (status = 200, description = "Created spec", body = MeshResponse),
-        (status = 400, description = "Invalid payload", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "specs"
 )]
@@ -253,9 +253,9 @@ pub async fn create_spec(
     request_body = UpdateSpecRequest,
     responses(
         (status = 200, description = "Updated spec", body = MeshResponse),
-        (status = 400, description = "Invalid payload", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Spec not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Spec not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "specs"
 )]
@@ -313,8 +313,8 @@ pub async fn update_spec(
     params(("id" = String, Path, description = "Spec id")),
     responses(
         (status = 200, description = "Deleted", body = MeshResponse),
-        (status = 404, description = "Spec not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Spec not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "specs"
 )]
@@ -337,9 +337,9 @@ pub async fn delete_spec(
     params(("id" = String, Path, description = "Spec id")),
     responses(
         (status = 200, description = "Job dispatched from spec", body = MeshResponse),
-        (status = 400, description = "Invalid pipeline", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Spec not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid pipeline", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Spec not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "specs"
 )]

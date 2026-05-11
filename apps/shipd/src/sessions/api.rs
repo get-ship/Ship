@@ -26,7 +26,7 @@ use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt as TokioStreamExt;
 
 use crate::auth::AuthContext;
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 
 use super::lifecycle;
 use super::types::{SessionKind, SessionMeta, SpawnRequest};

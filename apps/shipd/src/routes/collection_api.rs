@@ -12,7 +12,7 @@ use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::rest_api::ApiState;
+use crate::routes::rest_api::ApiState;
 use crate::services::collections::service::{
     CollectionsService, CreateItemArgs, Error as CollectionsError, UpdateItemArgs,
 };
@@ -59,8 +59,8 @@ fn generate_item_id() -> String {
     path = "/api/v1/collections",
     responses(
         (status = 200, description = "List of registered collection schemas"),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "collections"
 )]
@@ -114,9 +114,9 @@ pub async fn create_collection(
     params(("collection" = String, Path, description = "Collection id")),
     responses(
         (status = 200, description = "Collection schema"),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Collection not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Collection not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "collections"
 )]
@@ -182,10 +182,10 @@ pub struct CreateItemRequest {
     request_body = CreateItemRequest,
     responses(
         (status = 201, description = "Item created"),
-        (status = 400, description = "Validation error", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Collection not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Validation error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Collection not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "collections"
 )]
@@ -226,9 +226,9 @@ pub async fn create_item(
     ),
     responses(
         (status = 200, description = "Item"),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Item not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Item not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "collections"
 )]
@@ -267,10 +267,10 @@ pub struct UpdateItemRequest {
     request_body = UpdateItemRequest,
     responses(
         (status = 200, description = "Item updated"),
-        (status = 400, description = "Validation error", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Item not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Validation error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Item not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "collections"
 )]
@@ -306,9 +306,9 @@ pub async fn update_item(
     ),
     responses(
         (status = 200, description = "Item deleted"),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Item not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Item not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "collections"
 )]
@@ -337,10 +337,10 @@ pub async fn delete_item(
     request_body(content_type = "application/json", description = "Query request: filter, sort, limit, offset"),
     responses(
         (status = 200, description = "Matching items"),
-        (status = 400, description = "Invalid query", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "Collection not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid query", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "Collection not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "collections"
 )]

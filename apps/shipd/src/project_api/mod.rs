@@ -26,7 +26,7 @@ use serde_json::json;
 use std::path::PathBuf;
 
 use crate::auth::{Scope, require_scope};
-use crate::rest_api::{ApiState, MeshResponse};
+use crate::routes::rest_api::{ApiState, MeshResponse};
 
 // ---- Shared helpers ----
 
@@ -227,9 +227,9 @@ pub struct EmitEventReq {
     request_body = EmitEventReq,
     responses(
         (status = 200, description = "Event persisted and routed", body = MeshResponse),
-        (status = 400, description = "Invalid envelope", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid envelope", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "runtime"
 )]

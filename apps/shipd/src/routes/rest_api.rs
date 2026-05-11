@@ -90,9 +90,9 @@ pub struct MeshResponse {
     request_body = MeshRegisterReq,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "mesh"
 )]
@@ -184,10 +184,10 @@ pub async fn mesh_register(
     request_body = MeshSendReq,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "target agent not found", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "target agent not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "mesh"
 )]
@@ -226,9 +226,9 @@ pub async fn mesh_send(
     request_body = MeshBroadcastReq,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "mesh"
 )]
@@ -264,8 +264,8 @@ pub async fn mesh_broadcast(
     path = "/api/v1/mesh/discover",
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "mesh"
 )]
@@ -294,9 +294,9 @@ pub async fn mesh_discover(
     request_body = MeshStatusReq,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "mesh"
 )]
@@ -345,8 +345,8 @@ pub struct CapabilitiesResponse {
     path = "/api/v1/capabilities",
     responses(
         (status = 200, body = CapabilitiesResponse),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "capabilities"
 )]
@@ -390,9 +390,9 @@ pub struct CheckoutHookReq {
     request_body = CheckoutHookReq,
     responses(
         (status = 200, description = "Workspace reconciled for the checked-out branch", body = MeshResponse),
-        (status = 400, description = "Invalid project path", body = crate::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid project path", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "hooks"
 )]
@@ -437,9 +437,9 @@ pub async fn hooks_checkout(
     params(("agent_id" = String, Path, description = "Agent ID")),
     responses(
         (status = 200, description = "SSE stream of mesh events"),
-        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
-        (status = 404, description = "no mailbox for agent — register first", body = crate::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 404, description = "no mailbox for agent — register first", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
     ),
     tag = "mesh"
 )]

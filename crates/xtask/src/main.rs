@@ -198,8 +198,8 @@ fn collect_framework_types() -> TypeCollection {
     c.register::<shipd::services::agents::view_state::AgentSummary>();
     c.register::<shipd::services::agents::view_state::AgentsSummariesResponse>();
 
-    // shipd::lint_api — POST /api/v1/lint/view.
-    c.register::<shipd::lint_api::LintViewRequest>();
+    // shipd::routes::lint_api — POST /api/v1/lint/view.
+    c.register::<shipd::routes::lint_api::LintViewRequest>();
 
     c
 }
