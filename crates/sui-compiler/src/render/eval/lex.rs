@@ -52,37 +52,44 @@ pub(super) fn tokenize(src: &str) -> Result<Vec<Tok>, EvalError> {
             out.push(Tok::Ident(src[start..i].to_string()));
             continue;
         }
-        let three = if i + 2 < bytes.len() { &src[i..i + 3] } else { "" };
-        if three == "===" {
+        // Multi-byte punctuation peeks compare bytes directly. Slicing
+        // `src` here would panic when `i+N` lands inside a multi-byte
+        // UTF-8 char (e.g. `°` from a decoded `&deg;`). All recognized
+        // puncts are pure ASCII, so a byte comparison is safe and
+        // sufficient.
+        let three_bytes: &[u8] =
+            if i + 3 <= bytes.len() { &bytes[i..i + 3] } else { &[] };
+        if three_bytes == b"===" {
             out.push(Tok::Punct("==="));
             i += 3;
             continue;
         }
-        if three == "!==" {
+        if three_bytes == b"!==" {
             out.push(Tok::Punct("!=="));
             i += 3;
             continue;
         }
-        let two = if i + 1 < bytes.len() { &src[i..i + 2] } else { "" };
-        if two == "=>" {
+        let two_bytes: &[u8] =
+            if i + 2 <= bytes.len() { &bytes[i..i + 2] } else { &[] };
+        if two_bytes == b"=>" {
             return Err(EvalError::NonEvaluable(
                 "arrow functions are not evaluable at render time".into(),
             ));
         }
-        if matches!(two, "++" | "--") {
+        if two_bytes == b"++" || two_bytes == b"--" {
             return Err(EvalError::NonEvaluable(
                 "increment / decrement operators are not evaluable".into(),
             ));
         }
-        let two_punct: Option<&'static str> = match two {
-            "==" => Some("=="),
-            "!=" => Some("!="),
-            "<=" => Some("<="),
-            ">=" => Some(">="),
-            "&&" => Some("&&"),
-            "||" => Some("||"),
-            "??" => Some("??"),
-            "?." => Some("?."),
+        let two_punct: Option<&'static str> = match two_bytes {
+            b"==" => Some("=="),
+            b"!=" => Some("!="),
+            b"<=" => Some("<="),
+            b">=" => Some(">="),
+            b"&&" => Some("&&"),
+            b"||" => Some("||"),
+            b"??" => Some("??"),
+            b"?." => Some("?."),
             _ => None,
         };
         if let Some(p) = two_punct {
