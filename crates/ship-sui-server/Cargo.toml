@@ -11,7 +11,7 @@ path = "src/lib.rs"
 
 [features]
 default = []
-specta = ["dep:specta"]
+specta = ["dep:specta", "ship-sui-host/specta"]
 
 [dependencies]
 ship-sui-host = { path = "../ship-sui-host" }

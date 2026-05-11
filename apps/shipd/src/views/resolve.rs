@@ -34,6 +34,7 @@ pub(crate) struct ManifestFile {
 /// pin state, order, default-pinned are user settings (tier 2 storage:
 /// daemon-backed `shell.rail.*` keys), not per-view config.
 #[derive(Deserialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ManifestRail {
     pub label: Option<String>,
     pub icon: Option<String>,

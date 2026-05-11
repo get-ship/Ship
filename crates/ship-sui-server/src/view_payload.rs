@@ -6,7 +6,7 @@ use axum::{
 };
 use serde::Serialize;
 use sui_compiler::{bindings, islands, parse, render};
-use ship_sui_host::view_payload::ViewPayload;
+pub use ship_sui_host::view_payload::ViewPayload;
 
 use crate::resolver::resolve;
 

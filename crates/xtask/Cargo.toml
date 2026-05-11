@@ -15,7 +15,8 @@ ship-application = { path = "../core/ship-application" }
 ship-substrate = { path = "../core/ship-substrate" }
 ship-platform = { path = "../core/ship-platform" }
 ship-types = { path = "../core/ship-types", features = ["specta"] }
-shipd = { path = "../../apps/shipd" }
+ship-sui = { path = "../ship-sui", features = ["specta"] }
+shipd = { path = "../../apps/shipd", features = ["specta"] }
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 specta-typescript = "0.0.9"
 serde = { workspace = true }
