@@ -157,6 +157,50 @@ pub async fn run_network(
     rt.start_hook_engine().await;
     rt.start_config_watcher();
 
+    // Start the Bun bundler worker and wire module_changed events to the
+    // SSE channel so browser clients get in-place updates without reload.
+    {
+        let bundler = rt.bundler().clone();
+        let mut events = bundler.subscribe_events();
+        tokio::spawn(async move {
+            if let Err(e) = bundler.start_watching().await {
+                tracing::warn!("bundler: could not start file watching: {e}");
+            }
+            loop {
+                match events.recv().await {
+                    Ok(ship_application::bundler::BundlerEvent::ModuleChanged { target, out_path, bytes }) => {
+                        views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
+                            kind: views::sui_hmr::BundleModuleEventKind::ModuleChanged,
+                            target,
+                            out_path: Some(out_path),
+                            bytes: Some(bytes),
+                            message: None,
+                            line: None,
+                            col: None,
+                            file: None,
+                        });
+                    }
+                    Ok(ship_application::bundler::BundlerEvent::CompileError { target, message, line, col, file }) => {
+                        views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
+                            kind: views::sui_hmr::BundleModuleEventKind::CompileError,
+                            target,
+                            out_path: None,
+                            bytes: None,
+                            message: Some(message),
+                            line,
+                            col,
+                            file,
+                        });
+                    }
+                    Ok(ship_application::bundler::BundlerEvent::WorkerRestarted) => {
+                        tracing::info!("bundler: worker restarted");
+                    }
+                    Err(_) => break,
+                }
+            }
+        });
+    }
+
     // Register the launch-time project (if any) into the project registry
     // so the launcher / shell sees it on first list. Idempotent.
     if let Some(root) = project_root.as_ref() {

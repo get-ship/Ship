@@ -107,6 +107,12 @@ pub struct ShipRuntime {
     hook_engine: std::sync::OnceLock<std::sync::Arc<ship_platform::hooks::engine::HookEngine>>,
     /// Declarative-tier config watcher (Phase 4) — emits domain.changed events.
     config_watcher: std::sync::OnceLock<ship_platform::config::ConfigWatcher>,
+    /// Bun bundler worker — owned here, lazily started on first access.
+    /// `Bundler::start` is synchronous (it spawns a child and returns a
+    /// handle), so `std::sync::OnceLock` is the right primitive — using
+    /// `tokio::sync::OnceCell` would require `get_or_init` to take an
+    /// `async` initializer.
+    pub bundler: std::sync::OnceLock<ship_application::bundler::Bundler>,
     /// `RulesService` impl — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
@@ -344,6 +350,7 @@ impl ShipRuntime {
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
+            bundler: std::sync::OnceLock::new(),
         })
     }
 
@@ -503,6 +510,23 @@ impl ShipRuntime {
     /// Attached project workspace, if the daemon was launched with one.
     pub fn workspace_dir(&self) -> Option<&Path> {
         self.workspace_dir.as_deref()
+    }
+
+    /// Lazily start and return the Bun bundler worker.
+    ///
+    /// The worker process is spawned on first call and supervised thereafter.
+    /// The repo root defaults to the workspace dir (or cwd as fallback) since
+    /// that's where `packages/` and `views/` live.
+    pub fn bundler(&self) -> &ship_application::bundler::Bundler {
+        self.bundler.get_or_init(|| {
+            let home = ship_substrate::ShipHome::at(self.ship_dir.clone());
+            let repo_root = self
+                .workspace_dir
+                .clone()
+                .or_else(|| std::env::current_dir().ok())
+                .unwrap_or_else(|| self.ship_dir.clone());
+            ship_application::bundler::Bundler::start(&home, repo_root)
+        })
     }
 
     /// Stable project slug for the attached workspace. `None` when the daemon
