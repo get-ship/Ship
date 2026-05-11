@@ -143,7 +143,7 @@ fn try_resolve_sui_view(path: &str) -> Option<ViewSourceResponse> {
         Some(p) => p,
         None => {
             let cwd = std::env::current_dir().ok()?;
-            let ship_dir = runtime::project::resolve_project_ship_dir_no_redirect(&cwd)?;
+            let ship_dir = ship_substrate::project::resolve_project_ship_dir(&cwd)?;
             let project_root = ship_dir.parent()?.to_path_buf();
             project_root.join("views").join(name).join("page.sui")
         }

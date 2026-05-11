@@ -144,11 +144,11 @@ mod tests {
     use tempfile::TempDir;
 
     fn make_api_state(dir: &TempDir) -> ApiState {
-        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
+        let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
-        runtime::db::ensure_db_at(&ship_dir).unwrap();
+        ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
         let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
-            runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+            ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
         ));
         std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
     }

@@ -13,8 +13,8 @@
 
 use std::sync::{OnceLock, atomic::{AtomicBool, Ordering}};
 
-use runtime::events::ActorConfig;
-use runtime::gen_ulid;
+use ship_substrate::events::ActorConfig;
+use ship_substrate::gen_ulid;
 use serde_json::Value;
 use sui_signals::Signal;
 

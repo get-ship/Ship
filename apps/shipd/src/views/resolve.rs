@@ -128,7 +128,7 @@ pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
 /// than silently hiding author mistakes. Authors see the diagnostic
 /// in daemon logs while the view still renders its index.html.j2
 /// (sans rail metadata, events, packs).
-pub(crate) fn read_raw_manifest(dir: &PathBuf) -> Option<ManifestFile> {
+pub(crate) fn read_raw_manifest(dir: &std::path::Path) -> Option<ManifestFile> {
     fn warn_parse(path: &std::path::Path, err: impl std::fmt::Display) {
         tracing::warn!(
             manifest = %path.display(),

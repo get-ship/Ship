@@ -50,8 +50,8 @@ fn channel() -> &'static HmrChannel {
 
 fn spawn_watcher(tx: broadcast::Sender<ShipSetUpdate>) -> Option<RecommendedWatcher> {
     let dirs: Vec<PathBuf> = [
-        runtime::project::get_project_dir(None).ok(),
-        runtime::project::get_global_dir().ok(),
+        ship_substrate::project::get_project_dir(None).ok(),
+        ship_substrate::project::get_global_dir().ok(),
     ]
     .into_iter()
     .flatten()

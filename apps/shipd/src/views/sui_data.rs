@@ -18,8 +18,8 @@ use axum::{
     response::Response,
 };
 use futures_util::stream::{self, Stream, StreamExt};
-use runtime::events::ActorConfig;
-use runtime::gen_ulid;
+use ship_substrate::events::ActorConfig;
+use ship_substrate::gen_ulid;
 use serde::Deserialize;
 use std::pin::Pin;
 

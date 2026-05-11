@@ -26,6 +26,9 @@ lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }
 build-info = { path = "../../crates/core/build-info" }
+ship-sui = { path = "../../crates/ship-sui" }
+sui-compiler = { path = "../../crates/sui-compiler" }
+sui-signals = { path = "../../crates/sui-signals" }
 chrono = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tokio-util = { workspace = true, features = ["full"] }

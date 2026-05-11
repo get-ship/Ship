@@ -14,7 +14,7 @@ pub fn resolve(name: &str, sub_path: Option<&str>) -> Result<ResolvedView, Resol
                 });
             }
         };
-        if let Some(ship_dir) = runtime::project::resolve_project_ship_dir_no_redirect(&cwd) {
+        if let Some(ship_dir) = ship_substrate::project::resolve_project_ship_dir(&cwd) {
             let project_root = ship_dir.parent().unwrap_or(&ship_dir).to_path_buf();
             ship_sui_host::resolver::resolve(&project_root, name, sub_path)
         } else {

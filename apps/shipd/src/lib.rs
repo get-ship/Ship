@@ -32,6 +32,7 @@ pub mod router;
 pub mod mcp;
 pub mod views;
 pub mod ship_runtime;
+pub mod spawn_bounded;
 pub mod supervised;
 pub mod supervisor;
 pub mod webhook_ext;

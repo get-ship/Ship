@@ -22,8 +22,8 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use runtime::events::ActorConfig;
-use runtime::gen_ulid;
+use ship_substrate::events::ActorConfig;
+use ship_substrate::gen_ulid;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;

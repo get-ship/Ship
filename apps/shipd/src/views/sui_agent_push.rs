@@ -53,7 +53,7 @@ use axum::{
 use serde::Serialize;
 
 use crate::auth::AuthContext;
-use crate::scopes::Scope;
+use crate::auth::scopes::Scope;
 use super::sui_patch_channel;
 use super::sui_patches::{PatchElements, format_patch_elements};
 use ship_sui::render_helpers::is_valid_view_name;
@@ -123,7 +123,7 @@ mod tests {
 
     fn auth_with(scopes: Vec<Scope>) -> AuthContext {
         AuthContext {
-            caller_kind: runtime::events::CallerKind::Cli,
+            caller_kind: ship_substrate::events::CallerKind::Cli,
             agent_id: Some("test".into()),
             workspace_id: None,
             session_id: None,
