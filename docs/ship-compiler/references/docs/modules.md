@@ -175,7 +175,7 @@ Compile steps check these before emitting. If `supports_hooks == false` for a pr
 
 ## Related
 
-- [Compilation Pipeline](/reference/compiler/pipeline/) — the three stages in order.
-- [Provider Outputs](/reference/compiler/providers/) — what each provider writes.
-- [Decompile](/reference/compiler/decompile/) — inverse direction.
-- [Manifest & Lockfile](/reference/compiler/manifest-lockfile/) — package identity and versioned dependencies.
+- [Compilation Pipeline](/compiler/pipeline/) — the three stages in order.
+- [Provider Outputs](/compiler/providers/) — what each provider writes.
+- [Decompile](/compiler/decompile/) — inverse direction.
+- [Manifest & Lockfile](/compiler/manifest-lockfile/) — package identity and versioned dependencies.

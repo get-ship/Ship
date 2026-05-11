@@ -2,6 +2,7 @@
 group: Registry
 title: Publishing Packages
 order: 2
+audience: internal
 ---
 
 # Publishing Packages

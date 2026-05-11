@@ -15,66 +15,39 @@ import starlightOpenAPI, { openAPISidebarGroups } from "starlight-openapi";
 // In public builds they get no sidebar topic (we exclude them from topic
 // resolution so they still render at their URL with no topic navigation).
 const INTERNALS_DIRS = [
-  "reference/architecture",
-  "reference/ship-architecture",
-  "reference/runtime",
-  "reference/compiler",
-  "reference/ship-stack",
-  "reference/http-api",
+  "architecture",
+  "ship-architecture",
+  "runtime",
+  "compiler",
+  "ship-stack",
+  "http-api",
+  "contributing",
 ];
 
 // Build the topics array. Internals is conditionally included via buildTopics(isInternal).
 function buildTopics(isInternal) {
   const topics = [
   {
-    id: "guide",
-    label: "Guide",
+    id: "getting-started",
+    label: "Getting Started",
     icon: "open-book",
-    link: "/reference/getting-started/",
+    link: "/getting-started/",
     items: [
       {
         label: "Getting Started",
-        autogenerate: { directory: "reference/getting-started" },
-      },
-      {
-        label: "Workflow",
-        autogenerate: { directory: "reference/workflow" },
+        autogenerate: { directory: "getting-started" },
       },
     ],
   },
   {
-    id: "reference",
-    label: "Reference",
-    icon: "document",
-    link: "/reference/cli/",
+    id: "concepts",
+    label: "Concepts",
+    icon: "puzzle",
+    link: "/concepts/",
     items: [
       {
-        label: "CLI Reference",
-        autogenerate: { directory: "reference/cli" },
-      },
-      {
-        label: "MCP Tools",
-        autogenerate: { directory: "reference/mcp-tools" },
-      },
-      {
-        label: "Schemas",
-        autogenerate: { directory: "reference/schema-reference" },
-      },
-      {
-        label: "Registry",
-        autogenerate: { directory: "reference/registry" },
-      },
-      {
-        label: "Studio",
-        autogenerate: { directory: "reference/studio" },
-      },
-      {
-        label: "Studio (Ship)",
-        autogenerate: { directory: "reference/ship-studio" },
-      },
-      {
-        label: "Contributing",
-        autogenerate: { directory: "reference/contributing" },
+        label: "Concepts",
+        autogenerate: { directory: "concepts" },
       },
     ],
   },
@@ -82,51 +55,55 @@ function buildTopics(isInternal) {
     id: "extensions",
     label: "Extensions",
     icon: "puzzle",
-    link: "/reference/smart-skills/",
+    link: "/smart-skills/",
     items: [
       {
         label: "Smart Skills",
-        autogenerate: { directory: "reference/smart-skills" },
+        autogenerate: { directory: "smart-skills" },
       },
       {
         label: "Agents",
-        autogenerate: { directory: "reference/agents" },
+        autogenerate: { directory: "agents" },
       },
       {
         label: "Views",
-        autogenerate: { directory: "reference/views" },
+        autogenerate: { directory: "views" },
       },
       {
         label: "Pipelines",
-        autogenerate: { directory: "reference/pipelines" },
+        autogenerate: { directory: "pipelines" },
       },
       {
         label: "Artifacts",
-        autogenerate: { directory: "reference/artifacts" },
+        autogenerate: { directory: "artifacts" },
       },
       {
         label: "Collections",
-        autogenerate: { directory: "reference/collections" },
+        autogenerate: { directory: "collections" },
       },
       {
         label: "Triggers",
-        autogenerate: { directory: "reference/triggers" },
+        autogenerate: { directory: "triggers" },
+      },
+      {
+        label: "Components",
+        autogenerate: { directory: "components" },
       },
       {
         label: "Component Packs",
-        autogenerate: { directory: "reference/component-packs" },
+        autogenerate: { directory: "component-packs" },
       },
       {
         label: "Design System",
-        autogenerate: { directory: "reference/design-system" },
+        autogenerate: { directory: "design-system" },
       },
       {
         label: "SDK",
-        autogenerate: { directory: "reference/sdk" },
+        autogenerate: { directory: "sdk" },
       },
       {
         label: "Recipes",
-        autogenerate: { directory: "reference/recipes" },
+        autogenerate: { directory: "recipes" },
       },
     ],
   },
@@ -158,33 +135,61 @@ function buildTopics(isInternal) {
       },
     ],
   },
+  {
+    id: "reference",
+    label: "Reference",
+    icon: "document",
+    link: "/cli/",
+    items: [
+      {
+        label: "CLI Reference",
+        autogenerate: { directory: "cli" },
+      },
+      {
+        label: "MCP Tools",
+        autogenerate: { directory: "mcp-tools" },
+      },
+      {
+        label: "Schemas",
+        autogenerate: { directory: "schema-reference" },
+      },
+      {
+        label: "Registry",
+        autogenerate: { directory: "registry" },
+      },
+    ],
+  },
   ...(isInternal
     ? [
         {
           id: "internals",
           label: "Internals",
           icon: "setting",
-          link: "/reference/architecture/",
+          link: "/architecture/",
           items: [
             {
               label: "Architecture",
-              autogenerate: { directory: "reference/architecture" },
+              autogenerate: { directory: "architecture" },
             },
             {
               label: "Ship Architecture",
-              autogenerate: { directory: "reference/ship-architecture" },
+              autogenerate: { directory: "ship-architecture" },
             },
             {
               label: "Runtime",
-              autogenerate: { directory: "reference/runtime" },
+              autogenerate: { directory: "runtime" },
             },
             {
               label: "Compiler",
-              autogenerate: { directory: "reference/compiler" },
+              autogenerate: { directory: "compiler" },
             },
             {
               label: "Ship Stack",
-              autogenerate: { directory: "reference/ship-stack" },
+              autogenerate: { directory: "ship-stack" },
+            },
+            {
+              label: "Contributing",
+              autogenerate: { directory: "contributing" },
             },
             // openAPISidebarGroups is a placeholder — starlight-openapi replaces
             // it with the generated per-endpoint sidebar entries at build time.
@@ -204,7 +209,7 @@ function buildTopics(isInternal) {
 function buildExcludedPatterns(isInternal) {
   // `reference/adrs` lives outside any topic's autogenerated directory; keep
   // it rendering at its URL without a topic rail.
-  const base = ["/reference/adrs/**", "/reference/adrs"];
+  const base = ["/adrs/**", "/adrs"];
   return isInternal
     ? base
     : base.concat(
@@ -225,9 +230,6 @@ export default defineConfig({
     markdoc(),
     starlight({
       title: "Ship",
-      logo: {
-        src: "./src/assets/logo.svg",
-      },
       social: [],
       customCss: [
         "@ship/set/tokens.css",
@@ -236,6 +238,7 @@ export default defineConfig({
       ],
       components: {
         Header: "./src/components/Header.astro",
+        SiteTitle: "./src/components/SiteTitle.astro",
         ThemeProvider: "./src/components/ThemeProvider.astro",
         ThemeSelect: "./src/components/ThemeProvider.astro",
       },
@@ -303,15 +306,15 @@ export default defineConfig({
           // the Components topic by ID.
           // Map HTTP API pages (generated by starlight-openapi) to the internals topic.
           topics: {
-            // Map the homepage to the Guide topic so the topic rail renders
-            // with named labels on "/" instead of numeric fallbacks.
-            guide: ["/"],
+            // Map the homepage to the Getting Started topic so the topic rail
+            // renders with named labels on "/" instead of numeric fallbacks.
+            "getting-started": ["/"],
             components: ["/components/**", "/components"],
             ...(isInternal
               ? {
                   internals: [
-                    "/reference/http-api/**",
-                    "/reference/http-api",
+                    "/http-api/**",
+                    "/http-api",
                   ],
                 }
               : {}),
@@ -323,7 +326,7 @@ export default defineConfig({
           ? [
               starlightOpenAPI([
                 {
-                  base: "reference/http-api",
+                  base: "http-api",
                   schema: "./openapi.json",
                   sidebar: {
                     label: "HTTP API",

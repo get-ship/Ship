@@ -1,98 +1,29 @@
 ---
 group: Getting Started
-title: Your First Project
-section: tutorial
+title: Your First Agent
+section: guide
 order: 3
 ---
 
-# Your First Project
+Open Ship, open your project, and add an agent.
 
-## Initialize
+## In the app
 
-Navigate to your project and run:
+From the dashboard, open **Agents** and create a new one. You'll be asked for:
 
-```bash
-cd your-project
-ship init
-```
+- **A name** — anything that describes what the agent does (e.g. "Backend", "Reviewer").
+- **A provider** — Claude, Gemini, Codex, Cursor, or OpenCode.
+- **Skills** — pick from the registry or scaffold your own.
+- **Permissions** — pick a preset (`ship-readonly`, `ship-standard`, `ship-autonomous`, `ship-elevated`) or fine-tune.
 
-This creates a `.ship/` directory with a project manifest, a `dev` agent, and compiles immediately. Your project is ready to use with your AI tools.
+Save. Ship compiles the agent into the configuration files your CLI tool expects (`CLAUDE.md`, `.cursor/rules`, `GEMINI.md`, `AGENTS.md`, etc.) so the next time you launch your CLI agent against this project, it picks up the new config automatically.
 
-## What just happened
+## From the command line
 
-`ship init` did three things:
+The same things are available as CLI commands if you prefer. See the [CLI Reference](/cli/) for `ship init`, `ship use`, `ship compile`, and `ship add`.
 
-1. **Scaffolded `.ship/`** — project manifest, default agent (`dev.jsonc`), and directory structure
-2. **Compiled** — generated provider-native config (CLAUDE.md, .mcp.json, etc.) from the dev agent
-3. **Gitignored** — compiled output is added to `.gitignore` automatically
+## What's next
 
-## Open Studio
-
-For a visual interface:
-
-```bash
-ship studio --open
-```
-
-Studio opens in your browser. From there you can:
-
-- Browse and install skills from the registry
-- Configure agent profiles
-- Set skill variables (preferences that personalize behavior)
-- See everything update in real time
-
-## Edit your agent
-
-Your agent lives at `.ship/agents/dev.jsonc`. Open it and add skills, change permissions, or add more providers:
-
-```jsonc
-{
-  "agent": {
-    "id": "dev",
-    "name": "Dev",
-    "providers": ["claude", "gemini"]
-  },
-  "skills": {
-    "refs": ["tdd", "code-review"]
-  },
-  "permissions": {
-    "preset": "ship-autonomous"
-  }
-}
-```
-
-After editing, recompile:
-
-```bash
-ship compile
-```
-
-## Add more agents
-
-Copy your dev agent and customize:
-
-```bash
-cp .ship/agents/dev.jsonc .ship/agents/backend.jsonc
-```
-
-Edit `backend.jsonc` — change the `id` to `"backend"`, update the name, skills, and permissions. Then activate:
-
-```bash
-ship use backend
-```
-
-## Install packages
-
-Add skills from the registry:
-
-```bash
-ship add github.com/owner/skill-pack
-```
-
-This updates `ship.jsonc`, resolves dependencies, writes `ship.lock`, and recompiles.
-
-## Next steps
-
-- [Schema Reference](/reference/schema/) — full field reference for all config files
-- [Smart Skills](/reference/smart-skills/) — understand how skills and variables work
-- [Registry](/reference/registry/) — browse and publish packages
+- [Smart Skills](/smart-skills/) — how skills and typed variables work.
+- [Agents](/agents/) — the full shape of an agent profile.
+- [Registry](/registry/) — installing and publishing skill packages.

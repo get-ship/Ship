@@ -2,7 +2,7 @@
 group: Smart Skills
 title: Platform Events
 description: Ship built-in events, how they map to artifact types, and how the runtime routes events to agents.
-audience: public
+audience: internal
 section: reference
 order: 4
 ---

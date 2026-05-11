@@ -3,7 +3,7 @@ group: Runtime
 order: 3
 title: Migrations
 description: How to author a platform.db migration — naming, idempotency, the 0001–0006 freeze, and the tests your migration must include.
-audience: public
+audience: internal
 ---
 
 # Migrations

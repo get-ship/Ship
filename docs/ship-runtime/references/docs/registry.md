@@ -109,5 +109,5 @@ Returns `SeedResult` indicating how many deps were seeded vs already present.
 
 ## Related
 
-- [Platform DB](/reference/runtime/platform-db/) — `registry` module doesn't use the DB directly; it's purely on-filesystem.
-- [Compiler](/reference/compiler/) — eventual owner of `ShipManifest` / `ShipLock` types (stubs here today).
+- [Platform DB](/runtime/platform-db/) — `registry` module doesn't use the DB directly; it's purely on-filesystem.
+- [Compiler](/compiler/) — eventual owner of `ShipManifest` / `ShipLock` types (stubs here today).

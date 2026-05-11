@@ -3,6 +3,7 @@ group: Views
 order: 5
 title: Datastar & Signal Conventions
 description: The exact Datastar version Ship pins, plus Ship-specific signal conventions layered on top — `_`-prefix client-only signals and the `data-ship-signal-types` schema.
+audience: internal
 ---
 
 # Datastar & Signal Conventions

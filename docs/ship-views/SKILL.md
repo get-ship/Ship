@@ -12,9 +12,9 @@ Views are the extension mechanism for user-facing surfaces in Ship. You author a
 
 Three pages for views:
 
-- **[Overview](/reference/ship-views/)** — what a view is, when to author one, how a request flows through shipd.
-- **[Manifest & SDK reference](/reference/ship-views/reference/)** — `manifest.json` fields, the `_ship.html.j2` macro surface, signal/bind/event conventions.
-- **[Runtime](/reference/views/runtime/)** — shipd's view serving stack: resolve, render, session registry, SSE topics, ship-elements bundling.
+- **[Overview](/ship-views/)** — what a view is, when to author one, how a request flows through shipd.
+- **[Manifest & SDK reference](/ship-views/)** — `manifest.json` fields, the `_ship.html.j2` macro surface, signal/bind/event conventions.
+- **[Runtime](/views/runtime/)** — shipd's view serving stack: resolve, render, session registry, SSE topics, ship-elements bundling.
 
 For **authoring custom components** (`<my-tag>` elements you write to compose into views), see the **`ship-components`** skill — `.ship` single-file components with props, signals, lifecycle, and scoped styles.
 

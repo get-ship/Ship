@@ -180,6 +180,6 @@ Two-file split is deliberate:
 
 ## Related
 
-- [Platform DB](/reference/runtime/platform-db/) — the other SQLite file, runtime state.
-- [Persistence](/reference/runtime/persistence/) — event log under `platform.db`.
-- [Projections](/reference/runtime/projections/) — read models for runtime state; distinct from collections, which are user content.
+- [Platform DB](/runtime/platform-db/) — the other SQLite file, runtime state.
+- [Persistence](/runtime/persistence/) — event log under `platform.db`.
+- [Projections](/runtime/projections/) — read models for runtime state; distinct from collections, which are user content.

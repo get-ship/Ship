@@ -3076,12 +3076,15 @@
       "ActorSpawnReq": {
         "type": "object",
         "required": [
-          "actor_id",
           "config"
         ],
         "properties": {
           "actor_id": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional client-suggested id. When present, must be a ULID\n(used by daemon-spawned agents that pre-mint via `gen_ulid`\nand propagate via SHIP_ACTOR_ID env). When absent, the daemon\nmints a fresh ULID — the canonical path. Synthesis like\n`agent.{name}.{branch}` is gone; the daemon is the only id\nminter."
           },
           "capabilities": {
             "type": [

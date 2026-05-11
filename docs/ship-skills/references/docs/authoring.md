@@ -2,7 +2,7 @@
 group: Smart Skills
 title: Authoring and Publishing
 description: How to write, structure, and publish Ship skills. Covers naming, loading, namespaces, and the getship.dev registry.
-audience: public
+audience: internal
 section: guide
 order: 5
 ---

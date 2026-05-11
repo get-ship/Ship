@@ -3,6 +3,7 @@ group: MCP Tools
 order: 1
 title: Tool Catalog
 description: Every Ship MCP tool with stability marker, server, and one-line summary. Single source of truth for tool naming + stability.
+audience: internal
 ---
 
 # Tool Catalog

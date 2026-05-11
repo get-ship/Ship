@@ -207,7 +207,7 @@ Same `Pipeline` type, shared via ship-jobs, used by all three.
 
 ## Related
 
-- [Orchestrator](/reference/runtime/orchestrator/) — runtime execution of a pipeline.
-- [Pipelines Overview](/reference/pipelines/) — user-facing concept.
-- [Pipelines Reference](/reference/pipelines/reference/) — YAML format + schema.
-- [Architecture Overview](/reference/architecture/) — where ship-jobs sits.
+- [Orchestrator](/runtime/orchestrator/) — runtime execution of a pipeline.
+- [Pipelines Overview](/pipelines/) — user-facing concept.
+- [Pipelines Reference](/pipelines/) — YAML format + schema.
+- [Architecture Overview](/architecture/) — where ship-jobs sits.

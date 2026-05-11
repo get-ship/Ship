@@ -146,6 +146,6 @@ When writing code, prefer `log_action` for project log writes unless you're spec
 
 ## Related
 
-- [Config](/reference/runtime/config/) — where `HookConfig` lives and the file format.
-- [Sessions](/reference/runtime/sessions/) — post-session hook firing.
-- [Compiler](/reference/compiler/) — hook translation per provider.
+- [Config](/runtime/config/) — where `HookConfig` lives and the file format.
+- [Sessions](/runtime/sessions/) — post-session hook firing.
+- [Compiler](/compiler/) — hook translation per provider.

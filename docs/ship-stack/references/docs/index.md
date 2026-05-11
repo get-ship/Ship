@@ -3,6 +3,7 @@ group: Ship Stack
 order: 1
 title: The Ship Stack
 description: The four layers of Ship — substrate, SDK, dogfood, surfaces — and how they compose.
+audience: internal
 ---
 
 # Ship Stack — Map and Positioning
@@ -15,15 +16,15 @@ The stack exists to separate concerns that move at different speeds. A bug in th
 
 | Subsystem     | Location                          | Docs                                       |
 | ------------- | --------------------------------- | ------------------------------------------ |
-| Kernel        | `crates/core/ship-kernel/`        | [Kernel](/reference/architecture/kernel/)      |
-| Runtime       | `crates/core/runtime/`            | [Runtime](/reference/runtime/)                 |
-| Event store   | `runtime/persistence/`            | [Persistence](/reference/runtime/persistence/) |
-| Daemon        | `apps/shipd/`                     | [Runtime](/reference/runtime/)                 |
-| Compiler      | `crates/core/compiler/`, `packages/compiler/` | [Compiler](/reference/compiler/)   |
-| Supervisor    | `apps/shipd/supervisor/`          | [Runtime](/reference/runtime/)                 |
-| Mesh          | `runtime/services/mesh.rs`        | [Runtime](/reference/runtime/)                 |
-| CLI transport | `apps/ship-cli/`                  | [CLI](/reference/cli/)                         |
-| MCP transport | `apps/mcp/`                       | [MCP Tools](/reference/mcp-tools/)             |
+| Kernel        | `crates/core/ship-kernel/`        | [Kernel](/architecture/kernel/)      |
+| Runtime       | `crates/core/runtime/`            | [Runtime](/runtime/)                 |
+| Event store   | `runtime/persistence/`            | [Persistence](/runtime/persistence/) |
+| Daemon        | `apps/shipd/`                     | [Runtime](/runtime/)                 |
+| Compiler      | `crates/core/compiler/`, `packages/compiler/` | [Compiler](/compiler/)   |
+| Supervisor    | `apps/shipd/supervisor/`          | [Runtime](/runtime/)                 |
+| Mesh          | `runtime/services/mesh.rs`        | [Runtime](/runtime/)                 |
+| CLI transport | `apps/ship-cli/`                  | [CLI](/cli/)                         |
+| MCP transport | `apps/mcp/`                       | [MCP Tools](/mcp-tools/)             |
 
 ### L2 — Platform SDK
 

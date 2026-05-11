@@ -3,6 +3,7 @@ group: Pipelines
 order: 2
 title: Step I/O — produces, consumes, promotes
 description: Declarative artifact handoff between pipeline steps via produces, consumes, and promotes.
+audience: internal
 ---
 
 Declarative artifact handoff between pipeline steps. Steps declare what they produce, what they need from prior steps, and which outputs to promote on success.

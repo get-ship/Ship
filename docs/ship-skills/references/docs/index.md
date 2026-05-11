@@ -1,77 +1,34 @@
 ---
 group: Smart Skills
 title: Smart Skills
-description: Typed variables that personalize skill output at compile time.
-audience: public
-section: concepts
+description: An extension of the open agentskills.io format with runtime-layer features and stricter publishing.
 order: 1
 ---
 
-# Smart Skills
+A **skill** is a markdown file that tells an agent how to do something — naming conventions, code patterns, review checklists, any kind of consistent guidance you want an agent to follow. Skills follow the open [agentskills.io](https://agentskills.io) format.
 
-A smart skill is a skill with typed configuration variables. The compiler resolves those variables into SKILL.md at compile time, so the same skill produces different output for each user, project, and machine.
+**Smart Skills** is Ship's extension of that format. We add features at the runtime layer and tighten a few rules for publishing.
 
-## What makes a skill "smart"
+## At the runtime layer
 
-The presence of `assets/vars.json` in the skill directory. That file declares variables with types, defaults, and storage scopes. Without it, SKILL.md is plain markdown. With it, SKILL.md becomes a template.
+<ship-card padding="md">
+<strong slot="header">Typed variables</strong>
+Declare variables in the skill. The runtime resolves them per user, per project, or per machine at compile time. Same skill, different output for whoever's using it.
+</ship-card>
 
-## How resolution works
+<ship-card padding="md">
+<strong slot="header">Runtime-injected context</strong>
+When the runtime renders a skill, it can supply context from the system or from the surrounding pack — values the skill author doesn't have to ask for explicitly.
+</ship-card>
 
-The compiler performs five steps during `ship use` or `ship compile`:
+The variables story is the headline. See [Variables](./variables/) for what you can do with them.
 
-1. Reads `assets/vars.json` to discover declared variables.
-2. Queries `platform.db` KV for user state across three scopes (global, local, project).
-3. Merges state in fixed order: defaults, then global, then local, then project. Last wins.
-4. Passes merged values into the MiniJinja engine and renders SKILL.md.
-5. Writes the resolved output to provider config (CLAUDE.md, .cursor/rules, etc.).
+## At publish time
 
-Undefined variables render as empty string. Template syntax errors fall back to the original content with a warning to stderr. The template engine uses MiniJinja with chainable undefined behavior -- no file loader, no custom functions.
+To publish a skill on the Ship Store, the format is a little stricter than the open spec:
 
-## Variable storage
+- A stable id is required, so installs are deterministic.
+- Versions are supported.
+- Frontmatter is validated against a schema before the skill is accepted.
 
-All state lives in `platform.db` as key-value pairs. No config files on disk.
-
-| Scope | KV namespace | Semantics |
-|-------|-------------|-----------|
-| global | `skill_vars:{id}` | Machine-wide. Follows the user across all projects. |
-| local | `skill_vars.local:{ctx}:{id}` | This project only. Personal, not shared. |
-| project | `skill_vars.project:{ctx}:{id}` | This project. Intended for team sharing. |
-
-`{id}` is the skill's `stable-id` (or directory name if no stable-id is set). `{ctx}` is a 16-character hex token derived from the project path.
-
-## Progressive disclosure
-
-Smart skills use two tiers of information:
-
-- **SKILL.md** is always loaded into the agent's context window. Keep it concise. This is the working instructions.
-- **references/docs/** contains detailed reference material retrieved on demand. Same source serves humans (docs site) and agents (filesystem reads).
-
-The agent gets instructions automatically. When it needs depth, it reads specific doc pages without consuming permanent context.
-
-## Interfaces
-
-| Surface | What it does |
-|---------|-------------|
-| MCP tools | Agents write vars via `set_skill_var` (ShipServer). Studio reads vars via `get_skill_vars` and `list_skill_vars` (StudioServer). |
-| Studio Skills IDE | Visual editor for SKILL.md, vars UI with type-appropriate controls |
-| `ship use` / `ship compile` | Resolves templates and writes provider output |
-
-## Stability
-
-Stable in Ship 0.1.0:
-
-- SKILL.md with frontmatter and MiniJinja template resolution
-- `assets/vars.json` with all five types (string, bool, enum, array, object)
-- Three storage scopes with KV merge order
-- `set_skill_var` MCP tool (ShipServer) for agent-side variable writes
-- MCP tools for var access
-- `references/docs/` with frontmatter
-- `scripts/` directory
-- Content hashing with vars state excluded
-- Studio Skills IDE
-
-Not yet available:
-
-- `ship skill eval` (evals.json structure is defined but tooling is not implemented)
-- Declarative var migrations
-- Computed/dynamic vars (env injection, git context)
+You don't need any of this for skills that live in your own project. The strictness applies to packages that travel.

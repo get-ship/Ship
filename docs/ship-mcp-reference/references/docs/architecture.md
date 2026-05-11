@@ -61,7 +61,7 @@ One `ShipServer` instance per connection. Mutex-wrapped state means a single ser
 
 `actor_store: Option<ActorStore>` is the scoped event handle for this MCP connection. Populated when the connection initializes — the daemon registers the MCP client as an actor with the `ActorConfig` derived from the client's declared `mcp_provider` and `session_id`. Events emitted via MCP tools go through this `ActorStore`, inheriting the namespace scoping and actor_id stamping.
 
-See [Persistence](/reference/runtime/persistence/) for what `ActorStore` enforces.
+See [Persistence](/runtime/persistence/) for what `ActorStore` enforces.
 
 ### Notification peer
 
@@ -192,7 +192,7 @@ Served over HTTP via `run_studio_http_server(port)`. Browser Studio connects via
 
 ## Related
 
-- [Commands](/reference/mcp-tools/commands/) — user-facing tool reference.
-- [Daemon](/reference/runtime/daemon/) — where the real state is.
-- [Persistence](/reference/runtime/persistence/) — `ActorStore` enforcement for MCP event emission.
-- [Scopes](/reference/runtime/scopes/) — role-to-scope mapping that feeds the tool gate.
+- [Commands](/mcp-tools/commands/) — user-facing tool reference.
+- [Daemon](/runtime/daemon/) — where the real state is.
+- [Persistence](/runtime/persistence/) — `ActorStore` enforcement for MCP event emission.
+- [Scopes](/runtime/scopes/) — role-to-scope mapping that feeds the tool gate.

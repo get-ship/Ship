@@ -3,6 +3,7 @@ group: Component Packs
 title: Manifest & distribution
 order: 4
 description: How views opt in, how bundles build, how CEM ships, how pro-packs reach customers.
+audience: internal
 ---
 
 Once a pack's components compile and pass tests, they need a path to

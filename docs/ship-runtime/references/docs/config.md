@@ -133,7 +133,7 @@ impl RuntimeHooks for DefaultRuntimeHooks {
 }
 ```
 
-Tiny surface (one method). Lets alternate hosts (tests, other embedders) redirect the project action log. Most code just uses `log_action` directly and ignores this trait. See [Hooks](/reference/runtime/hooks/) for the full breakdown.
+Tiny surface (one method). Lets alternate hosts (tests, other embedders) redirect the project action log. Most code just uses `log_action` directly and ignores this trait. See [Hooks](/runtime/hooks/) for the full breakdown.
 
 ## CRUD
 
@@ -199,6 +199,6 @@ Walks `.ship/skills/`, `.ship/rules/`, agent profiles, plugin entries in the pac
 
 ## Related
 
-- [Hooks](/reference/runtime/hooks/) — the `RuntimeHooks` trait vs `HookConfig/HookTrigger` distinction in full.
-- [Sessions](/reference/runtime/sessions/) — fires `SessionEnd` and `Stop` hooks on session end.
-- [Compiler](/reference/compiler/) — translates hooks into provider-native formats.
+- [Hooks](/runtime/hooks/) — the `RuntimeHooks` trait vs `HookConfig/HookTrigger` distinction in full.
+- [Sessions](/runtime/sessions/) — fires `SessionEnd` and `Stop` hooks on session end.
+- [Compiler](/compiler/) — translates hooks into provider-native formats.

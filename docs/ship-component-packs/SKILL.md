@@ -16,7 +16,7 @@ internal app that genuinely outgrew primitives + slots, or need to wrap
 a heavy third-party engine that isn't already an island.
 
 If you are authoring a view, start at
-[ship-sdk](/reference/sdk/). If you are authoring library components,
+[ship-sdk](/sdk/). If you are authoring library components,
 the charter lives in `.ship/skills/ship-components/SKILL.md`. This
 skill is the **packaging and distribution** layer on top of that
 charter.

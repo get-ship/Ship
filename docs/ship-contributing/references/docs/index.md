@@ -3,6 +3,7 @@ group: Contributing
 title: Contributing
 description: How to contribute to Ship -- repo layout, dev environment, and workflow.
 order: 1
+audience: internal
 ---
 
 # Contributing

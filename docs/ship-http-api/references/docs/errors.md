@@ -3,10 +3,11 @@ group: HTTP API
 order: 1
 title: Error Codes
 description: Ship's canonical ErrorResponse codes — meaning, HTTP status, and remediation.
+audience: internal
 ---
 
 Every non-2xx response from the Ship daemon conforms to the
-[`ErrorResponse`](/reference/http-api/components/schemas/errorresponse/)
+[`ErrorResponse`](/http-api/components/schemas/errorresponse/)
 schema:
 
 ```json

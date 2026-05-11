@@ -2,7 +2,7 @@
 group: Smart Skills
 title: Directory Structure
 description: Complete layout of a smart skill directory with every file explained.
-audience: public
+audience: internal
 section: reference
 order: 2
 ---

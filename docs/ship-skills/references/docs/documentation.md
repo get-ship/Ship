@@ -2,7 +2,7 @@
 group: Smart Skills
 title: Skill Documentation
 description: How references/docs/ works, frontmatter fields, audience values, and writing for humans and agents.
-audience: public
+audience: internal
 section: reference
 order: 4
 ---

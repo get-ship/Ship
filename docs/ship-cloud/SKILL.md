@@ -29,9 +29,9 @@ SQLite state.
 
 ### Packages
 
-- `cloud/packages/types` — TS transport types. `EventEnvelope` and every
+- `cloud/types` — TS transport types. `EventEnvelope` and every
   event-type string constant are **codegen** from Rust via
-  `cargo xtask gen-types` into `cloud/packages/types/src/generated.ts`.
+  `cargo xtask gen-types` into `cloud/types/src/generated.ts`.
   Cloud is a sync target for the runtime, not a parallel domain model —
   never invent event names.
 
@@ -78,7 +78,7 @@ the constant in the projection repo, add a `switch` branch.
 - DOs own their data. No shared state between DOs except through events.
 - `EventEnvelope` shape and event-type string constants are Rust-owned.
   Regenerate via `cargo xtask gen-types` after schema changes; never
-  hand-edit `cloud/packages/types/src/generated.ts`.
+  hand-edit `cloud/types/src/generated.ts`.
 - Tests use `runInDurableObject` for DO isolation.
 - Local-dev only today. Wrangler configs are present; production
   bindings + secrets are not wired.
@@ -110,7 +110,7 @@ When adding a field to Rust's `EventEnvelope` or a new `event_type` constant:
 ```
 1. Edit crates/core/ship-types/src/{envelope.rs, event_types.rs}
 2. cargo run -p xtask -- gen-types
-3. Verify cloud/packages/types/src/generated.ts picked it up
+3. Verify cloud/types/src/generated.ts picked it up
 4. Wire the new field through cloud schemas + repos if cloud stores it
 5. cargo run -p xtask -- gen-types --check  # fails if stale
 ```

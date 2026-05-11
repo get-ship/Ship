@@ -3,6 +3,7 @@ group: Contributing
 title: Development Setup
 description: Dev container, Justfile commands, building, testing, and database management.
 order: 2
+audience: internal
 ---
 
 # Development Setup

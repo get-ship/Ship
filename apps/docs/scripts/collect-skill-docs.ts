@@ -29,7 +29,7 @@ const OUTPUT_DIR = join(SCRIPT_DIR, "../src/content/docs")
 // COLLECT_DOCS_OUT for the drift checker which collects into a tempdir.
 const GENERATED_DIR = process.env.COLLECT_DOCS_OUT
   ? resolve(process.env.COLLECT_DOCS_OUT)
-  : join(OUTPUT_DIR, "reference")
+  : OUTPUT_DIR
 const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
 const SHIP_ELEMENTS_SRC = join(REPO_ROOT, "apps/shipd/assets/ship-elements.js")
 const SHIP_ELEMENTS_DEST = join(PUBLIC_DIR, "ship-elements.js")
@@ -193,13 +193,17 @@ function run(): void {
   }
 
   // Sweep orphans: any file under GENERATED_DIR not written this run.
-  const sweep = (dir: string): boolean => {
+  // Files at the root of GENERATED_DIR are user-committed (e.g. the homepage
+  // index.md) and never get swept — only generated group subdirectories do.
+  const sweep = (dir: string, isRoot: boolean): boolean => {
     if (!existsSync(dir)) return true
     let isEmpty = true
     for (const e of readdirSync(dir, { withFileTypes: true })) {
       const p = join(dir, e.name)
       if (e.isDirectory()) {
-        if (!sweep(p)) isEmpty = false
+        if (!sweep(p, false)) isEmpty = false
+      } else if (isRoot) {
+        isEmpty = false
       } else if (written.has(p)) {
         isEmpty = false
       } else {
@@ -211,7 +215,7 @@ function run(): void {
     }
     return isEmpty
   }
-  sweep(GENERATED_DIR)
+  sweep(GENERATED_DIR, true)
 
   console.log(`[collect-docs] Total: ${total} pages collected.`)
 

@@ -3,6 +3,7 @@ group: Architecture
 order: 1
 title: Architecture Overview
 description: How Ship is built — transport, daemon, runtime, kernel, compiler — and how they interleave.
+audience: internal
 ---
 
 {% user-only %}
@@ -299,11 +300,11 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
 
 ## Deeper reading
 
-- [The Ship Stack](/reference/ship-stack/) — product-layer view.
-- [Runtime internals](/reference/runtime/) — shipd, services, persistence.
-- [Kernel](/reference/architecture/kernel/) — routing contract, limitations, future work.
-- [Provider Outputs](/reference/compiler/providers/) — what the compiler writes per provider.
-- [Daemon authentication model](/reference/architecture/auth-model/) — tokens and session scopes.
+- [The Ship Stack](/ship-stack/) — product-layer view.
+- [Runtime internals](/runtime/) — shipd, services, persistence.
+- [Kernel](/architecture/kernel/) — routing contract, limitations, future work.
+- [Provider Outputs](/compiler/providers/) — what the compiler writes per provider.
+- [Daemon authentication model](/architecture/auth-model/) — tokens and session scopes.
 
 {% internal %}
 ## Services inside the daemon
@@ -388,5 +389,5 @@ Sessions track agent time within a workspace — start, progress, end with summa
    - If `event.target_actor_id` set → direct to that mailbox only.
    - Otherwise broadcast: deliver to every actor whose `subscribe_namespaces` contains a prefix of `event.event_type`.
 
-Delivery uses `try_send` — mailbox full = silent drop. See [Kernel](/reference/architecture/kernel/) for the full contract, current limitations, and future work.
+Delivery uses `try_send` — mailbox full = silent drop. See [Kernel](/architecture/kernel/) for the full contract, current limitations, and future work.
 {% endinternal %}

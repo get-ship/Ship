@@ -3,6 +3,7 @@ group: Component Packs
 title: Authoring a component
 order: 3
 description: Directory layout, the distribution test, the Lit template, tokens, events. The mechanical how-to.
+audience: internal
 ---
 
 Once the decision tables in [When to author](./when-to-author.md) say

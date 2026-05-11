@@ -4,80 +4,58 @@ title: Agents
 order: 1
 ---
 
-# Agents
+An **agent** is a profile that tells an AI assistant how to behave in your project — which skills it knows, which tools it can reach for, what it's allowed to do, and which provider it runs as. You author the profile once in `.ship/agents/<name>.jsonc`; Ship compiles it into the configuration each provider expects.
 
-An agent is a JSONC profile that controls how an AI assistant behaves -- which skills it loads, which MCP servers it connects to, what permissions it gets, and which rules it follows.
+## What goes into an agent
 
-Agents are not running processes. They are configuration files in `.ship/agents/` that the compiler transforms into provider-specific output (CLAUDE.md, .cursor/rules, .gemini/settings.json, etc.).
+<ship-card padding="md">
+<strong slot="header">Identity</strong>
+A name, a description, and the providers this agent should compile to. One agent can target several providers from the same source.
+</ship-card>
 
-## File structure
+<ship-card padding="md">
+<strong slot="header">Skills</strong>
+Instruction sets that teach the agent how to do specific things. Pick from your local skills, from installed packages, or both.
+</ship-card>
 
-Each agent is a single `.jsonc` file. The filename stem must match the `id` field inside:
+<ship-card padding="md">
+<strong slot="header">MCP servers</strong>
+External tools the agent connects to via Model Context Protocol — your own services, GitHub, anything MCP-aware.
+</ship-card>
 
-```
-.ship/agents/
-  default.jsonc
-  web-lane.jsonc
-  reviewer.jsonc
-```
+<ship-card padding="md">
+<strong slot="header">Permissions</strong>
+A preset that controls what the agent can do without asking — read-only, interactive, autonomous, or elevated. See <a href="./permissions/">Permissions</a>.
+</ship-card>
 
-## Anatomy of an agent
-
-An agent profile has a required `agent` section and optional sections that compose its behavior:
+## A small agent
 
 ```jsonc
 {
-  "$schema": "../../schemas/agent.schema.json",
   "agent": {
-    "id": "default",
-    "name": "Ship Dev",
-    "version": "0.1.0",
-    "description": "Default development preset for the Ship project",
-    "providers": ["claude", "codex", "cursor", "gemini", "opencode"]
+    "id": "dev",
+    "name": "Dev",
+    "providers": ["claude"]
   },
   "skills": {
-    "refs": ["ship-agents", "ship-tutorial"]
-  },
-  "mcp": {
-    "servers": []
-  },
-  "plugins": {
-    "install": ["rust-analyzer-lsp@claude-plugins-official"],
-    "scope": "project"
+    "refs": ["tdd", "code-review"]
   },
   "permissions": {
-    "preset": "ship-standard",
-    "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)"]
-  },
-  "rules": {}
+    "preset": "ship-standard"
+  }
 }
 ```
 
-This is the actual `default.jsonc` from the Ship project. It targets all five providers, activates two skills, installs a Claude plugin, and uses the `ship-standard` permission preset with additional deny rules.
+That's the minimum. Naming, providers, skills, permissions. Save the file, run `ship use dev`, and the configuration files your CLI agent expects appear automatically.
 
-## What each section does
+## Where agents live
 
-| Section | Purpose |
-|---------|---------|
-| `agent` | Identity: id, name, version, description, target providers, tags |
-| `skills` | Skill IDs to activate (local or from installed packages) |
-| `mcp` | MCP server IDs to connect (defined in `.ship/mcp.jsonc`) |
-| `plugins` | Provider-specific plugin installs (currently Claude Code) |
-| `permissions` | Permission preset + per-agent tool allow/deny/ask overrides |
-| `rules` | Inline rules appended after shared `.ship/rules/*.md` files |
-| `model` | Model override compiled to each provider's model field |
-| `provider_settings` | Per-provider config pass-through (deep-merged over project defaults) |
+- **Project agents** — `.ship/agents/` in your repo. Committed; shared with your team.
+- **Library agents** — `~/.ship/agents/` on your machine. Personal; not committed.
 
-## Agent sources
+## Compiling for several providers at once
 
-Agents come from two locations:
-
-- **Project agents** -- `.ship/agents/` in your repository. Version-controlled, shared with the team.
-- **Library agents** -- `~/.ship/agents/` in your home directory. Personal, not committed.
-
-## Multi-provider compilation
-
-A single agent can target multiple providers. The `providers` array controls which outputs `ship use` generates:
+Add more providers to `providers` and Ship compiles them all on `ship use`:
 
 ```jsonc
 {
@@ -87,54 +65,8 @@ A single agent can target multiple providers. The `providers` array controls whi
 }
 ```
 
-Running `ship use web-lane` compiles for every listed provider simultaneously. Each provider gets its native format. All output files are gitignored build artifacts.
+Each provider gets its native format. The compiled files are gitignored build output — your `.ship/` profile is the source of truth.
 
-## CLI commands
+## Next
 
-| Command | Description |
-|---------|-------------|
-| `ship use <agent-id>` | Compile and activate an agent |
-| `ship compile` | Recompile the active agent |
-| `ship status` | Show active agent and compilation status |
-| `ship validate --agent <id>` | Validate a single agent profile |
-
-## A specialized agent
-
-Here is the `web-lane.jsonc` agent, which configures an autonomous frontend specialist:
-
-```jsonc
-{
-  "agent": {
-    "id": "web-lane",
-    "name": "Web Lane",
-    "version": "0.1.0",
-    "description": "Active context for the Web lane agent",
-    "providers": ["claude", "codex", "cursor", "gemini", "opencode"]
-  },
-  "skills": {
-    "refs": [
-      "github.com/better-auth/skills/better-auth",
-      "ship-coordination",
-      "studio-mcp-bridge",
-      "ship-brainstorm",
-      "visual-spec"
-    ]
-  },
-  "mcp": { "servers": ["ship"] },
-  "plugins": {
-    "install": ["frontend-design@claude-plugins-official"],
-    "scope": "project"
-  },
-  "permissions": {
-    "preset": "ship-autonomous",
-    "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)"]
-  },
-  "rules": {
-    "inline": "You are a gateway specialist working in apps/gateway/."
-  }
-}
-```
-
-This agent uses `ship-autonomous` permissions (zero confirmation prompts), references both local and remote skills, connects the Ship MCP server, and injects scope-restricting inline rules.
-
-See [Configuration](./configuration.md) for every field and [Permissions](./permissions.md) for the preset system.
+- [Permissions](./permissions/) — the four built-in presets and how to layer your own rules.

@@ -221,6 +221,6 @@ Rebuild tests: `runtime/src/db/tests_rebuild.rs`. Pattern:
 
 ## Related
 
-- [Persistence](/reference/runtime/persistence/) — `EventStore`, `SqliteEventStore`, `ActorStore`.
-- [Platform DB](/reference/runtime/platform-db/) — tables, migrations, connection pool.
-- [Kernel](/reference/architecture/kernel/) — routing contract; where events arrive before projections see them.
+- [Persistence](/runtime/persistence/) — `EventStore`, `SqliteEventStore`, `ActorStore`.
+- [Platform DB](/runtime/platform-db/) — tables, migrations, connection pool.
+- [Kernel](/architecture/kernel/) — routing contract; where events arrive before projections see them.

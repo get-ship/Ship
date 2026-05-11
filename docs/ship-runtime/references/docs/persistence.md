@@ -77,7 +77,7 @@ impl EventSink for SqliteEventStore {
 }
 ```
 
-This is what lets `ship_kernel::KernelRouter` use `SqliteEventStore` as its persistence back-end. The kernel's routing contract calls `sink.persist(&event)` synchronously before mailbox delivery. See [Kernel](/reference/architecture/kernel/) for the full contract.
+This is what lets `ship_kernel::KernelRouter` use `SqliteEventStore` as its persistence back-end. The kernel's routing contract calls `sink.persist(&event)` synchronously before mailbox delivery. See [Kernel](/architecture/kernel/) for the full contract.
 
 ## The events table
 
@@ -205,6 +205,6 @@ Global runtime test isolation goes further: `runtime::project::get_global_dir()`
 
 ## Related
 
-- [Kernel](/reference/architecture/kernel/) — routing contract, how `EventSink` integrates.
-- [Platform DB](/reference/runtime/platform-db/) — full schema, migrations, WAL config.
-- [Projections](/reference/runtime/projections/) — how read models are rebuilt from the event log.
+- [Kernel](/architecture/kernel/) — routing contract, how `EventSink` integrates.
+- [Platform DB](/runtime/platform-db/) — full schema, migrations, WAL config.
+- [Projections](/runtime/projections/) — how read models are rebuilt from the event log.

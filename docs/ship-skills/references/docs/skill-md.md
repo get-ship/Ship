@@ -2,7 +2,7 @@
 group: Smart Skills
 title: SKILL.md Frontmatter
 description: Canonical YAML frontmatter contract for every Ship skill. Required fields, optional fields, and the JSON Schema that enforces them at load time.
-audience: public
+audience: internal
 section: reference
 order: 2
 ---

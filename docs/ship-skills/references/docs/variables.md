@@ -1,159 +1,63 @@
 ---
 group: Smart Skills
 title: Variables
-description: vars.json schema, types, storage scopes, merge order, template syntax, CLI, and MCP tools.
-audience: public
-section: reference
-order: 3
+description: Make one skill produce different output per user, per project, and per machine.
+order: 2
 ---
 
-# Variables
+Variables let one skill produce different output for different users and different projects. You declare what's variable in `assets/vars.json`; the runtime fills in the values when the skill is compiled.
 
-Variables make the same skill produce different output for different users and projects. Declared in `assets/vars.json`, stored in `platform.db` KV, resolved into SKILL.md at compile time via MiniJinja.
+## A small example
 
-## vars.json schema
+A `code-review` skill that adapts to your team's commit style:
 
-Every key in `vars.json` (except `$schema`) defines one variable. The JSON Schema is published at `https://getship.dev/schemas/vars.schema.json`.
-
-```json
+```jsonc
+// .ship/skills/code-review/assets/vars.json
 {
-  "$schema": "https://getship.dev/schemas/vars.schema.json",
   "commit_style": {
     "type": "enum",
-    "default": "conventional",
-    "storage-hint": "global",
     "values": ["conventional", "gitmoji", "angular"],
-    "label": "Commit style",
-    "description": "Format applied to every commit message"
+    "default": "conventional",
+    "storage-hint": "project"
   }
 }
 ```
 
-### Variable fields
+Inside `SKILL.md`:
 
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `type` | string | no | `"string"` | Variable type. One of: `string`, `bool`, `enum`, `array`, `object`. |
-| `default` | any | no | none | Value used when no user state exists. Must match the declared type. |
-| `storage-hint` | string | no | `"global"` | Where user values are stored: `global`, `local`, or `project`. |
-| `values` | string[] | enum only | -- | Allowed values for enum type. Validated on `ship vars set`. |
-| `label` | string | no | -- | Human-readable name. Shown in Studio and CLI output. |
-| `description` | string | no | -- | Longer explanation. Shown in Studio tooltips and docs site. |
-
-No additional properties are allowed beyond these six fields. A bare `{}` entry creates a string variable with no default.
-
-## Variable types
-
-| Type | JSON value | Use for | Example |
-|------|-----------|---------|---------|
-| `string` | `"text"` | Paths, names, free-form config | `"src/lib"` |
-| `bool` | `true`/`false` | Feature toggles | `true` |
-| `enum` | `"value"` | Fixed choices (must declare `values`) | `"conventional"` |
-| `array` | `["a", "b"]` | Lists (co-authors, ignore patterns) | `["Alice", "Bob"]` |
-| `object` | `{...}` | Structured config (rarely needed) | `{"key": "val"}` |
-
-## Storage scopes
-
-All variable state lives in `platform.db` as key-value pairs. The `storage-hint` field determines which KV namespace receives user state.
-
-| Scope | KV namespace | Semantics | Use for |
-|-------|-------------|-----------|---------|
-| `global` | `skill_vars:{id}` | Machine-wide, all projects | Personal preferences (style, format) |
-| `local` | `skill_vars.local:{ctx}:{id}` | This project, personal only | Individual overrides |
-| `project` | `skill_vars.project:{ctx}:{id}` | This project, team-shared | Team conventions |
-
-- `{id}` is the skill's `stable-id` (or directory name if no stable-id is set).
-- `{ctx}` is a stable 16-character hex token derived from the `.ship/` directory path.
-
-Each variable is read from and written to exactly the namespace matching its `storage-hint`. A global variable is only stored in the global namespace, a local variable only in the local namespace, and so on.
-
-### Merge order
-
-The runtime merges four layers when reading variable state. Last wins.
-
-```
-defaults (vars.json "default" field)
-  -> global (machine-wide KV)
-    -> local (project-personal KV)
-      -> project (project-team KV)
+```markdown
+Commits should follow {{ commit_style }} style.
 ```
 
-A project-scope value overrides everything. A global value overrides only the default. Variables without a default and without user state are absent from the merged result.
+When the runtime renders this skill, it substitutes the active value before handing the result to the agent.
 
-## Template syntax
+## Where a variable lives
 
-SKILL.md is rendered as a MiniJinja template (Jinja2-compatible). The engine runs in Rust with chainable undefined behavior -- no file loader, no custom functions.
+Each variable picks one home via the `storage-hint` field:
 
-**Substitution.** Wrap a variable name in double curly braces to insert its value. Dot-path access works for object variables (e.g., `object_var.field`).
+<ship-card padding="md">
+<strong slot="header">Global</strong>
+Stored on your machine. Travels with you across all projects. Use this for personal preferences (e.g. preferred tone of voice).
+</ship-card>
 
-**Conditionals.** Use `if`/`elif`/`else`/`endif` blocks to conditionally include content. Supports boolean checks (render content when a variable is truthy) and equality checks (render content when a variable matches a specific string).
+<ship-card padding="md">
+<strong slot="header">Local</strong>
+Stored for one project on this machine. Personal, not shared. Use this for things you want different for one project but only for yourself.
+</ship-card>
 
-**Loops.** Use `for`/`endfor` to iterate array variables. Each iteration has access to the current element.
+<ship-card padding="md">
+<strong slot="header">Project</strong>
+Committed to <code>.ship/</code>. Shared with everyone working in the project. Use this for team conventions (e.g. commit style, branch naming).
+</ship-card>
 
-**Note:** Template syntax uses double curly braces for substitution and percent-brace pairs for control flow. These are standard Jinja2 constructs processed by MiniJinja. Do not use these patterns in Markdoc files -- Markdoc will try to parse them.
+The author of the skill picks the storage-hint that fits the variable. There's no merge or override across scopes — each variable lives in exactly one place.
 
-### Truthiness
+## Where to set values
 
-| Value | Truthy? |
-|-------|---------|
-| `true` | yes |
-| `false` | no |
-| `""` (empty string) | no |
-| `"anything"` | yes |
-| `[]` (empty array) | no |
-| `[1, 2]` | yes |
-| `null` / undefined | no |
+The Ship app has a Skills surface where each variable shows up with a typed input — a toggle for booleans, a dropdown for enums, a text field for strings. You set values there; the runtime stores them in whichever scope the variable was declared with.
 
-### Error handling
+Agents can also set variables at runtime when it makes sense (for example, capturing a preference the user just expressed in chat).
 
-Undefined variables render as empty string. The engine uses MiniJinja's chainable undefined behavior, so accessing a field on an undefined value also returns empty rather than erroring. Template syntax errors cause the engine to fall back to the original unresolved content with a warning to stderr.
+## Types
 
-## Runtime variables
-
-In addition to user-configured vars, the compiler automatically injects a `runtime` object into every skill template at compile time. These are read-only — derived from project state, not user-settable, and do not appear in `vars.json`.
-
-| Key | Type | Description |
-|-----|------|-------------|
-| `runtime.agents` | `[{id, name, description}]` | Agent profiles from `.ship/agents/*.toml` |
-| `runtime.providers` | `string[]` | Active provider IDs, e.g. `["claude", "cursor"]` |
-| `runtime.model` | `string` | Configured model override; empty string if not set |
-| `runtime.skills` | `[{id, name, description}]` | All skills active in this compile |
-
-`description` fields can be `null` — guard before rendering:
-
-```
-{% for a in runtime.agents %}
-- **{{ a.id }}**{% if a.description %} — {{ a.description }}{% endif %}
-{% endfor %}
-
-{% if runtime.model %}
-Model in use: {{ runtime.model }}
-{% endif %}
-```
-
-Runtime variables follow the same template rules as user vars: undefined keys render as empty string, dot-path access on null returns empty rather than erroring.
-
-## CLI commands
-
-The `ship vars` CLI subcommand has been removed. Use the MCP tools or Studio to read and write variable state.
-
-## MCP tools
-
-Agents interact with variables through these MCP tools.
-
-| Tool | Parameters | Description |
-|------|-----------|-------------|
-| `get_skill_vars` | `skill_id` | Returns merged variable state for a skill |
-| `set_skill_var` | `skill_id`, `key`, `value` | Writes a single variable value |
-| `list_skill_vars` | (none) | Lists all skills that have `assets/vars.json` with their merged state |
-
-Two additional tools manage skill files on disk. These are available on the StudioServer (used by the Studio web IDE), not the standard agent-facing MCP server:
-
-| Tool | Parameters | Description |
-|------|-----------|-------------|
-| `write_skill_file` | `skill_id`, `path`, `content` | Write a file into a skill directory |
-| `delete_skill_file` | `skill_id`, `path` | Delete a file from a skill directory (cannot delete SKILL.md) |
-
-## Content hashing
-
-When publishing, Ship hashes the skill directory tree (SKILL.md, assets/, references/, evals/). User variable state in `platform.db` is excluded from the hash. Changing SKILL.md or vars.json schema produces a new version. Changing user variable values does not.
+Variables can be `string`, `bool`, `enum`, `array`, or `object`. Pick the type that matches what you're configuring. The Ship app renders an appropriate input for each.

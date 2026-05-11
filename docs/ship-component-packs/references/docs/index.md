@@ -15,12 +15,12 @@ problem with the primitives you already have.
 Ship's default authoring surface is three things stacked:
 
 1. **View primitives** — `.html.j2` templates + SDK macros
-   ([ship-sdk](/reference/sdk/)).
+   ([ship-sdk](/sdk/)).
 2. **`<ship-*>` elements** from `@ship/set` — buttons, cards,
    list-tiles, inputs, charts. See the compact catalog at
    `GET /api/assets/ship-elements.md`.
 3. **Design tokens** — `var(--surface-1)`, `var(--tone-success-fg)`,
-   `var(--radius-md)`. Themes override them ([ship-themes](/reference/themes/)).
+   `var(--radius-md)`. Themes override them ([ship-themes](/themes/)).
 
 That stack covers **90%+ of view work with zero custom components.**
 The entire point of the SDK is that happy-path users never see this

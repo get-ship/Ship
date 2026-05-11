@@ -10,7 +10,7 @@ The recipes library is a set of focused answers to the question "how
 do I do X in a Ship view?" Each page delivers one pattern with one
 complete, runnable fragment.
 
-Start with [SDK](/reference/sdk/) if you want the primitive reference —
+Start with [SDK](/sdk/) if you want the primitive reference —
 what every macro does and when to reach for it. Come back here when
 you know the macro exists but want to see it composed with its
 neighbours.

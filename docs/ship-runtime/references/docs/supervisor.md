@@ -205,6 +205,6 @@ Returns a `DispatchHandle { registry, executor, activity_txs }` which the daemon
 
 ## Related
 
-- [Orchestrator](/reference/runtime/orchestrator/) — the transport-agnostic half that uses these traits.
-- [Events](/reference/runtime/events/) — `supervisor.`, `process.`, `executor.` namespaces.
-- [Projections](/reference/runtime/projections/) — Process records fold from `process.*`.
+- [Orchestrator](/runtime/orchestrator/) — the transport-agnostic half that uses these traits.
+- [Events](/runtime/events/) — `supervisor.`, `process.`, `executor.` namespaces.
+- [Projections](/runtime/projections/) — Process records fold from `process.*`.

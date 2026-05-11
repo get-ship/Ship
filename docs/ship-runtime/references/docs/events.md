@@ -201,7 +201,7 @@ Under `#[cfg(feature = "unstable")]`:
 
 ## Related
 
-- [Kernel](/reference/architecture/kernel/) — routing contract, validate → persist → deliver.
-- [Persistence](/reference/runtime/persistence/) — `EventStore`, `SqliteEventStore`, `ActorStore`.
-- [Platform DB](/reference/runtime/platform-db/) — the `events` table schema.
-- [Projections](/reference/runtime/projections/) — read models derived from the event log.
+- [Kernel](/architecture/kernel/) — routing contract, validate → persist → deliver.
+- [Persistence](/runtime/persistence/) — `EventStore`, `SqliteEventStore`, `ActorStore`.
+- [Platform DB](/runtime/platform-db/) — the `events` table schema.
+- [Projections](/runtime/projections/) — read models derived from the event log.

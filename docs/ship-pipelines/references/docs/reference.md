@@ -3,6 +3,7 @@ group: Pipelines
 order: 2
 title: YAML Reference
 description: Pipeline YAML format — every field, every step type, resolution order, and the official schema.
+audience: internal
 ---
 
 Pipelines are YAML. Two shapes — short (agents list) and long (explicit steps). Both parse into the same normalized form before dispatch.

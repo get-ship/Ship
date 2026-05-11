@@ -3,6 +3,7 @@ group: MCP Tools
 order: 3
 title: Resources
 description: All ship:// URIs for read-only access to project state.
+audience: internal
 ---
 
 # MCP Resources
