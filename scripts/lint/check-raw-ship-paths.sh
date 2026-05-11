@@ -2,7 +2,7 @@
 # check-raw-ship-paths.sh
 #
 # Flag raw `~/.ship/` path construction outside the canonical
-# `crates/core/runtime/src/home/` module. Per ADR
+# `crates/core/ship-substrate/src/home/` module. Per ADR
 # `home-layout-and-scope-convention`, `ShipHome` is the only permitted
 # origin of paths under `~/.ship/`.
 
@@ -11,7 +11,7 @@ set -u
 cd "$(dirname "$0")/../.."
 
 SEARCH_PATHS=(crates apps)
-ALLOW_PREFIX="crates/core/runtime/src/home/"
+ALLOW_PREFIX="crates/core/ship-substrate/src/home/"
 
 # Patterns we treat as raw-`~/.ship/` path construction.
 PATTERNS=(

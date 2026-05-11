@@ -28,7 +28,12 @@ mod tests {
         // assertion would be meaningless.
         let env_set = std::env::var_os("SHIP_WORKTREE_DIR").is_some();
         let local_set = dirs::home_dir()
-            .map(|h| h.join(".ship/machine/local.jsonc").exists())
+            .map(|h| {
+                ship_substrate::ShipHome::at(h)
+                    .machine_dir()
+                    .join("local.jsonc")
+                    .exists()
+            })
             .unwrap_or(false);
         if env_set || local_set {
             eprintln!("skip: SHIP_WORKTREE_DIR or local.jsonc overrides fallback");
