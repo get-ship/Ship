@@ -7,15 +7,15 @@ export default defineConfig({
     alias: [
       {
         find: '@ship/sui-runtime/template-hooks',
-        replacement: resolve(__dirname, '../ui-runtime/src/template-hooks/index.ts'),
+        replacement: resolve(__dirname, '../sui-runtime/src/template-hooks/index.ts'),
       },
       {
         find: '@ship/sui-runtime/route',
-        replacement: resolve(__dirname, '../ui-runtime/src/route/index.ts'),
+        replacement: resolve(__dirname, '../sui-runtime/src/route/index.ts'),
       },
       {
         find: '@ship/sui-runtime',
-        replacement: resolve(__dirname, '../ui-runtime/src/index.ts'),
+        replacement: resolve(__dirname, '../sui-runtime/src/index.ts'),
       },
       { find: '@ship/sui-dom', replacement: resolve(__dirname, 'src/index.ts') },
     ],
