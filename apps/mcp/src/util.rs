@@ -21,10 +21,19 @@ mod tests {
 
     #[test]
     fn falls_back_to_project_name_default() {
-        // Best-effort: with no SHIP_WORKTREE_DIR override and no
-        // local.jsonc setting, the resolver falls back to
-        // `<HOME>/dev/<project_name>-worktrees/`. Test only verifies the
-        // shape of the project-name component.
+        // With no SHIP_WORKTREE_DIR override AND no local.jsonc setting,
+        // the resolver falls back to `<HOME>/dev/<project_name>-worktrees/`.
+        // Skip the test when the dev machine has either configured — the
+        // resolver correctly ignores the project_name in that case and the
+        // assertion would be meaningless.
+        let env_set = std::env::var_os("SHIP_WORKTREE_DIR").is_some();
+        let local_set = dirs::home_dir()
+            .map(|h| h.join(".ship/machine/local.jsonc").exists())
+            .unwrap_or(false);
+        if env_set || local_set {
+            eprintln!("skip: SHIP_WORKTREE_DIR or local.jsonc overrides fallback");
+            return;
+        }
         let project_root = std::path::PathBuf::from("/home/user/my-project");
         let result = configured_worktree_dir(&project_root);
         assert_eq!(
