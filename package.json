@@ -2,25 +2,26 @@
   "name": "ship-monorepo",
   "private": true,
   "scripts": {
-    "build:bundles": "node scripts/build-bundles.mjs",
-    "build:bundles:watch": "node scripts/build-bundles.mjs --watch",
+    "build:bundles": "bun run runtime-assets/bundler.ts",
     "build:jinja-docs": "node scripts/build-jinja-docs.mjs",
     "test:rust": "cargo test",
     "wasm": "wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm",
     "lint": "vp lint",
-    "lint:fix": "vp lint --fix"
+    "lint:fix": "vp lint --fix",
+    "test:e2e": "playwright test --config tests/e2e/playwright.config.ts"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.25.1",
-    "@cloudflare/vitest-pool-workers": "^0.12.10",
+    "@cloudflare/vitest-pool-workers": "^0.15.2",
     "@playwright/test": "^1.58.2",
     "drizzle-kit": "^0.31.8",
     "esbuild": "^0.27.3",
+    "playwright": "^1.59.1",
     "typescript": "~5.8.3",
     "vite": "^7.3.1",
     "vite-plus": "^0.1.11",
     "vite-tsconfig-paths": "6.0.3",
-    "vitest": "^3.2.0",
+    "vitest": "^4.1.5",
     "wrangler": "^4.66.0"
   },
   "pnpm": {

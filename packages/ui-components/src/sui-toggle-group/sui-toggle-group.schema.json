@@ -1,0 +1,57 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-toggle-group",
+    "props": [
+      {
+        "name": "type",
+        "default": "single",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "single",
+          "multiple"
+        ]
+      },
+      {
+        "name": "value",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      {
+        "name": "variant",
+        "default": "outline",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "outline",
+          "ghost"
+        ]
+      },
+      {
+        "name": "name",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

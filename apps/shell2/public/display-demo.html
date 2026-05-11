@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Display Components Demo — SUI</title>
+
+  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
+
+  <script type="importmap">
+    {
+      "imports": {
+        "@ship/ui-runtime":    "/_sui/runtime.js",
+        "@ship/ui-dom":        "/_sui/dom.js",
+        "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+      }
+    }
+  </script>
+
+  <script>
+    (function () {
+      var s = document.createElement('script');
+      s.type = 'module';
+      s.src = '/_sui/components.js';
+      document.head.appendChild(s);
+    })();
+  </script>
+
+  <style>
+    body {
+      font-family: var(--font-body, system-ui);
+      background: var(--background, #fff);
+      color: var(--foreground, #111);
+      padding: 32px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 { font-size: 1.5rem; margin-bottom: 24px; }
+    h2 { font-size: 1rem; font-weight: 600; margin: 24px 0 12px; color: var(--muted-foreground, #666); }
+    .section { margin-bottom: 32px; padding: 20px; border: 1px solid var(--border, #e5e7eb); border-radius: 8px; }
+    .row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Display Components — SUI Primitives</h1>
+
+  <!-- sui-breadcrumb -->
+  <div class="section">
+    <h2>sui-breadcrumb + sui-breadcrumb-item</h2>
+    <sui-breadcrumb data-testid="breadcrumb-default">
+      <sui-breadcrumb-item href="/">Home</sui-breadcrumb-item>
+      <sui-breadcrumb-item href="/projects">Projects</sui-breadcrumb-item>
+      <sui-breadcrumb-item active>Ship</sui-breadcrumb-item>
+    </sui-breadcrumb>
+    <br><br>
+    <sui-breadcrumb separator="›" data-testid="breadcrumb-custom-sep">
+      <sui-breadcrumb-item href="/">Dashboard</sui-breadcrumb-item>
+      <sui-breadcrumb-item href="/agents">Agents</sui-breadcrumb-item>
+      <sui-breadcrumb-item active>Configure</sui-breadcrumb-item>
+    </sui-breadcrumb>
+  </div>
+
+  <!-- sui-pagination -->
+  <div class="section">
+    <h2>sui-pagination</h2>
+    <sui-pagination
+      id="pager"
+      page="2"
+      total="250"
+      per-page="25"
+      data-testid="pagination"
+    ></sui-pagination>
+    <script type="module">
+      const pager = document.getElementById('pager')
+      pager.addEventListener('sui-page', (e) => {
+        pager.setAttribute('page', String(e.detail.page))
+      })
+    </script>
+  </div>
+
+  <!-- sui-timestamp -->
+  <div class="section">
+    <h2>sui-timestamp</h2>
+    <div class="row">
+      <span>Relative (default):</span>
+      <sui-timestamp
+        value="2026-05-03T10:00:00Z"
+        data-testid="timestamp-relative"
+      ></sui-timestamp>
+    </div>
+    <div class="row">
+      <span>Absolute:</span>
+      <sui-timestamp
+        value="2026-05-03T10:00:00Z"
+        format="absolute"
+        data-testid="timestamp-absolute"
+      ></sui-timestamp>
+    </div>
+    <div class="row">
+      <span>Both:</span>
+      <sui-timestamp
+        value="2026-05-03T10:00:00Z"
+        format="both"
+        data-testid="timestamp-both"
+      ></sui-timestamp>
+    </div>
+    <div class="row">
+      <span>Connected since:</span>
+      <sui-timestamp
+        id="live-ts"
+        data-testid="timestamp-live"
+      ></sui-timestamp>
+      <script>
+        document.getElementById('live-ts').setAttribute('value', new Date().toISOString())
+      </script>
+    </div>
+  </div>
+
+  <!-- sui-metachip -->
+  <div class="section">
+    <h2>sui-metachip</h2>
+    <div class="row" data-testid="metachip-row">
+      <sui-metachip label="Status" value="active" data-testid="metachip-status"></sui-metachip>
+      <sui-metachip label="Model" value="sonnet-4-6" data-testid="metachip-model"></sui-metachip>
+      <sui-metachip label="Agent" value="contributor" data-testid="metachip-agent"></sui-metachip>
+      <sui-metachip label="Branch">
+        <code>job/s2-port-display</code>
+      </sui-metachip>
+    </div>
+  </div>
+
+  <!-- sui-code -->
+  <div class="section">
+    <h2>sui-code</h2>
+    <div class="row">
+      <span>Inline:</span>
+      <sui-code data-testid="code-inline">navigator.clipboard.writeText(value)</sui-code>
+    </div>
+    <sui-code block lang="typescript" data-testid="code-block">
+function greet(name: string): string {
+  return `Hello, ${name}!`
+}
+    </sui-code>
+    <br>
+    <sui-code block data-testid="code-block-no-lang">
+# no language label
+plain monospace block
+    </sui-code>
+  </div>
+
+  <!-- sui-copy-button -->
+  <div class="section">
+    <h2>sui-copy-button</h2>
+    <div class="row">
+      <sui-copy-button value="pnpm -F @ship/ui-components test" data-testid="copy-default"></sui-copy-button>
+      <sui-copy-button value="cargo test -p sui-compiler" label="Copy command" data-testid="copy-labeled"></sui-copy-button>
+    </div>
+  </div>
+
+  <!-- sui-json-view -->
+  <div class="section">
+    <h2>sui-json-view</h2>
+    <sui-json-view
+      data-testid="json-view"
+      data='{"name":"Ship","version":"0.1.0","features":{"chrome":true,"studio":true,"agents":["contributor","reviewer"]},"config":{"port":8080,"debug":false,"tags":null}}'
+      depth="2"
+    ></sui-json-view>
+  </div>
+
+  <!-- sui-diff -->
+  <div class="section">
+    <h2>sui-diff (from/to)</h2>
+    <sui-diff
+      data-testid="diff-from-to"
+      from="fn greet(name: &str) -> String {
+    format!(&quot;Hello, {}!&quot;, name)
+}"
+      to="fn greet(name: &str) -> String {
+    let msg = format!(&quot;Hello, {}!&quot;, name);
+    println!(&quot;{}&quot;, msg);
+    msg
+}"
+    ></sui-diff>
+    <br>
+    <h2>sui-diff (unified)</h2>
+    <sui-diff
+      data-testid="diff-unified"
+      value="@@ -1,3 +1,5 @@
+ fn greet(name: &amp;str) -> String {
+-    format!(&quot;Hello, {}!&quot;, name)
++    let msg = format!(&quot;Hello, {}!&quot;, name);
++    println!(&quot;{}&quot;, msg);
++    msg
+ }"
+    ></sui-diff>
+  </div>
+
+  <!-- sui-markdown -->
+  <div class="section">
+    <h2>sui-markdown</h2>
+    <sui-markdown
+      data-testid="markdown"
+      value="# Ship UI Components
+
+A set of **display-heavy** primitives for the Ship Studio.
+
+## Features
+
+- `sui-code` — monospace inline and block code
+- `sui-copy-button` — click-to-copy with checkmark feedback
+- `sui-json-view` — collapsible JSON tree
+- `sui-diff` — unified and from/to diff renderer
+- `sui-markdown` — this very renderer
+
+## Usage
+
+\`\`\`typescript
+import '@ship/ui-components'
+\`\`\`
+
+> Components are registered globally when the bundle loads.
+
+Visit [the docs](https://ship.example.com) for full API reference."
+    ></sui-markdown>
+  </div>
+</body>
+</html>

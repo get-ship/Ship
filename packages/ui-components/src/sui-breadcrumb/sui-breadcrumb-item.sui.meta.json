@@ -1,0 +1,29 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "if",
+      "expr": "href() && !active()",
+      "deps": [
+        "href",
+        "active"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:href",
+      "expr": "href()",
+      "deps": [
+        "href"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:aria-current",
+      "expr": "active() ? 'page' : 'false'",
+      "deps": [
+        "active"
+      ]
+    }
+  ]
+}

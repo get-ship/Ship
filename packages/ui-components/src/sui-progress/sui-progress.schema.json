@@ -1,0 +1,65 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-progress",
+    "props": [
+      {
+        "name": "value",
+        "default": "0",
+        "reflect": false,
+        "bindable": false,
+        "type": "number"
+      },
+      {
+        "name": "max",
+        "default": "100",
+        "reflect": false,
+        "bindable": false,
+        "type": "number"
+      },
+      {
+        "name": "tone",
+        "default": "primary",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "primary",
+          "info",
+          "success",
+          "warning",
+          "destructive",
+          "accent"
+        ]
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      {
+        "name": "indeterminate",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "label",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

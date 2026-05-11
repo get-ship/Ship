@@ -28,6 +28,7 @@ const MANIFEST_SCHEMA: &str =
     include_str!("../../../../schemas/view-manifest.schema.json");
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WriteTemplateRequest {
     /// Path relative to the view directory. Defaults to `index.html.j2`.
     /// Must end in `.html.j2` and stay inside the view dir.
@@ -38,6 +39,7 @@ pub struct WriteTemplateRequest {
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WriteManifestRequest {
     /// Manifest body (text).
     pub content: String,
@@ -46,18 +48,21 @@ pub struct WriteManifestRequest {
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WriteResponse {
     pub ok: bool,
     pub path: String,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct WriteDiagnostics {
     pub ok: bool,
     pub findings: Vec<LintFinding>,
 }
 
 #[derive(Serialize, utoipa::ToSchema)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct LintFinding {
     pub file: String,
     pub line: usize,
@@ -168,11 +173,10 @@ pub async fn write_view_template(
             .into_response();
     }
 
-    if let Some(parent) = target.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
+    if let Some(parent) = target.parent()
+        && let Err(e) = std::fs::create_dir_all(parent) {
             return json_err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
         }
-    }
     if let Err(e) = std::fs::write(&target, &req.content) {
         return json_err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }

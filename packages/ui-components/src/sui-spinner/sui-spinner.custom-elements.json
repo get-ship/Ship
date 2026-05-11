@@ -1,0 +1,102 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-spinner.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiSpinner",
+          "tagName": "sui-spinner",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "size",
+              "type": {
+                "text": "'xs' | 'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "xs",
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "Loading"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'xs' | 'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "Loading"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-spinner",
+          "declaration": {
+            "name": "SuiSpinner",
+            "module": "sui-spinner.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

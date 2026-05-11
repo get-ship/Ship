@@ -104,6 +104,9 @@ pub struct CompileOutput {
     /// Only populated when `cursor_environment` is set in the resolved config.
     pub cursor_environment_json: Option<Json>,
 
+    /// Claude-only: `.claude/lsp.json` content registering the Ship LSP.
+    pub claude_lsp_config: Option<Json>,
+
     /// OpenCode-only: full `opencode.json` content (model + MCP + extras).
     /// Only populated for the `opencode` provider.
     pub opencode_config_patch: Option<Json>,
@@ -178,6 +181,7 @@ pub fn compile(resolved: &ResolvedConfig, provider_id: &str) -> Option<CompileOu
         if let Some(ref mut patch) = out.claude_settings_patch {
             claude::inject_ship_lifecycle_hooks(patch);
         }
+        out.claude_lsp_config = Some(claude::build_claude_lsp_config());
         // Legacy team agents (passthrough from .ship/agents/teams/claude/)
         if let Some(base) = desc.agents_dir.base_path() {
             for (filename, content) in &resolved.claude_team_agents {

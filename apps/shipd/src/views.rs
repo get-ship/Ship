@@ -34,6 +34,21 @@ pub mod events_state;
 pub mod sdk_macros;
 pub mod sfc;
 pub mod components;
+// Daemon-coupled SUI handlers — still here because they reach into
+// ApiState, services::registry, auth, and scopes (all daemon-internal).
+// Moving them needs a `ship-runtime` extraction first; tracked separately.
+// Truly framework-level pieces (view_payload, view_host, asset bundles,
+// resolver, render_helpers, bundle, runtime asset) live in
+// crates/ship-sui/.
+pub mod sui_data;
+pub mod sui_data_resolvers;
+pub mod sui_hmr;
+pub mod sui_mutation;
+pub mod sui_sse;
+pub mod git_signal;
+pub mod sui_patches;
+pub mod sui_patch_channel;
+pub mod sui_agent_push;
 pub mod setup;
 pub mod templates;
 pub mod session;
@@ -47,7 +62,7 @@ pub mod generic_sse;
 pub mod handlers;
 mod lint_overlay;
 pub(crate) mod packs;
-mod resolve;
+pub mod resolve;
 pub mod view_filters;
 pub mod view_filters_list;
 
@@ -71,15 +86,16 @@ use crate::rest_api::MeshResponse;
 pub use assets::{
     serve_code_editor, serve_datastar_js, serve_elements_catalog, serve_elements_manifest,
     serve_git, serve_jinja_macros_json, serve_jinja_macros_md, serve_markdown_editor,
-    serve_ship_elements, serve_terminal, serve_theme_css, serve_themes_list, serve_view_tokens,
+    serve_ship_elements, serve_sui_elements_manifest, serve_terminal, serve_theme_css,
+    serve_themes_list, serve_view_tokens,
 };
 pub use handlers::{
     list_views, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };
-pub(crate) use packs::{inject_packs, read_view_packs};
 pub(crate) use resolve::{is_valid_view_name, read_raw_manifest, resolve_view_dir};
 
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct ViewManifest {
     pub name: String,
     #[serde(rename = "type")]
@@ -95,22 +111,24 @@ pub struct ViewManifest {
 }
 
 #[derive(Serialize)]
-pub(crate) struct ViewListEntry {
-    pub(crate) name: String,
+#[cfg_attr(feature = "specta", derive(specta::Type))]
+pub struct ViewListEntry {
+    pub name: String,
     #[serde(rename = "type")]
-    pub(crate) view_type: String,
-    pub(crate) source: String,
+    pub view_type: String,
+    pub source: String,
     /// Optional shell display metadata — label, icon, default_pinned,
     /// order. Populated from the view's manifest `rail:` block (or
     /// equivalent). Absent = view has no pinned/launcher presence.
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub(crate) rail: Option<RailMeta>,
+    pub rail: Option<RailMeta>,
 }
 
 /// Per-view shell display metadata. Maps to `<ship-rail>` /
 /// `<ship-launcher>`. Identity only — pin state and ordering are user
 /// settings (tier 2, daemon-persisted), not view config.
 #[derive(Serialize, Clone)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct RailMeta {
     pub label: String,
     pub icon: String,
@@ -123,7 +141,7 @@ pub(crate) fn mesh_ok(data: serde_json::Value) -> MeshResult {
 }
 
 pub(crate) fn mesh_err(status: StatusCode, msg: impl Into<String>) -> MeshResult {
-    (StatusCode::from(status), Json(MeshResponse { ok: false, data: serde_json::json!(msg.into()) }))
+    (status, Json(MeshResponse { ok: false, data: serde_json::json!(msg.into()) }))
 }
 
 // views_tests handled at line 62 via the relocated path.

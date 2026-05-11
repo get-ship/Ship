@@ -11,7 +11,7 @@
 //! handler falls back to reading that file verbatim (legacy path).
 
 use axum::{
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
     response::Response,
 };
@@ -20,6 +20,7 @@ use serde::Serialize;
 use crate::rest_api::ApiState;
 use crate::views::templates;
 
+#[allow(dead_code)] // used by wrap() which is called from the raw view handler below
 #[derive(Serialize)]
 struct RawCtx<'a> {
     title: &'a str,
@@ -54,6 +55,7 @@ fn html_ok(body: String, cookie: String) -> Response {
         .unwrap()
 }
 
+#[allow(dead_code)] // used via serve_view_raw handler (route registered in router.rs)
 fn wrap(title: &str, inner: &str) -> Option<String> {
     templates::render("_raw_shell.html.j2", &RawCtx { title, inner }).ok()
 }

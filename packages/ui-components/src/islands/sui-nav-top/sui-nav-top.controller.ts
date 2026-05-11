@@ -1,0 +1,139 @@
+import { controller, derived, signal } from '@ship/sui-runtime'
+import type { Signal } from '@ship/sui-runtime'
+import type { Scope } from './sui-nav-top.sui'
+
+interface ApiView {
+  name: string
+  rail?: { label: string; icon: string }
+}
+
+interface Crumb {
+  href: string
+  label: string
+  isLast: boolean
+}
+
+function humanize(id: string): string {
+  return id
+    .replace(/-/g, ' ')
+    .split(' ')
+    .map((w) => (w ? w[0]!.toUpperCase() + w.slice(1) : w))
+    .join(' ')
+}
+
+async function fetchViewLabels(): Promise<Map<string, string>> {
+  try {
+    const resp = await fetch('/api/v1/views', { credentials: 'same-origin' })
+    if (!resp.ok) return new Map()
+    const body = (await resp.json()) as { data?: { views?: ApiView[] } }
+    const map = new Map<string, string>()
+    for (const v of body.data?.views ?? []) {
+      if (v.rail?.label) map.set(v.name, v.rail.label)
+    }
+    return map
+  } catch {
+    return new Map()
+  }
+}
+
+function navigateDoc(to: string): void {
+  history.pushState({}, '', to)
+  document.dispatchEvent(
+    new CustomEvent('sui:navigate', { detail: { to } }),
+  )
+}
+
+export default controller<Scope>({
+  scope: (state, host) => {
+    const path = (state as { path: () => string }).path
+    const labels = signal<Map<string, string>>(new Map())
+    const dockOpen = signal(false)
+
+    const crumbs = derived<Crumb[]>(() => {
+      const p = path()
+      const labelsMap = labels()
+      const segs = p.split('/').filter(Boolean)
+      if (segs.length === 0) segs.push('dashboard')
+      return segs.map((seg, i) => {
+        const isLast = i === segs.length - 1
+        const href = '/' + segs.slice(0, i + 1).join('/')
+        const label = i === 0 ? (labelsMap.get(seg) ?? humanize(seg)) : seg
+        return { href, label, isLast }
+      })
+    })
+
+    const hostEl = host as HTMLElement | null
+
+    function onCrumbClick(e: MouseEvent, href: string): void {
+      e.preventDefault()
+      navigateDoc(href)
+    }
+    function onBrand(e: MouseEvent): void {
+      e.preventDefault()
+      navigateDoc('/')
+    }
+    function onRailToggle(): void {
+      hostEl?.dispatchEvent(
+        new CustomEvent('sui:rail:toggle', { bubbles: true, composed: true }),
+      )
+    }
+    function onStudio(): void {
+      navigateDoc('/ship-ui-studio')
+    }
+    function onDockToggle(): void {
+      hostEl?.dispatchEvent(
+        new CustomEvent('sui:dock:toggle', { bubbles: true, composed: true }),
+      )
+    }
+    function onChatToggle(): void {
+      hostEl?.dispatchEvent(
+        new CustomEvent('sui:chat:toggle', { bubbles: true, composed: true }),
+      )
+    }
+    function onFullscreen(): void {
+      if (document.fullscreenElement) void document.exitFullscreen()
+      else void document.documentElement.requestFullscreen()
+    }
+
+    return {
+      labels, dockOpen, crumbs,
+      onCrumbClick, onBrand, onRailToggle, onStudio,
+      onDockToggle, onChatToggle, onFullscreen,
+    }
+  },
+
+  mount(state, host) {
+    const scope = state as unknown as Scope
+    const pathSig = (scope as unknown as { path: Signal<string> }).path
+    const labelsSig = (scope as unknown as { labels: Signal<Map<string, string>> }).labels
+    const dockOpenSig = (scope as unknown as { dockOpen: Signal<boolean> }).dockOpen
+
+    if (!pathSig()) pathSig.set(location.pathname)
+    dockOpenSig.set(document.body.classList.contains('dock-open'))
+
+    void fetchViewLabels().then((map) => labelsSig.set(map))
+
+    const onNavigate = (e: Event) => {
+      const to = (e as CustomEvent<{ to?: string }>).detail?.to
+      if (typeof to === 'string') pathSig.set(to)
+    }
+    document.addEventListener('sui:navigate', onNavigate)
+
+    const dockObserver = new MutationObserver(() => {
+      dockOpenSig.set(document.body.classList.contains('dock-open'))
+    })
+    dockObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class'],
+    })
+
+    host.dispatchEvent(
+      new CustomEvent('sui:nav-top:ready', { bubbles: true, composed: true }),
+    )
+
+    return () => {
+      document.removeEventListener('sui:navigate', onNavigate)
+      dockObserver.disconnect()
+    }
+  },
+})

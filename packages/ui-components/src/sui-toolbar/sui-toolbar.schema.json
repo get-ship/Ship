@@ -1,0 +1,58 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-toolbar",
+    "props": [
+      {
+        "name": "justify",
+        "default": "start",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "start",
+          "center",
+          "end",
+          "between"
+        ]
+      },
+      {
+        "name": "align",
+        "default": "center",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "center",
+          "start",
+          "end",
+          "baseline"
+        ]
+      },
+      {
+        "name": "gap",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      {
+        "name": "variant",
+        "default": "default",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "bordered"
+        ]
+      }
+    ]
+  }
+}

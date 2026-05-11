@@ -1,10 +1,17 @@
 ---
 name: ship-components
 stable-id: ship-components
-description: Author custom web components for Ship as `.ship` single-file components. Use when building a new `<my-tag>` element to compose into views — props, signals, lifecycle, scoped styles, all in one file. NOT the publishing/distribution layer; that's ship-component-packs.
-tags: [ship, components, sfc, web-components, datastar, jinja]
+description: Historical reference for the `.ship` single-file component format (template / script / style three-block). DEAD — new component authoring uses the ship-ui skill (`.sui` files, top-level `<prop>` directives, paired `.ts` controllers). Kept for one-time historical lookup; do not author new components against this surface.
+tags: [ship, components, sfc, web-components, historical]
 authors: [ship]
 ---
+
+> **⚠ Historical only.** The `.ship` SFC format documented here is **dead**.
+> New component authoring uses the **`ship-ui`** skill — components are
+> `.sui` files with top-level `<prop>` directives, an optional sibling `.ts`
+> controller, and an optional sibling `.css`. Component packs are
+> `references/docs/packs/` under this skill. See
+> `docs/ship-ui/references/docs/status.md` for the current SUI map.
 
 # Ship Components
 

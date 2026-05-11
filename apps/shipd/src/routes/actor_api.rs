@@ -6,7 +6,6 @@
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use ship_substrate::events::{EmitContext, EventEnvelope};
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};

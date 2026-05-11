@@ -1,0 +1,80 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-dialog",
+    "props": [
+      {
+        "name": "open",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg",
+          "full"
+        ]
+      },
+      {
+        "name": "backdrop",
+        "default": "default",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "blur",
+          "solid"
+        ]
+      },
+      {
+        "name": "dismissible",
+        "default": "true",
+        "reflect": false,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "no-close-button",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "no-header",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "no-footer",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "role-override",
+        "default": "dialog",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "dialog",
+          "alertdialog"
+        ]
+      }
+    ]
+  }
+}

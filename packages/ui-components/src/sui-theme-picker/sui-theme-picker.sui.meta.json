@@ -1,0 +1,151 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "triggerBtn",
+      "deps": [
+        "triggerBtn"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:aria-expanded",
+      "expr": "panelOpen() ? 'true' : 'false'",
+      "deps": [
+        "panelOpen"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "on:click",
+      "expr": "() => togglePanel()",
+      "deps": [
+        "togglePanel"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "style:background",
+      "expr": "dotColor()",
+      "deps": [
+        "dotColor"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "text",
+      "expr": "triggerLabel()",
+      "deps": [
+        "triggerLabel"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "bind:this",
+      "expr": "panelEl",
+      "deps": [
+        "panelEl"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "for",
+      "expr": "groups()",
+      "deps": [
+        "groups"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "attr:aria-label",
+      "expr": "g.label",
+      "deps": [
+        "g"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "text",
+      "expr": "g.label",
+      "deps": [
+        "g"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "for",
+      "expr": "g.themes",
+      "deps": [
+        "g"
+      ]
+    },
+    {
+      "key": "b10",
+      "kind": "attr:data-theme-card",
+      "expr": "t.id",
+      "deps": [
+        "t"
+      ]
+    },
+    {
+      "key": "b11",
+      "kind": "attr:aria-label",
+      "expr": "t.label",
+      "deps": [
+        "t"
+      ]
+    },
+    {
+      "key": "b12",
+      "kind": "attr:aria-selected",
+      "expr": "activeTheme() === t.id ? 'true' : 'false'",
+      "deps": [
+        "activeTheme",
+        "t"
+      ]
+    },
+    {
+      "key": "b13",
+      "kind": "attr:tabindex",
+      "expr": "activeTheme() === t.id ? '0' : '-1'",
+      "deps": [
+        "activeTheme",
+        "t"
+      ]
+    },
+    {
+      "key": "b14",
+      "kind": "on:click",
+      "expr": "() => selectTheme(t.id)",
+      "deps": [
+        "selectTheme",
+        "t"
+      ]
+    },
+    {
+      "key": "b15",
+      "kind": "attr:data-theme-preview",
+      "expr": "t.id",
+      "deps": [
+        "t"
+      ]
+    },
+    {
+      "key": "b16",
+      "kind": "text",
+      "expr": "t.label",
+      "deps": [
+        "t"
+      ]
+    },
+    {
+      "key": "b17",
+      "kind": "text",
+      "expr": "t.label",
+      "deps": [
+        "t"
+      ]
+    }
+  ]
+}

@@ -11,7 +11,7 @@ use lsp_types::{
 use tempfile::TempDir;
 
 use crate::diagnostics::{SOURCE, finding_to_diagnostic};
-use crate::uri::{is_view_source, path_to_url, url_to_path};
+use crate::uri::{detect_stack, is_view_source, path_to_url, url_to_path, Stack};
 
 // ── uri ─────────────────────────────────────────────────────────────
 
@@ -37,6 +37,53 @@ fn path_url_handles_spaces() {
     let url = path_to_url(&path).expect("encode");
     assert!(url.as_str().contains("space%20dir"));
     assert_eq!(url_to_path(&url).unwrap(), path);
+}
+
+#[test]
+fn detect_stack_classifies_sources() {
+    // SUI authoring sources
+    assert_eq!(
+        detect_stack(&PathBuf::from(
+            "/proj/packages/ui-components/src/sui-button/sui-button.sui"
+        )),
+        Stack::Sui
+    );
+    assert_eq!(
+        detect_stack(&PathBuf::from(
+            "/proj/packages/ui-components/src/sui-button/sui-button.controller.ts"
+        )),
+        Stack::Sui
+    );
+    assert_eq!(
+        detect_stack(&PathBuf::from("/proj/views/agents/view.controller.ts")),
+        Stack::Sui
+    );
+
+    // j2 authoring sources
+    assert_eq!(
+        detect_stack(&PathBuf::from("/proj/.ship/views/demo/index.html.j2")),
+        Stack::J2
+    );
+    assert_eq!(
+        detect_stack(&PathBuf::from("/proj/random/widget.ship")),
+        Stack::J2
+    );
+
+    // Unrelated — plain TS, plain HTML, manifests, sibling helpers.
+    assert_eq!(
+        detect_stack(&PathBuf::from(
+            "/proj/packages/ui-components/src/sui-button/helpers.ts"
+        )),
+        Stack::None
+    );
+    assert_eq!(
+        detect_stack(&PathBuf::from("/proj/index.html.j2")),
+        Stack::None
+    );
+    assert_eq!(
+        detect_stack(&PathBuf::from("/proj/.ship/views/demo/manifest.yaml")),
+        Stack::None
+    );
 }
 
 #[test]

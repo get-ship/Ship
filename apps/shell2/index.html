@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ship</title>
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+  <link rel="icon" type="image/svg+xml" href="/ship-logo.svg" />
+
+  <link rel="stylesheet" href="/api/assets/view-tokens.css" />
+  <link rel="stylesheet" href="/src/chrome/layout.css" />
+
+  <!-- R4: lucide icon table is fetched on demand by <sui-icon> rather
+       than bundled into sui-components.js. The shell paints six rail
+       icons (dashboard, pipelines, bot, git-branch, sparkles, palette,
+       play) on first paint, so prefetch the registry while the bundle
+       loads — when the first <sui-icon> mounts, the JSON is already in
+       HTTP cache and the fetch resolves near-instant. -->
+  <link rel="prefetch" href="/_sui/lucide-icons.json" as="fetch" type="application/json" crossorigin />
+
+  <!-- Pre-paint theme: read persisted theme before first paint to prevent FOUC. -->
+  <script>
+    try {
+      var _t = localStorage.getItem('ship-site-theme')
+      if (_t) document.documentElement.setAttribute('data-theme', _t)
+    } catch (_e) {}
+  </script>
+
+  <!-- Importmap MUST come before any module script — browsers freeze it
+       at first module fetch. Vite's HMR client injects module scripts
+       early, so the importmap lives at the very top to win the race. -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@ship/ui-runtime":    "/_sui/runtime.js",
+        "@ship/ui-dom":        "/_sui/dom.js",
+        "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+      }
+    }
+  </script>
+
+  <!-- Components.js side-effect import — registers <sui-*> custom elements
+       before any view template tries to instantiate one. Loaded via
+       runtime IIFE so Vite's import-analysis doesn't try to resolve it
+       as a local module. The shell additionally loads island bundles
+       it embeds directly (chrome surfaces that don't ride in
+       view-payload `islands`). -->
+  <script>
+    (function () {
+      var bundles = [
+        '/_sui/components.js',
+        '/_sui/islands/sui-nav-top/island.js',
+        '/_sui/islands/sui-launcher/island.js',
+        '/_sui/islands/sui-panel-dock/island.js',
+        '/_sui/islands/sui-command-bar/island.js',
+        '/_sui/islands/sui-devtools/island.js',
+      ];
+      bundles.forEach(function (src) {
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.src = src;
+        document.head.appendChild(s);
+      });
+    })();
+  </script>
+
+  <!-- Bootstrap @ship/ui-runtime onto window before main.ts runs. The
+       IIFE-injected script is opaque to Vite's import-analysis (which
+       would otherwise rewrite the bare specifier or append `?import`,
+       creating a SECOND runtime instance separate from the one compiled
+       view modules import). The browser's importmap resolves the bare
+       specifier to /_sui/runtime.js — same URL view modules use — so
+       all SUI code shares ONE runtime universe.
+
+       `window.__suiRuntimeReady` is the gate main.ts awaits before
+       calling mount(). Same pattern as apps/shell. -->
+  <script>
+    (function () {
+      window.__suiRuntimeReady = new Promise(function (res) {
+        var s = document.createElement('script');
+        s.type = 'module';
+        s.textContent =
+          "import * as r from '@ship/ui-runtime'; window.__suiRuntime = r; window.dispatchEvent(new Event('sui-runtime-ready'));";
+        document.head.appendChild(s);
+        window.addEventListener('sui-runtime-ready', function () { res(window.__suiRuntime); }, { once: true });
+      });
+    })();
+  </script>
+</head>
+<body>
+  <div id="ship-app">
+    <!-- Top bar: brand, breadcrumbs, view actions, theme picker, chrome controls -->
+    <sui-nav-top id="ship-nav-top">
+      <sui-command-bar slot="command-bar" id="ship-command-bar"></sui-command-bar>
+    </sui-nav-top>
+
+    <!-- Left rail: vertical nav with collapse toggle.
+         Pipelines was here but the SUI port doesn't exist yet — the
+         legacy view at `.ship/views/pipelines/` is index.html.j2-based
+         and shell2's mount path only resolves `views/<name>/page.sui`.
+         Re-add the rail item when `views/pipelines/page.sui` lands. -->
+    <sui-rail id="ship-rail">
+      <sui-rail-item icon="layout-dashboard" label="Dashboard" href="/" data-view="dashboard"></sui-rail-item>
+      <sui-rail-item icon="bot" label="Agents" href="/agents" data-view="agents"></sui-rail-item>
+      <sui-rail-item icon="git-branch" label="Git" href="/git" data-view="git"></sui-rail-item>
+      <sui-rail-item icon="sparkles" label="UI Studio" href="/ship-ui-studio" data-view="ship-ui-studio"></sui-rail-item>
+      <sui-rail-item icon="palette" label="SUI Demo" href="/sui-demo" data-view="sui-demo"></sui-rail-item>
+      <sui-rail-item icon="play" label="Demos" href="/demos" data-view="demos"></sui-rail-item>
+    </sui-rail>
+
+    <!-- Main content: view mounts here -->
+    <main id="ship-content" class="ship-content"></main>
+
+    <!-- Bottom panel dock: terminal + devtools tabs -->
+    <sui-panel-dock id="ship-panel-dock" active-tab="terminal">
+      <!-- slot="terminal" left empty — terminal loads as island bundle on demand -->
+      <sui-devtools-source slot="source"></sui-devtools-source>
+      <sui-devtools-signals slot="signals"></sui-devtools-signals>
+      <sui-devtools-lint slot="lint"></sui-devtools-lint>
+      <sui-devtools-schema slot="schema"></sui-devtools-schema>
+      <sui-devtools-components slot="components"></sui-devtools-components>
+    </sui-panel-dock>
+
+    <!-- Bottom status bar: connection, branch, theme -->
+    <sui-status-bar id="ship-status-bar" branch="" theme="" agents=""></sui-status-bar>
+  </div>
+
+  <!-- App launcher: floating panel, opened via sui:launcher:open event or the [open] attribute -->
+  <sui-launcher id="ship-launcher"></sui-launcher>
+
+  <sui-toast-container position="bottom-right" id="sui-toast-container"></sui-toast-container>
+
+  <!-- sui-loading demo: toggled via button in the view content area -->
+  <div id="sui-loading-demo" style="display:none;position:fixed;inset:0;z-index:8000;background:var(--background,#fff)">
+    <sui-loading messages="Loading demo|Warming up|Almost there"></sui-loading>
+  </div>
+
+  <!-- sui-edit-overlay: activated by body.edit-mode (same contract as ship-edit-overlay) -->
+  <sui-edit-overlay id="sui-edit-overlay"></sui-edit-overlay>
+
+  <!-- sui-annotation demo: hidden layer with sample markers; shown via toggle button -->
+  <sui-annotation-layer id="sui-annotation-demo"
+    mode="off"
+    style="display:none;position:fixed;inset:0;z-index:8500"
+  ></sui-annotation-layer>
+
+  <!-- ── atoms-2 demos ─────────────────────────────────────────────────── -->
+
+  <!-- sui-table: 3-row data grid with sort + sticky header -->
+  <div id="sui-table-demo" style="display:none;position:fixed;inset:0;z-index:8600;background:var(--background);padding:40px;overflow:auto">
+    <h2 style="font:var(--text-base)/1.4 var(--font-body);margin:0 0 16px;color:var(--foreground)">sui-table demo</h2>
+    <sui-table variant="native" sticky-header style="max-height:300px">
+      <table>
+        <thead>
+          <tr>
+            <th data-sort-key="name">Name</th>
+            <th data-sort-key="role">Role</th>
+            <th data-sort-key="status" align="center">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-row-id="1"><td>Alice</td><td>Engineer</td><td align="center"><sui-badge tone="success">Active</sui-badge></td></tr>
+          <tr data-row-id="2"><td>Bob</td><td>Designer</td><td align="center"><sui-badge tone="warning">Away</sui-badge></td></tr>
+          <tr data-row-id="3"><td>Carol</td><td>Manager</td><td align="center"><sui-badge tone="muted">Offline</sui-badge></td></tr>
+        </tbody>
+      </table>
+    </sui-table>
+    <p style="margin-top:12px;font-size:var(--text-xs);color:var(--muted-foreground)">Click a header to sort · Click a row to fire sui-row-click</p>
+    <button onclick="document.getElementById('sui-table-demo').style.display='none'" style="margin-top:16px;padding:6px 12px;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--foreground)">Close</button>
+  </div>
+
+  <!-- sui-tree-view: 3-level expandable hierarchy -->
+  <div id="sui-tree-demo" style="display:none;position:fixed;inset:0;z-index:8600;background:var(--background);padding:40px">
+    <h2 style="font:var(--text-base)/1.4 var(--font-body);margin:0 0 16px;color:var(--foreground)">sui-tree-view demo</h2>
+    <sui-tree-view style="width:280px">
+      <sui-tree-item label="Pipelines" expanded>
+        <sui-tree-item label="Build" expanded>
+          <sui-tree-item label="compile.yml" leaf></sui-tree-item>
+          <sui-tree-item label="test.yml" leaf></sui-tree-item>
+        </sui-tree-item>
+        <sui-tree-item label="Deploy" leaf></sui-tree-item>
+      </sui-tree-item>
+      <sui-tree-item label="Agents">
+        <sui-tree-item label="scout" leaf></sui-tree-item>
+      </sui-tree-item>
+      <sui-tree-item label="Settings" leaf selected></sui-tree-item>
+    </sui-tree-view>
+    <button onclick="document.getElementById('sui-tree-demo').style.display='none'" style="margin-top:24px;display:block;padding:6px 12px;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--foreground)">Close</button>
+  </div>
+
+  <!-- sui-app-icon: all variants + sizes -->
+  <div id="sui-app-icon-demo" style="display:none;position:fixed;inset:0;z-index:8600;background:var(--background);padding:40px">
+    <h2 style="font:var(--text-base)/1.4 var(--font-body);margin:0 0 16px;color:var(--foreground)">sui-app-icon demo</h2>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+      <sui-app-icon name="dashboard" variant="glyph" size="lg" label="Dashboard glyph"></sui-app-icon>
+      <sui-app-icon name="pipelines" variant="tile" size="lg" label="Pipelines tile"></sui-app-icon>
+      <sui-app-icon name="agents" variant="solid" size="lg" label="Agents solid"></sui-app-icon>
+      <sui-app-icon name="git" variant="tile" size="md" label="Git md"></sui-app-icon>
+      <sui-app-icon name="settings" variant="glyph" size="sm" label="Settings sm"></sui-app-icon>
+      <sui-app-icon name="canvas" variant="solid" size="sm" label="Canvas sm solid"></sui-app-icon>
+    </div>
+    <button onclick="document.getElementById('sui-app-icon-demo').style.display='none'" style="margin-top:24px;display:block;padding:6px 12px;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--foreground)">Close</button>
+  </div>
+
+  <!-- sui-toolbar: start/end groups with spacer -->
+  <div id="sui-toolbar-demo" style="display:none;position:fixed;inset:0;z-index:8600;background:var(--background);padding:40px">
+    <h2 style="font:var(--text-base)/1.4 var(--font-body);margin:0 0 16px;color:var(--foreground)">sui-toolbar demo</h2>
+    <sui-toolbar variant="bordered" style="width:400px;border:1px solid var(--border);border-radius:var(--radius-md)">
+      <sui-button size="sm" variant="ghost" aria-label="Bold"><sui-icon name="bold" size="sm"></sui-icon></sui-button>
+      <sui-button size="sm" variant="ghost" aria-label="Italic"><sui-icon name="italic" size="sm"></sui-icon></sui-button>
+      <sui-button size="sm" variant="ghost" aria-label="Underline"><sui-icon name="underline" size="sm"></sui-icon></sui-button>
+      <span slot="spacer"></span>
+      <sui-button size="sm" tone="primary">Save</sui-button>
+    </sui-toolbar>
+    <p style="margin-top:12px;font-size:var(--text-xs);color:var(--muted-foreground)">Use ArrowLeft/Right to move between toolbar items</p>
+    <button onclick="document.getElementById('sui-toolbar-demo').style.display='none'" style="margin-top:16px;display:block;padding:6px 12px;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--foreground)">Close</button>
+  </div>
+
+  <!-- sui-graph-canvas: 4-node agent→skill topology demo -->
+  <div id="sui-graph-canvas-demo" style="display:none;position:fixed;inset:0;z-index:8600;background:var(--background);padding:40px;overflow:auto">
+    <h2 style="font:var(--text-base)/1.4 var(--font-body);margin:0 0 16px;color:var(--foreground)">sui-graph-canvas demo</h2>
+    <p style="font-size:var(--text-xs);color:var(--muted-foreground);margin:0 0 16px">Click a node to select it. Dashed edge = optional dependency.</p>
+    <sui-graph-canvas
+      id="demo-graph"
+      style="height:360px"
+      nodes='[{"id":"a1","kind":"agent","title":"Orchestrator","sub":"primary","x":180,"y":180},{"id":"a2","kind":"agent","title":"Worker","sub":"secondary","x":180,"y":360},{"id":"sk1","kind":"skill","title":"Build","x":620,"y":120},{"id":"sk2","kind":"skill","title":"Deploy","x":620,"y":300},{"id":"mc1","kind":"mcp","title":"FileSystem","x":620,"y":450}]'
+      edges='[{"from":"a1","to":"sk1","kind":"skill"},{"from":"a1","to":"sk2","kind":"skill"},{"from":"a2","to":"sk2","kind":"skill"},{"from":"a2","to":"mc1","kind":"mcp","dashed":true}]'
+    ></sui-graph-canvas>
+    <p id="demo-graph-status" style="margin-top:12px;font-size:var(--text-xs);color:var(--muted-foreground)">No node selected.</p>
+    <script>
+      (function () {
+        var g = document.getElementById('demo-graph');
+        var s = document.getElementById('demo-graph-status');
+        if (g && s) {
+          g.addEventListener('sui-node-select', function (e) {
+            s.textContent = 'Selected: ' + e.detail.kind + ' / ' + e.detail.id;
+          });
+        }
+      })();
+    </script>
+    <button onclick="document.getElementById('sui-graph-canvas-demo').style.display='none'" style="margin-top:16px;display:block;padding:6px 12px;background:var(--muted);border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;color:var(--foreground)">Close</button>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

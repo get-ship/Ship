@@ -1,0 +1,36 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "triggerWrap",
+      "deps": [
+        "triggerWrap"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "bind:this",
+      "expr": "triggerSlot",
+      "deps": [
+        "triggerSlot"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "bind:this",
+      "expr": "panelEl",
+      "deps": [
+        "panelEl"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "bind:this",
+      "expr": "itemSlot",
+      "deps": [
+        "itemSlot"
+      ]
+    }
+  ]
+}

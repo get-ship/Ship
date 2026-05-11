@@ -1,0 +1,148 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "if",
+      "expr": "viewName()",
+      "deps": [
+        "viewName"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "text",
+      "expr": "viewName()",
+      "deps": [
+        "viewName"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "if",
+      "expr": "errCount() > 0",
+      "deps": [
+        "errCount"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "text",
+      "expr": "errCount()",
+      "deps": [
+        "errCount"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "if",
+      "expr": "warnCount() > 0",
+      "deps": [
+        "warnCount"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "text",
+      "expr": "warnCount()",
+      "deps": [
+        "warnCount"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "if",
+      "expr": "loading()",
+      "deps": [
+        "loading"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "if",
+      "expr": "errorMsg()",
+      "deps": [
+        "errorMsg"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "text",
+      "expr": "errorMsg()",
+      "deps": [
+        "errorMsg"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "for",
+      "expr": "filteredFindings()",
+      "deps": [
+        "filteredFindings"
+      ]
+    },
+    {
+      "key": "b10",
+      "kind": "class:err",
+      "expr": "f.severity === 'error'",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b11",
+      "kind": "class:warn",
+      "expr": "f.severity !== 'error'",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b12",
+      "kind": "text",
+      "expr": "f.severity",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b13",
+      "kind": "text",
+      "expr": "f.file",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b14",
+      "kind": "text",
+      "expr": "f.line",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b15",
+      "kind": "text",
+      "expr": "f.col",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b16",
+      "kind": "text",
+      "expr": "f.rule",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b17",
+      "kind": "text",
+      "expr": "f.message",
+      "deps": [
+        "f"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "attr:aria-label",
+      "expr": "label()",
+      "deps": [
+        "label"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "bind:this",
+      "expr": "buttonEl",
+      "deps": [
+        "buttonEl"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "if",
+      "expr": "copied()",
+      "deps": [
+        "copied"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "text",
+      "expr": "copied() ? 'Copied' : label()",
+      "deps": [
+        "copied",
+        "label"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,41 @@
+[package]
+name = "ship-sui-server"
+version = "0.1.0"
+edition = "2024"
+publish = false
+description = "SUI framework HTTP server — axum handlers wrapping ship-sui-host. Daemon mounts these routes."
+
+[lib]
+name = "ship_sui_server"
+path = "src/lib.rs"
+
+[features]
+default = []
+specta = ["dep:specta"]
+
+[dependencies]
+ship-sui-host = { path = "../ship-sui-host" }
+sui-compiler = { path = "../sui-compiler" }
+sui-signals = { path = "../sui-signals" }
+runtime = { path = "../core/runtime" }
+
+axum = { workspace = true, features = ["http1", "tokio", "ws"] }
+tokio = { workspace = true, features = ["full"] }
+tokio-stream = { version = "0.1", features = ["sync"] }
+futures-util = { workspace = true }
+async-trait = { workspace = true }
+
+serde = { workspace = true }
+serde_json = { workspace = true }
+specta = { workspace = true, features = ["serde_json"], optional = true }
+
+anyhow = { workspace = true }
+tracing = { workspace = true }
+notify = { workspace = true }
+datastar = { version = "=0.3.1", features = ["axum"] }
+tempfile = "3"
+
+[dev-dependencies]
+tempfile = "3"
+filetime = "0.2"
+tokio = { workspace = true, features = ["test-util", "macros", "rt-multi-thread"] }

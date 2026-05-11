@@ -1,0 +1,28 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-timestamp",
+    "props": [
+      {
+        "name": "value",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "format",
+        "default": "relative",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "relative",
+          "absolute",
+          "both"
+        ]
+      }
+    ]
+  }
+}

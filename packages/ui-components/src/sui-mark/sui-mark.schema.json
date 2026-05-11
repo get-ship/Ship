@@ -1,0 +1,26 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-mark",
+    "props": [
+      {
+        "name": "tone",
+        "default": "warning",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "primary",
+          "info",
+          "success",
+          "warning",
+          "destructive",
+          "accent",
+          "muted"
+        ]
+      }
+    ]
+  }
+}

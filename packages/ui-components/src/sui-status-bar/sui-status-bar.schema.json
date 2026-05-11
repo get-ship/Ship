@@ -1,0 +1,37 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-status-bar",
+    "props": [
+      {
+        "name": "branch",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "theme",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "online",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "agents",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

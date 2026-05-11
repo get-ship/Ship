@@ -1,0 +1,197 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "SUI",
+  "scopeName": "source.sui",
+  "fileTypes": ["sui"],
+  "patterns": [
+    { "include": "#comment" },
+    { "include": "#directive-element" },
+    { "include": "#control-flow-block" },
+    { "include": "#interpolation" },
+    { "include": "#tag" }
+  ],
+  "repository": {
+    "comment": {
+      "name": "comment.block.sui",
+      "begin": "<!--",
+      "end": "-->",
+      "captures": {
+        "0": { "name": "punctuation.definition.comment.sui" }
+      }
+    },
+
+    "directive-element": {
+      "comment": "Distinct color for runtime directive elements (data/state/component/prop/while-*).",
+      "begin": "(</?)(data|state|component|prop|while-loading|while-error)\\b",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.sui" },
+        "2": { "name": "keyword.directive.tag.sui" }
+      },
+      "end": "(/?>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.sui" }
+      },
+      "patterns": [
+        { "include": "#tag-attributes" }
+      ]
+    },
+
+    "tag": {
+      "begin": "(</?)([a-zA-Z][a-zA-Z0-9-]*)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.begin.sui" },
+        "2": { "name": "entity.name.tag.sui" }
+      },
+      "end": "(/?>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.end.sui" }
+      },
+      "patterns": [
+        { "include": "#tag-attributes" }
+      ]
+    },
+
+    "tag-attributes": {
+      "patterns": [
+        { "include": "#binding-attribute" },
+        { "include": "#attribute-with-brace-value" },
+        { "include": "#attribute-with-string-value" },
+        { "include": "#bare-attribute" }
+      ]
+    },
+
+    "binding-attribute": {
+      "comment": "bind:/on:/class:/style:/attr:/let: prefixes — distinct color from plain attributes.",
+      "patterns": [
+        {
+          "match": "(bind|class|style|attr|let)(:)([a-zA-Z_][a-zA-Z0-9_-]*|--[a-zA-Z_][a-zA-Z0-9_-]*)?",
+          "captures": {
+            "1": { "name": "storage.modifier.directive.sui" },
+            "2": { "name": "punctuation.separator.directive.sui" },
+            "3": { "name": "entity.other.attribute-name.directive.sui" }
+          }
+        },
+        {
+          "comment": "on:event[|modifier]* — capture event name and modifier list separately.",
+          "match": "(on)(:)([a-zA-Z_][a-zA-Z0-9_-]*)((?:\\|[a-zA-Z_][a-zA-Z0-9_-]*)*)",
+          "captures": {
+            "1": { "name": "storage.modifier.directive.sui" },
+            "2": { "name": "punctuation.separator.directive.sui" },
+            "3": { "name": "entity.other.attribute-name.directive.sui" },
+            "4": { "name": "support.function.event-modifier.sui" }
+          }
+        }
+      ]
+    },
+
+    "attribute-with-brace-value": {
+      "begin": "([a-zA-Z_][a-zA-Z0-9_-]*)\\s*(=)\\s*(?=\\{)",
+      "beginCaptures": {
+        "1": { "name": "entity.other.attribute-name.sui" },
+        "2": { "name": "punctuation.separator.key-value.sui" }
+      },
+      "end": "(?<=\\})",
+      "patterns": [
+        { "include": "#interpolation" }
+      ]
+    },
+
+    "attribute-with-string-value": {
+      "begin": "([a-zA-Z_][a-zA-Z0-9_-]*)\\s*(=)",
+      "beginCaptures": {
+        "1": { "name": "entity.other.attribute-name.sui" },
+        "2": { "name": "punctuation.separator.key-value.sui" }
+      },
+      "end": "(?<=['\"])",
+      "patterns": [
+        {
+          "name": "string.quoted.double.sui",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.sui",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+
+    "bare-attribute": {
+      "match": "\\b[a-zA-Z_][a-zA-Z0-9_-]*\\b",
+      "name": "entity.other.attribute-name.sui"
+    },
+
+    "control-flow-block": {
+      "patterns": [
+        {
+          "comment": "Block openers: {#if, {#for, {#match. Body up to } is JS-ish — inject TS.",
+          "begin": "(\\{)(#if|#for|#match)\\b",
+          "beginCaptures": {
+            "1": { "name": "punctuation.section.embedded.begin.sui" },
+            "2": { "name": "keyword.control.directive.sui" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.embedded.end.sui" }
+          },
+          "contentName": "meta.embedded.expression.sui",
+          "patterns": [
+            { "include": "#for-keywords" },
+            { "include": "source.ts" }
+          ]
+        },
+        {
+          "comment": "Mid-block markers carrying a body: {:else if, {:elif, {:case.",
+          "begin": "(\\{)(:else if|:elif|:case)\\b",
+          "beginCaptures": {
+            "1": { "name": "punctuation.section.embedded.begin.sui" },
+            "2": { "name": "keyword.control.directive.sui" }
+          },
+          "end": "(\\})",
+          "endCaptures": {
+            "1": { "name": "punctuation.section.embedded.end.sui" }
+          },
+          "contentName": "meta.embedded.expression.sui",
+          "patterns": [
+            { "include": "source.ts" }
+          ]
+        },
+        {
+          "comment": "Body-less markers: {:else}, {:default}, {/if}, {/for}, {/match}.",
+          "match": "(\\{)(:else|:default|/if|/for|/match)(\\})",
+          "captures": {
+            "1": { "name": "punctuation.section.embedded.begin.sui" },
+            "2": { "name": "keyword.control.directive.sui" },
+            "3": { "name": "punctuation.section.embedded.end.sui" }
+          }
+        }
+      ]
+    },
+
+    "for-keywords": {
+      "patterns": [
+        {
+          "name": "keyword.operator.directive.sui",
+          "match": "\\b(of|key)\\b"
+        }
+      ]
+    },
+
+    "interpolation": {
+      "comment": "Plain {expr} — body is a TS expression.",
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.embedded.begin.sui" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.embedded.end.sui" }
+      },
+      "contentName": "meta.embedded.expression.sui",
+      "patterns": [
+        { "include": "source.ts" }
+      ]
+    }
+  }
+}

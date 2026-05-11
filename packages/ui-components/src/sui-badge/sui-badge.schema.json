@@ -1,0 +1,57 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-badge",
+    "props": [
+      {
+        "name": "tone",
+        "default": "default",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "primary",
+          "info",
+          "success",
+          "warning",
+          "destructive",
+          "accent",
+          "muted"
+        ]
+      },
+      {
+        "name": "variant",
+        "default": "soft",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "solid",
+          "soft",
+          "outline"
+        ]
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      },
+      {
+        "name": "pill",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

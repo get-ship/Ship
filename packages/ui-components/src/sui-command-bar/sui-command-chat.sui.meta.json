@@ -1,0 +1,208 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "style:background",
+      "expr": "headerDotBg()",
+      "deps": [
+        "headerDotBg"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "text",
+      "expr": "bar.session()?.agent_id ?? ''",
+      "deps": [
+        "bar"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "text",
+      "expr": "bar.session()?.provider ?? '—'",
+      "deps": [
+        "bar"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "text",
+      "expr": "bar.session()?.workspace_id ?? ''",
+      "deps": [
+        "bar"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "on:click",
+      "expr": "toggleSessionPicker",
+      "deps": [
+        "toggleSessionPicker"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "if",
+      "expr": "bar.sessionPickerOpen()",
+      "deps": [
+        "bar"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "for",
+      "expr": "activeSessions()",
+      "deps": [
+        "activeSessions"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "class:current",
+      "expr": "bar.session()?.id === s.id",
+      "deps": [
+        "bar",
+        "s"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "on:click",
+      "expr": "() => selectSession(s.id)",
+      "deps": [
+        "selectSession",
+        "s"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "style:background",
+      "expr": "s.status === 'thinking' ? 'var(--warning,#d97706)' : 'var(--success,#16a34a)'",
+      "deps": [
+        "s"
+      ]
+    },
+    {
+      "key": "b10",
+      "kind": "text",
+      "expr": "s.agent_id ?? ''",
+      "deps": [
+        "s"
+      ]
+    },
+    {
+      "key": "b11",
+      "kind": "text",
+      "expr": "s.provider ?? ''",
+      "deps": [
+        "s"
+      ]
+    },
+    {
+      "key": "b12",
+      "kind": "text",
+      "expr": "s.workspace_id",
+      "deps": [
+        "s"
+      ]
+    },
+    {
+      "key": "b13",
+      "kind": "on:click",
+      "expr": "(e) => { e.stopPropagation(); endSession(s.id) }",
+      "deps": [
+        "e",
+        "endSession",
+        "s"
+      ]
+    },
+    {
+      "key": "b14",
+      "kind": "if",
+      "expr": "activeSessions().length === 0",
+      "deps": [
+        "activeSessions"
+      ]
+    },
+    {
+      "key": "b15",
+      "kind": "on:click",
+      "expr": "startNewSession",
+      "deps": [
+        "startNewSession"
+      ]
+    },
+    {
+      "key": "b16",
+      "kind": "on:click",
+      "expr": "viewChats",
+      "deps": [
+        "viewChats"
+      ]
+    },
+    {
+      "key": "b17",
+      "kind": "if",
+      "expr": "bar.thread().length === 0",
+      "deps": [
+        "bar"
+      ]
+    },
+    {
+      "key": "b18",
+      "kind": "for",
+      "expr": "bar.thread()",
+      "deps": [
+        "bar"
+      ]
+    },
+    {
+      "key": "b19",
+      "kind": "attr:data-sender",
+      "expr": "msg.sender",
+      "deps": [
+        "msg"
+      ]
+    },
+    {
+      "key": "b20",
+      "kind": "text",
+      "expr": "msg.text",
+      "deps": [
+        "msg"
+      ]
+    },
+    {
+      "key": "b21",
+      "kind": "bind:value",
+      "expr": "bar.value",
+      "deps": [
+        "bar"
+      ]
+    },
+    {
+      "key": "b22",
+      "kind": "on:keydown",
+      "expr": "onComposerKeydown",
+      "deps": [
+        "onComposerKeydown"
+      ]
+    },
+    {
+      "key": "b23",
+      "kind": "attr:disabled",
+      "expr": "!bar.value().trim()",
+      "deps": [
+        "bar"
+      ]
+    },
+    {
+      "key": "b24",
+      "kind": "on:click",
+      "expr": "sendMessage",
+      "deps": [
+        "sendMessage"
+      ]
+    }
+  ]
+}

@@ -76,7 +76,7 @@ pub(crate) fn resolve_worktree(
 /// Read the current branch name at `root` via `git rev-parse`. None on any
 /// failure (not a git repo, detached HEAD, git missing).
 fn current_branch_at(root: &std::path::Path) -> Option<String> {
-    let output = std::process::Command::new("git")
+    let output = crate::spawn_bounded::Cmd::new("git")
         .args(["rev-parse", "--abbrev-ref", "HEAD"])
         .current_dir(root)
         .output()
@@ -93,7 +93,7 @@ fn current_branch_at(root: &std::path::Path) -> Option<String> {
 pub(crate) fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
     let project_ship = ship_application::project::get_project_dir(None).ok()?;
     let project_root = project_ship.parent()?;
-    let output = std::process::Command::new("git")
+    let output = crate::spawn_bounded::Cmd::new("git")
         .args(["worktree", "list", "--porcelain"])
         .current_dir(project_root)
         .output()
@@ -111,9 +111,8 @@ pub(crate) fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
                 found_branch = Some(b.trim().to_string());
             }
         }
-        if let (Some(p), Some(b)) = (path, found_branch) {
-            if b == branch { return Some(PathBuf::from(p)); }
-        }
+        if let (Some(p), Some(b)) = (path, found_branch)
+            && b == branch { return Some(PathBuf::from(p)); }
     }
     None
 }

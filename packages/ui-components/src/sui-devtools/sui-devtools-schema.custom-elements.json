@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-devtools-schema.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiDevtoolsSchema",
+          "tagName": "sui-devtools-schema",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [],
+          "members": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-devtools-schema",
+          "declaration": {
+            "name": "SuiDevtoolsSchema",
+            "module": "sui-devtools-schema.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

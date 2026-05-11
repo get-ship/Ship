@@ -122,10 +122,7 @@ fn skill_file_rel(id: &str, path: &str) -> PathBuf {
 // ── Scope resolution ──────────────────────────────────────────────────
 
 pub fn find(files: &FilesService, id: &str) -> Option<Scope> {
-    for scope in [Scope::Project, Scope::User] {
-        if files.exists(scope, &skill_md_rel(id)) { return Some(scope); }
-    }
-    None
+    [Scope::Project, Scope::User].into_iter().find(|&scope| files.exists(scope, &skill_md_rel(id)))
 }
 
 fn resolve_scope(

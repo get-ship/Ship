@@ -1,0 +1,16 @@
+{
+  "data": [
+    {
+      "name": "overview",
+      "source": "ship.git.overview()",
+      "live": true
+    }
+  ],
+  "state": [
+    {
+      "name": "tab",
+      "value": "'changes'"
+    }
+  ],
+  "component": null
+}

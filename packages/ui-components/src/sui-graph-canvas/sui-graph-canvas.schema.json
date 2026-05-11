@@ -1,0 +1,55 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-graph-canvas",
+    "props": [
+      {
+        "name": "nodes",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "edges",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "width",
+        "default": "1000",
+        "reflect": true,
+        "bindable": false,
+        "type": "number"
+      },
+      {
+        "name": "height",
+        "default": "600",
+        "reflect": true,
+        "bindable": false,
+        "type": "number"
+      },
+      {
+        "name": "layout",
+        "default": "positioned",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "positioned",
+          "radial"
+        ]
+      },
+      {
+        "name": "selected-id",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

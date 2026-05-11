@@ -110,9 +110,9 @@ fn string_list(v: Option<&Value>) -> Vec<String> {
 
 /// Parse an endpoint key of the form "METHOD /path" into (method, path).
 fn split_url_key(key: &str) -> Option<(&str, &str)> {
-    let mut it = key.splitn(2, ' ');
-    let m = it.next()?;
-    let p = it.next()?;
+    let (m, p) = key.split_once(' ')?;
+    
+    
     Some((m, p))
 }
 
@@ -153,13 +153,11 @@ fn extract_action_urls(manifest: &Value, urls: &Value) -> Vec<ActionUrl> {
     let mut strings: Vec<&str> = Vec::new();
     collect_strings(manifest, &mut strings);
     for s in strings {
-        if let Some((m, p)) = split_url_key(s) {
-            if matches!(m, "GET" | "POST" | "PUT" | "DELETE" | "PATCH") && p.starts_with('/') {
-                if let Some(au) = push(m, p) {
+        if let Some((m, p)) = split_url_key(s)
+            && matches!(m, "GET" | "POST" | "PUT" | "DELETE" | "PATCH") && p.starts_with('/')
+                && let Some(au) = push(m, p) {
                     out.push(au);
                 }
-            }
-        }
     }
     out
 }

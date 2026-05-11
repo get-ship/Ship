@@ -160,7 +160,7 @@
           "type": "any",
           "required": true,
           "default": null,
-          "description": "View slug registered with the daemon. Resolves to `/api/view/<view_name>/sse`."
+          "description": "View slug registered with the daemon. Resolves to `/api/v1/view/<view_name>/sse`."
         }
       ],
       "returns": "html-attributes",
@@ -278,7 +278,7 @@
       "returns": "html-attributes",
       "description": "Standard error branch for any view. Takes an `ErrorView`-shaped dict\n({title, body, details?}) and renders a <ship-error-state>. Keep\ntemplates simple: one line at the top of each view guarded by\n`{% if error %}`.",
       "summary": "Standard error branch for any view. Takes an `ErrorView`-shaped dict ({title, body, details?}) and renders a <ship-error-state>. Keep templates simple: one line at the top of each view guarded by `{% if error %}`.",
-      "example": "{% if error %}{{ error_state(error, retry='/api/v/git') }}{% endif %}",
+      "example": "{% if error %}{{ error_state(error, retry='/api/v1/v/git') }}{% endif %}",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:228"
@@ -299,7 +299,7 @@
       "returns": "html-attributes",
       "description": "Wire a raw click handler. The `action` payload is Datastar syntax\n(e.g. `@get('/x')` or `$y = true`) passed through verbatim.",
       "summary": "Wire a raw click handler. The `action` payload is Datastar syntax (e.g. `@get('/x')` or `$y = true`) passed through verbatim.",
-      "example": "<ship-button {{ on_click(\"@get('/api/v/foo')\") }}>Refresh</ship-button>",
+      "example": "<ship-button {{ on_click(\"@get('/api/v1/v/foo')\") }}>Refresh</ship-button>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:257"
@@ -320,7 +320,7 @@
       "returns": "html-attributes",
       "description": "Like `on_click`, but with `.prevent` to stop the default action. Use\nfor anchors and form buttons where a bare click would navigate or\nsubmit.",
       "summary": "Like `on_click`, but with `.prevent` to stop the default action. Use for anchors and form buttons where a bare click would navigate or submit.",
-      "example": "<a href=\"/foo\" {{ on_click_prevent(\"@get('/api/v/foo')\") }}>Foo</a>",
+      "example": "<a href=\"/foo\" {{ on_click_prevent(\"@get('/api/v1/v/foo')\") }}>Foo</a>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:269"
@@ -341,7 +341,7 @@
       "returns": "html-attributes",
       "description": "Wire a form-submit handler that always prevents the default browser\nsubmission. `action` is Datastar syntax.",
       "summary": "Wire a form-submit handler that always prevents the default browser submission. `action` is Datastar syntax.",
-      "example": "<form {{ on_submit(\"@post('/api/collections/task/items', {payload: $form})\") }}>",
+      "example": "<form {{ on_submit(\"@post('/api/v1/collections/task/items', {payload: $form})\") }}>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:280"
@@ -439,7 +439,7 @@
       "returns": "html-attributes",
       "description": "Run a Datastar action when the element connects. Mostly used to\nbootstrap an SSE subscription or seed signals on mount.",
       "summary": "Run a Datastar action when the element connects. Mostly used to bootstrap an SSE subscription or seed signals on mount.",
-      "example": "<div {{ init(\"@get('/api/sse/chat')\") }}>...</div>",
+      "example": "<div {{ init(\"@get('/api/v1/sse/chat')\") }}>...</div>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:325"
@@ -545,13 +545,13 @@
           "type": "any",
           "required": true,
           "default": null,
-          "description": "URL to GET (typically under `/api/view/...`)."
+          "description": "URL to GET (typically under `/api/v1/view/...`)."
         }
       ],
       "returns": "html-attributes",
       "description": "Wire a click handler that fetches another view via Datastar `@get`,\ntriggering an in-page morph. Use this for partial updates within the\ncurrent view. For full shell-level routing use `nav()` or `view()`.",
       "summary": "Wire a click handler that fetches another view via Datastar `@get`, triggering an in-page morph. Use this for partial updates within the current view. For full shell-level routing use `nav()` or `view()`.",
-      "example": "<ship-button {{ navigate('/api/view/pipelines') }}>\n    Pipelines\n  </ship-button>",
+      "example": "<ship-button {{ navigate('/api/v1/view/pipelines') }}>\n    Pipelines\n  </ship-button>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:395"
@@ -642,7 +642,7 @@
       "returns": "html-attributes",
       "description": "Wire a click handler that issues a Datastar `@get` to the given URL.",
       "summary": "Wire a click handler that issues a Datastar `@get` to the given URL.",
-      "example": "<ship-button {{ get('/api/jobs') }}>Refresh jobs</ship-button>",
+      "example": "<ship-button {{ get('/api/v1/jobs') }}>Refresh jobs</ship-button>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:459"
@@ -670,7 +670,7 @@
       "returns": "html-attributes",
       "description": "Wire a click handler that issues a Datastar `@post` to the given URL\nwith the supplied payload expression.",
       "summary": "Wire a click handler that issues a Datastar `@post` to the given URL with the supplied payload expression.",
-      "example": "<ship-button {{ post('/api/jobs', '$newJob') }}>Run</ship-button>",
+      "example": "<ship-button {{ post('/api/v1/jobs', '$newJob') }}>Run</ship-button>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:475"
@@ -698,7 +698,7 @@
       "returns": "html-attributes",
       "description": "Wire a click handler that issues a Datastar `@put`.",
       "summary": "Wire a click handler that issues a Datastar `@put`.",
-      "example": "<ship-button {{ put('/api/settings', '{theme: $theme}') }}>Save</ship-button>",
+      "example": "<ship-button {{ put('/api/v1/settings', '{theme: $theme}') }}>Save</ship-button>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:489"
@@ -726,7 +726,7 @@
       "returns": "html-attributes",
       "description": "Wire a change-event handler (fires on every committed input change)\nthat issues a Datastar `@put`. Good for settings inputs that persist\non change without an explicit save button.",
       "summary": "Wire a change-event handler (fires on every committed input change) that issues a Datastar `@put`. Good for settings inputs that persist on change without an explicit save button.",
-      "example": "<ship-input {{ bind('theme') }}\n              {{ put_on_change('/api/settings', '{theme: $theme}') }}>\n  </ship-input>",
+      "example": "<ship-input {{ bind('theme') }}\n              {{ put_on_change('/api/v1/settings', '{theme: $theme}') }}>\n  </ship-input>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:507"
@@ -754,7 +754,7 @@
       "returns": "html-attributes",
       "description": "Wire a form `submit` handler that POSTs the given payload.",
       "summary": "Wire a form `submit` handler that POSTs the given payload.",
-      "example": "<form {{ submit('/api/specs', '$form') }}>...</form>",
+      "example": "<form {{ submit('/api/v1/specs', '$form') }}>...</form>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:521"
@@ -829,8 +829,8 @@
         }
       ],
       "returns": "html-attributes",
-      "description": "Wire a click handler that posts a kernel event via `/api/events/emit`.\nUse to trigger backend side-effects that other views listen to over SSE.",
-      "summary": "Wire a click handler that posts a kernel event via `/api/events/emit`. Use to trigger backend side-effects that other views listen to over SSE.",
+      "description": "Wire a click handler that posts a kernel event via `/api/v1/events/emit`.\nUse to trigger backend side-effects that other views listen to over SSE.",
+      "summary": "Wire a click handler that posts a kernel event via `/api/v1/events/emit`. Use to trigger backend side-effects that other views listen to over SSE.",
       "example": "<ship-button {{ emit('task.requested', '{title: $title}') }}>\n    Request\n  </ship-button>",
       "since": "0.1.0",
       "documented": true,
@@ -944,7 +944,7 @@
           "type": "string",
           "required": false,
           "default": "''",
-          "description": "When set, a `@get('/api/view/<view_name>/sse')` is appended to refresh results. Defaults to the empty string (client-only filter)."
+          "description": "When set, a `@get('/api/v1/view/<view_name>/sse')` is appended to refresh results. Defaults to the empty string (client-only filter)."
         }
       ],
       "returns": "html-attributes",
@@ -972,7 +972,7 @@
           "type": "string",
           "required": false,
           "default": "''",
-          "description": "When set, refreshes `/api/view/<view_name>/sse` after clearing."
+          "description": "When set, refreshes `/api/v1/view/<view_name>/sse` after clearing."
         }
       ],
       "returns": "html-attributes",
@@ -1041,7 +1041,7 @@
       "returns": "html-attributes",
       "description": "Run an expression on `change`, debounced. Useful for settings that\nauto-save after the user finishes editing.",
       "summary": "Run an expression on `change`, debounced. Useful for settings that auto-save after the user finishes editing.",
-      "example": "<ship-input {{ bind('name') }}\n              {{ on_change_debounced(\"@put('/api/settings', {payload: {name: $name}})\") }}>\n  </ship-input>",
+      "example": "<ship-input {{ bind('name') }}\n              {{ on_change_debounced(\"@put('/api/v1/settings', {payload: {name: $name}})\") }}>\n  </ship-input>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:712"
@@ -1125,7 +1125,7 @@
       "returns": "html-attributes",
       "description": "Wire a click handler that shows a browser `confirm()` dialog with the\ngiven message and, on OK, runs the Datastar expression.",
       "summary": "Wire a click handler that shows a browser `confirm()` dialog with the given message and, on OK, runs the Datastar expression.",
-      "example": "<ship-button {{ confirm('Cancel this job?', \"@post('/api/jobs/\" ~ job.id ~ \"/cancel')\") }}>\n    Cancel\n  </ship-button>",
+      "example": "<ship-button {{ confirm('Cancel this job?', \"@post('/api/v1/jobs/\" ~ job.id ~ \"/cancel')\") }}>\n    Cancel\n  </ship-button>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:765"
@@ -1174,7 +1174,7 @@
       "returns": "html-attributes",
       "description": "Bind a signal to receive a failure message when a fetch action on\nTHIS element returns an HTTP error or non-SSE body.\n\nDatastar fires a `datastar-fetch` event on document with\n  detail: { type: 'error', el: <trigger>, argsRaw: { status } }\nwhen `onopen` sees a >= 400 response. This macro attaches a\ndocument-level listener scoped to the current element so a failed\n`@post`/`@get`/`@put`/`@delete` patches the named error signal.",
       "summary": "Bind a signal to receive a failure message when a fetch action on THIS element returns an HTTP error or non-SSE body.",
-      "example": "<ship-button\n    data-on:click=\"$step = 3; @post('/api/projects', {payload: ...})\"\n    {{ on_fetch_error('ws_error') }}>\n    Continue\n  </ship-button>",
+      "example": "<ship-button\n    data-on:click=\"$step = 3; @post('/api/v1/projects', {payload: ...})\"\n    {{ on_fetch_error('ws_error') }}>\n    Continue\n  </ship-button>",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:814"
@@ -1478,9 +1478,9 @@
         }
       ],
       "returns": "html-attributes",
-      "description": "Open a `<ship-card>` with a standardized slot-header row: optional\nleading ship-icon + title on the left, optional trailing link pill\n(muted text + right-chevron) on the right. Must be paired with\n`endsection()`.\n\nWhen `link_href` starts with `/api/view/`, the trailing link\nis wired to `@get(link_href)` with `.prevent` so SSE-aware navigation\ntakes over. Otherwise it is a plain anchor.\n\nThe layout is inline-styled on purpose — the macro owns the\nstandardized design tokens so view authors don't have to re-declare\n`.dash-section-head`.",
+      "description": "Open a `<ship-card>` with a standardized slot-header row: optional\nleading ship-icon + title on the left, optional trailing link pill\n(muted text + right-chevron) on the right. Must be paired with\n`endsection()`.\n\nWhen `link_href` starts with `/api/v1/view/`, the trailing link\nis wired to `@get(link_href)` with `.prevent` so SSE-aware navigation\ntakes over. Otherwise it is a plain anchor.\n\nThe layout is inline-styled on purpose — the macro owns the\nstandardized design tokens so view authors don't have to re-declare\n`.dash-section-head`.",
       "summary": "Open a `<ship-card>` with a standardized slot-header row: optional leading ship-icon + title on the left, optional trailing link pill (muted text + right-chevron) on the right. Must be paired with `endsection()`.",
-      "example": "{{ section('Recent jobs', icon='activity',\n             link_href='/api/view/pipelines',\n             link_label='View all') }}\n    <ship-list-tile>...</ship-list-tile>\n  {{ endsection() }}",
+      "example": "{{ section('Recent jobs', icon='activity',\n             link_href='/api/v1/view/pipelines',\n             link_label='View all') }}\n    <ship-list-tile>...</ship-list-tile>\n  {{ endsection() }}",
       "since": "0.1.0",
       "documented": true,
       "source": "apps/shipd/templates/_ship.html.j2:1108"

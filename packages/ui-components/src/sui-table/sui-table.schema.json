@@ -1,0 +1,82 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-table",
+    "props": [
+      {
+        "name": "variant",
+        "default": "slot",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "slot",
+          "native",
+          "data"
+        ]
+      },
+      {
+        "name": "density",
+        "default": "default",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "compact",
+          "default",
+          "comfortable"
+        ]
+      },
+      {
+        "name": "dense",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "hoverable",
+        "default": "true",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "striped",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "sticky-header",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "sticky-first-col",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "gutter",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "label",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

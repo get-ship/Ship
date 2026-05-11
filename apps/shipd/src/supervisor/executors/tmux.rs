@@ -67,15 +67,15 @@ impl JobExecutor for TmuxExecutor {
         // shell before the new claude even starts. `clear` + clear-history
         // gives a clean slate.
         if reuse_session {
-            let _ = std::process::Command::new("tmux")
+            let _ = crate::spawn_bounded::Cmd::new("tmux")
                 .args(["send-keys", "-t", &tmux_session, "clear", "C-m"])
                 .status();
-            let _ = std::process::Command::new("tmux")
+            let _ = crate::spawn_bounded::Cmd::new("tmux")
                 .args(["clear-history", "-t", &tmux_session])
                 .status();
         }
 
-        let result = std::process::Command::new("tmux")
+        let result = crate::spawn_bounded::Cmd::new("tmux")
             .args(["send-keys", "-t", &tmux_session, &shell_cmd, "Enter"])
             .status();
         if let Err(e) = result {
@@ -126,7 +126,7 @@ impl JobExecutor for TmuxExecutor {
             Some(s) => s,
             None => return false,
         };
-        std::process::Command::new("tmux")
+        crate::spawn_bounded::Cmd::new("tmux")
             .args(["has-session", "-t", &state.session])
             .status()
             .map(|s| s.success())
@@ -144,7 +144,7 @@ impl JobExecutor for TmuxExecutor {
         let exit_command = adapter_for_or_default(state.provider.as_deref())
             .map(|a| a.exit_command().to_string())
             .unwrap_or_default();
-        let _ = std::process::Command::new("tmux")
+        let _ = crate::spawn_bounded::Cmd::new("tmux")
             .args(["send-keys", "-t", &state.session, &exit_command, "Enter"])
             .status();
         tracing::debug!(
@@ -155,7 +155,7 @@ impl JobExecutor for TmuxExecutor {
         // Wait up to 30s for the session to disappear.
         for _ in 0..30 {
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-            let alive = std::process::Command::new("tmux")
+            let alive = crate::spawn_bounded::Cmd::new("tmux")
                 .args(["has-session", "-t", &state.session])
                 .status()
                 .map(|s| s.success())
@@ -214,7 +214,7 @@ impl JobExecutor for TmuxExecutor {
             Some(s) => s,
             None => return Ok(()),
         };
-        let status = std::process::Command::new("tmux")
+        let status = crate::spawn_bounded::Cmd::new("tmux")
             .args(["send-keys", "-t", &state.session, message, "Enter"])
             .status()
             .map_err(|e| anyhow::anyhow!("tmux send-keys failed: {e}"))?;
@@ -227,7 +227,7 @@ impl JobExecutor for TmuxExecutor {
 
 /// True when a tmux session with this name already exists.
 fn tmux_session_exists(session: &str) -> bool {
-    std::process::Command::new("tmux")
+    crate::spawn_bounded::Cmd::new("tmux")
         .args(["has-session", "-t", session])
         .status()
         .map(|s| s.success())
@@ -261,7 +261,7 @@ fn drive_agent_to_ready(session: &str, ready_pat: &str, autostart: &str) {
     for tick in 0..READY_DEADLINE {
         std::thread::sleep(std::time::Duration::from_secs(1));
 
-        let Ok(out) = std::process::Command::new("tmux")
+        let Ok(out) = crate::spawn_bounded::Cmd::new("tmux")
             .args(["capture-pane", "-t", session, "-p"])
             .output()
         else {
@@ -272,7 +272,7 @@ fn drive_agent_to_ready(session: &str, ready_pat: &str, autostart: &str) {
         // Channels menu on screen → dismiss, keep polling for the real prompt.
         if text.contains(MENU_TEXT) {
             tracing::info!(session, tick, "agent: dismissing channels confirmation");
-            let _ = std::process::Command::new("tmux")
+            let _ = crate::spawn_bounded::Cmd::new("tmux")
                 .args(["send-keys", "-t", session, "C-m"])
                 .status();
             // Give claude a beat to redraw before the next poll matches the
@@ -285,7 +285,7 @@ fn drive_agent_to_ready(session: &str, ready_pat: &str, autostart: &str) {
         // Real prompt visible AND menu gone → send autostart and we're done.
         if text.contains(ready_pat) {
             tracing::info!(session, tick, "agent: ready, sending autostart");
-            let _ = std::process::Command::new("tmux")
+            let _ = crate::spawn_bounded::Cmd::new("tmux")
                 .args(["send-keys", "-t", session, autostart, "Enter"])
                 .status();
             return;
@@ -312,7 +312,7 @@ fn monitor_tmux_session(
 ) {
     loop {
         std::thread::sleep(std::time::Duration::from_secs(5));
-        let alive = std::process::Command::new("tmux")
+        let alive = crate::spawn_bounded::Cmd::new("tmux")
             .args(["has-session", "-t", session])
             .status()
             .map(|s| s.success())

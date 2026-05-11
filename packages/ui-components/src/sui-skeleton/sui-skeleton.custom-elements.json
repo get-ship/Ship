@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-skeleton.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiSkeleton",
+          "tagName": "sui-skeleton",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "shape",
+              "type": {
+                "text": "'text' | 'line' | 'block' | 'circle'"
+              },
+              "default": "text",
+              "values": [
+                "text",
+                "line",
+                "block",
+                "circle"
+              ]
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "shape",
+              "type": {
+                "text": "'text' | 'line' | 'block' | 'circle'"
+              },
+              "attribute": "shape",
+              "default": "text",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-skeleton",
+          "declaration": {
+            "name": "SuiSkeleton",
+            "module": "sui-skeleton.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

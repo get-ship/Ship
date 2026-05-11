@@ -44,11 +44,10 @@ fn resolve_events(template: &std::path::Path, roots: &[std::path::PathBuf]) -> V
         }
         for fname in ["manifest.jsonc", "manifest.yaml", "manifest.json"] {
             let p = d.join(fname);
-            if p.is_file() {
-                if let Some(evs) = parse_manifest_events(&p) {
+            if p.is_file()
+                && let Some(evs) = parse_manifest_events(&p) {
                     return evs;
                 }
-            }
         }
         dir = d.parent();
     }
@@ -149,11 +148,10 @@ pub async fn serve_view_sse_routed(
 
         // Initial render — push the view root immediately so reconnects
         // pick up current state without waiting for an event.
-        if let Ok(html) = render_once(&state, &path, &query_params).await {
-            if vs.patch(&patch_selector, html).await.is_err() {
+        if let Ok(html) = render_once(&state, &path, &query_params).await
+            && vs.patch(&patch_selector, html).await.is_err() {
                 return;
             }
-        }
 
         // No events declared → keep the stream alive (heartbeat) but
         // never subscribe. Useful for views that just want a live

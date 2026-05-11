@@ -1,0 +1,543 @@
+// Shell 2.0 — SUI-native shell.
+//
+// One Vite app per peer with apps/shell, but everything below the top
+// bar is a SUI view mounted via the runtime's mount() function. The
+// shell's job:
+//
+//   1. Read location.pathname → derive the current view name + sub.
+//   2. Fetch /_sui/views/<name>[/<sub>] → ViewPayload.
+//   3. mount(content, payload) → MountHandle.
+//   4. On internal anchor clicks → history.pushState + re-mount.
+//   5. On popstate → re-mount.
+//   6. Theme: <sui-theme-picker> owns it (mounted in the top bar).
+//   7. Rail: <sui-rail> along the left edge; persists collapsed state.
+//   8. Status bar: <sui-status-bar> along the bottom; polls workspaces.
+
+import { createClient, type ShipSDK } from '@ship/sdk-client'
+import { shipFetch, gitStatus } from '@ship/sdk'
+import { initRailFeatures } from './rail-features'
+import { KernelBridge } from './kernel-bridge'
+
+interface MountFn {
+  (
+    target: HTMLElement,
+    payload: unknown,
+    opts?: {
+      cssScope?: 'adjacent' | 'document-head' | 'none'
+      ship?: ShipSDK
+    },
+  ): Promise<{ dispose(): void; element: HTMLElement }>
+}
+
+// Single SDK client instance, shared across every mounted view.
+const shipClient: ShipSDK = createClient()
+
+// ── window.ship API ──────────────────────────────────────────────────
+
+const kernelBridge = new KernelBridge()
+
+function initShipApi(): void {
+  window.ship = {
+    navigate(path: string) {
+      history.pushState({}, '', path)
+      document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
+    },
+    back() { history.back() },
+    current() { return { path: location.pathname } },
+    notify(message: string, tone?: 'success' | 'warning' | 'error' | 'info') {
+      document.dispatchEvent(new CustomEvent('sui:notify', {
+        detail: { title: message, tone, duration: 5000 },
+        bubbles: true,
+      }))
+    },
+    subscribe: kernelBridge.subscribe.bind(kernelBridge),
+    chat: {
+      open() { document.dispatchEvent(new CustomEvent('sui:chat:toggle', { bubbles: true })) },
+      send(message: string) {
+        document.dispatchEvent(new CustomEvent('sui:chat:send', { detail: { message }, bubbles: true }))
+      },
+    },
+    command() {
+      document.dispatchEvent(new CustomEvent('ship:bar:open', { bubbles: true }))
+    },
+  }
+}
+
+declare global {
+  interface Window {
+    ship?: {
+      navigate(path: string): void
+      back(): void
+      current(): { path: string }
+      notify(message: string, tone?: 'success' | 'warning' | 'error' | 'info'): void
+      subscribe(namespace: string, handler: (event: { event_type: string; entity: string; timestamp: string; payload: unknown; [k: string]: unknown }) => () => void): () => void
+      chat: {
+        open(): void
+        send(message: string): void
+      }
+      command(): void
+    }
+  }
+}
+
+interface SuiRuntime {
+  mount: MountFn
+}
+
+// Window globals set by index.html's IIFE bootstrap. Cast at the call
+// sites to avoid `declare global` in a non-ambient module file.
+type WindowWithSui = Window & {
+  __suiRuntime?: SuiRuntime
+  __suiRuntimeReady?: Promise<SuiRuntime>
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+}
+
+// ── Routing ─────────────────────────────────────────────────────────
+
+interface Route {
+  /** First path segment, e.g. "ship-ui-studio". */
+  view: string
+  /** Remaining path segments joined by "/", e.g. "sui-button". */
+  sub?: string
+}
+
+function readRoute(): Route | null {
+  const segs = location.pathname.split('/').filter(Boolean)
+  if (segs.length === 0) return null
+  return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
+}
+
+function routeToPath(r: Route): string {
+  return r.sub ? `/${r.view}/${r.sub}` : `/${r.view}`
+}
+
+function payloadUrl(r: Route): string {
+  return r.sub ? `/_sui/views/${r.view}/${r.sub}` : `/_sui/views/${r.view}`
+}
+
+// ── Mount lifecycle ─────────────────────────────────────────────────
+
+// Each `mountRoute` call gets a monotonic token. When its mount resolves,
+// we check the token against `latestMountToken`: if equal, we're the
+// latest navigation and become the current handle; otherwise we were
+// superseded mid-flight and immediately dispose ourselves so SSE
+// connections + style elements don't leak.
+let currentHandle: { dispose(): void } | null = null
+let latestMountToken = 0
+let currentRoute: Route | null = null
+
+async function mountRoute(r: Route): Promise<void> {
+  const slot = document.getElementById('ship-content')
+  if (!slot) throw new Error('shell: #ship-content missing from index.html')
+
+  const token = ++latestMountToken
+
+  // Notify devtools tabs of navigation.
+  document.dispatchEvent(new Event('sui:navigate'))
+
+  if (!r) {
+    // Landing page replaces the slot directly — dispose the previous
+    // SUI handle since its bindings reference DOM we're about to wipe.
+    currentHandle?.dispose()
+    currentHandle = null
+    return showLanding(slot)
+  }
+
+  const w = window as WindowWithSui
+  const runtime = await (w.__suiRuntimeReady ?? Promise.resolve(w.__suiRuntime))
+  if (!runtime?.mount) throw new Error('shell: SUI runtime did not load')
+
+  try {
+    const res = await fetch(payloadUrl(r), { credentials: 'same-origin' })
+    if (!res.ok) {
+      currentHandle?.dispose()
+      currentHandle = null
+      const viewPath = escapeHtml(`${r.view}${r.sub ? '/' + r.sub : ''}`)
+      slot.innerHTML = `<div class="shell-error">
+  <h2>Page not found</h2>
+  <p>The view <code>${viewPath}</code> isn't registered.</p>
+  <a href="/">← Home</a>
+</div>`
+      return
+    }
+    const payload = await res.json()
+
+    // Mount the next view BEFORE disposing the previous. mount() writes
+    // `target.innerHTML = payload.html` and inserts the new <style> as
+    // a sibling of the slot — the OLD view's <style> stays adjacent
+    // until we dispose, so there's never a frame between the old DOM
+    // being cleared and the new CSS being attached. (Pre-fix: dispose
+    // ran first, removing the old <style> immediately, leaving the
+    // old DOM unstyled until the fetch + mount completed — visible as
+    // CSS-loss flicker on every navigation, especially under load.)
+    const previous = currentHandle
+    const handle = await runtime.mount(slot, payload, {
+      cssScope: 'adjacent',
+      // SUI views call `ship.<domain>.<op>()` inside `<data live>`
+      // declarations. Without a `ship` SDK client wired to ctx,
+      // `ship` is undefined and the data lambda throws — visible
+      // as views stuck on `Loading…` because the patch never lands.
+      ship: shipClient,
+    })
+
+    // Race guard for rapid navigation: if a later mountRoute already
+    // bumped the token, we've been superseded. The fresh mount we just
+    // created is detached as soon as that later call's mount() runs
+    // its `target.innerHTML = …`, but its SSE connection + <style>
+    // would leak unless we dispose right now.
+    if (token !== latestMountToken) {
+      handle.dispose()
+      return
+    }
+
+    currentHandle = handle
+    currentRoute = r
+    // The new mount has replaced slot.innerHTML, so the previous view's
+    // DOM nodes are detached. Run its dispose to close SSE + remove the
+    // stale <style> element. Dispose is idempotent.
+    previous?.dispose()
+  } catch (err) {
+    slot.innerHTML = `<div class="shell-error">
+  <h2>Mount failed</h2>
+  <p>${escapeHtml((err as Error).message)}</p>
+  <a href="/">← Home</a>
+</div>`
+  }
+  updateNav(r)
+  updateRailActive(r)
+}
+
+function showLanding(slot: HTMLElement): void {
+  slot.innerHTML = `
+    <div class="shell-empty">
+      <h2>Ship</h2>
+      <p>Open a view: <a href="/ship-ui-studio">/ship-ui-studio</a> · <a href="/counter">/counter</a> · <a href="/sui-demo">/sui-demo</a></p>
+    </div>
+  `
+  currentRoute = null
+  updateNav(null)
+  updateRailActive(null)
+}
+
+function updateNav(r: Route | null): void {
+  const path = r ? routeToPath(r) : '/'
+  document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
+}
+
+// Mark the matching rail item active; clear all others.
+function updateRailActive(r: Route | null): void {
+  const items = document.querySelectorAll<HTMLElement>('sui-rail-item[data-view]')
+  const viewName = r?.view ?? ''
+  for (const item of items) {
+    if (item.dataset.view === viewName) item.setAttribute('active', '')
+    else item.removeAttribute('active')
+  }
+}
+
+// ── Click delegate ──────────────────────────────────────────────────
+//
+// Intercepts internal `<a href="/...">` clicks so view-internal nav
+// updates the URL + swaps the embedded view without a full reload.
+// Uses composedPath() to catch anchors inside shadow DOM (e.g. those
+// inside <sui-rail-item> shadow roots).
+
+function findAnchor(e: MouseEvent): HTMLAnchorElement | null {
+  // composedPath walks through shadow roots — catches shadow DOM links.
+  if (typeof e.composedPath === 'function') {
+    for (const el of e.composedPath()) {
+      if (el instanceof HTMLAnchorElement) return el
+    }
+  }
+  return (e.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null
+}
+
+function onAnchorClick(e: MouseEvent): void {
+  if (e.defaultPrevented) return
+  if (e.button !== 0) return
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+  const a = findAnchor(e)
+  if (!a) return
+  if (a.target && a.target !== '' && a.target !== '_self') return
+  if (a.hasAttribute('download')) return
+  if (a.dataset.noRouter !== undefined) return
+  if (a.getAttribute('href')?.startsWith('#')) return
+  if (a.origin !== location.origin) return
+
+  const next = readRouteFromUrl(a.pathname)
+  if (!next) return
+  e.preventDefault()
+  const path = routeToPath(next)
+  if (currentRoute && path === routeToPath(currentRoute)) return
+  history.pushState({}, '', path)
+  void mountRoute(next)
+}
+
+function readRouteFromUrl(pathname: string): Route | null {
+  const segs = pathname.split('/').filter(Boolean)
+  if (segs.length === 0) return null
+  return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
+}
+
+// ── Rail collapse persistence ────────────────────────────────────────
+//
+// Default behavior matches apps/shell: rail starts COLLAPSED (icon-only),
+// expands when the user opens it, persists via the same `ship-rail-open`
+// key so users who flip back and forth between shell + shell2 see the
+// same state. Pre-fix shell2 used its own inverted key
+// `ship-rail-collapsed` with the opposite default — port mismatch.
+
+const RAIL_OPEN_KEY = 'ship-rail-open'
+
+function initRail(): void {
+  const rail = document.getElementById('ship-rail')
+  if (!rail) return
+
+  // Restore persisted state before first paint. Default: collapsed.
+  // The rail expands only when the user has explicitly opened it.
+  let open = false
+  try {
+    open = !!localStorage.getItem(RAIL_OPEN_KEY)
+  } catch { /* best-effort */ }
+  applyRail(rail, open)
+
+  // sui-rail:toggle — fired by the rail's own collapse button
+  rail.addEventListener('sui-rail:toggle', (e: Event) => {
+    const collapsed = (e as CustomEvent<{ collapsed: boolean }>).detail?.collapsed
+    persistRailOpen(!collapsed)
+  })
+
+  // sui:rail:toggle — fired by sui-nav-top's menu button (toggle request)
+  document.addEventListener('sui:rail:toggle', () => {
+    const nextOpen = rail.hasAttribute('collapsed') // currently collapsed → open it
+    applyRail(rail, nextOpen)
+    persistRailOpen(nextOpen)
+  })
+}
+
+function applyRail(rail: HTMLElement, open: boolean): void {
+  if (open) {
+    rail.removeAttribute('collapsed')
+    document.body.classList.add('rail-open')
+    document.body.classList.remove('rail-collapsed')
+  } else {
+    rail.setAttribute('collapsed', '')
+    document.body.classList.remove('rail-open')
+    document.body.classList.add('rail-collapsed')
+  }
+}
+
+function persistRailOpen(open: boolean): void {
+  try {
+    if (open) localStorage.setItem(RAIL_OPEN_KEY, '1')
+    else localStorage.removeItem(RAIL_OPEN_KEY)
+  } catch { /* best-effort */ }
+}
+
+// ── Status bar ───────────────────────────────────────────────────────
+//
+// Polls /api/v1/workspaces every 15s and updates <sui-status-bar> props.
+// Reflects the current theme on every tick (set by sui-theme-picker via
+// applyTheme which writes data-theme on <html>).
+
+const statusBar = document.getElementById('ship-status-bar') as HTMLElement | null
+let daemonOnline = false
+
+async function updateStatus(): Promise<void> {
+  if (!statusBar) return
+  statusBar.setAttribute('theme', document.documentElement.dataset.theme ?? 'ship-light')
+
+  // Fetch the active project's actual git branch via /api/v1/git/status.
+  // The previous implementation pulled `workspaces[0].name` which returned
+  // the FIRST registered workspace globally — not necessarily the
+  // worktree the daemon is serving — so the status bar mis-labeled the
+  // branch on linked worktrees.
+  try {
+    const envelope = await shipFetch<{ data?: { branch?: string }; branch?: string }>(gitStatus())
+    const branch = envelope?.data?.branch ?? envelope?.branch ?? 'unknown'
+    statusBar.setAttribute('branch', branch)
+    statusBar.setAttribute('agents', '')
+    if (!daemonOnline) {
+      statusBar.setAttribute('online', '')
+      daemonOnline = true
+    }
+  } catch {
+    markOffline()
+  }
+}
+
+function markOffline(): void {
+  if (daemonOnline && statusBar) {
+    statusBar.removeAttribute('online')
+    statusBar.setAttribute('branch', 'offline')
+    statusBar.setAttribute('agents', '')
+    daemonOnline = false
+  }
+}
+
+// ── Toast bridge ────────────────────────────────────────────────────
+
+interface SuiNotifyDetail {
+  tone?: string
+  title?: string
+  message?: string
+  description?: string
+  duration?: number
+  dismissible?: boolean
+  showProgress?: boolean
+  actionHtml?: string
+}
+
+interface ToastContainer extends HTMLElement {
+  show(opts: {
+    tone?: string
+    title?: string
+    description?: string
+    duration?: number
+    dismissible?: boolean
+    showProgress?: boolean
+    actionHtml?: string
+  }): HTMLElement
+}
+
+function getToastContainer(): ToastContainer | null {
+  return document.getElementById('sui-toast-container') as ToastContainer | null
+}
+
+function onSuiNotify(e: Event): void {
+  const detail = ((e as CustomEvent).detail ?? {}) as SuiNotifyDetail
+  const container = getToastContainer()
+  if (!container) return
+  const opts: Parameters<ToastContainer['show']>[0] = {}
+  if (detail.tone !== undefined) opts.tone = detail.tone
+  const title = detail.title ?? detail.message
+  if (title !== undefined) opts.title = title
+  if (detail.description !== undefined) opts.description = detail.description
+  if (detail.duration !== undefined) opts.duration = detail.duration
+  if (detail.dismissible !== undefined) opts.dismissible = detail.dismissible
+  if (detail.showProgress !== undefined) opts.showProgress = detail.showProgress
+  if (detail.actionHtml !== undefined) opts.actionHtml = detail.actionHtml
+  container.show(opts)
+}
+
+document.addEventListener('sui:notify', onSuiNotify)
+
+// ── Boot ────────────────────────────────────────────────────────────
+
+// ── Panel dock ──────────────────────────────────────────────────────
+//
+// ⌘J / Ctrl+J toggles the dock. The dock element exposes show/hide/toggle
+// as imperative methods; the shell owns open/closed state via body.dock-open.
+
+interface PanelDock extends HTMLElement {
+  show(): void
+  hide(): void
+  toggle(): void
+  activate(tab: string): void
+}
+
+function getDock(): PanelDock | null {
+  return document.getElementById('ship-panel-dock') as PanelDock | null
+}
+
+// ── Keyboard map ────────────────────────────────────────────────────
+//
+// ⌘K/Ctrl+K  → command-bar toggle (find mode)
+// ⌘P/Ctrl+P  → command-bar search (find mode)
+// ⌘J/Ctrl+J  → panel-dock toggle
+// ⌘⇧E/Ctrl+Shift+E → body.edit-mode toggle (sui-edit-overlay listens)
+// ⌘B/Ctrl+B  → rail toggle (via sui:rail:toggle)
+// Esc        → close open sui-dialog / sui-drawer (backstop)
+
+interface CommandBar extends HTMLElement {
+  show(mode?: string, query?: string): void
+  hide(): void
+  toggle(mode?: string): void
+  setMode(mode: string): void
+}
+function getCommandBar(): CommandBar | null {
+  return document.getElementById('ship-command-bar') as CommandBar | null
+}
+
+document.addEventListener('keydown', (e: KeyboardEvent) => {
+  const mod = e.metaKey || e.ctrlKey
+
+  if (mod && e.key === 'j') {
+    e.preventDefault()
+    getDock()?.toggle()
+    return
+  }
+
+  if (mod && e.key === 'k') {
+    e.preventDefault()
+    getCommandBar()?.toggle('find')
+    return
+  }
+
+  if (mod && e.key === 'p') {
+    e.preventDefault()
+    getCommandBar()?.show('find')
+    return
+  }
+
+  if (mod && e.shiftKey && e.key === 'E') {
+    e.preventDefault()
+    document.body.classList.toggle('edit-mode')
+    return
+  }
+
+  if (mod && e.key === 'b') {
+    e.preventDefault()
+    document.dispatchEvent(new CustomEvent('sui:rail:toggle', { bubbles: true }))
+    return
+  }
+
+  if (e.key === 'Escape') {
+    // Native <dialog> handles Esc already. Backstop: close any open
+    // sui-dialog or sui-drawer that may not be using the native dialog element.
+    for (const el of document.querySelectorAll<HTMLElement & { close(): void }>(
+      'sui-dialog[open], sui-drawer[open]',
+    )) {
+      try { el.close() } catch { /* ignore — native handles it */ }
+    }
+  }
+})
+
+// Wire close event from dock.
+document.addEventListener('sui:dock:close', () => getDock()?.hide(), true)
+
+// ── Event bridges ────────────────────────────────────────────────────
+//
+// Reflect chrome component state into body classes so layout.css rules
+// (and any third-party CSS) can key off predictable class names.
+
+// sui-rail:toggle → body.rail-collapsed
+document.addEventListener('sui-rail:toggle', (e: Event) => {
+  const collapsed = (e as CustomEvent<{ collapsed: boolean }>).detail?.collapsed
+  document.body.classList.toggle('rail-collapsed', collapsed)
+})
+
+document.addEventListener('click', onAnchorClick)
+window.addEventListener('popstate', () => {
+  const r = readRoute()
+  if (r) void mountRoute(r)
+  else {
+    const slot = document.getElementById('ship-content')
+    if (slot) showLanding(slot)
+  }
+})
+
+initShipApi()
+initRail()
+initRailFeatures()
+setInterval(() => void updateStatus(), 15000)
+void updateStatus()
+
+const initial = readRoute()
+if (initial) void mountRoute(initial)
+else {
+  const slot = document.getElementById('ship-content')
+  if (slot) showLanding(slot)
+}

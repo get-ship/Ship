@@ -143,6 +143,7 @@ pub async fn create_surface(
                     project_id: None,
                     session_id: None,
                 };
+                #[allow(deprecated)] // route() preserved for create_api path; emit() migration tracked separately
                 let _ = state.kernel().lock().await.route(envelope, &ctx).await;
             }
         });
@@ -185,11 +186,10 @@ fn scaffold_view(state: &ApiState, req: &CreateRequest) -> axum::response::Respo
     // definition (bundled views would fail the "source = bundled" edit
     // rule when we land editability tiers).
     let views_dir = state.ship_dir().join("views");
-    if !views_dir.exists() {
-        if let Err(e) = std::fs::create_dir_all(&views_dir) {
+    if !views_dir.exists()
+        && let Err(e) = std::fs::create_dir_all(&views_dir) {
             return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
         }
-    }
     let target = views_dir.join(&req.name);
     if target.exists() {
         return err(

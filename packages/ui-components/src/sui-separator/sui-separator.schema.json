@@ -1,0 +1,31 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-separator",
+    "props": [
+      {
+        "name": "orientation",
+        "default": "horizontal",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "horizontal",
+          "vertical"
+        ]
+      },
+      {
+        "name": "variant",
+        "default": "solid",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "solid",
+          "dashed"
+        ]
+      }
+    ]
+  }
+}

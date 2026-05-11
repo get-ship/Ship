@@ -100,9 +100,9 @@ fn build_query_request(
     let mut limit: u32 = 200;
     let mut offset: u32 = 0;
 
-    if let Some(opts_val) = opts {
-        if let Ok(obj) = serde_json::to_value(opts_val.clone()) {
-            if let Some(map) = obj.as_object() {
+    if let Some(opts_val) = opts
+        && let Ok(obj) = serde_json::to_value(opts_val.clone())
+            && let Some(map) = obj.as_object() {
                 for (key, val) in map {
                     match key.as_str() {
                         "_sort" => parse_sort_string(val, &mut sort),
@@ -117,8 +117,6 @@ fn build_query_request(
                     }
                 }
             }
-        }
-    }
 
     ship_platform::collections::query::QueryRequest {
         collection: collection.to_string(),
@@ -187,7 +185,7 @@ pub fn ship_canvas_docs() -> Vec<Value> {
         Ok(records) => records
             .into_iter()
             .map(|r| {
-                Value::from_serialize(&serde_json::json!({
+                Value::from_serialize(serde_json::json!({
                     "slug": r.id,
                     "title": r.name,
                     "modified": r.created_at,

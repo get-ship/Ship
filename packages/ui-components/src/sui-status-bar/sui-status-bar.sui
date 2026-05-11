@@ -1,0 +1,88 @@
+<!--
+  <sui-status-bar> — SUI extraction of the shell status bar.
+  Hairline bottom strip with connection indicator, branch, agents, and theme.
+  Extracted from apps/shell/index.html's .ship-statusbar div and
+  apps/shell/src/main.ts's updateStatus() function into a proper component.
+
+  Prop surface
+  ─────────────────────────────────────────────────────────────────────────────
+  branch   (string, '')         workspace name / branch
+  theme    (string, '')         current theme ID
+  online   (bool, false, reflect)  daemon connection state; dot is green/red
+  agents   (string, '')         active agent indicator text
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots:
+    start  — view-injected status content between branch and spacer
+    end    — view-injected status content between spacer and theme
+  ─────────────────────────────────────────────────────────────────────────────
+  Parts: dot, branch, agents, theme
+  ─────────────────────────────────────────────────────────────────────────────
+  Parity vs inline markup in apps/shell/index.html:
+    #status-dot          → :host .dot (tone via [online] attr)
+    #status-branch       → branch prop → .branch span
+    #status-ab           → (omitted — git a/b not in daemon data yet)
+    #view-status-start   → slot name="start"
+    #view-status-end     → slot name="end"
+    #status-theme        → theme prop → .theme span
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="branch" type="string" default="" />
+<prop name="theme" type="string" default="" />
+<prop name="online" type="bool" default="false" reflect />
+<prop name="agents" type="string" default="" />
+
+<style>
+  :host {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    height: 24px;
+    padding: 0 var(--space-3, 12px);
+    border-top: 1px solid var(--border);
+    background: var(--sidebar, var(--muted));
+    font-family: var(--font-body);
+    font-size: 11px;
+    color: var(--muted-foreground);
+    user-select: none;
+    -webkit-user-select: none;
+    overflow: hidden;
+  }
+  :host([hidden]) { display: none; }
+
+  .dot {
+    width: 6px;
+    height: 6px;
+    border-radius: var(--radius-full, 9999px);
+    background: var(--destructive);
+    flex-shrink: 0;
+    transition: background-color var(--duration-fast, 120ms) var(--ease-out, ease-out);
+  }
+  :host([online]) .dot {
+    background: var(--success);
+  }
+
+  .text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .text:empty { display: none; }
+
+  .slot-wrap {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .spacer { flex: 1; }
+</style>
+
+<span class="dot" part="dot" aria-hidden="true"></span>
+<span class="text" part="branch">{branch()}</span>
+<span class="text" part="agents">{agents()}</span>
+<span class="slot-wrap"><slot name="start"></slot></span>
+<span class="spacer"></span>
+<span class="slot-wrap"><slot name="end"></slot></span>
+<span class="text" part="theme">{theme()}</span>

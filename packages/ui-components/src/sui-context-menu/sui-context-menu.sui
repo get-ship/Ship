@@ -1,0 +1,78 @@
+<!--
+  <sui-context-menu> — SUI port of <ship-context-menu>.
+  Right-click triggered overlay menu. Uses the native popover API
+  (popover="auto") for top-layer rendering and light-dismiss.
+  The panel is positioned at the cursor coordinates, not anchored.
+
+  Prop / event / method parity vs <ship-context-menu>
+  ────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                          Notes
+  ────────────────────────────────────────────────────────────────────────
+  open (bool, false)           open (bool, false, reflect)  ✓
+  ────────────────────────────────────────────────────────────────────────
+  Events: ship-select          sui-select { detail:{value}} ✓ renamed
+          ship-open/close      sui-open/close               ✓ renamed
+  Methods: show(x,y), close()  show(x,y), close()          ✓
+  Slots: trigger, (default)    trigger, (default)           ✓
+  Parts: menu                  panel                        ✓
+  ────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="open" type="bool" default="false" reflect />
+
+<style>
+  :host { display: contents; }
+  :host([hidden]) { display: none; }
+
+  .panel {
+    inset: auto;
+    margin: 0;
+    min-width: 160px;
+    padding: 4px;
+    background: var(--popover, var(--card, #fff));
+    color: var(--popover-foreground, var(--card-foreground, #111));
+    border: 1px solid var(--border, #e5e5e5);
+    border-radius: var(--radius, var(--radius-md, 6px));
+    box-shadow: var(--shadow-lg, 0 8px 24px rgba(0,0,0,0.12));
+    display: flex; flex-direction: column;
+    font-family: var(--font-body, system-ui);
+    font-size: var(--text-base, 14px);
+    opacity: 0;
+    transform: scale(0.96);
+    transition:
+      opacity var(--duration-fast, 120ms) var(--ease-out, ease-out),
+      transform var(--duration-fast, 120ms) var(--ease-out, ease-out);
+  }
+  .panel:popover-open {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .panel::backdrop { background: transparent; }
+
+  ::slotted(button), ::slotted([role='menuitem']) {
+    text-align: left;
+    background: transparent; border: 0;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm, 4px);
+    color: inherit; font: inherit;
+    cursor: pointer; width: 100%;
+    transition: background-color var(--duration-fast, 120ms) var(--ease-out, ease-out);
+  }
+  ::slotted(button:hover), ::slotted([role='menuitem']:hover),
+  ::slotted(button:focus-visible), ::slotted([role='menuitem']:focus-visible) {
+    background: var(--accent, var(--muted, #f5f5f5));
+    outline: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel { transition: none; transform: none !important; }
+  }
+  @media (forced-colors: active) {
+    .panel { border: 1px solid CanvasText; }
+  }
+</style>
+
+<slot name="trigger" bind:this={triggerSlot}></slot>
+<div class="panel" part="panel" popover="auto" role="menu" aria-label="Context menu" bind:this={panelEl}>
+  <slot bind:this={itemSlot}></slot>
+</div>

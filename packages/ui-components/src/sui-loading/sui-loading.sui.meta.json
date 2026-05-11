@@ -1,0 +1,12 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "msgEl",
+      "deps": [
+        "msgEl"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,79 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-avatar",
+    "props": [
+      {
+        "name": "src",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "name",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "initials",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "icon-slug",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "xs",
+          "sm",
+          "md",
+          "lg",
+          "xl"
+        ]
+      },
+      {
+        "name": "shape",
+        "default": "round",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "round",
+          "square"
+        ]
+      },
+      {
+        "name": "tone",
+        "default": "muted",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "default",
+          "primary",
+          "info",
+          "success",
+          "warning",
+          "destructive",
+          "accent",
+          "muted"
+        ]
+      }
+    ]
+  }
+}

@@ -134,15 +134,14 @@ fn collect_ship_attrs(input: &str) -> Vec<String> {
                 {
                     j += 1;
                 }
-                if j > start {
-                    if let Ok(name) = std::str::from_utf8(&bytes[start..j]) {
+                if j > start
+                    && let Ok(name) = std::str::from_utf8(&bytes[start..j]) {
                         let n = name.to_ascii_lowercase();
                         // Skip the tag name itself (first token).
                         if !n.starts_with("ship-") && !n.is_empty() && !n.starts_with('<') {
                             out.insert(n);
                         }
                     }
-                }
                 // If we're at `=`, skip the value (quoted or bare).
                 if j < bytes.len() && bytes[j] == b'=' {
                     j += 1;

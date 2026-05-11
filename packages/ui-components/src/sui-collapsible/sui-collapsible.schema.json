@@ -1,0 +1,23 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-collapsible",
+    "props": [
+      {
+        "name": "open",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "disabled",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

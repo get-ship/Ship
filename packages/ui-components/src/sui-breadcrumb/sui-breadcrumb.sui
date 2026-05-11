@@ -1,0 +1,56 @@
+<!--
+  <sui-breadcrumb> — SUI port of <ship-breadcrumb>.
+  Path navigation with chevron/custom separators between items.
+
+  Prop parity vs <ship-breadcrumb>
+  ──────────────────────────────────────────────────────────────
+  Lit                   SUI                  Notes
+  ──────────────────────────────────────────────────────────────
+  (no separator prop)   separator (string,   New: custom separator
+                         '/', reflect)        glyph; default is the
+                                             Lucide chevron SVG
+  ──────────────────────────────────────────────────────────────
+  slots: (default)      (default) items      ✓
+  ──────────────────────────────────────────────────────────────
+  parts: nav            nav                  ✓
+  ──────────────────────────────────────────────────────────────
+  ARIA: nav with        nav aria-label=      ✓
+    aria-label           "Breadcrumb"
+  ──────────────────────────────────────────────────────────────
+  Item slotting         controller assigns   ✓ MutationObserver
+                         slot="i{n}" to       watches children;
+                         children; template   template iterates
+                         iterates items()     {slot, isLast} pairs
+                                              and renders one slot
+                                              + N-1 separators
+  ──────────────────────────────────────────────────────────────
+-->
+
+<prop name="separator" type="string" default="/" reflect />
+
+<style>
+  :host { display: flex; align-items: center; }
+  nav { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 2px; }
+  .sep {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 12px; height: 12px;
+    color: var(--muted-foreground);
+    opacity: 0.7;
+  }
+  .sep svg { width: 12px; height: 12px; }
+</style>
+
+<nav aria-label="Breadcrumb" part="nav">
+  {#for item of items() key={item.slot}}
+    <slot name={item.slot}></slot>
+    {#if item.slot !== lastSlot()}
+      <span class="sep" aria-hidden="true">
+        {#if separator() === '/'}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+        {:else}
+          {separator()}
+        {/if}
+      </span>
+    {/if}
+  {/for}
+</nav>

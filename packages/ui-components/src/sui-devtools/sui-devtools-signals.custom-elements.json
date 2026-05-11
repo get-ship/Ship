@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-devtools-signals.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiDevtoolsSignals",
+          "tagName": "sui-devtools-signals",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [],
+          "members": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-devtools-signals",
+          "declaration": {
+            "name": "SuiDevtoolsSignals",
+            "module": "sui-devtools-signals.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

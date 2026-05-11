@@ -143,11 +143,10 @@ impl AttestationVerifier {
     async fn load_jwks(&self, url: &str, force_refresh: bool) -> Result<Jwks, VerifyError> {
         if !force_refresh {
             let cache = self.cache.lock().await;
-            if let Some(cached) = cache.as_ref() {
-                if cached.fetched_at.elapsed() < JWKS_CACHE_TTL {
+            if let Some(cached) = cache.as_ref()
+                && cached.fetched_at.elapsed() < JWKS_CACHE_TTL {
                     return Ok(cached.jwks.clone());
                 }
-            }
         }
         drop(self.cache.lock().await); // release before network I/O
 

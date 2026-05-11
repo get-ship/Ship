@@ -1,0 +1,30 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-json-view",
+    "props": [
+      {
+        "name": "data",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "expanded",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      },
+      {
+        "name": "depth",
+        "default": "1",
+        "reflect": true,
+        "bindable": false,
+        "type": "number"
+      }
+    ]
+  }
+}

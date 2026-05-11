@@ -185,17 +185,14 @@ async fn emit_kernel(
     let envelope = EventEnvelope::new("studio.feedback.created", entity_id, &payload)
         .map_err(|e| err(StatusCode::BAD_REQUEST, "envelope_invalid", &e.to_string()))?;
     let ctx = auth.to_daemon_emit_context();
-    state
-        .kernel()
-        .lock()
-        .await
-        .route(envelope, &ctx)
-        .await
-        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "route_failed", &e.to_string()))
+    #[allow(deprecated)] // route() preserved here; emit() migration tracked separately
+    let route_result = state.kernel().lock().await.route(envelope, &ctx).await;
+    route_result.map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "route_failed", &e.to_string()))
 }
 
 // ───────────────────────── Validation ─────────────────────────
 
+#[allow(clippy::result_large_err)]
 fn validate(ev: &FeedbackEvent) -> Result<(), Response> {
     if Ulid::from_string(&ev.id).is_err() {
         return Err(err(StatusCode::UNPROCESSABLE_ENTITY, "invalid_id", "id must be a ULID"));

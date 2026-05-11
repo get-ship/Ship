@@ -10,6 +10,8 @@ use std::{
 use anyhow::{Context, Result};
 use serde_json::{json, Map, Value};
 
+mod data_ts;
+mod framework;
 mod jsonc;
 mod macros;
 mod ship_ops;
@@ -68,8 +70,60 @@ pub fn run(repo_root: &Path) -> Result<()> {
         "sdk-ship-ops",
         ship_ops::extract()?,
     )?;
+    // sdk-framework.json describes framework-level concepts (directives,
+    // scope bindings, template syntax, reactivity rules). Its envelope
+    // version tracks the manifest's own surface, not gen-sdk's VERSION —
+    // those evolve independently.
+    write_framework(&out_dir.join("sdk-framework.json"), repo_root)?;
 
-    eprintln!("gen-sdk: wrote 7 files to {}", out_dir.display());
+    // Typed TS bindings for the OPS catalog — set authors get IDE
+    // completion + (phase 2) compile-time validation of `data ship.*`.
+    let generated_dir = repo_root.join("packages/sdk/src/generated");
+    fs::create_dir_all(&generated_dir)
+        .with_context(|| format!("create {}", generated_dir.display()))?;
+    let data_ts_path = generated_dir.join("data.ts");
+    fs::write(&data_ts_path, data_ts::emit()?)
+        .with_context(|| format!("write {}", data_ts_path.display()))?;
+
+    // Typed framework manifest — `FrameworkManifest` interface +
+    // `FRAMEWORK` const. Pairs with the JSON for TS-side consumers.
+    let framework_ts_path = generated_dir.join("framework.ts");
+    fs::write(&framework_ts_path, framework::emit_ts(repo_root)?)
+        .with_context(|| format!("write {}", framework_ts_path.display()))?;
+
+    eprintln!(
+        "gen-sdk: wrote 8 files to {} + 2 TS files to {}",
+        out_dir.display(),
+        generated_dir.display()
+    );
+    Ok(())
+}
+
+fn write_framework(path: &PathBuf, repo_root: &Path) -> Result<()> {
+    let mut root = Map::new();
+    root.insert("_generated".into(), Value::String(HEADER.into()));
+    root.insert(
+        "version".into(),
+        Value::String(framework::manifest_version().into()),
+    );
+    root.insert(
+        "$schema".into(),
+        Value::String("https://ship.design/schemas/sdk-framework.schema.json".into()),
+    );
+    // The manifest payload sits alongside `version`/`_generated` rather
+    // than under an `entries` key — the entire manifest is the entry.
+    if let Value::Object(map) = framework::json_entries(repo_root)? {
+        for (k, v) in map {
+            // Skip the inner `version` to avoid shadowing the envelope
+            // version; the same value is exposed on the envelope.
+            if k == "version" {
+                continue;
+            }
+            root.insert(k, v);
+        }
+    }
+    let text = serde_json::to_string_pretty(&Value::Object(root))? + "\n";
+    fs::write(path, text).with_context(|| format!("write {}", path.display()))?;
     Ok(())
 }
 

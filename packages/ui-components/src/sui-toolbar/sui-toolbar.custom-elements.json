@@ -1,0 +1,125 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-toolbar.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiToolbar",
+          "tagName": "sui-toolbar",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "justify",
+              "type": {
+                "text": "'start' | 'center' | 'end' | 'between'"
+              },
+              "default": "start",
+              "values": [
+                "start",
+                "center",
+                "end",
+                "between"
+              ]
+            },
+            {
+              "name": "align",
+              "type": {
+                "text": "'center' | 'start' | 'end' | 'baseline'"
+              },
+              "default": "center",
+              "values": [
+                "center",
+                "start",
+                "end",
+                "baseline"
+              ]
+            },
+            {
+              "name": "gap",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'bordered'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "bordered"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "justify",
+              "type": {
+                "text": "'start' | 'center' | 'end' | 'between'"
+              },
+              "attribute": "justify",
+              "default": "start",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "align",
+              "type": {
+                "text": "'center' | 'start' | 'end' | 'baseline'"
+              },
+              "attribute": "align",
+              "default": "center",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "gap",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "gap",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'default' | 'bordered'"
+              },
+              "attribute": "variant",
+              "default": "default",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-toolbar",
+          "declaration": {
+            "name": "SuiToolbar",
+            "module": "sui-toolbar.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

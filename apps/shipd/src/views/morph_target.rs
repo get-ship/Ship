@@ -142,14 +142,13 @@ fn extract_fragment(html: &str) -> String {
             let script_end = after.find("</script>");
             let abs_script_end = script_end.map(|e| abs_start + e + "</script>".len());
             // Only lift script tags with a src= attribute (external loaders).
-            if open_tag.contains("src=") {
-                if let Some(end) = abs_script_end {
+            if open_tag.contains("src=")
+                && let Some(end) = abs_script_end {
                     preserved.push_str(&head_slice[abs_start..end]);
                     preserved.push('\n');
                     search_from = end;
                     continue;
                 }
-            }
             // Move past this script tag even if it's inline — we don't lift it.
             search_from = abs_script_end.unwrap_or(abs_start + open_tag.len());
         }

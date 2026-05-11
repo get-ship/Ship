@@ -1,0 +1,20 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "if",
+      "expr": "at()",
+      "deps": [
+        "at"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "text",
+      "expr": "at()",
+      "deps": [
+        "at"
+      ]
+    }
+  ]
+}

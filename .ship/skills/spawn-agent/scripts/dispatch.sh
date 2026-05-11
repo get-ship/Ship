@@ -139,7 +139,7 @@ WITH_ARGS=()
 for s in "${EXTRA_SKILLS[@]}"; do WITH_ARGS+=(--with "$s"); done
 
 echo "Compiling agent: ship use $AGENT ${WITH_ARGS[*]} (SHIP_GLOBAL_DIR=$SHIP_GLOBAL_DIR)"
-if ! (cd "$WORKTREE_PATH" && SHIP_GLOBAL_DIR="$SHIP_GLOBAL_DIR" ship use "$AGENT" "${WITH_ARGS[@]}"); then
+if ! (cd "$WORKTREE_PATH" && SHIP_GLOBAL_DIR="$SHIP_GLOBAL_DIR" ship use "$AGENT" --path "$WORKTREE_PATH" "${WITH_ARGS[@]}"); then
   echo "Error: 'ship use $AGENT' failed in $WORKTREE_PATH. Agent not launched." >&2
   exit 1
 fi
@@ -274,7 +274,10 @@ case "$TERMINAL" in
     WSL_DISTRO="${WSL_DISTRO_NAME:-Ubuntu}"
     tmux new-session -d -s "$SLUG" -c "$WORKTREE_PATH" 2>/dev/null || true
     tmux send-keys -t "$SLUG" "$PROVIDER_CLI $LAUNCH_FLAGS" Enter
-    wt.exe new-tab --title "$SLUG" -- wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
+    # `-w 0` targets the focused Windows Terminal window so new-tab
+    # actually creates a tab in the existing wt window instead of
+    # spawning a fresh wt window each dispatch.
+    wt.exe -w 0 new-tab --title "$SLUG" -- wsl.exe -d "$WSL_DISTRO" bash --login -c "tmux attach-session -t $SLUG" 2>/dev/null || \
       echo "Windows Terminal launch failed. Attach manually: tmux attach-session -t $SLUG"
     auto_kickstart_tmux "$SLUG"
     ;;

@@ -1,0 +1,74 @@
+<!--
+  <sui-separator> — SUI port of <ship-separator>.
+  Horizontal or vertical visual divider.
+
+  Prop parity vs <ship-separator>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  orientation                  orientation (reflect)    ✓ horizontal|vertical
+    'horizontal'|'vertical'
+  variant                      variant (reflect)        ✓ solid|dashed
+    'solid'|'dashed'
+  ─────────────────────────────────────────────────────────────────────────────
+  (no events)                  (no events)              ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  role="separator" set via JS  role="separator" on      ✓ static attr on inner
+    on host in render()          inner <hr>               <hr>; host is block
+  aria-orientation set on host aria-orientation on hr   ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: (none)                part="sep"               SUI adds part for
+                                                        targeted styling
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="orientation" values="horizontal|vertical" default="horizontal" reflect />
+<prop name="variant" values="solid|dashed" default="solid" reflect />
+
+<style>
+  :host {
+    display: block;
+  }
+  :host([hidden]) { display: none; }
+
+  .sep {
+    border: 0;
+    margin: 0;
+    padding: 0;
+    flex: 0 0 auto;
+  }
+
+  /* Horizontal (default) */
+  :host(:not([orientation='vertical'])) .sep {
+    display: block;
+    width: 100%;
+    height: 1px;
+    margin: 8px 0;
+    background: var(--border);
+  }
+  :host(:not([orientation='vertical'])[variant='dashed']) .sep {
+    background: transparent;
+    border-top: 1px dashed var(--border);
+    height: 0;
+  }
+
+  /* Vertical */
+  :host([orientation='vertical']) {
+    display: inline-block;
+    align-self: stretch;
+  }
+  :host([orientation='vertical']) .sep {
+    display: inline-block;
+    width: 1px;
+    min-height: 100%;
+    margin: 0 8px;
+    background: var(--border);
+  }
+  :host([orientation='vertical'][variant='dashed']) .sep {
+    background: transparent;
+    border-left: 1px dashed var(--border);
+    width: 0;
+  }
+</style>
+
+<hr class="sep" part="sep" role="separator" aria-orientation={orientation()} />

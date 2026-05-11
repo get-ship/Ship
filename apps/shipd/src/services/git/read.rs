@@ -207,7 +207,7 @@ pub fn load_branches(root: &Path) -> Vec<BranchSummary> {
             let name = branch.name().ok()??.to_string();
             let reference = branch.get();
             let local_oid = reference.target()?;
-            let active = head_oid.map_or(false, |h| h == local_oid);
+            let active = head_oid == Some(local_oid);
 
             let upstream_name = branch
                 .upstream()

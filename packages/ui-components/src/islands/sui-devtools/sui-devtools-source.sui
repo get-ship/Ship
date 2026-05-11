@@ -1,0 +1,146 @@
+<!--
+  <sui-devtools-source> — SUI port of <ship-devtools-source>.
+  Shows the mounted view's template + manifest. Editable for user-scoped views.
+  Requires the code-editor pack (<ship-code-editor>) to be loaded before first render.
+  Read-only for project-scoped; shows Fork affordance for project scope.
+-->
+
+<style>
+  :host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    font-size: var(--text-sm);
+  }
+  :host([hidden]) { display: none; }
+  .header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    border-bottom: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    flex-shrink: 0;
+  }
+  .split {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .pane { min-height: 0; display: flex; flex-direction: column; flex: 1; }
+  .pane-head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    padding: 4px var(--space-3, 12px);
+    background: var(--sidebar);
+    border-bottom: 1px solid var(--border);
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+  }
+  .pane-head.manifest { border-top: 1px solid var(--border); }
+  .pane-editor { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .pane-editor ship-code-editor { flex: 1; min-height: 0; }
+  .diagnostics {
+    padding: 4px var(--space-3, 12px);
+    background: color-mix(in oklch, var(--destructive) 10%, transparent);
+    color: var(--destructive);
+    font-size: var(--text-xs);
+    font-family: var(--font-mono);
+    border-top: 1px solid var(--destructive);
+    max-height: 120px;
+    overflow: auto;
+    flex-shrink: 0;
+  }
+  .dirty-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: var(--primary);
+    display: inline-block;
+    flex-shrink: 0;
+  }
+  .edit-action {
+    appearance: none;
+    font: inherit;
+    font-size: var(--text-xs);
+    padding: 2px 10px;
+    border-radius: var(--radius-sm, 4px);
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    cursor: pointer;
+  }
+  .edit-action.primary { background: var(--primary); color: var(--primary-foreground, #fff); border-color: var(--primary); }
+  .edit-action:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+
+<div class="header" bind:this={headerEl}>
+  {#if src()}
+    <span style="color:var(--foreground);font-weight:var(--font-weight-medium,500)">{src().view_name}</span>
+    <span style="padding:1px 6px;border:1px solid var(--border);border-radius:999px;text-transform:uppercase;letter-spacing:.04em;font-size:10px">{src().scope}</span>
+    {#if isDirty()}
+      <span class="dirty-dot" title="Unsaved changes"></span>
+    {/if}
+    <span style="flex:1"></span>
+    <span>{src().template_path}</span>
+    <span style="display:inline-flex;align-items:center;gap:6px">
+      {#if src().scope === 'project'}
+        <button class="edit-action primary" data-action="fork" disabled={saving()}>Fork to edit</button>
+      {/if}
+      {#if src().scope === 'global'}
+        <button class="edit-action primary" data-action="save" disabled={saving() || !isDirty()} title="Save (⌘/Ctrl+S)">{saving() ? 'Saving…' : 'Save'}</button>
+      {/if}
+    </span>
+  {/if}
+</div>
+<div class="split">
+  {#if loading()}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="file-code"></sui-icon>
+      <span slot="title">Loading source…</span>
+      Fetching the view template from the daemon.
+    </sui-empty-state>
+  {:else if loadError()}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="alert-triangle"></sui-icon>
+      <span slot="title">Source error</span>
+      {loadError()}
+    </sui-empty-state>
+  {:else if src()}
+    <div class="pane">
+      <div class="pane-head">{templateRelPath()}</div>
+      <div class="pane-editor">
+        <ship-code-editor language="html" bind:this={templateEditorEl} readonly={editorReadonly()}></ship-code-editor>
+      </div>
+    </div>
+    {#if src().manifest}
+      <div class="pane-head manifest">{src().manifest_filename}</div>
+      <div class="pane">
+        <div class="pane-editor">
+          <ship-code-editor language={manifestLangVal()} bind:this={manifestEditorEl} readonly></ship-code-editor>
+        </div>
+      </div>
+    {/if}
+  {:else}
+    <sui-empty-state>
+      <sui-icon slot="icon" name="file-code"></sui-icon>
+      <span slot="title">No source available</span>
+      This path is not served by a file-routed view.
+    </sui-empty-state>
+  {/if}
+</div>
+<div class="diagnostics" style:display={showDiag() ? '' : 'none'}>
+  {#if diagMsg()}
+    {diagMsg()}
+  {:else}
+    {#for d of diagnostics() key={d.line + ':' + d.col + ':' + d.rule}}
+      <div>{d.line}:{d.col} [{d.rule}] {d.message}</div>
+    {/for}
+  {/if}
+</div>

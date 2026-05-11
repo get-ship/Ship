@@ -1,0 +1,92 @@
+<data name="agents" source="ship.agents.summaries()" live />
+
+<div class="ship-view agents-view">
+  <div class="agents-wrap">
+
+    <header class="agents-head">
+      <div class="agents-head-titles">
+        <h1 class="agents-title">Agents</h1>
+        <p class="agents-sub">{total()} agent{total() === 1 ? '' : 's'}</p>
+      </div>
+      <sui-button tone="primary" variant="solid" on:click={newAgent}>
+        <sui-icon slot="leading" name="plus"></sui-icon>
+        New agent
+      </sui-button>
+    </header>
+
+    {#while-loading of agents}
+      <p class="loading-copy" data-test="loading">Loading agents&hellip;</p>
+    {/while-loading}
+
+    {#while-error err of agents}
+      <p class="loading-copy" data-test="error">Error loading agents: {err.message}</p>
+    {/while-error}
+
+    {#if agents().kind === 'ok'}
+      {#if items().length === 0}
+        <sui-empty-state icon="sparkles" variant="default" size="lg" data-test="empty">
+          <span slot="title">No agents yet</span>
+          Drop a JSONC file under
+          <code class="agents-empty-code">.ship/agents/</code>
+          or create one from the Studio.
+          <sui-button slot="action" tone="primary" variant="solid" on:click={newAgent}>
+            <sui-icon slot="leading" name="plus"></sui-icon>
+            New agent
+          </sui-button>
+        </sui-empty-state>
+      {:else}
+        <div class="agents-grid" data-view-enter data-test="grid">
+          {#for a of items() key={a.id}}
+            <sui-list-tile variant="card" density="normal" interactive
+                            navigable={'/agents/' + a.id}
+                            class="agents-card-tile"
+                            data-test="agent">
+              <div class="agents-card-icon-tile" slot="leading">
+                <span class="agents-card-letter">{a.letter}</span>
+              </div>
+              <div class="agents-card-body">
+                <div class="agents-card-head">
+                  <div class="agents-card-title">{a.name}</div>
+                  <p class="agents-card-desc">{a.description || 'No description'}</p>
+                </div>
+                <div class="agents-card-stats">
+                  <span>{a.skills_count} skill{a.skills_count === 1 ? '' : 's'}</span>
+                  <span class="agents-card-sep">&middot;</span>
+                  <span>{a.mcp_count} MCP</span>
+                  <span class="agents-card-sep">&middot;</span>
+                  <span>{a.rules_count} rule{a.rules_count === 1 ? '' : 's'}</span>
+                </div>
+                {#if a.providers && a.providers.length > 0}
+                  <div class="agents-card-providers" aria-label="Compiles to">
+                    {#for p of a.providers.slice(0, 4)}
+                      <sui-chip tone="muted" variant="outline" size="sm" title={p}>{p}</sui-chip>
+                    {/for}
+                    {#if a.providers.length > 4}
+                      <sui-chip tone="muted" variant="outline" size="sm">+{a.providers.length - 4}</sui-chip>
+                    {/if}
+                  </div>
+                {/if}
+                <div class="agents-card-badges">
+                  <sui-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{a.source}</sui-badge>
+                  {#if a.active}
+                    <sui-chip tone="primary" variant="soft" size="sm">
+                      <sui-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></sui-status-dot>
+                      active session
+                    </sui-chip>
+                  {/if}
+                  {#for t of (a.tags || []).slice(0, 2)}
+                    <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>
+                  {/for}
+                  {#if (a.tags || []).length > 2}
+                    <sui-chip tone="muted" variant="outline" size="sm">+{(a.tags || []).length - 2}</sui-chip>
+                  {/if}
+                </div>
+              </div>
+            </sui-list-tile>
+          {/for}
+        </div>
+      {/if}
+    {/if}
+
+  </div>
+</div>

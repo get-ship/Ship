@@ -217,6 +217,53 @@ async fn skill_get_includes_overridden_variable() {
     );
 }
 
+// ── Components catalog ───────────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+async fn components_returns_valid_cem_json() {
+    let (_tmp, _ship_dir, project_dir) = setup();
+    let result = resolve("ship://components", &project_dir).await.unwrap();
+    let parsed: serde_json::Value = serde_json::from_str(&result)
+        .expect("ship://components must return valid JSON");
+    assert!(
+        parsed.is_object(),
+        "ship://components must return a JSON object: got {result}",
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn components_unknown_tag_returns_none() {
+    let (_tmp, _ship_dir, project_dir) = setup();
+    assert!(
+        resolve("ship://components/sui-does-not-exist", &project_dir)
+            .await
+            .is_none(),
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn components_resource_listed_with_metadata() {
+    use crate::resources::static_resource_list;
+    let listed = static_resource_list();
+    let entry = listed
+        .iter()
+        .find(|r| r.raw.uri == "ship://components")
+        .expect("ship://components must be in the static resource list");
+    assert_eq!(entry.raw.mime_type.as_deref(), Some("application/json"));
+    assert!(entry.raw.description.is_some(), "components resource needs a description");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn components_template_registered() {
+    use crate::resources::static_resource_template_list;
+    let templates = static_resource_template_list();
+    let entry = templates
+        .iter()
+        .find(|t| t.raw.uri_template == "ship://components/{tag}")
+        .expect("ship://components/{tag} template must be registered");
+    assert_eq!(entry.raw.mime_type.as_deref(), Some("application/json"));
+}
+
 #[tokio::test(flavor = "multi_thread")]
 async fn skill_get_without_vars_has_no_vars_section() {
     let (_tmp, ship_dir, _project_dir) = setup();

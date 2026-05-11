@@ -1,0 +1,28 @@
+<!--
+  <sui-accordion> — SUI port of <ship-accordion>.
+  Declarative accordion with single or multiple open mode.
+
+  Prop parity vs <ship-accordion>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  type ('single'|'multiple',   type (string, 'single',  ✓
+    'single')                    reflect)
+  value (string, '')           value (string, '',       ✓ comma-sep open vals
+                                 reflect)
+  ─────────────────────────────────────────────────────────────────────────────
+  ship-change → {value}        sui-change → {value}     event renamed
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: (default) items       (default) items          ✓
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="type" type="string" default="single" reflect />
+<prop name="value" type="string" default="" reflect />
+
+<style>
+  :host { display: block; }
+  :host([hidden]) { display: none; }
+</style>
+
+<slot></slot>

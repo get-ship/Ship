@@ -1,0 +1,208 @@
+<!--
+  <sui-error-state> — SUI port of <ship-error-state>.
+  Sibling of <sui-empty-state> for "something broke" paths.
+  Destructive tone halo, collapsible technical details, auto-focused retry.
+
+  Prop parity vs <ship-error-state>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  title (string, '')           title (string, '')       ✓ fallback in template
+  body (string, '')            body (string, '')        ✓
+  size ('sm'|'md'|'lg', 'md') size (sm|md|lg, 'md',    ✓
+                                 reflect)
+  variant ('default'|'inline') variant (default|inline, ✓
+                                 'default', reflect)
+  icon (string, 'alert-circle') icon (string,           ✓ rendered via sui-icon
+                                  'alert-circle')
+  ─────────────────────────────────────────────────────────────────────────────
+  Details toggle visibility    controller sets          ✓ data-has-details on
+    driven by slot content       data-has-details         host; CSS targets it
+  Details open/close           controller sets          ✓ data-details-open on
+                                 data-details-open        host; CSS targets it
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: title, (default),     title, (default),        ✓
+         details, action         details, action
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: box, icon, title,     box, icon, title,        ✓
+         desc, actions           desc, actions
+  ─────────────────────────────────────────────────────────────────────────────
+  role="alert" on box div      same                     ✓
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="title" type="string" default="" />
+<prop name="body" type="string" default="" />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="variant" values="default|inline" default="default" reflect />
+<prop name="icon" type="string" default="alert-circle" />
+
+<style>
+  :host {
+    display: block;
+    font-family: var(--font-body);
+    --tone-fg: var(--destructive);
+    --es-pad-y: 64px;
+    --es-pad-x: 16px;
+    --es-gap: var(--space-3, 12px);
+    --es-icon: 22px;
+    --es-tile: 48px;
+    --es-title-fs: var(--text-md, 16px);
+    --es-desc-fs: var(--text-sm, 14px);
+  }
+  :host([hidden]) { display: none; }
+
+  :host([size='sm']) {
+    --es-pad-y: var(--space-7, 28px);
+    --es-pad-x: var(--space-4, 16px);
+    --es-gap: var(--space-2, 8px);
+    --es-icon: 16px; --es-tile: 36px;
+    --es-title-fs: var(--text-base, 14px);
+  }
+  :host([size='lg']) {
+    --es-pad-y: 96px;
+    --es-pad-x: var(--space-6, 24px);
+    --es-gap: var(--space-4, 16px);
+    --es-icon: 28px; --es-tile: 64px;
+    --es-title-fs: var(--text-lg, 18px);
+    --es-desc-fs: var(--text-base, 15px);
+  }
+
+  .box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--es-gap);
+    padding: var(--es-pad-y) var(--es-pad-x);
+    text-align: center;
+    background: var(--card);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-lg);
+  }
+  :host([variant='inline']) .box {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    text-align: left;
+    background: color-mix(in oklch, var(--destructive) 4%, var(--card));
+    border: 1px solid color-mix(in oklch, var(--destructive) 24%, var(--border));
+    border-radius: var(--radius-md);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+  }
+
+  .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: var(--es-tile);
+    height: var(--es-tile);
+    border-radius: var(--radius-full);
+    background: color-mix(in oklch, var(--destructive) 18%, var(--muted));
+    color: var(--destructive);
+    line-height: 1;
+  }
+  :host([variant='inline']) .icon {
+    width: var(--es-icon);
+    height: var(--es-icon);
+    background: transparent;
+  }
+
+  .copy {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: center;
+    min-width: 0;
+  }
+  :host([variant='inline']) .copy { align-items: flex-start; }
+
+  .title {
+    font-size: var(--es-title-fs);
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--foreground);
+    line-height: var(--leading-tight, 1.25);
+  }
+
+  .desc {
+    font-size: var(--es-desc-fs);
+    max-width: 60ch;
+    color: var(--muted-foreground);
+  }
+
+  /* details-toggle: hidden until controller detects slot content */
+  .details-toggle {
+    display: none;
+    appearance: none;
+    background: transparent;
+    border: 0;
+    font: inherit;
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    margin-top: var(--space-1);
+  }
+  :host([data-has-details]) .details-toggle { display: inline-block; }
+  .details-toggle:hover { color: var(--foreground); background: var(--muted); }
+
+  /* details panel: always in DOM for slotchange detection, shown when open */
+  .details {
+    display: none;
+    margin-top: var(--space-2);
+    padding: var(--space-2) var(--space-3);
+    background: color-mix(in oklch, var(--destructive) 6%, var(--muted));
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-width: 60ch;
+    text-align: left;
+  }
+  :host([data-has-details][data-details-open]) .details { display: block; }
+
+  .actions {
+    display: flex;
+    gap: var(--space-2, 8px);
+    justify-content: center;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+  :host([variant='inline']) .actions {
+    margin-top: 0;
+    margin-left: auto;
+    justify-content: flex-end;
+  }
+
+  @media (forced-colors: active) {
+    .box { border-color: CanvasText; }
+    .icon { background: Canvas; color: CanvasText; }
+  }
+</style>
+
+<div class="box" part="box" role="alert">
+  <div class="icon" part="icon" aria-hidden="true">
+    <sui-icon name={icon()} size="md"></sui-icon>
+  </div>
+
+  <div class="copy">
+    <div class="title" part="title">
+      <slot name="title">{title() || 'Something went wrong'}</slot>
+    </div>
+    <div class="desc" part="desc">
+      <slot>{body()}</slot>
+    </div>
+    <button class="details-toggle" bind:this={detailsToggleBtn} type="button"></button>
+    <div class="details" bind:this={detailsPanel}>
+      <slot name="details" bind:this={detailsSlot}></slot>
+    </div>
+  </div>
+
+  <div class="actions" part="actions">
+    <slot name="action" bind:this={actionSlot}></slot>
+  </div>
+</div>

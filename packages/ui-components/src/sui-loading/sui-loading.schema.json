@@ -1,0 +1,23 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-loading",
+    "props": [
+      {
+        "name": "messages",
+        "default": "",
+        "reflect": false,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "compact",
+        "default": "false",
+        "reflect": true,
+        "bindable": false,
+        "type": "bool"
+      }
+    ]
+  }
+}

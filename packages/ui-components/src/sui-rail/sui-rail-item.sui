@@ -1,0 +1,129 @@
+<!--
+  <sui-rail-item> — nav item for <sui-rail>.
+  Co-located with <sui-rail> in the same directory.
+
+  Prop surface
+  ─────────────────────────────────────────────────────────────────────────────
+  href    (string, '')        navigation target
+  label   (string, '')        visible label text
+  icon    (string, '')        sui-icon name
+  active  (bool, false, reflect)  current-page state (set by shell after nav)
+  badge   (string, '')        optional count badge; hidden when empty
+  disabled (bool, false, reflect)  non-interactive state
+  ─────────────────────────────────────────────────────────────────────────────
+  Parts: item, icon-wrap, label, badge
+  ─────────────────────────────────────────────────────────────────────────────
+  CSS custom properties consumed from parent <sui-rail>:
+    --rail-label-display  (flex | none)    hides label when rail is collapsed
+    --rail-item-justify   (flex-start | center)  centers icon when collapsed
+  These are set on <sui-rail>'s :host and cascade to children.
+  ─────────────────────────────────────────────────────────────────────────────
+  ARIA: aria-current="page" when active
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="href" type="string" default="" />
+<prop name="label" type="string" default="" />
+<prop name="icon" type="string" default="" />
+<prop name="active" type="bool" default="false" reflect />
+<prop name="badge" type="string" default="" />
+<prop name="disabled" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: block;
+    padding: 0 var(--space-2, 8px);
+  }
+  :host([hidden]) { display: none; }
+
+  .item {
+    display: flex;
+    align-items: center;
+    justify-content: var(--rail-item-justify, flex-start);
+    gap: var(--space-2, 8px);
+    width: 100%;
+    padding: 6px var(--space-2, 8px);
+    border-radius: var(--radius-sm, 4px);
+    border: none;
+    background: transparent;
+    color: var(--muted-foreground);
+    font-family: var(--font-body);
+    font-size: var(--text-sm, 13px);
+    font-weight: var(--font-weight-medium, 500);
+    text-decoration: none;
+    cursor: pointer;
+    transition:
+      background-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
+      color var(--duration-fast, 100ms) var(--ease-out, ease-out);
+    white-space: nowrap;
+    overflow: hidden;
+    position: relative;
+    box-sizing: border-box;
+  }
+  .item:hover {
+    background: color-mix(in oklch, var(--foreground) 6%, transparent);
+    color: var(--foreground);
+  }
+  :host([active]) .item {
+    background: color-mix(in oklch, var(--primary) 12%, transparent);
+    color: var(--primary);
+  }
+  :host([active]) .item:hover {
+    background: color-mix(in oklch, var(--primary) 16%, transparent);
+  }
+  :host([disabled]) .item {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  .item:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
+  }
+
+  .icon-wrap {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+  }
+
+  .label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: var(--rail-label-display, flex);
+    align-items: center;
+  }
+
+  .badge {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--primary);
+    color: var(--primary-foreground, white);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .badge:not(:empty) { display: var(--rail-label-display, inline-flex); }
+</style>
+
+<a class="item" part="item" bind:this={itemEl}
+  href={href() || '#'}
+  aria-current={active() ? 'page' : null}
+  aria-disabled={disabled() ? 'true' : null}
+  title={label()}
+>
+  <span class="icon-wrap" part="icon-wrap"><sui-icon name={icon()} size="sm"></sui-icon></span>
+  <span class="label" part="label">{label()}</span>
+  <span class="badge" part="badge" bind:this={badgeEl}>{badge()}</span>
+</a>

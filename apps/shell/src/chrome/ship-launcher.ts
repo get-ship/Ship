@@ -53,7 +53,7 @@ export class ShipLauncher extends LitElement {
   private rafFocus = 0;
 
   /** Light-DOM render so global CSS in apps/shell/index.html applies. */
-  createRenderRoot(): Element {
+  createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
 

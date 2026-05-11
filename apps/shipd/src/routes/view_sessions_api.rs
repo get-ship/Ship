@@ -20,7 +20,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::auth::AuthContext;
 use crate::rest_api::ApiState;
@@ -58,6 +58,7 @@ pub struct SignalReq {
     pub value: Value,
 }
 
+#[allow(clippy::result_large_err)]
 fn require_agent(auth: &AuthContext) -> Result<String, Response> {
     auth.agent_id.clone().ok_or_else(|| {
         err_json(

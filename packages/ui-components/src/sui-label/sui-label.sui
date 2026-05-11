@@ -1,0 +1,56 @@
+<!--
+  <sui-label> — SUI port of <ship-label>.
+  Form field label with optional required marker.
+
+  Prop parity vs <ship-label>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  htmlFor / attribute: 'for'   for (string, '')         ✓ forwarded to inner
+                                                          label.htmlFor via
+                                                          controller
+  size ('sm'|'md', 'sm')       size (sm|md, reflect)    ✓
+  required (bool, false)       required (bool, reflect) ✓ shows * marker
+  ─────────────────────────────────────────────────────────────────────────────
+  (no events)                  (no events)              ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: (default) label text  (default)                ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: (none)                part="label"             SUI names inner label
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="for" type="string" default="" />
+<prop name="size" values="sm|md" default="sm" reflect />
+<prop name="required" type="bool" default="false" reflect />
+
+<style>
+  :host {
+    display: inline-block;
+  }
+  :host([hidden]) { display: none; }
+
+  label {
+    display: inline;
+    font-family: var(--font-body);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
+    cursor: pointer;
+  }
+
+  :host(:not([size])) label,
+  :host([size='sm']) label { font-size: 10px; }
+  :host([size='md']) label { font-size: 11px; }
+
+  .req {
+    color: var(--destructive);
+    margin-left: 2px;
+  }
+</style>
+
+<label part="label" bind:this={labelEl}>
+  <slot></slot>
+  {#if required()}<span class="req" aria-hidden="true">*</span>{/if}
+</label>

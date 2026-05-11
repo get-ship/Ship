@@ -49,7 +49,7 @@ export class ShipShell extends LitElement {
     this.removeEventListener("ship:rail:toggle", this.onRailToggle);
   }
 
-  createRenderRoot(): Element {
+  createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
 

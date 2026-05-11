@@ -1,0 +1,98 @@
+<!--
+  <sui-progress> — SUI port of <ship-progress>.
+  Linear progress bar. Determinate (value/max) or indeterminate when
+  the indeterminate prop is set (SUI) / value is null (Lit).
+
+  Prop / event / method parity vs <ship-progress>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  value (Number|null, null)    value (number, 0)        ✓ SUI uses a separate
+                                                         indeterminate bool
+                                                         prop instead of
+                                                         null-value sentinel
+  max (Number, 100)            max (number, 100)        ✓
+  tone (Tone, 'info')          tone (union, 'primary',  ✓ SUI default is
+                                 reflect)                primary; Lit is info
+  size ('sm'|'md', 'md')       size (sm|md|lg, 'md',   ✓ SUI adds lg track
+                                 reflect)
+  label (String, '')           label (string, '')       ✓ maps to aria-label
+  ─────────────────────────────────────────────────────────────────────────────
+  value===null → indeterminate indeterminate (bool,     SUI externalizes the
+    (Lit null-sentinel)          false, reflect)         indeterminate flag as
+                                                         an explicit prop; a11y
+                                                         semantics are identical.
+  ─────────────────────────────────────────────────────────────────────────────
+  aria-valuenow absent when    aria-valuenow='' when    Minor: empty string vs
+    null (Lit `nothing`)         indeterminate            absent. Functional
+                                                         equivalence preserved.
+  aria-busy set when null      aria-busy set via        ✓
+    value                        indeterminate prop
+  ─────────────────────────────────────────────────────────────────────────────
+  (no events / slots)          (no events / slots)      ✓
+  ─────────────────────────────────────────────────────────────────────────────
+  parts: track (inner div)     parts: track, fill       ✓ SUI names both parts
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="value" type="number" default="0" />
+<prop name="max" type="number" default="100" />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent" default="primary" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="indeterminate" type="bool" default="false" reflect />
+<prop name="label" type="string" default="" />
+
+<style>
+  :host {
+    display: block;
+    --tone: var(--primary);
+    --h: 6px;
+  }
+  :host([hidden]) { display: none; }
+
+  :host([size='sm']) { --h: 4px; }
+  :host([size='md']) { --h: 6px; }
+  :host([size='lg']) { --h: 10px; }
+
+  .track {
+    width: 100%;
+    height: var(--h);
+    background: var(--muted);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .fill {
+    height: 100%;
+    background: var(--tone);
+    border-radius: var(--radius-full);
+    transition: width var(--duration-fast) var(--ease-out);
+  }
+
+  :host([indeterminate]) .fill {
+    width: 30%;
+    animation: sui-progress-indet 1.4s ease-in-out infinite;
+  }
+  @keyframes sui-progress-indet {
+    0%   { transform: translateX(-100%); }
+    50%  { transform: translateX(150%); }
+    100% { transform: translateX(350%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :host([indeterminate]) .fill { animation-duration: 3s; }
+  }
+</style>
+
+<div class="track"
+     part="track"
+     role="progressbar"
+     aria-valuenow={indeterminate() ? null : value()}
+     aria-valuemin="0"
+     aria-valuemax={max()}
+     aria-busy={indeterminate() ? 'true' : 'false'}
+     aria-label={label()}>
+  <div class="fill"
+       part="fill"
+       style={indeterminate() ? '' : ('width: clamp(0%, ' + (value() / (max() || 1) * 100) + '%, 100%)')}></div>
+</div>

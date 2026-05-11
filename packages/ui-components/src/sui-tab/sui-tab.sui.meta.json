@@ -1,0 +1,60 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "attr:data-name",
+      "expr": "name()",
+      "deps": [
+        "name"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:aria-selected",
+      "expr": "active() ? 'true' : 'false'",
+      "deps": [
+        "active"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:aria-disabled",
+      "expr": "disabled() ? 'true' : 'false'",
+      "deps": [
+        "disabled"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "attr:disabled",
+      "expr": "disabled()",
+      "deps": [
+        "disabled"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "bind:this",
+      "expr": "btn",
+      "deps": [
+        "btn"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "if",
+      "expr": "count() !== ''",
+      "deps": [
+        "count"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "text",
+      "expr": "count()",
+      "deps": [
+        "count"
+      ]
+    }
+  ]
+}

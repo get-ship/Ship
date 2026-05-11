@@ -1,6 +1,7 @@
 pub mod http;
 pub mod push;
 pub mod network_client;
+mod components_catalog;
 mod requests;
 mod resource_resolver;
 mod resources;

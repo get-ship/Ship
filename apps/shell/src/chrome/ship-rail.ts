@@ -158,7 +158,7 @@ export class ShipRail extends LitElement {
     window.ship?.navigate("/mesh");
   }
 
-  createRenderRoot(): Element {
+  createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
 

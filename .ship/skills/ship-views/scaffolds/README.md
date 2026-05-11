@@ -1,7 +1,13 @@
 # View scaffolds
 
-Canonical starter shapes for `ship-views`. Shipwright copies a
-scaffold into `.ship/views/<name>/` then substitutes placeholders.
+Legacy `.html.j2` starter shapes consumed by `apps/shipd/src/create_api.rs`
+when the shell's create dialog scaffolds a new view into `.ship/views/<name>/`.
+They land j2 views — the `ship-views-j2` (archived) authoring contract.
+
+The canonical view stack is `.sui` templates with a paired `controller.ts`
+under `views/<name>/page.sui` (see `../SKILL.md`). For new SUI views, scaffold
+with `node scripts/scaffold-view.mjs <name>` instead — these directories
+exist only until the create-API migrates to SUI.
 
 ## Placeholders
 

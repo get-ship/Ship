@@ -1,0 +1,28 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "attr:role",
+      "expr": "label() ? 'img' : null",
+      "deps": [
+        "label"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "attr:aria-label",
+      "expr": "label() || null",
+      "deps": [
+        "label"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:aria-hidden",
+      "expr": "label() ? null : 'true'",
+      "deps": [
+        "label"
+      ]
+    }
+  ]
+}

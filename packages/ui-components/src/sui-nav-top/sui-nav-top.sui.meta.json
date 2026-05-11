@@ -1,0 +1,110 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "on:click",
+      "expr": "onBrand",
+      "deps": [
+        "onBrand"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "for",
+      "expr": "crumbs()",
+      "deps": [
+        "crumbs"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "if",
+      "expr": "c.isLast",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "text",
+      "expr": "c.label",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "attr:href",
+      "expr": "c.href",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "on:click",
+      "expr": "(e) => onCrumbClick(e, c.href)",
+      "deps": [
+        "e",
+        "onCrumbClick",
+        "c"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "text",
+      "expr": "c.label",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "on:click",
+      "expr": "onRailToggle",
+      "deps": [
+        "onRailToggle"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "on:click",
+      "expr": "onStudio",
+      "deps": [
+        "onStudio"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "attr:aria-pressed",
+      "expr": "dockOpen() ? 'true' : 'false'",
+      "deps": [
+        "dockOpen"
+      ]
+    },
+    {
+      "key": "b10",
+      "kind": "on:click",
+      "expr": "onDockToggle",
+      "deps": [
+        "onDockToggle"
+      ]
+    },
+    {
+      "key": "b11",
+      "kind": "on:click",
+      "expr": "onFullscreen",
+      "deps": [
+        "onFullscreen"
+      ]
+    },
+    {
+      "key": "b12",
+      "kind": "on:click",
+      "expr": "onChatToggle",
+      "deps": [
+        "onChatToggle"
+      ]
+    }
+  ]
+}

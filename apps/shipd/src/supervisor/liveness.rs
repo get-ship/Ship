@@ -57,7 +57,7 @@ pub(crate) fn start_exit_handler(
                         &signal.slug,
                         None,
                         signal.exit_code,
-                        exit_signal.as_deref(),
+                        exit_signal,
                         0,
                         "unknown",
                     )

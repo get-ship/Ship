@@ -4,11 +4,13 @@
 //! Zero inline `<script>` — clipboard copy uses Datastar `data-on:click`.
 
 /// Returns true when the daemon is running in dev mode.
+#[allow(dead_code)] // wired up when SHIP_DEV lint overlay feature is active
 pub(super) fn is_dev_mode() -> bool {
     ship_substrate::env::read_raw(ship_substrate::env::Var::Dev).as_deref() == Ok("1")
         || std::env::var("RUST_ENV").as_deref() == Ok("development")
 }
 
+#[allow(dead_code)] // wired up when SHIP_DEV lint overlay feature is active
 /// Inject a floating lint-findings panel at the end of the `<body>`.
 ///
 /// Uses ship-badge for severity dots and a `<details>` for collapse/expand.

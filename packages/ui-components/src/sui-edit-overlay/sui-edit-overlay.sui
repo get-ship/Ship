@@ -1,0 +1,91 @@
+<!--
+  <sui-edit-overlay> — SUI port of <ship-edit-overlay>.
+  Hover-highlight + click-to-annotate overlay for edit mode.
+
+  Activation:
+    Watches body.edit-mode class (toggled externally by ⌘⇧E in the shell).
+    Mounts/unmounts pointermove + click listeners on #ship-view-root when active.
+    Hover paints an outline box + selector label over the hovered element.
+    Click dispatches sui:chat:annotate (renamed from ship:chat:annotate) on the
+    nearest <sui-shell> ancestor with { tag, selector, id, preview } detail.
+
+  Prop surface: (none — activation is driven by body.edit-mode, not props)
+
+  Events (dispatched on <sui-shell> via closest()):
+    sui:chat:annotate   { tag, selector, id, preview }  — element was clicked
+
+  Parts: box, label, hint
+  ──────────────────────────────────────────────────────────────────────────────
+  Contract with shell:
+    - body.edit-mode class toggles the overlay on/off (kept from Lit version)
+    - #ship-view-root is the event target root (same as ship-edit-overlay)
+    - sui:chat:annotate is the renamed event (ship:chat:annotate → sui:)
+  ──────────────────────────────────────────────────────────────────────────────
+-->
+
+<style>
+  :host {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9500;
+    display: none;
+  }
+  :host(.active) {
+    display: block;
+  }
+
+  .box {
+    position: absolute;
+    border: 2px solid var(--primary);
+    background: color-mix(in oklch, var(--primary) 8%, transparent);
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--primary) 40%, transparent);
+    transition: all 60ms linear;
+    display: none;
+  }
+  .box.visible { display: block; }
+
+  .label {
+    position: absolute;
+    padding: 2px 6px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--primary-foreground, #fff);
+    background: var(--primary);
+    border-radius: 2px;
+    white-space: nowrap;
+    transform: translateY(-100%);
+    display: none;
+  }
+  .label.visible { display: block; }
+
+  .hint {
+    position: fixed;
+    bottom: 40px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 6px 12px;
+    background: var(--card, var(--background));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md, 6px);
+    color: var(--muted-foreground);
+    font-size: var(--text-xs);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  }
+  .hint kbd {
+    font-family: var(--font-mono);
+    background: var(--muted);
+    padding: 1px 4px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    margin: 0 2px;
+  }
+</style>
+
+<div class="box" part="box" bind:this={boxEl}></div>
+<div class="label" part="label" bind:this={labelEl}></div>
+<div class="hint" part="hint">
+  Edit mode — hover an element, click to annotate.
+  <kbd>⌘⇧E</kbd> to exit.
+</div>

@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-json-view.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiJsonView",
+          "tagName": "sui-json-view",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "expanded",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "depth",
+              "type": {
+                "text": "number"
+              },
+              "default": "1"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "data",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "expanded",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "expanded",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "depth",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "depth",
+              "default": "1",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-json-view",
+          "declaration": {
+            "name": "SuiJsonView",
+            "module": "sui-json-view.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

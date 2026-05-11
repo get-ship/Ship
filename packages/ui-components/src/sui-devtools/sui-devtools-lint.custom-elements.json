@@ -1,0 +1,34 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-devtools-lint.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiDevtoolsLint",
+          "tagName": "sui-devtools-lint",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [],
+          "members": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-devtools-lint",
+          "declaration": {
+            "name": "SuiDevtoolsLint",
+            "module": "sui-devtools-lint.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

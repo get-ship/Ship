@@ -89,7 +89,7 @@ export class ShipNavTop extends LitElement {
     this._dockObserver = null;
   }
 
-  createRenderRoot(): Element {
+  createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
 
@@ -136,6 +136,16 @@ export class ShipNavTop extends LitElement {
         @click=${() => this.dispatch("ship:rail:toggle")}
       >
         <ship-icon slot="leading" name="menu"></ship-icon>
+      </ship-button>
+      <ship-button
+        variant="ghost"
+        size="sm"
+        id="open-ui-studio"
+        title="Open UI Studio"
+        aria-label="Open UI Studio"
+        @click=${() => window.ship?.navigate("/ship-ui-studio")}
+      >
+        <ship-icon slot="leading" name="columns"></ship-icon>
       </ship-button>
       <ship-popover placement="bottom-end" id="theme-picker">
         <ship-button

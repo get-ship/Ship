@@ -95,10 +95,7 @@ pub fn compile_component_with_path(
     // - inline <style>...</style> body
     // External + inline CAN coexist; external loads first, inline appends.
     // Both go through the scoper unless `global` is set.
-    let style_body = match resolve_style_body(&blocks, source_path)? {
-        Some(s) => s,
-        None => String::new(),
-    };
+    let style_body = resolve_style_body(&blocks, source_path)?.unwrap_or_default();
     let scoped_css = if style_body.is_empty() {
         String::new()
     } else if style_is_global(&blocks.style_attrs) {

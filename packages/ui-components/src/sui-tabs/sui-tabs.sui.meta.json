@@ -1,0 +1,28 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "attr:aria-orientation",
+      "expr": "orientation()",
+      "deps": [
+        "orientation"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "bind:this",
+      "expr": "strip",
+      "deps": [
+        "strip"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "bind:this",
+      "expr": "tabSlot",
+      "deps": [
+        "tabSlot"
+      ]
+    }
+  ]
+}

@@ -150,7 +150,7 @@ export class ShipEditOverlay extends LitElement {
     window.ship?.chat?.open?.();
   };
 
-  createRenderRoot(): Element {
+  createRenderRoot(): HTMLElement | DocumentFragment {
     return this;
   }
 

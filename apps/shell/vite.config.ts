@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from "vite";
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -31,18 +32,58 @@ function svgAsText() {
 }
 
 /**
- * Resolve the daemon bearer token. Precedence:
- *   1. VITE_DAEMON_TOKEN env var
- *   2. ~/.ship/daemon.token file (auto, so `pnpm dev` Just Works)
- *
- * Only used for the cross-origin dev path (vite on :3100 → daemon on :9315).
- * When the daemon serves the shell same-origin (cookie auth), no token is read
- * at runtime — the client code drops the Authorization header entirely.
+ * Walk up from the shell's vite-config dir to find the repo root —
+ * the directory containing `Cargo.toml` with a `[workspace]` table.
+ * Used to locate the worktree's freshly-built `ship` binary so we
+ * stay in sync with whatever the daemon was built from.
  */
-function resolveToken(envToken: string | undefined): string {
-  if (envToken && envToken.length > 0) return envToken;
+function repoRoot(): string {
+  let dir = __dirname;
+  for (let i = 0; i < 10; i++) {
+    const cargo = join(dir, "Cargo.toml");
+    if (existsSync(cargo)) {
+      try {
+        if (readFileSync(cargo, "utf8").includes("[workspace]")) return dir;
+      } catch { /* continue */ }
+    }
+    const parent = join(dir, "..");
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return process.cwd();
+}
+
+/**
+ * Locate the per-worktree daemon dir (`~/.ship/machine/daemons/<hash>/`).
+ *
+ * Each worktree gets its own daemon (devx-04). The dir is keyed on a
+ * sha256 of the project root path so two worktrees never collide on
+ * port, token, pid, or log file. The `ship daemon dir` command knows
+ * how to compute it; we shell out so the JS side stays in sync with
+ * the Rust runtime's path-hash without reimplementing it. The worktree
+ * binary wins so a freshly-built `ship` with new logic isn't shadowed
+ * by a stale `~/.local/bin/ship` on $PATH.
+ */
+function resolveDaemonDir(): string | null {
+  const root = repoRoot();
+  const candidates = [
+    join(root, "target", "debug", "ship"),
+    join(root, "target", "release", "ship"),
+  ];
+  for (const bin of candidates) {
+    if (!existsSync(bin)) continue;
+    try {
+      return execFileSync(bin, ["daemon", "dir"], { encoding: "utf8" }).trim();
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+function readSmall(path: string): string {
   try {
-    return readFileSync(join(homedir(), ".ship", "daemon.token"), "utf8").trim();
+    return readFileSync(path, "utf8").trim();
   } catch {
     return "";
   }
@@ -50,18 +91,59 @@ function resolveToken(envToken: string | undefined): string {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  // Daemon target — explicit URL wins; otherwise fall back to SHIP_DAEMON_PORT
-  // (set by scripts/dev-daemon.sh when binding a non-default port for
-  // multi-worktree dev), then to 127.0.0.1:9315.
-  const daemonPort = env.SHIP_DAEMON_PORT ?? process.env.SHIP_DAEMON_PORT ?? "9315";
-  const daemon = env.VITE_DAEMON_URL ?? `http://127.0.0.1:${daemonPort}`;
-  // Vite dev server port follows the daemon's offset so two worktrees
-  // can run side-by-side: daemon :9315 → vite :3100; daemon :9316 → vite :3101, etc.
-  const vitePort = Number(env.VITE_PORT ?? process.env.VITE_PORT ?? (3100 + (Number(daemonPort) - 9315)));
-  // Token resolved per-request in the proxy below so daemon restarts (which
-  // mint a new token) don't require a Vite restart.
+
+  // Per-worktree daemon: read port + token from `<daemon_dir>/{port,token}`.
+  // Explicit env-var overrides win for tests / CI / one-off forwarding.
+  // daemonDir is stable for a Vite session (keyed on project path hash);
+  // only the port file inside it changes across daemon restarts.
+  const daemonDir = resolveDaemonDir();
+  const daemonPortFromDir = daemonDir ? readSmall(join(daemonDir, "port")) : "";
+  const daemonPort =
+    env.SHIP_DAEMON_PORT ||
+    process.env.SHIP_DAEMON_PORT ||
+    daemonPortFromDir ||
+    "9315";
+  const daemonPortNum = Number(daemonPort);
+
+  // Vite dev port follows daemon port so two worktrees run side-by-side:
+  // daemon 9315 → vite 3100; daemon 9385 → vite 3170; etc. Guard against
+  // a bad daemonPort read (would yield a negative number) by falling back
+  // to 3100 when the offset doesn't make sense.
+  const offset = daemonPortNum >= 9315 ? daemonPortNum - 9315 : 0;
+  const vitePort = Number(env.VITE_PORT ?? process.env.VITE_PORT ?? 3100 + offset);
+
+  // Port resolved per-request (symmetric with token) so daemon restarts on a
+  // different port, worktree switches, or orphan-daemon cleanup never leave
+  // Vite proxying to a stale address. daemonDir is cached above; only the
+  // port file inside it is re-read on each request (cheap, no process spawn).
+  let _lastDaemonUrl = "";
+  function currentDaemonUrl(): string {
+    const explicit = env.VITE_DAEMON_URL ?? process.env.VITE_DAEMON_URL;
+    if (explicit) return explicit;
+
+    const portEnv = env.SHIP_DAEMON_PORT ?? process.env.SHIP_DAEMON_PORT;
+    if (portEnv) return `http://127.0.0.1:${portEnv}`;
+
+    const port = daemonDir ? readSmall(join(daemonDir, "port")) : "";
+    const url = `http://127.0.0.1:${port || "9315"}`;
+    if (_lastDaemonUrl && url !== _lastDaemonUrl) {
+      console.warn(`[vite] proxy target changed: ${_lastDaemonUrl} → ${url}`);
+    }
+    _lastDaemonUrl = url;
+    return url;
+  }
+
+  // Token resolved per-request so daemon restarts (which mint a new token)
+  // don't require a Vite restart. Precedence: env override → daemon-dir
+  // file (canonical) → legacy `~/.ship/daemon.token` for back-compat.
   function currentToken(): string {
-    return resolveToken(env.VITE_DAEMON_TOKEN);
+    const explicit = env.VITE_DAEMON_TOKEN ?? process.env.VITE_DAEMON_TOKEN;
+    if (explicit && explicit.length > 0) return explicit;
+    if (daemonDir) {
+      const t = readSmall(join(daemonDir, "token"));
+      if (t) return t;
+    }
+    return readSmall(join(homedir(), ".ship", "daemon.token"));
   }
   // Embedded production assets are served at /shell/ by shipd
   // (apps/shipd/src/shell_assets.rs). Dev mode runs at the Vite root and
@@ -78,8 +160,8 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       // Client sees empty string → relative URLs → Vite proxy forwards to
-      // daemon with fresh token. The `daemon` var above is the proxy target
-      // only (server-side), never exposed to the browser.
+      // daemon with fresh token. currentDaemonUrl() resolves server-side per
+      // request and is never exposed to the browser.
       "import.meta.env.VITE_DAEMON_URL": JSON.stringify(""),
       "import.meta.env.VITE_DAEMON_TOKEN": JSON.stringify(""),
     },
@@ -102,7 +184,8 @@ export default defineConfig(({ mode }) => {
         // as same-origin on :3100. Bearer token injected by the proxy so the
         // client code can run with credentials: "include" + cookie only.
         "/api": {
-          target: daemon,
+          target: currentDaemonUrl(),
+          router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("proxyReq", (proxyReq) => {
@@ -112,14 +195,43 @@ export default defineConfig(({ mode }) => {
           },
         },
         "/daemon": {
-          target: daemon,
+          target: currentDaemonUrl(),
+          router: () => currentDaemonUrl(),
           changeOrigin: true,
           rewrite: (p) => p.replace(/^\/daemon/, ""),
+        },
+        // SUI framework — daemon serves the runtime/dom/sdk-client
+        // bundles, view templates, view payloads
+        // (`/_sui/views/<name>`), and mutations under /_sui/*. Listed
+        // before /_ship so the more-specific prefix wins.
+        "/_sui": {
+          target: currentDaemonUrl(),
+          router: () => currentDaemonUrl(),
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              const t = currentToken();
+              if (t) proxyReq.setHeader("Authorization", `Bearer ${t}`);
+            });
+          },
+        },
+        // SUI full-page views — file-system routed at /sui/<name>.
+        "/sui": {
+          target: currentDaemonUrl(),
+          router: () => currentDaemonUrl(),
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              const t = currentToken();
+              if (t) proxyReq.setHeader("Authorization", `Bearer ${t}`);
+            });
+          },
         },
         // SFC components — daemon serves compiled .ship files at
         // /_ship/components/<tag>.js. Same auth + same origin as /api.
         "/_ship": {
-          target: daemon,
+          target: currentDaemonUrl(),
+          router: () => currentDaemonUrl(),
           changeOrigin: true,
           configure: (proxy) => {
             proxy.on("proxyReq", (proxyReq) => {

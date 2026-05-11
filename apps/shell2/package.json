@@ -1,0 +1,21 @@
+{
+  "name": "shell2",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --port 3200",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ship/sdk": "workspace:*",
+    "@ship/sdk-client": "workspace:*"
+  },
+  "devDependencies": {
+    "playwright": "^1.59.1",
+    "typescript": "~5.8.3",
+    "vite": "^7.3.1"
+  }
+}

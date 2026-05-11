@@ -11,7 +11,7 @@ pub(crate) async fn graceful_agent_exit(slug: &str, provider: Option<&str>) {
         .map(|a| a.exit_command().to_string())
         .unwrap_or_default();
 
-    let has_session = std::process::Command::new("tmux")
+    let has_session = crate::spawn_bounded::Cmd::new("tmux")
         .args(["has-session", "-t", &tmux_session])
         .status()
         .map(|s| s.success())
@@ -23,13 +23,13 @@ pub(crate) async fn graceful_agent_exit(slug: &str, provider: Option<&str>) {
     }
 
     tracing::info!(slug, session = %tmux_session, "pipeline: sending exit command to current agent");
-    let _ = std::process::Command::new("tmux")
+    let _ = crate::spawn_bounded::Cmd::new("tmux")
         .args(["send-keys", "-t", &tmux_session, &exit_cmd, "Enter"])
         .status();
 
     for _ in 0..30 {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        let output = std::process::Command::new("tmux")
+        let output = crate::spawn_bounded::Cmd::new("tmux")
             .args(["capture-pane", "-t", &tmux_session, "-p"])
             .output();
         if let Ok(out) = output {

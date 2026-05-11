@@ -118,6 +118,19 @@ These events go through the kernel like any others — they're in the `events` t
 
 `pidfile_pid_for_port(global_dir, port)` is the function used in the bind-failure path — it reads the pidfile to name whoever currently holds the port, so the error message is actionable.
 
+## Per-worktree Vite isolation
+
+Each worktree runs its own Vite dev server on a distinct port (`3200 + (daemon_port - 9315)`). The launcher script `scripts/dev/shell2-start.sh` (invoked by `just shell2-dev`) records the Vite process PID at `{daemon_dir}/vite.pid` alongside the daemon's own `pid` and `port` files.
+
+This enables coordinated cleanup:
+
+- `just dev-stop` — kills both the daemon and the tracked Vite process for the current worktree.
+- `just dev-restart` — stops daemon + Vite, reaps any orphan Vite processes running from deleted worktree paths, then rebuilds and restarts.
+- `just dev-stop-all` — kills every daemon and Vite process tracked across all worktrees.
+- `just worktree-remove <slug>` — reaps daemon + Vite for the named worktree, then calls `git worktree remove`. Use `-- --force` to force-remove a worktree with uncommitted changes.
+
+The orphan-reaping pass in `dev-restart` walks all `~/.ship/machine/daemons/*/vite.pid` files and kills any Vite process whose `/proc/<pid>/cwd` resolves to a path that no longer exists. This prevents stale Vite processes (serving bytes from a deleted worktree) from persisting and conflicting with subsequent dev sessions.
+
 ## Shutdown
 
 Graceful shutdown fires on SIGINT or SIGTERM. Flow:

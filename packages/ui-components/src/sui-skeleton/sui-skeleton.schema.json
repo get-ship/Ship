@@ -1,0 +1,34 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-skeleton",
+    "props": [
+      {
+        "name": "shape",
+        "default": "text",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "text",
+          "line",
+          "block",
+          "circle"
+        ]
+      },
+      {
+        "name": "size",
+        "default": "md",
+        "reflect": true,
+        "bindable": false,
+        "type": "union",
+        "values": [
+          "sm",
+          "md",
+          "lg"
+        ]
+      }
+    ]
+  }
+}

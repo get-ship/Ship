@@ -1,0 +1,88 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "bind:this",
+      "expr": "containerEl",
+      "deps": [
+        "containerEl"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "for",
+      "expr": "options()",
+      "deps": [
+        "options"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "attr:data-value",
+      "expr": "opt.value",
+      "deps": [
+        "opt"
+      ]
+    },
+    {
+      "key": "b3",
+      "kind": "attr:aria-checked",
+      "expr": "opt.value === value() ? 'true' : 'false'",
+      "deps": [
+        "opt",
+        "value"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "attr:aria-disabled",
+      "expr": "(disabled() || opt.disabled) ? 'true' : 'false'",
+      "deps": [
+        "disabled",
+        "opt"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "prop:disabled",
+      "expr": "disabled() || opt.disabled",
+      "deps": [
+        "disabled",
+        "opt"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "attr:tabindex",
+      "expr": "opt.value === value() ? '0' : '-1'",
+      "deps": [
+        "opt",
+        "value"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "if",
+      "expr": "opt.icon",
+      "deps": [
+        "opt"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "prop:name",
+      "expr": "opt.icon",
+      "deps": [
+        "opt"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "text",
+      "expr": "opt.label",
+      "deps": [
+        "opt"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,152 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-toast.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiToast",
+          "tagName": "sui-toast",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' | 'primary'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted",
+                "primary"
+              ]
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "duration",
+              "type": {
+                "text": "number"
+              },
+              "default": "5000"
+            },
+            {
+              "name": "dismissible",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            },
+            {
+              "name": "show-progress",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "closing",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted' | 'primary'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "duration",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "duration",
+              "default": "5000"
+            },
+            {
+              "kind": "field",
+              "name": "dismissible",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "dismissible",
+              "default": "true",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "showProgress",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "show-progress",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "closing",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "closing",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-toast",
+          "declaration": {
+            "name": "SuiToast",
+            "module": "sui-toast.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

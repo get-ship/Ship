@@ -1,0 +1,28 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "text",
+      "expr": "branch()",
+      "deps": [
+        "branch"
+      ]
+    },
+    {
+      "key": "b1",
+      "kind": "text",
+      "expr": "agents()",
+      "deps": [
+        "agents"
+      ]
+    },
+    {
+      "key": "b2",
+      "kind": "text",
+      "expr": "theme()",
+      "deps": [
+        "theme"
+      ]
+    }
+  ]
+}

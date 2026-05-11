@@ -1,0 +1,212 @@
+<!--
+  <sui-input> — SUI port of <ship-input>.
+  Native <input> delegation with ARIA wiring, event bridging, and
+  imperative proxy API. Controller handles value sync, event dispatch,
+  and host method delegation.
+
+  Prop / event / method parity vs <ship-input>
+  ────────────────────────────────────────────────────────────���─────────────────
+  Lit                            SUI                       Notes
+  ──────────────────────────────────────────────────────────────────────────────
+  type (String, 'text')          type (union, 'text',      ✓ values enumerated
+                                   reflect)                for DX
+  value (String, '')             value (string, '')        ✓ two-way via bind:value
+  placeholder (String, '')       placeholder (string)      ✓
+  name (String, '')              name (string)             ✓
+  autocomplete (String, '')      autocomplete (string)     ✓
+  required (Boolean, false)      required (bool, reflect)  ✓ aria-required wired
+  disabled (Boolean, false)      disabled (bool, reflect)  ✓
+  readonly (Boolean, false)      readonly (bool, reflect)  ✓
+  invalid (Boolean, false)       invalid (bool, reflect)   ✓ aria-invalid wired;
+                                                           overrides tone to
+                                                           destructive ring
+  loading (Boolean, false)       loading (bool, reflect)   ✓ spinner replaces
+                                                           trailing slot
+  tone (Tone, undefined)         tone (union, 'default',   ✓ tints focus ring
+                                   reflect)
+  variant ('default'|'ghost',    variant (default|ghost,   ✓ ghost removes border
+    'default')                     'default', reflect)     until focus
+  size ('sm'|'md'|'lg', 'md')    size (sm|md|lg, 'md',    ✓
+                                   reflect)
+  label (String, '')             label (string)            ✓ → aria-label
+  describedBy (String, '')       described-by (string)     ✓ → describedBy in scope
+                                                           + aria-describedby wired
+                                                           by controller
+  errorMessage (String, '')      error-message (string)    ✓ → errorMessage in scope
+                                                           rendered when invalid
+  ──────────────────────────────────────────────────────────────────────────────
+  Events: ship-input             sui-input                 ✓ renamed; detail.value
+    (CustomEvent, composed)        (CustomEvent, composed)
+  Events: (native change)        sui-input-change          ✓ re-dispatched from
+                                   (CustomEvent, composed)   host (native change
+                                                             is not composed from
+                                                             shadow)
+  ──────────────────────────────────────────────────────────────────────────────
+  Methods: (none explicit)       host.focus()              ✓ proxies to inner input
+                                 host.blur()               ✓
+                                 host.clear()              ✓ resets value + signal
+                                 host.reportValidity()     ✓ proxies to inner input
+  ──────────────────────────────────────────────────────────────────────────────
+  formAssociated / internals     DEFERRED                  SUI component() factory
+                                                           does not surface
+                                                           ElementInternals today.
+                                                           Filed as framework gap;
+                                                           form-submit integration
+                                                           requires compiler
+                                                           extension.
+  ──────────────────────────────────────────────────────────────────────────────
+  Slots: leading, trailing       leading, trailing         ✓
+  Parts: field, input            wrap, input               ✓ 'input' satisfies
+                                                           test table; 'wrap'
+                                                           mirrors outer container
+  ──────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="type" values="text|search|email|url|tel|password|number" default="text" reflect />
+<prop name="value" type="string" default="" />
+<prop name="placeholder" type="string" default="" />
+<prop name="name" type="string" default="" />
+<prop name="autocomplete" type="string" default="" />
+<prop name="required" type="bool" default="false" reflect />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="readonly" type="bool" default="false" reflect />
+<prop name="invalid" type="bool" default="false" reflect />
+<prop name="loading" type="bool" default="false" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+<prop name="variant" values="default|ghost" default="default" reflect />
+<prop name="size" values="sm|md|lg" default="md" reflect />
+<prop name="label" type="string" default="" />
+<prop name="described-by" type="string" default="" />
+<prop name="error-message" type="string" default="" />
+
+<style>
+  :host {
+    display: inline-flex;
+    flex-direction: column;
+    gap: 4px;
+    vertical-align: middle;
+    width: 100%;
+    --tone-border: var(--border);
+    --tone-ring: var(--primary);
+    --h: 34px;
+    --fs: 13px;
+    --px: 10px;
+  }
+
+  :host([tone='primary'])     { --tone-border: var(--primary);     --tone-ring: var(--primary); }
+  :host([tone='info'])        { --tone-border: var(--info);         --tone-ring: var(--info); }
+  :host([tone='success'])     { --tone-border: var(--success);      --tone-ring: var(--success); }
+  :host([tone='warning'])     { --tone-border: var(--warning);      --tone-ring: var(--warning); }
+  :host([tone='destructive']),
+  :host([invalid])            { --tone-border: var(--destructive);  --tone-ring: var(--destructive); }
+  :host([tone='accent'])      { --tone-border: var(--accent);       --tone-ring: var(--accent); }
+  :host([tone='muted'])       { --tone-border: var(--muted-foreground); --tone-ring: var(--muted-foreground); }
+
+  :host([size='sm']) { --h: 28px; --fs: 12px; --px: 8px; }
+  :host([size='md']) { --h: 34px; --fs: 13px; --px: 10px; }
+  :host([size='lg']) { --h: 40px; --fs: 14px; --px: 12px; }
+
+  .wrap {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: var(--h);
+    padding: 0 var(--px);
+    background: var(--background);
+    border: 1px solid var(--tone-border);
+    border-radius: var(--radius-md);
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
+  }
+
+  :host([variant='ghost']) .wrap {
+    border-color: transparent;
+    background: transparent;
+  }
+
+  .wrap:focus-within {
+    border-color: var(--tone-ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--tone-ring) 25%, transparent);
+  }
+
+  :host([disabled]) .wrap {
+    background: var(--muted);
+    cursor: not-allowed;
+    opacity: 0.65;
+  }
+
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    padding: 0;
+    font: inherit;
+    font-family: var(--font-body);
+    font-size: var(--fs);
+    color: var(--foreground);
+  }
+  input::placeholder { color: var(--muted-foreground); }
+  input:disabled { cursor: not-allowed; }
+
+  ::slotted([slot='leading']),
+  ::slotted([slot='trailing']) {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    color: var(--muted-foreground);
+  }
+
+  .spinner {
+    display: inline-block;
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
+    border: 2px solid color-mix(in oklch, var(--tone-ring) 30%, transparent);
+    border-top-color: var(--tone-ring);
+    border-radius: 50%;
+    animation: sui-spin 0.6s linear infinite;
+  }
+
+  @keyframes sui-spin {
+    to { transform: rotate(360deg); }
+  }
+
+  .error {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--destructive);
+    line-height: 1.4;
+  }
+</style>
+
+<div class="wrap" part="wrap">
+  <slot name="leading" reflect-empty="data-no-leading"></slot>
+  <input
+    part="input"
+    type={type()}
+    placeholder={placeholder()}
+    name={name()}
+    autocomplete={autocomplete() || 'off'}
+    disabled={disabled()}
+    readonly={readonly()}
+    required={required()}
+    aria-label={label()}
+    aria-invalid={invalid() ? 'true' : 'false'}
+    aria-required={required() ? 'true' : 'false'}
+    aria-busy={loading() ? 'true' : 'false'}
+    bind:value={value}
+    bind:this={inputEl}
+  />
+  {#if loading()}
+    <span class="spinner" aria-hidden="true"></span>
+  {:else}
+    <slot name="trailing" reflect-empty="data-no-trailing"></slot>
+  {/if}
+</div>
+{#if invalid() && errorMessage()}
+  <span class="error" role="alert" bind:this={errorEl}>{errorMessage()}</span>
+{/if}

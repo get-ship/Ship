@@ -30,7 +30,7 @@ up to the nearest `manifest.{yaml,jsonc,json}` automatically.
 
 ## VS Code
 
-Install the extension at `apps/ship-vscode/` (see its `README.md` for
+Install the extension at `apps/ship-set-vscode/` (see its `README.md` for
 local install steps; published Marketplace listing is forthcoming).
 The extension activates on any workspace containing
 `.ship/views/**/*.html.j2`.

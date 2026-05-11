@@ -93,6 +93,8 @@ mod wasm {
         cursor_cli_permissions: Option<serde_json::Value>,
         /// Cursor-only: `.cursor/environment.json` content.
         cursor_environment_json: Option<serde_json::Value>,
+        /// Claude-only: `.claude/lsp.json` content.
+        claude_lsp_config: Option<serde_json::Value>,
         /// OpenCode-only: full `opencode.json` content (model + MCP + extras).
         opencode_config_patch: Option<serde_json::Value>,
         /// Provider-native agent files: path → content.
@@ -140,6 +142,7 @@ mod wasm {
             cursor_hooks_patch: output.cursor_hooks_patch,
             cursor_cli_permissions: output.cursor_cli_permissions,
             cursor_environment_json: output.cursor_environment_json,
+            claude_lsp_config: output.claude_lsp_config,
             opencode_config_patch: output.opencode_config_patch,
             agent_files: output.agent_files,
             plugins_manifest: output.plugins_manifest,
@@ -179,6 +182,7 @@ mod wasm {
                     cursor_hooks_patch: output.cursor_hooks_patch,
                     cursor_cli_permissions: output.cursor_cli_permissions,
                     cursor_environment_json: output.cursor_environment_json,
+                    claude_lsp_config: output.claude_lsp_config,
                     opencode_config_patch: output.opencode_config_patch,
                     agent_files: output.agent_files,
                     plugins_manifest: output.plugins_manifest,

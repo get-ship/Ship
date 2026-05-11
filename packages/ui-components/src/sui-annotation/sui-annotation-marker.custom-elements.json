@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-annotation-marker.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiAnnotationMarker",
+          "tagName": "sui-annotation-marker",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "kind",
+              "type": {
+                "text": "'point' | 'region'"
+              },
+              "default": "point",
+              "values": [
+                "point",
+                "region"
+              ]
+            },
+            {
+              "name": "x",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "y",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "rect",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "index",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "kind",
+              "type": {
+                "text": "'point' | 'region'"
+              },
+              "attribute": "kind",
+              "default": "point",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "x",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "x",
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "y",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "y",
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "rect",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "rect",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "active",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "index",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "index",
+              "default": "0"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-annotation-marker",
+          "declaration": {
+            "name": "SuiAnnotationMarker",
+            "module": "sui-annotation-marker.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

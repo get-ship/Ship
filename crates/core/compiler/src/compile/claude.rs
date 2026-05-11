@@ -186,6 +186,24 @@ pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     }
 }
 
+/// Claude Code LSP plugin manifest. Written to `.claude/lsp.json`.
+///
+/// Manifest shape: https://code.claude.com/docs/en/plugins-reference#lsp-servers
+pub fn build_claude_lsp_config() -> Json {
+    serde_json::json!({
+        "ship": {
+            "command": "ship",
+            "args": ["lsp"],
+            "extensionToLanguage": {
+                ".sui": "sui",
+                ".controller.ts": "typescript-sui",
+                ".html.j2": "jinja-ship",
+                ".ship": "jinja-ship"
+            }
+        }
+    })
+}
+
 /// Returns `true` when the permissions object contains any tool-level overrides
 /// that deviate from "allow everything" defaults. Filesystem, command, network,
 /// and agent limits are checked separately in the caller.

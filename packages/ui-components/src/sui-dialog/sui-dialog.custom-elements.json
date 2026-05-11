@@ -1,0 +1,186 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-dialog.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiDialog",
+          "tagName": "sui-dialog",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg' | 'full'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg",
+                "full"
+              ]
+            },
+            {
+              "name": "backdrop",
+              "type": {
+                "text": "'default' | 'blur' | 'solid'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "blur",
+                "solid"
+              ]
+            },
+            {
+              "name": "dismissible",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            },
+            {
+              "name": "no-close-button",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "no-header",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "no-footer",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "role-override",
+              "type": {
+                "text": "'dialog' | 'alertdialog'"
+              },
+              "default": "dialog",
+              "values": [
+                "dialog",
+                "alertdialog"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "open",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg' | 'full'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "backdrop",
+              "type": {
+                "text": "'default' | 'blur' | 'solid'"
+              },
+              "attribute": "backdrop",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "dismissible",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "dismissible",
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "noCloseButton",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "no-close-button",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "noHeader",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "no-header",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "noFooter",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "no-footer",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "roleOverride",
+              "type": {
+                "text": "'dialog' | 'alertdialog'"
+              },
+              "attribute": "role-override",
+              "default": "dialog",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-dialog",
+          "declaration": {
+            "name": "SuiDialog",
+            "module": "sui-dialog.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

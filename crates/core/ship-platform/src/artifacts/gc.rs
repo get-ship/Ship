@@ -61,9 +61,12 @@ pub fn backfill_content_hashes(global_ship_dir: &Path, svc: &mut DataService) ->
 
     crate::artifacts::ensure_artifacts_collection(svc)?;
 
+    // The artifacts collection migrated from a JSON `data` blob to
+    // first-class columns; the backfill query lagged the schema and was
+    // emitting "no such column: data" on every daemon boot. Use the
+    // columns directly.
     let rows = svc.query(
-        "SELECT id, json_extract(data, '$.path') AS path FROM collection_artifacts \
-         WHERE json_extract(data, '$.content_hash') IS NULL",
+        "SELECT id, path FROM collection_artifacts WHERE content_hash IS NULL",
         &[],
     )?;
 
@@ -81,9 +84,7 @@ pub fn backfill_content_hashes(global_ship_dir: &Path, svc: &mut DataService) ->
         };
         let hash = sha256_hex(&bytes);
         if let Err(e) = svc.execute(
-            "UPDATE collection_artifacts \
-             SET data = json_set(data, '$.content_hash', ?) \
-             WHERE id = ?",
+            "UPDATE collection_artifacts SET content_hash = ? WHERE id = ?",
             &[SqlParam::from(hash.as_str()), SqlParam::from(id)],
         ) {
             tracing::warn!(id, "backfill: update failed: {e}");

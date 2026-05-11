@@ -1,0 +1,23 @@
+{
+  "data": [],
+  "state": [],
+  "component": {
+    "tag": "sui-accordion",
+    "props": [
+      {
+        "name": "type",
+        "default": "single",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      },
+      {
+        "name": "value",
+        "default": "",
+        "reflect": true,
+        "bindable": false,
+        "type": "string"
+      }
+    ]
+  }
+}

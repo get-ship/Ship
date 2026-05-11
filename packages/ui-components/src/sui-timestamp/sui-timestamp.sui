@@ -1,0 +1,41 @@
+<!--
+  <sui-timestamp> — SUI port of <ship-timestamp>.
+  Renders a point-in-time, relative by default. Auto-ticks once per minute.
+
+  Prop parity vs <ship-timestamp>
+  ──────────────────────────────────────────────────────────────
+  Lit              SUI               Notes
+  ──────────────────────────────────────────────────────────────
+  value (String)   value (string,'') ✓ ISO datetime string, reflect
+  format (String)  format (union)    ✓ relative|absolute|both
+  ──────────────────────────────────────────────────────────────
+  ARIA: native <time> with datetime  ✓ template renders it
+    attr; title = abs ISO string        controller sets host.title
+  ──────────────────────────────────────────────────────────────
+  Timer: setInterval every minute    ✓ clearInterval on disconnect
+  ──────────────────────────────────────────────────────────────
+  parts: time, abs                   new (not in Lit)
+  ──────────────────────────────────────────────────────────────
+-->
+
+<prop name="value" type="string" default="" reflect />
+<prop name="format" values="relative|absolute|both" default="relative" reflect />
+
+<style>
+  :host {
+    display: inline;
+    font-family: var(--font-body);
+    font-size: inherit;
+    color: inherit;
+  }
+  .abs { color: var(--muted-foreground); margin-left: 4px; }
+</style>
+
+{#if value()}
+  <time datetime={value()} part="time">
+    {#if format() === 'absolute'}{absStr()}{:else}{relStr()}{/if}
+  </time>
+  {#if format() === 'both'}
+    <span class="abs" part="abs">({absStr()})</span>
+  {/if}
+{/if}

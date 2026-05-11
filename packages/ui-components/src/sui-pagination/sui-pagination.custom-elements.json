@@ -1,0 +1,87 @@
+{
+  "schemaVersion": "1.0.0",
+  "readme": "",
+  "modules": [
+    {
+      "kind": "javascript-module",
+      "path": "sui-pagination.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiPagination",
+          "tagName": "sui-pagination",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "page",
+              "type": {
+                "text": "number"
+              },
+              "default": "1"
+            },
+            {
+              "name": "total",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "per-page",
+              "type": {
+                "text": "number"
+              },
+              "default": "25"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "page",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "page",
+              "default": "1",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "total",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "total",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "perPage",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "per-page",
+              "default": "25",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-pagination",
+          "declaration": {
+            "name": "SuiPagination",
+            "module": "sui-pagination.sui"
+          }
+        }
+      ]
+    }
+  ]
+}

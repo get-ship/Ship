@@ -1,0 +1,611 @@
+{
+  "bindings": [
+    {
+      "key": "b0",
+      "kind": "while-loading",
+      "expr": "overview",
+      "deps": [
+        "overview"
+      ],
+      "renderKey": "__renderWhileLoading_0"
+    },
+    {
+      "key": "b1",
+      "kind": "while-error",
+      "expr": "overview",
+      "deps": [
+        "overview"
+      ],
+      "renderKey": "__renderWhileError_0"
+    },
+    {
+      "key": "b3",
+      "kind": "if",
+      "expr": "overview().kind === 'ok'",
+      "deps": [
+        "overview"
+      ]
+    },
+    {
+      "key": "b4",
+      "kind": "text",
+      "expr": "branch()",
+      "deps": [
+        "branch"
+      ]
+    },
+    {
+      "key": "b5",
+      "kind": "text",
+      "expr": "ahead() > 0 ? ' ↑' + ahead() : ''",
+      "deps": [
+        "ahead"
+      ]
+    },
+    {
+      "key": "b6",
+      "kind": "text",
+      "expr": "behind() > 0 ? ' ↓' + behind() : ''",
+      "deps": [
+        "behind"
+      ]
+    },
+    {
+      "key": "b7",
+      "kind": "text",
+      "expr": "headShort()",
+      "deps": [
+        "headShort"
+      ]
+    },
+    {
+      "key": "b8",
+      "kind": "attr:tone",
+      "expr": "clean() ? 'success' : 'warning'",
+      "deps": [
+        "clean"
+      ]
+    },
+    {
+      "key": "b9",
+      "kind": "text",
+      "expr": "clean() ? 'clean' : totalChanged() + ' changed'",
+      "deps": [
+        "clean",
+        "totalChanged"
+      ]
+    },
+    {
+      "key": "b10",
+      "kind": "attr:active",
+      "expr": "tab() === 'changes'",
+      "deps": [
+        "tab"
+      ]
+    },
+    {
+      "key": "b11",
+      "kind": "attr:count",
+      "expr": "totalChanged() + ''",
+      "deps": [
+        "totalChanged"
+      ]
+    },
+    {
+      "key": "b12",
+      "kind": "on:click",
+      "expr": "() => tab.set('changes')",
+      "deps": [
+        "tab",
+        "changes"
+      ]
+    },
+    {
+      "key": "b13",
+      "kind": "attr:active",
+      "expr": "tab() === 'history'",
+      "deps": [
+        "tab"
+      ]
+    },
+    {
+      "key": "b14",
+      "kind": "attr:count",
+      "expr": "commitsCount() + ''",
+      "deps": [
+        "commitsCount"
+      ]
+    },
+    {
+      "key": "b15",
+      "kind": "on:click",
+      "expr": "() => tab.set('history')",
+      "deps": [
+        "tab",
+        "history"
+      ]
+    },
+    {
+      "key": "b16",
+      "kind": "attr:active",
+      "expr": "tab() === 'branches'",
+      "deps": [
+        "tab"
+      ]
+    },
+    {
+      "key": "b17",
+      "kind": "attr:count",
+      "expr": "branchesCount() + ''",
+      "deps": [
+        "branchesCount"
+      ]
+    },
+    {
+      "key": "b18",
+      "kind": "on:click",
+      "expr": "() => tab.set('branches')",
+      "deps": [
+        "tab",
+        "branches"
+      ]
+    },
+    {
+      "key": "b19",
+      "kind": "if",
+      "expr": "tab() === 'changes'",
+      "deps": [
+        "tab"
+      ]
+    },
+    {
+      "key": "b20",
+      "kind": "if",
+      "expr": "clean()",
+      "deps": [
+        "clean"
+      ]
+    },
+    {
+      "key": "b21",
+      "kind": "text",
+      "expr": "branch()",
+      "deps": [
+        "branch"
+      ]
+    },
+    {
+      "key": "b22",
+      "kind": "text",
+      "expr": "ahead() === 0 && behind() === 0 ? \"You're up to date with the upstream.\" : ''",
+      "deps": [
+        "ahead",
+        "behind"
+      ]
+    },
+    {
+      "key": "b23",
+      "kind": "text",
+      "expr": "ahead() > 0 ? ahead() + ' commit' + (ahead() === 1 ? '' : 's') + ' ahead of upstream.' : ''",
+      "deps": [
+        "ahead"
+      ]
+    },
+    {
+      "key": "b24",
+      "kind": "text",
+      "expr": "behind() > 0 ? ' ' + behind() + ' commit' + (behind() === 1 ? '' : 's') + ' behind upstream.' : ''",
+      "deps": [
+        "behind"
+      ]
+    },
+    {
+      "key": "b25",
+      "kind": "if",
+      "expr": "recentCommits().length === 0",
+      "deps": [
+        "recentCommits"
+      ]
+    },
+    {
+      "key": "b26",
+      "kind": "for",
+      "expr": "recentCommits()",
+      "deps": [
+        "recentCommits"
+      ]
+    },
+    {
+      "key": "b27",
+      "kind": "attr:name",
+      "expr": "c.author",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b28",
+      "kind": "text",
+      "expr": "c.subject",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b29",
+      "kind": "text",
+      "expr": "c.short_sha",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b30",
+      "kind": "text",
+      "expr": "c.author",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b31",
+      "kind": "text",
+      "expr": "c.date",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b32",
+      "kind": "text",
+      "expr": "c.additions",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b33",
+      "kind": "text",
+      "expr": "c.deletions",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b34",
+      "kind": "if",
+      "expr": "recentBranches().length === 0",
+      "deps": [
+        "recentBranches"
+      ]
+    },
+    {
+      "key": "b35",
+      "kind": "for",
+      "expr": "recentBranches()",
+      "deps": [
+        "recentBranches"
+      ]
+    },
+    {
+      "key": "b36",
+      "kind": "attr:class",
+      "expr": "b.active ? 'git-icon-active' : 'git-icon-muted'",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b37",
+      "kind": "text",
+      "expr": "b.name",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b38",
+      "kind": "text",
+      "expr": "b.upstream ? b.upstream : 'local only'",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b39",
+      "kind": "text",
+      "expr": "b.ahead > 0 ? '↑' + b.ahead : ''",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b40",
+      "kind": "text",
+      "expr": "b.behind > 0 ? ' ↓' + b.behind : ''",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b41",
+      "kind": "if",
+      "expr": "staged().length > 0",
+      "deps": [
+        "staged"
+      ]
+    },
+    {
+      "key": "b42",
+      "kind": "text",
+      "expr": "staged().length",
+      "deps": [
+        "staged"
+      ]
+    },
+    {
+      "key": "b43",
+      "kind": "for",
+      "expr": "staged()",
+      "deps": [
+        "staged"
+      ]
+    },
+    {
+      "key": "b44",
+      "kind": "text",
+      "expr": "f.path",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b45",
+      "kind": "if",
+      "expr": "modified().length > 0",
+      "deps": [
+        "modified"
+      ]
+    },
+    {
+      "key": "b46",
+      "kind": "text",
+      "expr": "modified().length",
+      "deps": [
+        "modified"
+      ]
+    },
+    {
+      "key": "b47",
+      "kind": "for",
+      "expr": "modified()",
+      "deps": [
+        "modified"
+      ]
+    },
+    {
+      "key": "b48",
+      "kind": "text",
+      "expr": "f.path",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b49",
+      "kind": "if",
+      "expr": "untracked().length > 0",
+      "deps": [
+        "untracked"
+      ]
+    },
+    {
+      "key": "b50",
+      "kind": "text",
+      "expr": "untracked().length",
+      "deps": [
+        "untracked"
+      ]
+    },
+    {
+      "key": "b51",
+      "kind": "for",
+      "expr": "untracked()",
+      "deps": [
+        "untracked"
+      ]
+    },
+    {
+      "key": "b52",
+      "kind": "text",
+      "expr": "f.path",
+      "deps": [
+        "f"
+      ]
+    },
+    {
+      "key": "b53",
+      "kind": "if",
+      "expr": "tab() === 'history'",
+      "deps": [
+        "tab"
+      ]
+    },
+    {
+      "key": "b54",
+      "kind": "bind:value",
+      "expr": "commitFilter.query",
+      "deps": [
+        "commitFilter"
+      ]
+    },
+    {
+      "key": "b55",
+      "kind": "text",
+      "expr": "commitFilter.filtered().length",
+      "deps": [
+        "commitFilter"
+      ]
+    },
+    {
+      "key": "b56",
+      "kind": "text",
+      "expr": "commitsCount()",
+      "deps": [
+        "commitsCount"
+      ]
+    },
+    {
+      "key": "b57",
+      "kind": "if",
+      "expr": "commitFilter.filtered().length === 0",
+      "deps": [
+        "commitFilter"
+      ]
+    },
+    {
+      "key": "b58",
+      "kind": "text",
+      "expr": "commitsCount() === 0 ? 'No commits' : 'No matching commits'",
+      "deps": [
+        "commitsCount"
+      ]
+    },
+    {
+      "key": "b59",
+      "kind": "for",
+      "expr": "commitFilter.filtered()",
+      "deps": [
+        "commitFilter"
+      ]
+    },
+    {
+      "key": "b60",
+      "kind": "attr:name",
+      "expr": "c.author",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b61",
+      "kind": "text",
+      "expr": "c.subject",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b62",
+      "kind": "text",
+      "expr": "c.short_sha",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b63",
+      "kind": "text",
+      "expr": "c.author",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b64",
+      "kind": "text",
+      "expr": "c.date",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b65",
+      "kind": "text",
+      "expr": "c.additions",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b66",
+      "kind": "text",
+      "expr": "c.deletions",
+      "deps": [
+        "c"
+      ]
+    },
+    {
+      "key": "b67",
+      "kind": "if",
+      "expr": "tab() === 'branches'",
+      "deps": [
+        "tab"
+      ]
+    },
+    {
+      "key": "b68",
+      "kind": "if",
+      "expr": "branches().length === 0",
+      "deps": [
+        "branches"
+      ]
+    },
+    {
+      "key": "b69",
+      "kind": "for",
+      "expr": "branches()",
+      "deps": [
+        "branches"
+      ]
+    },
+    {
+      "key": "b70",
+      "kind": "attr:class",
+      "expr": "b.active ? 'git-icon-active' : 'git-icon-muted'",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b71",
+      "kind": "text",
+      "expr": "b.name",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b72",
+      "kind": "text",
+      "expr": "b.active ? ' (HEAD)' : ''",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b73",
+      "kind": "text",
+      "expr": "b.upstream ? b.upstream : 'local only'",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b74",
+      "kind": "text",
+      "expr": "b.ahead > 0 ? '↑' + b.ahead : ''",
+      "deps": [
+        "b"
+      ]
+    },
+    {
+      "key": "b75",
+      "kind": "text",
+      "expr": "b.behind > 0 ? ' ↓' + b.behind : ''",
+      "deps": [
+        "b"
+      ]
+    }
+  ]
+}

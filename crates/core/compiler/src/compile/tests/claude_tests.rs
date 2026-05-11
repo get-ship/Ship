@@ -403,3 +403,33 @@ fn ask_tier_not_emitted_for_other_providers() {
             .is_none()
     );
 }
+
+// ── LSP plugin manifest ──────────────────────────────────────────────────────
+
+#[test]
+fn claude_lsp_config_is_always_emitted() {
+    let out = compile(&resolved(vec![]), "claude").unwrap();
+    let lsp = out
+        .claude_lsp_config
+        .as_ref()
+        .expect("claude provider must emit lsp config");
+    let ship = &lsp["ship"];
+    assert_eq!(ship["command"], "ship");
+    assert_eq!(ship["args"], serde_json::json!(["lsp"]));
+    let exts = &ship["extensionToLanguage"];
+    assert_eq!(exts[".sui"], "sui");
+    assert_eq!(exts[".controller.ts"], "typescript-sui");
+}
+
+#[test]
+fn lsp_config_not_emitted_for_other_providers() {
+    for p in ["gemini", "codex", "cursor", "opencode"] {
+        assert!(
+            compile(&resolved(vec![]), p)
+                .unwrap()
+                .claude_lsp_config
+                .is_none(),
+            "{p} should not emit claude_lsp_config"
+        );
+    }
+}

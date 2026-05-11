@@ -148,7 +148,9 @@ function mountThemePicker() {
           <span class="theme-card-radio" aria-hidden="true"></span>
         </span>
       </button>`;
-  const byId = new Map(THEMES.map((t) => [t.id, t]));
+  const byId = new Map<string, (typeof THEMES)[number]>(
+    THEMES.map((t) => [t.id, t]),
+  );
   const groupHtml = (g: Group) => `
     <section class="theme-group" aria-label="${g.label}">
       <div class="theme-group-h">${g.label}</div>
@@ -614,6 +616,21 @@ queueMicrotask(() => {
   void mount(endpoint);
 };
 
+// Route-handler helper. Navigo's `Handler` type is `(match?: Match) => void`
+// (match is optional), but in practice .on() always invokes with a populated
+// match — TS still complains when destructuring `({ data })` directly.
+// This thin wrapper extracts data once and hands it to the caller as a
+// non-undefined record, removing 10× `Match | undefined.data` errors.
+type RouteData = { readonly [key: string]: string };
+function onRoute(
+  path: string,
+  handler: (data: RouteData) => void | Promise<void>,
+): void {
+  router.on(path, (m) => {
+    void handler((m?.data ?? {}) as RouteData);
+  });
+}
+
 function viewRoute(path: string, endpoint: string) {
   router.on(path, () => {
     updateNav(path);
@@ -650,10 +667,10 @@ viewRoute("/theme-studio", "/api/v1/v/theme-studio");
 viewRoute("/setup", "/api/v1/v/setup");
 
 // Dynamic routes
-router.on("/collections/:collection", ({ data }) => {
+onRoute("/collections/:collection", (data) => {
   updateNav("/collections");
   void mount(
-    `/api/v1/v/collections?collection=${encodeURIComponent(data!.collection)}`,
+    `/api/v1/v/collections?collection=${encodeURIComponent(data.collection)}`,
   );
 });
 
@@ -665,40 +682,40 @@ router.on("/agents/create", () => {
 });
 
 // Detail sub-mode: wire/canvas view (also served as the default detail).
-router.on("/agents/:id/wire", ({ data }) => {
+onRoute("/agents/:id/wire", (data) => {
   updateNav("/agents");
-  void mount(`/api/v1/v/agents/${data!.id}/wire`);
+  void mount(`/api/v1/v/agents/${data.id}/wire`);
 });
 
 // Detail sub-mode: classic panels layout (skills / MCP / permissions / rules).
-router.on("/agents/:id/settings", ({ data }) => {
+onRoute("/agents/:id/settings", (data) => {
   updateNav("/agents");
-  void mount(`/api/v1/v/agents/${data!.id}/settings`);
+  void mount(`/api/v1/v/agents/${data.id}/settings`);
 });
 
-router.on("/agents/:id", ({ data }) => {
+onRoute("/agents/:id", (data) => {
   updateNav("/agents");
-  void mount(`/api/v1/v/agents/${data!.id}`);
+  void mount(`/api/v1/v/agents/${data.id}`);
 });
 
-router.on("/skills/:id", ({ data }) => {
+onRoute("/skills/:id", (data) => {
   updateNav("/skills");
-  void mount(`/api/v1/v/skills/${data!.id}?file=SKILL.md`);
+  void mount(`/api/v1/v/skills/${data.id}?file=SKILL.md`);
 });
 
-router.on("/skills/:id/:file", ({ data }) => {
+onRoute("/skills/:id/:file", (data) => {
   updateNav("/skills");
-  void mount(`/api/v1/v/skills/${data!.id}?file=${encodeURIComponent(data!.file)}`);
+  void mount(`/api/v1/v/skills/${data.id}?file=${encodeURIComponent(data.file)}`);
 });
 
-router.on("/canvas/:doc", ({ data }) => {
+onRoute("/canvas/:doc", (data) => {
   updateNav("/canvas");
-  void mount(`/api/v1/v/canvas?doc=${encodeURIComponent(data!.doc)}`);
+  void mount(`/api/v1/v/canvas?doc=${encodeURIComponent(data.doc)}`);
 });
 
-router.on("/pipelines/focus/:name", ({ data }) => {
+onRoute("/pipelines/focus/:name", (data) => {
   updateNav("/pipelines");
-  void mount(`/api/v1/v/pipelines/focus/${encodeURIComponent(data!.name)}`);
+  void mount(`/api/v1/v/pipelines/focus/${encodeURIComponent(data.name)}`);
 });
 
 router.on("/pipelines/history", () => {
@@ -708,10 +725,14 @@ router.on("/pipelines/history", () => {
   void mount(`/api/v1/v/pipelines/history${qs}`);
 });
 
-router.on("/pipelines/run/:slug", ({ data }) => {
+onRoute("/pipelines/run/:slug", (data) => {
   updateNav("/pipelines");
-  void mount(`/api/v1/v/pipelines/run/${encodeURIComponent(data!.slug)}`);
+  void mount(`/api/v1/v/pipelines/run/${encodeURIComponent(data.slug)}`);
 });
+
+// SUI views are no longer hosted from the shell. ship-ui-studio lives
+// at /sui/ship-ui-studio (standalone view-host) until shell 2.0 ports it
+// in. See .artifacts/design-f1-mount-unification.md.
 
 // 404
 router.notFound(() => {
@@ -868,6 +889,37 @@ setInterval(updateStatus, 15000);
   persistTheme(applied);
   document.dispatchEvent(new CustomEvent("ship-theme-change", { detail: { id: applied } }));
 };
+
+// ── Delegated SPA navigation ─────────────────────────────────────────
+//
+// Intercept clicks on any in-app anchor (`<a href="/...">`) so the
+// shell's router handles them without a full page reload. Dynamically-
+// rendered links (SUI views, runtime-injected fragments) are caught
+// the same way — there is no boot-time DOM scan to keep in sync.
+//
+// Skip cases (matching the typical SPA contract): modifier-keyed
+// clicks (open in new tab), middle/right-click, target=_blank, links
+// with explicit `data-no-router`, hash-only fragments, off-origin
+// URLs. `data-route` links are still handled by the existing per-link
+// handler that pre-existed this delegation.
+document.addEventListener("click", (e: MouseEvent) => {
+  if (e.defaultPrevented) return;
+  if (e.button !== 0) return;
+  if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+  const a = (e.target as Element | null)?.closest?.("a[href]") as
+    | HTMLAnchorElement
+    | null;
+  if (!a) return;
+  if (a.target && a.target !== "" && a.target !== "_self") return;
+  if (a.hasAttribute("download")) return;
+  if (a.dataset.noRouter !== undefined) return;
+  if (a.dataset.route !== undefined) return; // legacy handler owns these
+  if (a.getAttribute("href")?.startsWith("#")) return;
+  // External or off-origin? Let the browser handle it.
+  if (a.origin !== location.origin) return;
+  e.preventDefault();
+  router.navigate(a.pathname + a.search + a.hash);
+});
 
 // ── Boot ─────────────────────────────────────────────────────────────
 router.resolve();

@@ -1,3 +1,4 @@
+#![allow(clippy::doc_overindented_list_items)]
 //! JS code emission for `.ship` components.
 //!
 //! Produces a self-contained ES module string per component. The module
