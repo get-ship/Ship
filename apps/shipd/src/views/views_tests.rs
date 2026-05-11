@@ -44,8 +44,8 @@ fn invalid_view_names() {
 
 #[test]
 fn resolve_rejects_traversal() {
-    assert!(resolve_view_dir("../etc").is_none());
-    assert!(resolve_view_dir("foo/bar").is_none());
+    assert!(resolve_view_dir("../etc", None).is_none());
+    assert!(resolve_view_dir("foo/bar", None).is_none());
 }
 
 // ---- list_views ----

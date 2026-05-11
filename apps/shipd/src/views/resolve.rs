@@ -106,13 +106,25 @@ pub(crate) fn is_valid_view_name(name: &str) -> bool {
 }
 
 /// Resolve a view directory by name. Checks project then global dirs.
-pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
+///
+/// `global_override` lets callers (typically write-side handlers that
+/// carry runtime state) use the daemon's configured `ship_dir` instead
+/// of the process-wide `get_global_dir()` — keeps test isolation
+/// honest when the daemon runs in a tempdir.
+pub(crate) fn resolve_view_dir(
+    name: &str,
+    global_override: Option<&std::path::Path>,
+) -> Option<(PathBuf, &'static str)> {
     if !is_valid_view_name(name) { return None; }
     if let Ok(d) = ship_application::project::get_project_dir(None) {
         let c = d.join("views").join(name);
         if c.is_dir() { return Some((c, "project")); }
     }
-    if let Ok(d) = ship_application::project::get_global_dir() {
+    let global = match global_override {
+        Some(p) => Some(p.to_path_buf()),
+        None => ship_application::project::get_global_dir().ok(),
+    };
+    if let Some(d) = global {
         let c = d.join("views").join(name);
         if c.is_dir() { return Some((c, "global")); }
     }

@@ -112,7 +112,7 @@ pub async fn serve_view_sse(
 ) -> ViewSse {
     let (vs, sse) = ViewStream::new();
 
-    let view_dir_opt = super::resolve_view_dir(&name);
+    let view_dir_opt = super::resolve_view_dir(&name, None);
 
     let actor_id = format!("view-sse-{name}-{}", gen_ulid());
 

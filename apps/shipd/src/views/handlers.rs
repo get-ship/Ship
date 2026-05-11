@@ -37,7 +37,7 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
     };
 
     if !is_valid_view_name(&name) || file.contains("..") { return err(StatusCode::BAD_REQUEST, "invalid path".into()); }
-    let (view_dir, _) = match resolve_view_dir(&name) {
+    let (view_dir, _) = match resolve_view_dir(&name, None) {
         Some(v) => v,
         None => return err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };
@@ -85,7 +85,7 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
 )]
 pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse {
     if !is_valid_view_name(&name) { return mesh_err(StatusCode::BAD_REQUEST, "invalid view name"); }
-    let (view_dir, _) = match resolve_view_dir(&name) {
+    let (view_dir, _) = match resolve_view_dir(&name, None) {
         Some(v) => v,
         None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };
@@ -135,7 +135,7 @@ pub async fn serve_view_bundle(Path(name): Path<String>) -> axum::response::Resp
     };
 
     if !is_valid_view_name(&name) { return err(StatusCode::BAD_REQUEST, "invalid view name".into()); }
-    let (view_dir, _) = match resolve_view_dir(&name) {
+    let (view_dir, _) = match resolve_view_dir(&name, None) {
         Some(v) => v,
         None => return err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };

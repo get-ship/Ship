@@ -104,20 +104,12 @@ fn relative_safe(rel: &str) -> Option<PathBuf> {
     Some(p)
 }
 
-/// Locate a view by name, returning (view_dir, scope). Mirrors the
-/// walker in `source_api` so PUT/GET resolve identically.
+/// Locate a view by name, returning (view_dir, scope). Delegates to
+/// the canonical `views::resolve::resolve_view_dir`, passing the
+/// runtime's ship_dir as the global-fallback so writes resolve
+/// identically to reads under the daemon's configured root.
 fn resolve_view(state: &ApiState, name: &str) -> Option<(PathBuf, &'static str)> {
-    if let Ok(d) = ship_application::project::get_project_dir(None) {
-        let c = d.join("views").join(name);
-        if c.is_dir() {
-            return Some((c, "project"));
-        }
-    }
-    let c = state.ship_dir().join("views").join(name);
-    if c.is_dir() {
-        return Some((c, "global"));
-    }
-    None
+    super::resolve::resolve_view_dir(name, Some(state.ship_dir()))
 }
 
 #[utoipa::path(

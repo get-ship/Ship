@@ -45,7 +45,7 @@ pub async fn lint_view(
         let label = req.name.as_deref().unwrap_or("inline");
         lint::lint_view_source(label, &source)
     } else if let Some(name) = req.name {
-        match crate::views::resolve_view_dir(&name) {
+        match crate::views::resolve_view_dir(&name, None) {
             Some((dir, _)) => lint::lint_view_dir(&dir),
             None => {
                 return json_err(StatusCode::NOT_FOUND, format!("view '{name}' not found"));

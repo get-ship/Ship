@@ -89,7 +89,7 @@ pub async fn serve_view_raw(
 
     // Static `index.html` fallback for third-party views that ship a
     // plain HTML doc. File-routed (`.j2`) views use `/api/v1/v/{*path}`.
-    let (view_dir, _) = match crate::views::resolve_view_dir(&name) {
+    let (view_dir, _) = match crate::views::resolve_view_dir(&name, None) {
         Some(v) => v,
         None => return err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };
