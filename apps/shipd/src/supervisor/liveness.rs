@@ -152,9 +152,9 @@ pub(crate) fn start_liveness_sweep(
     kernel: Arc<Mutex<KernelRouter>>,
     registry: Arc<Mutex<ProcessRegistry>>,
     executor: Arc<dyn JobExecutor>,
-    health_registry: &crate::supervised::HealthRegistry,
+    health_registry: &crate::task_health::HealthRegistry,
 ) {
-    crate::supervised::spawn_supervised(health_registry, "liveness-sweep", move || {
+    crate::task_health::spawn_supervised(health_registry, "liveness-sweep", move || {
         let kernel = kernel.clone();
         let registry = registry.clone();
         let executor = executor.clone();

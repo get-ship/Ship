@@ -14,7 +14,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use crate::supervised::HealthRegistry;
+use crate::task_health::HealthRegistry;
 
 /// TTL in seconds — sessions idle beyond this are considered abandoned.
 const ABANDONED_TTL_SECS: i64 = 600;
@@ -66,7 +66,7 @@ impl SessionScanner {
         });
 
         let activity_for_scan = activity.clone();
-        let handle = crate::supervised::spawn_supervised(
+        let handle = crate::task_health::spawn_supervised(
             health_registry,
             "session-scanner",
             move || {

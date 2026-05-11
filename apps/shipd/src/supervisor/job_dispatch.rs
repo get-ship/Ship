@@ -35,7 +35,7 @@ pub struct DispatchHandle {
 pub async fn subscribe_job_events(
     kernel: Arc<Mutex<ship_substrate::events::KernelRouter>>,
     _ship_dir: PathBuf,
-    health_registry: &crate::supervised::HealthRegistry,
+    health_registry: &crate::task_health::HealthRegistry,
 ) -> Option<DispatchHandle> {
     // Default: RoutingExecutor picks TmuxWindowExecutor (interactive-attach)
     // or ProcessExecutor (headless) per-job based on the `headless` flag set
@@ -82,7 +82,7 @@ pub async fn subscribe_job_events(
     });
 
     let kr = kernel.clone();
-    crate::supervised::spawn_monitored(health_registry, "job-orchestrator", async move {
+    crate::task_health::spawn_monitored(health_registry, "job-orchestrator", async move {
         ship_platform::services::orchestrator::router::start_orchestrator(kr, octx).await;
     });
 

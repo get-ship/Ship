@@ -32,7 +32,7 @@ pub mod mcp;
 pub mod views;
 pub mod ship_runtime;
 pub mod spawn_bounded;
-pub mod supervised;
+pub mod task_health;
 pub mod supervisor;
 
 #[cfg(test)]

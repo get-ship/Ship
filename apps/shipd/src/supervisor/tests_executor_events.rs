@@ -218,7 +218,7 @@ fn build_platform(kernel: Arc<Mutex<KernelRouter>>) -> super::platform::ShipdPla
     super::platform::ShipdPlatform {
         registry: Arc::new(Mutex::new(ProcessRegistry::new())),
         executor: Arc::new(NoopJobExecutor),
-        health_registry: crate::supervised::HealthRegistry::new(),
+        health_registry: crate::task_health::HealthRegistry::new(),
         kernel,
     }
 }

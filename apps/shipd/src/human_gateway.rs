@@ -2,13 +2,13 @@
 
 use std::sync::Arc;
 
-use crate::supervised;
+use crate::task_health;
 
 /// Spawn `HumanGatewayService` if Telegram env vars are present.
 /// Silently skips if `SHIP_TELEGRAM_TOKEN` or `SHIP_TELEGRAM_CHAT_ID` is absent.
 pub async fn spawn_human_gateway(
     kernel: &Arc<tokio::sync::Mutex<ship_substrate::events::KernelRouter>>,
-    health_registry: &supervised::HealthRegistry,
+    health_registry: &task_health::HealthRegistry,
 ) {
     use ship_substrate::events::ActorConfig;
     use ship_platform::services::human_gateway::{HumanGatewayService, TelegramAdapter};
@@ -47,7 +47,7 @@ pub async fn spawn_human_gateway(
 
     // Drain outbox → kernel (currently unused, reserved for future adapter replies)
     let kr = kernel.clone();
-    supervised::spawn_monitored(health_registry, "human-gateway-outbox", async move {
+    task_health::spawn_monitored(health_registry, "human-gateway-outbox", async move {
         let ctx = ship_substrate::events::EmitContext {
             caller_kind: ship_substrate::events::CallerKind::Mcp,
             skill_id: None,

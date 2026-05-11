@@ -13,7 +13,7 @@ use tokio::sync::Mutex;
 
 use crate::auth::SessionRegistry;
 use crate::managers::{JobManager, MeshManager, SessionScanner};
-use crate::supervised::HealthRegistry;
+use crate::task_health::HealthRegistry;
 use crate::supervisor::job_dispatch::DispatchHandle;
 
 // ---- Config types ----
@@ -573,7 +573,7 @@ impl ShipRuntime {
     pub fn start_artifact_gc(&self) {
         let ship_dir = self.ship_dir.clone();
         let kernel = self.kernel.clone();
-        crate::supervised::spawn_supervised(
+        crate::task_health::spawn_supervised(
             &self.health_registry,
             "artifact-gc",
             move || {

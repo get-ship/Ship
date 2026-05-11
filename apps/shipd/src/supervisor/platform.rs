@@ -23,7 +23,7 @@ use super::registry::ProcessRegistry;
 pub struct ShipdPlatform {
     pub registry: Arc<Mutex<ProcessRegistry>>,
     pub executor: Arc<dyn JobExecutor>,
-    pub health_registry: crate::supervised::HealthRegistry,
+    pub health_registry: crate::task_health::HealthRegistry,
     pub kernel: Arc<Mutex<KernelRouter>>,
 }
 
