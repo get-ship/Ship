@@ -23,7 +23,6 @@ mod daemon;
 mod first_run;
 mod handler;
 pub mod services;
-pub mod human_webhook;
 mod human_gateway;
 pub mod managers;
 pub mod project_api;
@@ -35,7 +34,6 @@ pub mod ship_runtime;
 pub mod spawn_bounded;
 pub mod supervised;
 pub mod supervisor;
-pub mod webhook_ext;
 
 #[cfg(test)]
 pub mod test_harness;

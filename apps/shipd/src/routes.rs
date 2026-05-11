@@ -48,6 +48,7 @@ pub mod feedback_api;
 pub mod hooks_api;
 pub mod lint_api;
 pub mod logs_api;
+pub mod human_webhook;
 pub mod openapi;
 pub mod openapi_modifier;
 pub mod openapi_types;
@@ -62,6 +63,7 @@ pub mod themes;
 pub mod themes_api;
 pub mod view_errors_api;
 pub mod view_sessions_api;
+pub mod webhook_ext;
 
 // The build script writes generated impls into OUT_DIR. We include them here
 // so `Route::full_path()`, `Route::method()`, and `ShipRouterExt` are
