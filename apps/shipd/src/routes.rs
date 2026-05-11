@@ -704,5 +704,4 @@ pub enum Route {
 }
 
 #[cfg(test)]
-#[path = "routes_tests.rs"]
 mod tests;

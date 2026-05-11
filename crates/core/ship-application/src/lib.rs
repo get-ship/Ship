@@ -3,6 +3,7 @@
 // surface has been removed; consumers depend on `ship-substrate` and
 // `ship-platform` directly.
 
+pub mod bundler;
 pub mod project;
 pub mod services;
 

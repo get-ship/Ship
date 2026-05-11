@@ -21,6 +21,10 @@ const MACHINE_DAEMON_DIR: &str = "daemon";
 const SETTINGS_FILE: &str = "settings.jsonc";
 const LOCAL_FILE: &str = "local.jsonc";
 const CREDENTIALS_FILE: &str = "credentials.jsonc";
+const RUNTIME_DIR: &str = "runtime";
+const RUNTIME_BUN: &str = "bun";
+const RUNTIME_SUI_COMPILER: &str = "sui-compiler";
+const RUNTIME_BUNDLER_TS: &str = "bundler.ts";
 
 /// Which SQLite database file under `machine/db/`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, specta::Type)]
@@ -173,6 +177,29 @@ impl ShipHome {
     /// (cloud account token, optional MCP server bearer).
     pub fn credentials_path(&self) -> PathBuf {
         self.machine_dir().join(CREDENTIALS_FILE)
+    }
+
+    /// `~/.ship/runtime/` — content-addressable SUI toolchain (Bun binary,
+    /// sui-compiler, bundler.ts). Populated by `ship runtime install`.
+    /// Distinct from `machine/` because the toolchain is per Ship version,
+    /// while `machine/` carries machine-local mutable state.
+    pub fn runtime_dir(&self) -> PathBuf {
+        self.root.join(RUNTIME_DIR)
+    }
+
+    /// `~/.ship/runtime/bun` — the Bun binary.
+    pub fn runtime_bun(&self) -> PathBuf {
+        self.runtime_dir().join(RUNTIME_BUN)
+    }
+
+    /// `~/.ship/runtime/sui-compiler` — the Rust sui-compiler binary.
+    pub fn runtime_sui_compiler(&self) -> PathBuf {
+        self.runtime_dir().join(RUNTIME_SUI_COMPILER)
+    }
+
+    /// `~/.ship/runtime/bundler.ts` — the Bun bundler worker script.
+    pub fn runtime_bundler_ts(&self) -> PathBuf {
+        self.runtime_dir().join(RUNTIME_BUNDLER_TS)
     }
 }
 
