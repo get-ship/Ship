@@ -1,7 +1,7 @@
 // Hand-rolled scanner for `.sui` templates.
 //
 // The shape mirrors the tree-sitter-set grammar (see
-// `grammars/tree-sitter-set/grammar.js`) but is implemented in pure
+// `packages/sui-grammar/grammar.js`) but is implemented in pure
 // TypeScript so the LSP can run with zero native deps.
 
 import type { Attribute, Node, ParseError, ParseResult, Range } from './parse-types';

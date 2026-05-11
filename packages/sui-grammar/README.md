@@ -57,7 +57,7 @@ keywords disambiguated:
 ## Build
 
 ```bash
-cd grammars/tree-sitter-set
+cd packages/sui-grammar
 npm install                 # one-shot install of tree-sitter-cli
 npx tree-sitter generate    # writes src/parser.c
 npx tree-sitter test        # runs the corpus
@@ -66,7 +66,7 @@ npx tree-sitter test        # runs the corpus
 ## Validation
 
 ```bash
-cd grammars/tree-sitter-set
+cd packages/sui-grammar
 npx tree-sitter parse ../../views/agents/view.html.set --quiet \
   || echo "FAIL: views/agents/view.html.set"
 ```

@@ -17,7 +17,7 @@ members = [
     "crates/sui-signals",
     "crates/ship-sui",
     "crates/xtask",
-    "grammars/tree-sitter-sui",
+    "packages/sui-grammar",
     "apps/mcp",
     "apps/shipd",
     "apps/ship-cli",
