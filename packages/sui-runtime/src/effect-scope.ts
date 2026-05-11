@@ -120,21 +120,3 @@ export function createChildScope(parent?: EffectScope): EffectScope {
   return child
 }
 
-// ─── Back-compat shims ────────────────────────────────────────────
-// owner.ts (the bolted-on prototype) exported `withOwner`,
-// `registerOwnerCleanup`, `createOwner`, `Owner`. Two consumers
-// imported from there: `live.ts` and `mount.ts`. Keep the old names
-// as thin aliases so the migration in this PR is mechanical and
-// reversible. Remove in a follow-up once nothing references them.
-
-/** @deprecated Use `EffectScope`. */
-export type Owner = EffectScope
-
-/** @deprecated Use `withScope`. */
-export const withOwner = withScope
-
-/** @deprecated Use `onCleanup`. */
-export const registerOwnerCleanup = onCleanup
-
-/** @deprecated Use `createScope`. */
-export const createOwner = createScope
