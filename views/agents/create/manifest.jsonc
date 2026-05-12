@@ -1,0 +1,9 @@
+// Route metadata for views/agents/create/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "agents-create",
+  "path": "/agents/create",
+  "title": "New Agent",
+  "layout": "default",
+  "auth": "user"
+}
