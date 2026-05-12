@@ -83,7 +83,18 @@ pub fn rewrite_for_scope(src: &str, extra_locals: &[&str]) -> String {
                 // expression so its free idents get qualified too.
                 out.push('{');
                 let close = skip_balanced(bytes, i + 1, bytes.len());
-                let inner = &src[i + 2..close.saturating_sub(1)];
+                // Snap the slice ends to char boundaries — `skip_balanced`
+                // works on bytes and can land mid-multi-byte if the input
+                // contains decoded HTML entities (`§`, `°`, etc.).
+                let inner_start = (i + 2).min(src.len());
+                let inner_end = close.saturating_sub(1).min(src.len());
+                let inner_start = floor_char_boundary(src, inner_start);
+                let inner_end = floor_char_boundary(src, inner_end);
+                let inner = if inner_start <= inner_end {
+                    &src[inner_start..inner_end]
+                } else {
+                    ""
+                };
                 let rewritten = rewrite_for_scope(
                     inner,
                     &locals.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
@@ -354,6 +365,21 @@ fn skip_balanced(bytes: &[u8], i: usize, end: usize) -> usize {
         }
     }
     end
+}
+
+/// Largest `j <= i` such that `j` is a char boundary in `s`. Used by
+/// the template-literal recursion above to snap byte indices that
+/// `skip_balanced` may have landed inside a multi-byte UTF-8 char
+/// (e.g. when the source contains decoded HTML entities).
+#[inline]
+fn floor_char_boundary(s: &str, mut i: usize) -> usize {
+    if i >= s.len() {
+        return s.len();
+    }
+    while i > 0 && !s.is_char_boundary(i) {
+        i -= 1;
+    }
+    i
 }
 
 #[inline]

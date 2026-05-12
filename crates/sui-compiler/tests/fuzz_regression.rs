@@ -19,6 +19,26 @@ fn fuzz_2026_05_11_amp_entity_in_interpolation() {
     );
 }
 
+/// Issue: nested template literals with `&sect;` entity crashed
+/// compile_full. Different panic site after the lex + expr_subset
+/// fixes above.
+#[test]
+fn fuzz_2026_05_12_nested_template_sect_entity() {
+    let src_bytes = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("fuzz/artifacts/compile_full/crash-f98d000f2fe0cb4a4d345b8bec36594d32173eaf"),
+    );
+    let Ok(bytes) = src_bytes else { return };
+    let Ok(src) = std::str::from_utf8(&bytes) else { return };
+    let _ = compile(
+        src,
+        CompileOpts {
+            mode: CompileMode::View,
+            ..Default::default()
+        },
+    );
+}
+
 /// Issue: a template-literal payload with ~100 stacked `$` chars
 /// crashed compile_full. Reproducer below; previously panicked on the
 /// stack (recursive template-expr parsing) or other.
