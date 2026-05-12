@@ -50,13 +50,46 @@ interface ItemRecord<T> {
   update?: (item: unknown, index: number) => void
 }
 
+// Returns a boolean mask where mask[i] is true iff seq[i] participates in
+// a longest increasing subsequence. O(n log n) via patience sorting.
+// seq must contain non-negative integers with no duplicates.
+function lisMask(seq: number[]): boolean[] {
+  const n = seq.length
+  const mask = new Array<boolean>(n).fill(false)
+  if (n === 0) return mask
+
+  const pred = new Array<number>(n).fill(-1) // predecessor index in seq
+  const tails: number[] = [] // tails[k] = index into seq of smallest-tail IS of length k+1
+
+  for (let i = 0; i < n; i++) {
+    const v = seq[i]!
+    let lo = 0
+    let hi = tails.length
+    while (lo < hi) {
+      const mid = (lo + hi) >>> 1
+      if (seq[tails[mid]!]! < v) lo = mid + 1
+      else hi = mid
+    }
+    if (lo > 0) pred[i] = tails[lo - 1]!
+    tails[lo] = i
+  }
+
+  let idx = tails[tails.length - 1]!
+  while (idx >= 0) {
+    mask[idx] = true
+    idx = pred[idx]!
+  }
+  return mask
+}
+
 /**
  * Bind a keyed list to the DOM after `opts.anchor`. The renderer is
  * called once per new key; rows whose keys persist across renders keep
  * their original nodes (and any focus / scroll / animation state).
  *
- * Reconciliation is O(n+m): diff by key set, remove gone keys, insert
- * new keys, move existing keys into their new positions.
+ * Reconciliation uses a longest-increasing-subsequence algorithm to
+ * minimise DOM moves. Matched keys already in a stable relative order
+ * are never moved; only out-of-order and new keys are inserted.
  *
  * Compiler target: `{#for item of list key={item.id}}…{/for}`.
  *
@@ -129,9 +162,8 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
       }
     }
 
-    // 2. Walk the new array; reuse where keys match, render where new.
-    //    Insert each item's nodes immediately after the running cursor.
-    let cursor: Node = anchor
+    // 2. Build new records list — reuse matched keys, render new ones.
+    //    No DOM mutations in this pass.
     const newRecords: ItemRecord<T>[] = []
     for (let i = 0; i < next.length; i++) {
       const item = next[i]!
@@ -152,20 +184,46 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
           ...(r.update && { update: r.update }),
         }
       }
-      // Move/insert nodes into position right after `cursor`.
-      const parent = anchor.parentNode
-      if (!parent) {
-        // Anchor isn't in a tree — defer (this can happen mid-disconnect).
-        continue
-      }
-      for (const n of record.nodes) {
-        const desired = cursor.nextSibling
-        if (n !== desired) {
-          parent.insertBefore(n, desired)
-        }
-        cursor = n
-      }
       newRecords.push(record)
+    }
+
+    // 3. Find matched records already in a stable relative order (LIS of
+    //    their previous-array positions). These records don't need DOM
+    //    moves — only non-LIS and new records are repositioned.
+    const prevPos = new Map<unknown, number>()
+    for (let i = 0; i < prev.length; i++) prevPos.set(prev[i]!.key, i)
+
+    const matchedAt: number[] = []   // new-array positions of matched records
+    const matchedPrev: number[] = [] // their prev-array positions
+    for (let i = 0; i < newRecords.length; i++) {
+      const p = prevPos.get(newRecords[i]!.key)
+      if (p !== undefined) {
+        matchedAt.push(i)
+        matchedPrev.push(p)
+      }
+    }
+
+    const lisMasked = lisMask(matchedPrev)
+    const stable = new Set<number>()
+    for (let j = 0; j < matchedAt.length; j++) {
+      if (lisMasked[j]) stable.add(matchedAt[j]!)
+    }
+
+    // 4. Place all records. Stable records advance the cursor without any
+    //    DOM mutation. Unstable / new records are moved via insertBefore.
+    const parent = anchor.parentNode
+    let cursor: Node = anchor
+    for (let i = 0; i < newRecords.length; i++) {
+      if (!parent) break
+      const record = newRecords[i]!
+      if (stable.has(i)) {
+        cursor = record.nodes[record.nodes.length - 1] ?? cursor
+      } else {
+        for (const n of record.nodes) {
+          parent.insertBefore(n, cursor.nextSibling)
+          cursor = n
+        }
+      }
     }
 
     prev = newRecords

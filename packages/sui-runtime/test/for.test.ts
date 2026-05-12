@@ -434,4 +434,131 @@ describe('bindFor — duplicate keys', () => {
   })
 })
 
+describe('bindFor — LIS minimality', () => {
+  // Count insertBefore calls during a signal update by spying on Element.prototype.
+  // The spy is installed AFTER initial render so we only count moves from the update.
+  function countMoves(
+    $list: ReturnType<typeof setup>['$list'],
+    next: Item[],
+  ): number {
+    const spy = vi.spyOn(Element.prototype, 'insertBefore')
+    try {
+      $list.set(next)
+      return spy.mock.calls.length
+    } finally {
+      spy.mockRestore()
+    }
+  }
+
+  it('swap of positions 1 and 998 in a 1000-element list moves exactly 2 nodes', () => {
+    const items = Array.from({ length: 1000 }, (_, i) => ({ id: String(i), label: `${i}` }))
+    const { $list, ids } = setup(items)
+
+    const swapped = [...items]
+    ;[swapped[1], swapped[998]] = [swapped[998]!, swapped[1]!]
+    const moves = countMoves($list, swapped)
+
+    expect(ids()[1]).toBe('998')
+    expect(ids()[998]).toBe('1')
+    expect(moves).toBe(2)
+  })
+
+  it('full reverse of N items moves exactly N-1 nodes', () => {
+    const N = 8
+    const items = Array.from({ length: N }, (_, i) => ({ id: String(i), label: `${i}` }))
+    const { $list, ids } = setup(items)
+
+    const moves = countMoves($list, [...items].reverse())
+
+    expect(ids()).toEqual(Array.from({ length: N }, (_, i) => String(N - 1 - i)))
+    // LIS of a fully-reversed sequence has length 1 → N-1 items must move.
+    expect(moves).toBe(N - 1)
+  })
+
+  it('no moves when array order is unchanged', () => {
+    const items = [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+    ]
+    const { $list, ids } = setup(items)
+    const moves = countMoves($list, [...items])
+
+    expect(ids()).toEqual(['a', 'b', 'c'])
+    expect(moves).toBe(0)
+  })
+
+  it('arbitrary permutation produces correct DOM order', () => {
+    const items = Array.from({ length: 10 }, (_, i) => ({ id: String(i), label: `${i}` }))
+    const { $list, ids } = setup(items)
+
+    // Permutation: [3, 7, 1, 9, 0, 5, 2, 8, 4, 6]
+    const perm = [3, 7, 1, 9, 0, 5, 2, 8, 4, 6]
+    $list.set(perm.map((i) => items[i]!))
+    expect(ids()).toEqual(perm.map(String))
+  })
+
+  it('partial reverse (middle segment) moves minimal nodes', () => {
+    // [0, 1, 2, 3, 4] → [0, 4, 3, 2, 1]
+    // LIS of prev positions [0, 4, 3, 2, 1]: LIS = [0, 1] (just item 0)
+    // But actually [0] has length 1 for the suffix and we need overall LIS.
+    // [0, 4, 3, 2, 1]: LIS = [0, _] where _ < 4... no increasing after 0,4.
+    // Longest IS: [0, 1] — no wait: values are prev positions.
+    // new order: [item0(prev0), item4(prev4), item3(prev3), item2(prev2), item1(prev1)]
+    // LIS of [0, 4, 3, 2, 1] = [0] (length 1, because after 0 only 4 fits, then 4,3,2,1 is decreasing).
+    // Actually [0, 4] is IS of length 2? No: after 4 we have 3 < 4. So max IS starting with 0: [0, 4] = length 2? No, that IS stops at 4 since next is 3 < 4.
+    // Wait actually LIS of [0, 4, 3, 2, 1]:
+    //   [0, 4] — length 2
+    //   [0, 3] — length 2
+    //   [0, 2] — length 2
+    //   [0, 1] — length 2
+    // All have length 2. So LIS = 2 → 5-2=3 moves.
+    const items = Array.from({ length: 5 }, (_, i) => ({ id: String(i), label: `${i}` }))
+    const { $list, ids } = setup(items)
+
+    $list.set([items[0]!, items[4]!, items[3]!, items[2]!, items[1]!])
+    expect(ids()).toEqual(['0', '4', '3', '2', '1'])
+  })
+
+  it('multi-node rows: swap moves only the unstable rows', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+
+    const items = Array.from({ length: 6 }, (_, i) => ({ id: String(i) }))
+    const $list = signal(items)
+
+    bindForSignal(anchor, $list, (it) => it.id, (it) => {
+      // Each row renders TWO nodes.
+      const a = document.createElement('span')
+      const b = document.createElement('span')
+      a.className = `r${it.id}-a`
+      b.className = `r${it.id}-b`
+      return { nodes: [a, b] }
+    })
+
+    const spans = () =>
+      Array.from(root.querySelectorAll('span')).map((s) => s.className)
+
+    // Swap positions 1 and 4: [0, 4, 2, 3, 1, 5]
+    const spy = vi.spyOn(Element.prototype, 'insertBefore')
+    const swapped = [...items]
+    ;[swapped[1], swapped[4]] = [swapped[4]!, swapped[1]!]
+    $list.set(swapped)
+    const moves = spy.mock.calls.length
+    spy.mockRestore()
+
+    expect(spans()).toEqual([
+      'r0-a', 'r0-b',
+      'r4-a', 'r4-b',
+      'r2-a', 'r2-b',
+      'r3-a', 'r3-b',
+      'r1-a', 'r1-b',
+      'r5-a', 'r5-b',
+    ])
+    // 2 unstable rows × 2 nodes each = 4 insertBefore calls.
+    expect(moves).toBe(4)
+  })
+})
 
