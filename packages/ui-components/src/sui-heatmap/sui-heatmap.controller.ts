@@ -75,10 +75,8 @@ export default controller<Scope>({
             normalized > 0
               ? `fill:color-mix(in oklch,${toneVar} ${pct}%,transparent)`
               : ''
-          // Include fill in id: bindFor reuses DOM nodes for matching keys, so a
-          // changed fill must produce a new key to force the rect to re-render.
           result.push({
-            id: `c${ri}-${ci}:${fill}`,
+            id: `c${ri}-${ci}`,
             x: ci * step,
             y: ri * step,
             w: cs,

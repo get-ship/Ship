@@ -17,8 +17,8 @@
   ─────────────────────────────────────────────────────────────────────────────
   parts: row, seg         part="row" / part="seg"      ✓
   ─────────────────────────────────────────────────────────────────────────────
-  ARIA: role=img +        controller sets same          ✓
-    aria-label on .row      on rowEl
+  ARIA: role=img +        bound on .row via signals     ✓
+    aria-label on .row
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
@@ -59,4 +59,8 @@
   }
 </style>
 
-<span class="row" part="row" bind:this={rowEl}></span>
+<span class="row" part="row" role={segments().length > 0 ? 'img' : null} aria-label={ariaLabel()}>
+  {#for seg of segments() key={seg.id}}
+    <span class="seg" part="seg" data-state={seg.state}></span>
+  {/for}
+</span>
