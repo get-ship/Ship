@@ -32,8 +32,16 @@ pub fn check(source: &str, source_path: Option<&Path>) -> Result<(), CompileErro
         }
     };
 
+    // Only Severity::Error findings become compile errors. Warnings
+    // (e.g. `sui-for-key`, `sui-event-name`) surface in LSP but don't
+    // block the build — they catch silent-bug classes that the team
+    // wants to fix but that existing views are allowed to have during
+    // migration.
     let findings = sui_lint::lint_sui_template_source(path, source);
-    let Some(first) = findings.first() else {
+    let Some(first) = findings
+        .iter()
+        .find(|f| matches!(f.severity, sui_lint::Severity::Error))
+    else {
         return Ok(());
     };
 
