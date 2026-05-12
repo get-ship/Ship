@@ -19,6 +19,25 @@ fn fuzz_2026_05_11_amp_entity_in_interpolation() {
     );
 }
 
+/// Issue: deeply-nested template literals starting with `\x01\x00\x00X{`${.{` ...
+/// crash compile_full. New panic site after the previous fixes.
+#[test]
+fn fuzz_2026_05_12_deep_template_nesting() {
+    let src_bytes = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("fuzz/artifacts/compile_full/crash-73f190831da830fed29a521bd5f764c8bbf6987b"),
+    );
+    let Ok(bytes) = src_bytes else { return };
+    let Ok(src) = std::str::from_utf8(&bytes) else { return };
+    let _ = compile(
+        src,
+        CompileOpts {
+            mode: CompileMode::View,
+            ..Default::default()
+        },
+    );
+}
+
 /// Issue: `>M{#foro of r.&harr;{-}{{}}}}(***r` crashed bindings::build.
 /// Found by `bindings_build` fuzz on 2026-05-12.
 #[test]
