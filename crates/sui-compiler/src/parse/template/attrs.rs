@@ -319,27 +319,36 @@ fn compile_prop(
 }
 
 fn compile_dynamic_attr(
-    raw_name_expr: &str,
+    raw_name: &str,
     value: &str,
     value_span: Span,
     loc: &str,
 ) -> Result<AttrInstr, CompileError> {
-    if !is_expr_value(raw_name_expr) {
-        return Err(CompileError::new("attr: expects attr:{nameExpr}")
-            .with_span(value_span)
-            .with_category(loc.to_string()));
-    }
     if !is_expr_value(value) {
-        return Err(CompileError::new("attr:{...} expects ={valueExpr}")
+        return Err(CompileError::new("attr: expects ={valueExpr}")
             .with_span(value_span)
             .with_category(loc.to_string()));
     }
-    let name_inner = strip_braces(raw_name_expr).to_string();
-    expr::validate_at(&name_inner, false, loc, value_span)?;
     let value_inner = strip_braces(value).to_string();
     expr::validate_at(&value_inner, false, loc, value_span)?;
-    Ok(AttrInstr::DynamicAttr {
-        name_expr: Expr::new(name_inner, value_span, false),
+    if is_expr_value(raw_name) {
+        let name_inner = strip_braces(raw_name).to_string();
+        expr::validate_at(&name_inner, false, loc, value_span)?;
+        return Ok(AttrInstr::DynamicAttr {
+            name_expr: Expr::new(name_inner, value_span, false),
+            expr: Expr::new(value_inner, value_span, false),
+            span: value_span,
+        });
+    }
+    if !is_valid_attr_name(raw_name) {
+        return Err(CompileError::new(
+            "attr: expects attr:<name>={valueExpr} or attr:{nameExpr}={valueExpr}",
+        )
+        .with_span(value_span)
+        .with_category(loc.to_string()));
+    }
+    Ok(AttrInstr::Expr {
+        name: raw_name.to_string(),
         expr: Expr::new(value_inner, value_span, false),
         span: value_span,
     })

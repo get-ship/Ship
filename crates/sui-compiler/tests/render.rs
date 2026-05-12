@@ -102,6 +102,30 @@ fn expr_attribute_emits_attr_marker() {
 }
 
 #[test]
+fn attr_prefixed_literal_name_emits_attr_marker() {
+    // `attr:<ident>={expr}` shorthand should compile to the same shape
+    // as `<ident>={expr}` — a static-name attribute binding.
+    let src = "<label attr:for={target}>x</label>";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"attr:for="b0""#),
+        "expected attr:for marker; got: {html:?}"
+    );
+}
+
+#[test]
+fn attr_prefixed_dynamic_name_emits_attr_dynamic_marker() {
+    // Regression guard: `attr:{nameExpr}={valueExpr}` continues to compile
+    // to the dynamic-name attribute binding.
+    let src = "<a attr:{name}={value}>x</a>";
+    let html = render_source(src);
+    assert!(
+        html.contains(r#"attr-dynamic="b0""#),
+        "expected attr-dynamic marker; got: {html:?}"
+    );
+}
+
+#[test]
 fn if_emits_placeholder() {
     // Unbound condition → evaluator errors → placeholder fallback.
     let src = "{#if missing}<p>x</p>{/if}";
