@@ -9,11 +9,11 @@ const result = await build({
   bundle: true,
   platform: 'node',
   format: 'esm',
-  external: ['esbuild', 'chokidar'],
+  external: ['esbuild', 'chokidar', 'bun:ffi'],
   write: false,
 })
 
-const shebang = '#!/usr/bin/env bun\n'
+const shebang = '#!/usr/bin/env node\n'
 writeFileSync('dist/cli.js', shebang + result.outputFiles[0].text)
 chmodSync('dist/cli.js', 0o755)
 console.log('built dist/cli.js')

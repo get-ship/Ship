@@ -26,9 +26,23 @@ export async function makeFfiSpawn(libPath: string): Promise<CompileSpawn | null
       returns: FFIType.void,
     },
   })
+  // Bun FFI's FFIType.cstring args want a null-terminated UTF-8 buffer,
+  // not a JS string. Encode each arg before the call.
+  const encoder = new TextEncoder()
+  const toCString = (s: string): Uint8Array => {
+    const bytes = encoder.encode(s)
+    const buf = new Uint8Array(bytes.length + 1)
+    buf.set(bytes)
+    buf[bytes.length] = 0
+    return buf
+  }
   return async (suiPath: string, stem: string): Promise<void> => {
     const outDir = join(dirname(suiPath), 'dist')
-    const rawPtr = lib.symbols.sui_compiler_compile(suiPath, stem, outDir)
+    const rawPtr = lib.symbols.sui_compiler_compile(
+      toCString(suiPath),
+      toCString(stem),
+      toCString(outDir),
+    )
     if (!rawPtr) throw new Error(`sui-compiler FFI returned null for ${suiPath}`)
     const jsonStr = new CString(rawPtr).toString()
     lib.symbols.sui_compiler_free_string(rawPtr)
