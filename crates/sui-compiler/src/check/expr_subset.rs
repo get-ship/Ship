@@ -193,7 +193,9 @@ fn skip_string(bytes: &[u8], from: usize, quote: u8) -> usize {
     while i < bytes.len() {
         let c = bytes[i];
         if c == b'\\' {
-            i += 2;
+            // Bounded skip: a trailing `\\` at end-of-input must not push
+            // i past `bytes.len()` (callers slice with this value).
+            i = (i + 2).min(bytes.len());
             continue;
         }
         if c == quote {
@@ -209,7 +211,7 @@ fn skip_template_literal(bytes: &[u8], from: usize, span: Span) -> Result<usize,
     while i < bytes.len() {
         let c = bytes[i];
         if c == b'\\' {
-            i += 2;
+            i = (i + 2).min(bytes.len());
             continue;
         }
         if c == b'`' {
