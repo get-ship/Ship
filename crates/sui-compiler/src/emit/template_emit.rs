@@ -88,6 +88,10 @@ pub struct TemplateEmitter {
     /// Whether the current compile mode is `View`. Components don't
     /// emit `hydrate(root, ctx)` (no SSR/attach() path).
     pub(super) is_view: bool,
+    /// True while emitting the per-item IIFE body of a `{#for}` loop.
+    /// When set, reactive binding closures void-read `$scope.__v` to
+    /// track the per-row version signal and re-run when `update` fires.
+    pub(super) for_in_scope: bool,
 }
 
 impl TemplateEmitter {
@@ -104,6 +108,7 @@ impl TemplateEmitter {
             boundary_depth: 0,
             keys: KeyAllocator::default(),
             is_view,
+            for_in_scope: false,
         }
     }
 
@@ -137,6 +142,19 @@ impl TemplateEmitter {
     /// element-bound leaf kind migrated).
     pub fn hydrate_uses_markers(&self) -> bool {
         self.hydrate_uses_markers
+    }
+
+    /// Returns `"void $scope.__v(), "` when inside a `{#for}` IIFE body,
+    /// so reactive getter closures track the per-row version signal.
+    /// Used as a prefix inside `() => (…)` style closures.
+    pub(super) fn for_version_comma(&self) -> &'static str {
+        if self.for_in_scope { "void $scope.__v(), " } else { "" }
+    }
+
+    /// Returns `"void $scope.__v(); "` when inside a `{#for}` IIFE body.
+    /// Used as a leading statement inside `effect(() => { … })` bodies.
+    pub(super) fn for_version_stmt(&self) -> &'static str {
+        if self.for_in_scope { "void $scope.__v(); " } else { "" }
     }
 
     pub(super) fn fresh(&mut self, prefix: &str) -> String {
@@ -196,10 +214,11 @@ impl TemplateEmitter {
                 let key = self.next_key();
                 let v = self.fresh("t");
                 let rw = rewrite_for_scope(&expr.source, &[]);
+                let fv = self.for_version_comma();
                 w.line(&format!("const {v} = document.createTextNode(\"\");"));
                 w.line(&format!("{parent_var}.appendChild({v});"));
                 w.line(&format!(
-                    "{cleanups_var}.push(bindText({v}, () => ({rw})));"
+                    "{cleanups_var}.push(bindText({v}, () => ({fv}{rw})));"
                 ));
                 // Phase 3b.3: at depth 0 in views, also emit a direct
                 // hydrate call so SSR'd `<!--sui:text:bN-->…<!--/sui-->`

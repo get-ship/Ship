@@ -131,6 +131,10 @@ impl TemplateEmitter {
         h.line(&format!("const {child_scope} = Object.create($scope);"));
         h.line(&format!("{child_scope}.{var} = {var};"));
         h.line(&format!("{child_scope}.{idx_name} = {idx_name};"));
+        // Per-row version signal. Incremented by `update` to force all
+        // reactive binding closures inside this row to re-evaluate,
+        // picking up the new item value from $scope.{var}.
+        h.line(&format!("{child_scope}.__v = signal(0);"));
         // Wrap the body in an IIFE that takes `$scope` as a parameter so
         // the iteration's child scope shadows the outer `$scope` without
         // a same-block `const $scope` declaration (which would TDZ on
@@ -153,7 +157,9 @@ impl TemplateEmitter {
         body_w.line(&format!("const {cl} = [];"));
         let hoist_snapshot = self.boundary_hoists.len();
         self.boundary_depth += 1;
+        let outer_for = std::mem::replace(&mut self.for_in_scope, true);
         self.emit_children(&mut body_w, &instr.body, &frag, &cl);
+        self.for_in_scope = outer_for;
         self.boundary_depth -= 1;
         let captured_hoists = self.boundary_hoists.split_off_from(hoist_snapshot);
         if !captured_hoists.is_empty() {
@@ -162,8 +168,10 @@ impl TemplateEmitter {
             h.push_str(&captured_hoists);
         }
         h.push_str(&body_w.into_string());
+        let new_var = self.fresh("new");
+        let new_idx = self.fresh("newI");
         h.line(&format!(
-            "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }} }};"
+            "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }}, update: ({new_var}, {new_idx}) => {{ $scope.{var} = {new_var}; $scope.{idx_name} = {new_idx}; $scope.__v.set(c => c + 1); }} }};"
         ));
         h.leave();
         h.line(&format!("}})({child_scope});"));
