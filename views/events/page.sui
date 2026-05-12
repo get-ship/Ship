@@ -1,0 +1,83 @@
+<data name="eventsData" source="ship.events.list({q: q(), event_type: eventType(), actor: actor(), entity: entity()})" live />
+
+<div class="ship-view ship-view-events">
+  <div class="events-wrap">
+
+    <div class="events-head">
+      <div>
+        <h1 class="events-title">Events</h1>
+        {#if eventsData().kind === 'ok'}
+          <div class="events-sub">{totalCount()} events</div>
+        {/if}
+      </div>
+    </div>
+
+    {#while-loading of eventsData}
+      <div class="events-sub" style="padding:var(--space-3) 0">Loading events&hellip;</div>
+    {/while-loading}
+
+    {#while-error err of eventsData}
+      <div style="color:var(--destructive);padding:var(--space-3) 0">{err.message}</div>
+    {/while-error}
+
+    {#if eventsData().kind === 'ok'}
+      <div class="events-filters" role="group" aria-label="Filter events">
+        <sui-chip size="sm"
+          attr:data-active={eventType() === '' ? '' : null}
+          on:click={() => eventType.set('')}>All types</sui-chip>
+        {#for t of eventsData().value.types key={t}}
+          <sui-chip size="sm"
+            attr:data-active={eventType() === t ? '' : null}
+            on:click={() => eventType.set(t)}>{t}</sui-chip>
+        {/for}
+        {#if eventsData().value.actors.length > 0}
+          <span class="events-sep" aria-hidden="true"></span>
+          <sui-chip size="sm"
+            attr:data-active={actor() === '' ? '' : null}
+            on:click={() => actor.set('')}>All actors</sui-chip>
+          {#for a of eventsData().value.actors key={a}}
+            <sui-chip size="sm"
+              attr:data-active={actor() === a ? '' : null}
+              on:click={() => actor.set(a)}>{a}</sui-chip>
+          {/for}
+        {/if}
+        <input class="events-search" placeholder="Search events…"
+          bind:value={q}
+          on:input={(e) => q.set(e.target.value)} />
+      </div>
+
+      <div class="events-content" id="events-content">
+        {#if eventsData().value.groups.length === 0}
+          <sui-empty-state icon="activity" variant="placeholder">
+            <span slot="title">Waiting for events&hellip;</span>
+            No events match the current filter yet.
+          </sui-empty-state>
+        {:else}
+          {#for g of eventsData().value.groups key={g.entity_id}}
+            <details attr:open={!g.collapsed ? '' : null}>
+              <summary>
+                <span class="entity">{g.entity_id}</span>
+                <span class="count">{g.count} event{g.count !== 1 ? 's' : ''}</span>
+              </summary>
+              {#for r of g.rows key={r.id}}
+                <details class="events-row-wrap">
+                  <summary class="events-row">
+                    <span class="ts">{r.timestamp}</span>
+                    <span class="kind">{r.event_type}</span>
+                    <span class="actor-cell">
+                      <sui-avatar size="sm" attr:identity-hue={r.actor} attr:name={r.actor}></sui-avatar>
+                      <span class="actor-name">{r.actor}</span>
+                    </span>
+                    <span class="id" attr:title={r.id}>{r.id}</span>
+                  </summary>
+                  <pre>{r.payload_pretty}</pre>
+                </details>
+              {/for}
+            </details>
+          {/for}
+        {/if}
+      </div>
+    {/if}
+
+  </div>
+</div>

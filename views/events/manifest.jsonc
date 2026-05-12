@@ -1,0 +1,9 @@
+{
+  "name": "events",
+  "path": "/events",
+  "title": "Events",
+  "layout": "default",
+  "auth": "user",
+  "rail": { "label": "Events", "icon": "radio" },
+  "events": [""]
+}

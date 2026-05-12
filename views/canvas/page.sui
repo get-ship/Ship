@@ -1,0 +1,96 @@
+<data name="canvasList" source="ship.canvas.list()" live />
+<data name="canvasDoc" source="ship.canvas.doc({slug: activeSlug()})" />
+
+<div class="ship-view canvas-workspace">
+
+  <aside class="canvas-rail">
+    <div class="canvas-rail-head">
+      <h1 class="canvas-rail-title">Canvas</h1>
+      {#if canvasList().kind === 'ok'}
+        <div class="canvas-rail-sub">
+          {canvasList().value.length} artifact{canvasList().value.length !== 1 ? 's' : ''}
+        </div>
+      {/if}
+    </div>
+
+    <div class="canvas-rail-list">
+      {#while-loading of canvasList}
+        <div class="canvas-rail-empty">Loading&hellip;</div>
+      {/while-loading}
+      {#if canvasList().kind === 'ok'}
+        {#if canvasList().value.length === 0}
+          <div class="canvas-rail-empty">
+            No canvas artifacts yet. Agents create them by uploading HTML to
+            <code>POST /api/v1/artifacts</code> with <code>collection_id=canvas</code>.
+          </div>
+        {:else}
+          {#for doc of canvasList().value key={doc.slug}}
+            <a class="canvas-rail-item"
+              class:active={activeSlug() === doc.slug}
+              on:click={(e) => { e.preventDefault(); selectDoc(doc.slug) }}
+              attr:href={'/canvas/' + doc.slug}>
+              <span class="canvas-rail-item-title">{doc.title || doc.slug}</span>
+              <span class="canvas-rail-item-meta">
+                <span class="canvas-rail-item-id">{doc.slug.slice(0, 8)}</span>
+                {#if doc.modified}
+                  <span class="canvas-rail-item-detail">{doc.modified.slice(0, 16)}</span>
+                {/if}
+              </span>
+            </a>
+          {/for}
+        {/if}
+      {/if}
+    </div>
+
+    <div class="canvas-rail-section" id="canvas-feedback-panel">
+      <h2 class="canvas-rail-section-title">Recent Feedback</h2>
+      {#if canvasList().kind === 'ok' && canvasList().value.feedback && canvasList().value.feedback.length > 0}
+        {#for fb of canvasList().value.feedback key={fb.id}}
+          <div class="canvas-feedback-item">
+            <span class="canvas-feedback-author">{fb.data?.actor || fb.created_by || 'human'}</span>
+            <span class="canvas-feedback-time">{(fb.created_at || '').slice(0, 16)}</span>
+            <div>{(fb.data?.annotation || fb.data?.target_id || '(action)').slice(0, 60)}</div>
+          </div>
+        {/for}
+      {:else}
+        <div class="canvas-feedback-empty">No feedback yet</div>
+      {/if}
+    </div>
+
+    <div class="canvas-rail-cta">
+      <a on:click={(e) => { e.preventDefault(); navigate('/chat') }} href="/chat">
+        Ask an agent to create a canvas
+      </a>
+    </div>
+  </aside>
+
+  <main class="canvas-main">
+    {#if activeSlug() && canvasDoc().kind === 'ok' && canvasDoc().value.html}
+      <sui-annotation-layer attr:view-id={activeSlug()} mode="point" staging>
+        <div bind:this={docEl} id="canvas-doc" class="canvas-doc"></div>
+      </sui-annotation-layer>
+    {:else if activeSlug() && canvasDoc().kind === 'ok'}
+      <div class="canvas-empty">
+        <sui-icon name="alert-circle" aria-hidden="true"></sui-icon>
+        <div class="canvas-empty-title">Artifact not found</div>
+        <div class="canvas-empty-desc">
+          Canvas artifact <code>{activeSlug()}</code> isn&apos;t in the artifacts collection or its blob is missing.
+        </div>
+      </div>
+    {:else}
+      <div class="canvas-empty">
+        <sui-icon name="image" aria-hidden="true"></sui-icon>
+        <div class="canvas-empty-title">Create a Canvas</div>
+        <div class="canvas-empty-desc">
+          Canvas is the live interaction surface — rating cards, working prototypes,
+          spec viewers with action buttons. Ask an agent to create one.
+        </div>
+        <div class="canvas-empty-hint">
+          Each canvas is a single HTML artifact in the files collection.
+          Annotations and feedback flow back to the agent in real time.
+        </div>
+      </div>
+    {/if}
+  </main>
+
+</div>
