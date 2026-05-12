@@ -773,6 +773,7 @@ impl ShipRuntime {
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
+            bundler: std::sync::OnceLock::new(),
         }
     }
 
@@ -847,6 +848,7 @@ impl ShipRuntime {
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
             config_watcher: std::sync::OnceLock::new(),
+            bundler: std::sync::OnceLock::new(),
         }
     }
 

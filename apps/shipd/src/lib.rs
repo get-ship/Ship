@@ -44,6 +44,7 @@ mod ship_runtime_tests;
 
 pub use daemon::{network_status, network_stop};
 pub use transport::NetworkServer;
+pub use ship_sui::DaemonMode;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
 #[cfg(test)]
@@ -67,6 +68,9 @@ use tokio_util::sync::CancellationToken;
 /// `dev` enables relaxed auth for local development (auto-pair, localhost-only).
 /// Never set `dev = true` in production.
 ///
+/// `daemon_mode` controls cache headers, HMR route availability, and SSR cache
+/// behavior. Default is `Development`, which preserves all existing behaviour.
+///
 /// `port = None` means "auto-derive": pick the port via
 /// `ship_substrate::home::worktree_port_for(project_root)`, which honors
 /// `~/.ship/machine/local.jsonc:worktrees.ports[<branch>]` pins and
@@ -78,6 +82,7 @@ pub async fn run_network(
     port: Option<u16>,
     dev: bool,
     workspace_dir: Option<std::path::PathBuf>,
+    daemon_mode: ship_sui::DaemonMode,
 ) -> Result<()> {
     if dev {
         tracing::warn!(
@@ -175,11 +180,12 @@ pub async fn run_network(
     rt.start_hook_engine().await;
     rt.start_config_watcher();
 
-    // Start the Bun bundler worker and wire module_changed events to the
-    // SSE channel so browser clients get in-place updates without reload.
+    // Start the Bun bundler worker. In dev mode, also forward module_changed
+    // events to the HMR SSE channel so browser clients get in-place updates.
     {
         let bundler = rt.bundler().clone();
         let mut events = bundler.subscribe_events();
+        let mode = daemon_mode;
         tokio::spawn(async move {
             if let Err(e) = bundler.start_watching().await {
                 tracing::warn!("bundler: could not start file watching: {e}");
@@ -187,28 +193,32 @@ pub async fn run_network(
             loop {
                 match events.recv().await {
                     Ok(ship_application::bundler::BundlerEvent::ModuleChanged { target, out_path, bytes }) => {
-                        views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
-                            kind: views::sui_hmr::BundleModuleEventKind::ModuleChanged,
-                            target,
-                            out_path: Some(out_path),
-                            bytes: Some(bytes),
-                            message: None,
-                            line: None,
-                            col: None,
-                            file: None,
-                        });
+                        if mode == ship_sui::DaemonMode::Development {
+                            views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
+                                kind: views::sui_hmr::BundleModuleEventKind::ModuleChanged,
+                                target,
+                                out_path: Some(out_path),
+                                bytes: Some(bytes),
+                                message: None,
+                                line: None,
+                                col: None,
+                                file: None,
+                            });
+                        }
                     }
                     Ok(ship_application::bundler::BundlerEvent::CompileError { target, message, line, col, file }) => {
-                        views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
-                            kind: views::sui_hmr::BundleModuleEventKind::CompileError,
-                            target,
-                            out_path: None,
-                            bytes: None,
-                            message: Some(message),
-                            line,
-                            col,
-                            file,
-                        });
+                        if mode == ship_sui::DaemonMode::Development {
+                            views::sui_hmr::publish_bundle_event(views::sui_hmr::BundleModuleEvent {
+                                kind: views::sui_hmr::BundleModuleEventKind::CompileError,
+                                target,
+                                out_path: None,
+                                bytes: None,
+                                message: Some(message),
+                                line,
+                                col,
+                                file,
+                            });
+                        }
                     }
                     Ok(ship_application::bundler::BundlerEvent::WorkerRestarted) => {
                         tracing::info!("bundler: worker restarted");
@@ -269,6 +279,7 @@ pub async fn run_network(
         pairing_registry,
         attestation_verifier,
         ct.child_token(),
+        daemon_mode,
     );
     // Bind the listener with collision retry. On EADDRINUSE we increment
     // the port up to 9 times before giving up. The actually-bound port is

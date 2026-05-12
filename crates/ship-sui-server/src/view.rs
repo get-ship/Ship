@@ -1,4 +1,5 @@
 use axum::{
+    Extension,
     body::Body,
     extract::{Path, Query},
     http::{StatusCode, header},
@@ -7,10 +8,15 @@ use axum::{
 use sui_compiler::{CompileOpts, compile};
 use ship_sui_host::resolver::ResolvedView;
 
+use crate::{DaemonMode, compute_etag, mode_from_ext, view_cache};
 use crate::assets::{resolve_view_js, resolve_view_js_baked, resolve_view_css_baked};
 use crate::resolver::resolve;
 
-pub async fn serve_sui_view_template(Path(name): Path<String>) -> Response {
+pub async fn serve_sui_view_template(
+    mode: Option<Extension<DaemonMode>>,
+    Path(name): Path<String>,
+) -> Response {
+    let mode = mode_from_ext(mode);
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
@@ -18,31 +24,36 @@ pub async fn serve_sui_view_template(Path(name): Path<String>) -> Response {
         Ok(r) => r.source,
         Err(e) => return not_found(&e.message),
     };
-    Response::builder()
+    let cache = view_cache(mode);
+    let mut builder = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(body))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+        .header(header::CACHE_CONTROL, cache);
+    if mode == DaemonMode::Production {
+        builder = builder.header(header::ETAG, compute_etag(body.as_bytes()));
+    }
+    builder.body(Body::from(body)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
 pub async fn serve_sui_view_setup(
+    mode: Option<Extension<DaemonMode>>,
     Path(name): Path<String>,
     Query(q): Query<ViewSetupQuery>,
 ) -> Response {
+    let mode = mode_from_ext(mode);
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
     if q.sub.is_none() {
         if let Some(js) = resolve_view_js(&name) {
-            return js_response_owned(js);
+            return js_response_mode(js, mode);
         }
         if let Some(baked) = resolve_view_js_baked(&name) {
-            return js_response(baked);
+            return js_response_mode(baked.to_string(), mode);
         }
     }
     match resolve(&name, q.sub.as_deref()) {
-        Ok(r) => compile_view_js(&name, &r),
+        Ok(r) => compile_view_js(&name, &r, mode),
         Err(e) => not_found(&e.message),
     }
 }
@@ -52,7 +63,7 @@ pub struct ViewSetupQuery {
     pub sub: Option<String>,
 }
 
-fn compile_view_js(name: &str, resolved: &ResolvedView) -> Response {
+fn compile_view_js(name: &str, resolved: &ResolvedView, mode: DaemonMode) -> Response {
     let ts_filename = match resolved
         .source_path
         .as_ref()
@@ -77,39 +88,43 @@ fn compile_view_js(name: &str, resolved: &ResolvedView) -> Response {
     };
     let out = match compile(&resolved.source, opts) {
         Ok(o) => o,
-        Err(err) => return render_error(err.render(&resolved.source)),
+        Err(err) => return render_error(err.render(&resolved.source), mode),
     };
 
     let final_js = match (ts_path, resolved.source_path.as_deref()) {
         (Some(ts), Some(sui)) => match ship_sui_host::bundle::bundle_view(name, &out.js, sui, &ts) {
             Ok(b) => b,
-            Err(e) => return render_error(e),
+            Err(e) => return render_error(e, mode),
         },
         _ => out.js,
     };
 
-    Response::builder()
+    let mut builder = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
+        .header(header::CACHE_CONTROL, view_cache(mode))
         .header(
             "X-Sui-View",
             name.chars().filter(|c| c.is_ascii()).collect::<String>(),
-        )
-        .body(Body::from(final_js))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+        );
+    if mode == DaemonMode::Production {
+        builder = builder.header(header::ETAG, compute_etag(final_js.as_bytes()));
+    }
+    builder.body(Body::from(final_js)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
 pub async fn serve_sui_view_css(
+    mode: Option<Extension<DaemonMode>>,
     Path(name): Path<String>,
     Query(q): Query<ViewSetupQuery>,
 ) -> Response {
+    let mode = mode_from_ext(mode);
     if !is_valid_view_name(&name) {
         return not_found("invalid view name");
     }
     if q.sub.is_none() {
         if let Some(css) = resolve_view_css_baked(&name) {
-            return css_response(css.to_string());
+            return css_response_mode(css.to_string(), mode);
         }
     }
     let body: String = match resolve(&name, q.sub.as_deref()) {
@@ -141,16 +156,29 @@ pub async fn serve_sui_view_css(
         }
         Err(e) => return not_found(&e.message),
     };
-    css_response(body)
+    css_response_mode(body, mode)
 }
 
-fn css_response(body: String) -> Response {
-    Response::builder()
+fn css_response_mode(body: String, mode: DaemonMode) -> Response {
+    let mut builder = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/css; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(body))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+        .header(header::CACHE_CONTROL, view_cache(mode));
+    if mode == DaemonMode::Production {
+        builder = builder.header(header::ETAG, compute_etag(body.as_bytes()));
+    }
+    builder.body(Body::from(body)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+}
+
+fn js_response_mode(body: String, mode: DaemonMode) -> Response {
+    let mut builder = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .header(header::CACHE_CONTROL, view_cache(mode));
+    if mode == DaemonMode::Production {
+        builder = builder.header(header::ETAG, compute_etag(body.as_bytes()));
+    }
+    builder.body(Body::from(body)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
 fn top_level_view_dir(p: &std::path::Path, view_name: &str) -> Option<std::path::PathBuf> {
@@ -161,24 +189,6 @@ fn top_level_view_dir(p: &std::path::Path, view_name: &str) -> Option<std::path:
         }
         cur = cur.parent()?;
     }
-}
-
-fn js_response(body: &'static str) -> Response {
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(body))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
-}
-
-fn js_response_owned(body: String) -> Response {
-    Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(body))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
 fn not_found(msg: &str) -> Response {
@@ -195,12 +205,17 @@ fn is_valid_view_name(s: &str) -> bool {
         && s.chars().all(|c| c.is_ascii_lowercase() || c == '-')
 }
 
-fn render_error(message: String) -> Response {
+fn render_error(message: String, mode: DaemonMode) -> Response {
+    let body = if mode == DaemonMode::Production {
+        "render error".to_string()
+    } else {
+        message
+    };
     Response::builder()
         .status(StatusCode::INTERNAL_SERVER_ERROR)
         .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
         .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(message))
+        .body(Body::from(body))
         .unwrap_or_else(|_| Response::new(Body::from("compile error")))
 }
 
@@ -240,7 +255,7 @@ mod tests {
         let _lock = test_lock();
         let prev = std::env::var_os("SHIP_DEV_PROJECT_DIR");
         unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", repo_root()); }
-        let resp = serve_sui_view_template(Path("agents".to_string())).await;
+        let resp = serve_sui_view_template(None, Path("agents".to_string())).await;
         match prev {
             Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
             None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },

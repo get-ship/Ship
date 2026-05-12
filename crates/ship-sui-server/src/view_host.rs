@@ -2,12 +2,14 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock};
 
 use axum::{
+    Extension,
     body::Body,
     extract::OriginalUri,
     http::{StatusCode, header},
     response::Response,
 };
 
+use crate::{DaemonMode, compute_etag, mode_from_ext, view_cache};
 use crate::resolver::resolve;
 
 const VIEW_HOST_SHELL: &str = include_str!("../assets/view-host.html");
@@ -20,8 +22,6 @@ pub(crate) fn ssr_cache() -> &'static Mutex<HashMap<String, String>> {
 }
 
 fn view_name_from_path(path: &str) -> Option<String> {
-    // Paths like `/view-host/counter`, `/view-host/counter/sub`,
-    // `/sui/counter/sub` — second segment is always the view name.
     path.trim_start_matches('/')
         .splitn(3, '/')
         .nth(1)
@@ -42,7 +42,7 @@ fn ssr_html_for_view(name: &str) -> String {
     html
 }
 
-fn load_ssr_from_disk(name: &str) -> Option<String> {
+pub(crate) fn load_ssr_from_disk(name: &str) -> Option<String> {
     let resolved = resolve(name, None).ok()?;
     let source_path = resolved.source_path?;
     let src_dir = source_path.parent()?;
@@ -52,17 +52,30 @@ fn load_ssr_from_disk(name: &str) -> Option<String> {
     std::fs::read_to_string(&ssr_path).ok()
 }
 
-pub async fn serve_view_host(OriginalUri(uri): OriginalUri) -> Response {
+pub async fn serve_view_host(
+    mode: Option<Extension<DaemonMode>>,
+    OriginalUri(uri): OriginalUri,
+) -> Response {
+    let mode = mode_from_ext(mode);
+    // Dev: always re-read from disk (no cache). Prod: use in-memory cache.
     let ssr_content = view_name_from_path(uri.path())
-        .map(|name| ssr_html_for_view(&name))
+        .map(|name| {
+            if mode == DaemonMode::Production {
+                ssr_html_for_view(&name)
+            } else {
+                load_ssr_from_disk(&name).unwrap_or_default()
+            }
+        })
         .unwrap_or_default();
     let body = VIEW_HOST_SHELL.replace(SSR_PLACEHOLDER, &ssr_content);
-    Response::builder()
+    let mut builder = Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .body(Body::from(body))
-        .unwrap_or_else(|_| Response::new(Body::from("response build failed")))
+        .header(header::CACHE_CONTROL, view_cache(mode));
+    if mode == DaemonMode::Production {
+        builder = builder.header(header::ETAG, compute_etag(body.as_bytes()));
+    }
+    builder.body(Body::from(body)).unwrap_or_else(|_| Response::new(Body::from("response build failed")))
 }
 
 #[cfg(test)]
@@ -98,7 +111,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn serves_html_with_correct_headers() {
-        let resp = serve_view_host(make_uri("/view-host")).await;
+        let resp = serve_view_host(None, make_uri("/view-host")).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let ct = resp.headers().get(header::CONTENT_TYPE).unwrap();
         assert!(ct.to_str().unwrap().contains("text/html"));
@@ -114,7 +127,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread")]
     async fn no_ssr_file_leaves_root_empty() {
-        let resp = serve_view_host(make_uri("/view-host/no-such-view-xyzzy")).await;
+        let resp = serve_view_host(None, make_uri("/view-host/no-such-view-xyzzy")).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let bytes = axum::body::to_bytes(resp.into_body(), usize::MAX).await.unwrap();
         let body = std::str::from_utf8(&bytes).unwrap();
@@ -144,7 +157,7 @@ mod tests {
             cache.remove("ssr-host-splice");
         }
 
-        let resp = serve_view_host(make_uri("/view-host/ssr-host-splice")).await;
+        let resp = serve_view_host(None, make_uri("/view-host/ssr-host-splice")).await;
         match prev {
             Some(v) => unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", v) },
             None => unsafe { std::env::remove_var("SHIP_DEV_PROJECT_DIR") },
