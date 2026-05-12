@@ -16,19 +16,19 @@ pub(super) fn try_dispatch(
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "pipelines.list" => Ok(json!({
-            "items": crate::services::pipelines::state::list(&files),
+            "items": ship_platform::services::pipelines::state::list(&files),
         })),
         "pipelines.get" => {
             let n = required_str(args, "name")?;
             let scope = parse_scope(args)?;
-            let (resolved, ext, doc) = crate::services::pipelines::state::load_doc(&files, n, scope)
+            let (resolved, ext, doc) = ship_platform::services::pipelines::state::load_doc(&files, n, scope)
                 .map_err(|e| match e {
-                    crate::services::pipelines::state::Error::NotFound(m) => RegistryError::not_found(m),
+                    ship_platform::services::pipelines::state::Error::NotFound(m) => RegistryError::not_found(m),
                     other => RegistryError::service(other.to_string()),
                 })?;
             Ok(json!({
                 "name": n,
-                "scope": crate::services::pipelines::state::ScopeTag::from(resolved),
+                "scope": ship_platform::services::pipelines::state::ScopeTag::from(resolved),
                 "format": ext,
                 "doc": doc,
             }))

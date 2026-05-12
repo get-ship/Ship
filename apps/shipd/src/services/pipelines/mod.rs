@@ -21,9 +21,7 @@
 pub mod focus;
 pub mod history;
 pub mod run_detail;
-pub mod service;
 pub mod shape;
-pub mod state;
 pub mod summaries;
 pub mod view_state;
 
@@ -35,7 +33,7 @@ use serde::Deserialize;
 use crate::access::RuntimeAccess;
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
-use service::PutArgs;
+use ship_platform::services::pipelines::service::PutArgs;
 
 // ── URL scope parsing ────────────────────────────────────────────────
 
@@ -66,8 +64,8 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
     (status, Json(serde_json::json!({ "ok": false, "error": code, "message": message.into() })))
 }
 
-fn map_err(e: state::Error) -> Resp {
-    use state::Error::*;
+fn map_err(e: ship_platform::services::pipelines::state::Error) -> Resp {
+    use ship_platform::services::pipelines::state::Error::*;
     match e {
         NotFound(m)         => err(StatusCode::NOT_FOUND, "not_found", m),
         AlreadyExists(m)    => err(StatusCode::CONFLICT, "exists", m),
@@ -118,7 +116,7 @@ pub async fn put(
         .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "name": name,
-        "scope": state::ScopeTag::from(target),
+        "scope": ship_platform::services::pipelines::state::ScopeTag::from(target),
     })))
 }
 
@@ -136,7 +134,7 @@ pub async fn patch(
     let resolved = state.services().pipelines().patch(&name, scope, &patch).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "name": name,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::pipelines::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -150,7 +148,7 @@ pub async fn delete(
     let resolved = state.services().pipelines().delete(&name, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "name": name,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::pipelines::state::ScopeTag::from(resolved),
     })))
 }
 

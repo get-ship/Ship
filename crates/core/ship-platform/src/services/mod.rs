@@ -27,6 +27,7 @@ pub mod jsonc;
 pub mod mcp;
 pub mod agents;
 pub mod permissions;
+pub mod pipelines;
 pub mod skills;
 pub mod path_tolerant;
 pub mod rules;

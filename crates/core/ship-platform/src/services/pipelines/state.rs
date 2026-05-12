@@ -7,7 +7,7 @@
 //!
 //! Scope model: project wins by default, exactly as AgentService.
 
-use ship_platform::services::files::{Error as FileError, FilesService, Scope};
+use crate::services::files::{Error as FileError, FilesService, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 
@@ -173,7 +173,7 @@ fn parse_pipeline_bytes(
     let raw = files.read_string(scope, rel)?;
     match ext {
         "jsonc" | "json" => {
-            let json = compiler::jsonc::strip_jsonc_comments(&raw);
+            let json = ship_substrate::fs_util::strip_jsonc_comments(&raw);
             serde_json::from_str(&json).map_err(|e| Error::Parse(e.to_string()))
         }
         "yaml" | "yml" => {
@@ -230,7 +230,7 @@ pub fn patch_doc(
         None => find(files, name).ok_or_else(|| Error::NotFound(name.into()))?,
     };
     let mut doc = parse_pipeline_bytes(files, scope, &rel, &ext)?;
-    ship_platform::services::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
+    crate::services::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
     json_patch::patch(&mut doc, patch).map_err(|e| Error::Patch(e.to_string()))?;
     // Migrate legacy formats to jsonc on write so the tree normalises.
     let target = rel_for(name, "jsonc");
