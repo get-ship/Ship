@@ -117,4 +117,41 @@ describe('esbuild adapter', () => {
   it('adapter name is "esbuild"', () => {
     expect(esbuildAdapter.name).toBe('esbuild')
   })
+
+  it('inlines file content as a string when using the text loader', async () => {
+    await mkdir(join(tmpDir, 'src', 'icons'), { recursive: true })
+    await writeFile(join(tmpDir, 'src', 'icons', 'star.svg'), '<svg><path d="M12 2l3 7h7l-6 4 2 7-6-4-6 4 2-7-6-4h7z"/></svg>')
+    await writeFile(
+      join(tmpDir, 'src', 'with-svg.ts'),
+      `import star from './icons/star.svg'\nexport default star`,
+    )
+    const config: SuiBuildConfig = {
+      entries: { 'with-svg': 'src/with-svg.ts' },
+      outdir: 'dist',
+      loaders: { '.svg': 'text' },
+    }
+    await esbuildAdapter.build(config, ctx)
+    const content = await readFile(join(tmpDir, 'dist', 'with-svg.js'), 'utf8')
+    expect(content).toContain('<svg>')
+  })
+
+  it('throws a clear error for unsupported loader names', async () => {
+    const config: SuiBuildConfig = {
+      entries: { app: 'src/entry.ts' },
+      outdir: 'dist',
+      loaders: { '.xyz': 'not-a-real-loader' },
+    }
+    await expect(esbuildAdapter.build(config, ctx)).rejects.toThrow('unsupported loader')
+  })
+
+  it('does not minify when mode is explicitly development', async () => {
+    const config: SuiBuildConfig = {
+      entries: { 'dev-mode': 'src/entry.ts' },
+      outdir: 'dist',
+      mode: 'development',
+    }
+    await esbuildAdapter.build(config, ctx)
+    const content = await readFile(join(tmpDir, 'dist', 'dev-mode.js'), 'utf8')
+    expect(content).toContain('greeting')
+  })
 })

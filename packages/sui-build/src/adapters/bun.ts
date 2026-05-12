@@ -2,6 +2,10 @@ import { join } from 'node:path'
 import type { SuiBundler, SuiBuildConfig, BuildResult, AdapterContext } from '../config.js'
 import { resolveEntrypoints, defaultSourcemap } from './util.js'
 
+const BUN_LOADERS = new Set<string>([
+  'base64', 'binary', 'css', 'dataurl', 'js', 'json', 'jsx', 'text', 'toml', 'ts', 'tsx',
+])
+
 export const bunAdapter: SuiBundler = {
   name: 'bun',
 
@@ -10,6 +14,16 @@ export const bunAdapter: SuiBundler = {
       throw new Error(
         'bun adapter requires the Bun runtime; install bun or use --bundler esbuild',
       )
+    }
+
+    if (config.loaders) {
+      for (const [ext, loader] of Object.entries(config.loaders)) {
+        if (!BUN_LOADERS.has(loader)) {
+          throw new Error(
+            `sui-build bun adapter: unsupported loader "${loader}" for "${ext}". Valid loaders: ${[...BUN_LOADERS].sort().join(', ')}`,
+          )
+        }
+      }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -26,6 +40,10 @@ export const bunAdapter: SuiBundler = {
     const sourcemap = defaultSourcemap(config)
     const outputs: string[] = []
     const warnings: string[] = []
+    // Bun selects Lit's 'development' export condition unless process.env.NODE_ENV
+    // is defined as 'production' in the build options. Pass it via `define` so
+    // Bun resolves the production path without mutating the host process env.
+    const nodeEnvDef = JSON.stringify(config.mode === 'production' ? 'production' : 'development')
 
     for (const [key, entrypoint] of Object.entries(entries)) {
       const result = await Bun.build({
@@ -36,6 +54,8 @@ export const bunAdapter: SuiBundler = {
         minify: config.mode === 'production',
         sourcemap: sourcemap ? 'inline' : 'none',
         naming: { entry: `${key}.js` },
+        define: { 'process.env.NODE_ENV': nodeEnvDef },
+        ...(config.loaders ? { loader: config.loaders } : {}),
       })
 
       if (!result.success) {

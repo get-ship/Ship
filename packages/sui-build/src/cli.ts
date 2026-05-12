@@ -34,6 +34,8 @@ function parseArgs(argv: string[]): CliArgs {
     watch: false,
     mode: 'production',
   }
+  const envMode = process.env['SUI_BUILD_MODE']
+  if (envMode === 'development' || envMode === 'production') args.mode = envMode
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--help' || arg === '-h') {
