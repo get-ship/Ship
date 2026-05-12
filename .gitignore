@@ -166,3 +166,4 @@ playwright-report/
 
 # Per-view compile cache emitted by sui-compiler / build-bundles.
 views/*/.compiled/
+.sui-build-cache.json
