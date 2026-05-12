@@ -1,0 +1,13 @@
+// Route metadata for views/pipelines/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "pipelines",
+  "path": "/pipelines",
+  "title": "Pipelines",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Pipelines",
+    "icon": "git-merge"
+  }
+}

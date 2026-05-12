@@ -1,0 +1,9 @@
+// Route metadata for views/pipelines/run/[slug]/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "pipeline-run",
+  "path": "/pipelines/run/[slug]",
+  "title": "Run",
+  "layout": "default",
+  "auth": "user"
+}

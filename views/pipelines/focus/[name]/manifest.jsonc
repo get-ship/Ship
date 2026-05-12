@@ -1,0 +1,9 @@
+// Route metadata for views/pipelines/focus/[name]/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "pipeline-focus",
+  "path": "/pipelines/focus/[name]",
+  "title": "Pipeline",
+  "layout": "default",
+  "auth": "user"
+}
