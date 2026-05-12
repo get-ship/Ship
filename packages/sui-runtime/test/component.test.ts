@@ -22,12 +22,30 @@ describe('defineComponent', () => {
   it('is idempotent', () => {
     const tag = nextTag()
     const f = vi.fn(() => () => {})
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     defineComponent(tag, { observedAttrs: [], props: {} }, f)
     defineComponent(tag, { observedAttrs: [], props: {} }, f)
     const el = document.createElement(tag)
     document.body.appendChild(el)
     expect(f).toHaveBeenCalledTimes(1)
     el.remove()
+    // Duplicate register still triggers the dev-mode warn.
+    expect(warn).toHaveBeenCalled()
+    expect(warn.mock.calls[0]![0]).toMatch(/called twice/)
+    warn.mockRestore()
+  })
+
+  it('warns once per duplicate tag, not per duplicate call', () => {
+    const tag = nextTag()
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    defineComponent(tag, { observedAttrs: [], props: {} }, () => () => {})
+    defineComponent(tag, { observedAttrs: [], props: {} }, () => () => {})
+    defineComponent(tag, { observedAttrs: [], props: {} }, () => () => {})
+    defineComponent(tag, { observedAttrs: [], props: {} }, () => () => {})
+    // Three duplicates, one warn — saves the console from noise spam
+    // when a buggy module imports a component file repeatedly.
+    expect(warn).toHaveBeenCalledTimes(1)
+    warn.mockRestore()
   })
 
   it('runs factory on connect, cleanup on disconnect', () => {

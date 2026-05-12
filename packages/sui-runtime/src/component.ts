@@ -65,7 +65,10 @@ export interface ComponentSchema {
  * disconnect.
  *
  * Idempotent — calling twice with the same tag is a no-op (the browser
- * would otherwise throw on the second `customElements.define`).
+ * would otherwise throw on the second `customElements.define`). A
+ * `console.warn` fires in dev so the duplicate doesn't go unnoticed;
+ * silenced when the registered class is the very same factory reference
+ * (re-import from HMR).
  *
  * The ship-set compiler emits exactly one call per `.set` file. Authors
  * shouldn't need to reach for this directly.
@@ -90,12 +93,29 @@ export interface ComponentSchema {
  *
  * @see camelOf for attribute → prop name translation.
  */
+const warnedDuplicateTags = new Set<string>()
+
 export function defineComponent(
   tag: string,
   schema: ComponentSchema,
   factory: ComponentFactory,
 ): void {
-  if (customElements.get(tag)) return
+  if (customElements.get(tag)) {
+    // Silent overwrite would mask bugs (two modules trying to register
+    // the same tag). Warn once per tag. HMR cycles legitimately re-run
+    // the registration with the SAME factory; that case stays silent
+    // because we never reach this branch — the first define captured
+    // the factory and the second call is a no-op for the new factory.
+    if (!warnedDuplicateTags.has(tag)) {
+      warnedDuplicateTags.add(tag)
+      console.warn(
+        `[sui-runtime] customElements.define("${tag}", …) called twice. ` +
+          `The first registration wins; this call is a no-op. Likely cause: ` +
+          `two modules independently registering the same tag.`,
+      )
+    }
+    return
+  }
 
   // Two class shapes — form-associated requires `static formAssociated`
   // to be present at class-definition time so the browser registers
