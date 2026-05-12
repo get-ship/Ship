@@ -86,6 +86,8 @@ import './sui-json-view/dist/sui-json-view.compiled.js'
 import './sui-diff/dist/sui-diff.compiled.js'
 import './sui-markdown/dist/sui-markdown.compiled.js'
 // sui-nav-top + sui-launcher are island-bundled; see islands/.
+import "./sui-navigation-menu/dist/sui-navigation-menu.compiled.js"
+import "./sui-navigation-menu/dist/sui-navigation-item.compiled.js"
 import "./sui-scroll-area/dist/sui-scroll-area.compiled.js"
 import './sui-toolbar/dist/sui-toolbar.compiled.js'
 import './sui-app-icon/dist/sui-app-icon.compiled.js'
