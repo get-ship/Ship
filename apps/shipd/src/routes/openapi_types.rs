@@ -17,23 +17,10 @@ use utoipa::ToSchema;
 ///
 /// See the [errors reference](/reference/http-api/errors/) for the full
 /// set of codes emitted by the daemon and their remediation.
-#[derive(Debug, Serialize, ToSchema)]
-#[schema(example = json!({
-    "error": "not_found",
-    "message": "spec not found: introductions",
-    "details": null
-}))]
-pub struct ErrorResponse {
-    /// Machine-readable error code. Examples: `not_found`, `unauthorized`,
-    /// `bad_request`, `conflict`, `rate_limited`, `internal_error`.
-    pub error: String,
-    /// Human-readable error message. Safe to surface in UIs and logs.
-    pub message: String,
-    /// Optional structured details. Shape varies by endpoint — see the
-    /// individual operation for specifics.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub details: Option<serde_json::Value>,
-}
+// ErrorResponse moved to `crate::wire::ErrorResponse` (Phase 3 — auth
+// needed to reference it without an `auth → routes` DAG violation).
+// Re-exported from here so existing handler imports keep working.
+pub use crate::wire::ErrorResponse;
 
 /// Minimal acknowledgement returned by webhook ingress.
 #[derive(Debug, Serialize, ToSchema)]

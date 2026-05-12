@@ -18,7 +18,7 @@ use ship_substrate::gen_ulid;
 use serde_json::Value;
 use sui_signals::Signal;
 
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 use crate::services::registry;
 
 /// The canonical git.overview signal. `Null` until first resolver run.

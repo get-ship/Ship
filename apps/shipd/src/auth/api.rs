@@ -24,7 +24,7 @@ use crate::auth::scopes::{
     DaemonSession, SessionRegistry, generate_session_token, persist_session,
     remove_persisted_session, scopes_for_role, Scope,
 };
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 
 // ---- Pairing endpoints ----
 
@@ -91,8 +91,8 @@ pub enum PairStatusResponse {
     request_body = PairInitRequest,
     responses(
         (status = 200, description = "Pairing initiated", body = PairInitResponse),
-        (status = 429, description = "Too many pending pairings", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 429, description = "Too many pending pairings", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     security(),
     tag = "auth"
@@ -160,7 +160,7 @@ pub async fn pair_init(
     request_body = PairConfirmRequest,
     responses(
         (status = 200, description = "Pairing confirmed; session persisted", body = PairConfirmResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
         (status = 403, description = "Requires daemon token", body = PairConfirmResponse),
         (status = 404, description = "Unknown or already-used code", body = PairConfirmResponse),
         (status = 409, description = "Pairing already approved", body = PairConfirmResponse),
@@ -257,7 +257,7 @@ pub async fn pair_confirm(
     params(PairStatusQuery),
     responses(
         (status = 200, description = "Pairing status — pending|approved|expired|unknown", body = PairStatusResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     security(),
     tag = "auth"
@@ -317,10 +317,10 @@ fn configured_attestation_issuer() -> AttestationConfig {
     request_body = AttestRequest,
     responses(
         (status = 200, description = "Attestation accepted; session minted"),
-        (status = 401, description = "Invalid JWT", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Daemon bound to a different user", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 502, description = "JWKS endpoint unavailable", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Invalid JWT", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Daemon bound to a different user", body = crate::wire::ErrorResponse),
+        (status = 502, description = "JWKS endpoint unavailable", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     security(),
     tag = "auth"
@@ -450,7 +450,7 @@ pub struct ListSessionsResponse {
     path = "/auth/sessions",
     responses(
         (status = 200, description = "Active sessions", body = ListSessionsResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
         (status = 403, description = "Requires daemon token"),
     ),
     tag = "auth"
@@ -503,8 +503,8 @@ pub struct RevokeSessionsResponse {
     request_body = RevokeSessionsRequest,
     responses(
         (status = 200, description = "Sessions revoked", body = RevokeSessionsResponse),
-        (status = 400, description = "Invalid request", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid request", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
         (status = 403, description = "Requires daemon token"),
     ),
     tag = "auth"

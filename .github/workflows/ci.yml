@@ -35,6 +35,20 @@ jobs:
         run: pnpm build:bundles
       - name: Check silent-error patterns
         run: bash scripts/lint/check-silent-errors.sh
+      - name: Check layer boundaries
+        run: cargo xtask lint-layers
+      - name: Check module DAG
+        run: bash scripts/lint/check-module-dag.sh
+      - name: Check raw ~/.ship/ path construction
+        run: bash scripts/lint/check-raw-ship-paths.sh
+      - name: Check raw SHIP_* env reads
+        run: bash scripts/lint/check-raw-env-reads.sh
+      - name: Check migration naming
+        run: bash scripts/lint/check-migration-naming.sh
+      - name: Check leaf-crate portability
+        run: bash scripts/lint/check-leaf-portability.sh
+      - name: Check RuntimeAccess discipline
+        run: bash scripts/lint/check-runtime-access.sh
       - name: Check OpenAPI drift
         run: cd apps/docs && pnpm run openapi:check-drift
       - name: Collect skill docs

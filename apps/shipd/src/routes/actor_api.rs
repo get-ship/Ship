@@ -59,11 +59,11 @@ pub struct EventRouteReq {
     request_body = ActorSpawnReq,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "actor not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 409, description = "actor already exists", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 404, description = "actor not found", body = crate::wire::ErrorResponse),
+        (status = 409, description = "actor already exists", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "actor"
 )]
@@ -201,9 +201,9 @@ fn is_ulid_shape(s: &str) -> bool {
     request_body = EventRouteReq,
     responses(
         (status = 200, body = MeshResponse),
-        (status = 400, description = "bad request", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "bad request", body = crate::wire::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "actor"
 )]

@@ -14,7 +14,7 @@
 //! each event. Domain-specific subscription scopes can replace the
 //! coarse subscription as we narrow the wake-up surface.
 
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 use crate::services::registry;
 use serde_json::Value;
 

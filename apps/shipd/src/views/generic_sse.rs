@@ -11,7 +11,7 @@ use ship_substrate::gen_ulid;
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 use crate::services::ship_ns::ShipNs;
 use crate::views::stream::{ViewSse, ViewStream};
 
@@ -100,8 +100,8 @@ fn render_partial(
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "Server-sent-event stream of view fragments", content_type = "text/event-stream"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "View not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]

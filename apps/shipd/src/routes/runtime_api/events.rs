@@ -39,8 +39,8 @@ pub struct EventsPollQuery {
     params(EventsPollQuery),
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -117,8 +117,8 @@ pub async fn poll_events(
     path = "/api/v1/events",
     responses(
         (status = 200, description = "SSE stream of kernel events"),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]

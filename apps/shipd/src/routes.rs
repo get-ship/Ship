@@ -66,7 +66,6 @@ pub mod sdk_manifest;
 pub mod settings_api;
 pub mod shell_assets;
 pub mod specs_api;
-pub mod themes;
 pub mod themes_api;
 pub mod view_errors_api;
 pub mod view_sessions_api;

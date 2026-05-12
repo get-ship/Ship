@@ -81,7 +81,7 @@ use std::path::PathBuf;
 use axum::{Json, http::StatusCode};
 use serde::Serialize;
 
-use crate::routes::rest_api::MeshResponse;
+use crate::wire::MeshResponse;
 
 pub use assets::{
     serve_code_editor, serve_datastar_js, serve_elements_catalog, serve_elements_manifest,
@@ -145,3 +145,4 @@ pub(crate) fn mesh_err(status: StatusCode, msg: impl Into<String>) -> MeshResult
 }
 
 // views_tests handled at line 62 via the relocated path.
+pub mod themes;

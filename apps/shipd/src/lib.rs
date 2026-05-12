@@ -18,6 +18,7 @@ fn install_test_platform_defaults() {
 pub mod access;
 pub mod sessions;
 pub mod auth;
+pub mod wire;
 pub mod transport;
 mod daemon;
 pub mod services;

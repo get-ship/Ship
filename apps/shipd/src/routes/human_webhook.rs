@@ -44,9 +44,9 @@ pub struct TelegramChat {
     request_body(content_type = "application/json", description = "Telegram webhook update payload (TelegramUpdate)"),
     responses(
         (status = 200, description = "Update accepted; may be a no-op for non-message updates"),
-        (status = 400, description = "malformed Telegram update payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "malformed Telegram update payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "hooks"
 )]

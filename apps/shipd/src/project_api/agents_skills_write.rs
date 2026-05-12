@@ -71,11 +71,11 @@ pub struct SetVarReq {
     request_body = WriteAgentReq,
     responses(
         (status = 200, description = "Agent bundle written", body = MeshResponse),
-        (status = 400, description = "Invalid agent id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid agent id", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -142,11 +142,11 @@ pub async fn write_agent(
     request_body = WriteFileReq,
     responses(
         (status = 200, description = "File written", body = MeshResponse),
-        (status = 400, description = "Invalid skill id or path", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid skill id or path", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -197,11 +197,11 @@ pub async fn write_skill_file(
     ),
     responses(
         (status = 200, description = "File deleted", body = MeshResponse),
-        (status = 400, description = "Invalid skill id or path", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "File not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid skill id or path", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "File not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -245,10 +245,10 @@ pub async fn delete_skill_file(
     ),
     responses(
         (status = 200, description = "Merged skill vars", body = MeshResponse),
-        (status = 400, description = "Invalid skill id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Workspace not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid skill id", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]
@@ -293,11 +293,11 @@ pub async fn get_skill_vars(
     request_body = SetVarReq,
     responses(
         (status = 200, description = "Variable set", body = MeshResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Unknown variable or skill", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Unknown variable or skill", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]

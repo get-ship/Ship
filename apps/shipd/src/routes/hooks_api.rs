@@ -77,9 +77,9 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "hooks"
 )]
@@ -108,9 +108,9 @@ pub async fn hook_session_start(
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook allow or block decision", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "hooks"
 )]
@@ -198,9 +198,9 @@ fn broadcast_tool_use(
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "hooks"
 )]
@@ -255,9 +255,9 @@ pub async fn hook_after_tool(
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
-        (status = 400, description = "Invalid payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "hooks"
 )]

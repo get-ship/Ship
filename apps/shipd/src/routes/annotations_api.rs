@@ -32,9 +32,9 @@ const SELECTION_TEXT_MAX_BYTES: usize = 20 * 1024;
     request_body(content_type = "application/json", description = "AnnotationEvent payload — target, selector, intent, note"),
     responses(
         (status = 200, description = "Annotation persisted and broadcast"),
-        (status = 400, description = "Invalid annotation payload", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid annotation payload", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]

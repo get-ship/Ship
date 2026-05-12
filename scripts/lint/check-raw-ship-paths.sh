@@ -29,6 +29,12 @@ for pat in "${PATTERNS[@]}"; do
         --glob '!**/tests/**' \
         --glob '!**/*_test.rs' \
         --glob '!**/tests_*.rs' \
+        --glob '!crates/ship-sui/**' \
+        --glob '!crates/ship-sui-host/**' \
+        --glob '!crates/ship-sui-server/**' \
+        --glob '!crates/sui-compiler/**' \
+        --glob '!crates/sui-signals/**' \
+        --glob '!crates/sui-lint/**' \
         "$pat" "${SEARCH_PATHS[@]}" 2>/dev/null || true)
     if [ -z "$matches" ]; then
         continue

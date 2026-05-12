@@ -121,7 +121,7 @@ pub struct SessionIssueResponse {
     path = "/api/v1/session",
     responses(
         (status = 200, description = "Browser session cookie issued", body = SessionIssueResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
         (status = 403, description = "Session issuance requires Full scope"),
     ),
     tag = "auth"

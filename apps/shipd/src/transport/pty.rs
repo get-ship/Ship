@@ -22,7 +22,7 @@ use tokio::sync::Mutex;
 use tokio::time::{Duration, timeout};
 
 use crate::auth::{AuthContext, Scope};
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 
 /// Maximum concurrent tmux attach processes per workspace.
 const MAX_PTY_CONNECTIONS: usize = 5;
@@ -40,10 +40,10 @@ const MAX_PTY_CONNECTIONS: usize = 5;
     params(("id" = String, Path, description = "Project id")),
     responses(
         (status = 101, description = "WebSocket upgrade; bidirectional PTY stream"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Project not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 429, description = "Max PTY connections reached", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Project not found", body = crate::wire::ErrorResponse),
+        (status = 429, description = "Max PTY connections reached", body = crate::wire::ErrorResponse),
     ),
     tag = "project"
 )]

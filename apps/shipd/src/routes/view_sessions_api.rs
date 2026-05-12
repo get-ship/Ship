@@ -104,10 +104,10 @@ fn ok_json(body: Value) -> Response {
     request_body = OpenReq,
     responses(
         (status = 200, description = "View session created"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 400, description = "Unknown template", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 409, description = "Agent quota exceeded", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 429, description = "Rate limited", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
+        (status = 400, description = "Unknown template", body = crate::wire::ErrorResponse),
+        (status = 409, description = "Agent quota exceeded", body = crate::wire::ErrorResponse),
+        (status = 429, description = "Rate limited", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -148,9 +148,9 @@ pub async fn open_session(
     request_body = PatchReq,
     responses(
         (status = 200, description = "Patch applied"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Not session owner", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Not session owner", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -175,9 +175,9 @@ pub async fn patch_session(
     request_body = PatchReq,
     responses(
         (status = 200, description = "Fragment appended"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Not session owner", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Not session owner", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -202,9 +202,9 @@ pub async fn append_session(
     request_body = SignalReq,
     responses(
         (status = 200, description = "Signal delivered"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Not session owner", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Not session owner", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -228,9 +228,9 @@ pub async fn signal_session(
     params(("id" = String, Path, description = "View session id")),
     responses(
         (status = 200, description = "Session closed"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Not session owner", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Not session owner", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -253,8 +253,8 @@ pub async fn close_session(
     params(("id" = String, Path, description = "View session id")),
     responses(
         (status = 200, description = "SSE stream of session patches", content_type = "text/event-stream"),
-        (status = 401, description = "Unauthenticated / missing agent id", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]
@@ -286,8 +286,8 @@ pub async fn subscribe_session(
     params(("id" = String, Path, description = "View session id")),
     responses(
         (status = 200, description = "Rendered iframe shell HTML", content_type = "text/html"),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Session not found", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::wire::ErrorResponse),
     ),
     tag = "views"
 )]

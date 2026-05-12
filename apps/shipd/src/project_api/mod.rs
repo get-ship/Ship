@@ -200,9 +200,9 @@ pub struct EmitEventReq {
     request_body = EmitEventReq,
     responses(
         (status = 200, description = "Event persisted and routed", body = MeshResponse),
-        (status = 400, description = "Invalid envelope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid envelope", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]

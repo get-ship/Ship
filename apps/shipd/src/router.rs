@@ -562,7 +562,7 @@ pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Res
     path = "/api/health",
     responses(
         (status = 200, description = "Daemon health snapshot with supervised task status"),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     security(),
     tag = "health"

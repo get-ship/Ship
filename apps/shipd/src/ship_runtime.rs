@@ -57,6 +57,10 @@ pub struct AppMetadata {
 /// Type alias used as axum shared state.
 pub type AppState = Arc<ShipRuntime>;
 
+/// Canonical name for the axum shared state. Both `ApiState` and
+/// `AppState` refer to the same `Arc<ShipRuntime>` handle.
+pub type ApiState = Arc<ShipRuntime>;
+
 // Re-export for backward compat in handlers.
 pub type SharedKernel = Arc<Mutex<ship_substrate::events::KernelRouter>>;
 pub type AgentMailboxes = Arc<Mutex<HashMap<String, ship_substrate::events::Mailbox>>>;
@@ -412,12 +416,12 @@ impl ShipRuntime {
     pub fn resolve_worktree(
         &self,
         id: &str,
-    ) -> Result<PathBuf, (axum::http::StatusCode, axum::Json<crate::routes::rest_api::MeshResponse>)>
+    ) -> Result<PathBuf, (axum::http::StatusCode, axum::Json<crate::wire::MeshResponse>)>
     {
         (self.worktree_resolver)(id).ok_or_else(|| {
             (
                 axum::http::StatusCode::NOT_FOUND,
-                axum::Json(crate::routes::rest_api::MeshResponse {
+                axum::Json(crate::wire::MeshResponse {
                     ok: false,
                     data: serde_json::json!(format!("workspace '{id}' not found")),
                 }),

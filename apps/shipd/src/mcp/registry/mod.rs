@@ -408,8 +408,8 @@ pub fn apply_filters(
     params(McpServersQuery),
     responses(
         (status = 200, description = "Filtered MCP server catalog", body = McpServersResponse),
-        (status = 400, description = "Query too long", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 429, description = "Rate limited", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Query too long", body = crate::wire::ErrorResponse),
+        (status = 429, description = "Rate limited", body = crate::wire::ErrorResponse),
     ),
     security(),
     tag = "runtime"

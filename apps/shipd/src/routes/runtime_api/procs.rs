@@ -35,8 +35,8 @@ pub struct ProcsQuery {
     params(ProcsQuery),
     responses(
         (status = 200, body = MeshResponse),
-        (status = 401, description = "unauthorized", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::wire::ErrorResponse),
+        (status = 500, description = "server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]

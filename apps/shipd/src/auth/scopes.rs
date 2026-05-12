@@ -323,13 +323,13 @@ pub fn is_session_token(token: &str) -> bool {
 pub fn require_scope(
     auth: &super::AuthContext,
     scope: Scope,
-) -> Result<(), (StatusCode, axum::Json<crate::routes::rest_api::MeshResponse>)> {
+) -> Result<(), (StatusCode, axum::Json<crate::wire::MeshResponse>)> {
     if auth.has_scope(scope) {
         Ok(())
     } else {
         Err((
             StatusCode::FORBIDDEN,
-            axum::Json(crate::routes::rest_api::MeshResponse {
+            axum::Json(crate::wire::MeshResponse {
                 ok: false,
                 data: json!(format!("insufficient scope: {scope:?} required")),
             }),
@@ -380,7 +380,7 @@ pub struct SessionRegisterResponse {
     request_body = SessionRegisterRequest,
     responses(
         (status = 200, description = "Session token minted for the agent role", body = SessionRegisterResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
         (status = 403, description = "Requires daemon token"),
     ),
     tag = "auth"

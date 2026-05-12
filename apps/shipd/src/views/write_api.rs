@@ -22,7 +22,7 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::path::{Path as StdPath, PathBuf};
 
-use crate::routes::rest_api::ApiState;
+use crate::ship_runtime::ApiState;
 
 const MANIFEST_SCHEMA: &str =
     include_str!("../../../../schemas/view-manifest.schema.json");

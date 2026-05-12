@@ -102,7 +102,7 @@ impl Modify for SecurityAndServer {
         crate::routes::rest_api::MeshSendReq,
         crate::routes::rest_api::MeshBroadcastReq,
         crate::routes::rest_api::MeshStatusReq,
-        crate::routes::rest_api::MeshResponse,
+        crate::wire::MeshResponse,
         crate::routes::rest_api::CapabilitiesResponse,
         crate::routes::rest_api::CheckoutHookReq,
         crate::routes::runtime_api::DispatchRequest,

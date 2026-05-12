@@ -36,10 +36,10 @@ pub struct JobStatusReq {
     params(("job_id" = String, Path, description = "Job ULID")),
     responses(
         (status = 200, description = "Job status event emitted", body = MeshResponse),
-        (status = 400, description = "Invalid status or missing field", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 403, description = "Insufficient scope", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid status or missing field", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
@@ -198,10 +198,10 @@ pub struct StepDoneReq {
     params(("slug" = String, Path, description = "Job slug")),
     responses(
         (status = 200, description = "Step-done event emitted", body = MeshResponse),
-        (status = 400, description = "Invalid request", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 401, description = "Unauthenticated", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 404, description = "Job or active step not found", body = crate::routes::openapi_types::ErrorResponse),
-        (status = 500, description = "Server error", body = crate::routes::openapi_types::ErrorResponse),
+        (status = 400, description = "Invalid request", body = crate::wire::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::wire::ErrorResponse),
+        (status = 404, description = "Job or active step not found", body = crate::wire::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::wire::ErrorResponse),
     ),
     tag = "runtime"
 )]
