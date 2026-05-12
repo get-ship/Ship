@@ -1,0 +1,50 @@
+<!--
+  <sui-alert-dialog> — SUI port of <ship-alert-dialog>.
+  Thin specialization of <sui-dialog> for confirm / destructive prompts.
+  Composes <sui-button> for the cancel + confirm footer actions.
+
+  Prop / event / method parity vs <ship-alert-dialog>
+  ────────────────────────────────────────────────────────────────────────
+  Lit                              SUI                              Notes
+  ────────────────────────────────────────────────────────────────────────
+  open (bool, false)               open (bool, false, reflect)      ✓
+  tone (default|destructive)       tone (union, 'default', reflect) ✓
+  confirm-label (str, 'Confirm')   confirm-label (str, 'Confirm')   ✓
+  cancel-label  (str, 'Cancel')    cancel-label  (str, 'Cancel')    ✓
+  ────────────────────────────────────────────────────────────────────────
+  Events: ship-confirm/cancel → sui-confirm / sui-cancel             ✓
+  Slots: title (named), (default) body                               ✓
+  ────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="open" type="bool" default="false" reflect />
+<prop name="tone" values="default|destructive" default="default" reflect />
+<prop name="confirm-label" type="string" default="Confirm" />
+<prop name="cancel-label" type="string" default="Cancel" />
+
+<style>
+  :host { display: contents; }
+  :host([hidden]) { display: none; }
+</style>
+
+<sui-dialog
+  role-override="alertdialog"
+  size="sm"
+  no-close-button
+  bind:this={dialogRef}
+>
+  <span slot="header"><slot name="title"></slot></span>
+  <slot></slot>
+  <span slot="footer">
+    <sui-button variant="outline" on:click={onCancel}>
+      {cancelLabel()}
+    </sui-button>
+    <sui-button
+      variant="solid"
+      tone={confirmTone()}
+      on:click={onConfirm}
+    >
+      {confirmLabel()}
+    </sui-button>
+  </span>
+</sui-dialog>
