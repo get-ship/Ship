@@ -205,48 +205,26 @@ Three blocks, each one job:
 - **`on:`** — multi-statement event handlers. The first arg is a writable proxy: `s.count = s.count + 1` mutates state.
 - **`mount:` / `unmount:`** — lifecycle. Runs after first attach / on disconnect.
 
-## Cross-component reactive context (shared / useShared)
+## Cross-component reactive context
 
-For complex components that split into a public outer + internal inner pieces, share signals from parent to descendants without prop-drilling.
+For complex components that split into a public outer + internal inner pieces, share signals from parent to descendants without prop-drilling. The parent calls `shared(signal(…))` inside its `scope:`; descendants call `useShared<ParentScope>('parent-tag')` to resolve the same signal identity. `useShared` walks DOM ancestry across shadow boundaries; returns `null` when no provider is found.
 
-**Provider** wraps signals with `shared(...)` inside `scope:`:
+Two controller tiers — smallest that fits: **no controller** (pure `.sui`, single-expression inline handlers only) or **paired controller** (state, derived, hooks, lifecycle, multi-statement handlers). A multi-statement `on:event` in a tier-1 file is a compile error.
 
-```ts
-// parent.controller.ts
-scope: () => {
-  const mode  = shared(signal<BarMode>('find'))
-  const value = shared(signal(''))
-  const local = signal(0)  // not shared
-  return { mode, value, local }
-}
+Full contract, worked examples, lookup semantics: `references/shared-context.md`.
+
+## Form-aware components
+
+Component `.sui` files only — views don't participate in form submission. When a `<sui-*>` component is itself a form control, mark its value prop with `form-value` and (optionally) its disabled prop with `form-disabled`:
+
+```html
+<prop name="value" type="string" default="" form-value />
+<prop name="disabled" type="bool" default="false" reflect form-disabled />
 ```
 
-The runtime auto-publishes the marked signals on the host element under the host's tag name.
+The compiler emits `static formAssociated = true` and the runtime auto-wires `setFormValue`, `formResetCallback`, `formStateRestoreCallback`, and `formDisabledCallback`. Drop any hand-rolled `ElementInternals` plumbing — the runtime owns it. The setup ctx still surfaces `internals?: ElementInternals` for `setValidity()` / `checkValidity()` paths.
 
-**Consumer** resolves the parent's scope inside its own `scope:`:
-
-```ts
-// child.controller.ts
-import type { Scope as ParentScope } from '../parent/parent.sui'
-
-scope: () => {
-  const bar = useShared<ParentScope>('parent-tag-name')
-  return { bar }
-}
-```
-
-Template binds `bar.mode()`, `bar.value`, etc. — same signal identity, two-way reactivity flows.
-
-`useShared` walks DOM ancestry crossing shadow boundaries. Returns `null` when no provider is found; descendant guards with `{#if bar}`.
-
-Tiers, smallest that fits:
-
-1. **No controller** — pure `.sui` with `<prop>` / `<data>` and single-expression inline handlers. No state, no derived, no hooks. Pure presentational.
-2. **Paired controller** — anything with state, derived, hooks, lifecycle, or multi-statement handlers.
-
-A multi-statement `on:event` in a tier-1 file (no `.controller.ts`) is a compile error. Enforced by `crates/sui-compiler/src/check/handler_complexity.rs`.
-
-For tiers, hooks (`useFilteredList`, `useSelection`, `useForm`), and the live-data envelope, see `references/controller-tiers.md`.
+Worked examples: `packages/ui-components/src/sui-input/sui-input.sui`, `packages/ui-components/src/sui-select/sui-select.sui`. Full contract and constraints: `references/form-association.md`.
 
 ## Live data envelope
 
@@ -300,6 +278,9 @@ The router (`packages/ship-set/src/router/`) walks `views/` at build/start time 
 6. **Read signals by call:** `count()` reads, `count.set(n)` writes.
 7. **Block syntax for control flow.** `{#if}/{#for}/{#match}/{#while-loading}/{#while-error}`.
 8. **No `el.innerHTML/.outerHTML/.insertAdjacentHTML`** in `*.controller.ts`. Use `bindHtml()` for HTML-blob cases.
+9. **`{#for}` blocks declare `key={EXPR}`.** Without a stable key the reconciler falls back to positional matching and DOM identity (focus, selection, in-place edits) is lost on reorder. `sui-for-key` lint warns when missing.
+10. **`on:<event>` event names must match the platform whitelist:** DOM events (`click`, `input`, …), `sui-*` / `ship-*` custom-event families, and `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos like `on:Click` with Levenshtein suggestions.
+11. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
 
 ## Components
 
@@ -309,5 +290,7 @@ Views compose `<sui-*>` components from `packages/ui-components/`. See the `ship
 
 | When you need | Read |
 |---|---|
-| Worked template examples, controller tiers, hooks, manifest schema, daemon routes, SSR + attach pipeline | `references/template-surface.md` |
+| Worked template examples, controller tiers, hooks, `<prop>` attribute reference, manifest schema, daemon routes, SSR + attach pipeline | `references/template-surface.md` |
+| Form-aware components — full contract, constraints, controller access to `internals` | `references/form-association.md` |
+| Cross-component reactive context (`shared` / `useShared`), controller tiers | `references/shared-context.md` |
 | Working on the SUI codebase itself (compiler, runtime, daemon SUI handlers) | `references/sui-internals.md` |

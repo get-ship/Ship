@@ -75,6 +75,32 @@ export default controller<Scope>({
 
 Use `controller(def)` only — raw `function setup(ctx)` is not accepted. Get refs via `bind:this={el}` in the template; declarative slot reactivity (`<slot reflect-empty="<attr>">`) replaces hand-rolled slotchange listeners.
 
+## Form-aware components
+
+When a component participates in HTML form submission (input, textarea, checkbox, switch, select, file upload, …), mark its value prop with `form-value` and its disabled prop with `form-disabled`:
+
+```html
+<prop name="value" type="string" default="" form-value />
+<prop name="disabled" type="bool" default="false" reflect form-disabled />
+```
+
+The compiler emits `static formAssociated = true` on the generated host class; the runtime calls `host.attachInternals()` on connect and auto-wires the full platform lifecycle:
+
+- `setFormValue(<value>)` runs on every change to the marked prop.
+- `formResetCallback()` resets the prop to its declared `default`.
+- `formStateRestoreCallback(state)` rehydrates the prop on bfcache restore.
+- `formDisabledCallback(disabled)` syncs the marked disabled prop when the surrounding form's disabled state cascades.
+
+Drop any hand-rolled `ElementInternals` plumbing — the runtime owns it. The setup ctx surfaces `internals?: ElementInternals` if a controller needs `setValidity()` / `checkValidity()` for custom validation.
+
+Worked examples: `packages/ui-components/src/sui-input/sui-input.sui`, `packages/ui-components/src/sui-select/sui-select.sui`, `packages/ui-components/src/sui-checkbox/sui-checkbox.sui`.
+
+Constraints (compiler-enforced):
+
+- Only one prop per component may carry `form-value`.
+- `form-value` is rejected on `type="object"` / `type="array"` props (only `string` / `number` / `bool` / `union`).
+- `form-disabled` is only valid on `type="bool"` props.
+
 ## Compile shape
 
 ```js
@@ -107,6 +133,9 @@ Authors don't call `component()` directly — the compiler emits it.
 5. **`<sui-select>` uses native `<option>`** (no `<sui-option>`). Emits `sui-change`.
 6. **No `el.innerHTML/.outerHTML/.insertAdjacentHTML`** in `*.controller.ts`. Use `bindHtml()` for HTML-blob cases.
 7. **No `customElements.define` in component code** — the compiler emits the registration.
+8. **`{#for}` blocks declare `key={EXPR}`.** Without a stable key the reconciler falls back to positional matching and DOM identity is lost on reorder. `sui-for-key` lint warns when missing.
+9. **`on:<event>` event names must match the platform whitelist:** DOM events, `sui-*` / `ship-*` custom-event families, `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos with Levenshtein suggestions.
+10. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
 
 ## What's available in a view
 

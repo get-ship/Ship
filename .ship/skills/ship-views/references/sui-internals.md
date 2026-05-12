@@ -16,26 +16,40 @@ Read this when changing `crates/sui-compiler/`, `crates/sui-lint/`, `crates/lsp/
 
 ## Adding a SUI lint rule
 
-Rules live in `crates/sui-lint/src/rules/`. The same rule definition powers two consumers: the LSP serves it live to the editor and the agent; the sui-compiler check phase makes it a build-time hard wall.
+Rules live in `crates/sui-lint/src/rules/`. The same rule definition powers two consumers: the LSP serves it live to the editor and the agent; the sui-compiler check phase escalates `Severity::Error` rules to build-time hard walls (`Severity::Warn` rules stay LSP-only).
 
-1. **Create the module** at `crates/sui-lint/src/rules/<rule_id>.rs`. Export `RULE_ID: &str` and `check(path: &Path, source: &str) -> Vec<Finding>`. Parse with `oxc_parser`, walk via `oxc_ast_visit::Visit`. Skip parse errors silently — the compiler reports those.
+Two slices in the registry:
 
-2. **Register** in `crates/sui-lint/src/rules/mod.rs`:
+- `CONTROLLER_RULES` — lints `*.controller.ts` (oxc-parsed JS/TS AST walking).
+- `SUI_TEMPLATE_RULES` — lints `*.sui` source (string-walking, char-boundary-safe).
+
+1. **Create the module** at `crates/sui-lint/src/rules/<rule_id>.rs`. Export `RULE_ID: &str` and `check(path: &Path, source: &str) -> Vec<Finding>`. For controller rules: parse with `oxc_parser`, walk via `oxc_ast_visit::Visit`, skip parse errors silently — the compiler reports those. For template rules: walk char boundaries via `source.char_indices()` so multi-byte chars (em-dashes, entity-decoded symbols) don't trip str-slice panics.
+
+2. **Pick severity.** `Error` rejects the build; `Warn` surfaces only in the LSP (and the dispatcher filters by severity before deciding whether to fail compile).
+
+3. **Register** in `crates/sui-lint/src/rules/mod.rs`:
 
    ```rust
    pub mod <rule_id>;
 
+   // pick the right slice:
    pub const CONTROLLER_RULES: &[(&str, RuleFn)] = &[
        (controller_purity::RULE_ID, controller_purity::check),
        (<rule_id>::RULE_ID, <rule_id>::check),  // append
    ];
+   pub const SUI_TEMPLATE_RULES: &[(&str, RuleFn)] = &[
+       (css_token::RULE_ID, css_token::check),       // Error
+       (for_key::RULE_ID, for_key::check),           // Warn
+       (event_name::RULE_ID, event_name::check),     // Warn
+       (<rule_id>::RULE_ID, <rule_id>::check),       // append
+   ];
    ```
 
-3. **Test** in `crates/sui-lint/src/tests.rs` — positive (clean code passes), negative (slop reports), edge cases, and a smoke fired against a real offender in the repo to keep the rule honest.
+4. **Test** alongside the rule module (`#[cfg(test)] mod tests`) — positive (clean code passes), negative (slop reports), edge cases (multi-byte chars for template rules), and a smoke fired against a real offender in the repo to keep the rule honest.
 
-4. **Verify** with `cargo test -p sui-lint -p sui-compiler -p lsp`. Dispatch is registry-driven; no other call sites need changes.
+5. **Verify** with `cargo test -p sui-lint -p sui-compiler -p lsp`. Dispatch is registry-driven; no other call sites need changes.
 
-5. **Document** in the relevant authoring skill if the rule changes the contract. Diagnostic messages always include `suggest:` pointing at what TO do.
+6. **Document** in the relevant authoring skill if the rule changes the contract. Diagnostic messages always include `suggest:` pointing at what TO do.
 
 ## Dev loop — three steps, all required
 
@@ -68,6 +82,17 @@ Don't commit. Don't be surprised by:
 ## Adding a runtime export to `@ship/ui-runtime`
 
 Each public symbol gets its own file in `packages/ui-runtime/src/<name>.ts` (mirrors `signal.ts`, `state.ts`, `controller.ts`, `view.ts`). Re-export from `index.ts`. Don't bolt onto unrelated files like `controller-resolver.ts` — that's how parallel implementations get created.
+
+## Form-association wiring
+
+`<prop ... form-value />` and `<prop ... form-disabled />` are the public surface; everything below is the implementation.
+
+- **Lower / IR** (`crates/sui-compiler/src/ir/directive.rs`, `lower/directives.rs`): `form_value: bool` / `form_disabled: bool` on the prop IR. Lower validates: only one `form-value` per component, `form-value` rejected on `object` / `array`, `form-disabled` only on `bool`.
+- **Emit** (`crates/sui-compiler/src/emit/js.rs`): when any prop carries either flag, the generated `component({...})` call gains `formAssociated: true` plus `formValue: '<prop>'` / `formDisabled: '<prop>'` keys declaring which prop drives each lifecycle.
+- **Runtime** (`packages/sui-runtime/src/component-factory.ts`, `component-form.ts`, `component.ts`): `defineComponent` reads those keys, sets `static formAssociated = true` on the generated class, calls `host.attachInternals()` on connect, installs the four platform callbacks (`formResetCallback`, `formStateRestoreCallback`, `formDisabledCallback`, and the per-change `setFormValue` effect), and exposes `internals?: ElementInternals` in setup ctx for callers who need `setValidity()` / `checkValidity()`.
+- **Parallel emitters**: schema.json, custom-elements.json, and .sui.d.ts all mirror the form-value / form-disabled markers so docs, agents, and TypeScript consumers see the form-association contract.
+
+When adding new form lifecycle hooks (custom validity, willValidate-aware behavior), extend `component-form.ts` — not the controller. The controller's job stays "react to the prop change"; the runtime owns the platform contract.
 
 ## Compile shape contract — don't conflate
 
