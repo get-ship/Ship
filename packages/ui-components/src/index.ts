@@ -64,6 +64,7 @@ import './sui-accordion/dist/sui-accordion-item.compiled.js'
 import './sui-list-tile/dist/sui-list-tile.compiled.js'
 import './sui-error-state/dist/sui-error-state.compiled.js'
 import './sui-stepper/dist/sui-stepper.compiled.js'
+import "./sui-step-segments/dist/sui-step-segments.compiled.js"
 import './sui-timeline/dist/sui-timeline.compiled.js'
 import './sui-timeline/dist/sui-timeline-item.compiled.js'
 import './sui-loading/dist/sui-loading.compiled.js'
