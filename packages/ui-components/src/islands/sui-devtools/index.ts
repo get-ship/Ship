@@ -1,0 +1,5 @@
+import './dist/sui-devtools-source.compiled.js'
+import './dist/sui-devtools-components.compiled.js'
+import './dist/sui-devtools-lint.compiled.js'
+import './dist/sui-devtools-schema.compiled.js'
+import './dist/sui-devtools-signals.compiled.js'

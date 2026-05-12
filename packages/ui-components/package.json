@@ -7,11 +7,13 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "pretest": "node ../../scripts/precompile-sui.mjs packages/ui-components",
+    "build": "sui-build",
+    "pretest": "sui-build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@ship/sui-build": "workspace:*",
     "@codemirror/autocomplete": "^6",
     "@codemirror/commands": "^6",
     "@codemirror/lang-css": "^6",

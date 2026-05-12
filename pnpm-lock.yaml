@@ -555,6 +555,9 @@ importers:
       '@lezer/highlight':
         specifier: ^1
         version: 1.2.3
+      '@ship/sui-build':
+        specifier: workspace:*
+        version: link:../sui-build
       '@ship/sui-dom':
         specifier: workspace:*
         version: link:../sui-dom
