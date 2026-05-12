@@ -70,10 +70,17 @@ pub fn rewrite_for_scope(src: &str, extra_locals: &[&str]) -> String {
     while i < bytes.len() {
         let c = bytes[i];
         if let Some(q) = in_str {
-            out.push(c as char);
-            if c == b'\\' && i + 1 < bytes.len() {
-                out.push(bytes[i + 1] as char);
-                i += 2;
+            // Forward a single source char (1–4 bytes) to the output.
+            // Previous impl used `c as char` which silently truncated
+            // multi-byte UTF-8 sequences into Latin-1 chars.
+            let ch_end = next_char_boundary(src, i);
+            out.push_str(&src[i..ch_end]);
+            if c == b'\\' && ch_end < bytes.len() {
+                // Forward the next char verbatim — covers `\n`, `\"`,
+                // and multi-byte escapes like `\é`.
+                let esc_end = next_char_boundary(src, ch_end);
+                out.push_str(&src[ch_end..esc_end]);
+                i = esc_end;
                 continue;
             }
             if c == q {
@@ -105,9 +112,13 @@ pub fn rewrite_for_scope(src: &str, extra_locals: &[&str]) -> String {
                 i = close;
                 continue;
             }
-            i += 1;
+            i = ch_end;
             continue;
         }
+        // Outside a string literal, all language-significant chars are
+        // ASCII (quotes, parens, dots, identifiers). Non-ASCII bytes
+        // outside a string literal aren't valid JS, but if they appear
+        // we still forward them as full chars to avoid mangling them.
         if c == b'"' || c == b'\'' || c == b'`' {
             in_str = Some(c);
             out.push(c as char);
@@ -140,9 +151,13 @@ pub fn rewrite_for_scope(src: &str, extra_locals: &[&str]) -> String {
                 prev_dot = false;
                 continue;
             }
-            out.push(c as char);
+            // Forward a single char — preserves multi-byte non-ASCII
+            // (which shouldn't reach here in valid JS, but compiler
+            // robustness > strict spec adherence).
+            let ch_end = next_char_boundary(src, i);
+            out.push_str(&src[i..ch_end]);
             prev_dot = false;
-            i += 1;
+            i = ch_end;
             continue;
         }
         // Read the identifier.
@@ -382,6 +397,22 @@ fn floor_char_boundary(s: &str, mut i: usize) -> usize {
     i
 }
 
+/// Byte position of the char boundary immediately after `i`. Returns
+/// `s.len()` if `i` is at or past the end. Used to forward a single
+/// char (ASCII or multi-byte) verbatim without the `as char` truncation
+/// that silently corrupts non-ASCII bytes.
+#[inline]
+fn next_char_boundary(s: &str, i: usize) -> usize {
+    if i >= s.len() {
+        return s.len();
+    }
+    let mut j = i + 1;
+    while j < s.len() && !s.is_char_boundary(j) {
+        j += 1;
+    }
+    j
+}
+
 #[inline]
 fn is_ident_start(c: u8) -> bool {
     c == b'_' || c == b'$' || c.is_ascii_alphabetic()
@@ -505,5 +536,32 @@ mod tests {
             rw("() => console.log(name)"),
             "() => console.log($scope.name)"
         );
+    }
+}
+
+#[cfg(test)]
+mod multibyte_tests {
+    use super::*;
+
+    #[test]
+    fn multibyte_in_string_literal_preserved() {
+        // Pre-fix this emitted Latin-1 garbage for the non-ASCII bytes.
+        let out = rewrite_for_scope(r#"foo("hello °, world ™")"#, &[]);
+        assert!(out.contains('°'), "° preserved in string output, got: {out}");
+        assert!(out.contains('™'), "™ preserved in string output, got: {out}");
+    }
+
+    #[test]
+    fn multibyte_in_template_literal_preserved() {
+        let out = rewrite_for_scope(r#"`pre § post`"#, &[]);
+        assert!(out.contains('§'), "§ preserved in template literal, got: {out}");
+    }
+
+    #[test]
+    fn escaped_multibyte_in_string_preserved() {
+        // `\°` — backslash followed by multi-byte char. Previously the
+        // multi-byte lead byte was cast to char (Latin-1), corrupting it.
+        let out = rewrite_for_scope("foo(\"\\°\")", &[]);
+        assert!(out.contains('°'), "escaped ° preserved, got: {out}");
     }
 }
