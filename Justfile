@@ -75,6 +75,13 @@ dev-runtime-update:
 test:
     cargo test --workspace --features unstable
 
+# Visual baselines — Playwright screenshots vs committed PNGs.
+# Daemon must be running (`just dev`). Pass --update-snapshots to refresh
+# baselines after a deliberate visual change.
+[group('daily')]
+visual *ARGS:
+    pnpm test:e2e:visual {{ARGS}}
+
 # Library tests only — skips integration suites for fast inner-loop feedback.
 [group('daily')]
 test-fast:
