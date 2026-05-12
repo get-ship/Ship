@@ -1,0 +1,14 @@
+// Route metadata for views/overview/. Canvas planning surface for systems collection.
+{
+  "name": "overview",
+  "path": "/overview",
+  "title": "Overview",
+  "layout": "full",
+  "auth": "user",
+  "rail": {
+    "label": "Overview",
+    "icon": "layout"
+  },
+  "preload": ["ship.collections.items({collection: 'systems'})"],
+  "events": ["collection.changed"]
+}

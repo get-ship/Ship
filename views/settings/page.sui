@@ -1,0 +1,229 @@
+<data name="settings" source="ship.settings.state()" live />
+
+<div class="ship-view ship-view-settings">
+  <main class="settings-wrap">
+    <header class="settings-header">
+      <h1>Settings</h1>
+      <p>CLI and studio configuration</p>
+    </header>
+
+    {#while-loading of settings}
+      <p class="s-loading">Loading settings&hellip;</p>
+    {/while-loading}
+
+    {#while-error err of settings}
+      <p class="s-loading">Error loading settings: {err.message}</p>
+    {/while-error}
+
+    {#if settings().kind === 'ok'}
+      <div class="s-sections">
+
+        <!-- Theme -->
+        <ship-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <ship-icon name="eye"></ship-icon>Theme
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <ship-empty-state icon="palette" tone="muted" size="sm" style="padding: var(--space-4) 0">
+              <span slot="title">Theme lives in the top bar</span>
+              Open the palette icon in the top-right to pick a theme. Every
+              Ship theme bundles a full aesthetic — palette, motion, radii,
+              shadows, typography — not just color.
+            </ship-empty-state>
+          </div>
+        </ship-card>
+
+        <!-- Providers -->
+        <ship-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <ship-icon name="cpu"></ship-icon>Providers
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <ship-list-tile density="compact">
+              <span class="s-row-label">Default provider</span>
+              <span slot="meta">Used when no provider is specified</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update">
+                  <input type="hidden" name="key" value="defaults.provider" />
+                  <ship-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={$mutation().kind === 'ok'}>
+                    <ship-icon slot="leading" name="check" size="sm"></ship-icon>Saved
+                  </ship-badge>
+                  <ship-select name="value" size="sm"
+                    prop:value={settings().value.default_provider}
+                    on:ship-change={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}>
+                    {#for p of settings().value.providers key={p.id}}
+                      <option value={p.id}>{p.id}</option>
+                    {/for}
+                  </ship-select>
+                </form>
+              </span>
+            </ship-list-tile>
+
+            <ship-list-tile density="compact">
+              <span class="s-row-label">Default model</span>
+              <span slot="meta">Model name passed to the provider</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update">
+                  <input type="hidden" name="key" value="defaults.model" />
+                  <ship-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={$mutation().kind === 'ok'}>
+                    <ship-icon slot="leading" name="check" size="sm"></ship-icon>Saved
+                  </ship-badge>
+                  <ship-input name="value" size="sm"
+                    prop:value={settings().value.default_model}
+                    placeholder="e.g. sonnet"
+                    on:blur={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if ((e as KeyboardEvent).key === 'Enter') (e.target as HTMLElement).blur() }}></ship-input>
+                </form>
+              </span>
+            </ship-list-tile>
+
+            {#if settings().value.providers.length > 0}
+              <div class="s-provider-list">
+                <div class="s-provider-label">Installed providers</div>
+                {#for p of settings().value.providers key={p.id}}
+                  <ship-list-tile density="compact" class="s-prov-tile">
+                    <ship-provider-blob slot="leading" provider={p.id} size="sm" variant="glyph"
+                      style={p.available ? '' : 'opacity:0.45;filter:grayscale(1)'}></ship-provider-blob>
+                    <span class="s-prov-name">{p.id}</span>
+                    <span slot="trailing" class="s-prov-right">
+                      <span>{p.available ? 'installed' : 'not found'}</span>
+                      {#if p.version}
+                        <span class="mono">v{p.version}{p.label ? ' (' + p.label + ')' : ''}</span>
+                      {/if}
+                    </span>
+                  </ship-list-tile>
+                {/for}
+              </div>
+            {/if}
+          </div>
+        </ship-card>
+
+        <!-- Terminal -->
+        <ship-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <ship-icon name="terminal"></ship-icon>Terminal
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <ship-list-tile density="compact">
+              <span class="s-row-label">Terminal program</span>
+              <span slot="meta">Used when launching sessions</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update">
+                  <input type="hidden" name="key" value="terminal.program" />
+                  <ship-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={$mutation().kind === 'ok'}>
+                    <ship-icon slot="leading" name="check" size="sm"></ship-icon>Saved
+                  </ship-badge>
+                  <ship-select name="value" size="sm"
+                    prop:value={settings().value.terminal.program}
+                    on:ship-change={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}>
+                    {#for opt of settings().value.terminal.options key={opt.value}}
+                      <option value={opt.value}>{opt.label}</option>
+                    {/for}
+                  </ship-select>
+                </form>
+              </span>
+            </ship-list-tile>
+
+            <ship-list-tile density="compact">
+              <span class="s-row-label">Worktree base directory</span>
+              <span slot="meta">Root for git worktrees</span>
+              <span slot="trailing" class="s-row-trailing">
+                <form mutation="ship.settings.update">
+                  <input type="hidden" name="key" value="worktree.base_dir" />
+                  <ship-badge tone="success" variant="soft" size="sm"
+                    class="s-save-badge" class:visible={$mutation().kind === 'ok'}>
+                    <ship-icon slot="leading" name="check" size="sm"></ship-icon>Saved
+                  </ship-badge>
+                  <ship-input name="value" size="sm"
+                    prop:value={settings().value.terminal.worktree_base}
+                    placeholder="/path/to/worktrees"
+                    on:blur={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if ((e as KeyboardEvent).key === 'Enter') (e.target as HTMLElement).blur() }}></ship-input>
+                </form>
+              </span>
+            </ship-list-tile>
+          </div>
+        </ship-card>
+
+        <!-- Advanced (collapsible) -->
+        <ship-card padding="none">
+          <ship-collapsible
+            on:ship-toggle={() => advancedOpen.set(!advancedOpen())}>
+            <div slot="trigger" class="s-collapse-trigger">
+              <h2 class="s-section-title">
+                <ship-icon name="settings"></ship-icon>Advanced
+              </h2>
+              <ship-icon name="chevron-down" class="s-chevron" class:open={advancedOpen()}></ship-icon>
+            </div>
+            <div class="s-collapse-inner">
+              <div class="s-section-body">
+                <ship-list-tile density="compact">
+                  <span class="s-row-label">Daemon status</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <ship-status-dot tone="success" label="Connected"></ship-status-dot>
+                    <span class="s-status-text">Connected</span>
+                  </span>
+                </ship-list-tile>
+                <ship-list-tile density="compact">
+                  <span class="s-row-label">Daemon endpoint</span>
+                  <span slot="trailing" class="s-mono-val">{settings().value.daemon_endpoint}</span>
+                </ship-list-tile>
+                <ship-list-tile density="compact">
+                  <span class="s-row-label">Registry endpoint</span>
+                  <span slot="meta">Package registry URL</span>
+                  <span slot="trailing" class="s-row-trailing">
+                    <form mutation="ship.settings.update">
+                      <input type="hidden" name="key" value="registry.endpoint" />
+                      <ship-badge tone="success" variant="soft" size="sm"
+                        class="s-save-badge" class:visible={$mutation().kind === 'ok'}>
+                        <ship-icon slot="leading" name="check" size="sm"></ship-icon>Saved
+                      </ship-badge>
+                      <ship-input name="value" size="sm"
+                        prop:value={settings().value.advanced_registry}
+                        placeholder="https://registry.getship.dev"
+                        on:blur={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}
+                        on:keydown={(e) => { if ((e as KeyboardEvent).key === 'Enter') (e.target as HTMLElement).blur() }}></ship-input>
+                    </form>
+                  </span>
+                </ship-list-tile>
+              </div>
+            </div>
+          </ship-collapsible>
+        </ship-card>
+
+        <!-- About -->
+        <ship-card padding="none">
+          <div slot="header" class="s-section-head">
+            <h2 class="s-section-title">
+              <ship-icon name="info"></ship-icon>About
+            </h2>
+          </div>
+          <div class="s-section-body">
+            <ship-list-tile density="compact">
+              <span class="s-row-label">Documentation</span>
+              <span slot="trailing">
+                <ship-link prop:href={settings().value.about.docs} external>getship.dev/docs</ship-link>
+              </span>
+            </ship-list-tile>
+            <ship-list-tile density="compact">
+              <span class="s-row-label">Source</span>
+              <span slot="trailing">
+                <ship-link prop:href={settings().value.about.source} external>GitHub</ship-link>
+              </span>
+            </ship-list-tile>
+          </div>
+        </ship-card>
+
+      </div>
+    {/if}
+  </main>
+</div>

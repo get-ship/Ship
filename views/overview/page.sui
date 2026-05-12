@@ -1,0 +1,189 @@
+<data name="systems" source="ship.collections.items({collection: 'systems'})" live />
+
+<div class="ship-view overview-root">
+
+  <!-- Toolbar -->
+  <div class="overview-toolbar">
+    <strong style="font-family: var(--font-display)">Overview</strong>
+    {#if systems().kind === 'ok'}
+      <span style="color:var(--muted-foreground); font-size: var(--text-xs)">
+        {systems().value.items.length} system{systems().value.items.length === 1 ? '' : 's'}
+      </span>
+    {/if}
+    <span class="ov-sep"></span>
+    <ship-input size="sm" placeholder="Search…" style="width:180px;"
+      bind:value={search}></ship-input>
+    <span class="ov-sep"></span>
+
+    <div class="ov-group" role="group" aria-label="Status">
+      <ship-chip size="sm" class:selected={filterStatus() === ''}
+        on:click={() => filterStatus.set('')}>all</ship-chip>
+      {#for v of (['spec', 'building', 'shipping', 'complete']) key={v}}
+        <ship-chip size="sm" class:selected={filterStatus() === v}
+          on:click={() => filterStatus.set(filterStatus() === v ? '' : v)}>{v}</ship-chip>
+      {/for}
+    </div>
+    <span class="ov-sep"></span>
+
+    <div class="ov-group" role="group" aria-label="Layer">
+      <ship-chip size="sm" class:selected={filterLayer() === ''}
+        on:click={() => filterLayer.set('')}>all</ship-chip>
+      {#for v of (['primitive', 'runtime', 'interface', 'meta']) key={v}}
+        <ship-chip size="sm" class:selected={filterLayer() === v}
+          on:click={() => filterLayer.set(filterLayer() === v ? '' : v)}>{v}</ship-chip>
+      {/for}
+    </div>
+
+    <div style="flex:1"></div>
+    <ship-button size="sm" tone="primary" variant="solid" on:click={openNewDrawer}>
+      <ship-icon slot="leading" name="plus"></ship-icon>New system
+    </ship-button>
+    <ship-button size="sm" variant="ghost" aria-label="Fit view"
+      on:click={() => (window as typeof window & { __ovFit?: () => void }).__ovFit?.()}>
+      <ship-icon slot="leading" name="maximize"></ship-icon>Fit
+    </ship-button>
+  </div>
+
+  <!-- Canvas -->
+  <div class="overview-canvas-wrap" bind:this={wrapRef}>
+    {#while-loading of systems}
+      <div class="ov-empty">
+        <p style="color:var(--muted-foreground)">Loading systems&hellip;</p>
+      </div>
+    {/while-loading}
+
+    {#if systems().kind === 'ok'}
+      {#if systems().value.items.length === 0}
+        <div class="ov-empty">
+          <ship-empty-state>
+            <span slot="title">No systems yet</span>
+            <span slot="description">Map your project by adding its first system.</span>
+            <ship-button slot="actions" tone="primary" variant="solid" on:click={openNewDrawer}>
+              Create first system
+            </ship-button>
+          </ship-empty-state>
+        </div>
+      {:else}
+        <div class="overview-canvas" bind:this={canvasRef}>
+          <svg class="ov-edges" bind:this={edgesRef} width="4000" height="4000"></svg>
+          {#for item of systems().value.items key={item.id}}
+            <div class="ov-node"
+              attr:id={'node-' + item.id}
+              attr:data-id={item.id}
+              attr:data-status={item.data?.status ?? 'spec'}
+              attr:data-layer={item.data?.layer ?? 'runtime'}
+              attr:data-name={item.data?.name ?? ''}
+              attr:data-depends={JSON.stringify(item.data?.depends_on ?? [])}
+              class:dimmed={
+                (search() !== '' && !(item.data?.name ?? '').toLowerCase().includes(search().toLowerCase())) ||
+                (filterStatus() !== '' && item.data?.status !== filterStatus()) ||
+                (filterLayer() !== '' && item.data?.layer !== filterLayer())
+              }
+              style={'left:' + (item.data?.position_x ?? 100) + 'px;top:' + (item.data?.position_y ?? 80) + 'px'}>
+              <div class="ov-node-head">
+                <ship-status-dot prop:status={item.data?.status ?? 'spec'}></ship-status-dot>
+                <span>{item.data?.name ?? '(unnamed)'}</span>
+              </div>
+              <div class="ov-node-layer">
+                {item.data?.layer ?? 'runtime'}{item.data?.doc_skill ? ' · ' + item.data.doc_skill : ''}
+              </div>
+              {#if item.data?.summary}
+                <div class="ov-node-summary">
+                  {(item.data.summary as string).length > 80
+                    ? (item.data.summary as string).slice(0, 80) + '…'
+                    : item.data.summary}
+                </div>
+              {/if}
+              <div class="ov-connect" role="button" aria-label="Drag to connect"></div>
+            </div>
+          {/for}
+        </div>
+      {/if}
+    {/if}
+
+    <!-- Drawer -->
+    <div class="ov-drawer" class:open={drawerOpen()} id="ov-drawer" role="dialog"
+      aria-labelledby="ov-drawer-title" aria-modal="true">
+      <div class="ov-drawer-head">
+        <strong id="ov-drawer-title">{drawerTitle()}</strong>
+        <ship-button size="sm" variant="ghost" aria-label="Close" on:click={closeDrawer}>
+          <ship-icon slot="leading" name="x"></ship-icon>
+        </ship-button>
+      </div>
+      <div class="ov-drawer-body">
+        <div class="ship-form">
+          <div class="ship-form-field">
+            <label class="ship-form-label">name <span style="color:var(--destructive)">*</span></label>
+            <ship-input size="sm" placeholder="ship-&lt;system&gt;" bind:value={fldName}></ship-input>
+          </div>
+          <div class="ship-form-field">
+            <label class="ship-form-label">layer</label>
+            <ship-select size="sm" bind:value={fldLayer}>
+              <option value="">--</option>
+              <option value="primitive">primitive</option>
+              <option value="runtime">runtime</option>
+              <option value="interface">interface</option>
+              <option value="meta">meta</option>
+            </ship-select>
+          </div>
+          <div class="ship-form-field">
+            <label class="ship-form-label">status</label>
+            <ship-select size="sm" bind:value={fldStatus}>
+              <option value="spec">spec</option>
+              <option value="building">building</option>
+              <option value="shipping">shipping</option>
+              <option value="complete">complete</option>
+            </ship-select>
+          </div>
+          <div class="ship-form-field">
+            <label class="ship-form-label">summary</label>
+            <ship-input size="sm" placeholder="one-liner" bind:value={fldSummary}></ship-input>
+          </div>
+          <div class="ship-form-field">
+            <label class="ship-form-label">doc skill</label>
+            <ship-input size="sm" placeholder="ship-&lt;name&gt;" bind:value={fldDocSkill}></ship-input>
+          </div>
+
+          <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
+            <label class="ship-form-label">gaps</label>
+            {#for gap of fldGaps() key={gap + '_' + fldGaps().indexOf(gap)}}
+              <div class="ov-list-row">
+                <ship-input size="sm" prop:value={gap} style="flex:1"
+                  on:ship-input={(e) => fldGaps.set(fldGaps().map((g: string, i: number) => i === fldGaps().indexOf(gap) ? (e as CustomEvent).detail?.value ?? g : g))}></ship-input>
+                <ship-button size="xs" variant="ghost" aria-label="Remove gap"
+                  on:click={() => fldGaps.set(fldGaps().filter((_: string, i: number) => i !== fldGaps().indexOf(gap)))}>
+                  <ship-icon name="x"></ship-icon>
+                </ship-button>
+              </div>
+            {/for}
+            <ship-button size="sm" variant="outline" on:click={addGap}>
+              <ship-icon slot="leading" name="plus"></ship-icon>Add gap
+            </ship-button>
+          </div>
+
+          <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
+            <label class="ship-form-label">depends on</label>
+            {#for dep of fldDependsOn() key={dep + '_' + fldDependsOn().indexOf(dep)}}
+              <div class="ov-list-row">
+                <ship-input size="sm" prop:value={dep} placeholder="system name" style="flex:1"
+                  on:ship-input={(e) => fldDependsOn.set(fldDependsOn().map((d: string, i: number) => i === fldDependsOn().indexOf(dep) ? (e as CustomEvent).detail?.value ?? d : d))}></ship-input>
+                <ship-button size="xs" variant="ghost" aria-label="Remove dependency"
+                  on:click={() => fldDependsOn.set(fldDependsOn().filter((_: string, i: number) => i !== fldDependsOn().indexOf(dep)))}>
+                  <ship-icon name="x"></ship-icon>
+                </ship-button>
+              </div>
+            {/for}
+            <ship-button size="sm" variant="outline" on:click={addDependsOn}>
+              <ship-icon slot="leading" name="plus"></ship-icon>Add dependency
+            </ship-button>
+          </div>
+        </div>
+      </div>
+      <div class="ov-drawer-foot">
+        <ship-button tone="primary" variant="solid" on:click={saveDrawer}>Save</ship-button>
+        <ship-button variant="ghost" on:click={closeDrawer}>Cancel</ship-button>
+      </div>
+    </div>
+  </div>
+
+</div>
