@@ -1,0 +1,12 @@
+// Route metadata for views/theme-studio/.
+{
+  "name": "theme-studio",
+  "path": "/theme-studio",
+  "title": "Theme Studio",
+  "layout": "full",
+  "auth": "user",
+  "rail": {
+    "label": "Theme Studio",
+    "icon": "palette"
+  }
+}

@@ -1,0 +1,232 @@
+<div class="ship-view setup-view">
+  <div class="setup-wrap">
+
+    <!-- Progress stepper -->
+    <div class="setup-stepper-wrap">
+      <ship-stepper prop:total={4} prop:current={step()} label="Setup progress"></ship-stepper>
+    </div>
+
+    <!-- Step panels -->
+    <ship-card padding="lg" role="region" aria-labelledby="setup-step-title">
+
+      <!-- Step 1: Welcome -->
+      {#if step() === 1}
+        <p class="setup-eyebrow">Step 1 of 4</p>
+        <h1 class="setup-title" id="setup-step-title">Welcome to SHIP</h1>
+        <p class="setup-lede">The workbench for shipping software with agents.</p>
+        <p class="setup-lede">
+          Ship runs locally. You own the data, the agents, and the pipelines.
+          The next two steps pick a project folder and an AI provider — you can
+          change either later from settings.
+        </p>
+        <div class="setup-actions setup-actions--end">
+          <ship-button tone="primary" variant="solid" size="md"
+            on:click={() => step.set(2)}>
+            Let's set it up
+            <ship-icon slot="trailing" name="arrow-right"></ship-icon>
+          </ship-button>
+        </div>
+      {/if}
+
+      <!-- Step 2: Workspace -->
+      {#if step() === 2}
+        <p class="setup-eyebrow">Step 2 of 4</p>
+        <h2 class="setup-title" id="setup-step-title">Pick a project folder</h2>
+        <p class="setup-lede">
+          Ship stores agents, pipelines, and sessions under
+          <ship-code>.ship/</ship-code> in the project folder.
+          Start a new one or point at an existing repo.
+        </p>
+
+        <ship-tabs variant="segmented" size="md"
+          prop:active={wsMode()}
+          on:ship-tab-change={(e) => { wsMode.set((e as CustomEvent).detail.name); wsError.set('') }}
+          style="width:100%; margin-bottom: var(--space-5)">
+          <ship-tab name="new" label="Create new project"></ship-tab>
+          <ship-tab name="existing" label="Open existing project"></ship-tab>
+
+          <ship-tab-panel name="new" style="padding-top: var(--space-2)">
+            <ship-field>
+              <ship-label for="setup-ws-name">Project name</ship-label>
+              <ship-input id="setup-ws-name" size="md" placeholder="my-ship-project"
+                bind:value={wsName}></ship-input>
+              <span slot="hint" style="font-size:var(--text-xs); color:var(--muted-foreground)">
+                Stored at <ship-code>~/Documents/Ship/&lt;name&gt;</ship-code> by default.
+              </span>
+            </ship-field>
+          </ship-tab-panel>
+
+          <ship-tab-panel name="existing" style="padding-top: var(--space-2)">
+            <ship-field>
+              <ship-label for="setup-ws-path">Folder path</ship-label>
+              <ship-input id="setup-ws-path" size="md"
+                placeholder="/Users/you/code/my-repo"
+                bind:value={wsPath}></ship-input>
+              <span slot="hint" style="font-size:var(--text-xs); color:var(--muted-foreground)">
+                Must exist and not already be a Ship workspace.
+              </span>
+            </ship-field>
+          </ship-tab-panel>
+        </ship-tabs>
+
+        {#if wsError()}
+          <ship-alert tone="destructive" style="margin-bottom:var(--space-4)">{wsError()}</ship-alert>
+        {/if}
+
+        <form mutation="ship.projects.create"
+          on:ship-mutation-ok={() => { step.set(3); wsError.set('') }}
+          on:ship-mutation-error={(e) => wsError.set((e as CustomEvent).detail?.message ?? 'Could not create workspace')}>
+          <input type="hidden" name="mode" attr:value={wsMode()} />
+          <input type="hidden" name="name" attr:value={wsName()} />
+          <input type="hidden" name="path" attr:value={wsPath()} />
+          <div class="setup-actions">
+            <ship-button variant="ghost" size="md" type="button"
+              on:click={() => step.set(1)}>
+              <ship-icon slot="leading" name="arrow-left"></ship-icon>Back
+            </ship-button>
+            <ship-button tone="primary" variant="solid" size="md" type="submit"
+              prop:disabled={wsMode() === 'new' ? !wsName() : !wsPath()}
+              prop:loading={$mutation().kind === 'loading'}>
+              Continue
+              <ship-icon slot="trailing" name="arrow-right"></ship-icon>
+            </ship-button>
+          </div>
+        </form>
+      {/if}
+
+      <!-- Step 3: Provider -->
+      {#if step() === 3}
+        <p class="setup-eyebrow">Step 3 of 4</p>
+        <h2 class="setup-title" id="setup-step-title">Connect an AI provider</h2>
+        <p class="setup-lede">
+          Ship talks to whichever provider CLIs you have installed. Pick one to
+          start with — add more or change later from settings.
+        </p>
+
+        <div class="setup-grid-2" role="radiogroup" aria-label="AI provider"
+          style="margin-bottom: var(--space-5)">
+          {#for p of ([
+            { id: 'claude',   name: 'Claude',   sub: 'Anthropic · claude' },
+            { id: 'gemini',   name: 'Gemini',   sub: 'Google · gemini' },
+            { id: 'codex',    name: 'Codex',    sub: 'OpenAI · codex' },
+            { id: 'opencode', name: 'OpenCode', sub: 'Open source · opencode' },
+          ]) key={p.id}}
+            <ship-card interactive padding="md" role="radio"
+              prop:tone={provider() === p.id ? 'accent' : ''}
+              prop:fill={provider() === p.id}
+              attr:aria-checked={provider() === p.id ? 'true' : 'false'}
+              on:click={() => { provider.set(p.id); apiKey.set(''); providerTestOk.set(false) }}>
+              <div style="display:flex; align-items:center; gap:var(--space-3)">
+                <ship-provider-blob prop:provider={p.id} size="md" variant="glyph"></ship-provider-blob>
+                <div style="min-width:0">
+                  <div style="font-size:var(--text-md); font-weight:var(--font-weight-semibold); color:var(--foreground)">{p.name}</div>
+                  <div style="font-size:var(--text-xs); color:var(--muted-foreground); margin-top:2px">{p.sub}</div>
+                </div>
+              </div>
+            </ship-card>
+          {/for}
+        </div>
+
+        {#if provider()}
+          <ship-field style="margin-bottom: var(--space-4)">
+            <ship-label for="setup-api-key">API key</ship-label>
+            <ship-input id="setup-api-key" size="md" type="password"
+              placeholder="sk-..."
+              bind:value={apiKey}
+              on:ship-input={() => providerTestOk.set(false)}></ship-input>
+            <span slot="hint" style="font-size:var(--text-xs); color:var(--muted-foreground)">
+              Stored locally in your Ship settings. Never sent anywhere but the
+              provider you chose.
+            </span>
+          </ship-field>
+
+          <form mutation="ship.providers.test"
+            on:ship-mutation-ok={() => providerTestOk.set(true)}
+            on:ship-mutation-error={() => providerTestOk.set(false)}>
+            <input type="hidden" name="provider" attr:value={provider()} />
+            <input type="hidden" name="key" attr:value={apiKey()} />
+            <div style="display:flex; align-items:center; gap:var(--space-3); margin-top:var(--space-3)">
+              <ship-button variant="outline" size="sm" type="submit"
+                prop:disabled={!apiKey() || $mutation().kind === 'loading'}
+                prop:loading={$mutation().kind === 'loading'}>
+                Test connection
+              </ship-button>
+              {#if providerTestOk()}
+                <ship-badge tone="success" variant="soft" size="sm">
+                  <ship-icon slot="leading" name="check"></ship-icon>Connected
+                </ship-badge>
+              {/if}
+              {#if $mutation().kind === 'error'}
+                <ship-badge tone="destructive" variant="soft" size="sm">
+                  {($mutation() as { kind: 'error'; error: Error }).error.message}
+                </ship-badge>
+              {/if}
+            </div>
+          </form>
+        {/if}
+
+        <form mutation="ship.settings.configure"
+          on:ship-mutation-ok={() => step.set(4)}>
+          <input type="hidden" name="provider" attr:value={provider()} />
+          <input type="hidden" name="api_key" attr:value={apiKey()} />
+          <div class="setup-actions">
+            <ship-button variant="ghost" size="md" type="button"
+              on:click={() => { provider.set(''); apiKey.set(''); providerTestOk.set(false); step.set(4) }}>
+              Skip, configure later
+            </ship-button>
+            <ship-button tone="primary" variant="solid" size="md" type="submit"
+              prop:disabled={!providerTestOk()}
+              prop:loading={$mutation().kind === 'loading'}>
+              Save &amp; continue
+              <ship-icon slot="trailing" name="arrow-right"></ship-icon>
+            </ship-button>
+          </div>
+        </form>
+      {/if}
+
+      <!-- Step 4: Done -->
+      {#if step() === 4}
+        <p class="setup-eyebrow">Step 4 of 4</p>
+        <h2 class="setup-title" id="setup-step-title">Ship is ready</h2>
+        <p class="setup-lede">
+          Your workspace is set up. Jump into the dashboard, or browse what's new.
+        </p>
+
+        <nav class="setup-grid-3" aria-label="Resources" style="margin: var(--space-6) 0">
+          <a href="https://getship.dev/docs" target="_blank" rel="noopener noreferrer"
+            style="text-decoration:none; color:inherit">
+            <ship-card interactive padding="md">
+              <div style="font-size:var(--text-sm); font-weight:var(--font-weight-semibold)">Docs</div>
+              <div style="font-size:var(--text-xs); color:var(--muted-foreground)">Guides &amp; reference</div>
+            </ship-card>
+          </a>
+          <a href="https://getship.dev/community" target="_blank" rel="noopener noreferrer"
+            style="text-decoration:none; color:inherit">
+            <ship-card interactive padding="md">
+              <div style="font-size:var(--text-sm); font-weight:var(--font-weight-semibold)">Community</div>
+              <div style="font-size:var(--text-xs); color:var(--muted-foreground)">Discord &amp; GitHub</div>
+            </ship-card>
+          </a>
+          <a href="https://getship.dev/store" target="_blank" rel="noopener noreferrer"
+            style="text-decoration:none; color:inherit">
+            <ship-card interactive padding="md">
+              <div style="font-size:var(--text-sm); font-weight:var(--font-weight-semibold)">Store</div>
+              <div style="font-size:var(--text-xs); color:var(--muted-foreground)">Agents &amp; skills</div>
+            </ship-card>
+          </a>
+        </nav>
+
+        <form mutation="ship.settings.completeSetup"
+          on:ship-mutation-ok={() => navigate('/')}>
+          <div class="setup-actions setup-actions--end">
+            <ship-button tone="accent" variant="solid" size="lg" type="submit">
+              Open Ship
+              <ship-icon slot="trailing" name="arrow-right"></ship-icon>
+            </ship-button>
+          </div>
+        </form>
+      {/if}
+
+    </ship-card>
+  </div>
+</div>
