@@ -1,0 +1,13 @@
+// Route metadata for views/pipelines-board/. See
+// docs/ship-adrs/references/docs/view-directory-convention.md.
+{
+  "name": "pipelines-board",
+  "path": "/pipelines-board",
+  "title": "Pipelines (board)",
+  "layout": "default",
+  "auth": "user",
+  "rail": {
+    "label": "Board",
+    "icon": "kanban"
+  }
+}
