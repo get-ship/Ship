@@ -15,7 +15,7 @@ backed by `ship lsp` (the Ship CLI's built-in language server).
 1. Install the Ship CLI (`ship --version` should work).
 2. Install this extension. From source:
    ```bash
-   cd apps/ship-set-vscode
+   cd apps/ship-views-j2-vscode
    pnpm install
    pnpm compile
    code --install-extension .
