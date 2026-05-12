@@ -23,6 +23,10 @@ import './sui-kbd/dist/sui-kbd.compiled.js'
 import './sui-avatar/dist/sui-avatar.compiled.js'
 import './sui-progress/dist/sui-progress.compiled.js'
 import "./sui-progress/dist/sui-progress-ring.compiled.js"
+import "./sui-area-chart/dist/sui-area-chart.compiled.js"
+import "./sui-bar-chart/dist/sui-bar-chart.compiled.js"
+import "./sui-line-chart/dist/sui-line-chart.compiled.js"
+import "./sui-sparkline/dist/sui-sparkline.compiled.js"
 import './sui-button/dist/sui-button.compiled.js'
 import './sui-tabs/dist/sui-tabs.compiled.js'
 import './sui-tabs/dist/sui-tab.compiled.js'
