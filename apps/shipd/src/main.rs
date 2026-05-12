@@ -13,11 +13,10 @@ fn main() -> anyhow::Result<()> {
 
     // Rotate log file if >10 MB.
     let log_path = logs_dir.join("shipd.log");
-    if let Ok(meta) = std::fs::metadata(&log_path) {
-        if meta.len() > 10 * 1024 * 1024 {
+    if let Ok(meta) = std::fs::metadata(&log_path)
+        && meta.len() > 10 * 1024 * 1024 {
             let _ = std::fs::rename(&log_path, logs_dir.join("shipd.log.old"));
         }
-    }
 
     // File appender — JSON-structured logs for crash forensics.
     let file_appender = tracing_appender::rolling::never(&logs_dir, "shipd.log");

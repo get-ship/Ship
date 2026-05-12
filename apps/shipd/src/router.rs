@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
 
 use crate::{
-    NetworkServer, auth, project_api, services, ship_runtime, supervisor,
+    NetworkServer, auth, project_api, services, ship_runtime,
     sessions, views,
 };
 use crate::routes::{
@@ -24,7 +24,7 @@ use crate::routes::{
     runtime_api, sdk_manifest, settings_api, shell_assets, skills_api, specs_api,
     themes_api, view_errors_api, view_sessions_api, webhook_ext,
 };
-use crate::auth::{attest, pairing, scopes, session};
+use crate::auth::{attest, pairing, session};
 use crate::transport::{cors, pty as pty_handler};
 use crate::mcp::registry as mcp_registry;
 use crate::views::{morph_target as view_morph_target, raw as views_raw};

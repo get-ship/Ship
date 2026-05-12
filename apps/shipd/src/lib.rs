@@ -202,11 +202,10 @@ pub async fn run_network(
 
     // Register the launch-time project (if any) into the project registry
     // so the launcher / shell sees it on first list. Idempotent.
-    if let Some(root) = project_root.as_ref() {
-        if let Err(e) = ship_platform::projects::register(root.path(), None) {
+    if let Some(root) = project_root.as_ref()
+        && let Err(e) = ship_platform::projects::register(root.path(), None) {
             tracing::warn!(path = %root.path().display(), "failed to register project on startup: {e}");
         }
-    }
 
     let token = match auth::read_token(&daemon_dir) {
         Ok(existing) if !existing.is_empty() => Arc::new(existing),
@@ -257,6 +256,8 @@ pub async fn run_network(
     let user_pinned = port.is_some();
     let max_retries = if user_pinned { 1 } else { 10 };
     let mut bound_port = desired_port;
+    // First assignment is `None`; the loop body overwrites before any read.
+    #[allow(unused_assignments)]
     let mut last_err: Option<std::io::Error> = None;
     let listener = loop {
         let addr = format!("{host}:{bound_port}");

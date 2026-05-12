@@ -215,6 +215,7 @@ async fn reconcile_dispatched_inner(
 }
 
 /// Emit job.step_failed and persist to event store.
+#[allow(dead_code)]
 async fn emit_step_failed(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     job_id: &str,

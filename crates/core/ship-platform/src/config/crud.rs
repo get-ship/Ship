@@ -1,4 +1,4 @@
-use super::io::{get_config, get_effective_config, save_config};
+use super::io::{get_config, save_config};
 use super::project::{AgentProfile, McpServerConfig};
 use anyhow::{Result, anyhow};
 use std::path::PathBuf;

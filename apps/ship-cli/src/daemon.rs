@@ -680,11 +680,10 @@ fn print_live_status(port: u16, token: &str, supervision: &SupervisionStatus) ->
     println!("shipd running");
     println!("  supervised by:  {}", supervision.adapter.label());
     println!("  pid:            {pid}");
-    if let Some(s) = supervisor_pid {
-        if (s as u64) != pid {
+    if let Some(s) = supervisor_pid
+        && (s as u64) != pid {
             println!("  supervisor pid: {s}");
         }
-    }
     println!("  version:        {version}");
     println!("  port:           {port}");
     println!("  uptime:         {uptime}");

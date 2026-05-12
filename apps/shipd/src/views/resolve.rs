@@ -69,13 +69,13 @@ fn humanize(id: &str) -> String {
 /// the `ship.*` SDK ignore this block. Only `collections` is read
 /// today — the other fields were loaders for pre-framework views that
 /// have since migrated; kept here so older manifests still parse.
+#[allow(dead_code)] // Legacy fields ignored at runtime; kept so older
+                    // manifests still deserialise without rejecting unknown keys.
 #[derive(Deserialize, Clone)]
 pub(crate) struct ManifestData {
     pub collections: Option<ManifestCollections>,
     #[serde(default)]
     pub items: Option<String>,
-    // Legacy fields — ignored at runtime. Remove once no in-tree manifest
-    // declares them.
     #[serde(default, skip_serializing)]
     pub settings: Option<bool>,
     #[serde(default, skip_serializing)]
@@ -94,6 +94,7 @@ pub(crate) struct ManifestData {
     pub git: Option<bool>,
 }
 
+#[allow(dead_code)] // Deserialized into but only the variant tag matters.
 #[derive(Deserialize, Clone)]
 #[serde(untagged)]
 pub(crate) enum ManifestCollections {
@@ -202,12 +203,10 @@ pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManife
 }
 
 fn detect_view_type(dir: &PathBuf) -> Option<String> {
-    if dir.join("manifest.yaml").exists()
+    if (dir.join("manifest.yaml").exists()
         || dir.join("manifest.jsonc").exists()
-        || dir.join("manifest.json").exists()
-    {
-        if let Some(m) = read_manifest_file(dir, "unknown") { return Some(m.view_type); }
-    }
+        || dir.join("manifest.json").exists())
+        && let Some(m) = read_manifest_file(dir, "unknown") { return Some(m.view_type); }
     if dir.join("index.html").exists() { return Some("html".into()); }
     if dir.join("index.js").exists() { return Some("component".into()); }
     None

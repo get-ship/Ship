@@ -38,15 +38,12 @@ pub fn find_view_dir(file: &Path) -> Option<PathBuf> {
         // Stop walking once we leave the `.ship/views/<name>/` envelope:
         // if the *parent* is a `views` directory whose parent is `.ship`,
         // then `cursor` is the view root even if it has no manifest.
-        if let (Some(parent), Some(name)) = (cursor.parent(), cursor.file_name()) {
-            if name != "views" {
-                if let (Some(grand), Some(pname)) = (parent.parent(), parent.file_name()) {
-                    if pname == "views" && grand.file_name().and_then(|n| n.to_str()) == Some(".ship") {
+        if let (Some(parent), Some(name)) = (cursor.parent(), cursor.file_name())
+            && name != "views"
+                && let (Some(grand), Some(pname)) = (parent.parent(), parent.file_name())
+                    && pname == "views" && grand.file_name().and_then(|n| n.to_str()) == Some(".ship") {
                         return Some(cursor.to_path_buf());
                     }
-                }
-            }
-        }
         cursor = cursor.parent()?;
     }
 }

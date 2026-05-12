@@ -70,8 +70,8 @@ impl<'src> PurityVisitor<'src> {
 impl<'a, 'src> Visit<'a> for PurityVisitor<'src> {
     fn visit_assignment_expression(&mut self, expr: &AssignmentExpression<'a>) {
         // <expr>.innerHTML = … / <expr>.outerHTML = …
-        if let Some(prop) = static_member_property(&expr.left) {
-            if prop == "innerHTML" || prop == "outerHTML" {
+        if let Some(prop) = static_member_property(&expr.left)
+            && (prop == "innerHTML" || prop == "outerHTML") {
                 self.report(
                     expr.span,
                     format!(
@@ -80,7 +80,6 @@ impl<'a, 'src> Visit<'a> for PurityVisitor<'src> {
                     ),
                 );
             }
-        }
         // Continue into both sides so chained patterns are also caught.
         oxc_ast_visit::walk::walk_assignment_target(self, &expr.left);
         self.visit_expression(&expr.right);
@@ -88,8 +87,8 @@ impl<'a, 'src> Visit<'a> for PurityVisitor<'src> {
 
     fn visit_call_expression(&mut self, expr: &CallExpression<'a>) {
         // <expr>.insertAdjacentHTML(...)
-        if let Expression::StaticMemberExpression(m) = &expr.callee {
-            if m.property.name.as_str() == "insertAdjacentHTML" {
+        if let Expression::StaticMemberExpression(m) = &expr.callee
+            && m.property.name.as_str() == "insertAdjacentHTML" {
                 self.report(
                     expr.span,
                     "controllers do not call `.insertAdjacentHTML(...)`. Render dynamic \
@@ -97,7 +96,6 @@ impl<'a, 'src> Visit<'a> for PurityVisitor<'src> {
                         .to_string(),
                 );
             }
-        }
         // Continue walking arguments + callee descendants for nested cases.
         self.visit_expression(&expr.callee);
         for arg in &expr.arguments {

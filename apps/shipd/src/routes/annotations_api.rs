@@ -13,7 +13,7 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use ship_platform::collections::builtin::{annotations_schema, ANNOTATIONS_ID};
+use ship_platform::collections::builtin::annotations_schema;
 use ship_platform::collections::service as collection_service;
 use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::annotation::AnnotationEvent;
@@ -131,7 +131,7 @@ pub async fn post_annotation(
         }
     };
     let ctx = auth.to_daemon_emit_context();
-    if let Err(e) = state.kernel().lock().await.route(envelope, &ctx).await {
+    if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
         return err(
             StatusCode::INTERNAL_SERVER_ERROR,
             "route_failed",

@@ -49,11 +49,9 @@ fn check_one(
 fn walk(ast: &Ast, table: &SymbolTable) -> Result<(), CompileError> {
     if let AstKind::Member { obj, prop, optional } = &ast.kind
         && let AstKind::Ident(head) = &obj.kind
-    {
-        if let Some(err) = check_head_member(head, prop, *optional, table, ast) {
+        && let Some(err) = check_head_member(head, prop, *optional, table, ast) {
             return Err(err);
         }
-    }
     // Recurse via the AST walker.
     let mut error: Option<CompileError> = None;
     ast.walk(&mut |n| {

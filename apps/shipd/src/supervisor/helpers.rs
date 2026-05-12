@@ -143,6 +143,7 @@ pub(crate) fn ensure_tmux_session(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub(crate) fn send_agent_command(session_name: &str, providers: &[String]) {
     let Some(cmd) = provider_cli(providers) else {
         tracing::info!(session = session_name, "no known provider CLI; skipping agent spawn");
@@ -219,6 +220,7 @@ pub(crate) fn delete_branch(branch: &str) -> Result<()> {
     Ok(())
 }
 
+#[allow(dead_code)]
 pub(crate) fn provider_cli(providers: &[String]) -> Option<String> {
     use ship_platform::services::dispatch_ports::LaunchProfile;
     use ship_platform::services::provider_adapter::adapter_for;

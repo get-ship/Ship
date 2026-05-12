@@ -2,7 +2,7 @@
   "name": "ship-monorepo",
   "private": true,
   "scripts": {
-    "build:bundles": "bun run runtime-assets/bundler.ts",
+    "build:bundles": "bun run runtime-assets/bundler.ts --all",
     "build:jinja-docs": "node scripts/build-jinja-docs.mjs",
     "test:rust": "cargo test",
     "wasm": "wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm",

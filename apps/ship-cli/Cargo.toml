@@ -127,3 +127,6 @@ rmcp = { workspace = true, features = [
 axum = { workspace = true, features = ["http1", "tokio"] }
 tokio-util = { workspace = true, features = ["full"] }
 schemars = "1"
+
+[lints]
+workspace = true

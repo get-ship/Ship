@@ -7,10 +7,8 @@ use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::
 use axum::response::sse::{Event, KeepAlive, Sse};
 use ship_substrate::events::{CallerKind, EventEnvelope};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 use crate::auth::{AuthContext, Scope, require_scope};
-use crate::ship_runtime::ShipRuntime;
 
 /// Axum shared state — an Arc-wrapped ShipRuntime.
 pub use crate::ship_runtime::ApiState;

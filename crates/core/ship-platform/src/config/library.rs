@@ -6,7 +6,6 @@
 
 use std::path::PathBuf;
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use ship_substrate::ShipHome;

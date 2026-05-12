@@ -352,11 +352,10 @@ pub fn rule_theme_token_ref(view_name: &str, raw: &str) -> Vec<Finding> {
             let prefix = &line[..m.start()];
             let after_var = prefix.rfind("var(");
             let after_close = prefix.rfind(')');
-            if let Some(v) = after_var {
-                if after_close.map_or(true, |c| c < v) {
+            if let Some(v) = after_var
+                && after_close.is_none_or(|c| c < v) {
                     continue;
                 }
-            }
             out.push(Finding {
                 file: std::path::PathBuf::from(view_name),
                 line: idx + 1,

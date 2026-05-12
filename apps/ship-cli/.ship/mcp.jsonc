@@ -1,0 +1,13 @@
+{
+  "mcp": {
+    "servers": {
+      "linear": {
+        "id": "linear",
+        "name": null,
+        "command": "npx",
+        "scope": "project",
+        "server_type": "stdio"
+      }
+    }
+  }
+}

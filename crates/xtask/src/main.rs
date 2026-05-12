@@ -12,6 +12,7 @@ use std::path::{Path, PathBuf};
 use specta::TypeCollection;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
+#[allow(dead_code)]
 pub(crate) fn repo_root_pub() -> PathBuf {
     repo_root()
 }

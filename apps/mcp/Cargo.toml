@@ -45,3 +45,6 @@ unstable = ["ship-application/unstable"]
 tempfile = { workspace = true }
 reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 rmcp = { workspace = true, features = ["server", "client", "transport-io"] }
+
+[lints]
+workspace = true

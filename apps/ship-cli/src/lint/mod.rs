@@ -60,7 +60,7 @@ pub fn run_views(
         a.file
             .cmp(&b.file)
             .then_with(|| a.line.cmp(&b.line))
-            .then_with(|| a.rule.cmp(&b.rule))
+            .then_with(|| a.rule.cmp(b.rule))
     });
 
     let has_error = findings.iter().any(|f| f.severity == Severity::Error);
@@ -120,11 +120,10 @@ fn discover_views(
         if name.is_empty() || name.starts_with('_') {
             continue;
         }
-        if let Some(f) = filter {
-            if f != name {
+        if let Some(f) = filter
+            && f != name {
                 continue;
             }
-        }
         if lint::collect_view_files(&dir).is_empty() {
             continue;
         }

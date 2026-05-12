@@ -171,11 +171,10 @@ pub fn project(events: &[EventEnvelope]) -> Vec<ProcessRecord> {
                     .cloned()
             };
 
-            if let Some(key) = matching_key {
-                if let Some(record) = map.get_mut(&key) {
+            if let Some(key) = matching_key
+                && let Some(record) = map.get_mut(&key) {
                     apply(record, event);
                 }
-            }
         }
     }
 

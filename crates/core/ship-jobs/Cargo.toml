@@ -10,3 +10,6 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
 compiler = { path = "../compiler" }
+
+[lints]
+workspace = true

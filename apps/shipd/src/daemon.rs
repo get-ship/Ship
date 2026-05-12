@@ -15,6 +15,7 @@ fn port_path(daemon_dir: &Path) -> PathBuf {
     daemon_dir.join("port")
 }
 
+#[allow(dead_code)]
 fn token_path(daemon_dir: &Path) -> PathBuf {
     daemon_dir.join("token")
 }

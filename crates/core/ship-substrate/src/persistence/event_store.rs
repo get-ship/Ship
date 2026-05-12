@@ -52,8 +52,8 @@ fn insert_event_row(
     Ok(())
 }
 
-/// Build the default projection bus — `ActorProjection` + `SessionProjection`
-/// + `CompileStateProjection`. Every `SqliteEventStore` constructed via
+/// Build the default projection bus (ActorProjection, SessionProjection,
+/// CompileStateProjection). Every `SqliteEventStore` constructed via
 /// `new*()` carries this bus, and `append` dispatches matching events to it
 /// in the same transaction as the row insert.
 fn default_bus() -> Arc<EventBus> {

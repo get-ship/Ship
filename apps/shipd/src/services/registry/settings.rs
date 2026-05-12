@@ -1,11 +1,11 @@
 //! Registry dispatcher for `settings.*` ops. Split off from
 //! services/registry.rs (mr-04 follow-up).
 
-use serde_json::{Value, json};
+use serde_json::Value;
 
-use super::{RegistryError, html_escape, optional_usize, parse_scope, required_str};
+use super::RegistryError;
 use crate::ship_runtime::ApiState;
-use ship_platform::services::files::{FilesService, Scope};
+use ship_platform::services::files::FilesService;
 
 #[allow(unused_imports, unused_variables)]
 pub(super) fn try_dispatch(

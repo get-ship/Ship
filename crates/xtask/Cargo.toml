@@ -24,3 +24,6 @@ serde_json = { workspace = true }
 regex = { workspace = true }
 anyhow = { workspace = true }
 utoipa = { version = "5", features = ["axum_extras"] }
+
+[lints]
+workspace = true

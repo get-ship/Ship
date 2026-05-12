@@ -2,15 +2,13 @@
 
 use axum::{
     Extension, Json,
-    extract::{Path, Query, State},
+    extract::State,
     http::StatusCode,
     response::IntoResponse,
 };
-use axum::response::sse::{Event, KeepAlive, Sse};
-use ship_substrate::events::{ActorConfig, EventEnvelope};
+use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
@@ -88,7 +86,7 @@ pub async fn dispatch_pipeline(
         let mut dir = std::env::current_dir().ok();
         let mut found = None;
         while let Some(d) = dir.as_ref() {
-            let pipelines_dir = ship_substrate::ShipHome::project_ship_dir(&d).join("pipelines");
+            let pipelines_dir = ship_substrate::ShipHome::project_ship_dir(d).join("pipelines");
             if pipelines_dir.is_dir() {
                 for ext in ["yaml", "yml", "jsonc", "json"] {
                     let candidate = pipelines_dir.join(format!("{}.{ext}", req.pipeline));

@@ -3015,60 +3015,6 @@
           }
         ]
       }
-    },
-    "/api/v1/workspaces": {
-      "get": {
-        "tags": [
-          "runtime"
-        ],
-        "summary": "List Workspaces",
-        "description": "GET /api/v1/runtime/workspaces\n\nReturns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
-        "operationId": "listWorkspaces",
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MeshResponse"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "server error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
-                }
-              }
-            }
-          }
-        },
-        "x-codeSamples": [
-          {
-            "lang": "bash",
-            "label": "curl",
-            "source": "curl -X GET http://localhost:9315/api/v1/workspaces \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
-          },
-          {
-            "lang": "javascript",
-            "label": "fetch",
-            "source": "const res = await fetch(\"http://localhost:9315/api/v1/workspaces\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
-          }
-        ]
-      }
     }
   },
   "components": {
@@ -3111,6 +3057,49 @@
             "writes.prose",
             "reads.repo"
           ]
+        }
+      },
+      "Annotation": {
+        "type": "object",
+        "required": [
+          "type",
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "source": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AnnotationSource"
+              }
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "`\"text\" | \"file\" | \"diff\" | \"comment\"` — drives the wrapping\nXML tag and any per-type formatting. Unknown values pass\nthrough as `<context type=\"…\">…</context>`."
+          }
+        }
+      },
+      "AnnotationSource": {
+        "type": "object",
+        "required": [
+          "kind",
+          "ref"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "e.g. \"file\", \"selection\", \"diff-hunk\", \"comment\""
+          },
+          "ref": {
+            "type": "string",
+            "description": "e.g. \"src/foo.rs:42-58\", \"review/comment-12\""
+          }
         }
       },
       "CapabilitiesResponse": {
@@ -3465,7 +3454,7 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "description": "Canonical error body returned by non-2xx responses.\n\nHandlers today emit `{\"ok\": false, \"error\": \"...\"}` or\n`{\"ok\": false, \"data\": \"...\"}`. The spec standardizes on this richer\nshape so SDK consumers can branch on a machine-readable `error` code\nwithout parsing the human-readable message.\n\nSee the [errors reference](/reference/http-api/errors/) for the full\nset of codes emitted by the daemon and their remediation.",
+        "description": "Structured error body. Returned with non-2xx HTTP statuses; OpenAPI\nannotations on routes reference this for the schema.",
         "required": [
           "error",
           "message"
@@ -3699,6 +3688,7 @@
       },
       "MeshResponse": {
         "type": "object",
+        "description": "Envelope returned by every handler under `/api/v1/*` that isn't a\nraw bytes / SSE / stream response. `ok` flags success; `data` is\neither the payload or a structured error description.",
         "required": [
           "ok",
           "data"
@@ -3775,6 +3765,13 @@
           "text"
         ],
         "properties": {
+          "annotations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Annotation"
+            },
+            "description": "Optional context attachments. Rendered into the prompt as\nXML-tagged blocks so any provider's TUI / stream-json sees them\nas part of the user turn — provider-agnostic, no per-mechanism\nbranching. Empty / absent → no annotation prefix."
+          },
           "text": {
             "type": "string"
           }
@@ -3841,9 +3838,14 @@
         "required": [
           "id",
           "name",
-          "path"
+          "path",
+          "created_at",
+          "last_seen_at"
         ],
         "properties": {
+          "created_at": {
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -3851,7 +3853,11 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "Optional human-friendly label, distinct from `name` (which\ndefaults to the directory basename)."
+          },
+          "last_seen_at": {
+            "type": "string"
           },
           "name": {
             "type": "string"
@@ -4224,7 +4230,7 @@
         "type": "http",
         "scheme": "bearer",
         "bearerFormat": "opaque",
-        "description": "Daemon bearer token — found in ~/.ship/daemon.token after `ship daemon start`."
+        "description": "Daemon bearer token — found in ~/.ship/machine/daemon/token after `ship daemon start`."
       }
     }
   }

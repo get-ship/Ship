@@ -115,8 +115,8 @@ fn main() {
     println!("cargo:rerun-if-changed=assets/{CUSTOM_ELEMENTS_JSON}");
 
     let cache_dir = repo_root.join("apps/shipd/assets/.cache");
-    if cache_dir.exists() {
-        if let Ok(entries) = fs::read_dir(&cache_dir) {
+    if cache_dir.exists()
+        && let Ok(entries) = fs::read_dir(&cache_dir) {
             for entry in entries.flatten() {
                 let p = entry.path();
                 if p.extension().and_then(|s| s.to_str()) != Some("json") {
@@ -132,7 +132,6 @@ fn main() {
                 }
             }
         }
-    }
 
     for root in COARSE_SOURCE_ROOTS {
         let abs = repo_root.join(root);

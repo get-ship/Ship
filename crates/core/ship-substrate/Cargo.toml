@@ -39,3 +39,9 @@ libc = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }
+
+[features]
+unstable = []
+
+[lints]
+workspace = true

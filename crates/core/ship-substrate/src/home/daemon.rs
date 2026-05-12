@@ -180,13 +180,12 @@ pub fn worktree_port_for(project_root: &Path) -> u16 {
         let home = crate::ShipHome::from_env();
         if let Ok(raw) = std::fs::read_to_string(home.local_path()) {
             let stripped = crate::fs_util::strip_jsonc_comments(&raw);
-            if let Ok(s) = serde_json::from_str::<PortPinSettings>(&stripped) {
-                if let Some(wt) = s.worktrees
+            if let Ok(s) = serde_json::from_str::<PortPinSettings>(&stripped)
+                && let Some(wt) = s.worktrees
                     && let Some(&port) = wt.ports.get(&branch)
                 {
                     return port;
                 }
-            }
         }
     }
     derive_worktree_port(&path_hash(project_root))

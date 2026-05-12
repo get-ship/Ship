@@ -41,10 +41,7 @@ pub(super) fn rule_pack_declarations(
         }
     }
 
-    let declared = match read_manifest_packs(&view.dir) {
-        Ok(list) => list,
-        Err(_) => Vec::new(),
-    };
+    let declared = read_manifest_packs(&view.dir).unwrap_or_default();
 
     if enabled.contains(&RULE_MISSING_PACK_DECLARATION) {
         for &(pack, tags) in PACKS {

@@ -3,9 +3,9 @@
 
 use serde_json::{Value, json};
 
-use super::{RegistryError, html_escape, optional_usize, parse_scope, required_str};
+use super::{RegistryError, parse_scope, required_str};
 use crate::ship_runtime::ApiState;
-use ship_platform::services::files::{FilesService, Scope};
+use ship_platform::services::files::FilesService;
 
 #[allow(unused_imports, unused_variables)]
 pub(super) fn try_dispatch(
@@ -16,7 +16,7 @@ pub(super) fn try_dispatch(
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "agents.list" => Ok(json!({
-            "items": ship_platform::services::agents::state::list(&files),
+            "items": ship_platform::services::agents::state::list(files),
         })),
         "agents.summaries" => Ok(json!({
             "items": ship_platform::services::agents::view_state::list_agents(state.ship_dir()),
@@ -36,7 +36,7 @@ pub(super) fn try_dispatch(
         "agents.get" => {
             let id = required_str(args, "id")?;
             let scope = parse_scope(args)?;
-            let (resolved, doc) = ship_platform::services::agents::state::load_doc(&files, id, scope)
+            let (resolved, doc) = ship_platform::services::agents::state::load_doc(files, id, scope)
                 .map_err(|e| match e {
                     ship_platform::services::agents::state::Error::NotFound(m) => RegistryError::not_found(m),
                     other => RegistryError::service(other.to_string()),

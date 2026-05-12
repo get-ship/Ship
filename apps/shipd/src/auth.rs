@@ -149,9 +149,9 @@ pub async fn auth_middleware(
     next: Next,
 ) -> Response {
     // 1. Cookie check — browser sessions.
-    if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok()) {
-        if let Some(session_id) = crate::auth::session::parse_session_cookie(cookie_header) {
-            if crate::auth::session::is_browser_session_id(&session_id) {
+    if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok())
+        && let Some(session_id) = crate::auth::session::parse_session_cookie(cookie_header)
+            && crate::auth::session::is_browser_session_id(&session_id) {
                 match crate::auth::session::lookup_browser_session(&session_registry, &session_id).await {
                     Some(session) => {
                         let auth = AuthContext {
@@ -170,8 +170,6 @@ pub async fn auth_middleware(
                     }
                 }
             }
-        }
-    }
 
     let header_token = req
         .headers()

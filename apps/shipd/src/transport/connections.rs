@@ -85,6 +85,12 @@ pub struct EventRelay {
     inbox: Option<Arc<Inbox>>,
 }
 
+impl Default for EventRelay {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl EventRelay {
     pub fn new() -> Self {
         Self { peers: Arc::new(RwLock::new(Vec::new())), inbox: None }

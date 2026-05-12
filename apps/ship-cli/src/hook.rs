@@ -175,11 +175,10 @@ pub fn run_before_tool() -> Result<()> {
     let stdin = read_stdin()?;
     let body = normalize_stdin(&stdin, "before-tool");
     try_daemon_or_local("before-tool", &body, || {
-        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id()) {
-            if let Some(event) = handle_before_tool(&stdin, &actor, &workspace)? {
+        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id())
+            && let Some(event) = handle_before_tool(&stdin, &actor, &workspace)? {
                 println!("{}", serde_json::to_string(&event)?);
             }
-        }
         Ok(())
     })
 }
@@ -188,11 +187,10 @@ pub fn run_after_tool() -> Result<()> {
     let stdin = read_stdin()?;
     let body = normalize_stdin(&stdin, "after-tool");
     try_daemon_or_local("after-tool", &body, || {
-        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id()) {
-            if let Some(event) = handle_after_tool(&stdin, &actor, &workspace)? {
+        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id())
+            && let Some(event) = handle_after_tool(&stdin, &actor, &workspace)? {
                 println!("{}", serde_json::to_string(&event)?);
             }
-        }
         Ok(())
     })
 }

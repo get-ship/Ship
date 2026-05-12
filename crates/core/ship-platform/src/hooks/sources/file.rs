@@ -92,7 +92,7 @@ async fn file_source_task(
 ) {
     let (fs_tx, mut fs_rx) = tokio::sync::mpsc::unbounded_channel::<FsEvent>();
 
-    let mut watcher_handle: Option<notify::RecommendedWatcher> = None;
+    let mut _watcher_handle: Option<notify::RecommendedWatcher> = None;
     let mut entries: Vec<FileTriggerEntry> = Vec::new();
 
     loop {
@@ -103,7 +103,7 @@ async fn file_source_task(
                 let Some(defs) = new_defs else { break };
                 // Rebuild watcher and entries from the new definitions.
                 let tx = fs_tx.clone();
-                (watcher_handle, entries) = rebuild_watcher(defs, tx, &ship_dir);
+                (_watcher_handle, entries) = rebuild_watcher(defs, tx, &ship_dir);
             }
 
             event = fs_rx.recv() => {

@@ -27,9 +27,13 @@ const SKILLS_DIR = join(REPO_ROOT, "docs")
 const OUTPUT_DIR = join(SCRIPT_DIR, "../src/content/docs")
 // Output is treated as build artifact (gitignored). Override via
 // COLLECT_DOCS_OUT for the drift checker which collects into a tempdir.
+//
+// Default canonical target: `apps/docs/src/content/docs/reference`. The
+// drift checker walks the same dir, so per-group output lives directly
+// under it.
 const GENERATED_DIR = process.env.COLLECT_DOCS_OUT
   ? resolve(process.env.COLLECT_DOCS_OUT)
-  : OUTPUT_DIR
+  : join(OUTPUT_DIR, "reference")
 const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
 const SHIP_ELEMENTS_SRC = join(REPO_ROOT, "apps/shipd/assets/ship-elements.js")
 const SHIP_ELEMENTS_DEST = join(PUBLIC_DIR, "ship-elements.js")
@@ -171,7 +175,12 @@ function run(): void {
       const isIndex = basename(file, ".mdoc") === "index"
       const label = isIndex ? null : (meta.title ?? null)
 
-      // Output path: reference/<group>/<filename>.mdoc
+      // Output path: <GENERATED_DIR>/<group>/<filename>.mdoc.
+      // In production GENERATED_DIR is `apps/docs/src/content/docs/reference`
+      // (the drift checker walks that path). The collector default
+      // `OUTPUT_DIR = apps/docs/src/content/docs` is the WRONG path —
+      // overridden via COLLECT_DOCS_OUT by the checker and by the
+      // OUTPUT_DIR-via-`reference/` resolution below.
       const groupDir = join(GENERATED_DIR, group.toLowerCase().replace(/\s+/g, "-"))
       mkdirSync(groupDir, { recursive: true })
 

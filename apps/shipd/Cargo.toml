@@ -99,3 +99,6 @@ chrono = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 tokio = { workspace = true, features = ["full", "test-util"] }
 serde_json = { workspace = true }
+
+[lints]
+workspace = true

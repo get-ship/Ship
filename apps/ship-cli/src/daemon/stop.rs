@@ -75,11 +75,10 @@ pub fn daemon_stop_at(daemon_dir: &Path) -> Result<()> {
     // supervisor and any still-live child to stop the respawn loop.
     let child_pid = pidfile_child_pid(daemon_dir);
     let _ = send_signal(pid, libc::SIGKILL);
-    if let Some(cp) = child_pid {
-        if cp != pid && is_process_alive(cp) {
+    if let Some(cp) = child_pid
+        && cp != pid && is_process_alive(cp) {
             let _ = send_signal(cp, libc::SIGKILL);
         }
-    }
 
     let _ = wait_supervisor_gone(pid, daemon_dir, KILL_SETTLE);
 
@@ -108,11 +107,10 @@ fn wait_supervisor_gone(pid: u32, daemon_dir: &Path, grace: std::time::Duration)
 /// identity; falls back to the legacy `daemon.pid` only when no pidfile
 /// record or lock is present (e.g. partial install or pre-upgrade state).
 fn resolve_supervisor_pid(daemon_dir: &Path) -> Result<Option<(u32, &'static str)>> {
-    if let Some((record, lock_held)) = pidfile::read(daemon_dir)? {
-        if lock_held {
+    if let Some((record, lock_held)) = pidfile::read(daemon_dir)?
+        && lock_held {
             return Ok(Some((record.pid, "supervisor")));
         }
-    }
     let pid_path = daemon_dir.join("pid");
     if let Some(pid) = read_pid(&pid_path)? {
         return Ok(Some((pid, "daemon.pid")));

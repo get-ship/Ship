@@ -232,7 +232,7 @@ fn validate_lane_scoped_consume(
     let fanout_step = pipeline
         .steps
         .iter()
-        .find(|s| s.fanout.as_ref().map_or(false, |f| f.lanes.iter().any(|l| l.id == lane_id)))
+        .find(|s| s.fanout.as_ref().is_some_and(|f| f.lanes.iter().any(|l| l.id == lane_id)))
         .ok_or_else(|| format!(
             "step '{consuming_step_id}' consumes '{full_name}': \
              no fanout step has lane '{lane_id}'"

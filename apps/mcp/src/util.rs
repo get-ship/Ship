@@ -6,6 +6,7 @@ use std::path::PathBuf;
 ///   1. `~/.ship/machine/local.jsonc:worktrees.dir`
 ///   2. `SHIP_WORKTREE_DIR` env (dev/test override)
 ///   3. `~/dev/<project_name>-worktrees/`
+#[allow(dead_code)]
 pub fn configured_worktree_dir(project_root: &std::path::Path) -> PathBuf {
     let project_name = project_root
         .file_name()

@@ -41,6 +41,7 @@ pub(crate) fn resolve_session_providers(
 
 // ---- Provider matrix -------------------------------------------------------
 
+#[allow(dead_code)]
 pub(crate) fn build_session_provider_matrix(
     ship_dir: &Path,
     branch: &str,
@@ -96,6 +97,7 @@ pub(crate) fn resolve_session_context_root(
     ship_dir.parent().unwrap_or(ship_dir).to_path_buf()
 }
 
+#[allow(dead_code)]
 pub(crate) fn missing_provider_configs_for_session(
     context_root: &Path,
     providers: &[String],

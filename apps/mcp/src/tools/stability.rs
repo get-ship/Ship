@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Tool stability + naming registry.
 //!
 //! All MCP tools are always registered (no compile-time gating of tool surface).
@@ -98,7 +99,7 @@ pub const DEPRECATED_PREFIX_FMT: &str =
     "**DEPRECATED** — use `{canonical}` instead. This alias is kept for one release.\n\n";
 
 pub fn is_experimental(name: &str) -> bool {
-    EXPERIMENTAL_TOOLS.iter().any(|n| *n == name)
+    EXPERIMENTAL_TOOLS.contains(&name)
 }
 
 pub fn canonical_name(name: &str) -> &str {
@@ -125,7 +126,7 @@ where
                 .attr
                 .description
                 .clone()
-                .unwrap_or_else(|| Cow::Borrowed(""));
+                .unwrap_or(Cow::Borrowed(""));
             if !prev.starts_with("**EXPERIMENTAL**") {
                 route.attr.description = Some(Cow::Owned(format!("{EXPERIMENTAL_PREFIX}{prev}")));
             }
@@ -143,7 +144,7 @@ where
             .attr
             .description
             .clone()
-            .unwrap_or_else(|| Cow::Borrowed(""));
+            .unwrap_or(Cow::Borrowed(""));
         let prefix = DEPRECATED_PREFIX_FMT.replace("{canonical}", canonical);
         clone.attr.name = Cow::Borrowed(*alias);
         clone.attr.description = Some(Cow::Owned(format!("{prefix}{canonical_desc}")));

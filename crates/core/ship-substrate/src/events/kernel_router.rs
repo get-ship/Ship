@@ -33,7 +33,7 @@ use crate::events::validator::{EmitContext, EventValidator};
 use crate::events::kernel_security::ActorMeta;
 
 #[cfg(feature = "unstable")]
-pub(crate) use ship_kernel::router::MAILBOX_CAPACITY;
+pub use ship_kernel::router::MAILBOX_CAPACITY;
 
 pub use ship_types::ActorConfig;
 
@@ -202,11 +202,10 @@ impl KernelRouter {
             if !originator.is_empty() {
                 counters.entry(originator.to_string()).or_default().bump();
             }
-            if let Some(target) = event.target_actor_id.as_deref() {
-                if !target.is_empty() && target != originator {
+            if let Some(target) = event.target_actor_id.as_deref()
+                && !target.is_empty() && target != originator {
                     counters.entry(target.to_string()).or_default().bump();
                 }
-            }
         }
 
         #[cfg(feature = "unstable")]

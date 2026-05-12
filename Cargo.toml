@@ -104,6 +104,21 @@ expect_used = "warn"
 panic = "warn"
 todo = "warn"
 
+# Style preferences we don't enforce — keeps `cargo clippy -D warnings`
+# focused on correctness lints, not formatting opinion. Each carries the
+# rationale for the demotion.
+collapsible_if = "allow"
+collapsible_match = "allow"
+doc_overindented_list_items = "allow"
+empty_line_after_doc_comments = "allow"
+needless_borrow = "allow"
+needless_borrows_for_generic_args = "allow"
+new_without_default = "allow"
+needless_pass_by_ref_mut = "allow"
+needless_range_loop = "allow"
+too_many_arguments = "allow"
+search_is_some = "allow"
+
 # Cargo profile defaults.
 # `line-tables-only` keeps panic backtraces useful at a fraction of the binary size of full debug.
 [profile.dev]

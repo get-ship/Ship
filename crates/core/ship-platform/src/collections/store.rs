@@ -14,6 +14,7 @@ use super::query::{self, QueryRequest, collection_table};
 use super::schema::{CollectionSchema, FieldType};
 
 /// System columns present on every collection table.
+#[allow(dead_code)]
 const SYSTEM_COLS: &[&str] = &["id", "created_by", "created_at", "updated_at"];
 
 /// Open a DataService backed by `.ship/data.db`.
@@ -182,7 +183,7 @@ pub fn get_item(
 ) -> Result<Option<Item>> {
     let table = collection_table(&schema.id);
     let (sql, values) = Query::select()
-        .expr(Expr::asterisk())
+        .column(sea_query::Asterisk)
         .from(table)
         .and_where(Expr::col(Alias::new("id")).eq(id))
         .build(SqliteQueryBuilder);

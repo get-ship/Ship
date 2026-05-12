@@ -3,9 +3,9 @@
 
 use serde_json::{Value, json};
 
-use super::{RegistryError, html_escape, optional_usize, parse_scope, required_str};
+use super::{RegistryError, parse_scope, required_str};
 use crate::ship_runtime::ApiState;
-use ship_platform::services::files::{FilesService, Scope};
+use ship_platform::services::files::FilesService;
 use std::path::Path;
 
 #[allow(unused_imports, unused_variables)]
@@ -17,12 +17,12 @@ pub(super) fn try_dispatch(
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "permissions.list" => Ok(json!({
-            "items": ship_platform::services::permissions::state::list(&files),
+            "items": ship_platform::services::permissions::state::list(files),
         })),
         "permissions.get" => {
             let id = required_str(args, "id")?;
             let scope = parse_scope(args)?;
-            let (resolved, entry) = ship_platform::services::permissions::state::load_entry(&files, id, scope)
+            let (resolved, entry) = ship_platform::services::permissions::state::load_entry(files, id, scope)
                 .map_err(|e| match e {
                     ship_platform::services::permissions::state::Error::NotFound(m) => RegistryError::not_found(m),
                     other => RegistryError::service(other.to_string()),

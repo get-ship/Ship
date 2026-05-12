@@ -12,7 +12,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use ship_substrate::ShipHome;
@@ -80,7 +79,6 @@ pub(crate) fn expand_tilde(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-pub(crate) use ship_substrate::fs_util::strip_jsonc_comments;
 
 /// Canonical worktrees-dir resolver. Order:
 ///   1. `~/.ship/machine/local.jsonc:worktrees.dir`
@@ -169,7 +167,7 @@ mod tests {
         // The comment-stripping logic must NOT mangle string contents that
         // happen to contain `//` or `/*`.
         let raw = r#"{ "url": "http://example.com" }"#;
-        let stripped = strip_jsonc_comments(raw);
+        let stripped = ship_substrate::fs_util::strip_jsonc_comments(raw);
         assert!(stripped.contains("http://example.com"));
     }
 }

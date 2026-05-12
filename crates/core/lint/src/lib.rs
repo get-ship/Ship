@@ -9,7 +9,7 @@
 //! - `views` — Datastar signal hygiene.
 //! - `pkg`   — view-manifest pack declarations.
 //! - `ast`   — minijinja-AST checks (macros, imports, filters,
-//!            context fields, routes, ship-ops).
+//!   context fields, routes, ship-ops).
 
 use std::path::{Path, PathBuf};
 
@@ -92,7 +92,7 @@ pub fn lint_view_dir(view_dir: &Path) -> Vec<Finding> {
         a.file
             .cmp(&b.file)
             .then_with(|| a.line.cmp(&b.line))
-            .then_with(|| a.rule.cmp(&b.rule))
+            .then_with(|| a.rule.cmp(b.rule))
     });
     findings
 }

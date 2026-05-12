@@ -5,15 +5,14 @@
 //! primitives; only the CLI argv + parsing differ. Shell sessions
 //! skip the adapter and spawn `$SHELL` directly.
 
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
-use ship_platform::services::dispatch_ports::{LaunchCommand, LaunchProfile};
+use ship_platform::services::dispatch_ports::LaunchProfile;
 use ship_platform::services::provider_adapter::adapter_for;
 use tokio::sync::broadcast;
 
@@ -280,7 +279,7 @@ pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
         transport: extras.transport.clone().or(Some("pty".to_string())),
         persistence: extras.persistence.clone().or(Some("long-lived".to_string())),
         system_prompt_hash: extras.system_prompt_hash.clone(),
-        pid: m.pid.map(|p| p as u32),
+        pid: m.pid.map(|p| p),
         capabilities: extras.capabilities.clone(),
         project_id: extras.project_id.clone(),
         cwd: extras.cwd.clone(),
@@ -331,8 +330,8 @@ pub fn sweep_idle(registry: &SessionRegistry) {
         if !matches!(meta.status, SessionStatus::Thinking) {
             continue;
         }
-        if (now - meta.last_activity).num_seconds() >= IDLE_AFTER_SECS {
-            if let Some(session) = registry.get(&meta.id) {
+        if (now - meta.last_activity).num_seconds() >= IDLE_AFTER_SECS
+            && let Some(session) = registry.get(&meta.id) {
                 let mut m = session.0.meta.lock().unwrap();
                 if matches!(m.status, SessionStatus::Thinking)
                     && (Utc::now() - m.last_activity).num_seconds() >= IDLE_AFTER_SECS
@@ -350,7 +349,6 @@ pub fn sweep_idle(registry: &SessionRegistry) {
                     );
                 }
             }
-        }
     }
 }
 

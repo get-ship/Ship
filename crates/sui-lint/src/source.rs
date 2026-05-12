@@ -25,10 +25,9 @@ fn walk(dir: &Path, out: &mut Vec<PathBuf>) {
             walk(&p, out);
             continue;
         }
-        if let Some(name) = p.file_name().and_then(|n| n.to_str()) {
-            if name.ends_with(".sui") || name.ends_with(".controller.ts") {
+        if let Some(name) = p.file_name().and_then(|n| n.to_str())
+            && (name.ends_with(".sui") || name.ends_with(".controller.ts")) {
                 out.push(p);
             }
-        }
     }
 }

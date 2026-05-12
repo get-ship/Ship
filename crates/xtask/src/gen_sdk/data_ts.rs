@@ -222,7 +222,7 @@ fn first_record_field(s: &str) -> Option<(&str, bool)> {
     let inner = s.strip_prefix('{')?;
     // Find the end of the first key — `:`, `,` or `}`.
     let end = inner
-        .find(|c: char| c == ':' || c == ',' || c == '}')
+        .find([':', ',', '}'])
         .unwrap_or(inner.len());
     let key = inner[..end].trim();
     if key.is_empty() {

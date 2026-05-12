@@ -4,7 +4,6 @@
 //! import. See `scripts/lint/check-module-dag.sh` for the constraint.
 
 use serde::Serialize;
-use serde_json::json;
 use utoipa::ToSchema;
 
 /// Envelope returned by every handler under `/api/v1/*` that isn't a

@@ -198,11 +198,10 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
             if is_view && !out.uses_route {
                 if expr_references_route(&iterable.source) {
                     out.uses_route = true;
-                } else if let Some(k) = key {
-                    if expr_references_route(&k.source) {
+                } else if let Some(k) = key
+                    && expr_references_route(&k.source) {
                         out.uses_route = true;
                     }
-                }
             }
             *depth += 1;
             walk_instrs(body, out, is_view, depth);

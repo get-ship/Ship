@@ -153,7 +153,7 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
 
 /// Build the path stored in the metadata row for a given scope + id
 /// (relative to `global_dir/artifacts/`).
-pub fn relative_blob_path(_scope: &ArtifactScope, id: &str, backend: &LocalFsBackend) -> String {
+pub fn relative_blob_path(_scope: &ArtifactScope, id: &str, _backend: &LocalFsBackend) -> String {
     let prefix: String = id.chars().take(2).collect();
     match _scope {
         ArtifactScope::Run { project_id, run_id } => {
@@ -165,6 +165,7 @@ pub fn relative_blob_path(_scope: &ArtifactScope, id: &str, backend: &LocalFsBac
 }
 
 // Only used for blob_path test access — expose the path helper on Path.
+#[allow(dead_code)]
 pub(crate) fn global_blob_path(
     global_dir: &Path,
     scope: &ArtifactScope,

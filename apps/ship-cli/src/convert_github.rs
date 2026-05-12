@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! GitHub-specific conversion: POST to Ship API, write agents/rules/MCP to .ship/.
 
 use anyhow::{Context, Result};

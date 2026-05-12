@@ -3,9 +3,9 @@
 
 use serde_json::{Value, json};
 
-use super::{RegistryError, html_escape, optional_usize, parse_scope, required_str};
+use super::RegistryError;
 use crate::ship_runtime::ApiState;
-use ship_platform::services::files::{FilesService, Scope};
+use ship_platform::services::files::FilesService;
 
 #[allow(unused_imports, unused_variables)]
 pub(super) fn try_dispatch(
@@ -88,8 +88,8 @@ pub(super) fn try_dispatch(
                         .find(|l| l.starts_with("PPid:"))
                         .and_then(|l| l.split_whitespace().nth(1))
                         .and_then(|s| s.parse().ok());
-                    if let Some(pp) = ppid {
-                        if pp > 1 {
+                    if let Some(pp) = ppid
+                        && pp > 1 {
                             processes.push(json!({
                                 "name": "ship daemon supervisor",
                                 "role": "supervisor",
@@ -97,7 +97,6 @@ pub(super) fn try_dispatch(
                                 "alive": pid_alive(pp),
                             }));
                         }
-                    }
                 }
             }
 

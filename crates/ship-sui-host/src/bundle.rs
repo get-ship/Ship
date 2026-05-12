@@ -21,7 +21,7 @@ fn bun_on_path() -> bool {
         .arg("--version")
         .output()
         .ok()
-        .map_or(false, |o| o.status.success())
+        .is_some_and(|o| o.status.success())
 }
 
 pub fn bundle_view(

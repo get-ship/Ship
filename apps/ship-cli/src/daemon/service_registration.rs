@@ -70,7 +70,7 @@ pub fn install_service(opts: InstallOptions) -> Result<ServiceReport> {
         .context("locate shipd binary")?;
     #[cfg(target_os = "linux")]
     {
-        return linux::install(&shipd, &opts);
+        linux::install(&shipd, &opts)
     }
     #[cfg(target_os = "macos")]
     {
@@ -93,7 +93,7 @@ pub fn install_service(opts: InstallOptions) -> Result<ServiceReport> {
 pub fn uninstall_service() -> Result<ServiceReport> {
     #[cfg(target_os = "linux")]
     {
-        return linux::uninstall();
+        linux::uninstall()
     }
     #[cfg(target_os = "macos")]
     {

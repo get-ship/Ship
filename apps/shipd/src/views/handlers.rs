@@ -4,7 +4,6 @@ use std::collections::HashMap;
 
 use axum::{extract::Path, http::StatusCode, response::IntoResponse};
 
-use super::packs::{inject_packs, read_view_packs};
 use super::resolve::{is_valid_view_name, read_manifest_file, resolve_view_dir, scan_views_dir};
 use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 
@@ -89,14 +88,12 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
         Some(v) => v,
         None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };
-    if view_dir.join("manifest.yaml").exists()
+    if (view_dir.join("manifest.yaml").exists()
         || view_dir.join("manifest.jsonc").exists()
-        || view_dir.join("manifest.json").exists()
-    {
-        if let Some(m) = read_manifest_file(&view_dir, &name) {
+        || view_dir.join("manifest.json").exists())
+        && let Some(m) = read_manifest_file(&view_dir, &name) {
             return mesh_ok(serde_json::json!(m));
         }
-    }
     if view_dir.join("index.html").exists() {
         return mesh_ok(serde_json::json!(ViewManifest {
             name: name.clone(), view_type: "html".into(),

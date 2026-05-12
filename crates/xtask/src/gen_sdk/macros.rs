@@ -391,12 +391,11 @@ fn parse_args_block(lines: &[String]) -> Vec<(String, String)> {
         }
         let indent = raw.len() - raw.trim_start().len();
         let content = if raw.len() >= base { &raw[base..] } else { raw.as_str() };
-        if indent == base {
-            if let Some((name, desc)) = content.split_once(':') {
+        if indent == base
+            && let Some((name, desc)) = content.split_once(':') {
                 out.push((name.trim().to_string(), desc.trim().to_string()));
                 continue;
             }
-        }
         if let Some(last) = out.last_mut() {
             last.1 = format!("{} {}", last.1, content.trim()).trim().to_string();
         }

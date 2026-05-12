@@ -17,6 +17,7 @@ pub fn global_skills_dir() -> PathBuf {
     home().vector_dir(ship_substrate::home::Scope::User, Vector::Skills, None)
 }
 /// User-scope MCP config file: `~/.ship/library/mcp.jsonc`.
+#[allow(dead_code)]
 pub fn global_mcp_file() -> PathBuf {
     home().library_dir().join("mcp.jsonc")
 }
