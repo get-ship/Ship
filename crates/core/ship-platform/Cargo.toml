@@ -22,6 +22,10 @@ chrono = { workspace = true }
 nanoid = { workspace = true }
 ulid = { workspace = true }
 walkdir = "2.3"
+# RFC 6902 JSON Patch — FilesService.patch_jsonc consumes these from
+# write_api handlers. No partial-edit shims; patch() is the canonical
+# partial-update path.
+json-patch = "4"
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }

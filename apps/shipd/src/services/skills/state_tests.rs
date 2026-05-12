@@ -1,7 +1,7 @@
 //! SkillService state tests. Pure logic over a tempdir-backed FilesService.
 
 use super::*;
-use crate::services::files::{FilesService, Scope};
+use ship_platform::services::files::{FilesService, Scope};
 use std::path::Path;
 use tempfile::tempdir;
 

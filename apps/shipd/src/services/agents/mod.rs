@@ -31,7 +31,7 @@ use serde::Deserialize;
 
 use crate::access::RuntimeAccess;
 use crate::routes::rest_api::ApiState;
-use super::files::Scope;
+use ship_platform::services::files::Scope;
 use service::{CreateArgs, DuplicateArgs, PutArgs};
 
 // ── URL scope parsing ────────────────────────────────────────────────

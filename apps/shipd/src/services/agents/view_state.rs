@@ -333,7 +333,7 @@ pub struct ToolPatternEntry {
 
 /// Enumerate rules via RuleService state. Returns project+user, project-wins.
 fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
-    let files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    let files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
     crate::services::rules::state::list(&files)
         .into_iter()
         .map(|e| CatalogEntry {
@@ -348,7 +348,7 @@ fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
 /// the three canonical tiers when no file exists — so the UI always has
 /// something to pick.
 fn list_permission_presets(ship_dir: &Path) -> Vec<CatalogEntry> {
-    let files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    let files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
     let entries = crate::services::permissions::state::list(&files);
     if entries.is_empty() {
         return fallback_presets();
@@ -428,7 +428,7 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
     }
 
     // MCP servers — wildcard entry per server. Delegates to McpService.
-    let files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    let files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
     for entry in crate::services::mcp::state::list(&files) {
         out.push(ToolPatternEntry {
             pattern: format!("mcp__{}__*", entry.id),
@@ -449,7 +449,7 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
             description: if s.description.is_empty() { None } else { Some(s.description) },
         })
         .collect();
-    let mcp_files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    let mcp_files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
     let mcp: Vec<CatalogEntry> = crate::services::mcp::state::list(&mcp_files)
         .into_iter()
         .map(|e| {

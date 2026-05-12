@@ -5,7 +5,7 @@
 //! as private and filtered from `list()` + rejected as ids. Non-object
 //! values (metadata like `default_mode`) are also filtered.
 
-use super::super::files::{Error as FileError, FilesService, Scope};
+use ship_platform::services::files::{Error as FileError, FilesService, Scope};
 use serde::Serialize;
 use std::path::PathBuf;
 

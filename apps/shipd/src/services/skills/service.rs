@@ -9,7 +9,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use super::super::files::{FilesService, Scope};
+use ship_platform::services::files::{FilesService, Scope};
 use super::state;
 
 /// Args for `SkillsService::create`. Optional initial frontmatter +

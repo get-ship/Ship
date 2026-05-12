@@ -7,7 +7,7 @@
 //!
 //! Scope model: project wins by default, exactly as AgentService.
 
-use super::super::files::{Error as FileError, FilesService, Scope};
+use ship_platform::services::files::{Error as FileError, FilesService, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 

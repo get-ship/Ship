@@ -8,7 +8,7 @@
 //! `?scope=user` forces the user root. Vars are delegated to the runtime
 //! `skill_vars` module (KV-backed).
 
-use super::super::files::{Error as FileError, FilesService, Scope};
+use ship_platform::services::files::{Error as FileError, FilesService, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 

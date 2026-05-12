@@ -4043,6 +4043,7 @@ dependencies = [
  "globset",
  "home",
  "indexmap",
+ "json-patch",
  "jsonschema",
  "libc",
  "minijinja",

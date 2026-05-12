@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 use crate::routes::rest_api::ApiState;
-use crate::services::files::{FilesService, Scope};
+use ship_platform::services::files::{FilesService, Scope};
 
 /// Structured error returned from a registry call. Rendered verbatim
 /// into the template as an `{error, message}` object (per spec §11.3

@@ -16,3 +16,12 @@ pub mod watcher;
 
 #[cfg(feature = "unstable")]
 pub mod sync;
+
+// L1 domain services (method-oriented; mr-02 surface). Each is a trait
+// + Impl pair that file-backed domain operations (rules, permissions,
+// mcp, skills, agents, ...) consume. FilesService is the foundational
+// path-scoped JSONC read/write helper; the rest follow.
+pub mod files;
+#[cfg(test)]
+#[path = "files_tests.rs"]
+mod files_tests;

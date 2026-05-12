@@ -35,7 +35,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Scope selector. Project is the enclosing repo's `.ship/` resolved via
-/// `ship_application::project::get_project_dir`. User is `~/.ship/`.
+/// `ship_substrate::project::get_project_dir`. User is `~/.ship/`.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Scope {
     Project,
@@ -87,7 +87,7 @@ pub struct FilesService {
 impl FilesService {
     /// Construct from a resolved daemon ship_dir (the user root) and an
     /// optional project ship_dir (typically discovered via
-    /// `ship_application::project::get_project_dir`).
+    /// `ship_substrate::project::get_project_dir`).
     pub fn new(user_root: PathBuf, project_root: Option<PathBuf>) -> Self {
         Self { project_root, user_root }
     }
@@ -96,7 +96,7 @@ impl FilesService {
     /// is the daemon's global `.ship/`; the project root is the enclosing
     /// project's `.ship/` if present.
     pub fn resolve_roots(ship_dir: &Path) -> Self {
-        let project_root = ship_application::project::get_project_dir(None)
+        let project_root = ship_substrate::project::get_project_dir(None)
             .ok()
             .filter(|p| p != ship_dir);
         Self {
@@ -177,7 +177,7 @@ impl FilesService {
     /// before deserialising.
     pub fn read_jsonc<T: DeserializeOwned>(&self, scope: Scope, rel: &Path) -> Result<T, Error> {
         let raw = self.read_string(scope, rel)?;
-        let stripped = crate::services::jsonc::strip_jsonc(&raw);
+        let stripped = ship_substrate::fs_util::strip_jsonc_comments(&raw);
         serde_json::from_str(&stripped).map_err(|e| Error::Json(e.to_string()))
     }
 

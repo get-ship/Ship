@@ -13,7 +13,7 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use super::super::files::{FilesService, Scope};
+use ship_platform::services::files::{FilesService, Scope};
 use super::super::mcp::service::McpService;
 use super::state;
 

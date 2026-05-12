@@ -1,6 +1,6 @@
 //! FilesService tests — path scoping, atomic writes, trash.
 
-use super::*;
+use crate::services::files::*;
 use std::path::Path;
 use tempfile::tempdir;
 

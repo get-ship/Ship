@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use super::super::files::{FilesService, Scope};
+use ship_platform::services::files::{FilesService, Scope};
 use super::state;
 
 /// Body shape returned by `AgentsService::get`.
