@@ -137,6 +137,21 @@ Authors don't call `component()` directly — the compiler emits it.
 9. **`on:<event>` event names must match the platform whitelist:** DOM events, `sui-*` / `ship-*` custom-event families, `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos with Levenshtein suggestions.
 10. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
 
+## Diagnostics via MCP
+
+Before declaring a `.sui` edit done, call `mcp__ship__sui_diagnostics` with the
+component file path to catch parse errors, missing `<prop>`/`<state>`
+attributes, unbound identifiers, or invalid template expressions — feedback the
+agent would otherwise only see during `pnpm -F ui-components test` or
+`cargo test -p sui-compiler`. For a single position, `mcp__ship__sui_hover`
+returns the declaration source + setup return type for an identifier.
+
+```ts
+// Pseudocode:
+// mcp__ship__sui_diagnostics({ file: "packages/ui-components/src/sui-button/sui-button.sui" })
+// mcp__ship__sui_hover({ file: "…/sui-button.sui", line: 12, col: 4 })
+```
+
 ## What's available in a view
 
 Components fall into three buckets:
