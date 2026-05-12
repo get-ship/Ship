@@ -9,18 +9,19 @@
   "bin": {
     "sui-lsp": "bin/sui-lsp.js"
   },
-  "files": [
-    "src",
-    "dist",
-    "bin"
-  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "pretest": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "cli": "bun src/cli.ts"
   },
+  "files": [
+    "src",
+    "dist",
+    "bin"
+  ],
   "dependencies": {
     "typescript": "~5.4.5",
     "vscode-languageserver": "^9.0.1",

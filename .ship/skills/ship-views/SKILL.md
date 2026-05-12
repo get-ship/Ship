@@ -282,6 +282,21 @@ The router (`packages/ship-set/src/router/`) walks `views/` at build/start time 
 10. **`on:<event>` event names must match the platform whitelist:** DOM events (`click`, `input`, …), `sui-*` / `ship-*` custom-event families, and `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos like `on:Click` with Levenshtein suggestions.
 11. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
 
+## Diagnostics via MCP
+
+Before declaring a `.sui` edit done, call `mcp__ship__sui_diagnostics` with the
+file path to surface compile-grammar issues, missing bindings, or unstable-key
+warnings. This catches syntax errors that would only otherwise surface during
+`pnpm -F ui-components test` or `cargo test -p sui-compiler`. For type +
+binding info at a point, `mcp__ship__sui_hover` returns the same content the
+VS Code extension shows.
+
+```ts
+// Pseudocode:
+// mcp__ship__sui_diagnostics({ file: "packages/ui-components/src/sui-button/sui-button.sui" })
+// mcp__ship__sui_hover({ file: "…/sui-button.sui", line: 12, col: 4 })
+```
+
 ## Components
 
 Views compose `<sui-*>` components from `packages/ui-components/`. See the `ship-components` skill for the component contract.

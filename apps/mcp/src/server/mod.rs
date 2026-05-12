@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use crate::requests::*;
 use crate::tools::{
     artifacts as artifact_tools, dispatch as dispatch_tools, event, job as job_tools, project,
-    session, session_files, skills, stability,
+    session, session_files, skills, stability, sui_lsp as sui_lsp_tools,
 };
 use skills::set_skill_var_tool;
 
@@ -768,6 +768,36 @@ impl ShipServer {
         Parameters(req): Parameters<crate::requests::ViewScaffoldRequest>,
     ) -> String {
         crate::tools::view_scaffold::view_scaffold(req)
+    }
+
+    // ---- Sui LSP ----
+
+    #[tool(
+        description = "Run sui-lsp diagnostics on a `.sui` file and return the same \
+        findings the VS Code extension surfaces. Call BEFORE declaring a `.sui` edit done. \
+        Catches parse errors, missing directive attributes, assignments inside template \
+        expressions, arrow functions outside `on:` handlers, unbound identifiers, and \
+        missing setup keys — feedback the agent would otherwise only see at build time. \
+        Args: file (absolute path or workspace-relative)."
+    )]
+    async fn sui_diagnostics(
+        &self,
+        Parameters(req): Parameters<crate::requests::SuiDiagnosticsRequest>,
+    ) -> String {
+        sui_lsp_tools::sui_diagnostics(&req.file).await
+    }
+
+    #[tool(
+        description = "Return hover info for an identifier or directive at a (line, col) \
+        position in a `.sui` file — declaration source, setup-return type, namespace \
+        contributions, or the directive contract reminder. \
+        Args: file (path), line (0-based), col (0-based)."
+    )]
+    async fn sui_hover(
+        &self,
+        Parameters(req): Parameters<crate::requests::SuiHoverRequest>,
+    ) -> String {
+        sui_lsp_tools::sui_hover(&req.file, req.line, req.col).await
     }
 
     // ---- Artifacts ----
