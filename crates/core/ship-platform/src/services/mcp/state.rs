@@ -9,7 +9,7 @@
 //! Scope model: project wins by default. Listing returns both scopes with
 //! annotations; on id collision the project entry shadows user.
 
-use ship_platform::services::files::{Error as FileError, FilesService, Scope};
+use crate::services::files::{Error as FileError, FilesService, Scope};
 use serde::Serialize;
 use std::path::PathBuf;
 

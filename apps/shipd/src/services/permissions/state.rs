@@ -195,7 +195,7 @@ pub fn patch_entry(
     };
     let mut root = load_root(files, scope)?;
     let mut entry = root.get(id).cloned().ok_or_else(|| Error::NotFound(id.into()))?;
-    crate::services::path_tolerant::ensure_paths_for_adds(&mut entry, patch);
+    ship_platform::services::path_tolerant::ensure_paths_for_adds(&mut entry, patch);
     json_patch::patch(&mut entry, patch).map_err(|e| Error::Patch(e.to_string()))?;
     let obj = root_mut(&mut root);
     obj.insert(id.to_string(), entry);

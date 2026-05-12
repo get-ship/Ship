@@ -429,7 +429,7 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
 
     // MCP servers — wildcard entry per server. Delegates to McpService.
     let files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
-    for entry in crate::services::mcp::state::list(&files) {
+    for entry in ship_platform::services::mcp::state::list(&files) {
         out.push(ToolPatternEntry {
             pattern: format!("mcp__{}__*", entry.id),
             label: format!("mcp · {} · all tools", entry.id),
@@ -450,11 +450,11 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
         })
         .collect();
     let mcp_files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
-    let mcp: Vec<CatalogEntry> = crate::services::mcp::state::list(&mcp_files)
+    let mcp: Vec<CatalogEntry> = ship_platform::services::mcp::state::list(&mcp_files)
         .into_iter()
         .map(|e| {
             // Best-effort name: load entry and use `name` if present, else id.
-            let name = crate::services::mcp::state::load_entry(&mcp_files, &e.id, None)
+            let name = ship_platform::services::mcp::state::load_entry(&mcp_files, &e.id, None)
                 .ok()
                 .and_then(|(_, v)| v.get("name").and_then(|n| n.as_str()).map(String::from))
                 .unwrap_or_else(|| e.id.clone());

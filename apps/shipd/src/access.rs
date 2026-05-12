@@ -25,7 +25,7 @@ use crate::services::agents::service::AgentsService;
 use crate::services::artifacts::service::ArtifactsService;
 use crate::services::collections::service::CollectionsService;
 use crate::services::git::service::GitService;
-use crate::services::mcp::service::McpService;
+use ship_platform::services::mcp::service::McpService;
 use crate::services::permissions::service::PermissionsService;
 use crate::services::pipelines::service::PipelinesService;
 use ship_platform::services::rules::service::RulesService;

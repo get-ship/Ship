@@ -23,6 +23,8 @@ pub mod sync;
 // path-scoped JSONC read/write helper; the rest follow as their HTTP
 // shims stay in shipd (apps/shipd/src/services/<domain>/mod.rs).
 pub mod files;
+pub mod mcp;
+pub mod path_tolerant;
 pub mod rules;
 #[cfg(test)]
 #[path = "files_tests.rs"]

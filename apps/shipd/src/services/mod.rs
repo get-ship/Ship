@@ -10,7 +10,6 @@
 // first_letter); strip_jsonc delegates to ship_substrate::fs_util::strip_jsonc_comments.
 pub mod jsonc;
 pub mod launcher;
-pub mod path_tolerant;
 pub mod registry;
 pub mod schema;
 pub mod ship_ns;

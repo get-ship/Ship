@@ -195,7 +195,7 @@ pub fn patch_doc(
     // ancestors are missing), but it matches user expectations and
     // avoids every client having to do a GET-then-PUT dance.
     let mut doc: serde_json::Value = files.read_jsonc(scope, &rel)?;
-    crate::services::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
+    ship_platform::services::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
     json_patch::patch(&mut doc, patch).map_err(|e| Error::Patch(e.to_string()))?;
     files.write_jsonc(scope, &rel, &doc)?;
     Ok(scope)

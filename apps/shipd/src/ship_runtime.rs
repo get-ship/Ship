@@ -122,7 +122,7 @@ pub struct ShipRuntime {
     /// cross-domain `tool_patterns` composition.
     permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService>,
     /// `McpService` impl — third mr-02 pilot.
-    mcp: std::sync::Arc<dyn crate::services::mcp::service::McpService>,
+    mcp: std::sync::Arc<dyn ship_platform::services::mcp::service::McpService>,
     /// `SkillsService` impl — fourth mr-02 migration.
     skills: std::sync::Arc<dyn crate::services::skills::service::SkillsService>,
     /// `AgentsService` impl — fifth mr-02 migration.
@@ -382,7 +382,7 @@ impl ShipRuntime {
                 // tool_patterns; build the same impl the runtime exposes
                 // so HTTP and trait-to-trait paths see one catalog.
                 let mcp_for_perms =
-                    crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
+                    ship_platform::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
                 std::sync::Arc::new(
                     crate::services::permissions::service::PermissionsServiceImpl::with_roots(
                         global_dir.clone(),
@@ -391,7 +391,7 @@ impl ShipRuntime {
                     ),
                 )
             },
-            mcp: crate::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
+            mcp: ship_platform::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
             skills: crate::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             agents: crate::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: crate::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
@@ -475,7 +475,7 @@ impl ShipRuntime {
     }
 
     /// `McpService` accessor — third mr-02 pilot.
-    pub fn mcp(&self) -> &dyn crate::services::mcp::service::McpService {
+    pub fn mcp(&self) -> &dyn ship_platform::services::mcp::service::McpService {
         &*self.mcp
     }
 
@@ -783,7 +783,7 @@ impl ShipRuntime {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
@@ -859,7 +859,7 @@ impl ShipRuntime {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
         let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
-        let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
