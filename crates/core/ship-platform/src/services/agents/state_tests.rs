@@ -1,7 +1,7 @@
 //! AgentService state tests. Pure logic, file-backed via temp dirs.
 
-use super::*;
-use ship_platform::services::files::{FilesService, Scope};
+use crate::services::agents::state::*;
+use crate::services::files::{FilesService, Scope};
 use std::path::Path;
 use tempfile::tempdir;
 

@@ -8,7 +8,7 @@
 // FilesService relocated to ship_platform::services::files (Phase 2).
 // `jsonc` keeps the agent-config-specific helpers (parse_file, resolve_array_field,
 // first_letter); strip_jsonc delegates to ship_substrate::fs_util::strip_jsonc_comments.
-pub mod jsonc;
+
 pub mod launcher;
 pub mod registry;
 pub mod schema;

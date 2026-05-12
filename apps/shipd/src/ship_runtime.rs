@@ -126,7 +126,7 @@ pub struct ShipRuntime {
     /// `SkillsService` impl — fourth mr-02 migration.
     skills: std::sync::Arc<dyn ship_platform::services::skills::service::SkillsService>,
     /// `AgentsService` impl — fifth mr-02 migration.
-    agents: std::sync::Arc<dyn crate::services::agents::service::AgentsService>,
+    agents: std::sync::Arc<dyn ship_platform::services::agents::service::AgentsService>,
     /// `PipelinesService` impl — sixth mr-02 migration (definition CRUD only;
     /// dispatch / cancel / runs still flow through `runtime_api`).
     pipelines: std::sync::Arc<dyn crate::services::pipelines::service::PipelinesService>,
@@ -393,7 +393,7 @@ impl ShipRuntime {
             },
             mcp: ship_platform::services::mcp::service::McpServiceImpl::arc(global_dir.clone()),
             skills: ship_platform::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
-            agents: crate::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
+            agents: ship_platform::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: crate::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
             git: crate::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             collections,
@@ -485,7 +485,7 @@ impl ShipRuntime {
     }
 
     /// `AgentsService` accessor.
-    pub fn agents(&self) -> &dyn crate::services::agents::service::AgentsService {
+    pub fn agents(&self) -> &dyn ship_platform::services::agents::service::AgentsService {
         &*self.agents
     }
 
@@ -785,7 +785,7 @@ impl ShipRuntime {
         let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
-        let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());
@@ -861,7 +861,7 @@ impl ShipRuntime {
         let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = ship_platform::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
-        let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
+        let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             crate::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
         let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());

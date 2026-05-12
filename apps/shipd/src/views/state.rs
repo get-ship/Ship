@@ -19,7 +19,7 @@
 // Agents + Skills state lives in sibling modules to respect the 300-line
 // cap on this file. Re-exports let callers use `views::state::list_agents`
 // without knowing about the split.
-pub use crate::services::agents::view_state::{
+pub use ship_platform::services::agents::view_state::{
     AgentCatalogs, AgentDetail, AgentSummary, CatalogEntry, Permissions,
     ToolPatternEntry, list_agent_catalogs, list_agents, load_agent,
 };

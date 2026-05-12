@@ -2,7 +2,7 @@
 //!
 //! Reads agent configs from `<ship_dir>/agents/*.{jsonc,json}` across two
 //! scopes and merges them — project (discovered from cwd via
-//! `ship_application::project::get_project_dir`) wins over global on id collision.
+//! `ship_substrate::project::get_project_dir`) wins over global on id collision.
 //! Each summary/detail carries a `source` field so the view can group the
 //! rail by scope.
 //!
@@ -12,12 +12,12 @@ use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use super::super::jsonc::{first_letter, parse_file, resolve_array_field};
+use crate::services::jsonc::{first_letter, parse_file, resolve_array_field};
 
 // Re-export helpers whose names tests refer to directly (via `super::*`
 // in the sibling tests file). Canonical home is `agents_jsonc`.
 #[cfg(test)]
-pub(crate) use super::super::jsonc::strip_jsonc;
+pub(crate) use crate::services::jsonc::strip_jsonc;
 
 #[derive(Clone, Debug, Serialize)]
 #[cfg_attr(feature = "specta", derive(specta::Type))]
@@ -93,7 +93,7 @@ pub(crate) struct AgentScopes {
 }
 
 fn resolve_scopes(ship_dir: &Path) -> AgentScopes {
-    let project_ship = ship_application::project::get_project_dir(None)
+    let project_ship = ship_substrate::project::get_project_dir(None)
         .ok()
         .filter(|p| p != ship_dir);
     scopes_from(ship_dir, project_ship.as_deref())
@@ -333,7 +333,7 @@ pub struct ToolPatternEntry {
 
 /// Enumerate rules via RuleService state. Returns project+user, project-wins.
 fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
-    let files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
+    let files = crate::services::files::FilesService::resolve_roots(ship_dir);
     super::state::list(&files)
         .into_iter()
         .map(|e| CatalogEntry {
@@ -348,15 +348,15 @@ fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
 /// the three canonical tiers when no file exists — so the UI always has
 /// something to pick.
 fn list_permission_presets(ship_dir: &Path) -> Vec<CatalogEntry> {
-    let files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
-    let entries = ship_platform::services::permissions::state::list(&files);
+    let files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    let entries = crate::services::permissions::state::list(&files);
     if entries.is_empty() {
         return fallback_presets();
     }
     // Load each preset's doc so we can surface `description` (best-effort).
     let mut out: Vec<CatalogEntry> = Vec::new();
     for e in entries {
-        let description = ship_platform::services::permissions::state::load_entry(&files, &e.id, None)
+        let description = crate::services::permissions::state::load_entry(&files, &e.id, None)
             .ok()
             .and_then(|(_, v)| v.get("description").and_then(|d| d.as_str()).map(String::from));
         out.push(CatalogEntry {
@@ -428,8 +428,8 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
     }
 
     // MCP servers — wildcard entry per server. Delegates to McpService.
-    let files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
-    for entry in ship_platform::services::mcp::state::list(&files) {
+    let files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    for entry in crate::services::mcp::state::list(&files) {
         out.push(ToolPatternEntry {
             pattern: format!("mcp__{}__*", entry.id),
             label: format!("mcp · {} · all tools", entry.id),
@@ -441,7 +441,7 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
 }
 
 pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
-    let skills = ship_platform::services::skills::view_state::list_skills(ship_dir)
+    let skills = crate::services::skills::view_state::list_skills(ship_dir)
         .into_iter()
         .map(|s| CatalogEntry {
             id: s.id,
@@ -449,12 +449,12 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
             description: if s.description.is_empty() { None } else { Some(s.description) },
         })
         .collect();
-    let mcp_files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
-    let mcp: Vec<CatalogEntry> = ship_platform::services::mcp::state::list(&mcp_files)
+    let mcp_files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    let mcp: Vec<CatalogEntry> = crate::services::mcp::state::list(&mcp_files)
         .into_iter()
         .map(|e| {
             // Best-effort name: load entry and use `name` if present, else id.
-            let name = ship_platform::services::mcp::state::load_entry(&mcp_files, &e.id, None)
+            let name = crate::services::mcp::state::load_entry(&mcp_files, &e.id, None)
                 .ok()
                 .and_then(|(_, v)| v.get("name").and_then(|n| n.as_str()).map(String::from))
                 .unwrap_or_else(|| e.id.clone());

@@ -4,7 +4,7 @@
 //! These drive `scopes_from` + `*_with_scopes` variants directly so
 //! parallel tests don't race on the process-global `SHIP_DEV_PROJECT_DIR` env var.
 
-use super::*;
+use crate::services::agents::view_state::*;
 use std::path::Path;
 use tempfile::tempdir;
 

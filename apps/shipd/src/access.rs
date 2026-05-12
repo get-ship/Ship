@@ -21,7 +21,7 @@ use std::sync::Arc;
 pub use ship_substrate::access::{ConfigAccess, KernelAccess, MeshAccess, SharedKernel};
 
 use crate::auth::SessionRegistry;
-use crate::services::agents::service::AgentsService;
+use ship_platform::services::agents::service::AgentsService;
 use crate::services::artifacts::service::ArtifactsService;
 use crate::services::collections::service::CollectionsService;
 use crate::services::git::service::GitService;

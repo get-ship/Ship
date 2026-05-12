@@ -60,7 +60,7 @@ fn parse_manifest_events(path: &std::path::Path) -> Option<Vec<String>> {
     let value: serde_json::Value = match ext {
         "yaml" | "yml" => serde_yaml::from_str(&raw).ok()?,
         _ => {
-            let stripped = crate::services::jsonc::strip_jsonc(&raw);
+            let stripped = ship_substrate::fs_util::strip_jsonc_comments(&raw);
             serde_json::from_str(&stripped).ok()?
         }
     };

@@ -16,12 +16,6 @@
 //! Runtime actions (invoke/stop/steer) already live in `runtime_api` and
 //! stay there — that module is the runtime-state side of the domain.
 
-pub mod create;
-pub mod service;
-pub mod settings_view;
-pub mod state;
-pub mod view_state;
-pub mod wire;
 
 
 use axum::extract::{Path, Query, State};
@@ -32,7 +26,7 @@ use serde::Deserialize;
 use crate::access::RuntimeAccess;
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
-use service::{CreateArgs, DuplicateArgs, PutArgs};
+use ship_platform::services::agents::service::{CreateArgs, DuplicateArgs, PutArgs};
 
 // ── URL scope parsing ────────────────────────────────────────────────
 
@@ -84,8 +78,8 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
     (status, Json(serde_json::json!({ "ok": false, "error": code, "message": message.into() })))
 }
 
-fn map_err(e: state::Error) -> Resp {
-    use state::Error::*;
+fn map_err(e: ship_platform::services::agents::state::Error) -> Resp {
+    use ship_platform::services::agents::state::Error::*;
     match e {
         NotFound(m)         => err(StatusCode::NOT_FOUND, "not_found", m),
         AlreadyExists(m)    => err(StatusCode::CONFLICT, "exists", m),
@@ -135,7 +129,7 @@ pub async fn put(
         .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(target),
+        "scope": ship_platform::services::agents::state::ScopeTag::from(target),
     })))
 }
 
@@ -153,7 +147,7 @@ pub async fn patch(
     let resolved = state.services().agents().patch(&id, scope, &patch).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::agents::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -167,7 +161,7 @@ pub async fn delete(
     let resolved = state.services().agents().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::agents::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -199,7 +193,7 @@ pub async fn create(
     Ok(created(serde_json::json!({
         "ok": true,
         "id": body.id,
-        "scope": state::ScopeTag::from(scope),
+        "scope": ship_platform::services::agents::state::ScopeTag::from(scope),
     })))
 }
 
@@ -216,7 +210,7 @@ pub async fn rename(
     let resolved = state.services().agents().rename(&id, &body.new_id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": body.new_id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::agents::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -250,7 +244,7 @@ pub async fn duplicate(
         .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": body.new_id,
-        "scope": state::ScopeTag::from(scope),
+        "scope": ship_platform::services::agents::state::ScopeTag::from(scope),
     })))
 }
 
@@ -271,16 +265,11 @@ pub async fn move_scope(
     state.services().agents().move_scope(&id, from_scope, to).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(to),
+        "scope": ship_platform::services::agents::state::ScopeTag::from(to),
     })))
 }
 
-// Result type alias so axum accepts our error tuples via impl IntoResponse.
-// Axum's Json<T> -> Response, so we manually wrap the err path.
-impl axum::response::IntoResponse for state::Error {
-    fn into_response(self) -> axum::response::Response {
-        let (status, body) = map_err(self);
-        (status, body).into_response()
-    }
-}
+// Orphan rules: state::Error lives in ship_platform now, so we can't
+// `impl axum::IntoResponse` for it directly. The handlers route through
+// `.map_err(map_err)?` instead — explicit and orphan-rule-clean.
 
