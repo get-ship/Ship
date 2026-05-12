@@ -131,6 +131,68 @@ pub enum Route {
     /// @route GET "/api/v1/themes"
     ListThemes,
 
+    // ── SUI framework hosting (ship-sui-server handlers) ──
+
+    /// @route GET "/api/assets/sui-custom-elements.json"
+    AssetSuiCustomElementsManifest,
+
+    /// @route GET "/_sui/runtime.js"
+    SuiRuntimeJs,
+
+    /// @route GET "/_sui/dom.js"
+    SuiDomJs,
+
+    /// @route GET "/_sui/sdk-client.js"
+    SuiSdkClientJs,
+
+    /// @route GET "/_sui/components.js"
+    SuiComponentsJs,
+
+    /// @route GET "/_sui/lucide-icons.json"
+    SuiLucideIconsJson,
+
+    /// @route GET "/_sui/islands/{tag}/island.js"
+    SuiIsland { tag: String },
+
+    /// @route GET "/_sui/views/{name}/view.sui"
+    SuiViewTemplate { name: String },
+
+    /// @route GET "/_sui/views/{name}/view.js"
+    SuiViewSetup { name: String },
+
+    /// @route GET "/_sui/views/{name}"
+    SuiViewPayload { name: String },
+
+    /// @route GET "/_sui/views/{name}/view.css"
+    SuiViewCss { name: String },
+
+    /// @route GET "/_sui/views/{name}/sse"
+    SuiViewSse { name: String },
+
+    /// @route GET "/view-host"
+    SuiViewHost,
+
+    /// @route GET "/sui/{name}"
+    SuiViewHostForName { name: String },
+
+    /// @route GET "/_sui/hmr"
+    SuiHmr,
+
+    /// @route GET "/_sui/hmr-client.js"
+    SuiHmrClientJs,
+
+    /// @route GET "/_sui/dev/hmr"
+    SuiDevHmr,
+
+    /// @route GET "/_sui/data"
+    SuiData,
+
+    /// @route POST "/_sui/mutation/{name}"
+    SuiMutation { name: String },
+
+    /// @route POST "/_sui/views/{name}/patch-elements"
+    SuiPatchElements { name: String },
+
     // ── AgentService — service-shaped CRUD + lifecycle ──
 
     /// @route GET "/api/v1/agents"

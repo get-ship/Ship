@@ -127,6 +127,72 @@ pub fn build_router(
         .ship_route(Route::AssetJinjaMacrosMd, views::serve_jinja_macros_md)
         .ship_route(Route::AssetThemeCss, views::serve_theme_css)
         .ship_route(Route::ListThemes, views::serve_themes_list)
+        // SUI framework hosting — runtime/dom/sdk/components bundles +
+        // per-view template/payload/css + HMR + mutation/data. These all
+        // sit under `/_sui/*` (plus `/view-host` and `/sui/{name}`); the
+        // handlers live in `ship_sui` (asset serving) and
+        // `apps/shipd/src/views/sui_*.rs` (project-scoped state-aware
+        // endpoints). State plumbs through `with_state(st)` at the
+        // bottom of this builder.
+        .ship_route(
+            Route::AssetSuiCustomElementsManifest,
+            views::serve_sui_elements_manifest,
+        )
+        .ship_route(Route::SuiRuntimeJs, ship_sui::serve_sui_runtime)
+        .ship_route(Route::SuiDomJs, ship_sui::serve_sui_dom)
+        .ship_route(Route::SuiSdkClientJs, ship_sui::serve_sui_sdk_client)
+        .ship_route(Route::SuiComponentsJs, ship_sui::serve_sui_components)
+        .ship_route(Route::SuiLucideIconsJson, ship_sui::serve_sui_lucide_icons)
+        .ship_route(Route::SuiIsland_template(), ship_sui::serve_sui_island)
+        .ship_route(
+            Route::SuiViewTemplate_template(),
+            ship_sui::serve_sui_view_template,
+        )
+        .ship_route(
+            Route::SuiViewSetup_template(),
+            ship_sui::serve_sui_view_setup,
+        )
+        .ship_route(
+            Route::SuiViewPayload_template(),
+            ship_sui::serve_view_payload,
+        )
+        .ship_route(
+            Route::SuiViewCss_template(),
+            ship_sui::serve_sui_view_css,
+        )
+        .ship_route(Route::SuiViewSse_template(), views::sui_sse::serve_sui_sse)
+        .ship_route(Route::SuiViewHost, ship_sui::serve_view_host)
+        .ship_route(
+            Route::SuiViewHostForName_template(),
+            ship_sui::serve_view_host,
+        )
+        .ship_route(Route::SuiHmr, views::sui_hmr::serve_hmr)
+        .ship_route(Route::SuiHmrClientJs, views::sui_hmr::serve_hmr_client_js)
+        .ship_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr)
+        .ship_route(Route::SuiData, views::sui_data::serve_data)
+        .ship_route(
+            Route::SuiMutation_template(),
+            views::sui_mutation::serve_sui_mutation,
+        )
+        .ship_route(
+            Route::SuiPatchElements_template(),
+            views::sui_agent_push::serve_patch_elements,
+        )
+        // Glob-param SUI fallbacks — the Route enum doesn't model `{*sub_path}`,
+        // so these stay as direct `.route()` calls to preserve the donor
+        // surface (view-host + payload sub-path + studio /sui/{name}/{*sub_path}).
+        .route(
+            "/_sui/views/{name}/{*sub_path}",
+            axum::routing::get(ship_sui::serve_view_payload_subpath),
+        )
+        .route(
+            "/view-host/{*rest}",
+            axum::routing::get(ship_sui::serve_view_host),
+        )
+        .route(
+            "/sui/{name}/{*sub_path}",
+            axum::routing::get(ship_sui::serve_view_host),
+        )
         // First-run flow — both routes are unauthenticated so a fresh
         // install can reach the setup wizard before any browser is paired.
         .ship_route(Route::Index, views::setup::index_handler)
@@ -138,7 +204,12 @@ pub fn build_router(
         .route(
             "/_ship/components/{file}",
             axum::routing::get(views::components::serve_component_js),
-        );
+        )
+        // SUI state-using handlers (sui_sse, sui_data, sui_mutation,
+        // sui_agent_push) extract `State<ApiState>`. Bind the state here
+        // so the resulting Router<()> can merge cleanly with the root
+        // Router::new() at the bottom of this builder.
+        .with_state(rt.clone());
 
     let auth_token = token;
     let auth_registry = session_registry;

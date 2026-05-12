@@ -13,9 +13,9 @@
   <script type="importmap">
     {
       "imports": {
-        "@ship/ui-runtime":    "/_sui/runtime.js",
-        "@ship/ui-dom":        "/_sui/dom.js",
-        "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+        "@ship/sui-runtime":    "/_sui/runtime.js",
+        "@ship/sui-dom":        "/_sui/dom.js",
+        "@ship/sdk-client": "/_sui/sdk-client.js"
       }
     }
   </script>
@@ -43,7 +43,7 @@
        → name = "ship-ui-studio/sui-button"). The runtime fetches
        /_sui/views/<that> and mounts the payload here. -->
   <script type="module">
-    import { mount } from '@ship/ui-runtime'
+    import { mount } from '@ship/sui-runtime'
 
     function viewPathFromLocation() {
       const path = location.pathname

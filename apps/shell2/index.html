@@ -32,9 +32,9 @@
   <script type="importmap">
     {
       "imports": {
-        "@ship/ui-runtime":    "/_sui/runtime.js",
-        "@ship/ui-dom":        "/_sui/dom.js",
-        "@ship/ui-sdk-client": "/_sui/sdk-client.js"
+        "@ship/sui-runtime":    "/_sui/runtime.js",
+        "@ship/sui-dom":        "/_sui/dom.js",
+        "@ship/sdk-client": "/_sui/sdk-client.js"
       }
     }
   </script>
@@ -64,7 +64,7 @@
     })();
   </script>
 
-  <!-- Bootstrap @ship/ui-runtime onto window before main.ts runs. The
+  <!-- Bootstrap @ship/sui-runtime onto window before main.ts runs. The
        IIFE-injected script is opaque to Vite's import-analysis (which
        would otherwise rewrite the bare specifier or append `?import`,
        creating a SECOND runtime instance separate from the one compiled
@@ -80,7 +80,7 @@
         var s = document.createElement('script');
         s.type = 'module';
         s.textContent =
-          "import * as r from '@ship/ui-runtime'; window.__suiRuntime = r; window.dispatchEvent(new Event('sui-runtime-ready'));";
+          "import * as r from '@ship/sui-runtime'; window.__suiRuntime = r; window.dispatchEvent(new Event('sui-runtime-ready'));";
         document.head.appendChild(s);
         window.addEventListener('sui-runtime-ready', function () { res(window.__suiRuntime); }, { once: true });
       });

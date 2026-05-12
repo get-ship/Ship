@@ -22,6 +22,26 @@
 {%- macro asset_jinja_macros_md() -%}/api/assets/jinja-macros.md{%- endmacro -%}
 {%- macro asset_theme_css() -%}/api/assets/theme.css{%- endmacro -%}
 {%- macro list_themes() -%}/api/v1/themes{%- endmacro -%}
+{%- macro asset_sui_custom_elements_manifest() -%}/api/assets/sui-custom-elements.json{%- endmacro -%}
+{%- macro sui_runtime_js() -%}/_sui/runtime.js{%- endmacro -%}
+{%- macro sui_dom_js() -%}/_sui/dom.js{%- endmacro -%}
+{%- macro sui_sdk_client_js() -%}/_sui/sdk-client.js{%- endmacro -%}
+{%- macro sui_components_js() -%}/_sui/components.js{%- endmacro -%}
+{%- macro sui_lucide_icons_json() -%}/_sui/lucide-icons.json{%- endmacro -%}
+{%- macro sui_island(tag) -%}/_sui/islands/{{ tag }}/island.js{%- endmacro -%}
+{%- macro sui_view_template(name) -%}/_sui/views/{{ name }}/view.sui{%- endmacro -%}
+{%- macro sui_view_setup(name) -%}/_sui/views/{{ name }}/view.js{%- endmacro -%}
+{%- macro sui_view_payload(name) -%}/_sui/views/{{ name }}{%- endmacro -%}
+{%- macro sui_view_css(name) -%}/_sui/views/{{ name }}/view.css{%- endmacro -%}
+{%- macro sui_view_sse(name) -%}/_sui/views/{{ name }}/sse{%- endmacro -%}
+{%- macro sui_view_host() -%}/view-host{%- endmacro -%}
+{%- macro sui_view_host_for_name(name) -%}/sui/{{ name }}{%- endmacro -%}
+{%- macro sui_hmr() -%}/_sui/hmr{%- endmacro -%}
+{%- macro sui_hmr_client_js() -%}/_sui/hmr-client.js{%- endmacro -%}
+{%- macro sui_dev_hmr() -%}/_sui/dev/hmr{%- endmacro -%}
+{%- macro sui_data() -%}/_sui/data{%- endmacro -%}
+{%- macro sui_mutation(name) -%}/_sui/mutation/{{ name }}{%- endmacro -%}
+{%- macro sui_patch_elements(name) -%}/_sui/views/{{ name }}/patch-elements{%- endmacro -%}
 {%- macro agents_list() -%}/api/v1/agents{%- endmacro -%}
 {%- macro agents_get(id) -%}/api/v1/agents/{{ id }}{%- endmacro -%}
 {%- macro agents_put(id) -%}/api/v1/agents/{{ id }}{%- endmacro -%}
