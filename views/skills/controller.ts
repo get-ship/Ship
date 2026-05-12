@@ -6,6 +6,7 @@ export default controller<Scope>({
     const q = signal('')
     const kind = signal('all')
     const tag = signal('')
-    return { q, kind, tag }
+    const skillId = signal('')
+    return { q, kind, tag, skillId }
   },
 })

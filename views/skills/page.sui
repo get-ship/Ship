@@ -1,4 +1,5 @@
 <data name="rail" source="ship.skills.summaries({q: q(), kind: kind(), tag: tag()})" live />
+<data name="skill" source="ship.skills.detail({id: skillId()})" />
 
 <div class="ship-view ship-view-skills">
   <div class="skills-ide">
@@ -79,6 +80,12 @@
         <span class="se-empty-desc">Select a skill from the explorer to start editing.</span>
       </div>
     </div>
+
+    {#if skill().kind === 'ok'}
+      <aside class="skills-info" aria-label="Skill info panel">
+        <div class="si-header"><span class="si-skill-id">{skill().value.id}</span></div>
+      </aside>
+    {/if}
 
   </div>
   <div class="skills-mobile">
