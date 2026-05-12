@@ -441,7 +441,7 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
 }
 
 pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
-    let skills = super::super::skills::view_state::list_skills(ship_dir)
+    let skills = ship_platform::services::skills::view_state::list_skills(ship_dir)
         .into_iter()
         .map(|s| CatalogEntry {
             id: s.id,

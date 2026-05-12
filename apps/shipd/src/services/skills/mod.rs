@@ -20,9 +20,6 @@
 //! Vars delegate to `runtime::{get,set,delete}_skill_var` (KV-backed).
 //! The skill's filesystem is the source of truth for everything else.
 
-pub mod service;
-pub mod state;
-pub mod view_state;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -32,7 +29,7 @@ use serde::Deserialize;
 use crate::access::RuntimeAccess;
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
-use service::CreateArgs;
+use ship_platform::services::skills::service::CreateArgs;
 
 // ── Scope query parsing ───────────────────────────────────────────────
 
@@ -75,8 +72,8 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
     (status, Json(serde_json::json!({ "ok": false, "error": code, "message": message.into() })))
 }
 
-fn map_err(e: state::Error) -> Resp {
-    use state::Error::*;
+fn map_err(e: ship_platform::services::skills::state::Error) -> Resp {
+    use ship_platform::services::skills::state::Error::*;
     match e {
         NotFound(m)         => err(StatusCode::NOT_FOUND, "not_found", m),
         AlreadyExists(m)    => err(StatusCode::CONFLICT, "exists", m),
@@ -120,7 +117,7 @@ pub async fn put_frontmatter(
     let resolved = state.services().skills().write_frontmatter(&id, scope, &body).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::skills::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -140,7 +137,7 @@ pub async fn put_body(
     let resolved = state.services().skills().write_body(&id, scope, &payload.body).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::skills::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -164,7 +161,7 @@ pub async fn put_file(
         .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id, "path": path,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::skills::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -178,7 +175,7 @@ pub async fn delete_file(
     let resolved = state.services().skills().delete_file(&id, scope, &path).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id, "path": path,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::skills::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -219,7 +216,7 @@ pub async fn create(
     Ok((StatusCode::CREATED, Json(serde_json::json!({
         "ok": true,
         "id": body.id,
-        "scope": state::ScopeTag::from(scope),
+        "scope": ship_platform::services::skills::state::ScopeTag::from(scope),
     }))))
 }
 
@@ -233,7 +230,7 @@ pub async fn delete(
     let resolved = state.services().skills().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::skills::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -251,7 +248,7 @@ pub async fn rename(
     let resolved = state.services().skills().rename(&id, &body.new_id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": body.new_id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::skills::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -269,7 +266,7 @@ pub async fn duplicate(
     let resolved = state.services().skills().duplicate(&id, &body.new_id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": body.new_id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::skills::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -291,7 +288,7 @@ pub async fn move_scope(
     state.services().skills().move_scope(&id, from_scope, to).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(to),
+        "scope": ship_platform::services::skills::state::ScopeTag::from(to),
     })))
 }
 

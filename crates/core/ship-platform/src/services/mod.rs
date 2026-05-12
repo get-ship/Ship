@@ -25,6 +25,7 @@ pub mod sync;
 pub mod files;
 pub mod mcp;
 pub mod permissions;
+pub mod skills;
 pub mod path_tolerant;
 pub mod rules;
 #[cfg(test)]

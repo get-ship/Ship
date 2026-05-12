@@ -9,7 +9,7 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use ship_platform::services::files::{FilesService, Scope};
+use crate::services::files::{FilesService, Scope};
 use super::state;
 
 /// Args for `SkillsService::create`. Optional initial frontmatter +
@@ -231,7 +231,7 @@ impl SkillsService for SkillsServiceImpl {
         id: &str,
     ) -> Result<Option<std::collections::HashMap<String, serde_json::Value>>, anyhow::Error>
     {
-        ship_platform::agents::skill_vars::get_skill_vars(&self.user_root, id)
+        crate::agents::skill_vars::get_skill_vars(&self.user_root, id)
     }
 
     fn set_var(
@@ -240,11 +240,11 @@ impl SkillsService for SkillsServiceImpl {
         key: &str,
         value: serde_json::Value,
     ) -> Result<(), anyhow::Error> {
-        ship_platform::agents::skill_vars::set_skill_var(&self.user_root, id, key, value)
+        crate::agents::skill_vars::set_skill_var(&self.user_root, id, key, value)
     }
 
     fn delete_var(&self, id: &str, key: &str) -> Result<bool, anyhow::Error> {
-        ship_platform::agents::skill_vars::delete_skill_var(&self.user_root, id, key)
+        crate::agents::skill_vars::delete_skill_var(&self.user_root, id, key)
     }
 }
 

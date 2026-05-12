@@ -29,7 +29,7 @@ use ship_platform::services::mcp::service::McpService;
 use ship_platform::services::permissions::service::PermissionsService;
 use crate::services::pipelines::service::PipelinesService;
 use ship_platform::services::rules::service::RulesService;
-use crate::services::skills::service::SkillsService;
+use ship_platform::services::skills::service::SkillsService;
 use crate::ship_runtime::ShipRuntime;
 
 /// Per-domain service surface. Each migrated mr-02 service appears here

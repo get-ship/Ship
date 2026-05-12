@@ -16,7 +16,7 @@ pub(super) fn try_dispatch(
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "skills.list" => Ok(json!({
-            "items": crate::services::skills::state::list(&files),
+            "items": ship_platform::services::skills::state::list(&files),
         })),
         "skills.summaries" => {
             let all = crate::views::state::list_skills(state.ship_dir());
@@ -93,9 +93,9 @@ pub(super) fn try_dispatch(
         "skills.get" => {
             let id = required_str(args, "id")?;
             let scope = parse_scope(args)?;
-            let detail = crate::services::skills::state::load(&files, id, scope)
+            let detail = ship_platform::services::skills::state::load(&files, id, scope)
                 .map_err(|e| match e {
-                    crate::services::skills::state::Error::NotFound(m) => RegistryError::not_found(m),
+                    ship_platform::services::skills::state::Error::NotFound(m) => RegistryError::not_found(m),
                     other => RegistryError::service(other.to_string()),
                 })?;
             Ok(serde_json::to_value(&detail).map_err(|e| RegistryError::service(e.to_string()))?)

@@ -23,7 +23,7 @@ pub use crate::services::agents::view_state::{
     AgentCatalogs, AgentDetail, AgentSummary, CatalogEntry, Permissions,
     ToolPatternEntry, list_agent_catalogs, list_agents, load_agent,
 };
-pub use crate::services::skills::view_state::{
+pub use ship_platform::services::skills::view_state::{
     SkillDetail, SkillKind, SkillSummary, list_skills, load_skill,
     load_skill_file,
 };

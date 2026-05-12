@@ -6,8 +6,12 @@
 //! var. Only the `list_skills(ship_dir)` public surface exercises the
 //! env-var path, and we cover that with a best-effort subset check.
 
-use super::*;
+use crate::services::skills::view_state::{self, *};
+use std::path::Path;
 use tempfile::tempdir;
+
+// Pull in pub(crate) helpers explicitly — glob (`*`) only imports public.
+use view_state::scan_skill_dir;
 
 fn write_skill(dir: &Path, name: &str, fm: &str, body: &str) {
     let d = dir.join(name);

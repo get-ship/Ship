@@ -1,6 +1,6 @@
 //! Skill discovery for the `skills` view. Scans global + project scopes,
 //! deduplicates by id (project wins). Callers pass the daemon's global
-//! ship_dir; project scope resolved via `ship_application::project::get_project_dir`.
+//! ship_dir; project scope resolved via `ship_substrate::project::get_project_dir`.
 
 use serde::Serialize;
 use std::collections::HashSet;
@@ -111,7 +111,7 @@ pub(crate) struct SkillScopes {
 }
 
 fn resolve_scopes(ship_dir: &Path) -> SkillScopes {
-    let project_ship = ship_application::project::get_project_dir(None)
+    let project_ship = ship_substrate::project::get_project_dir(None)
         .ok()
         .filter(|p| p != ship_dir);
     scopes_from(ship_dir, project_ship.as_deref())
@@ -122,12 +122,12 @@ pub(crate) fn scopes_from(
     project_ship_dir: Option<&Path>,
 ) -> SkillScopes {
     let global_parent = ship_dir.parent().unwrap_or(ship_dir);
-    let global_dirs = ship_platform::agents::skill_paths::read_skill_paths(ship_dir, global_parent);
+    let global_dirs = crate::agents::skill_paths::read_skill_paths(ship_dir, global_parent);
 
     let project_dirs = match project_ship_dir {
         Some(project_ship) if project_ship != ship_dir => {
             let project_root = project_ship.parent().unwrap_or(project_ship);
-            ship_platform::agents::skill_paths::read_skill_paths(project_ship, project_root)
+            crate::agents::skill_paths::read_skill_paths(project_ship, project_root)
         }
         _ => Vec::new(),
     };
@@ -135,7 +135,7 @@ pub(crate) fn scopes_from(
     SkillScopes { global_dirs, project_dirs }
 }
 
-fn scan_skill_dir(skills_root: &Path, source: &str) -> Vec<SkillSummary> {
+pub(crate) fn scan_skill_dir(skills_root: &Path, source: &str) -> Vec<SkillSummary> {
     let mut out = Vec::new();
     if !skills_root.exists() {
         return out;
