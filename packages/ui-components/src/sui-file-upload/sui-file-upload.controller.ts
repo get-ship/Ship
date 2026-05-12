@@ -1,0 +1,163 @@
+import { controller, derived, ref, signal } from '@ship/sui-runtime'
+import type { Signal } from '@ship/sui-runtime'
+import type { Scope } from './sui-file-upload.sui'
+
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`
+  return `${(bytes / 1048576).toFixed(1)} MB`
+}
+
+interface DisplayFile {
+  file: File
+  idx: number
+  key: string
+  name: string
+  sizeStr: string
+}
+
+export default controller<Scope>({
+  scope: () => {
+    const files = signal<File[]>([])
+    const over = signal(false)
+    const errorMsg = signal('')
+    const dropzoneEl = ref<HTMLDivElement>(null)
+    const inputEl = ref<HTMLInputElement>(null)
+    const fileListEl = ref<HTMLDivElement>(null)
+    const displayFiles = derived<DisplayFile[]>(() =>
+      files().map((file, idx) => ({
+        file,
+        idx,
+        key: `${idx}:${file.name}:${file.size}`,
+        name: file.name,
+        sizeStr: fmtSize(file.size),
+      })),
+    )
+    return { files, over, errorMsg, displayFiles, dropzoneEl, inputEl, fileListEl }
+  },
+
+  mount(state, host) {
+    const scope = state as unknown as Scope
+    const filesSig = scope.files as unknown as Signal<File[]>
+    const overSig = scope.over as unknown as Signal<boolean>
+    const errSig = scope.errorMsg as unknown as Signal<string>
+
+    const matchesAccept = (file: File): boolean => {
+      const tokens = scope
+        .accept()
+        .split(',')
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean)
+      if (tokens.length === 0) return true
+      const ext = '.' + (file.name.split('.').pop() || '').toLowerCase()
+      const type = file.type.toLowerCase()
+      return tokens.some((t) => {
+        if (t.startsWith('.')) return ext === t
+        if (t.endsWith('/*')) return type.startsWith(t.slice(0, -1))
+        return type === t
+      })
+    }
+
+    const emitChange = (list: File[]) => {
+      host.dispatchEvent(
+        new CustomEvent('sui-change', {
+          detail: { files: [...list] },
+          bubbles: true,
+          composed: true,
+        }),
+      )
+    }
+
+    const addFiles = (incoming: File[]) => {
+      errSig.set('')
+      const valid: File[] = []
+      for (const f of incoming) {
+        if (f.size > scope.maxSize()) {
+          errSig.set(`"${f.name}" exceeds max size (${fmtSize(scope.maxSize())}).`)
+          continue
+        }
+        if (scope.accept() && !matchesAccept(f)) {
+          errSig.set(`"${f.name}" is not an accepted file type.`)
+          continue
+        }
+        valid.push(f)
+      }
+      const cur = filesSig()
+      const next = scope.multiple() ? [...cur, ...valid] : valid.slice(0, 1)
+      filesSig.set(next)
+      emitChange(next)
+    }
+
+    const removeAt = (idx: number) => {
+      const cur = filesSig()
+      if (idx < 0 || idx >= cur.length) return
+      const next = cur.filter((_, i) => i !== idx)
+      filesSig.set(next)
+      errSig.set('')
+      emitChange(next)
+    }
+
+    const openPicker = () => {
+      if (scope.disabled()) return
+      const inp = scope.inputEl() as HTMLInputElement | null
+      inp?.click()
+    }
+
+    const onClick = () => openPicker()
+    const onKey = (e: KeyboardEvent) => {
+      if (scope.disabled()) return
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        openPicker()
+      }
+    }
+    const onDragOver = (e: DragEvent) => {
+      if (scope.disabled()) return
+      e.preventDefault()
+      overSig.set(true)
+    }
+    const onDragLeave = () => overSig.set(false)
+    const onDrop = (e: DragEvent) => {
+      if (scope.disabled()) return
+      e.preventDefault()
+      overSig.set(false)
+      const list = e.dataTransfer?.files
+      if (list && list.length) addFiles(Array.from(list))
+    }
+    const onInputChange = (e: Event) => {
+      const inp = e.target as HTMLInputElement
+      if (inp.files && inp.files.length) addFiles(Array.from(inp.files))
+      inp.value = ''
+    }
+
+    const dropzoneEl = scope.dropzoneEl() as HTMLDivElement | null
+    const inputEl = scope.inputEl() as HTMLInputElement | null
+
+    dropzoneEl?.addEventListener('click', onClick)
+    dropzoneEl?.addEventListener('keydown', onKey)
+    dropzoneEl?.addEventListener('dragover', onDragOver)
+    dropzoneEl?.addEventListener('dragleave', onDragLeave)
+    dropzoneEl?.addEventListener('drop', onDrop)
+    inputEl?.addEventListener('change', onInputChange)
+
+    // Event delegation for the dynamic .remove buttons inside the file list.
+    const onShadowClick = (e: Event) => {
+      const target = e.target as HTMLElement | null
+      const btn = target?.closest?.('button.remove') as HTMLElement | null
+      if (!btn || !host.shadowRoot?.contains(btn)) return
+      const idx = Number(btn.dataset.idx)
+      if (Number.isInteger(idx)) removeAt(idx)
+    }
+    host.shadowRoot?.addEventListener('click', onShadowClick)
+
+    return () => {
+      dropzoneEl?.removeEventListener('click', onClick)
+      dropzoneEl?.removeEventListener('keydown', onKey)
+      dropzoneEl?.removeEventListener('dragover', onDragOver)
+      dropzoneEl?.removeEventListener('dragleave', onDragLeave)
+      dropzoneEl?.removeEventListener('drop', onDrop)
+      inputEl?.removeEventListener('change', onInputChange)
+      host.shadowRoot?.removeEventListener('click', onShadowClick)
+    }
+  },
+})
