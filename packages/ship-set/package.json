@@ -27,6 +27,7 @@
     "bundle:markdown-editor": "esbuild src/web-components/islands/ship-markdown-editor.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-markdown-editor.js --log-level=warning",
     "bundle:terminal": "esbuild src/web-components/islands/ship-terminal.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-terminal.js --log-level=warning",
     "bundle:git": "esbuild src/packs/git/index.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-git.js --log-level=warning",
+    "bundle:all": "pnpm bundle:elements && pnpm bundle:code-editor && pnpm bundle:markdown-editor && pnpm bundle:terminal && pnpm bundle:git",
     "lint:tokens": "node scripts/lint-tokens.mjs",
     "check:sdk": "node scripts/check-sdk.mjs",
     "test": "vitest run",
