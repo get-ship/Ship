@@ -14,6 +14,77 @@ defineRoutes([
   { pattern: '/sui/ship-ui-studio/:name' },
 ])
 
+// Shared across mounts. Each rapid catalog click previously created a
+// new iframe — the prior one's dispose ran async after re-mount, so
+// in-flight iframes (+ their SSE/reactive scopes) compounded until
+// the tab froze. Holding one frame at module scope and only setting
+// .src on it keeps the SSE connection alive across navigations and
+// caps DOM iframe count at 1. Same idea for the sui-kind preview
+// node: reuse when the tag matches, recreate only on tag change.
+let sharedFrame: HTMLIFrameElement | null = null
+let sharedNode: HTMLElement | null = null
+let sharedNodeTag: string | null = null
+
+// Default-slot fillers for compound components — atomic ones render
+// fine with just an "example" text node, but compounds need real
+// child elements to show their layout (sui-rail empty looks like a
+// blank rectangle). Keyed by host tag.
+const SLOT_COMPOSITIONS: Record<string, string> = {
+  'sui-rail': `
+    <sui-rail-section label="Section A">
+      <sui-rail-item data-view="counter">Counter</sui-rail-item>
+      <sui-rail-item data-view="agents" active>Agents</sui-rail-item>
+    </sui-rail-section>
+    <sui-rail-section label="Section B">
+      <sui-rail-item data-view="git">Git</sui-rail-item>
+    </sui-rail-section>
+  `,
+  'sui-tabs': `
+    <sui-tab name="overview" active>Overview</sui-tab>
+    <sui-tab name="details">Details</sui-tab>
+    <sui-tab name="logs">Logs</sui-tab>
+  `,
+  'sui-dialog': `
+    <span slot="header">Confirm action</span>
+    <p>Are you sure you want to continue? This affects 3 items.</p>
+    <span slot="footer">
+      <sui-button variant="outline">Cancel</sui-button>
+      <sui-button variant="primary">Continue</sui-button>
+    </span>
+  `,
+  'sui-alert-dialog': `
+    <span slot="title">Delete workspace?</span>
+    <p>This permanently removes the workspace and its history.</p>
+  `,
+  'sui-card': `
+    <span slot="header">Card title</span>
+    <p>Card body content. Use cards to group related information.</p>
+    <span slot="footer">
+      <sui-button variant="outline" size="sm">Action</sui-button>
+    </span>
+  `,
+  'sui-accordion': `
+    <sui-accordion-item value="one">
+      <span slot="trigger">Section one</span>
+      <p>First section body.</p>
+    </sui-accordion-item>
+    <sui-accordion-item value="two">
+      <span slot="trigger">Section two</span>
+      <p>Second section body.</p>
+    </sui-accordion-item>
+  `,
+  'sui-popover': `
+    <sui-button slot="trigger">Open popover</sui-button>
+    <p>Popover panel content.</p>
+  `,
+  'sui-dropdown-menu': `
+    <sui-button slot="trigger">Open menu</sui-button>
+    <button role="menuitem" data-value="rename">Rename</button>
+    <button role="menuitem" data-value="duplicate">Duplicate</button>
+    <button role="menuitem" data-value="delete">Delete</button>
+  `,
+}
+
 export default controller<Scope>({
   scope: () => ({
     allCatalog: signal<CatalogEntry[]>([]),
@@ -98,23 +169,67 @@ export default controller<Scope>({
       // isolated from the studio. Same-origin so authentication
       // cookies flow; ship-ui-studio inside ship-ui-studio works
       // because each iframe is its own document.
-      const frame = document.createElement('iframe')
-      frame.className = 'detail-view-frame'
-      frame.src = `/sui/${entry.id}`
-      frame.title = `${entry.id} preview`
-      frame.loading = 'eager'
-      slot.appendChild(frame)
-      state._dispose = () => { frame.remove() }
+      if (sharedNode?.parentElement) sharedNode.parentElement.removeChild(sharedNode)
+      if (!sharedFrame) {
+        sharedFrame = document.createElement('iframe')
+        sharedFrame.className = 'detail-view-frame'
+        sharedFrame.loading = 'eager'
+      }
+      if (sharedFrame.parentElement !== slot) {
+        sharedFrame.parentElement?.removeChild(sharedFrame)
+        slot.appendChild(sharedFrame)
+      }
+      sharedFrame.title = `${entry.id} preview`
+      const nextHref = new URL(`/sui/${entry.id}`, location.href).href
+      if (sharedFrame.src !== nextHref) sharedFrame.src = `/sui/${entry.id}`
+      // No teardown — the iframe (and its SSE connection) lives at
+      // module scope so the next view-kind mount reuses it. When the
+      // studio itself unmounts the browser drops the page; nothing
+      // to clean up here.
+      state._dispose = () => {}
       return
     }
 
-    const node = document.createElement(entry.tag)
-    node.className = 'detail-rendered-component'
-    // Seed the default slot with a real text node BEFORE the host
-    // observes its slot occupancy. This avoids icon-only collapse on
-    // tags like sui-button that reflect-empty into `data-icon-only`.
-    node.appendChild(document.createTextNode('example'))
-    slot.appendChild(node)
+    // Detach iframe if we're coming from a view-kind preview.
+    if (sharedFrame?.parentElement) sharedFrame.parentElement.removeChild(sharedFrame)
+
+    // Reuse one host node per tag across mounts. Tag change ⇒ swap;
+    // otherwise the effect() below mutates attrs on the same element.
+    if (sharedNode && sharedNodeTag !== entry.tag) {
+      sharedNode.remove()
+      sharedNode = null
+      sharedNodeTag = null
+    }
+    if (!sharedNode) {
+      sharedNode = document.createElement(entry.tag)
+      sharedNode.className = 'detail-rendered-component'
+      sharedNodeTag = entry.tag
+    }
+    const node = sharedNode
+    // Reset transform (cleared in case the prior mount applied ZOOM)
+    node.style.transform = ''
+    node.style.transformOrigin = ''
+    // Seed the default slot. Compound components get a typical-use
+    // composition parsed into a DocumentFragment; the parser upgrades
+    // any <sui-*> elements as nodes are adopted into the live document
+    // on appendChild. Atomic components get a plain "example" text
+    // node BEFORE the host observes slot occupancy (avoids icon-only
+    // collapse on tags like sui-button that reflect-empty into
+    // data-icon-only). Using a fragment instead of .innerHTML keeps
+    // controller-purity happy and preserves the host's own attributes.
+    const compose = SLOT_COMPOSITIONS[entry.tag]
+    if (compose) {
+      const range = document.createRange()
+      range.selectNodeContents(node)
+      const frag = range.createContextualFragment(compose)
+      node.replaceChildren(frag)
+    } else {
+      node.replaceChildren(document.createTextNode('example'))
+    }
+    if (node.parentElement !== slot) {
+      node.parentElement?.removeChild(node)
+      slot.appendChild(node)
+    }
 
     // Components with intrinsic size < 64px are scaled up for legibility.
     const ZOOM_TAGS = new Set(['sui-status-dot', 'sui-kbd', 'sui-badge', 'sui-chip', 'sui-spinner'])
@@ -171,7 +286,10 @@ export default controller<Scope>({
       applyProps(vals)
     })
 
-    state._dispose = () => { stopEffect(); node.remove() }
+    // Leave the node attached — next mount reuses it (same tag) or
+    // swaps it (different tag). Just stop the prior reactive binding
+    // so attribute writes don't leak across components.
+    state._dispose = () => { stopEffect() }
   },
 
   unmount: (state) => {
