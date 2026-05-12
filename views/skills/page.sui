@@ -1,0 +1,88 @@
+<data name="rail" source="ship.skills.summaries({q: q(), kind: kind(), tag: tag()})" live />
+
+<div class="ship-view ship-view-skills">
+  <div class="skills-ide">
+
+    <aside class="skills-explorer" aria-label="Skills file explorer">
+      <div class="se-head">
+        <div class="se-search">
+          <sui-icon name="search" size="sm" tone="muted"></sui-icon>
+          <input type="text" placeholder="Search skills…" spellcheck="false"
+            aria-label="Search skills"
+            bind:value={q}
+            on:input={(e) => q.set(e.target.value)} />
+        </div>
+        {#if rail().kind === 'ok'}
+          <div class="se-filters" role="group" aria-label="Filter by kind">
+            {#for kc of rail().value.kind_counts key={kc.id}}
+              <button class="se-pill" class:is-active={kind() === kc.id}
+                on:click={() => kind.set(kc.id)}>
+                {kc.label} <span style="opacity:0.6;font-variant-numeric:tabular-nums">{kc.count}</span>
+              </button>
+            {/for}
+          </div>
+        {/if}
+      </div>
+
+      <div class="se-body" role="tree" aria-label="Skills tree">
+        {#while-loading of rail}
+          <div class="se-empty">Loading&hellip;</div>
+        {/while-loading}
+        {#if rail().kind === 'ok'}
+          {#if rail().value.groups.length === 0}
+            <div class="se-empty">
+              {q() ? 'No skills match "' + q() + '".' : 'No skills discovered.'}
+            </div>
+          {:else}
+            {#for g of rail().value.groups key={g.source}}
+              <div class="se-section">
+                <div class="se-section-head">
+                  <span class="se-section-label">
+                    <sui-icon name="folder" size="xs" tone="muted"></sui-icon>
+                    {g.source === 'PROJECT SKILLS' ? 'Project Skills' : g.source === 'USER SKILLS' ? 'Library' : g.source}
+                    <span class="count">({g.skills.length})</span>
+                  </span>
+                </div>
+                {#if g.skills.length === 0}
+                  <div class="se-empty">{q() ? 'No matches.' : 'No skills yet.'}</div>
+                {:else}
+                  {#for s of g.skills key={s.id}}
+                    <div role="treeitem">
+                      <button class="se-skill"
+                        on:click={() => navigate('/skills/' + s.id)}
+                        attr:title={s.description}>
+                        <span class="se-chevron" aria-hidden="true">
+                          <sui-icon name="chevron-right" size="xs"></sui-icon>
+                        </span>
+                        <sui-icon name="zap" size="xs" tone="primary"></sui-icon>
+                        <span class="se-name">{s.name}</span>
+                        <span class="se-dots">
+                          {#if s.has_vars}<span class="se-dot vars" title="Variables"></span>{/if}
+                          {#if s.has_refs}<span class="se-dot refs" title="Reference docs"></span>{/if}
+                          {#if s.has_evals}<span class="se-dot evals" title="Evals"></span>{/if}
+                        </span>
+                      </button>
+                    </div>
+                  {/for}
+                {/if}
+              </div>
+            {/for}
+          {/if}
+        {/if}
+      </div>
+    </aside>
+
+    <div class="skills-editor">
+      <div class="se-empty-state">
+        <sui-icon name="zap" size="xl" class="se-empty-icon" tone="muted"></sui-icon>
+        <span class="se-empty-title">No file open</span>
+        <span class="se-empty-desc">Select a skill from the explorer to start editing.</span>
+      </div>
+    </div>
+
+  </div>
+  <div class="skills-mobile">
+    <sui-icon name="monitor" size="xl" tone="muted"></sui-icon>
+    <span>Best experienced on desktop</span>
+  </div>
+</div>

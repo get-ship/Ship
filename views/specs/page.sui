@@ -1,0 +1,148 @@
+<data name="rail" source="ship.specs.summaries({q: q(), selected: selectedId()})" live />
+<data name="selected" source="ship.specs.detail({id: selectedId()})" />
+
+<use-kbd>
+  <on key="/" action="focusFilter" />
+</use-kbd>
+
+<div class="ship-view ship-view-specs">
+  <div class="specs-grid">
+
+    <aside class="specs-rail" aria-label="Spec list">
+      <div class="specs-rail-head">
+        <h1>Specs</h1>
+        <sui-button variant="solid" tone="accent" size="sm" on:click={newSpec}>+ New</sui-button>
+      </div>
+      <div class="specs-rail-filter">
+        <sui-input size="sm" placeholder="Filter…"
+          bind:value={q}
+          attr:bind:this={filterInputEl}></sui-input>
+      </div>
+
+      {#while-loading of rail}
+        <div style="padding:var(--space-3) var(--space-4);font-size:var(--text-xs);color:var(--muted-foreground)">Loading&hellip;</div>
+      {/while-loading}
+
+      {#if rail().kind === 'ok'}
+        {#if rail().value.total === 0}
+          <sui-empty-state variant="placeholder" style="padding:24px 14px">
+            <span slot="title">No specs yet</span>
+            Click + New to start one.
+          </sui-empty-state>
+        {:else}
+          {#for group of rail().value.groups key={group.key}}
+            {#if group.count > 0}
+              <section class="specs-rail-group">
+                <div class="specs-rail-group-head">
+                  <span>{group.label}</span>
+                  <span class="count">{group.count}</span>
+                </div>
+                <div class="specs-rail-items">
+                  {#for spec of group.items key={spec.id}}
+                    <sui-list-tile interactive
+                      attr:selected={selectedId() === spec.id ? '' : null}
+                      on:click={() => selectSpec(spec.id)}>
+                      <sui-status-dot slot="leading" size="sm"
+                        attr:tone={spec.tone}
+                        attr:pulse={group.key === 'launched' ? '' : null}></sui-status-dot>
+                      <div class="spec-row-main">
+                        <span class="spec-row-name">{spec.title}</span>
+                        <span class="spec-row-when">{spec.when}</span>
+                      </div>
+                      <span slot="trailing" class="spec-row-pipeline">
+                        {spec.pipeline || '—'}
+                      </span>
+                    </sui-list-tile>
+                  {/for}
+                </div>
+              </section>
+            {/if}
+          {/for}
+        {/if}
+      {/if}
+    </aside>
+
+    <main class="specs-detail" aria-label="Spec detail">
+      {#if !selectedId()}
+        <div class="specs-empty">
+          <sui-empty-state variant="placeholder">
+            <sui-icon slot="icon" name="file-text"></sui-icon>
+            <span slot="title">No spec selected</span>
+            Select a spec from the list to view and launch it.
+          </sui-empty-state>
+        </div>
+      {:else if selected().kind === 'loading'}
+        <div class="specs-empty">
+          <sui-empty-state variant="placeholder">
+            <span slot="title">Loading&hellip;</span>
+          </sui-empty-state>
+        </div>
+      {:else if selected().kind === 'ok'}
+        <div class="specs-detail-inner">
+          <header class="specs-detail-head">
+            <div class="specs-detail-title-row">
+              <h1>{selected().value.title || '(untitled)'}</h1>
+              <div class="specs-detail-actions">
+                <sui-button variant="outline" size="sm" on:click={duplicateSpec}>Duplicate</sui-button>
+                <sui-button variant="outline" size="sm" tone="destructive"
+                  on:click={() => confirmDelete.set(true)}>Delete</sui-button>
+              </div>
+            </div>
+            <div class="specs-metachips">
+              <sui-metachip attr:label="Status" attr:value={selected().value.status_label}></sui-metachip>
+              <sui-metachip attr:label="Pipeline" attr:value={selected().value.pipeline_label}></sui-metachip>
+              <sui-metachip attr:label="Agent" attr:value={selected().value.agent}></sui-metachip>
+              <sui-metachip attr:label="Branch" attr:value={selected().value.branch}></sui-metachip>
+            </div>
+          </header>
+          <article class="specs-prose">
+            {#if selected().value.goal_md}
+              <h2>Goal</h2>
+              <sui-markdown attr:value={selected().value.goal_md}></sui-markdown>
+            {/if}
+            {#if selected().value.acceptance && selected().value.acceptance.length > 0}
+              <h2>Acceptance</h2>
+              <ul class="specs-acceptance">
+                {#for item of selected().value.acceptance key={item.text}}
+                  <li class:done={item.done}>
+                    <sui-checkbox attr:checked={item.done ? '' : null} disabled></sui-checkbox>
+                    <span class="acc-text">{item.text}</span>
+                  </li>
+                {/for}
+              </ul>
+            {/if}
+            {#if selected().value.scope_md}
+              <h2>Scope</h2>
+              <sui-markdown attr:value={selected().value.scope_md}></sui-markdown>
+            {/if}
+            {#if selected().value.linked_md}
+              <h2>Linked</h2>
+              <sui-markdown attr:value={selected().value.linked_md}></sui-markdown>
+            {/if}
+            {#if selected().value.other_md}
+              <sui-markdown attr:value={selected().value.other_md}></sui-markdown>
+            {/if}
+          </article>
+        </div>
+        <div class="specs-launch-bar">
+          <div class="specs-launch-bar-inner">
+            <sui-button variant="solid" tone="primary" size="lg"
+              attr:disabled={!selected().value.pipeline ? '' : null}
+              on:click={launchSpec}>
+              {selected().value.launch_label}
+            </sui-button>
+            <span class="specs-launch-hint">{selected().value.launch_hint}</span>
+          </div>
+        </div>
+        <sui-alert-dialog tone="destructive" confirm-label="Delete" cancel-label="Cancel"
+          attr:open={confirmDelete() ? '' : null}
+          on:sui-cancel={() => confirmDelete.set(false)}
+          on:sui-confirm={deleteSpec}>
+          <span slot="title">Delete spec</span>
+          This removes the spec from the project. This cannot be undone.
+        </sui-alert-dialog>
+      {/if}
+    </main>
+
+  </div>
+</div>

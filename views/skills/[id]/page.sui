@@ -1,0 +1,178 @@
+<data name="rail" source="ship.skills.summaries({q: q(), kind: kind(), tag: tag()})" live />
+<data name="skill" source="ship.skills.detail({id: skillId()})" />
+<data name="fileContent" source="ship.skills.file({id: skillId(), path: selectedFile()})" />
+
+<div class="ship-view ship-view-skills">
+  <div class="skills-ide">
+
+    <aside class="skills-explorer" aria-label="Skills file explorer">
+      <div class="se-head">
+        <div class="se-search">
+          <sui-icon name="search" size="sm" tone="muted"></sui-icon>
+          <input type="text" placeholder="Search skills…" spellcheck="false"
+            aria-label="Search skills"
+            bind:value={q}
+            on:input={(e) => q.set(e.target.value)} />
+        </div>
+        {#if rail().kind === 'ok'}
+          <div class="se-filters" role="group" aria-label="Filter by kind">
+            {#for kc of rail().value.kind_counts key={kc.id}}
+              <button class="se-pill" class:is-active={kind() === kc.id}
+                on:click={() => kind.set(kc.id)}>
+                {kc.label} <span style="opacity:0.6;font-variant-numeric:tabular-nums">{kc.count}</span>
+              </button>
+            {/for}
+          </div>
+        {/if}
+      </div>
+
+      <div class="se-body" role="tree" aria-label="Skills tree">
+        {#if rail().kind === 'ok'}
+          {#if rail().value.groups.length === 0}
+            <div class="se-empty">{q() ? 'No skills match "' + q() + '".' : 'No skills discovered.'}</div>
+          {:else}
+            {#for g of rail().value.groups key={g.source}}
+              <div class="se-section">
+                <div class="se-section-head">
+                  <span class="se-section-label">
+                    <sui-icon name="folder" size="xs" tone="muted"></sui-icon>
+                    {g.source === 'PROJECT SKILLS' ? 'Project Skills' : g.source === 'USER SKILLS' ? 'Library' : g.source}
+                    <span class="count">({g.skills.length})</span>
+                  </span>
+                </div>
+                {#for s of g.skills key={s.id}}
+                  <div role="treeitem">
+                    <button class="se-skill"
+                      on:click={() => navigate('/skills/' + s.id)}
+                      attr:title={s.description}>
+                      <span class="se-chevron" aria-hidden="true">
+                        {#if s.id === skillId()}
+                          <sui-icon name="chevron-down" size="xs"></sui-icon>
+                        {:else}
+                          <sui-icon name="chevron-right" size="xs"></sui-icon>
+                        {/if}
+                      </span>
+                      <sui-icon name="zap" size="xs" tone="primary"></sui-icon>
+                      <span class="se-name">{s.name}</span>
+                      <span class="se-dots">
+                        {#if s.has_vars}<span class="se-dot vars" title="Variables"></span>{/if}
+                        {#if s.has_refs}<span class="se-dot refs" title="Reference docs"></span>{/if}
+                        {#if s.has_evals}<span class="se-dot evals" title="Evals"></span>{/if}
+                      </span>
+                    </button>
+                    {#if s.id === skillId() && s.files && s.files.length > 0}
+                      {#for f of s.files key={f}}
+                        <button class="se-file" class:is-active={selectedFile() === f}
+                          role="treeitem"
+                          on:click={() => selectFile(f)}
+                          attr:title={f}>
+                          <sui-icon attr:name={f === 'SKILL.md' ? 'file' : f.endsWith('.json') ? 'file' : f.endsWith('.md') ? 'file' : 'file'} size="xs"
+                            attr:tone={f === 'SKILL.md' ? 'info' : f.endsWith('.json') ? 'warning' : f.endsWith('.md') ? 'success' : 'muted'}></sui-icon>
+                          <span class="se-fname">{f.split('/').pop()}</span>
+                        </button>
+                      {/for}
+                    {/if}
+                  </div>
+                {/for}
+              </div>
+            {/for}
+          {/if}
+        {/if}
+      </div>
+    </aside>
+
+    <div class="skills-editor">
+      {#if skill().kind === 'ok' && (selectedFile() || skill().value.body)}
+        <div class="se-toolbar">
+          <div class="se-breadcrumb">
+            <span>skills</span>
+            <span class="sep">/</span>
+            <span>{skill().value.name}</span>
+            {#if selectedFile() && fileContent().kind === 'ok'}
+              <span class="sep">/</span>
+              <span class="active">{fileContent().value.name}</span>
+            {/if}
+          </div>
+        </div>
+        <div class="se-editor-body">
+          {#if selectedFile() && fileContent().kind === 'ok'}
+            <div class="se-editor-content">
+              {#if fileContent().value.ext === 'md'}
+                <sui-markdown-editor attr:value={fileContent().value.content}></sui-markdown-editor>
+              {:else}
+                <pre class="se-code-view">{fileContent().value.content}</pre>
+              {/if}
+            </div>
+          {:else if skill().value.body}
+            <div class="se-editor-content">
+              <sui-markdown-editor attr:value={skill().value.body}></sui-markdown-editor>
+            </div>
+          {:else}
+            <div class="se-empty-state" style="padding:40px 0">
+              <sui-icon name="file" size="xl" tone="muted"></sui-icon>
+              <span class="se-empty-desc">This skill has no SKILL.md content yet.</span>
+            </div>
+          {/if}
+        </div>
+      {:else}
+        <div class="se-empty-state">
+          <sui-icon name="zap" size="xl" class="se-empty-icon" tone="muted"></sui-icon>
+          <span class="se-empty-title">No file open</span>
+          <span class="se-empty-desc">Select a file from the explorer.</span>
+        </div>
+      {/if}
+    </div>
+
+    {#if skill().kind === 'ok'}
+      <aside class="skills-info" aria-label="Skill info panel">
+        <div class="si-header">
+          <span class="si-skill-id">{skill().value.id}</span>
+        </div>
+        <div class="si-body">
+          <div class="si-section-label">Metadata</div>
+          <div class="si-row">
+            <span class="si-row-key">kind</span>
+            <span class="si-row-val">{skill().value.kind}</span>
+          </div>
+          <div class="si-row">
+            <span class="si-row-key">source</span>
+            <span class="si-row-val">{skill().value.source}</span>
+          </div>
+          {#if skill().value.description}
+            <div class="si-row">
+              <span class="si-row-key">description</span>
+              <span class="si-row-val" attr:title={skill().value.description}>{skill().value.description}</span>
+            </div>
+          {/if}
+          {#if skill().value.tags && skill().value.tags.length > 0}
+            <div class="si-section-label">Tags</div>
+            <div style="display:flex;flex-wrap:wrap">
+              {#for t of skill().value.tags key={t}}
+                <span class="si-chip">{t}</span>
+              {/for}
+            </div>
+          {/if}
+          <div class="si-section-label">Variables ({skill().value.variables?.length ?? 0})</div>
+          {#if skill().value.variables && skill().value.variables.length > 0}
+            {#for v of skill().value.variables key={v}}
+              <div class="si-row"><span class="si-row-key">{v}</span></div>
+            {/for}
+          {:else}
+            <div class="si-vars-empty">No variables defined.</div>
+          {/if}
+          <div class="si-section-label">Files ({skill().value.files?.length ?? 0})</div>
+          <div class="si-file-list">
+            {#for f of (skill().value.files || []) key={f}}
+              <span class="si-file-item">{f}</span>
+            {/for}
+          </div>
+        </div>
+      </aside>
+    {/if}
+
+  </div>
+  <div class="skills-mobile">
+    <sui-icon name="monitor" size="xl" tone="muted"></sui-icon>
+    <span>Best experienced on desktop</span>
+  </div>
+</div>

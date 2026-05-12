@@ -1,0 +1,8 @@
+{
+  "name": "canvas",
+  "path": "/canvas",
+  "title": "Canvas",
+  "layout": "default",
+  "auth": "user",
+  "rail": { "label": "Canvas", "icon": "image" }
+}
