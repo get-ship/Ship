@@ -1,9 +1,16 @@
-// `{@html expr}` binding. Replaces the anchor span's innerHTML with
-// the expression's value on each dependency change.
+// Raw-HTML binding. Replaces the anchor element's innerHTML with the
+// expression's value on each dependency change.
 //
 // **Author is responsible for sanitization.** This binding never
 // escapes the value — that's the whole point — and is the only
 // supported XSS surface in the runtime.
+//
+// Today only consumed by hand-written controllers (no compiler
+// emission). The `{@html expr}` template syntax referenced in earlier
+// drafts is NOT wired through the compiler. If the compiler grows a
+// directive that emits this binding, it MUST refuse to compile when
+// the source value is anything but a literal HTML string — never an
+// interpolation that could carry attacker-controlled data.
 
 import { effect, type Signal } from './signal'
 import type { Disposer } from './bind'
@@ -18,7 +25,10 @@ import type { Disposer } from './bind'
  * that aren't read inside `get` (e.g. `get` is a pre-rendered string
  * but should still re-run when some toggle flips).
  *
- * Compiler target: `{@html expr}` template syntax.
+ * **Not** emitted by the compiler today — call this directly from a
+ * controller when raw HTML is genuinely required. Future compiler
+ * support (if added) must refuse interpolations that mix attacker-
+ * controlled values into the rendered HTML.
  *
  * @param el Element whose `innerHTML` is rewritten.
  * @param get Reactive read of the HTML string.
