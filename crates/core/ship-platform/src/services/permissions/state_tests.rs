@@ -1,7 +1,7 @@
 //! PermissionService state tests.
 
-use super::*;
-use ship_platform::services::files::{FilesService, Scope};
+use crate::services::permissions::state::*;
+use crate::services::files::{FilesService, Scope};
 use std::path::Path;
 use tempfile::tempdir;
 

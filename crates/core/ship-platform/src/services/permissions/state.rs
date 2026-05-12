@@ -5,7 +5,7 @@
 //! as private and filtered from `list()` + rejected as ids. Non-object
 //! values (metadata like `default_mode`) are also filtered.
 
-use ship_platform::services::files::{Error as FileError, FilesService, Scope};
+use crate::services::files::{Error as FileError, FilesService, Scope};
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -195,7 +195,7 @@ pub fn patch_entry(
     };
     let mut root = load_root(files, scope)?;
     let mut entry = root.get(id).cloned().ok_or_else(|| Error::NotFound(id.into()))?;
-    ship_platform::services::path_tolerant::ensure_paths_for_adds(&mut entry, patch);
+    crate::services::path_tolerant::ensure_paths_for_adds(&mut entry, patch);
     json_patch::patch(&mut entry, patch).map_err(|e| Error::Patch(e.to_string()))?;
     let obj = root_mut(&mut root);
     obj.insert(id.to_string(), entry);

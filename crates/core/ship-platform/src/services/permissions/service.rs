@@ -13,8 +13,8 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use ship_platform::services::files::{FilesService, Scope};
-use ship_platform::services::mcp::service::McpService;
+use crate::services::files::{FilesService, Scope};
+use crate::services::mcp::service::McpService;
 use super::state;
 
 /// Body shape returned by `PermissionsService::get`.
@@ -112,7 +112,7 @@ impl PermissionsServiceImpl {
     /// Production constructor. Wires `mcp` from the same ship_dir so
     /// project / user composition works out of the box.
     pub fn new(ship_dir: PathBuf) -> Self {
-        let mcp = ship_platform::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
+        let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         Self {
             user_root: ship_dir,
             project_root_override: None,
@@ -248,7 +248,7 @@ mod tests {
         // Build an isolated McpService against the same hermetic
         // roots so tool_patterns picks up no host MCP servers.
         let mcp = std::sync::Arc::new(
-            ship_platform::services::mcp::service::McpServiceImpl::with_roots(
+            crate::services::mcp::service::McpServiceImpl::with_roots(
                 user.clone(),
                 Some(project.clone()),
             ),

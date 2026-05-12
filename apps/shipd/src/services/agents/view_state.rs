@@ -349,14 +349,14 @@ fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
 /// something to pick.
 fn list_permission_presets(ship_dir: &Path) -> Vec<CatalogEntry> {
     let files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
-    let entries = crate::services::permissions::state::list(&files);
+    let entries = ship_platform::services::permissions::state::list(&files);
     if entries.is_empty() {
         return fallback_presets();
     }
     // Load each preset's doc so we can surface `description` (best-effort).
     let mut out: Vec<CatalogEntry> = Vec::new();
     for e in entries {
-        let description = crate::services::permissions::state::load_entry(&files, &e.id, None)
+        let description = ship_platform::services::permissions::state::load_entry(&files, &e.id, None)
             .ok()
             .and_then(|(_, v)| v.get("description").and_then(|d| d.as_str()).map(String::from));
         out.push(CatalogEntry {

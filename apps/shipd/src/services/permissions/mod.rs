@@ -16,8 +16,6 @@
 //! curated Bash shapes + wildcards for every MCP server returned by
 //! `McpService::list()` (scope-agnostic).
 
-pub mod service;
-pub mod state;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
@@ -27,7 +25,7 @@ use serde::Deserialize;
 use crate::access::RuntimeAccess;
 use crate::routes::rest_api::ApiState;
 use ship_platform::services::files::Scope;
-use service::{CreateArgs, PutArgs};
+use ship_platform::services::permissions::service::{CreateArgs, PutArgs};
 
 #[derive(Debug, Deserialize)]
 pub struct ScopeQuery {
@@ -66,8 +64,8 @@ fn err(status: StatusCode, code: &str, message: impl Into<String>) -> Resp {
 
 fn created(value: serde_json::Value) -> Resp { (StatusCode::CREATED, Json(value)) }
 
-fn map_err(e: state::Error) -> Resp {
-    use state::Error::*;
+fn map_err(e: ship_platform::services::permissions::state::Error) -> Resp {
+    use ship_platform::services::permissions::state::Error::*;
     match e {
         NotFound(m)         => err(StatusCode::NOT_FOUND, "not_found", m),
         AlreadyExists(m)    => err(StatusCode::CONFLICT, "exists", m),
@@ -116,7 +114,7 @@ pub async fn put(
         .map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(target),
+        "scope": ship_platform::services::permissions::state::ScopeTag::from(target),
     })))
 }
 
@@ -133,7 +131,7 @@ pub async fn patch(
     let resolved = state.services().permissions().patch(&id, scope, &patch).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::permissions::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -147,7 +145,7 @@ pub async fn delete(
     let resolved = state.services().permissions().delete(&id, scope).map_err(map_err)?;
     Ok(Json(serde_json::json!({
         "ok": true, "id": id,
-        "scope": state::ScopeTag::from(resolved),
+        "scope": ship_platform::services::permissions::state::ScopeTag::from(resolved),
     })))
 }
 
@@ -175,7 +173,7 @@ pub async fn create(
     Ok(created(serde_json::json!({
         "ok": true,
         "id": body.id,
-        "scope": state::ScopeTag::from(scope),
+        "scope": ship_platform::services::permissions::state::ScopeTag::from(scope),
     })))
 }
 

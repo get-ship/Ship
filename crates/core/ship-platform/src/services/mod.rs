@@ -24,6 +24,7 @@ pub mod sync;
 // shims stay in shipd (apps/shipd/src/services/<domain>/mod.rs).
 pub mod files;
 pub mod mcp;
+pub mod permissions;
 pub mod path_tolerant;
 pub mod rules;
 #[cfg(test)]

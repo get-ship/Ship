@@ -120,7 +120,7 @@ pub struct ShipRuntime {
     rules: std::sync::Arc<dyn ship_platform::services::rules::service::RulesService>,
     /// `PermissionsService` impl — second mr-02 pilot, includes the
     /// cross-domain `tool_patterns` composition.
-    permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService>,
+    permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService>,
     /// `McpService` impl — third mr-02 pilot.
     mcp: std::sync::Arc<dyn ship_platform::services::mcp::service::McpService>,
     /// `SkillsService` impl — fourth mr-02 migration.
@@ -384,7 +384,7 @@ impl ShipRuntime {
                 let mcp_for_perms =
                     ship_platform::services::mcp::service::McpServiceImpl::arc(global_dir.clone());
                 std::sync::Arc::new(
-                    crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                    ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
                         global_dir.clone(),
                         None,
                         mcp_for_perms,
@@ -470,7 +470,7 @@ impl ShipRuntime {
     /// `PermissionsService` accessor — second mr-02 pilot.
     pub fn permissions(
         &self,
-    ) -> &dyn crate::services::permissions::service::PermissionsService {
+    ) -> &dyn ship_platform::services::permissions::service::PermissionsService {
         &*self.permissions
     }
 
@@ -805,9 +805,9 @@ impl ShipRuntime {
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
-        let permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService> =
+        let permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService> =
             std::sync::Arc::new(
-                crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
                     ship_dir.clone(),
                     None,
                     mcp.clone(),
@@ -881,9 +881,9 @@ impl ShipRuntime {
         // Permissions reaches into Mcp via the trait for tool_patterns.
         // Wire the same arc both places so HTTP and trait-to-trait paths
         // observe the same catalog.
-        let permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService> =
+        let permissions: std::sync::Arc<dyn ship_platform::services::permissions::service::PermissionsService> =
             std::sync::Arc::new(
-                crate::services::permissions::service::PermissionsServiceImpl::with_roots(
+                ship_platform::services::permissions::service::PermissionsServiceImpl::with_roots(
                     ship_dir.clone(),
                     None,
                     mcp.clone(),
