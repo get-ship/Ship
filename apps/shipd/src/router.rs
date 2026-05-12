@@ -18,10 +18,11 @@ use crate::{
     sessions, views,
 };
 use crate::routes::{
-    actor_api, actors_api, annotations_api, artifacts_api, collection_api, create_api,
-    feedback_api, hooks_api, human_webhook, lint_api, logs_api, openapi, projects_api,
-    rest_api, runtime_api, sdk_manifest, settings_api, shell_assets, specs_api, themes_api,
-    view_errors_api, view_sessions_api, webhook_ext,
+    actor_api, actors_api, agents_api, annotations_api, artifacts_api, collection_api,
+    create_api, feedback_api, git_api, hooks_api, human_webhook, lint_api, logs_api,
+    mcp_api, openapi, permissions_api, pipelines_api, projects_api, rest_api, rules_api,
+    runtime_api, sdk_manifest, settings_api, shell_assets, skills_api, specs_api,
+    themes_api, view_errors_api, view_sessions_api, webhook_ext,
 };
 use crate::auth::{attest, pairing, scopes, session};
 use crate::transport::{cors, pty as pty_handler};
@@ -371,64 +372,64 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
         // AgentService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
-        .ship_route(Route::AgentsList, services::agents::list)
-        .ship_route(Route::AgentsGet_template(), services::agents::get)
-        .ship_route(Route::AgentsPut_template(), services::agents::put)
-        .ship_route(Route::AgentsPatch_template(), services::agents::patch)
-        .ship_route(Route::AgentsDelete_template(), services::agents::delete)
-        .ship_route(Route::AgentsCreate, services::agents::create)
-        .ship_route(Route::AgentsRename_template(), services::agents::rename)
-        .ship_route(Route::AgentsDuplicate_template(), services::agents::duplicate)
-        .ship_route(Route::AgentsMove_template(), services::agents::move_scope)
+        .ship_route(Route::AgentsList, agents_api::list)
+        .ship_route(Route::AgentsGet_template(), agents_api::get)
+        .ship_route(Route::AgentsPut_template(), agents_api::put)
+        .ship_route(Route::AgentsPatch_template(), agents_api::patch)
+        .ship_route(Route::AgentsDelete_template(), agents_api::delete)
+        .ship_route(Route::AgentsCreate, agents_api::create)
+        .ship_route(Route::AgentsRename_template(), agents_api::rename)
+        .ship_route(Route::AgentsDuplicate_template(), agents_api::duplicate)
+        .ship_route(Route::AgentsMove_template(), agents_api::move_scope)
         // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
         // wrap the existing kernel-backed handlers so the write paths stay
         // single-sourced.
-        .ship_route(Route::PipelinesList, services::pipelines::list)
-        .ship_route(Route::PipelinesGet_template(), services::pipelines::get)
-        .ship_route(Route::PipelinesPut_template(), services::pipelines::put)
-        .ship_route(Route::PipelinesPatch_template(), services::pipelines::patch)
-        .ship_route(Route::PipelinesDelete_template(), services::pipelines::delete)
-        .ship_route(Route::PipelinesDispatch_template(), services::pipelines::dispatch)
-        .ship_route(Route::PipelineRunCancel_template(), services::pipelines::cancel_run)
-        .ship_route(Route::PipelineRunsList, services::pipelines::list_runs)
-        .ship_route(Route::PipelineRunGet_template(), services::pipelines::get_run)
+        .ship_route(Route::PipelinesList, pipelines_api::list)
+        .ship_route(Route::PipelinesGet_template(), pipelines_api::get)
+        .ship_route(Route::PipelinesPut_template(), pipelines_api::put)
+        .ship_route(Route::PipelinesPatch_template(), pipelines_api::patch)
+        .ship_route(Route::PipelinesDelete_template(), pipelines_api::delete)
+        .ship_route(Route::PipelinesDispatch_template(), pipelines_api::dispatch)
+        .ship_route(Route::PipelineRunCancel_template(), pipelines_api::cancel_run)
+        .ship_route(Route::PipelineRunsList, pipelines_api::list_runs)
+        .ship_route(Route::PipelineRunGet_template(), pipelines_api::get_run)
         .ship_route(Route::PipelineRunLogStream_template(), logs_api::stream_job_log)
         // RuleService — markdown rules.
-        .ship_route(Route::RulesList, services::rules::list)
-        .ship_route(Route::RulesGet_template(), services::rules::get)
-        .ship_route(Route::RulesPut_template(), services::rules::put)
-        .ship_route(Route::RulesDelete_template(), services::rules::delete)
-        .ship_route(Route::RulesCreate, services::rules::create)
+        .ship_route(Route::RulesList, rules_api::list)
+        .ship_route(Route::RulesGet_template(), rules_api::get)
+        .ship_route(Route::RulesPut_template(), rules_api::put)
+        .ship_route(Route::RulesDelete_template(), rules_api::delete)
+        .ship_route(Route::RulesCreate, rules_api::create)
         // McpService — entries in mcp.jsonc as a collection surface.
-        .ship_route(Route::McpList, services::mcp::list)
-        .ship_route(Route::McpGet_template(), services::mcp::get)
-        .ship_route(Route::McpPut_template(), services::mcp::put)
-        .ship_route(Route::McpPatch_template(), services::mcp::patch)
-        .ship_route(Route::McpDelete_template(), services::mcp::delete)
-        .ship_route(Route::McpCreate, services::mcp::create)
+        .ship_route(Route::McpList, mcp_api::list)
+        .ship_route(Route::McpGet_template(), mcp_api::get)
+        .ship_route(Route::McpPut_template(), mcp_api::put)
+        .ship_route(Route::McpPatch_template(), mcp_api::patch)
+        .ship_route(Route::McpDelete_template(), mcp_api::delete)
+        .ship_route(Route::McpCreate, mcp_api::create)
         // PermissionService — preset entries + composed tool-patterns.
-        .ship_route(Route::PermissionsList, services::permissions::list)
-        .ship_route(Route::PermissionsToolPatterns, services::permissions::tool_patterns)
-        .ship_route(Route::PermissionsGet_template(), services::permissions::get)
-        .ship_route(Route::PermissionsPut_template(), services::permissions::put)
-        .ship_route(Route::PermissionsPatch_template(), services::permissions::patch)
-        .ship_route(Route::PermissionsDelete_template(), services::permissions::delete)
-        .ship_route(Route::PermissionsCreate, services::permissions::create)
+        .ship_route(Route::PermissionsList, permissions_api::list)
+        .ship_route(Route::PermissionsToolPatterns, permissions_api::tool_patterns)
+        .ship_route(Route::PermissionsGet_template(), permissions_api::get)
+        .ship_route(Route::PermissionsPut_template(), permissions_api::put)
+        .ship_route(Route::PermissionsPatch_template(), permissions_api::patch)
+        .ship_route(Route::PermissionsDelete_template(), permissions_api::delete)
+        .ship_route(Route::PermissionsCreate, permissions_api::create)
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
         // the project-scoped skill endpoints that used to hang off
         // /api/v1/projects/{id}/skills/*.
-        .ship_route(Route::SkillsList, services::skills::list)
-        .ship_route(Route::SkillsGet_template(), services::skills::get)
-        .ship_route(Route::SkillsCreate, services::skills::create)
-        .ship_route(Route::SkillsDelete_template(), services::skills::delete)
-        .ship_route(Route::SkillsPutFrontmatter_template(), services::skills::put_frontmatter)
-        .ship_route(Route::SkillsPutBody_template(), services::skills::put_body)
-        .ship_route(Route::SkillsRename_template(), services::skills::rename)
-        .ship_route(Route::SkillsDuplicate_template(), services::skills::duplicate)
-        .ship_route(Route::SkillsMove_template(), services::skills::move_scope)
-        .ship_route(Route::SkillsGetVars_template(), services::skills::get_vars)
-        .ship_route(Route::SkillsPutVar_template(), services::skills::put_var)
-        .ship_route(Route::SkillsDeleteVar_template(), services::skills::delete_var)
+        .ship_route(Route::SkillsList, skills_api::list)
+        .ship_route(Route::SkillsGet_template(), skills_api::get)
+        .ship_route(Route::SkillsCreate, skills_api::create)
+        .ship_route(Route::SkillsDelete_template(), skills_api::delete)
+        .ship_route(Route::SkillsPutFrontmatter_template(), skills_api::put_frontmatter)
+        .ship_route(Route::SkillsPutBody_template(), skills_api::put_body)
+        .ship_route(Route::SkillsRename_template(), skills_api::rename)
+        .ship_route(Route::SkillsDuplicate_template(), skills_api::duplicate)
+        .ship_route(Route::SkillsMove_template(), skills_api::move_scope)
+        .ship_route(Route::SkillsGetVars_template(), skills_api::get_vars)
+        .ship_route(Route::SkillsPutVar_template(), skills_api::put_var)
+        .ship_route(Route::SkillsDeleteVar_template(), skills_api::delete_var)
         .ship_route(Route::ChatSend, services::chat::send_message)
         // Specs REST
         .ship_route(Route::ListSpecs, specs_api::list_specs)
@@ -452,18 +453,18 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::WriteProjectAgent_template(), project_api::write_agent)
         // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
-        .ship_route(Route::GitStatus, services::git::status_handler)
-        .ship_route(Route::GitDiff, services::git::diff_handler)
-        .ship_route(Route::GitLog, services::git::log_handler)
-        .ship_route(Route::GitBranches, services::git::branches_handler)
-        .ship_route(Route::GitStage, services::git::stage_handler)
-        .ship_route(Route::GitUnstage, services::git::unstage_handler)
-        .ship_route(Route::GitCommit, services::git::commit_handler)
-        .ship_route(Route::GitPush, services::git::push_handler)
-        .ship_route(Route::GitFetch, services::git::fetch_handler)
-        .ship_route(Route::GitPull, services::git::pull_handler)
-        .ship_route(Route::GitCheckout, services::git::checkout_handler)
-        .ship_route(Route::GitSse, services::git::sse_handler)
+        .ship_route(Route::GitStatus, git_api::status_handler)
+        .ship_route(Route::GitDiff, git_api::diff_handler)
+        .ship_route(Route::GitLog, git_api::log_handler)
+        .ship_route(Route::GitBranches, git_api::branches_handler)
+        .ship_route(Route::GitStage, git_api::stage_handler)
+        .ship_route(Route::GitUnstage, git_api::unstage_handler)
+        .ship_route(Route::GitCommit, git_api::commit_handler)
+        .ship_route(Route::GitPush, git_api::push_handler)
+        .ship_route(Route::GitFetch, git_api::fetch_handler)
+        .ship_route(Route::GitPull, git_api::pull_handler)
+        .ship_route(Route::GitCheckout, git_api::checkout_handler)
+        .ship_route(Route::GitSse, git_api::sse_handler)
         .ship_route(Route::EmitEvent, project_api::emit_event)
         // Artifacts platform (three-scope)
         .merge(
@@ -525,8 +526,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // codegen Route enum doesn't model `{*path}`).
         .route(
             "/api/v1/skills/{id}/files/{*path}",
-            axum::routing::put(services::skills::put_file)
-                .delete(services::skills::delete_file),
+            axum::routing::put(skills_api::put_file)
+                .delete(skills_api::delete_file),
         )
         .with_state(st)
 }

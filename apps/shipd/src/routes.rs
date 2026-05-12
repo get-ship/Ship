@@ -40,16 +40,23 @@
 
 pub mod actor_api;
 pub mod actors_api;
+pub mod agents_api;
 pub mod annotations_api;
 pub mod artifacts_api;
 pub mod collection_api;
 pub mod create_api;
 pub mod feedback_api;
+pub mod git_api;
 pub mod hooks_api;
+pub mod human_webhook;
 pub mod lint_api;
 pub mod logs_api;
-pub mod human_webhook;
+pub mod mcp_api;
 pub mod openapi;
+pub mod permissions_api;
+pub mod pipelines_api;
+pub mod rules_api;
+pub mod skills_api;
 pub mod openapi_modifier;
 pub mod openapi_types;
 pub mod projects_api;
