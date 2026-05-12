@@ -51,6 +51,31 @@ describe('SuiBuildConfig', () => {
     }
     expect(Object.keys(config.lazyBundles ?? {})).toHaveLength(3)
   })
+
+  it('accepts loaders field with extension-to-loader mapping', () => {
+    const config: SuiBuildConfig = {
+      entries: { main: 'src/index.ts' },
+      outdir: 'dist',
+      loaders: { '.svg': 'text', '.png': 'base64' },
+    }
+    expect(config.loaders).toEqual({ '.svg': 'text', '.png': 'base64' })
+  })
+
+  it('loaders is optional — omitting it leaves it undefined', () => {
+    const config: SuiBuildConfig = {
+      entries: { main: 'src/index.ts' },
+      outdir: 'dist',
+    }
+    expect(config.loaders).toBeUndefined()
+  })
+
+  it('mode defaults to undefined in config (CLI provides the production default)', () => {
+    const config: SuiBuildConfig = {
+      entries: { main: 'src/index.ts' },
+      outdir: 'dist',
+    }
+    expect(config.mode).toBeUndefined()
+  })
 })
 
 describe('BuildResult', () => {

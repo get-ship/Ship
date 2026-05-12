@@ -20,6 +20,13 @@ export interface SuiBuildConfig {
 
   /** Emit source maps. Default: true in development, false in production. */
   sourcemap?: boolean
+
+  /** File-type loader overrides. Map of '.ext' → loader name.
+   *  Loader semantics follow esbuild's vocabulary: 'js', 'ts', 'jsx', 'tsx',
+   *  'css', 'json', 'text', 'binary', 'base64', 'file', 'copy', 'dataurl'.
+   *  Adapters must honor these or throw a clear error if unsupported.
+   *  Example: { '.svg': 'text' } inlines SVG content as a JS string. */
+  loaders?: Record<string, string>
 }
 
 export interface BuildResult {
