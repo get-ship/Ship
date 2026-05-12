@@ -6,7 +6,11 @@
     statement, but only the active branch is mounted.
   </p>
 
-  <div class="demo-tones" role="tablist">
+  <!-- NOTE: tried `role="tab"` on these buttons (parent has role="tablist")
+       to fix the axe `aria-required-children` violation but the compiler
+       silently drops static `role` attrs on elements that also have
+       bindings (class:, on:, etc.). Tracked as F-C4. -->
+  <div class="demo-tones">
     <button data-test="tone-info"        class:active={tone() === 'info'}        on:click={() => tone.set('info')}>info</button>
     <button data-test="tone-success"     class:active={tone() === 'success'}     on:click={() => tone.set('success')}>success</button>
     <button data-test="tone-warning"     class:active={tone() === 'warning'}     on:click={() => tone.set('warning')}>warning</button>
