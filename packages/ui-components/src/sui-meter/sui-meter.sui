@@ -1,0 +1,70 @@
+<!--
+  <sui-meter> — SUI port of <ship-meter>.
+  Segmented horizontal capacity bar.
+
+  Prop parity vs <ship-meter>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit              SUI              Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  segments(string) segments(string, ✓ JSON [{tone, count, label?}]
+                     reflect)
+  total (number)   total (number)   ✓ 0 = auto-sum
+  label (string)   label (string)   ✓ aria-label on bar
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots: (default) — legend content
+  Parts: bar, segment
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="segments" type="string" default="" reflect />
+<prop name="total" type="number" default="0" />
+<prop name="label" type="string" default="meter" />
+
+<style>
+  :host {
+    display: block;
+    width: 100%;
+    font-family: var(--font-body);
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  :host([hidden]) { display: none; }
+  .wrap { display: flex; flex-direction: column; gap: 8px; }
+  .bar {
+    display: flex;
+    gap: 2px;
+    height: 10px;
+    width: 100%;
+    background: var(--muted);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+  }
+  .seg:first-child {
+    border-top-left-radius: var(--radius-full);
+    border-bottom-left-radius: var(--radius-full);
+  }
+  .seg:last-child {
+    border-top-right-radius: var(--radius-full);
+    border-bottom-right-radius: var(--radius-full);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .legend:empty { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="bar" part="bar" role="img" aria-label={label()}>
+    {#for b of bars() key={b.id}}
+      <div class="seg" part="segment" style={b.style} title={b.title}></div>
+    {/for}
+  </div>
+  <div class="legend"><slot></slot></div>
+</div>
