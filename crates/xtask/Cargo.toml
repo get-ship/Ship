@@ -13,7 +13,7 @@ path = "src/main.rs"
 compiler = { path = "../core/compiler", features = ["specta"] }
 ship-application = { path = "../core/ship-application" }
 ship-substrate = { path = "../core/ship-substrate" }
-ship-platform = { path = "../core/ship-platform" }
+ship-platform = { path = "../core/ship-platform", features = ["specta"] }
 ship-types = { path = "../core/ship-types", features = ["specta"] }
 ship-sui = { path = "../ship-sui", features = ["specta"] }
 shipd = { path = "../../apps/shipd", features = ["specta"] }

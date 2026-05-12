@@ -26,6 +26,7 @@ walkdir = "2.3"
 # write_api handlers. No partial-edit shims; patch() is the canonical
 # partial-update path.
 json-patch = "4"
+git2 = "0.19"
 specta = { workspace = true, features = ["chrono", "serde_json"] }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
 tokio = { workspace = true, features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
@@ -53,6 +54,10 @@ libc = { workspace = true }
 
 [features]
 unstable = []
+# Enable derive(Type) on public data structs in the migrated services
+# (rules/mcp/skills/agents/pipelines/git/permissions/...) so xtask can
+# emit TypeScript bindings via `cargo xtask gen-types`. Off by default.
+specta = []
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["test-util"] }

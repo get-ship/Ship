@@ -23,6 +23,7 @@ pub mod sync;
 // path-scoped JSONC read/write helper; the rest follow as their HTTP
 // shims stay in shipd (apps/shipd/src/services/<domain>/mod.rs).
 pub mod files;
+pub mod git;
 pub mod jsonc;
 pub mod mcp;
 pub mod agents;

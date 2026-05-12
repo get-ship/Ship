@@ -16,47 +16,47 @@ pub(super) fn try_dispatch(
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "git.status" => {
-            let root = crate::services::git::state::resolve_root(state.ship_dir(), None)
+            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), None)
                 .map_err(RegistryError::service)?;
-            Ok(serde_json::to_value(crate::services::git::read::load_status_buckets(&root))
+            Ok(serde_json::to_value(ship_platform::services::git::read::load_status_buckets(&root))
                 .map_err(|e| RegistryError::service(e.to_string()))?)
         }
         "git.log" => {
-            let root = crate::services::git::state::resolve_root(state.ship_dir(), None)
+            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), None)
                 .map_err(RegistryError::service)?;
             let limit = optional_usize(args, "limit", 50);
-            Ok(json!({ "commits": crate::services::git::read::load_log(&root, None, limit) }))
+            Ok(json!({ "commits": ship_platform::services::git::read::load_log(&root, None, limit) }))
         }
         "git.branches" => {
-            let root = crate::services::git::state::resolve_root(state.ship_dir(), None)
+            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), None)
                 .map_err(RegistryError::service)?;
-            let (ahead, behind) = crate::services::git::read::load_ahead_behind(&root)
+            let (ahead, behind) = ship_platform::services::git::read::load_ahead_behind(&root)
                 .unwrap_or((0, 0));
             Ok(json!({
-                "branches": crate::services::git::read::load_branches(&root),
+                "branches": ship_platform::services::git::read::load_branches(&root),
                 "ahead": ahead,
                 "behind": behind,
             }))
         }
         "git.overview" => {
             let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
-            let root = crate::services::git::state::resolve_root(state.ship_dir(), workspace_id)
+            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), workspace_id)
                 .map_err(RegistryError::service)?;
-            let limit = optional_usize(args, "limit", crate::services::git::read::DEFAULT_LOG_LIMIT);
-            let buckets = crate::services::git::read::load_status_buckets(&root);
-            let (ahead, behind) = crate::services::git::read::load_ahead_behind(&root)
+            let limit = optional_usize(args, "limit", ship_platform::services::git::read::DEFAULT_LOG_LIMIT);
+            let buckets = ship_platform::services::git::read::load_status_buckets(&root);
+            let (ahead, behind) = ship_platform::services::git::read::load_ahead_behind(&root)
                 .unwrap_or((0, 0));
             Ok(json!({
                 "workspace_id": workspace_id,
-                "branch": crate::services::git::read::load_branch(&root),
-                "head_short": crate::services::git::read::load_head_short(&root),
+                "branch": ship_platform::services::git::read::load_branch(&root),
+                "head_short": ship_platform::services::git::read::load_head_short(&root),
                 "clean": buckets.clean,
                 "total_changed": buckets.total,
                 "staged": buckets.staged,
                 "modified": buckets.modified,
                 "untracked": buckets.untracked,
-                "commits": crate::services::git::read::load_log(&root, None, limit),
-                "branches": crate::services::git::read::load_branches(&root),
+                "commits": ship_platform::services::git::read::load_log(&root, None, limit),
+                "branches": ship_platform::services::git::read::load_branches(&root),
                 "ahead": ahead,
                 "behind": behind,
             }))
@@ -67,19 +67,19 @@ pub(super) fn try_dispatch(
                 return Err(RegistryError::bad_args("commit must be non-empty"));
             }
             let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
-            let root = crate::services::git::state::resolve_root(state.ship_dir(), workspace_id)
+            let root = ship_platform::services::git::state::resolve_root(state.ship_dir(), workspace_id)
                 .map_err(RegistryError::service)?;
             let is_working = commit.eq_ignore_ascii_case("WORKING");
             let diff_text = if is_working {
-                crate::services::git::read::load_working_diff(&root)
+                ship_platform::services::git::read::load_working_diff(&root)
             } else {
-                let text = crate::services::git::read::load_commit_diff(&root, commit);
+                let text = ship_platform::services::git::read::load_commit_diff(&root, commit);
                 if text.is_empty() {
                     return Err(RegistryError::not_found(format!("commit `{commit}`")));
                 }
                 text
             };
-            let parsed = crate::services::git::diff::parse_unified_diff(&diff_text);
+            let parsed = ship_platform::services::git::diff::parse_unified_diff(&diff_text);
             let (sha, short_sha): (String, String) = if is_working {
                 ("WORKING".into(), "working".into())
             } else {
@@ -96,7 +96,7 @@ pub(super) fn try_dispatch(
         "git.annotations" => {
             let file = required_str(args, "file")?;
             let workspace_id = args.get("workspace_id").and_then(|v| v.as_str());
-            let annotations = crate::services::git::annotations::load_file_annotations(
+            let annotations = ship_platform::services::git::annotations::load_file_annotations(
                 state.ship_dir(),
                 file,
                 workspace_id,

@@ -24,7 +24,7 @@ use crate::auth::SessionRegistry;
 use ship_platform::services::agents::service::AgentsService;
 use crate::services::artifacts::service::ArtifactsService;
 use crate::services::collections::service::CollectionsService;
-use crate::services::git::service::GitService;
+use ship_platform::services::git::service::GitService;
 use ship_platform::services::mcp::service::McpService;
 use ship_platform::services::permissions::service::PermissionsService;
 use ship_platform::services::pipelines::service::PipelinesService;

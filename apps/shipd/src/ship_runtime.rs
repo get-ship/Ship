@@ -132,7 +132,7 @@ pub struct ShipRuntime {
     pipelines: std::sync::Arc<dyn ship_platform::services::pipelines::service::PipelinesService>,
     /// `GitService` impl — seventh mr-02 migration. Project-bound; the
     /// SSE handler in `git/mod.rs` stays separate.
-    git: std::sync::Arc<dyn crate::services::git::service::GitService>,
+    git: std::sync::Arc<dyn ship_platform::services::git::service::GitService>,
     /// `CollectionsService` impl — eighth mr-02 migration. Db-bound;
     /// shares the `data_service` Arc with the runtime.
     collections: std::sync::Arc<dyn crate::services::collections::service::CollectionsService>,
@@ -395,7 +395,7 @@ impl ShipRuntime {
             skills: ship_platform::services::skills::service::SkillsServiceImpl::arc(global_dir.clone()),
             agents: ship_platform::services::agents::service::AgentsServiceImpl::arc(global_dir.clone()),
             pipelines: ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(global_dir.clone()),
-            git: crate::services::git::service::GitServiceImpl::arc(global_dir.clone()),
+            git: ship_platform::services::git::service::GitServiceImpl::arc(global_dir.clone()),
             collections,
             artifacts,
             workspace_dir,
@@ -496,7 +496,7 @@ impl ShipRuntime {
     }
 
     /// `GitService` accessor — every git op except SSE goes through this.
-    pub fn git(&self) -> &dyn crate::services::git::service::GitService {
+    pub fn git(&self) -> &dyn ship_platform::services::git::service::GitService {
         &*self.git
     }
 
@@ -788,7 +788,7 @@ impl ShipRuntime {
         let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
-        let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());
+        let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
@@ -864,7 +864,7 @@ impl ShipRuntime {
         let agents = ship_platform::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
         let pipelines =
             ship_platform::services::pipelines::service::PipelinesServiceImpl::arc(ship_dir.clone());
-        let git = crate::services::git::service::GitServiceImpl::arc(ship_dir.clone());
+        let git = ship_platform::services::git::service::GitServiceImpl::arc(ship_dir.clone());
         let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =

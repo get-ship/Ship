@@ -19,17 +19,11 @@
 //! | GET    /api/v1/git/sse             | change stream                 |
 //!
 //! All endpoints operate on the active workspace / project root resolved
-//! via `state::resolve_root`. Optional `?workspace_id=` query param lets
+//! via `ship_platform::services::git::state::resolve_root`. Optional `?workspace_id=` query param lets
 //! callers pin a specific worktree.
 
-pub mod annotations;
-pub mod diff;
-pub mod read;
-pub mod service;
-pub mod state;
-pub mod write;
 
-use service::{CheckoutArgs, CommitArgs, PushArgs};
+use ship_platform::services::git::service::{CheckoutArgs, CommitArgs, PushArgs};
 
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -41,7 +35,7 @@ use std::time::Duration;
 use crate::access::RuntimeAccess;
 use crate::routes::rest_api::ApiState;
 use crate::views::stream::{ViewSse, ViewStream};
-use state::GitError;
+use ship_platform::services::git::state::GitError;
 
 type Resp = (StatusCode, Json<serde_json::Value>);
 
@@ -149,12 +143,12 @@ pub struct CheckoutBody {
 // ── helpers ──────────────────────────────────────────────────────────────
 
 fn resolve(state: &ApiState, workspace_id: Option<&str>) -> Result<std::path::PathBuf, Resp> {
-    state::resolve_root(state.ship_dir(), workspace_id)
+    ship_platform::services::git::state::resolve_root(state.ship_dir(), workspace_id)
         .map_err(|e| err(StatusCode::NOT_FOUND, "no_repo", e))
 }
 
 fn current_branch(root: &Path) -> Option<String> {
-    read::load_branch(root)
+    ship_platform::services::git::read::load_branch(root)
 }
 
 // ── read handlers ────────────────────────────────────────────────────────
@@ -201,7 +195,7 @@ pub async fn log_handler(
     State(state): State<ApiState>,
     Query(q): Query<LogQuery>,
 ) -> Result<Json<serde_json::Value>, Resp> {
-    let limit = q.limit.unwrap_or(read::DEFAULT_LOG_LIMIT);
+    let limit = q.limit.unwrap_or(ship_platform::services::git::read::DEFAULT_LOG_LIMIT);
     let commits = state
         .git()
         .log(q.workspace_id.as_deref(), q.branch.as_deref(), limit)
@@ -336,14 +330,14 @@ pub async fn sse_handler(
         loop {
             ticker.tick().await;
             if vs.is_closed() { break; }
-            let root = match state::resolve_root(&ship_dir, workspace_id.as_deref()) {
+            let root = match ship_platform::services::git::state::resolve_root(&ship_dir, workspace_id.as_deref()) {
                 Ok(r) => r,
                 Err(_) => continue,
             };
-            let buckets = read::load_status_buckets(&root);
-            let (ahead, behind) = read::load_ahead_behind(&root).unwrap_or((0, 0));
+            let buckets = ship_platform::services::git::read::load_status_buckets(&root);
+            let (ahead, behind) = ship_platform::services::git::read::load_ahead_behind(&root).unwrap_or((0, 0));
             let body = serde_json::json!({
-                "branch": read::load_branch(&root),
+                "branch": ship_platform::services::git::read::load_branch(&root),
                 "ahead": ahead,
                 "behind": behind,
                 "clean": buckets.clean,
@@ -360,6 +354,3 @@ pub async fn sse_handler(
     sse
 }
 
-#[cfg(test)]
-#[path = "state_tests.rs"]
-mod state_tests;

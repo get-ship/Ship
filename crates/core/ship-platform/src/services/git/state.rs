@@ -141,12 +141,12 @@ pub fn resolve_root(
     workspace_id: Option<&str>,
 ) -> Result<PathBuf, String> {
     if let Some(branch) = workspace_id.filter(|s| !s.is_empty() && *s != "project")
-        && let Some(path) = crate::project_api::worktree_path_for_branch(branch)
+        && let Some(path) = worktree_path_for_branch(branch)
         && (path.join(".git").exists() || ship_substrate::ShipHome::project_ship_dir(&path).exists())
     {
         return Ok(path);
     }
-    if let Ok(project_ship) = ship_application::project::get_project_dir(None) {
+    if let Ok(project_ship) = ship_substrate::project::get_project_dir(None) {
         if let Some(root) = project_ship.parent() {
             return Ok(root.to_path_buf());
         }
@@ -155,6 +155,44 @@ pub fn resolve_root(
         .parent()
         .map(Path::to_path_buf)
         .ok_or_else(|| "cannot resolve project root".to_string())
+}
+
+/// Look up the worktree path for a branch via `git worktree list --porcelain`.
+/// Returns None if the branch isn't a checked-out worktree.
+///
+/// shipd's `project_api::worktree_path_for_branch` wraps the same shell-out
+/// through its `spawn_bounded` helper for resource caps; this version uses
+/// plain `std::process::Command` because the `git worktree list` call is
+/// fast and bounded by the number of worktrees (small).
+fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
+    let project_ship = ship_substrate::project::get_project_dir(None).ok()?;
+    let project_root = project_ship.parent()?;
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(project_root)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout);
+    for block in text.split("\n\n") {
+        let mut path: Option<String> = None;
+        let mut found_branch: Option<String> = None;
+        for line in block.lines() {
+            if let Some(p) = line.strip_prefix("worktree ") {
+                path = Some(p.trim().to_string());
+            } else if let Some(b) = line.strip_prefix("branch refs/heads/") {
+                found_branch = Some(b.trim().to_string());
+            }
+        }
+        if let (Some(p), Some(b)) = (path, found_branch)
+            && b == branch
+        {
+            return Some(PathBuf::from(p));
+        }
+    }
+    None
 }
 
 // ── shared helpers (crate-internal) ──────────────────────────────────────
