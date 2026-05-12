@@ -29,13 +29,13 @@ const SUI_NAV_TOP_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-nav-
 const SUI_RAIL_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-rail.js");
 
 // Baked view JS + CSS for first-party views (production fallback).
+// `counter` moved out to packages/sui-runtime/fixtures/ as a framework
+// smoke fixture — no longer a first-party view, no fallback bake.
 
 const AGENTS_VIEW_CSS: &str = include_str!("../../../views/agents/style.css");
 const AGENTS_VIEW_JS: &str = include_str!("../assets/views/agents/view.js");
 const GIT_VIEW_CSS: &str = include_str!("../../../views/git/style.css");
 const GIT_VIEW_JS: &str = include_str!("../assets/views/git/view.js");
-const COUNTER_VIEW_CSS: &str = include_str!("../../../views/counter/style.css");
-const COUNTER_VIEW_JS: &str = include_str!("../assets/views/counter/view.js");
 
 // Public helpers (used by view.rs)
 
@@ -47,7 +47,6 @@ pub fn resolve_view_js_baked(name: &str) -> Option<&'static str> {
     match name {
         "agents" => Some(AGENTS_VIEW_JS),
         "git" => Some(GIT_VIEW_JS),
-        "counter" => Some(COUNTER_VIEW_JS),
         _ => None,
     }
 }
@@ -56,7 +55,6 @@ pub fn resolve_view_css_baked(name: &str) -> Option<&'static str> {
     match name {
         "agents" => Some(AGENTS_VIEW_CSS),
         "git" => Some(GIT_VIEW_CSS),
-        "counter" => Some(COUNTER_VIEW_CSS),
         _ => None,
     }
 }

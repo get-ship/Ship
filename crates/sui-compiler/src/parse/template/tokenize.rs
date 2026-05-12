@@ -155,10 +155,18 @@ fn tokenize_text(text: &str, base_span: Span, out: &mut Vec<Token>) {
     while i < bytes.len() {
         if bytes[i] == b'{'
             && let Some(close) = find_matching_close(text, i) {
+                // Expression body stays RAW — never entity-decoded. JS
+                // source goes through the expression tokenizer / checker
+                // which assumes the bytes match the source positions.
                 let inner = text[i + 1..close].trim().to_string();
                 if !buf.is_empty() {
                     let span = Span::new(base_span.start + buf_start, base_span.start + i);
-                    out.push(Token { kind: TokenKind::Text(std::mem::take(&mut buf)), span });
+                    // Text segment around the expression CAN be decoded —
+                    // it becomes a DOM text node and entity references like
+                    // `&deg;` are author shorthand for the resulting char.
+                    let decoded = super::super::html::decode_entities(&buf);
+                    buf.clear();
+                    out.push(Token { kind: TokenKind::Text(decoded), span });
                 }
                 let span = Span::new(base_span.start + i, base_span.start + close + 1);
                 out.push(Token { kind: classify_brace(&inner), span });
@@ -176,7 +184,8 @@ fn tokenize_text(text: &str, base_span: Span, out: &mut Vec<Token>) {
     }
     if !buf.is_empty() {
         let span = Span::new(base_span.start + buf_start, base_span.start + text.len());
-        out.push(Token { kind: TokenKind::Text(buf), span });
+        let decoded = super::super::html::decode_entities(&buf);
+        out.push(Token { kind: TokenKind::Text(decoded), span });
     }
 }
 
