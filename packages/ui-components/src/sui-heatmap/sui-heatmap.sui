@@ -1,0 +1,57 @@
+<!--
+  <sui-heatmap> — SUI port of <ship-heatmap>.
+  2D grid of SVG rect cells, intensity-colored.
+
+  Prop parity vs <ship-heatmap>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit              SUI              Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  data (string)    data (string,    ✓ 1D comma nums OR JSON [[row],[row]]
+                     reflect)
+  rows (string)    rows (string)    ✓ comma-separated y labels
+  cols (string)    cols (string)    ✓ comma-separated x labels
+  tone (string)    tone (union,     ✓ base hue for intensity mix
+                     reflect)
+  label (string)   label (string)   ✓ aria-label on SVG
+  ─────────────────────────────────────────────────────────────────────────────
+  Added: cell-size (px, default 20), gap (px, default 3)
+  Slots: none
+  Parts: cell
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="data" type="string" default="" reflect />
+<prop name="rows" type="string" default="" />
+<prop name="cols" type="string" default="" />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="primary" reflect />
+<prop name="cell-size" type="number" default="20" />
+<prop name="gap" type="number" default="3" />
+<prop name="label" type="string" default="heatmap" />
+
+<style>
+  :host {
+    display: inline-block;
+    font-family: var(--font-body);
+  }
+  :host([hidden]) { display: none; }
+  svg { display: block; overflow: visible; }
+  .cell { fill: var(--muted); }
+</style>
+
+<svg
+  viewBox={'0 0 ' + svgW() + ' ' + svgH()}
+  role="img"
+  aria-label={label()}>
+  {#for cell of cells() key={cell.id}}
+    <rect
+      class="cell"
+      part="cell"
+      x={cell.x}
+      y={cell.y}
+      width={cell.w}
+      height={cell.h}
+      rx="2"
+      style={cell.fill}>
+    </rect>
+  {/for}
+</svg>
