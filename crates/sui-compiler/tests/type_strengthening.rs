@@ -22,6 +22,7 @@ fn paired_opts(path: PathBuf) -> CompileOpts {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     }
 }
 
@@ -33,6 +34,7 @@ fn standalone_opts(path: PathBuf) -> CompileOpts {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     }
 }
 

@@ -13,6 +13,7 @@ fn compile_dts(source: &str) -> String {
         styles: None,
         component_meta: None,
         emit_dts: true,
+        emit_ssr: false,
     };
     compile(source, opts)
         .expect("compile")
@@ -29,6 +30,7 @@ fn compile_component_dts(source: &str) -> String {
         styles: None,
         component_meta: Some(ComponentMeta { name: "test-el".into(), shadow: false }),
         emit_dts: true,
+        emit_ssr: false,
     };
     compile(source, opts)
         .expect("compile")
@@ -90,6 +92,7 @@ fn emit_dts_false_returns_none() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(r#"<p>hi</p>"#, opts).expect("compile");
     assert!(out.dts.is_none(), "expected no dts when emit_dts=false");

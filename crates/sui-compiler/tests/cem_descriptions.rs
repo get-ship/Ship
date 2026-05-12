@@ -25,6 +25,7 @@ fn jsdoc_above_prop_emits_description_in_cem() {
             shadow: false,
         }),
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     let cem = out.cem.expect("CEM emitted for component-mode");

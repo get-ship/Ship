@@ -55,16 +55,26 @@ fn serve(name: &str, sub_path: Option<&str>) -> Response {
         .into_iter()
         .map(|s| s.to_string())
         .collect();
+    let html = read_precompiled_ssr(resolved.source_path.as_deref())
+        .unwrap_or(split.html);
     let payload = ViewPayload {
         name: name.to_string(),
         sub: sub_path.map(str::to_string),
-        html: split.html,
+        html,
         css,
         scope: split.init,
         module_url,
         islands: island_bundles,
     };
     json_ok(&payload)
+}
+
+fn read_precompiled_ssr(source_path: Option<&std::path::Path>) -> Option<String> {
+    let p = source_path?;
+    let stem = p.file_stem()?.to_str()?;
+    let stem_clean = stem.trim_end_matches(".html");
+    let ssr_path = p.parent()?.join("dist").join(format!("{stem_clean}.ssr.html"));
+    std::fs::read_to_string(&ssr_path).ok()
 }
 
 fn collect_view_css(name: &str, source_path: Option<&std::path::Path>) -> String {

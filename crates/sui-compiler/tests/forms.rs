@@ -22,6 +22,7 @@ fn compile_view(source: &str) -> sui_compiler::CompileError {
             styles: None,
             component_meta: None,
             emit_dts: false,
+            emit_ssr: false,
         },
     )
     .expect_err("expected error")
