@@ -28,7 +28,7 @@ use crate::access::RuntimeAccess;
 use crate::auth::{AuthContext, Scope};
 use crate::routes::rest_api::ApiState;
 use crate::auth::scopes::{can_delete_artifacts, can_read_artifacts, can_write_artifacts, require_scope};
-use crate::services::artifacts::service::{
+use ship_platform::services::artifacts::service::{
     ArtifactsService, Error as ArtifactsError, PatchArgs, StoreArgs,
 };
 use ship_platform::artifacts::{ARTIFACTS_COLLECTION_ID, ArtifactScope};

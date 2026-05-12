@@ -135,10 +135,10 @@ pub struct ShipRuntime {
     git: std::sync::Arc<dyn ship_platform::services::git::service::GitService>,
     /// `CollectionsService` impl — eighth mr-02 migration. Db-bound;
     /// shares the `data_service` Arc with the runtime.
-    collections: std::sync::Arc<dyn crate::services::collections::service::CollectionsService>,
+    collections: std::sync::Arc<dyn ship_platform::services::collections::service::CollectionsService>,
     /// `ArtifactsService` impl — ninth mr-02 migration. Db-bound;
     /// shares the `data_service` Arc with the runtime.
-    artifacts: std::sync::Arc<dyn crate::services::artifacts::service::ArtifactsService>,
+    artifacts: std::sync::Arc<dyn ship_platform::services::artifacts::service::ArtifactsService>,
     /// Worktree resolver — production uses `git worktree list`; tests
     /// override with an in-memory map. See `resolve_worktree` method and
     /// `new_test_with_worktree_resolver` test ctor.
@@ -332,12 +332,12 @@ impl ShipRuntime {
         let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
-            crate::services::collections::service::CollectionsServiceImpl::arc(
+            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
                 global_dir.clone(),
                 kernel.clone(),
                 data_service.clone(),
             );
-        let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
+        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
             global_dir.clone(),
             kernel.clone(),
             data_service.clone(),
@@ -503,14 +503,14 @@ impl ShipRuntime {
     /// `CollectionsService` accessor — db-bound CRUD + query.
     pub fn collections(
         &self,
-    ) -> &dyn crate::services::collections::service::CollectionsService {
+    ) -> &dyn ship_platform::services::collections::service::CollectionsService {
         &*self.collections
     }
 
     /// `ArtifactsService` accessor — db-bound CRUD + scope promotion.
     pub fn artifacts(
         &self,
-    ) -> &dyn crate::services::artifacts::service::ArtifactsService {
+    ) -> &dyn ship_platform::services::artifacts::service::ArtifactsService {
         &*self.artifacts
     }
 
@@ -557,7 +557,7 @@ impl ShipRuntime {
     /// On first call, registers built-in collections (currently `artifacts`)
     /// so they are guaranteed present without requiring a schema file.
     pub async fn data_service(&self) -> Result<tokio::sync::MutexGuard<'_, Option<ship_substrate::data::DataService>>> {
-        ensure_data_service(&self.data_service, &self.ship_dir).await
+        ship_platform::services::data::ensure_data_service(&self.data_service, &self.ship_dir).await
     }
 
     /// Arc handle to the shared `DataService` mutex — passed to service
@@ -792,12 +792,12 @@ impl ShipRuntime {
         let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
-            crate::services::collections::service::CollectionsServiceImpl::arc(
+            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
                 ship_dir.clone(),
                 kernel.clone(),
                 data_service.clone(),
             );
-        let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
+        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
             ship_dir.clone(),
             kernel.clone(),
             data_service.clone(),
@@ -868,12 +868,12 @@ impl ShipRuntime {
         let data_service: Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>> =
             Arc::new(tokio::sync::Mutex::new(None));
         let collections =
-            crate::services::collections::service::CollectionsServiceImpl::arc(
+            ship_platform::services::collections::service::CollectionsServiceImpl::arc(
                 ship_dir.clone(),
                 kernel.clone(),
                 data_service.clone(),
             );
-        let artifacts = crate::services::artifacts::service::ArtifactsServiceImpl::arc(
+        let artifacts = ship_platform::services::artifacts::service::ArtifactsServiceImpl::arc(
             ship_dir.clone(),
             kernel.clone(),
             data_service.clone(),
@@ -985,24 +985,9 @@ impl ShipRuntime {
     }
 }
 
-/// Lazy-init helper for the shared `DataService` handle.
-///
-/// `data_service_arc` and `ShipRuntime::data_service` both go through
-/// here so the registration of the built-in artifacts collection happens
-/// exactly once regardless of who holds the mutex first.
-pub(crate) async fn ensure_data_service<'a>(
-    handle: &'a Arc<tokio::sync::Mutex<Option<ship_substrate::data::DataService>>>,
-    ship_dir: &Path,
-) -> Result<tokio::sync::MutexGuard<'a, Option<ship_substrate::data::DataService>>> {
-    let mut guard = handle.lock().await;
-    if guard.is_none() {
-        let mut svc = ship_substrate::data::DataService::open(ship_dir)?;
-        ship_platform::artifacts::ensure_artifacts_collection(&mut svc)
-            .context("registering built-in artifacts collection")?;
-        *guard = Some(svc);
-    }
-    Ok(guard)
-}
+// `ensure_data_service` moved to `ship_platform::services::data::ensure_data_service`
+// so the migrated CollectionsService + ArtifactsService can call it without
+// a back-reference to shipd. ShipRuntime's accessor below delegates.
 
 /// End all previously-active sessions on daemon startup.
 ///

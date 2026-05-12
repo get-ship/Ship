@@ -7,12 +7,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
-use ship_platform::artifacts::{ArtifactRecord, ArtifactScope, ArtifactService};
-use ship_platform::collections::query::QueryRequest;
+use crate::artifacts::{ArtifactRecord, ArtifactScope, ArtifactService};
+use crate::collections::query::QueryRequest;
 use ship_substrate::data::DataService;
 use ship_substrate::events::KernelRouter;
 
-use crate::ship_runtime::ensure_data_service;
+use crate::services::data::ensure_data_service;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {

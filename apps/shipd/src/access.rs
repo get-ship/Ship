@@ -22,8 +22,8 @@ pub use ship_substrate::access::{ConfigAccess, KernelAccess, MeshAccess, SharedK
 
 use crate::auth::SessionRegistry;
 use ship_platform::services::agents::service::AgentsService;
-use crate::services::artifacts::service::ArtifactsService;
-use crate::services::collections::service::CollectionsService;
+use ship_platform::services::artifacts::service::ArtifactsService;
+use ship_platform::services::collections::service::CollectionsService;
 use ship_platform::services::git::service::GitService;
 use ship_platform::services::mcp::service::McpService;
 use ship_platform::services::permissions::service::PermissionsService;

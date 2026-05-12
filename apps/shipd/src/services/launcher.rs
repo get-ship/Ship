@@ -6,7 +6,7 @@
 //! Today only the `specs` collection has the convention; the helper is
 //! generic so any collection that adopts the same fields can launch.
 
-use crate::services::collections::service::{
+use ship_platform::services::collections::service::{
     CollectionsService, Error as CollectionsError, UpdateItemArgs,
 };
 use crate::services::specs::shape::{load_body, spec_from_item};

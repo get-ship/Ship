@@ -13,7 +13,7 @@ use serde::Deserialize;
 use crate::access::RuntimeAccess;
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::ApiState;
-use crate::services::collections::service::{
+use ship_platform::services::collections::service::{
     CollectionsService, CreateItemArgs, Error as CollectionsError, UpdateItemArgs,
 };
 use ship_platform::collections::{query::QueryRequest, schema};

@@ -23,5 +23,3 @@ pub mod git;
 pub mod specs;
 pub mod settings;
 pub mod chat;
-pub mod collections;
-pub mod artifacts;

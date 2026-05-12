@@ -16,7 +16,7 @@ use std::collections::HashMap;
 
 use crate::access::RuntimeAccess;
 use crate::routes::rest_api::{ApiState, MeshResponse};
-use crate::services::collections::service::{
+use ship_platform::services::collections::service::{
     CollectionsService, CreateItemArgs, Error as CollectionsError, UpdateItemArgs,
 };
 use crate::services::launcher::{LaunchError, launch_collection_item};
