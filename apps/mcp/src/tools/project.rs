@@ -10,6 +10,7 @@ use ship_substrate::log::read_log;
 use tokio::sync::Mutex;
 
 /// Set the active project; returns (response_message, resolved_project_root).
+#[allow(dead_code)] // MCP tool implementation not yet wired to server router
 pub async fn open_project(
     path: &str,
     active_project: &Arc<Mutex<Option<PathBuf>>>,

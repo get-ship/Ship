@@ -16,31 +16,6 @@ use std::borrow::Cow;
 
 use rmcp::handler::server::router::tool::{ToolRoute, ToolRouter};
 
-/// Stability marker shown in the tool description and catalog.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Stability {
-    Stable,
-    Experimental,
-}
-
-impl Stability {
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Stability::Stable => "stable",
-            Stability::Experimental => "experimental",
-        }
-    }
-}
-
-/// Catalog entry for a single tool.
-#[derive(Clone, Debug)]
-pub struct CatalogEntry {
-    pub name: &'static str,
-    pub stability: Stability,
-    /// `Some(canonical)` if this entry is a deprecated alias.
-    pub alias_of: Option<&'static str>,
-}
-
 /// One-release alias map: deprecated_name → canonical_name.
 ///
 /// Deprecation policy: aliases survive exactly one release after rename, then
@@ -97,10 +72,6 @@ pub const EXPERIMENTAL_PREFIX: &str =
 pub const DEPRECATED_PREFIX_FMT: &str =
     "**DEPRECATED** — use `{canonical}` instead. This alias is kept for one release.\n\n";
 
-pub fn is_experimental(name: &str) -> bool {
-    EXPERIMENTAL_TOOLS.iter().any(|n| *n == name)
-}
-
 pub fn canonical_name(name: &str) -> &str {
     RENAMES
         .iter()
@@ -154,47 +125,6 @@ where
     }
 
     router
-}
-
-/// Walk a router and return a catalog of all tools (canonical + aliases).
-pub fn catalog<S>(router: &ToolRouter<S>) -> Vec<CatalogEntry>
-where
-    S: Send + Sync + 'static,
-{
-    let mut out: Vec<CatalogEntry> = Vec::new();
-    for tool in router.list_all() {
-        let name = static_str(&tool.name);
-        let alias_of = RENAMES
-            .iter()
-            .find(|(a, _)| *a == name)
-            .map(|(_, c)| *c);
-        let stability = if alias_of
-            .map(is_experimental)
-            .unwrap_or_else(|| is_experimental(name))
-        {
-            Stability::Experimental
-        } else {
-            Stability::Stable
-        };
-        out.push(CatalogEntry {
-            name,
-            stability,
-            alias_of,
-        });
-    }
-    out.sort_by(|a, b| a.name.cmp(b.name));
-    out
-}
-
-/// Best-effort static-str lookup. Tool names from the macro are always
-/// `&'static str`, so this should always succeed; the fallback is a safety net.
-fn static_str(s: &Cow<'static, str>) -> &'static str {
-    match s {
-        Cow::Borrowed(b) => b,
-        // Aliases use Cow::Borrowed too; an Owned name only appears for tools
-        // built dynamically. Leak as a last resort to keep the API zero-cost.
-        Cow::Owned(o) => Box::leak(o.clone().into_boxed_str()),
-    }
 }
 
 #[cfg(test)]
