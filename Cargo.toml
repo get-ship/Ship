@@ -4,7 +4,7 @@ members = [
     "crates/core/cli-framework",
     "crates/core/compiler",
     "crates/core/lint",
-    "crates/lsp",
+    "crates/j2-lsp",
     "crates/core/mcp-framework",
     "crates/core/ship-application",
     "crates/core/ship-substrate",

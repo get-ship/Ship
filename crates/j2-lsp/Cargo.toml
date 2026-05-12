@@ -1,11 +1,11 @@
 [package]
-name = "lsp"
+name = "j2-lsp"
 version = "0.1.0"
 edition = "2024"
 publish = false
 
 [lib]
-name = "lsp"
+name = "j2_lsp"
 path = "src/lib.rs"
 
 [dependencies]
