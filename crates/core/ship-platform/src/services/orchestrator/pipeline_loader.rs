@@ -6,11 +6,8 @@
 //! 3. Inline `steps:` in spec frontmatter
 //! 4. None → single `Agent` step using the job's declared agent
 
-use ship_substrate::events::job::{JobCreatedPayload, Pipeline, PipelineStep, StepType};
+use ship_substrate::events::job::{JobCreatedPayload, Pipeline, PipelineStep};
 use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline};
-// Validation moved to `ship-pipelines::validate` per modular-runtime-01.
-// Re-export the load-time helper used by step_io callers.
-pub(crate) use ship_pipelines::validate::validate_output_name;
 
 mod resolve;
 use resolve::resolve_steps;

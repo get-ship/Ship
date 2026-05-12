@@ -2,15 +2,13 @@
 
 use axum::{
     Extension, Json,
-    extract::{Path, Query, State},
+    extract::{Path, State},
     http::StatusCode,
     response::IntoResponse,
 };
-use axum::response::sse::{Event, KeepAlive, Sse};
-use ship_substrate::events::{ActorConfig, EventEnvelope};
+use ship_substrate::events::EventEnvelope;
 use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};

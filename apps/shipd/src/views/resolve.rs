@@ -69,6 +69,7 @@ fn humanize(id: &str) -> String {
 /// the `ship.*` SDK ignore this block. Only `collections` is read
 /// today — the other fields were loaders for pre-framework views that
 /// have since migrated; kept here so older manifests still parse.
+#[allow(dead_code)]
 #[derive(Deserialize, Clone)]
 pub(crate) struct ManifestData {
     pub collections: Option<ManifestCollections>,
@@ -94,6 +95,7 @@ pub(crate) struct ManifestData {
     pub git: Option<bool>,
 }
 
+#[allow(dead_code)] // serde parse target; inner values unused but kept for untagged parsing
 #[derive(Deserialize, Clone)]
 #[serde(untagged)]
 pub(crate) enum ManifestCollections {

@@ -17,7 +17,7 @@ use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
 use axum::{Extension, Json};
-use futures_util::stream::{self, Stream};
+use futures_util::stream;
 use ship_substrate::events::{types::event_types, EventEnvelope};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
@@ -29,7 +29,7 @@ use crate::auth::AuthContext;
 use crate::routes::rest_api::ApiState;
 
 use super::lifecycle;
-use super::types::{SessionKind, SessionMeta, SpawnRequest};
+use super::types::{SessionKind, SessionMeta};
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct SpawnBody {

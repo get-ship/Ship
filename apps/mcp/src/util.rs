@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+#[allow(dead_code)] // tested utility; no production caller yet
 /// Worktree base directory. Routes through the canonical
 /// `ship_platform::config::worktrees_dir` resolver:
 ///

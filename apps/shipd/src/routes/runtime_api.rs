@@ -5,15 +5,11 @@
 
 use axum::{
     Extension, Json,
-    extract::{Path, Query, State},
+    extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
 };
-use axum::response::sse::{Event, KeepAlive, Sse};
-use ship_substrate::events::{ActorConfig, EventEnvelope};
-use ship_substrate::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
-use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::routes::rest_api::{ApiState, MeshResponse};
@@ -138,8 +134,10 @@ pub(crate) use jobs::{
 mod tests {
     use super::*;
     use axum::Extension;
-    use axum::extract::{Query, State};
+    use axum::extract::{Path, Query, State};
     use axum::response::IntoResponse;
+    use ship_substrate::events::EventEnvelope;
+    use ship_substrate::events::job::event_types;
     use std::sync::Arc;
     use tempfile::TempDir;
 

@@ -1,3 +1,5 @@
+#![allow(dead_code)] // most skill tools tested but not yet wired to MCP server
+
 use std::path::{Path, PathBuf};
 
 use compiler::PullSkill;

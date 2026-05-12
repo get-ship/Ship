@@ -182,7 +182,7 @@ impl Transport for PtyTransport {
             cmd.env("SHIP_AGENT_ID", a);
         }
 
-        let mut child = pair
+        let child = pair
             .slave
             .spawn_command(cmd)
             .with_context(|| format!("spawn {}", profile.bin))?;

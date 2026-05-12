@@ -82,7 +82,6 @@ pub(crate) mod private {
     use super::*;
     use portable_pty::MasterPty;
     use ship_platform::services::provider_adapter::ProviderEvent;
-    use std::io::Write as _;
     use std::path::PathBuf;
     use std::sync::{Arc, Mutex};
     use tokio::sync::broadcast;

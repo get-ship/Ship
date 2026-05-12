@@ -5,15 +5,14 @@
 //! primitives; only the CLI argv + parsing differ. Shell sessions
 //! skip the adapter and spawn `$SHELL` directly.
 
-use std::io::{Read, Write};
+use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
 use anyhow::{anyhow, bail, Context, Result};
 use chrono::Utc;
-use portable_pty::{native_pty_system, CommandBuilder, PtySize};
-use ship_platform::services::dispatch_ports::{LaunchCommand, LaunchProfile};
+use ship_platform::services::dispatch_ports::LaunchProfile;
 use ship_platform::services::provider_adapter::adapter_for;
 use tokio::sync::broadcast;
 

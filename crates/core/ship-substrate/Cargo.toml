@@ -5,6 +5,9 @@ edition = "2024"
 license-file = "LICENSE"
 publish = false
 
+[features]
+unstable = []
+
 [dependencies]
 ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }

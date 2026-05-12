@@ -2,33 +2,18 @@
 //! session listing/revoke endpoints. Split off from auth.rs
 //! (mr-04 follow-up file-size enforcement).
 
-use std::path::Path;
-use std::sync::Arc;
-
-use axum::http::StatusCode;
-use axum::Json;
-use axum::body::Body;
-use axum::extract::{Query, State};
-use axum::response::IntoResponse;
-use axum::Extension;
-use chrono::Utc;
-use ship_substrate::events::CallerKind;
-
-use super::{AuthContext, hex_encode};
+use super::AuthContext;
 use crate::auth::attest::{
     AttestationConfig, AttestationVerifier, DEFAULT_ATTESTATION_ISSUER, VerifyError,
     daemon_owner, set_daemon_owner,
 };
 use crate::auth::pairing::{ClaimResult, ConfirmError, SharedPairingRegistry};
 use crate::auth::scopes::{
-    DaemonSession, SessionRegistry, generate_session_token, persist_session,
-    remove_persisted_session, scopes_for_role, Scope,
+    SessionRegistry, generate_session_token,
+    remove_persisted_session, Scope,
 };
-use crate::routes::rest_api::ApiState;
 
 // ---- Pairing endpoints ----
-
-use serde_json::json;
 
 #[derive(serde::Deserialize, Default, utoipa::ToSchema)]
 #[schema(example = json!({ "client_label": "studio-macbook" }))]
@@ -546,6 +531,7 @@ pub async fn revoke_sessions(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ship_substrate::events::CallerKind;
     // Token utilities live in the parent auth.rs.
     use super::super::{generate_token, is_daemon_token, read_token, write_token_file};
 

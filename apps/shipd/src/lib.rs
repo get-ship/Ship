@@ -287,7 +287,6 @@ pub async fn run_network(
     let user_pinned = port.is_some();
     let max_retries = if user_pinned { 1 } else { 10 };
     let mut bound_port = desired_port;
-    let mut last_err: Option<std::io::Error> = None;
     let listener = loop {
         let addr = format!("{host}:{bound_port}");
         match tokio::net::TcpListener::bind(&addr).await {
@@ -297,10 +296,8 @@ pub async fn run_network(
                     port = bound_port,
                     "shipd: port busy, trying next"
                 );
-                last_err = Some(e);
                 bound_port += 1;
                 if bound_port - desired_port >= max_retries {
-                    let final_err = last_err.expect("at least one error recorded");
                     let already_bound_by_pid = pidfile_pid_for_port(&global_dir, desired_port);
                     emit_daemon_event(
                         &global_dir,
@@ -309,13 +306,13 @@ pub async fn run_network(
                         &PortBindFailedPayload {
                             port: desired_port,
                             already_bound_by_pid,
-                            error: final_err.to_string(),
+                            error: e.to_string(),
                         },
                     );
                     return Err(anyhow!(
                         "bind {host}:{desired_port}..{}: {} (giving up after {max_retries} retries)",
                         bound_port - 1,
-                        final_err,
+                        e,
                     ));
                 }
             }

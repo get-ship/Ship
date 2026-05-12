@@ -1,3 +1,5 @@
+#![allow(dead_code)] // list/read/delete session file tools tested but not yet wired to MCP server
+
 use std::path::Path;
 
 use base64::Engine;
