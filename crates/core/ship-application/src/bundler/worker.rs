@@ -147,6 +147,21 @@ async fn run_supervisor(
     cmd_rx: Arc<Mutex<mpsc::Receiver<PendingCall>>>,
     event_tx: broadcast::Sender<BundlerEvent>,
 ) {
+    // Toolchain probe — `~/.ship/runtime/` isn't populated until the
+    // user runs `ship runtime install`. Don't spawn-and-backoff in a
+    // loop when both pieces are missing; just log once and stay idle.
+    // The supervisor wakes up if/when callers send commands (mpsc),
+    // which will fail with NotRunning — also acceptable.
+    if !bun.exists() || !bundler_ts.exists() {
+        warn!(
+            bun = %bun.display(),
+            bundler_ts = %bundler_ts.display(),
+            "bundler: toolchain not installed at ~/.ship/runtime/ — \
+             worker disabled. Run `ship runtime install` to enable."
+        );
+        return;
+    }
+
     let mut backoff = INITIAL_BACKOFF;
     let mut restarts = 0u32;
 

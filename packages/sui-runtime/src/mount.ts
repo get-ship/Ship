@@ -402,10 +402,13 @@ function openLiveChannel(
     if (!sig) return
     ;(sig as Signal<LiveState<unknown>>).set(value)
   })
-  // patch-elements deferred until cleanup commit — agent-push integration
-  // isn't on F1's critical path, mount keeps backward compat by accepting
-  // the event but ignoring the body until applyPatchElements is moved
-  // into ui-runtime.
+  // NOTE: no listener for `patch-elements` events. The current SSE
+  // protocol pushes element patches under that name (see
+  // `apps/shipd/src/views/sui_patch_channel.rs`); EventSource silently
+  // drops events without a matching listener. Wiring a handler is
+  // pending the `applyPatchElements` port into ui-runtime — until then,
+  // agent-push of DOM diffs is a no-op on the client. `patch-signals`
+  // above is the supported live-state channel.
   es.addEventListener('error', () => {
     // Built-in EventSource reconnect handles transient drops.
   })
