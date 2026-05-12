@@ -6,6 +6,8 @@ publish = false
 description = "Ahead-of-time compiler for `.sui` source files. Emits ESM JS that hydrates against `@ship/sui-runtime` without re-parsing at load time."
 
 [lib]
+name = "sui_compiler"
+crate-type = ["lib", "cdylib"]
 path = "src/lib.rs"
 
 [[bin]]

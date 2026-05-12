@@ -345,6 +345,9 @@ importers:
       '@lezer/highlight':
         specifier: ^1
         version: 1.2.3
+      '@ship/sui-build':
+        specifier: workspace:*
+        version: link:../sui-build
       '@xterm/addon-fit':
         specifier: ^0.11.0
         version: 0.11.0

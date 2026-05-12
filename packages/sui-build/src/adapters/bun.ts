@@ -1,6 +1,43 @@
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { existsSync } from 'node:fs'
 import type { SuiBundler, SuiBuildConfig, BuildResult, AdapterContext } from '../config.js'
 import { resolveEntrypoints, defaultSourcemap } from './util.js'
+
+type CompileSpawn = (suiPath: string, stem: string) => Promise<void>
+
+/**
+ * Create an FFI-backed compiler spawn using Bun.dlopen.
+ * Returns null when not under Bun, when the cdylib is absent, or when
+ * SUI_BUILD_DISABLE_FFI=1 is set.
+ */
+export async function makeFfiSpawn(libPath: string): Promise<CompileSpawn | null> {
+  if (!process.versions.bun || !existsSync(libPath) || process.env['SUI_BUILD_DISABLE_FFI'] === '1') {
+    return null
+  }
+  // @ts-expect-error bun:ffi is a Bun-only module; guarded by the runtime check above
+  const { dlopen, FFIType, CString } = await import('bun:ffi')
+  const lib = dlopen(libPath, {
+    sui_compiler_compile: {
+      args: [FFIType.cstring, FFIType.cstring, FFIType.cstring],
+      returns: FFIType.ptr,
+    },
+    sui_compiler_free_string: {
+      args: [FFIType.ptr],
+      returns: FFIType.void,
+    },
+  })
+  return async (suiPath: string, stem: string): Promise<void> => {
+    const outDir = join(dirname(suiPath), 'dist')
+    const rawPtr = lib.symbols.sui_compiler_compile(suiPath, stem, outDir)
+    if (!rawPtr) throw new Error(`sui-compiler FFI returned null for ${suiPath}`)
+    const jsonStr = new CString(rawPtr).toString()
+    lib.symbols.sui_compiler_free_string(rawPtr)
+    const parsed = JSON.parse(jsonStr) as { ok: boolean; error?: string }
+    if (!parsed.ok) {
+      throw new Error(`sui-compiler failed for ${suiPath}: ${parsed.error ?? 'unknown error'}`)
+    }
+  }
+}
 
 const BUN_LOADERS = new Set<string>([
   'base64', 'binary', 'css', 'dataurl', 'js', 'json', 'jsx', 'text', 'toml', 'ts', 'tsx',

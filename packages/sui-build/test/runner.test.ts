@@ -1,10 +1,31 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
-import { mkdtemp, writeFile, mkdir } from 'node:fs/promises'
-import { rmSync } from 'node:fs'
+import { mkdtemp, writeFile, mkdir, readFile } from 'node:fs/promises'
+import { rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { run } from '../src/runner.js'
+import { makeFfiSpawn } from '../src/adapters/bun.js'
 import type { SuiBuildConfig, AdapterContext, SuiBundler } from '../src/config.js'
+
+const thisDir = dirname(fileURLToPath(import.meta.url))
+
+function findWorkspaceRoot(start: string): string {
+  let dir = start
+  while (true) {
+    if (existsSync(join(dir, 'Cargo.toml'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) return start
+    dir = parent
+  }
+}
+
+const wsRoot = findWorkspaceRoot(thisDir)
+const ext = process.platform === 'darwin' ? 'dylib' : process.platform === 'win32' ? 'dll' : 'so'
+const prefix = process.platform === 'win32' ? '' : 'lib'
+const cdylibPath = join(wsRoot, 'target', 'debug', `${prefix}sui_compiler.${ext}`)
+const isBun = !!process.versions.bun
+const hasCdylib = existsSync(cdylibPath)
 
 function mockAdapter(warnings: string[] = []): SuiBundler {
   return {
@@ -96,5 +117,76 @@ describe('runner', () => {
     const spawned: string[] = []
     await run(lazyConfig, ctx, mockAdapter(), async (_p, stem) => spawned.push(stem))
     expect(spawned).toContain('widget')
+  })
+})
+
+describe.skipIf(!isBun || !hasCdylib)('runner FFI path', () => {
+  let ffiTmpDir: string
+  let ffiCtx: AdapterContext
+  let ffiConfig: SuiBuildConfig
+
+  beforeAll(async () => {
+    ffiTmpDir = await mkdtemp(join(tmpdir(), 'sui-build-ffi-'))
+    await mkdir(join(ffiTmpDir, 'src'))
+    await mkdir(join(ffiTmpDir, 'dist'), { recursive: true })
+    await writeFile(join(ffiTmpDir, 'src', 'entry.ts'), `export const app = 'hello'`)
+    await writeFile(
+      join(ffiTmpDir, 'src', 'hello.sui'),
+      `<prop name="label" type="string" default="world" />\n<span>{label()}</span>`,
+    )
+    ffiConfig = { entries: { app: 'src/entry.ts' }, outdir: 'dist' }
+    ffiCtx = { packageRoot: ffiTmpDir, outdir: join(ffiTmpDir, 'dist') }
+  })
+
+  afterAll(() => {
+    rmSync(ffiTmpDir, { recursive: true, force: true })
+  })
+
+  it('makeFfiSpawn returns a non-null spawn function', async () => {
+    const spawn = await makeFfiSpawn(cdylibPath)
+    expect(spawn).not.toBeNull()
+  })
+
+  it('FFI spawn compiles a .sui file and writes .compiled.js', async () => {
+    const spawn = await makeFfiSpawn(cdylibPath)
+    expect(spawn).not.toBeNull()
+    const suiPath = join(ffiTmpDir, 'src', 'hello.sui')
+    await spawn!(suiPath, 'hello')
+    const outPath = join(ffiTmpDir, 'src', 'dist', 'hello.compiled.js')
+    expect(existsSync(outPath)).toBe(true)
+    const content = await readFile(outPath, 'utf8')
+    expect(content).toContain('sui-runtime')
+  })
+
+  it('FFI and spawn paths produce equivalent JS output', async () => {
+    const suiPath = join(ffiTmpDir, 'src', 'hello.sui')
+
+    // FFI path
+    const ffiSpawn = await makeFfiSpawn(cdylibPath)
+    expect(ffiSpawn).not.toBeNull()
+    await ffiSpawn!(suiPath, 'hello')
+    const ffiOut = await readFile(join(ffiTmpDir, 'src', 'dist', 'hello.compiled.js'), 'utf8')
+
+    // Spawn path (re-compile after touching mtime)
+    await writeFile(suiPath, await readFile(suiPath, 'utf8'))
+    const spawnedStems: string[] = []
+    await run(ffiConfig, ffiCtx, mockAdapter(), async (_p, stem) => {
+      spawnedStems.push(stem)
+      await ffiSpawn!(_p, stem)
+    })
+    const spawnOut = await readFile(join(ffiTmpDir, 'src', 'dist', 'hello.compiled.js'), 'utf8')
+
+    expect(ffiOut).toBe(spawnOut)
+    expect(spawnedStems).toContain('hello')
+  })
+
+  it('SUI_BUILD_DISABLE_FFI=1 causes makeFfiSpawn to return null', async () => {
+    process.env['SUI_BUILD_DISABLE_FFI'] = '1'
+    try {
+      const spawn = await makeFfiSpawn(cdylibPath)
+      expect(spawn).toBeNull()
+    } finally {
+      delete process.env['SUI_BUILD_DISABLE_FFI']
+    }
   })
 })
