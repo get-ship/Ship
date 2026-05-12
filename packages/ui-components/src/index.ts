@@ -28,6 +28,7 @@ import './sui-tabs/dist/sui-tab.compiled.js'
 import './sui-empty-state/dist/sui-empty-state.compiled.js'
 import './sui-input/dist/sui-input.compiled.js'
 import './sui-icon/dist/sui-icon.compiled.js'
+import "./sui-select/dist/sui-select.compiled.js"
 import './sui-separator/dist/sui-separator.compiled.js'
 import './sui-label/dist/sui-label.compiled.js'
 import './sui-alert/dist/sui-alert.compiled.js'
