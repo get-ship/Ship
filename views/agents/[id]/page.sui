@@ -1,0 +1,208 @@
+<data name="wireCtx" source="ship.agents.wire({id: route.params.id()})" live />
+
+{#while-loading of wireCtx}
+  <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
+{/while-loading}
+{#while-error err of wireCtx}
+  <p style="padding:var(--space-4); color:var(--destructive)">{err.message}</p>
+{/while-error}
+
+{#if wireData()}
+  <sui-view-chrome title={wireData().agent.name}>
+    <sui-segmented slot="actions" value="wire" size="sm">
+      <sui-segmented-option value="wire" on:click={() => navigate('/agents/' + route.params.id() + '/wire')}>Wire</sui-segmented-option>
+      <sui-segmented-option value="settings" on:click={goSettings}>Settings</sui-segmented-option>
+    </sui-segmented>
+    <sui-button slot="actions" variant="ghost" size="sm" on:click={goBack}>
+      <sui-icon slot="leading" name="chevron-left" size="xs"></sui-icon>
+      Agents
+    </sui-button>
+  </sui-view-chrome>
+
+  <div class="ship-view agents-wire">
+
+    <aside class="wire-palette">
+      <div class="section-h">
+        <sui-icon name="zap" size="xs"></sui-icon>Skills
+        <span class="count">{wireData().agent.skills.length}</span>
+        <sui-button variant="ghost" size="icon" class="add-btn" aria-label="Add skill" on:click={() => openPicker('skill')}>
+          <sui-icon name="plus" size="xs"></sui-icon>
+        </sui-button>
+      </div>
+      {#if wireData().agent.skills.length === 0}
+        <div class="palette-item" style="font-style:italic">no skills wired</div>
+      {:else}
+        {#for s of wireData().agent.skills key={s}}
+          <div class="palette-item">
+            <sui-icon name="check-circle" size="xs" style="color:var(--tone-success-fg)"></sui-icon>
+            <span class="mono">{s}</span>
+            <span style="margin-left:auto; font-size:10px">wired</span>
+          </div>
+        {/for}
+      {/if}
+      <div class="section-h" style="margin-top:16px">
+        <sui-icon name="terminal" size="xs"></sui-icon>MCP Servers
+        <span class="count">{wireData().agent.mcp_servers.length}</span>
+        <sui-button variant="ghost" size="icon" class="add-btn" aria-label="Add MCP server" on:click={() => openPicker('mcp')}>
+          <sui-icon name="plus" size="xs"></sui-icon>
+        </sui-button>
+      </div>
+      {#if wireData().agent.mcp_servers.length === 0}
+        <div class="palette-item" style="font-style:italic">no servers</div>
+      {:else}
+        {#for m of wireData().agent.mcp_servers key={m}}
+          <div class="palette-item">
+            <sui-icon name="check-circle" size="xs" style="color:var(--tone-info-fg)"></sui-icon>
+            <span class="mono">{m}</span>
+          </div>
+        {/for}
+      {/if}
+      <div class="section-h" style="margin-top:16px">
+        <sui-icon name="file-text" size="xs"></sui-icon>Rules
+        <span class="count">{wireData().agent.rules.length}</span>
+        <sui-button variant="ghost" size="icon" class="add-btn" aria-label="Add rule" on:click={() => openPicker('rule')}>
+          <sui-icon name="plus" size="xs"></sui-icon>
+        </sui-button>
+      </div>
+      {#for r of wireData().agent.rules key={r}}
+        <div class="palette-item"><span class="mono">{r}</span></div>
+      {/for}
+      <div class="tip-card"><strong style="color:var(--foreground)">Wire view.</strong> Click any node to inspect. Use + on a section to add.</div>
+    </aside>
+
+    <div class="wire-canvas">
+      <svg class="wires" viewBox="0 0 1000 600" preserveAspectRatio="none">
+        {#for e of wireData().edges key={e.path_d}}
+          <path attr:d={e.path_d}
+            attr:stroke={'var(--tone-' + (e.kind === 'skill' ? 'success' : e.kind === 'mcp' ? 'info' : e.kind === 'rule' ? 'warning' : e.kind === 'perm' ? 'destructive' : 'accent') + '-fg)'}
+            stroke-width="1.3" stroke-opacity="0.55" fill="none"
+            attr:stroke-dasharray={e.dashed ? '4 3' : null} />
+        {/for}
+      </svg>
+      {#for n of wireData().nodes key={n.id}}
+        <div attr:class={'node ' + n.kind}
+          style:left={`${n.x / 10}%`} style:top={`${n.y / 6}%`}
+          style:width={`${n.w / 10}%`} style:min-width={`${n.w * 0.7}px`}
+          attr:data-selected={selectedKind() === n.kind && selectedId() === n.id ? '' : null}
+          on:click={() => selectNode(n.kind, n.id)}>
+          <div class="node-h"><span class="swatch"></span>
+            <span>{n.kind === 'agent' ? 'AGENT' : n.kind === 'skill' ? 'SKILL' : n.kind === 'mcp' ? 'MCP SERVER' : n.kind === 'rule' ? 'RULES' : n.kind === 'perm' ? 'PERMISSIONS' : 'PROVIDER'}</span>
+          </div>
+          {#if n.kind === 'prov'}
+            <div style="display:flex; align-items:center; gap:8px">
+              <span class="wire-provider-logo">{n.id.slice(0,2).toUpperCase()}</span>
+              <div style="min-width:0"><div class="node-title">{n.title}</div><div class="node-sub">{n.sub}</div></div>
+            </div>
+          {:else if n.kind === 'agent'}
+            <div style="display:flex; align-items:center; gap:10px">
+              <sui-avatar size="md" shape="square" identity-hue={wireData().agent.id} initials={wireData().agent.letter} name={wireData().agent.name}></sui-avatar>
+              <div style="min-width:0"><div class="node-title">{n.title}</div><div class="node-sub">{n.sub}</div></div>
+            </div>
+          {:else}
+            <div class="node-title">{n.title}</div><div class="node-sub">{n.sub}</div>
+          {/if}
+        </div>
+      {/for}
+      <div class="wire-legend">
+        <div class="sw"><i style="background:var(--tone-success-fg)"></i>skill</div>
+        <div class="sw"><i style="background:var(--tone-info-fg)"></i>mcp</div>
+        <div class="sw"><i style="background:var(--tone-warning-fg)"></i>rule</div>
+        <div class="sw"><i style="background:var(--tone-destructive-fg)"></i>perm</div>
+        <div class="sw"><i style="background:var(--tone-accent-fg)"></i>provider</div>
+      </div>
+    </div>
+
+    <aside class="wire-inspector">
+      {#match selectedKind()}
+      {:case 'agent'}
+        <div class="insp-h"><div><div class="tag">Agent</div><div class="title">{wireData().agent.name}</div></div></div>
+        <div class="insp-field"><label>ID</label><div class="mono">{wireData().agent.id}</div></div>
+        <div class="insp-field"><label>Description</label><div style="font-size:var(--text-sm); line-height:1.5">{wireData().agent.description || 'No description'}</div></div>
+        <div class="insp-field"><label>Source</label><div class="mono">{wireData().agent.source}</div></div>
+        <div class="insp-field"><label>Providers</label>
+          <div style="display:flex; gap:10px; flex-wrap:wrap">
+            {#for p of wireData().agent.providers key={p}}
+              <span class="wire-provider-logo">{p.slice(0,2).toUpperCase()}</span>
+            {/for}
+          </div>
+        </div>
+        <p class="insp-help">Select any peripheral node on the canvas to inspect.</p>
+        <sui-button size="sm" variant="outline" style="margin-top:var(--space-3); width:100%" on:click={goSettings}>
+          <sui-icon slot="leading" name="edit" size="xs"></sui-icon>Edit settings
+        </sui-button>
+      {:case 'skill'}
+        <div class="insp-h">
+          <sui-icon name="zap" size="sm" style="color:var(--tone-success-fg)"></sui-icon>
+          <div><div class="tag">Skill</div><div class="title">{selectedId()}</div></div>
+        </div>
+        <div class="insp-field"><label>Scope</label><sui-chip tone="success" variant="soft" size="sm">project</sui-chip></div>
+        <div class="insp-field"><label>Source</label><div class="mono">.ship/skills/{selectedId()}/SKILL.md</div></div>
+      {:case 'mcp'}
+        <div class="insp-h">
+          <sui-icon name="terminal" size="sm" style="color:var(--tone-info-fg)"></sui-icon>
+          <div><div class="tag">MCP server</div><div class="title">{selectedId()}</div></div>
+        </div>
+        <div class="insp-field"><label>Source</label><div class="mono">.ship/mcp.jsonc → servers.{selectedId()}</div></div>
+      {:case 'rule'}
+        <div class="insp-h">
+          <sui-icon name="file-text" size="sm" style="color:var(--tone-warning-fg)"></sui-icon>
+          <div><div class="tag">Rules bundle</div><div class="title">{wireData().agent.rules.length} file{wireData().agent.rules.length !== 1 ? 's' : ''}</div></div>
+        </div>
+        <div class="insp-field"><label>Files</label>
+          {#for r of wireData().agent.rules key={r}}
+            <div class="mono" style="padding:4px 8px; background:var(--muted); border-radius:4px; margin-bottom:4px">{r}</div>
+          {/for}
+        </div>
+      {:case 'perm'}
+        <div class="insp-h">
+          <sui-icon name="lock" size="sm" style="color:var(--tone-destructive-fg)"></sui-icon>
+          <div><div class="tag">Permissions</div><div class="title">{wireData().agent.permissions?.preset || 'no preset'}</div></div>
+        </div>
+        <sui-button size="sm" variant="outline" style="margin-top:var(--space-3); width:100%" on:click={goSettings}>
+          <sui-icon slot="leading" name="edit" size="xs"></sui-icon>Edit permissions
+        </sui-button>
+      {:case 'prov'}
+        <div class="insp-h">
+          <span class="wire-provider-logo">{selectedId().slice(0,2).toUpperCase()}</span>
+          <div><div class="tag">Provider</div><div class="title">{selectedId()}</div></div>
+        </div>
+        <p class="insp-help">Provider-specific settings are compiled on top of project defaults.</p>
+      {:default}
+        <p class="insp-help">Select a node to inspect.</p>
+      {/match}
+    </aside>
+
+    <sui-dialog prop:open={pickerOpen()} size="md" on:sui-close={closePicker}>
+      <span slot="header">Add {pickerKind() === 'skill' ? 'skill' : pickerKind() === 'mcp' ? 'MCP server' : 'rule'}</span>
+      <div class="ad-picker-body">
+        {#if wireData().catalogs[pickerKind()]?.length === 0}
+          <sui-empty-state variant="placeholder" size="sm">
+            <span slot="title">No {pickerKind()}s to add</span>
+          </sui-empty-state>
+        {:else}
+          <div class="ad-picker-list">
+            {#for entry of (wireData().catalogs[pickerKind()] ?? []) key={entry.id}}
+              <label class="ad-picker-row">
+                <input type="checkbox" class="ad-picker-check" value={entry.id}
+                  checked={pickerSelected().includes(entry.id)}
+                  on:change={(e) => togglePick(entry.id)} />
+                <span class="ad-picker-row-body">
+                  <span class="ad-picker-name">{entry.name}</span>
+                  <span class="ad-picker-desc">{entry.description || entry.id}</span>
+                </span>
+              </label>
+            {/for}
+          </div>
+        {/if}
+      </div>
+      <sui-toolbar slot="footer">
+        <span style="flex:1; font-size:var(--text-xs); color:var(--muted-foreground)">{pickerSelected().length} selected</span>
+        <sui-button variant="ghost" size="sm" on:click={closePicker}>Cancel</sui-button>
+        <sui-button tone="primary" variant="solid" size="sm"
+          attr:disabled={pickerSelected().length === 0 ? '' : null}
+          on:click={savePicker}>Add</sui-button>
+      </sui-toolbar>
+    </sui-dialog>
+
+  </div>
+{/if}
