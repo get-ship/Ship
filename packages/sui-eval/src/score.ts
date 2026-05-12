@@ -25,7 +25,7 @@ async function loadDom(): Promise<{
   ) => { dispose: () => void }
   parseSetSource: (source: string) => unknown
 }> {
-  return (await import('@ship/sui-dom')) as {
+  return (await import('@ship/sui-dom/legacy')) as {
     hydrate: (
       template: string,
       setup?: (() => unknown) | undefined,
