@@ -1,11 +1,15 @@
 use tracing_subscriber::{EnvFilter, Layer, layer::SubscriberExt, util::SubscriberInitExt};
 
 fn main() -> anyhow::Result<()> {
+    let args: Vec<String> = std::env::args().collect();
+
+    if args.iter().any(|a| a == "--help" || a == "-h") {
+        print_help();
+        return Ok(());
+    }
+
     let global_dir = ship_application::project::get_global_dir()?;
 
-    // Logs live in machine/logs/ per the home-layout ADR. Eagerly create the
-    // directory so the file appender can attach before the migrator runs in
-    // ship_runtime startup.
     let logs_dir = ship_substrate::ShipHome::at(global_dir.clone())
         .machine_dir()
         .join("logs");
@@ -35,21 +39,26 @@ fn main() -> anyhow::Result<()> {
         .with(stderr_layer)
         .init();
 
-    let args: Vec<String> = std::env::args().collect();
     // --port is optional — None means "auto-derive from path_hash, honoring
     // local.jsonc:worktrees.ports pins". See `ship_substrate::home::worktree_port_for`.
     let port = extract_u16_arg(&args, "--port");
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dev = args.iter().any(|a| a == "--dev");
+
+    // --mode development|production (default: development).
+    // SHIP_DAEMON_MODE env var is a fallback when --mode is not passed.
+    let mode_str = extract_str_arg(&args, "--mode")
+        .or_else(|| std::env::var("SHIP_DAEMON_MODE").ok())
+        .unwrap_or_else(|| "development".to_string());
+    let daemon_mode = ship_sui::DaemonMode::from_str(&mode_str);
+
     // Project resolution:
     //   1. `--dev-worktree <path>` (dev-only; routes the daemon into a
     //      per-worktree IPC dir + hash-derived port so multiple Ship-dev
-    //      worktrees can run side-by-side without colliding). Hidden
-    //      behind the `dev` semantics — not a user-facing flag.
-    //   2. `--workspace <path>` is the deprecated alias kept for the
-    //      handful of dev scripts that still pass it.
-    //   3. Otherwise walk up from CWD looking for `.ship/`, like git
-    //      discovers the repo root.
+    //      worktrees can run side-by-side without colliding).
+    //   2. `--workspace <path>` is the deprecated alias kept for dev scripts.
+    //   3. Otherwise walk up from CWD looking for `.ship/`, like git discovers
+    //      the repo root.
     let workspace = extract_str_arg(&args, "--dev-worktree")
         .or_else(|| extract_str_arg(&args, "--workspace"))
         .map(std::path::PathBuf::from)
@@ -58,7 +67,7 @@ fn main() -> anyhow::Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
-    rt.block_on(shipd::run_network(host, port, dev, workspace))
+    rt.block_on(shipd::run_network(host, port, dev, workspace, daemon_mode))
 }
 
 fn extract_u16_arg(args: &[String], flag: &str) -> Option<u16> {
@@ -74,12 +83,32 @@ fn extract_str_arg(args: &[String], flag: &str) -> Option<String> {
 }
 
 /// Walk up from CWD looking for a `.ship/` directory. Returns the project
-/// root (the dir containing `.ship/`), not `.ship/` itself. Delegates to
-/// the runtime's canonical resolver so worktree handling, env overrides,
-/// and `~/.ship/` exclusion all behave consistently.
+/// root (the dir containing `.ship/`), not `.ship/` itself.
 fn discover_workspace() -> Option<std::path::PathBuf> {
     let cwd = std::env::current_dir().ok()?;
     let ship_dir = ship_application::project::resolve_project_ship_dir(&cwd)?;
-    // resolver returns the .ship dir; we want its parent (the project root).
     ship_dir.parent().map(std::path::Path::to_path_buf)
+}
+
+fn print_help() {
+    println!(
+        "shipd — Ship daemon
+
+USAGE:
+    shipd [OPTIONS]
+
+OPTIONS:
+    --host <HOST>                  Bind address (default: 127.0.0.1)
+    --port <PORT>                  Port to listen on (default: auto-derived)
+    --dev                          Enable dev mode: relaxed auth, auto-pair
+    --mode <development|production>
+                                   Operating mode (default: development).
+                                   production: immutable cache headers, HMR
+                                   routes disabled, SSR cache enabled, error
+                                   details redacted. Env var: SHIP_DAEMON_MODE
+    --workspace <PATH>             Project root to scope this daemon to
+    --dev-worktree <PATH>          (Dev) per-worktree IPC dir override
+    -h, --help                     Print this help
+"
+    );
 }

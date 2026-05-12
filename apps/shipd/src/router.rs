@@ -37,6 +37,7 @@ pub fn build_router(
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
     mcp_ct: CancellationToken,
+    daemon_mode: ship_sui::DaemonMode,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     let kernel_factory = rt.kernel().clone();
@@ -166,9 +167,6 @@ pub fn build_router(
             Route::SuiViewHostForName_template(),
             ship_sui::serve_view_host,
         )
-        .ship_route(Route::SuiHmr, views::sui_hmr::serve_hmr)
-        .ship_route(Route::SuiHmrClientJs, views::sui_hmr::serve_hmr_client_js)
-        .ship_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr)
         .ship_route(Route::SuiData, views::sui_data::serve_data)
         .ship_route(
             Route::SuiMutation_template(),
@@ -210,6 +208,16 @@ pub fn build_router(
         // so the resulting Router<()> can merge cleanly with the root
         // Router::new() at the bottom of this builder.
         .with_state(rt.clone());
+
+    // HMR routes are development-only; not registered in production mode.
+    let hmr_routes = if daemon_mode == ship_sui::DaemonMode::Development {
+        Router::new()
+            .ship_route(Route::SuiHmr, views::sui_hmr::serve_hmr)
+            .ship_route(Route::SuiHmrClientJs, views::sui_hmr::serve_hmr_client_js)
+            .ship_route(Route::SuiDevHmr, views::sui_hmr::serve_bundle_hmr)
+    } else {
+        Router::new()
+    };
 
     let auth_token = token;
     let auth_registry = session_registry;
@@ -283,6 +291,7 @@ pub fn build_router(
 
     let mut root = Router::new()
         .merge(public_routes)
+        .merge(hmr_routes)
         .merge(mcp_registry_routes)
         .merge(webhook_source_route)
         .route("/api/openapi.json", axum::routing::get(|| async {
@@ -294,6 +303,9 @@ pub fn build_router(
     // everything else uses. The shell IS the app; it always mounts.
     root = root.merge(shell_assets::router(shell_registry));
     root
+        // Daemon mode extension — lets ship-sui-server handlers read the
+        // mode via Option<Extension<DaemonMode>> without touching router state.
+        .layer(axum::Extension(daemon_mode))
         // X-Shipd-Build header on every response: build SHA + dirty flag.
         // CLI/shell/browser read this to detect daemon-vs-client skew.
         .layer(axum::middleware::from_fn(build_header_middleware))

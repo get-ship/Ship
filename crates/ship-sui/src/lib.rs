@@ -21,3 +21,4 @@ pub use ship_sui_server::view::{
 };
 pub use ship_sui_server::view_host::serve_view_host;
 pub use ship_sui_server::view_payload::{serve_view_payload, serve_view_payload_subpath};
+pub use ship_sui_server::DaemonMode;
