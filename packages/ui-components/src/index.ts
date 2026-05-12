@@ -27,6 +27,10 @@ import "./sui-area-chart/dist/sui-area-chart.compiled.js"
 import "./sui-bar-chart/dist/sui-bar-chart.compiled.js"
 import "./sui-line-chart/dist/sui-line-chart.compiled.js"
 import "./sui-sparkline/dist/sui-sparkline.compiled.js"
+import "./sui-donut/dist/sui-donut.compiled.js"
+import "./sui-gauge/dist/sui-gauge.compiled.js"
+import "./sui-meter/dist/sui-meter.compiled.js"
+import "./sui-heatmap/dist/sui-heatmap.compiled.js"
 import './sui-button/dist/sui-button.compiled.js'
 import './sui-tabs/dist/sui-tabs.compiled.js'
 import './sui-tabs/dist/sui-tab.compiled.js'
