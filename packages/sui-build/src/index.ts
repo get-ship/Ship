@@ -2,3 +2,5 @@ export type { SuiBuildConfig, BuildResult, SuiBundler, AdapterContext } from './
 export { run } from './runner.js'
 export { bunAdapter } from './adapters/bun.js'
 export { esbuildAdapter } from './adapters/esbuild.js'
+export { aggregateCem, stringifyCem } from './aggregate-cem.js'
+export type { AggregateOptions, CemRoot, CemModule } from './aggregate-cem.js'

@@ -1,9 +1,10 @@
 import { execFile } from 'node:child_process'
 import { readdirSync, statSync, existsSync } from 'node:fs'
-import { readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 import type { SuiBuildConfig, SuiBundler, BuildResult, AdapterContext } from './config.js'
 import { makeFfiSpawn } from './adapters/bun.js'
+import { aggregateCem, stringifyCem } from './aggregate-cem.js'
 
 /** Injected spawn function — lets tests avoid needing the real binary. */
 export type CompilerSpawn = (suiPath: string, stem: string) => Promise<void>
@@ -117,11 +118,36 @@ export async function run(
   await writeFile(cacheFile, JSON.stringify(cache), 'utf8')
 
   const result = await adapter.build(config, ctx)
+
+  const cemOutputs: string[] = []
+  if (config.aggregateCemTo) {
+    const outPath = resolve(ctx.packageRoot, config.aggregateCemTo)
+    const sources = resolveCemSources(config, ctx)
+    const root = await aggregateCem({
+      sources,
+      warn: (msg) => warnings.push(msg),
+    })
+    await mkdir(dirname(outPath), { recursive: true })
+    await writeFile(outPath, stringifyCem(root), 'utf8')
+    cemOutputs.push(outPath)
+  }
+
   return {
-    outputs: result.outputs,
+    outputs: [...result.outputs, ...cemOutputs],
     warnings: [...warnings, ...result.warnings],
     durationMs: Date.now() - t0,
   }
+}
+
+function resolveCemSources(config: SuiBuildConfig, ctx: AdapterContext): string[] {
+  if (config.aggregateCemSources && config.aggregateCemSources.length > 0) {
+    return config.aggregateCemSources.map((s) => resolve(ctx.packageRoot, s))
+  }
+  const dirs = new Set<string>()
+  for (const src of Object.values({ ...config.entries, ...(config.lazyBundles ?? {}) })) {
+    dirs.add(dirname(resolve(ctx.packageRoot, src)))
+  }
+  return [...dirs]
 }
 
 // Re-export for consumers who want to scan source dirs (e.g. the CLI watch loop).

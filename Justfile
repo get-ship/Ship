@@ -146,6 +146,13 @@ fmt-check:
 lint-views:
     cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
+# Regenerate the aggregated SUI Custom Elements Manifest from per-component
+# CEMs under packages/ui-components/src/. Writes
+# crates/ship-sui/assets/sui-custom-elements.json which apps/shipd embeds.
+[group('occasional')]
+cem:
+    pnpm -F @ship/ui-components build
+
 # Build docs site (Astro static).
 [group('occasional')]
 docs:

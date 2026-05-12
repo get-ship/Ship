@@ -27,6 +27,15 @@ export interface SuiBuildConfig {
    *  Adapters must honor these or throw a clear error if unsupported.
    *  Example: { '.svg': 'text' } inlines SVG content as a JS string. */
   loaders?: Record<string, string>
+
+  /** Aggregate per-component `*.custom-elements.json` to this path after a
+   *  successful build. Relative to the config file (sui.config.ts). */
+  aggregateCemTo?: string
+
+  /** Directories to scan for per-component CEMs. Defaults to the parent dirs
+   *  of `entries` + `lazyBundles` source files (i.e. `src/`). Relative to the
+   *  config file. */
+  aggregateCemSources?: string[]
 }
 
 export interface BuildResult {
