@@ -11,11 +11,11 @@ use ship_platform::agents::skill::{
     update_user_skill,
 };
 use ship_platform::config::{
-    McpServerConfig, McpServerType, add_mcp_server, get_config, list_mcp_servers,
+    McpServerConfig, McpServerType, add_mcp_server, list_mcp_servers,
     remove_mcp_server,
 };
 use ship_substrate::log::log_action;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[derive(Debug, Clone, Copy)]
 pub enum SkillReadScope {

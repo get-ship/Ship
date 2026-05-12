@@ -4,7 +4,7 @@ use ship_substrate::db::types::SessionDb;
 use ship_substrate::errors::WorkspaceError;
 use ship_substrate::events::types::SessionProgress;
 use ship_substrate::project::{get_global_dir, project_slug_from_ship_dir, sanitize_file_name};
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use chrono::Utc;
 use std::io::Write;
 use std::path::{Path, PathBuf};

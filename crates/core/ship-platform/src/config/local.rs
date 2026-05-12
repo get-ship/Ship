@@ -12,7 +12,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 
-use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
 use ship_substrate::ShipHome;
@@ -80,8 +79,6 @@ pub(crate) fn expand_tilde(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
-pub(crate) use ship_substrate::fs_util::strip_jsonc_comments;
-
 /// Canonical worktrees-dir resolver. Order:
 ///   1. `~/.ship/machine/local.jsonc:worktrees.dir`
 ///   2. `SHIP_WORKTREE_DIR` env (dev/test override)
@@ -102,6 +99,7 @@ pub fn worktrees_dir(project_name: &str) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use ship_substrate::fs_util::strip_jsonc_comments;
     use tempfile::TempDir;
 
     fn fresh_home() -> (TempDir, ShipHome) {
