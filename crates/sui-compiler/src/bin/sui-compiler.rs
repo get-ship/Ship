@@ -80,6 +80,9 @@ enum Command {
         /// Suppress emitting the `.sui.d.ts` declaration file.
         #[arg(long)]
         no_dts: bool,
+        /// Suppress emitting the `.ssr.html` static SSR file (e.g. for island bundles).
+        #[arg(long)]
+        no_ssr: bool,
         /// Path to a CSS file whose contents are prepended as a `<style>`
         /// block. Only valid for component sources (requires --component-name).
         /// Requires `input` to be a single file (not a directory).
@@ -114,8 +117,8 @@ fn main() -> Result<()> {
     install_resource_bounds();
     let cli = Cli::parse();
     match cli.cmd {
-        Command::Build { input, out, clean, mode, no_dts, styles, component_name } => {
-            build(input, out, clean, mode, no_dts, styles, component_name)
+        Command::Build { input, out, clean, mode, no_dts, styles, component_name, no_ssr } => {
+            build(input, out, clean, mode, no_dts, styles, component_name, no_ssr)
         }
     }
 }
@@ -128,6 +131,7 @@ fn build(
     no_dts: bool,
     styles: Option<PathBuf>,
     component_name: Option<String>,
+    no_ssr: bool,
 ) -> Result<()> {
     let mut targets = Vec::new();
     if input.is_dir() {
@@ -196,7 +200,7 @@ fn build(
             (_, Some(name)) => Some(ComponentMeta { name, shadow: true }),
             _ => None,
         };
-        compile_one(&path, out.as_deref(), mode.clone(), no_dts, styles_text.as_deref(), component_meta)?;
+        compile_one(&path, out.as_deref(), mode.clone(), no_dts, styles_text.as_deref(), component_meta, no_ssr)?;
     }
     println!("compiled {count} file(s)");
     Ok(())
@@ -242,6 +246,7 @@ fn compile_one(
     no_dts: bool,
     styles: Option<&str>,
     component_meta: Option<ComponentMeta>,
+    no_ssr: bool,
 ) -> Result<()> {
     let source = fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
@@ -272,6 +277,7 @@ fn compile_one(
         styles: styles.map(|s| s.to_string()),
         component_meta,
         emit_dts: !no_dts,
+        emit_ssr: !no_ssr,
     };
     let result = compile(&source, opts).map_err(|e| {
         let rendered = e.render(&source);
@@ -324,6 +330,13 @@ fn compile_one(
         let dts_path = src_dir.join(format!("{stem}.d.ts"));
         fs::write(&dts_path, dts)
             .with_context(|| format!("write {}", dts_path.display()))?;
+    }
+    // Write the static SSR HTML skeleton so the server can splice it into
+    // the first-paint response without re-rendering at request time.
+    if let Some(ssr_html) = result.ssr_html {
+        let ssr_path = out_dir.join(format!("{stem_no_ext}.ssr.html"));
+        fs::write(&ssr_path, ssr_html)
+            .with_context(|| format!("write {}", ssr_path.display()))?;
     }
     Ok(())
 }

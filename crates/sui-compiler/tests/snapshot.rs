@@ -45,9 +45,24 @@ fn compile_fixture(f: &Fixture) -> String {
         styles: None,
         component_meta: f.component_meta.clone(),
         emit_dts: false,
+        ..CompileOpts::default()
     };
     let out = compile(&source, opts).expect("compile");
     out.js
+}
+
+fn compile_ssr_fixture(name: &str) -> String {
+    let path = fixtures_dir().join(format!("{name}.sui"));
+    let source = fs::read_to_string(&path).expect("read fixture");
+    let opts = CompileOpts {
+        mode: CompileMode::View,
+        source_path: Some(path),
+        emit_dts: false,
+        emit_ssr: true,
+        ..CompileOpts::default()
+    };
+    let out = compile(&source, opts).expect("compile");
+    out.ssr_html.expect("ssr_html present for view mode")
 }
 
 fn assert_snapshot(name: &str, actual: &str, expected_path: &Path) {
@@ -123,6 +138,7 @@ fn bind_this_button_direct_emits_hydrate_ref() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     // Phase 3b.4: the bind:this leaf is direct-emit — the view's
@@ -186,6 +202,7 @@ fn for_render_closure_emits_update_field() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -225,6 +242,7 @@ fn route_view_emits_route_import() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -250,6 +268,7 @@ fn routeless_view_omits_route_import() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -276,6 +295,7 @@ fn comment_nodes_not_emitted() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     assert!(
@@ -298,6 +318,7 @@ fn whitespace_text_nodes_dropped_between_elements() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = sui_compiler::compile(&source, opts).expect("compile");
     // Inter-element indentation whitespace must be gone.
@@ -328,6 +349,7 @@ fn shadow_tones_emits_adopted_style_sheets_call() {
             shadow: true,
         }),
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -346,6 +368,7 @@ fn shadow_tones_emits_adopted_style_sheets_call() {
             shadow: false,
         }),
         emit_dts: false,
+        emit_ssr: false,
     };
     let light_out = compile(
         &std::fs::read_to_string(fixtures_dir().join("shadow-tones.sui")).unwrap(),
@@ -373,6 +396,7 @@ fn reflect_empty_slot_emits_bind_slot_empty_call() {
             shadow: true,
         }),
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -399,6 +423,7 @@ fn ship_button_emits_cem() {
         styles: None,
         component_meta: Some(ComponentMeta { name: "ship-button-test".into(), shadow: false }),
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     let cem = out.cem.expect("CEM emitted for component-mode");
@@ -418,6 +443,7 @@ fn with_island_emits_islands_export() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -450,6 +476,7 @@ fn without_island_omits_islands_export() {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     };
     let out = compile(&source, opts).expect("compile");
     assert!(
@@ -471,6 +498,7 @@ fn schema_emitted_for_each_fixture() {
             styles: None,
             component_meta: fx.component_meta.clone(),
             emit_dts: false,
+            emit_ssr: false,
         };
         let out = compile(&source, opts).expect("compile");
         let schema = out.schema.expect("schema emitted");
@@ -478,6 +506,42 @@ fn schema_emitted_for_each_fixture() {
         let expected = fixtures_dir().join(format!("{}.expected.schema.json", fx.name));
         assert_snapshot(&format!("{}.schema", fx.name), &s, &expected);
     }
+}
+
+/// SSR snapshot tests — assert that the static HTML skeleton emitted by
+/// `emit_ssr_html` is deterministic and matches the checked-in expectation.
+/// On first run (or with UPDATE_SNAPSHOTS=1) the file is written and the
+/// test passes.
+
+#[test]
+fn ssr_simple_snapshot() {
+    let html = compile_ssr_fixture("ssr-simple");
+    let expected_path = fixtures_dir().join("ssr-simple.expected.ssr.html");
+    assert_snapshot("ssr-simple.ssr", &html, &expected_path);
+}
+
+#[test]
+fn ssr_if_snapshot() {
+    let html = compile_ssr_fixture("ssr-if");
+    let expected_path = fixtures_dir().join("ssr-if.expected.ssr.html");
+    assert_snapshot("ssr-if.ssr", &html, &expected_path);
+    // status is in loading state → condition is false → else branch renders.
+    assert!(
+        html.contains("<sui-if") && html.contains("Loading"),
+        "{{#if}} with false condition must render else branch; got: {html:?}"
+    );
+}
+
+#[test]
+fn ssr_for_snapshot() {
+    let html = compile_ssr_fixture("ssr-for");
+    let expected_path = fixtures_dir().join("ssr-for.expected.ssr.html");
+    assert_snapshot("ssr-for.ssr", &html, &expected_path);
+    // {#for} with non-array iterable renders as a hidden placeholder.
+    assert!(
+        html.contains("<sui-for") && html.contains("hidden"),
+        "non-array {{#for}} must emit hidden sui-for placeholder; got: {html:?}"
+    );
 }
 
 /// Phase 3b.5 (gate L): every fixture emits a `.sui.meta.json` sidecar
@@ -495,6 +559,7 @@ fn meta_sidecar_emitted_for_each_fixture() {
             styles: None,
             component_meta: fx.component_meta.clone(),
             emit_dts: false,
+            emit_ssr: false,
         };
         let out = compile(&source, opts).expect("compile");
         let meta = out.meta.expect("meta emitted");

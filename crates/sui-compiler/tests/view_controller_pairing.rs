@@ -14,6 +14,7 @@ fn view_opts(setup: Option<&str>) -> CompileOpts {
         styles: None,
         component_meta: None,
         emit_dts: false,
+        emit_ssr: false,
     }
 }
 

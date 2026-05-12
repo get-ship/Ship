@@ -7,6 +7,9 @@ pub mod view_host;
 pub mod view_payload;
 
 #[cfg(test)]
+mod view_payload_tests;
+
+#[cfg(test)]
 pub(crate) mod test_lock {
     use std::sync::Mutex;
     static TEST_ENV_LOCK: Mutex<()> = Mutex::new(());
