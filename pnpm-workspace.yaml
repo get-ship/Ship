@@ -1,6 +1,7 @@
 packages:
   - "apps/docs"
   - "apps/shell"
+  - "apps/shell2"
   - "apps/site"
   - "apps/gateway"
   - "packages/*"
