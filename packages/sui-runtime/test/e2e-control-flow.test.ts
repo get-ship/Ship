@@ -132,6 +132,65 @@ describe('e2e: {#for} compiled shape', () => {
     el.remove()
   })
 
+  it('version-signal pattern: item replacement updates DOM text (compiler approach B)', () => {
+    // This test mirrors the exact JS the compiler emits for {#for} bodies
+    // using approach B (version signal). The render closure seeds a per-row
+    // __v = signal(0) and binding closures void-read it. The update function
+    // mutates $scope.row and increments __v, causing effects to re-run.
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const anchor = document.createComment('for')
+    host.appendChild(anchor)
+
+    const $scope: any = Object.create(null)
+    const list = signal([
+      { id: 'a', label: 'Alpha' },
+      { id: 'b', label: 'Beta' },
+    ])
+
+    bindFor({
+      anchor,
+      items: () => list(),
+      key: (it: any) => it.id,
+      render: (row: any, __i: number) => {
+        const childScope: any = Object.create($scope)
+        childScope.row = row
+        childScope.__i = __i
+        childScope.__v = signal(0)
+        return (($s: any) => {
+          const span = document.createElement('span')
+          span.setAttribute('data-id', $s.row.id)
+          const disposeText = bindText(span, () => (void $s.__v(), $s.row.label))
+          return {
+            nodes: [span],
+            cleanup: disposeText,
+            update: (newRow: any, newI: number) => {
+              $s.row = newRow
+              $s.__i = newI
+              $s.__v.set((c: number) => c + 1)
+            },
+          }
+        })(childScope)
+      },
+    })
+
+    expect(host.textContent).toBe('AlphaBeta')
+
+    list.set([
+      { id: 'a', label: 'Alicia' },
+      { id: 'b', label: 'Beta' },
+    ])
+    expect(host.textContent).toBe('AliciaBeta')
+
+    list.set([
+      { id: 'b', label: 'Bertha' },
+      { id: 'a', label: 'Alicia' },
+    ])
+    expect(host.textContent).toBe('BerthaAlicia')
+
+    host.remove()
+  })
+
   it('counter inside a for row reacts via captured signal', () => {
     // Sanity: inside a for body, click handlers can mutate per-row
     // state captured at render time. (Compiler emits per-row consts

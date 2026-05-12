@@ -192,6 +192,7 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
         }
         Instr::For(ForInstr { iterable, key, body, else_body, .. }) => {
             out.runtime_imports.insert("bindFor");
+            out.runtime_imports.insert("signal");
             if is_view && *depth == 0 {
                 out.dom_imports.insert("collectElementMarkers");
             }

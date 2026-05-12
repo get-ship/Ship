@@ -27,6 +27,7 @@ fn fixtures() -> Vec<Fixture> {
         Fixture { name: "shadow-tones", setup_url: None,               mode: CompileMode::Component,
             component_meta: Some(ComponentMeta { name: "shadow-tones-test".into(), shadow: true }) },
         Fixture { name: "comment-and-whitespace", setup_url: None,    mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-update",  setup_url: None,               mode: CompileMode::View,      component_meta: None },
     ]
 }
 
@@ -161,6 +162,52 @@ fn comment_and_whitespace_snapshot() {
     let js = compile_fixture(fx);
     let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
     assert_snapshot(fx.name, &js, &path);
+}
+
+/// The `{#for}` render closure must return `{ nodes, cleanup, update }`.
+/// The `update` function mutates the child scope's item + index and
+/// increments the per-row version signal so bindings re-evaluate.
+#[test]
+fn for_update_snapshot() {
+    let fx = &fixtures()[8];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn for_render_closure_emits_update_field() {
+    let path = fixtures_dir().join("for-update.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains("update:"),
+        "expected `update:` field in render closure return, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("signal(0)"),
+        "expected per-row version signal, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("void $scope.__v()"),
+        "expected void $scope.__v() in binding closure, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("$scope.__v.set(c => c + 1)"),
+        "expected version signal increment in update, got:\n{}",
+        out.js
+    );
 }
 
 /// R2: views that reference `route` in template expressions must emit

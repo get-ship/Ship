@@ -49,8 +49,9 @@ impl TemplateEmitter {
             AttrInstr::Expr { name, expr, .. } => {
                 let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
+                let fv = self.for_version_comma();
                 w.line(&format!(
-                    "{cleanups_var}.push(bindAttr({el_var}, {n}, () => ({rw})));",
+                    "{cleanups_var}.push(bindAttr({el_var}, {n}, () => ({fv}{rw})));",
                     n = js_string(name)
                 ));
                 if self.is_view && self.boundary_depth == 0 {
@@ -147,8 +148,9 @@ impl TemplateEmitter {
             AttrInstr::Class { name, expr, .. } => {
                 let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
+                let fv = self.for_version_comma();
                 w.line(&format!(
-                    "{cleanups_var}.push(bindClass({el_var}, {n}, () => ({rw})));",
+                    "{cleanups_var}.push(bindClass({el_var}, {n}, () => ({fv}{rw})));",
                     n = js_string(name)
                 ));
                 if self.is_view && self.boundary_depth == 0 {
@@ -164,8 +166,9 @@ impl TemplateEmitter {
                 let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 let prop = js_string(name);
+                let fvs = self.for_version_stmt();
                 w.line(&format!(
-                    "{cleanups_var}.push(effect(() => {{ const __v = ({rw}); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
+                    "{cleanups_var}.push(effect(() => {{ {fvs}const __v = ({rw}); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
                 ));
                 if self.is_view && self.boundary_depth == 0 {
                     self.hydrate_uses_markers = true;
@@ -179,8 +182,9 @@ impl TemplateEmitter {
             AttrInstr::Prop { name, expr, .. } => {
                 let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
+                let fv = self.for_version_comma();
                 w.line(&format!(
-                    "{cleanups_var}.push(bindProp({el_var}, {n}, () => ({rw})));",
+                    "{cleanups_var}.push(bindProp({el_var}, {n}, () => ({fv}{rw})));",
                     n = js_string(name)
                 ));
                 if self.is_view && self.boundary_depth == 0 {
@@ -220,9 +224,10 @@ impl TemplateEmitter {
         let n_rw = rewrite_for_scope(&name_expr.source, &[]);
         let v_rw = rewrite_for_scope(&value_expr.source, &[]);
         let prev = self.fresh("prevAttr");
+        let fvs = self.for_version_stmt();
         w.line(&format!("{{ let {prev} = null;"));
         w.line(&format!("  {cleanups_var}.push(effect(() => {{"));
-        w.line(&format!("    const __n = String({n_rw});"));
+        w.line(&format!("    {fvs}const __n = String({n_rw});"));
         w.line(&format!("    const __v = ({v_rw});"));
         w.line(&format!(
             "    if ({prev} && {prev} !== __n) {el_var}.removeAttribute({prev});"
