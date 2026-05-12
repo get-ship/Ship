@@ -5,9 +5,9 @@
 
 use serde_json::{Value, json};
 
-use super::{RegistryError, html_escape, optional_usize, parse_scope, required_str};
+use super::{RegistryError, required_str};
 use crate::routes::rest_api::ApiState;
-use crate::services::files::{FilesService, Scope};
+use crate::services::files::FilesService;
 use crate::services::specs::shape::{Spec, load_body, spec_from_item};
 use crate::services::specs::view_state;
 

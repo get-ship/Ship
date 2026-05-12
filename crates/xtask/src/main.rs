@@ -12,10 +12,6 @@ use std::path::{Path, PathBuf};
 use specta::TypeCollection;
 use specta_typescript::{BigIntExportBehavior, Typescript};
 
-pub(crate) fn repo_root_pub() -> PathBuf {
-    repo_root()
-}
-
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent() // crates/

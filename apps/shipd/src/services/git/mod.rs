@@ -35,7 +35,6 @@ use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::Json;
 use serde::Deserialize;
-use std::path::Path;
 use std::time::Duration;
 
 use crate::access::RuntimeAccess;
@@ -147,15 +146,6 @@ pub struct CheckoutBody {
 
 
 // ── helpers ──────────────────────────────────────────────────────────────
-
-fn resolve(state: &ApiState, workspace_id: Option<&str>) -> Result<std::path::PathBuf, Resp> {
-    state::resolve_root(state.ship_dir(), workspace_id)
-        .map_err(|e| err(StatusCode::NOT_FOUND, "no_repo", e))
-}
-
-fn current_branch(root: &Path) -> Option<String> {
-    read::load_branch(root)
-}
 
 // ── read handlers ────────────────────────────────────────────────────────
 

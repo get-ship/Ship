@@ -143,34 +143,6 @@ pub(crate) fn ensure_tmux_session(
     Ok(())
 }
 
-pub(crate) fn send_agent_command(session_name: &str, providers: &[String]) {
-    let Some(cmd) = provider_cli(providers) else {
-        tracing::info!(session = session_name, "no known provider CLI; skipping agent spawn");
-        return;
-    };
-
-    // Try window in "ship" session first, fall back to standalone session
-    let window_target = format!("ship:{session_name}");
-    let target = if std::process::Command::new("tmux")
-        .args(["has-session", "-t", "ship"])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false)
-    {
-        &window_target
-    } else {
-        session_name
-    };
-
-    let result = std::process::Command::new("tmux")
-        .args(["send-keys", "-t", target, &cmd, "Enter"])
-        .status();
-
-    if let Err(e) = result {
-        tracing::warn!(session = session_name, target, "tmux send-keys failed: {e}");
-    }
-}
-
 /// Kill a tmux session by name. No-op if session does not exist.
 pub(crate) fn kill_tmux_session(session_name: &str) -> Result<()> {
     let status = std::process::Command::new("tmux")
@@ -219,24 +191,3 @@ pub(crate) fn delete_branch(branch: &str) -> Result<()> {
     Ok(())
 }
 
-pub(crate) fn provider_cli(providers: &[String]) -> Option<String> {
-    use ship_platform::services::dispatch_ports::LaunchProfile;
-    use ship_platform::services::provider_adapter::adapter_for;
-
-    for p in providers {
-        match p.as_str() {
-            "claude" | "claude-code" | "codex" => {
-                let profile = LaunchProfile {
-                    provider: Some(p.clone()),
-                    persist_session: true,
-                    ..Default::default()
-                };
-                // Providers in the match arm are known; Err here is unreachable.
-                let adapter = adapter_for(p).ok()?;
-                return Some(adapter.build_interactive("workspace", &profile).to_shell_string());
-            }
-            _ => {}
-        }
-    }
-    None
-}

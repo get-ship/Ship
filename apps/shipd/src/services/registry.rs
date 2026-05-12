@@ -15,8 +15,7 @@
 //! is sync (file I/O via FilesService, libgit2 direct, DB queries).
 //! That lets us expose `call` to minijinja without a blocking bridge.
 
-use serde_json::{Value, json};
-use std::path::Path;
+use serde_json::Value;
 
 use crate::routes::rest_api::ApiState;
 use crate::services::files::{FilesService, Scope};

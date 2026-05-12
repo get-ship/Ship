@@ -11,7 +11,7 @@ use serde::Serialize;
 
 use super::read;
 use super::state::{
-    self, BranchSummary, CommitSummary, GitError, StatusBuckets,
+    self, BranchSummary, CommitSummary, GitError,
 };
 use super::write;
 
