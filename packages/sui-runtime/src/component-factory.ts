@@ -10,14 +10,9 @@
 
 import { defineComponent, camelOf } from './component'
 import type { ComponentSchema } from './component'
-import {
-  decodeBoolean,
-  decodeEnum,
-  decodeJson,
-  decodeNumber,
-  decodeString,
-  type Decoder,
-} from './decode'
+import { decoderFor } from './component-decoders'
+import { clearFormHooks, installFormHooks } from './component-form'
+import type { Decoder } from './decode'
 import { effect, signal, type Signal } from './signal'
 
 /** Declarative description of a component prop. */
@@ -109,6 +104,20 @@ export interface ComponentDef<Bindings = unknown> {
   shadow?: boolean
   /** When true, declare `static formAssociated = true` on the element. */
   formAssociated?: boolean
+  /**
+   * Name of the prop (kebab-case attribute) whose signal participates
+   * in the host's form value. The runtime calls
+   * `internals.setFormValue(String(propSignal()))` whenever the signal
+   * changes, plus auto-wires `formResetCallback` to restore the prop's
+   * declared default and `formStateRestoreCallback` to decode the
+   * persisted state through the prop's decoder.
+   */
+  formValue?: string
+  /**
+   * Name of the bool-typed prop (kebab-case attribute) whose signal is
+   * driven by the browser's `formDisabledCallback(disabled)` call.
+   */
+  formDisabled?: string
   /** Prop declarations keyed by attribute name (kebab-case). */
   props: Record<string, PropDef<unknown>>
   /**
@@ -117,29 +126,6 @@ export interface ComponentDef<Bindings = unknown> {
    * form-associated components) the host's `ElementInternals`.
    */
   setup?: (ctx: ComponentSetupContext) => Bindings
-}
-
-const decoderFor = (def: PropDef<unknown>): Decoder<unknown> => {
-  switch (def.type) {
-    case 'string':
-      return decodeString
-    case 'bool':
-      return decodeBoolean
-    case 'number':
-      return decodeNumber
-    case 'union': {
-      const values = def.values ?? []
-      const fallback =
-        (def.default as string | undefined) ??
-        (values[0] as string | undefined) ??
-        ''
-      return decodeEnum(values, fallback) as Decoder<unknown>
-    }
-    case 'object':
-      return decodeJson(def.default)
-    case 'array':
-      return decodeJson(def.default ?? [])
-  }
 }
 
 const encodeAttr = (def: PropDef<unknown>, value: unknown): string | null => {
@@ -188,8 +174,15 @@ const buildSchema = (def: ComponentDef): ComponentSchema => {
     observedAttrs.push(attr)
     props[attr] = { camel: camelOf(attr), decode: decoderFor(propDef) }
   }
+  // `formValue` / `formDisabled` imply form-associated even if the
+  // author omitted the explicit flag — the compiler emits both, but
+  // hand-written defs deserve the same DWIM.
+  const associated =
+    def.formAssociated === true ||
+    def.formValue !== undefined ||
+    def.formDisabled !== undefined
   const schema: ComponentSchema = { observedAttrs, props }
-  if (def.formAssociated) schema.formAssociated = true
+  if (associated) schema.formAssociated = true
   return schema
 }
 
@@ -270,6 +263,15 @@ export function component<Bindings>(
       }
     }
 
+    // Wire form association BEFORE setup runs so author setup code can
+    // still reach `internals` for setValidity/checkValidity without
+    // colliding with the auto-wiring. The setFormValue effect is
+    // captured into the local cleanup list so disconnect tears it down.
+    if (def.formValue !== undefined || def.formDisabled !== undefined) {
+      const stopValue = installFormHooks(host, internals, def as ComponentDef, propSignals)
+      if (typeof stopValue === 'function') cleanups.push(stopValue)
+    }
+
     if (def.setup) {
       const ctx: ComponentSetupContext = { props: propSignals, host, cleanups }
       if (internals) ctx.internals = internals
@@ -277,6 +279,7 @@ export function component<Bindings>(
     }
 
     return () => {
+      clearFormHooks(host)
       for (const c of cleanups.splice(0)) {
         try { c() } catch (e) { console.error(`[ship-set:${tag}] cleanup threw:`, e) }
       }

@@ -34,6 +34,23 @@ export type ComponentFactory = (
 ) => Disposer
 
 /**
+ * Form-association lifecycle hooks the factory may install on the host
+ * via `host.__shipSetFormHooks = {...}`. The form-associated class
+ * shape invokes them from the matching browser callbacks, runs them
+ * BEFORE dispatching the `ship-set:form-*` event so listeners observe
+ * the post-hook state.
+ */
+export interface FormHooks {
+  reset?: () => void
+  restore?: (state: string | null) => void
+  disabled?: (disabled: boolean) => void
+}
+
+interface FormHookHolder {
+  __shipSetFormHooks?: FormHooks
+}
+
+/**
  * Schema the compiler emits alongside the factory — drives prop decode
  * + observed-attributes registration.
  */
@@ -169,19 +186,36 @@ export function defineComponent(
         if (sig) sig.set(meta.decode(value))
       }
 
-      // Form-association lifecycle hooks. The runtime exposes them via
-      // user-supplied `internals.*` calls in mount/effect blocks; the
-      // browser also dispatches these on the host so authors who want
-      // to override (e.g. for restore) can attach listeners directly.
+      // Form-association lifecycle hooks. The browser dispatches these
+      // on the host. The runtime fans them out two ways:
+      //   1. Element-level events (`ship-set:form-*`) for ad-hoc
+      //      listeners attached by author code or tests.
+      //   2. Factory-installed handlers stored under
+      //      `__shipSetFormHooks` (set by component-factory.ts when the
+      //      author declared `formValue:` / `formDisabled:` on the
+      //      component def). These run BEFORE the event so signal
+      //      writes are visible to listeners that read the prop.
       formResetCallback() {
+        const hooks = (this as unknown as FormHookHolder).__shipSetFormHooks
+        try { hooks?.reset?.() } catch (e) {
+          console.error(`[ship-set:${tag}] formResetCallback threw:`, e)
+        }
         this.dispatchEvent(new CustomEvent('ship-set:form-reset'))
       }
       formStateRestoreCallback(state: string | null, mode: string) {
+        const hooks = (this as unknown as FormHookHolder).__shipSetFormHooks
+        try { hooks?.restore?.(state) } catch (e) {
+          console.error(`[ship-set:${tag}] formStateRestoreCallback threw:`, e)
+        }
         this.dispatchEvent(
           new CustomEvent('ship-set:form-restore', { detail: { state, mode } }),
         )
       }
       formDisabledCallback(disabled: boolean) {
+        const hooks = (this as unknown as FormHookHolder).__shipSetFormHooks
+        try { hooks?.disabled?.(disabled) } catch (e) {
+          console.error(`[ship-set:${tag}] formDisabledCallback threw:`, e)
+        }
         this.dispatchEvent(
           new CustomEvent('ship-set:form-disabled', { detail: { disabled } }),
         )

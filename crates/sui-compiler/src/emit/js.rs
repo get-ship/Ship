@@ -139,6 +139,17 @@ fn emit_component_export(w: &mut Writer, program: &Program, body: Writer, opts: 
     if meta.shadow {
         w.line("shadow: true,");
     }
+    let form_value_prop = program.props.iter().find(|p| p.form_value);
+    let form_disabled_prop = program.props.iter().find(|p| p.form_disabled);
+    if form_value_prop.is_some() || form_disabled_prop.is_some() {
+        w.line("formAssociated: true,");
+        if let Some(p) = form_value_prop {
+            w.line(&format!("formValue: {},", js_string(&p.name)));
+        }
+        if let Some(p) = form_disabled_prop {
+            w.line(&format!("formDisabled: {},", js_string(&p.name)));
+        }
+    }
     let is_shadow = meta.shadow;
     let emitted_styles = if is_shadow {
         strip_shared_rules(&program.styles)

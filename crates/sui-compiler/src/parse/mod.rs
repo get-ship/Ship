@@ -62,6 +62,14 @@ pub fn parse(source: &str) -> Result<Program, CompileError> {
                 "prop" => {
                     let mut decl = parse_prop(el)?;
                     decl.description = pending_jsdoc.take();
+                    if decl.form_value && props.iter().any(|p| p.form_value) {
+                        return Err(CompileError::new(format!(
+                            "<prop name=\"{}\"> form-value: a component may declare \
+                             at most one form-value prop (another already exists)",
+                            decl.name,
+                        ))
+                        .with_span(el.span));
+                    }
                     props.push(decl);
                     continue;
                 }
@@ -145,6 +153,8 @@ fn parse_prop(el: &html::Element) -> Result<PropDecl, CompileError> {
     let default = el.get_attribute("default");
     let reflect = el.has_attribute("reflect");
     let bindable = el.has_attribute("bindable");
+    let form_value = el.has_attribute("form-value");
+    let form_disabled = el.has_attribute("form-disabled");
 
     let kind = if let Some(values_raw) = values_attr {
         let values = values_raw
@@ -158,6 +168,15 @@ fn parse_prop(el: &html::Element) -> Result<PropDecl, CompileError> {
             Some("bool") => PropKind::Bool,
             Some("number") => PropKind::Number,
             None | Some("string") => PropKind::String,
+            Some(t @ ("object" | "array")) if form_value => {
+                // form-value only supports primitive-coercible kinds.
+                return Err(CompileError::new(format!(
+                    "<prop name=\"{name}\"> form-value cannot be used on \
+                     type=\"{t}\" (only string, number, bool, or union props \
+                     can participate in form value)"
+                ))
+                .with_span(el.span));
+            }
             Some(other) => {
                 return Err(CompileError::new(format!(
                     "<prop name=\"{name}\"> unknown type: {other}"
@@ -167,12 +186,22 @@ fn parse_prop(el: &html::Element) -> Result<PropDecl, CompileError> {
         }
     };
 
+    if form_disabled && kind != PropKind::Bool {
+        return Err(CompileError::new(format!(
+            "<prop name=\"{name}\"> form-disabled requires type=\"bool\" \
+             (the browser passes a boolean to formDisabledCallback)"
+        ))
+        .with_span(el.span));
+    }
+
     Ok(PropDecl {
         name,
         kind,
         default,
         reflect,
         bindable,
+        form_value,
+        form_disabled,
         description: None,
         span: el.span,
     })

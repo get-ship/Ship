@@ -180,4 +180,33 @@ describe('<sui-switch>', () => {
     expect(a.hasAttribute('checked')).toBe(true)
     expect(b.hasAttribute('checked')).toBe(false)
   })
+
+  it('is form-associated', () => {
+    const ctor = customElements.get('sui-switch') as unknown as {
+      formAssociated?: boolean
+    }
+    expect(ctor.formAssociated).toBe(true)
+  })
+
+  it('participates in FormData when named inside a <form>', async () => {
+    const container = reg.mk()
+    container.innerHTML =
+      '<form><sui-switch name="dark" checked></sui-switch></form>'
+    const form = container.querySelector('form') as HTMLFormElement
+    await flush()
+    const proto = (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
+      .ElementInternals?.prototype
+    if (!proto || typeof proto.setFormValue !== 'function') return
+    const data = new FormData(form)
+    expect(data.get('dark')).toBe('true')
+  })
+
+  it('formResetCallback restores checked to its prop default (false)', async () => {
+    const { el } = mount(reg, 'sui-switch', { checked: 'true' })
+    await flush()
+    expect(el.hasAttribute('checked')).toBe(true)
+    ;(el as unknown as { formResetCallback?: () => void }).formResetCallback!()
+    await flush()
+    expect(el.hasAttribute('checked')).toBe(false)
+  })
 })

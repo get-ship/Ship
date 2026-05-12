@@ -47,13 +47,14 @@
                                  host.clear()              ✓ resets value + signal
                                  host.reportValidity()     ✓ proxies to inner input
   ──────────────────────────────────────────────────────────────────────────────
-  formAssociated / internals     DEFERRED                  SUI component() factory
-                                                           does not surface
-                                                           ElementInternals today.
-                                                           Filed as framework gap;
-                                                           form-submit integration
-                                                           requires compiler
-                                                           extension.
+  formAssociated / internals     NATIVE                    `form-value` on the value
+                                                           prop and `form-disabled`
+                                                           on the disabled prop wire
+                                                           ElementInternals.setFormValue
+                                                           plus formResetCallback /
+                                                           formStateRestoreCallback /
+                                                           formDisabledCallback at
+                                                           the compiler level.
   ──────────────────────────────────────────────────────────────────────────────
   Slots: leading, trailing       leading, trailing         ✓
   Parts: field, input            wrap, input               ✓ 'input' satisfies
@@ -63,12 +64,12 @@
 -->
 
 <prop name="type" values="text|search|email|url|tel|password|number" default="text" reflect />
-<prop name="value" type="string" default="" />
+<prop name="value" type="string" default="" form-value />
 <prop name="placeholder" type="string" default="" />
 <prop name="name" type="string" default="" />
 <prop name="autocomplete" type="string" default="" />
 <prop name="required" type="bool" default="false" reflect />
-<prop name="disabled" type="bool" default="false" reflect />
+<prop name="disabled" type="bool" default="false" reflect form-disabled />
 <prop name="readonly" type="bool" default="false" reflect />
 <prop name="invalid" type="bool" default="false" reflect />
 <prop name="loading" type="bool" default="false" reflect />

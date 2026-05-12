@@ -201,4 +201,35 @@ describe('<sui-checkbox>', () => {
     expect(shadow(el).querySelector('[part~="box"]')).not.toBeNull()
     expect(shadow(el).querySelector('[part~="input"]')).not.toBeNull()
   })
+
+  it('is form-associated', () => {
+    const ctor = customElements.get('sui-checkbox') as unknown as {
+      formAssociated?: boolean
+    }
+    expect(ctor.formAssociated).toBe(true)
+  })
+
+  it('participates in FormData when named inside a <form>', async () => {
+    const container = reg.mk()
+    container.innerHTML =
+      '<form><sui-checkbox name="agree" checked></sui-checkbox></form>'
+    const form = container.querySelector('form') as HTMLFormElement
+    await flush()
+    const proto = (window as unknown as { ElementInternals?: { prototype: ElementInternals } })
+      .ElementInternals?.prototype
+    if (!proto || typeof proto.setFormValue !== 'function') return
+    const data = new FormData(form)
+    // form-value on `checked` (bool) — String(true) = 'true'.
+    expect(data.get('agree')).toBe('true')
+  })
+
+  it('formResetCallback restores checked to its prop default (false)', async () => {
+    const { el } = mount(reg, 'sui-checkbox', { checked: 'true' })
+    await flush()
+    expect(el.hasAttribute('checked')).toBe(true)
+    ;(el as unknown as { formResetCallback?: () => void }).formResetCallback!()
+    await flush()
+    // checked default is `false`; reflect drives the host attribute off.
+    expect(el.hasAttribute('checked')).toBe(false)
+  })
 })
