@@ -38,7 +38,11 @@ import './sui-checkbox/dist/sui-checkbox.compiled.js'
 import './sui-switch/dist/sui-switch.compiled.js'
 import './sui-textarea/dist/sui-textarea.compiled.js'
 import './sui-field/dist/sui-field.compiled.js'
+<<<<<<< HEAD
 import "./sui-alert-dialog/dist/sui-alert-dialog.compiled.js"
+=======
+import './sui-file-upload/dist/sui-file-upload.compiled.js'
+>>>>>>> job/sui-file-upload
 import './sui-toast/dist/sui-toast.compiled.js'
 import './sui-toast/dist/sui-toast-container.compiled.js'
 import './sui-breadcrumb/dist/sui-breadcrumb.compiled.js'

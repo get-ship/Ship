@@ -1,0 +1,198 @@
+<!--
+  <sui-file-upload> — SUI port of <ship-file-upload>.
+  Drag-and-drop file upload zone with removable file list.
+
+  Prop / event / parts parity vs <ship-file-upload>
+  ────────────────────────────────────────────────────────────────────────
+  Lit                              SUI                       Notes
+  ────────────────────────────────────────────────────────────────────────
+  accept (String, '')              accept (string, '')       ✓
+  multiple (Boolean, false)        multiple (bool, false)    ✓
+  maxSize (Number, 10485760,       max-size (number,         ✓
+    attribute 'max-size')            10485760)
+  disabled (Boolean, false,        disabled (bool, false,    ✓
+    reflect)                         reflect)
+  tone (Tone, undefined,           tone (union, 'default',   ✓ tints drop ring
+    reflect)                         reflect)
+  ────────────────────────────────────────────────────────────────────────
+  Events: ship-change              sui-change                ✓ renamed
+    { detail: { files: File[] } }    { detail: { files } }     payload preserved
+  ────────────────────────────────────────────────────────────────────────
+  Parts: (none in Lit)             dropzone, input, error,   new — surface
+                                     file-list, file-item,     internal nodes for
+                                     remove                    consumer styling
+  ────────────────────────────────────────────────────────────────────────
+  formAssociated / internals     N/A — Lit version does not surface internals.
+  ────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="accept" type="string" default="" />
+<prop name="multiple" type="bool" default="false" />
+<prop name="max-size" type="number" default="10485760" />
+<prop name="disabled" type="bool" default="false" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="default" reflect />
+
+<style>
+  :host {
+    display: block;
+    --tone-border: var(--border);
+    --tone-bg: color-mix(in oklch, var(--primary) 8%, transparent);
+    --tone-ring: var(--primary);
+  }
+  :host([hidden]) { display: none; }
+  :host([disabled]) { opacity: 0.5; pointer-events: none; }
+
+  :host([tone='primary'])     { --tone-ring: var(--primary);     --tone-bg: color-mix(in oklch, var(--primary) 10%, transparent); }
+  :host([tone='info'])        { --tone-ring: var(--info);         --tone-bg: color-mix(in oklch, var(--info) 10%, transparent); }
+  :host([tone='success'])     { --tone-ring: var(--success);      --tone-bg: color-mix(in oklch, var(--success) 10%, transparent); }
+  :host([tone='warning'])     { --tone-ring: var(--warning);      --tone-bg: color-mix(in oklch, var(--warning) 10%, transparent); }
+  :host([tone='destructive']) { --tone-ring: var(--destructive);  --tone-bg: color-mix(in oklch, var(--destructive) 10%, transparent); }
+  :host([tone='accent'])      { --tone-ring: var(--accent);       --tone-bg: color-mix(in oklch, var(--accent) 10%, transparent); }
+  :host([tone='muted'])       { --tone-ring: var(--muted-foreground); --tone-bg: var(--muted); }
+
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 24px 16px;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius-md, 6px);
+    background: transparent;
+    cursor: pointer;
+    transition:
+      border-color var(--duration-fast, 150ms) var(--ease-out, ease-out),
+      background-color var(--duration-fast, 150ms) var(--ease-out, ease-out);
+    color: var(--muted-foreground);
+    font-family: var(--font-body);
+    font-size: 13px;
+    user-select: none;
+  }
+  .dropzone:focus-visible {
+    outline: 2px solid var(--tone-ring);
+    outline-offset: 2px;
+  }
+  .dropzone.over {
+    border-style: solid;
+    border-color: var(--tone-ring);
+    background: var(--tone-bg);
+  }
+
+  .icon {
+    font-size: 1.5rem;
+    line-height: 1;
+  }
+
+  input[type='file'] {
+    display: none;
+  }
+
+  .file-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+  }
+
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm, 4px);
+    background: var(--muted);
+    font-family: var(--font-body);
+    font-size: 13px;
+    color: var(--foreground);
+  }
+
+  .file-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .file-size {
+    color: var(--muted-foreground);
+    flex-shrink: 0;
+  }
+
+  .remove {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    color: var(--muted-foreground);
+    padding: 2px;
+    line-height: 1;
+    border-radius: var(--radius-sm, 4px);
+    font-size: 16px;
+    font-family: inherit;
+  }
+  .remove:hover {
+    color: var(--foreground);
+    background: var(--border);
+  }
+  .remove:focus-visible {
+    outline: 2px solid var(--tone-ring);
+    outline-offset: 1px;
+  }
+
+  .error {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--destructive);
+    margin-top: 4px;
+    padding: 0 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dropzone { transition: none; }
+  }
+</style>
+
+<div
+  class="dropzone"
+  class:over={over()}
+  part="dropzone"
+  role="button"
+  tabindex={disabled() ? '-1' : '0'}
+  aria-label={accept() ? 'Upload files (' + accept() + ')' : 'Upload files'}
+  aria-disabled={disabled() ? 'true' : 'false'}
+  bind:this={dropzoneEl}
+>
+  <span class="icon" aria-hidden="true">📄</span>
+  <span>Drop files here or click to browse</span>
+</div>
+<input
+  type="file"
+  part="input"
+  accept={accept()}
+  multiple={multiple()}
+  aria-hidden="true"
+  tabindex="-1"
+  bind:this={inputEl}
+/>
+{#if errorMsg()}
+  <div class="error" role="alert" part="error">{errorMsg()}</div>
+{/if}
+{#if displayFiles().length > 0}
+  <div class="file-list" part="file-list" aria-live="polite" bind:this={fileListEl}>
+    {#for f of displayFiles() key={f.key}}
+      <div class="file-item" part="file-item">
+        <span class="file-name">{f.name}</span>
+        <span class="file-size">{f.sizeStr}</span>
+        <button
+          class="remove"
+          part="remove"
+          type="button"
+          data-idx={f.idx}
+          aria-label={'Remove ' + f.name}
+        >×</button>
+      </div>
+    {/for}
+  </div>
+{/if}
