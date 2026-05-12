@@ -2,11 +2,18 @@
 // Counter view: full reactive round-trip.
 //   node packages/sui-runtime/fixtures/e2e/counter.mjs
 
-import { chromium } from 'playwright'
+import { chromium, firefox, webkit } from 'playwright'
 
 const BASE = process.env.SUI_E2E_BASE_URL || 'http://127.0.0.1:9385'
+const BROWSER = (process.env.SUI_E2E_BROWSER || 'chromium').toLowerCase()
+const ENGINES = { chromium, firefox, webkit }
+const engine = ENGINES[BROWSER]
+if (!engine) {
+  console.error(`unknown browser "${BROWSER}". Use chromium | firefox | webkit.`)
+  process.exit(2)
+}
 
-const browser = await chromium.launch()
+const browser = await engine.launch()
 const ctx = await browser.newContext()
 const page = await ctx.newPage()
 const errors = []
