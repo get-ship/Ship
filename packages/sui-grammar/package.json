@@ -18,6 +18,9 @@
   ],
   "license": "MIT",
   "private": true,
+  "dependencies": {
+    "node-addon-api": "^8.0.0"
+  },
   "devDependencies": {
     "tree-sitter-cli": "^0.26.0"
   }

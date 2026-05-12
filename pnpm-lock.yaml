@@ -418,6 +418,10 @@ importers:
         version: 4.1.5(@types/node@24.12.0)(jsdom@25.0.1)(vite@7.3.1(@types/node@24.12.0)(lightningcss@1.31.1)(tsx@4.21.0)(yaml@2.8.3))
 
   packages/sui-grammar:
+    dependencies:
+      node-addon-api:
+        specifier: ^8.0.0
+        version: 8.7.0
     devDependencies:
       tree-sitter-cli:
         specifier: ^0.26.0
@@ -4423,6 +4427,10 @@ packages:
 
   nlcst-to-string@4.0.0:
     resolution: {integrity: sha512-YKLBCcUYKAg0FNlOBT6aI91qFmSiFKiluk655WzPF+DDMA02qIyy8uiRqI8QXtcFpEvll12LpL5MXqEmAZ+dcA==}
+
+  node-addon-api@8.7.0:
+    resolution: {integrity: sha512-9MdFxmkKaOYVTV+XVRG8ArDwwQ77XIgIPyKASB1k3JPq3M8fGQQQE3YpMOrKm6g//Ktx8ivZr8xo1Qmtqub+GA==}
+    engines: {node: ^18 || ^20 || >= 21}
 
   node-fetch-native@1.6.7:
     resolution: {integrity: sha512-g9yhqoedzIUm0nTnTqAQvueMPVOuIY16bqgAJJC8XOOubYFNwz6IER9qs0Gq2Xd0+CecCKFjtdDTMA4u4xG06Q==}
@@ -9654,6 +9662,8 @@ snapshots:
   nlcst-to-string@4.0.0:
     dependencies:
       '@types/nlcst': 2.0.3
+
+  node-addon-api@8.7.0: {}
 
   node-fetch-native@1.6.7: {}
 
