@@ -1,0 +1,78 @@
+<!--
+  <sui-line-chart> — SUI port of <ship-line-chart>.
+  Multi-series line chart, SVG-rendered.
+
+  Prop parity vs <ship-line-chart>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit               SUI               Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  series (string)   series (string,   ✓ JSON [{name, data, tone?}]
+                      reflect)
+  labels (string)   labels (string)   ✓ comma-separated (accessibility)
+  width (number)    width (number)    ✓ default 300
+  height (number)   height (number)   ✓ default 200
+  points (bool)     points (bool,     ✓ render dots at data points
+                      reflect)
+  grid (bool)       grid (bool,       ✓ render subtle y-grid lines
+                      reflect)
+  label (string)    label (string)    ✓ aria-label on SVG
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots: (default) — legend content
+  Parts: none
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="series" type="string" default="" reflect />
+<prop name="labels" type="string" default="" />
+<prop name="width" type="number" default="300" />
+<prop name="height" type="number" default="200" />
+<prop name="points" type="bool" default="false" reflect />
+<prop name="grid" type="bool" default="false" reflect />
+<prop name="label" type="string" default="line chart" />
+
+<style>
+  :host {
+    display: block;
+    width: 100%;
+    height: 200px;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  :host([hidden]) { display: none; }
+  .wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%; }
+  svg { display: block; width: 100%; flex: 1; overflow: hidden; }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    font-family: var(--font-body);
+  }
+  .legend:empty { display: none; }
+  .grid-line { stroke: var(--border); stroke-width: 1; stroke-dasharray: 2 3; }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+</style>
+
+<div class="wrap">
+  <svg
+    viewBox={'0 0 ' + width() + ' ' + height()}
+    preserveAspectRatio="none"
+    role="img"
+    aria-label={label()}>
+    {#for g of gridLines() key={g.id}}
+      <line class="grid-line" x1="0" x2={width()} y1={g.y} y2={g.y}></line>
+    {/for}
+    {#for s of seriesPaths() key={s.name}}
+      <path d={s.strokeD} fill="none" stroke={s.color} stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"></path>
+      {#if points()}
+        {#for p of s.pts key={p.id}}
+          <circle cx={p.cx} cy={p.cy} r="2.5" fill={s.color}></circle>
+        {/for}
+      {/if}
+    {/for}
+  </svg>
+  <div class="legend"><slot></slot></div>
+</div>

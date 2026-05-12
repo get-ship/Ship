@@ -1,0 +1,75 @@
+<!--
+  <sui-sparkline> — SUI port of <ship-sparkline>.
+  Compact inline trend line. No axes or labels. SVG-rendered.
+
+  Prop parity vs <ship-sparkline>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit               SUI               Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  data (string)     data (string,     ✓ comma-separated numbers
+                      reflect)
+  tone (string)     tone (union,      ✓ renamed to use values=
+                      reflect)
+  width (number)    width (number)    ✓ default 80
+  height (number)   height (number)   ✓ default 20
+  fill (bool)       fill (bool,       ✓ fill area under line at 18% alpha
+                      reflect)
+  label (string)    label (string)    ✓ aria-label on SVG when data present
+  ─────────────────────────────────────────────────────────────────────────────
+  Slots: none
+  Parts: none
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="data" type="string" default="" reflect />
+<prop name="tone" values="default|primary|info|success|warning|destructive|accent|muted" default="primary" reflect />
+<prop name="width" type="number" default="80" />
+<prop name="height" type="number" default="20" />
+<prop name="fill" type="bool" default="false" reflect />
+<prop name="label" type="string" default="sparkline" />
+
+<style>
+  :host {
+    --sui-sparkline-w: auto;
+    --sui-sparkline-h: 40px;
+    display: inline-block;
+    width: var(--sui-sparkline-w);
+    height: var(--sui-sparkline-h);
+    line-height: 0;
+    transition: opacity var(--duration-fast) var(--ease-out);
+  }
+  :host([hidden]) { display: none; }
+  svg { display: block; overflow: visible; }
+
+  @media (prefers-reduced-motion: reduce) {
+    :host { transition: none; }
+  }
+</style>
+
+{#if hasData()}
+  <svg
+    viewBox={'0 0 ' + width() + ' ' + height()}
+    width={width()}
+    height={height()}
+    role="img"
+    aria-label={label()}>
+    {#if fill()}
+      <path d={areaPath()} fill={lineColor()} fill-opacity="0.18" stroke="none"></path>
+    {/if}
+    <path
+      d={strokePath()}
+      fill="none"
+      stroke={lineColor()}
+      stroke-width="1.5"
+      stroke-linecap="round"
+      stroke-linejoin="round">
+    </path>
+  </svg>
+{:else}
+  <svg
+    viewBox={'0 0 ' + width() + ' ' + height()}
+    width={width()}
+    height={height()}
+    aria-hidden="true">
+  </svg>
+{/if}
