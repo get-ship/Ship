@@ -28,7 +28,7 @@ use crate::services::git::service::GitService;
 use crate::services::mcp::service::McpService;
 use crate::services::permissions::service::PermissionsService;
 use crate::services::pipelines::service::PipelinesService;
-use crate::services::rules::service::RulesService;
+use ship_platform::services::rules::service::RulesService;
 use crate::services::skills::service::SkillsService;
 use crate::ship_runtime::ShipRuntime;
 

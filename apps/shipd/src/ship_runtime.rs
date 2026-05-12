@@ -117,7 +117,7 @@ pub struct ShipRuntime {
     /// service-layer pattern. HTTP handlers in `services::rules` go
     /// through this trait so the cloud worker / browser embed / unit
     /// tests can swap implementations without standing up an HTTP server.
-    rules: std::sync::Arc<dyn crate::services::rules::service::RulesService>,
+    rules: std::sync::Arc<dyn ship_platform::services::rules::service::RulesService>,
     /// `PermissionsService` impl — second mr-02 pilot, includes the
     /// cross-domain `tool_patterns` composition.
     permissions: std::sync::Arc<dyn crate::services::permissions::service::PermissionsService>,
@@ -376,7 +376,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             pty_sessions: crate::sessions::SessionRegistry::new(),
             actor_sessions: crate::sessions::ActorRegistry::new(),
-            rules: crate::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
+            rules: ship_platform::services::rules::service::RulesServiceImpl::arc(global_dir.clone()),
             permissions: {
                 // PermissionsServiceImpl needs an Arc<dyn McpService> for
                 // tool_patterns; build the same impl the runtime exposes
@@ -463,7 +463,7 @@ impl ShipRuntime {
     /// `RulesService` accessor — pilot for the modular-runtime spec 02
     /// service-layer pattern. HTTP handlers in `services::rules::*`
     /// call through this rather than reaching into runtime state.
-    pub fn rules(&self) -> &dyn crate::services::rules::service::RulesService {
+    pub fn rules(&self) -> &dyn ship_platform::services::rules::service::RulesService {
         &*self.rules
     }
 
@@ -782,7 +782,7 @@ impl ShipRuntime {
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
-        let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());
@@ -858,7 +858,7 @@ impl ShipRuntime {
     ) -> Self {
         let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         let daemon_dir = ship_substrate::ShipHome::at(ship_dir.clone()).daemon_dir();
-        let rules = crate::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
+        let rules = ship_platform::services::rules::service::RulesServiceImpl::arc(ship_dir.clone());
         let mcp = crate::services::mcp::service::McpServiceImpl::arc(ship_dir.clone());
         let skills = crate::services::skills::service::SkillsServiceImpl::arc(ship_dir.clone());
         let agents = crate::services::agents::service::AgentsServiceImpl::arc(ship_dir.clone());

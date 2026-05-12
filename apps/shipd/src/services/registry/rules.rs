@@ -16,19 +16,19 @@ pub(super) fn try_dispatch(
 ) -> Result<Option<Value>, RegistryError> {
     let value: Result<Value, RegistryError> = match name {
         "rules.list" => Ok(json!({
-            "items": crate::services::rules::state::list(&files),
+            "items": ship_platform::services::rules::state::list(&files),
         })),
         "rules.get" => {
             let id = required_str(args, "id")?;
             let scope = parse_scope(args)?;
-            let (resolved, body) = crate::services::rules::state::load_body(&files, id, scope)
+            let (resolved, body) = ship_platform::services::rules::state::load_body(&files, id, scope)
                 .map_err(|e| match e {
-                    crate::services::rules::state::Error::NotFound(m) => RegistryError::not_found(m),
+                    ship_platform::services::rules::state::Error::NotFound(m) => RegistryError::not_found(m),
                     other => RegistryError::service(other.to_string()),
                 })?;
             Ok(json!({
                 "id": id,
-                "scope": crate::services::rules::state::ScopeTag::from(resolved),
+                "scope": ship_platform::services::rules::state::ScopeTag::from(resolved),
                 "body": body,
             }))
         }

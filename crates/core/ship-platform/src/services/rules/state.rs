@@ -8,7 +8,7 @@
 //! List returns both with a `scope` annotation per entry; project entries
 //! shadow user on id collision.
 
-use ship_platform::services::files::{Error as FileError, FilesService, Scope};
+use crate::services::files::{Error as FileError, FilesService, Scope};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 

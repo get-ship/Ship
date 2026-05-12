@@ -11,8 +11,8 @@ use std::sync::Arc;
 
 use serde::Serialize;
 
-use ship_platform::services::files::{FilesService, Scope};
-use super::state;
+use crate::services::files::{FilesService, Scope};
+use crate::services::rules::state;
 
 /// Body shape returned by `RulesService::get`.
 #[derive(Debug, Clone, Serialize)]

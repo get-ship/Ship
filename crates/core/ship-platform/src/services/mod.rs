@@ -20,8 +20,10 @@ pub mod sync;
 // L1 domain services (method-oriented; mr-02 surface). Each is a trait
 // + Impl pair that file-backed domain operations (rules, permissions,
 // mcp, skills, agents, ...) consume. FilesService is the foundational
-// path-scoped JSONC read/write helper; the rest follow.
+// path-scoped JSONC read/write helper; the rest follow as their HTTP
+// shims stay in shipd (apps/shipd/src/services/<domain>/mod.rs).
 pub mod files;
+pub mod rules;
 #[cfg(test)]
 #[path = "files_tests.rs"]
 mod files_tests;

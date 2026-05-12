@@ -334,7 +334,7 @@ pub struct ToolPatternEntry {
 /// Enumerate rules via RuleService state. Returns project+user, project-wins.
 fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
     let files = ship_platform::services::files::FilesService::resolve_roots(ship_dir);
-    crate::services::rules::state::list(&files)
+    super::state::list(&files)
         .into_iter()
         .map(|e| CatalogEntry {
             id: e.id.clone(),
