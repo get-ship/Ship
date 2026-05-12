@@ -34,6 +34,7 @@ pub mod bindings;
 pub mod check;
 pub mod diagnostics;
 pub mod emit;
+pub mod ffi;
 pub mod ir;
 pub mod islands;
 pub mod keys;

@@ -3,6 +3,7 @@ import { readdirSync, statSync, existsSync } from 'node:fs'
 import { readFile, writeFile } from 'node:fs/promises'
 import { basename, dirname, join, resolve } from 'node:path'
 import type { SuiBuildConfig, SuiBundler, BuildResult, AdapterContext } from './config.js'
+import { makeFfiSpawn } from './adapters/bun.js'
 
 /** Injected spawn function — lets tests avoid needing the real binary. */
 export type CompilerSpawn = (suiPath: string, stem: string) => Promise<void>
@@ -23,6 +24,15 @@ function resolveCompilerBin(packageRoot: string): string {
   const envPath = process.env['SUI_COMPILER_PATH']
   if (envPath) return envPath
   return join(findWorkspaceRoot(packageRoot), 'target', 'debug', 'sui-compiler')
+}
+
+function resolveCompilerLib(packageRoot: string): string {
+  const envPath = process.env['SUI_COMPILER_LIB_PATH']
+  if (envPath) return envPath
+  const wsRoot = findWorkspaceRoot(packageRoot)
+  const ext = process.platform === 'darwin' ? 'dylib' : process.platform === 'win32' ? 'dll' : 'so'
+  const prefix = process.platform === 'win32' ? '' : 'lib'
+  return join(wsRoot, 'target', 'debug', `${prefix}sui_compiler.${ext}`)
 }
 
 function* walkSui(dir: string): Generator<string> {
@@ -53,7 +63,7 @@ async function loadCache(cacheFile: string): Promise<MtimeCache> {
   }
 }
 
-function makeDefaultSpawn(compilerBin: string): CompilerSpawn {
+function makeProcessSpawn(compilerBin: string): CompilerSpawn {
   return (suiPath, stem) =>
     new Promise<void>((res, rej) => {
       const hasBin = existsSync(compilerBin)
@@ -68,6 +78,11 @@ function makeDefaultSpawn(compilerBin: string): CompilerSpawn {
     })
 }
 
+async function makeDefaultSpawn(compilerBin: string, libPath: string): Promise<CompilerSpawn> {
+  const ffi = await makeFfiSpawn(libPath)
+  return ffi ?? makeProcessSpawn(compilerBin)
+}
+
 export async function run(
   config: SuiBuildConfig,
   ctx: AdapterContext,
@@ -77,7 +92,10 @@ export async function run(
   const t0 = Date.now()
   const cacheFile = join(ctx.packageRoot, '.sui-build-cache.json')
   const cache = await loadCache(cacheFile)
-  const doSpawn = spawn ?? makeDefaultSpawn(resolveCompilerBin(ctx.packageRoot))
+  const doSpawn = spawn ?? await makeDefaultSpawn(
+    resolveCompilerBin(ctx.packageRoot),
+    resolveCompilerLib(ctx.packageRoot),
+  )
 
   const suiFiles = collectSuiFiles(config, ctx)
   const warnings: string[] = []
