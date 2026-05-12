@@ -35,6 +35,8 @@ jobs:
         run: pnpm build:bundles
       - name: Check silent-error patterns
         run: bash scripts/lint/check-silent-errors.sh
+      - name: Check SUI layer-cut (no framework -> host imports)
+        run: bash scripts/lint/check-sui-layer-cut.sh
       - name: Check OpenAPI drift
         run: cd apps/docs && pnpm run openapi:check-drift
       - name: Collect skill docs
