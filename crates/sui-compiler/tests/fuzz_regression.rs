@@ -19,6 +19,21 @@ fn fuzz_2026_05_11_amp_entity_in_interpolation() {
     );
 }
 
+/// Issue: `>M{#foro of r.&harr;{-}{{}}}}(***r` crashed bindings::build.
+/// Found by `bindings_build` fuzz on 2026-05-12.
+#[test]
+fn fuzz_2026_05_12_for_with_harr_entity() {
+    let src_bytes = std::fs::read(
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("fuzz/artifacts/bindings_build/crash-72cc65fa184179f2c7ddfc24f3e0cc33ade86975"),
+    );
+    let Ok(bytes) = src_bytes else { return };
+    let Ok(src) = std::str::from_utf8(&bytes) else { return };
+    // Test the bindings path specifically (not the full compile).
+    let Ok(program) = sui_compiler::parse::parse(src) else { return };
+    let _ = sui_compiler::bindings::build(&program);
+}
+
 /// Issue: nested template literals with `&sect;` entity crashed
 /// compile_full. Different panic site after the lex + expr_subset
 /// fixes above.

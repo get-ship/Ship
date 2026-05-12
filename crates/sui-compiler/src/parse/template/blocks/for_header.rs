@@ -111,7 +111,16 @@ fn find_key_clause_start(right: &str) -> Option<usize> {
                 let prefix = " key=";
                 if i >= prefix.len() {
                     let pstart = i - prefix.len();
-                    if &right[pstart..i] == prefix {
+                    // Indices come from byte-walking; if `right` contains a
+                    // multi-byte UTF-8 char (e.g. `↔` from `&harr;`), the
+                    // slice would panic. The prefix is pure ASCII so a
+                    // boundary-safe equality check via `ends_with` on a
+                    // sub-slice works just as well — we only care that the
+                    // 5 bytes immediately before `i` match " key=".
+                    if right.is_char_boundary(pstart)
+                        && right.is_char_boundary(i)
+                        && &right[pstart..i] == prefix
+                    {
                         return Some(pstart + 1);
                     }
                 }
