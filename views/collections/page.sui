@@ -71,6 +71,7 @@
           </span>
         </div>
         {#if collections().kind === 'ok'}
+          {#if collections().value.items.length === 0}<div class="col-nav-empty"><span slot="title">No collections defined</span></div>{/if}
           {#for c of collections().value.items key={c.id}}
             <a class="col-nav-row" class:is-active={c.id === activeId()}
               attr:href={'/collections?collection=' + c.id}
@@ -120,12 +121,13 @@
             {#if colDetail().kind === 'ok'}
               {#if colDetail().value.items.length === 0}
                 <sui-empty-state style="padding:var(--space-8)">
-                  <span slot="title">No rows yet</span>
+                  <span slot="title">No items in {colDetail().value.schema.name || activeId()}</span>
                 </sui-empty-state>
               {:else}
                 <table class="col-table">
                   <thead>
                     <tr>
+                      <th>id <span aria-label="sorted ascending">↑</span></th>
                       {#for f of colDetail().value.schema.fields key={f.name}}<th>{f.name}</th>{/for}
                       <th></th>
                     </tr>
@@ -133,11 +135,12 @@
                   <tbody>
                     {#for item of colDetail().value.items key={item.id}}
                       <tr>
+                        <td class="col-cell">{item.id}</td>
                         {#for f of colDetail().value.schema.fields key={f.name}}
                           <td class="col-cell">{String(item.data?.[f.name] ?? '')}</td>
                         {/for}
                         <td>
-                          <sui-button size="sm" variant="ghost" aria-label="Edit"
+                          <sui-button size="sm" variant="ghost" aria-label={'Edit row ' + item.id}
                             on:click={() => openEditRow(item)}>
                             <sui-icon name="edit" size="xs"></sui-icon>
                           </sui-button>
@@ -183,6 +186,7 @@
                       {#if f.values && f.values.length > 0}
                         <span class="schema-field-values mono-snip">{f.values.join(' | ')}</span>
                       {/if}
+                      {#if !colDetail().value.schema.builtin}<sui-button size="sm" variant="ghost" aria-label="Remove field" on:click={() => { const fs = colDetail().value.schema.fields.filter(x => x.name !== f.name).map(x => ({name: x.name, type: x.field_type, required: x.required, values: x.values ?? []})); fetch('/api/v1/collections/' + activeId() + '/schema', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: activeId(), fields: fs})}) }}><sui-icon name="trash" size="xs"></sui-icon></sui-button>{/if}
                     </div>
                   {/for}
                 </div>

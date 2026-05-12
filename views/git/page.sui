@@ -28,6 +28,10 @@
         </p>
       </div>
       <div class="git-head-actions">
+        <sui-button variant="ghost" size="sm" aria-label="Refresh"
+          on:click={() => window.location.reload()}>
+          <sui-icon name="refresh-cw" size="sm"></sui-icon>
+        </sui-button>
         <sui-chip tone={clean() ? 'success' : 'warning'} variant="soft" size="sm">
           {clean() ? 'clean' : totalChanged() + ' changed'}
         </sui-chip>
@@ -136,6 +140,17 @@
             {/if}
           </div>
         {/if}
+        <div class="git-diff-pane">
+          {#if totalChanged() === 0}
+            <sui-empty-state tone="muted" size="md" style="flex:1">
+              <span slot="title">No changes in this diff</span>
+            </sui-empty-state>
+          {:else}
+            <sui-empty-state tone="muted" size="md" style="flex:1">
+              <span slot="title">Select a file</span>
+            </sui-empty-state>
+          {/if}
+        </div>
       {/if}
 
       {#if tab() === 'history'}
@@ -149,7 +164,11 @@
           </div>
           {#if commitFilter.filtered().length === 0}
             <sui-empty-state tone="muted" size="md">
-              <span slot="title">{commitsCount() === 0 ? 'No commits' : 'No matching commits'}</span>
+              {#if commitsCount() === 0}
+                <span slot="title">No commits</span>
+              {:else}
+                <span slot="title">No matching commits</span>
+              {/if}
             </sui-empty-state>
           {:else}
             <div class="git-history-rows">

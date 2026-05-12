@@ -181,6 +181,10 @@
       </div>
       <div class="ov-drawer-foot">
         <ship-button tone="primary" variant="solid" on:click={saveDrawer}>Save</ship-button>
+        <ship-button variant="outline" aria-label="Send system to agent"
+          on:click={() => fetch('/api/v1/feedback', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({kind: 'system_dispatch', system: {name: fldName(), summary: fldSummary(), status: fldStatus(), layer: fldLayer()}})})}>
+          <ship-icon slot="leading" name="send"></ship-icon>Ask agent
+        </ship-button>
         <ship-button variant="ghost" on:click={closeDrawer}>Cancel</ship-button>
       </div>
     </div>
