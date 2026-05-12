@@ -22,6 +22,7 @@ import './sui-mark/dist/sui-mark.compiled.js'
 import './sui-kbd/dist/sui-kbd.compiled.js'
 import './sui-avatar/dist/sui-avatar.compiled.js'
 import './sui-progress/dist/sui-progress.compiled.js'
+import "./sui-progress/dist/sui-progress-ring.compiled.js"
 import './sui-button/dist/sui-button.compiled.js'
 import './sui-tabs/dist/sui-tabs.compiled.js'
 import './sui-tabs/dist/sui-tab.compiled.js'
