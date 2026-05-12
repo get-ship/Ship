@@ -120,6 +120,24 @@ pub async fn run_network(
     })?;
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), daemon_dir = %daemon_dir.display(), "shipd: project-scoped mode");
+        // Make `--workspace` authoritative for the SUI resolver chain
+        // (ship-sui-server's resolver consults `SHIP_DEV_PROJECT_DIR`
+        // first; without this it falls back to CWD + worktree-aware
+        // resolution, which redirects into the parent checkout's
+        // `views/` when the workspace lives inside a git worktree).
+        // The explicit env var lets test fixtures and per-project
+        // daemons stay scoped to their own `views/` directory.
+        //
+        // Leave any pre-existing value alone — callers that need a
+        // different SUI resolver root than the daemon workspace
+        // (rare; mostly studio in-place editing) can still override.
+        // SAFETY: shipd's process is single-threaded at this point in
+        // startup — set_var is unsound only when other threads can
+        // observe the env mid-update.
+        if std::env::var_os("SHIP_DEV_PROJECT_DIR").is_none() {
+            // SAFETY: pre-async-runtime, no concurrent env access.
+            unsafe { std::env::set_var("SHIP_DEV_PROJECT_DIR", w); }
+        }
     } else {
         tracing::info!(daemon_dir = %daemon_dir.display(), "shipd: global-only mode (no --workspace given)");
     }
