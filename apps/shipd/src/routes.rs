@@ -355,6 +355,9 @@ pub enum Route {
     /// @route DELETE "/api/v1/skills/{id}/vars/{key}"
     SkillsDeleteVar { id: String, key: String },
 
+    /// @route POST "/api/v1/skills/{id}/invoke"
+    SkillsInvoke { id: String },
+
     /// @route POST "/api/v1/chat/send"
     ChatSend,
 

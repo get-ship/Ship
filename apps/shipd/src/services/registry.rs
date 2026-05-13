@@ -114,6 +114,7 @@ pub mod mesh;
 pub mod chat;
 pub mod dashboard;
 pub mod git;
+pub mod workspaces;
 
 // ── Dispatch ─────────────────────────────────────────────────────────
 
@@ -172,6 +173,9 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         return Ok(value);
     }
     if let Some(value) = git::try_dispatch(name, args, state, &files)? {
+        return Ok(value);
+    }
+    if let Some(value) = workspaces::try_dispatch(name, args, state, &files)? {
         return Ok(value);
     }
     Err(RegistryError::unknown_service(name))

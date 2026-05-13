@@ -120,19 +120,6 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     return undefined as unknown as T
   }
 
-  // Structured rejection for documented server-side gaps. Lets views
-  // treat "no route yet" as a first-class state without parsing
-  // `Error.message`.
-  const notImplemented = (op: string): Promise<never> => {
-    const err = new Error(`[ship-sdk-client] ${op}: not wired (server route missing)`) as Error & {
-      code?: string
-      op?: string
-    }
-    err.code = 'not_implemented'
-    err.op = op
-    return Promise.reject(err)
-  }
-
   return {
     agents: {
       summaries:   () => sse<AgentsSummariesResponse>('agents', 'summaries'),
@@ -185,22 +172,8 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
       end: (args) => mutate<void>('DELETE', `/api/v1/sessions/${encodeURIComponent(args.id)}`),
     },
     workspaces: {
-      // GET `/api/v1/projects` — daemon has no SSE op yet, so this is
-      // a one-shot fetch. `live(() => …)` consumes the promise.
-      list: async () => {
-        const resp = await fetch(`${baseUrl}/api/v1/projects`, {
-          credentials: 'same-origin',
-        })
-        if (!resp.ok) {
-          throw new Error(
-            `[ship-sdk-client] workspaces.list failed: ${resp.status} ${resp.statusText}`,
-          )
-        }
-        return (await resp.json()) as {
-          projects: import('@ship/sui-runtime').WorkspaceSummary[]
-          active?: string | null
-        }
-      },
+      list:    () => sse('workspaces', 'list'),
+      active:  () => sse('workspaces', 'active'),
       activate: (args) =>
         mutate<{ ok: true; active: string }>(
           'POST',
@@ -211,9 +184,17 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     skills: {
       summaries: (args) => sse('skills', 'summaries', args),
       detail:    (args) => sse('skills', 'detail', args),
-      // Server route missing — see audit. Rejecting with a structured
-      // error keeps the failure path explicit at every call site.
-      invoke:    () => notImplemented('skills.invoke'),
+      invoke:    (args) =>
+        mutate<{
+          ok: true
+          run_id: string
+          skill_id: string
+          workspace_id: string | null
+        }>(
+          'POST',
+          `/api/v1/skills/${encodeURIComponent(args.id)}/invoke`,
+          { vars: args.vars, workspace_id: args.workspace_id },
+        ),
     },
   }
 }

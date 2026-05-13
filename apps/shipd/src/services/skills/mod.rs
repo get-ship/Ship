@@ -356,3 +356,84 @@ pub async fn delete_var(
     })?;
     Ok(Json(serde_json::json!({ "ok": true, "id": id, "key": key, "removed": had })))
 }
+
+// ── Invoke (minimal stub) ────────────────────────────────────────────
+//
+// Skill execution proper still rides through the agent hook surface
+// (`cli-framework/src/hooks/mod.rs` emits `skill.started`/`completed`
+// when a provider invokes a ship-namespaced tool). The daemon doesn't
+// yet have an actor-free "run this skill standalone" executor — see
+// `.artifacts/sui-arc/daemon-sdk-mutation-ops.md` for the open design
+// question.
+//
+// What this route gives consumers today: a stable run identifier and a
+// `skill.started` event correlated to that run on the existing kernel
+// bus, so views that want to chart "this user kicked off skill X"
+// have a place to attach. A follow-up step will wire a `skill.completed`
+// or `skill.failed` event when standalone execution lands.
+
+#[derive(Deserialize, Default)]
+pub struct InvokeBody {
+    /// Optional per-invocation variable overrides. Stored on the
+    /// emitted event so consumers can render the invocation context;
+    /// not yet threaded into a runtime.
+    #[serde(default)]
+    pub vars: Option<serde_json::Map<String, serde_json::Value>>,
+    /// Optional workspace correlation — defaults to the active
+    /// workspace if the caller doesn't pass one.
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+}
+
+/// POST /api/v1/skills/{id}/invoke
+pub async fn invoke(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Query(q): Query<ScopeQuery>,
+    body: Option<Json<InvokeBody>>,
+) -> Result<Json<serde_json::Value>, Resp> {
+    let scope = parse_scope(&q)?;
+    // Resolve the skill so we 404 before emitting a started event for
+    // a skill the user can't actually run.
+    let _detail = state.services().skills().get(&id, scope).map_err(map_err)?;
+
+    let body = body.map(|Json(b)| b).unwrap_or_default();
+    let run_id = ship_substrate::gen_ulid();
+    let workspace_id = body.workspace_id.clone().or_else(active_workspace_id);
+
+    let payload = serde_json::json!({
+        "skill_id": id,
+        "run_id": run_id,
+        "vars": body.vars.unwrap_or_default(),
+        "workspace_id": workspace_id,
+    });
+    let envelope = ship_substrate::events::EventEnvelope::new(
+        ship_types::event_types::SKILL_STARTED,
+        &id,
+        &payload,
+    )
+    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "emit", e.to_string()))?;
+    let ctx = ship_substrate::events::EmitContext {
+        caller_kind: ship_substrate::events::CallerKind::Runtime,
+        skill_id: Some(id.clone()),
+        project_id: workspace_id.clone(),
+        session_id: None,
+    };
+    if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
+        return Err(err(StatusCode::INTERNAL_SERVER_ERROR, "emit", e.to_string()));
+    }
+
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "run_id": run_id,
+        "skill_id": id,
+        "workspace_id": workspace_id,
+    })))
+}
+
+fn active_workspace_id() -> Option<String> {
+    ship_platform::config::get_setting("shell.project.active")
+        .ok()
+        .flatten()
+        .and_then(|v| v.as_str().map(String::from))
+}
