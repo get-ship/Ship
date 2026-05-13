@@ -147,6 +147,59 @@ node scripts/scaffold-sui-component.mjs my-widget --controller
 
 The first generates `views/settings/` with `page.sui` + `controller.ts` + `style.css` + `manifest.jsonc`. The `--component` flag also scaffolds `_components/settings-toolbar/`. The component scaffold drops `packages/ui-components/src/my-widget/` with `<tag>.sui`; `--controller` adds the paired controller.
 
+## User-app views — authoring outside the Ship repo
+
+Built-in views live under `<repo-root>/views/<name>/`. You can author the same kind of view inside *your own* workspace — the daemon doesn't require Ship's repo layout to discover and serve them.
+
+Two layouts are honored, both rooted at the workspace `shipd --workspace <path>` was launched with:
+
+```
+~/my-project/
+├── views/
+│   └── my-view/
+│       ├── page.sui            # required
+│       ├── page.controller.ts  # optional — paired controller (stem must match: page.sui ↔ page.controller.ts)
+│       ├── style.css           # optional — view-scoped CSS
+│       └── manifest.jsonc      # optional — rail label/icon, view type
+└── .ship/
+    └── views/
+        └── another-view/
+            ├── index.sui                 # required (note the stem: index, not page)
+            ├── index.controller.ts       # optional — paired controller
+            └── manifest.jsonc            # optional
+```
+
+- **`<workspace>/views/<name>/page.sui`** — same convention as in-tree views. Use this when the view *is* the app surface (e.g. you're building a Ship-shaped tool).
+- **`<workspace>/.ship/views/<name>/index.sui`** — colocates the view with the rest of your `.ship/` config. Use this for views that are auxiliary to a non-Ship project.
+
+The controller filename stem must match the `.sui` stem: `page.sui` ↔ `page.controller.ts`, `index.sui` ↔ `index.controller.ts`. The compiler infers the controller path from the resolved source.
+
+When both layouts contain a view with the same name, the top-level `views/` directory wins — that's how a workspace can shadow a built-in by id without renaming.
+
+### Rail registration
+
+Drop a `manifest.jsonc` next to the leaf source to opt the view into the launcher / rail surface:
+
+```jsonc
+{
+  "type": "html",
+  "rail": {
+    "label": "My View",
+    "icon": "rocket"
+  }
+}
+```
+
+`/api/v1/views` will include the view with its rail metadata, and any shell that renders the rail dynamically will pick it up. (Shell2's rail is currently hardcoded; dynamic rendering ships in the next iteration.)
+
+### Running the daemon against your workspace
+
+```sh
+shipd --workspace ~/my-project
+```
+
+The daemon persists this workspace into `~/.ship/machine/daemons/<hash>/workspace`. The resolver reads from there, so all `/sui/<name>`, `/_sui/views/<name>/payload`, and `/_sui/views/<name>/view.js` requests are scoped to your workspace.
+
 ## Hot reload in dev
 
 `.sui` and `.controller.ts` edits trigger an in-place view re-mount without a full page reload. `apps/shell2/src/hmr.ts` subscribes to `shipd`'s `/_sui/dev/hmr` SSE channel. When the bundler emits `module-changed` for `views/<name>/view`, shell2 cache-busts the rebuilt `view.js` and re-mounts through `mount()`. Other bundles (sui-components, islands, sui-runtime, sui-dom, ship-elements) trigger a full reload — custom-element re-registration without reload is not yet supported.
