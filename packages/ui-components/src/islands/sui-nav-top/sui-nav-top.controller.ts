@@ -102,11 +102,6 @@ export default controller<Scope>({
         new CustomEvent('sui:dock:toggle', { bubbles: true, composed: true }),
       )
     }
-    function onChatToggle(): void {
-      hostEl?.dispatchEvent(
-        new CustomEvent('sui:chat:toggle', { bubbles: true, composed: true }),
-      )
-    }
     function onFullscreen(): void {
       if (document.fullscreenElement) void document.exitFullscreen()
       else void document.documentElement.requestFullscreen()
@@ -115,7 +110,7 @@ export default controller<Scope>({
     return {
       labels, dockOpen, crumbs,
       onCrumbClick, onBrand, onRailToggle, onStudio,
-      onDockToggle, onChatToggle, onFullscreen,
+      onDockToggle, onFullscreen,
     }
   },
 

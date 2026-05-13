@@ -94,18 +94,21 @@
       <sui-command-bar slot="command-bar" id="ship-command-bar"></sui-command-bar>
     </sui-nav-top>
 
-    <!-- Left rail: vertical nav with collapse toggle.
-         Pipelines was here but the SUI port doesn't exist yet — the
-         legacy view at `.ship/views/pipelines/` is index.html.j2-based
-         and shell2's mount path only resolves `views/<name>/page.sui`.
-         Re-add the rail item when `views/pipelines/page.sui` lands. -->
+    <!-- Left rail: icon-only vertical nav. Items link to real view names
+         under views/<name>/page.sui. Each label flows through to the
+         anchor's `title` attribute (rendered by sui-rail-item) so hovering
+         a collapsed icon reveals its destination. -->
     <sui-rail id="ship-rail">
       <sui-rail-item icon="layout-dashboard" label="Dashboard" href="/" data-view="dashboard"></sui-rail-item>
+      <sui-rail-item icon="home" label="Home" href="/home" data-view="home"></sui-rail-item>
       <sui-rail-item icon="bot" label="Agents" href="/agents" data-view="agents"></sui-rail-item>
+      <sui-rail-item icon="zap" label="Pipelines" href="/pipelines" data-view="pipelines"></sui-rail-item>
       <sui-rail-item icon="git-branch" label="Git" href="/git" data-view="git"></sui-rail-item>
+      <sui-rail-item icon="layers" label="Skills" href="/skills" data-view="skills"></sui-rail-item>
+      <sui-rail-item icon="folder-tree" label="Workspaces" href="/workspaces" data-view="workspaces"></sui-rail-item>
+      <sui-rail-item icon="activity" label="Events" href="/events" data-view="events"></sui-rail-item>
+      <sui-rail-item icon="settings" label="Settings" href="/settings" data-view="settings"></sui-rail-item>
       <sui-rail-item icon="sparkles" label="UI Studio" href="/ship-ui-studio" data-view="ship-ui-studio"></sui-rail-item>
-      <sui-rail-item icon="palette" label="SUI Demo" href="/sui-demo" data-view="sui-demo"></sui-rail-item>
-      <sui-rail-item icon="play" label="Demos" href="/demos" data-view="demos"></sui-rail-item>
     </sui-rail>
 
     <!-- Main content: view mounts here -->

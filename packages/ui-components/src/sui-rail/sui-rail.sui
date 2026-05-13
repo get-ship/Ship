@@ -1,21 +1,26 @@
 <!--
-  <sui-rail> — SUI port of <ship-rail>.
-  Vertical chrome nav container with collapse toggle, project switcher,
-  Mission Control session-count badge, and launcher/create actions.
+  <sui-rail> — vertical chrome nav.
+
+  Two states only:
+    • visible  — icon-only (no labels), 48px wide
+    • hidden   — display:none (toggled by the top-nav menu button via the
+                 `sui:rail:toggle` document event)
+
+  No arrow-toggle button. Rail items show icons only; their `label` prop
+  surfaces as the native `title` tooltip on hover.
 
   Prop / event surface
   ─────────────────────────────────────────────────────────────────────────────
   Props:
-    collapsed (bool, false, reflect)  — icon-only collapsed mode
+    collapsed (bool, false, reflect)  — when set, rail is hidden entirely
   ─────────────────────────────────────────────────────────────────────────────
   Events bubbled from the rail's footer actions:
-    sui-rail:toggle         { collapsed }   — collapse-button click
     ship:launcher:open      { anchor }      — launcher-button click
     ship:create:open        { }             — create-button click
     ship:project:change     { id }          — project-switcher selection
   ─────────────────────────────────────────────────────────────────────────────
   Slots: (default) — accepts <sui-rail-item> and <sui-rail-section> children
-  Parts: nav, footer, toggle, project-badge, project-popover, launcher-btn,
+  Parts: nav, footer, project-badge, project-popover, launcher-btn,
          create-btn, mission-control
   ─────────────────────────────────────────────────────────────────────────────
   Behavior (controller-owned):
@@ -38,22 +43,18 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
-    width: var(--ship-rail-w, 200px);
+    width: var(--ship-rail-w-collapsed, 48px);
     background: var(--sidebar, var(--muted));
     border-right: 1px solid var(--border);
     overflow: hidden;
     user-select: none;
     -webkit-user-select: none;
-    --rail-label-display: flex;
-    --rail-item-justify: flex-start;
-  }
-  :host([collapsed]) {
-    width: 48px;
     --rail-label-display: none;
     --rail-item-justify: center;
   }
-  :host([collapsed]) .rail-footer { padding: 4px; }
+  :host([collapsed]),
   :host([hidden]) { display: none; }
+  .rail-footer { padding: 4px; }
 
   .rail-nav {
     flex: 1;
@@ -105,18 +106,13 @@
 
   .footer-actions {
     display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 4px;
-    width: 100%;
-  }
-  :host([collapsed]) .footer-actions {
     flex-direction: column;
+    align-items: center;
+    gap: 4px;
     width: auto;
   }
 
-  .footer-btn,
-  .toggle-btn {
+  .footer-btn {
     appearance: none;
     background: transparent;
     border: 1px solid transparent;
@@ -134,19 +130,15 @@
       border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
       color var(--duration-fast, 100ms) var(--ease-out, ease-out);
   }
-  .footer-btn:hover,
-  .toggle-btn:hover {
+  .footer-btn:hover {
     background: color-mix(in oklch, var(--foreground) 8%, transparent);
     border-color: var(--border);
     color: var(--foreground);
   }
-  .footer-btn:focus-visible,
-  .toggle-btn:focus-visible {
+  .footer-btn:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
   }
-  .toggle-btn::before { content: '◀'; font-size: 10px; line-height: 1; }
-  :host([collapsed]) .toggle-btn::before { content: '▶'; }
 
   @media (prefers-reduced-motion: reduce) {
     :host { transition: none; }
@@ -171,6 +163,7 @@
     part="project-badge"
     aria-label="Switch project"
     aria-haspopup="dialog"
+    title="Switch project"
     bind:this={projectBadgeEl}
   >{projectInitial()}</button>
   <div class="footer-actions">
@@ -178,6 +171,7 @@
       type="button"
       class="footer-btn"
       part="launcher-btn"
+      title="Open launcher"
       aria-label="Open launcher"
       bind:this={launcherBtnEl}
     >
@@ -187,18 +181,12 @@
       type="button"
       class="footer-btn"
       part="create-btn"
+      title="Create new"
       aria-label="Create new"
       bind:this={createBtnEl}
     >
       <sui-icon name="plus" size="sm"></sui-icon>
     </button>
-    <button
-      type="button"
-      class="toggle-btn"
-      part="toggle"
-      aria-label="Collapse rail"
-      bind:this={toggleBtn}
-    ></button>
   </div>
 </div>
 

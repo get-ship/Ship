@@ -1,4 +1,8 @@
 import { controller, effect, ref, signal } from '@ship/sui-runtime'
+// Two-state rail: visible (icon-only, 48px) vs hidden (display:none).
+// The arrow toggle button was removed — the top-nav menu button is the
+// sole control surface, dispatching `sui:rail:toggle` which the shell
+// app translates into a [collapsed] attribute on the rail.
 import type { Scope } from './sui-rail.sui'
 import { setupProjectSwitcher, type Project } from './sui-rail-project-switcher'
 
@@ -43,32 +47,12 @@ export default controller<Scope>({
       projectBadgeEl: ref<HTMLElement>(),
       launcherBtnEl: ref<HTMLElement>(),
       createBtnEl: ref<HTMLElement>(),
-      toggleBtn: ref<HTMLElement>(),
       missionEl: ref<HTMLElement>(),
       navSlot: ref<HTMLSlotElement>(),
     }
   },
 
   mount(state, host) {
-    const stopToggleAria = effect(() => {
-      const btn = state.toggleBtn()
-      const col = state.collapsed()
-      if (btn) btn.setAttribute('aria-label', col ? 'Show rail' : 'Hide rail')
-    })
-
-    const onToggleClick = (): void => {
-      const next = !state.collapsed()
-      state.collapsed.set(next)
-      dispatchBubble(host, 'sui-rail:toggle', { collapsed: next })
-    }
-
-    const stopToggleBind = effect(() => {
-      const btn = state.toggleBtn()
-      if (!btn) return
-      btn.addEventListener('click', onToggleClick)
-      return () => btn.removeEventListener('click', onToggleClick)
-    })
-
     const switcher = setupProjectSwitcher({
       host,
       open: state.projectOpen,
@@ -146,8 +130,6 @@ export default controller<Scope>({
     })
 
     return () => {
-      stopToggleAria()
-      stopToggleBind()
       stopLauncherBind()
       stopCreateBind()
       stopBadgeEffect()

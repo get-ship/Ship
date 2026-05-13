@@ -2,7 +2,7 @@
   <sui-nav-top> — SUI port of <ship-nav-top>.
   Top bar: brand link, breadcrumb trail, per-view action slot, command-bar
   slot, rail toggle, UI Studio shortcut, embedded theme picker, dock toggle,
-  fullscreen, and chat-drawer toggle.
+  and fullscreen toggle.
 
   Prop / event surface
   ─────────────────────────────────────────────────────────────────────────────
@@ -18,7 +18,6 @@
   Events dispatched (bubbling, composed):
     sui:rail:toggle   {}  — request to toggle the left rail
     sui:dock:toggle   {}  — request to toggle the panel dock
-    sui:chat:toggle   {}  — request to open the chat drawer
     sui:nav-top:ready {}  — fired once after first mount
   ─────────────────────────────────────────────────────────────────────────────
   Listens on document:
@@ -29,7 +28,7 @@
     command-bar  command palette host — shell2 slots <sui-command-bar> here
   ─────────────────────────────────────────────────────────────────────────────
   Parts: brand, crumbs, rail-toggle, studio, theme-picker, dock-toggle,
-         fullscreen, chat-toggle
+         fullscreen
   ─────────────────────────────────────────────────────────────────────────────
   CSS custom properties:
     --ship-top-bar-h (default 40px)  host height; matches layout grid row
@@ -51,7 +50,6 @@
                                                               keyframes)
     #toggle-dock               → part="dock-toggle"         ✓
     #toggle-fullscreen         → part="fullscreen"          ✓
-    #toggle-drawer (message-square-plus) → part="chat-toggle" ✓ (icon parity)
   ─────────────────────────────────────────────────────────────────────────────
   Runtime-exceed moves over Lit ship-nav-top:
     1. Theme picker: <sui-theme-picker> wraps <sui-popover> which portals out
@@ -191,15 +189,11 @@
 </sui-button>
 <sui-theme-picker placement="bottom-end" part="theme-picker"></sui-theme-picker>
 <sui-button variant="ghost" size="sm" part="dock-toggle"
-  title="Toggle panel dock (⌘J)" aria-label="Toggle panel dock"
+  title="Toggle CLI / debug panel (⌘J)" aria-label="Toggle CLI / debug panel"
   aria-pressed={dockOpen() ? 'true' : 'false'} on:click={onDockToggle}>
   <sui-icon slot="leading" name="terminal"></sui-icon>
 </sui-button>
 <sui-button variant="ghost" size="sm" part="fullscreen"
   title="Fullscreen (F11)" aria-label="Toggle fullscreen" on:click={onFullscreen}>
   <sui-icon slot="leading" name="maximize"></sui-icon>
-</sui-button>
-<sui-button variant="ghost" size="sm" part="chat-toggle"
-  title="Chat (⌘/)" aria-label="Toggle chat drawer" on:click={onChatToggle}>
-  <sui-icon slot="leading" name="message-square-plus"></sui-icon>
 </sui-button>

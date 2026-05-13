@@ -37,7 +37,12 @@ describe('<sui-nav-top>', () => {
     expect(shadow_.querySelector('[part~="studio"]')).not.toBeNull()
     expect(shadow_.querySelector('[part~="dock-toggle"]')).not.toBeNull()
     expect(shadow_.querySelector('[part~="fullscreen"]')).not.toBeNull()
-    expect(shadow_.querySelector('[part~="chat-toggle"]')).not.toBeNull()
+  })
+
+  it('has no chat-toggle button (removed)', async () => {
+    const { el } = mount(reg, 'sui-nav-top')
+    await flush()
+    expect(shadow(el).querySelector('[part~="chat-toggle"]')).toBeNull()
   })
 
   it('renders <sui-theme-picker> in shadow DOM', () => {
@@ -103,17 +108,6 @@ describe('<sui-nav-top>', () => {
     expect(events).toHaveLength(1)
   })
 
-  it('chat-toggle button dispatches sui:chat:toggle when clicked', async () => {
-    const { el } = mount(reg, 'sui-nav-top')
-    await flush()
-    const events: Event[] = []
-    el.addEventListener('sui:chat:toggle', (e) => events.push(e))
-    const btn = shadow(el).querySelector<HTMLElement>('[part~="chat-toggle"]')!
-    btn.click()
-    await flush()
-    expect(events).toHaveLength(1)
-  })
-
   it('dock-toggle button dispatches sui:dock:toggle when clicked', async () => {
     const { el } = mount(reg, 'sui-nav-top')
     await flush()
@@ -152,14 +146,6 @@ describe('<sui-nav-top>', () => {
     await flush()
     const btn = shadow(el).querySelector('[part~="dock-toggle"]')!
     expect(btn.hasAttribute('aria-pressed')).toBe(true)
-  })
-
-  it('chat-toggle uses the message-square-plus lucide icon (ship-nav-top parity)', async () => {
-    const { el } = mount(reg, 'sui-nav-top')
-    await flush()
-    const btn = shadow(el).querySelector('[part~="chat-toggle"]')!
-    const icon = btn.querySelector('sui-icon')!
-    expect(icon.getAttribute('name')).toBe('message-square-plus')
   })
 
   it('project prop prepends a home-linked crumb', async () => {

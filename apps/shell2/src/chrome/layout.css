@@ -83,10 +83,12 @@ body.dock-open #ship-panel-dock {
   transform: none;
 }
 
-/* body.rail-collapsed mirrors [collapsed] on sui-rail — used by other layout
-   elements that need to know the rail state without querying the component. */
-body.rail-collapsed #ship-rail {
-  width: 32px;
+/* Rail is icon-only (48px) when visible, display:none when hidden.
+   body.rail-hidden mirrors the rail's [collapsed] attribute so other
+   chrome surfaces (status bar, dock) can key off it without querying
+   the component directly. */
+body.rail-hidden #ship-rail {
+  display: none;
 }
 
 /* body.edit-mode — sui-edit-overlay watches this via MutationObserver.
