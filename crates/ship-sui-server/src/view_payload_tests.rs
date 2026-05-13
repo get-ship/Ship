@@ -121,10 +121,10 @@ async fn view_host_splices_precompiled_ssr() {
     );
 }
 
-/// When no `.ssr.html` exists, `/view-host/<name>` returns a valid HTML
-/// shell with an empty `<div id="sui-root">` (no SSR, client mounts it).
+/// When no `.ssr.html` exists, `/view-host/<name>` live-emits SSR from
+/// source so the client has real markup to morph onto (no blank flash).
 #[tokio::test(flavor = "multi_thread")]
-async fn view_host_without_ssr_returns_valid_shell() {
+async fn view_host_without_ssr_live_emits_from_source() {
     let tmp = tempfile::tempdir().unwrap();
     let _g = lock_with_dir(tmp.path());
 
@@ -140,8 +140,12 @@ async fn view_host_without_ssr_returns_valid_shell() {
         "shell must be valid HTML; got: {body}"
     );
     assert!(
-        body.contains("<div id=\"sui-root\"></div>"),
-        "empty shell must have empty sui-root; got: {body}"
+        body.contains("<div id=\"sui-root\">") && !body.contains("<div id=\"sui-root\"></div>"),
+        "live-emit must populate sui-root when no .ssr.html exists; got: {body}"
+    );
+    assert!(
+        body.contains("<p"),
+        "live-emit must include source content; got: {body}"
     );
 }
 

@@ -223,6 +223,58 @@ describe('mount()', () => {
     handle.dispose() // idempotent
   })
 
+  it('morphs onto existing SSR markup (preserves node identity)', async () => {
+    // Pre-populate target as if SSR had injected content into #sui-root.
+    target.innerHTML = '<div id="hero">old</div><p>tail</p>'
+    const ssrHero = target.querySelector('#hero') as HTMLElement
+    const ssrTail = target.querySelector('p') as HTMLElement
+
+    const payload: ViewPayload = {
+      name: 'demo',
+      html: '<div id="hero">new</div><p>tail</p>',
+      css: '',
+      scope: {},
+      moduleUrl: '/x',
+    }
+    const handle = await mount(target, payload, { module: emptyModule() })
+
+    // The original nodes are reused (morphed in place), not replaced.
+    expect(target.querySelector('#hero')).toBe(ssrHero)
+    expect(target.querySelector('p')).toBe(ssrTail)
+    expect(ssrHero.textContent).toBe('new')
+    handle.dispose()
+  })
+
+  it('clean-mount on empty target avoids the innerHTML setter on target', async () => {
+    // Spy on Element.prototype.innerHTML — clean path must not invoke it
+    // on `target` (it may still be used on a throwaway <template>).
+    const desc = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML')!
+    let setOnTarget = 0
+    Object.defineProperty(Element.prototype, 'innerHTML', {
+      configurable: true,
+      get: desc.get,
+      set(value: string) {
+        if (this === target) setOnTarget++
+        desc.set!.call(this, value)
+      },
+    })
+    try {
+      const payload: ViewPayload = {
+        name: 'demo',
+        html: '<p>fresh</p>',
+        css: '',
+        scope: {},
+        moduleUrl: '/x',
+      }
+      const handle = await mount(target, payload, { module: emptyModule() })
+      expect(setOnTarget).toBe(0)
+      expect(target.innerHTML).toBe('<p>fresh</p>')
+      handle.dispose()
+    } finally {
+      Object.defineProperty(Element.prototype, 'innerHTML', desc)
+    }
+  })
+
   it('mount via name string fetches /_sui/views/<name>', async () => {
     const payload: ViewPayload = {
       name: 'demo-fetch',
