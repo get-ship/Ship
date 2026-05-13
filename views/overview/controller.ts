@@ -7,7 +7,7 @@ export default controller<Scope>({
     const systems = live(() => (ship as any).collections.items({ collection: 'systems' }))
     const depsJson = derived(() => {
       const env = systems()
-      if (env.kind !== 'ok') return {} as Record<string, string>
+      if (env.kind !== 'ok' || !env.value) return {} as Record<string, string>
       const out: Record<string, string> = {}
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const item of env.value.items as Array<{ id: string; data?: { depends_on?: unknown } }>) {
@@ -142,10 +142,10 @@ export default controller<Scope>({
     },
   },
 
-  mount: ({ state }, _el) => {
-    const canvas = state.canvasRef()
-    const edges = state.edgesRef()
-    const wrap = state.wrapRef()
+  mount: (state, _el) => {
+    const canvas = state.canvasRef as HTMLElement | null
+    const edges = state.edgesRef as SVGElement | null
+    const wrap = state.wrapRef as HTMLElement | null
     if (!canvas || !edges || !wrap) return
 
     let scale = 1, tx = 0, ty = 0

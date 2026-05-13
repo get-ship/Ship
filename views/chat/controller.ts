@@ -1,9 +1,11 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
+import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: ({ route, ship }) => {
-    const workspaceId = derived(() => (route as any)().query?.workspace_id || '')
+  scope: ({ ship }) => {
+    const route = routeFactory()
+    const workspaceId = derived(() => route.query.workspace_id() || '')
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chatState = live(() => (ship as any).chat.state({ workspace_id: workspaceId() }))
     const draft = signal('')
@@ -36,7 +38,7 @@ export default controller<Scope>({
       s.annotations = (s.annotations as object[]).filter(x => x !== a)
     },
   },
-  mount: ({ state }) => {
+  mount: (state) => {
     const onSubmitted = (e: Event) => {
       state.workingTitle = (e as CustomEvent).detail?.name || ''
     }
@@ -53,7 +55,7 @@ export default controller<Scope>({
       window.removeEventListener('ship:chat:annotate', onAnnotate)
     }
   },
-  unmount: ({ state }) => {
+  unmount: (state) => {
     const cleanup = (state as Record<string, unknown>)._cleanup
     if (typeof cleanup === 'function') cleanup()
   },

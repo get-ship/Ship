@@ -5,7 +5,7 @@
   <aside class="canvas-rail">
     <div class="canvas-rail-head">
       <h1 class="canvas-rail-title">Canvas</h1>
-      {#if canvasList().kind === 'ok'}
+      {#if canvasList().kind === 'ok' && canvasList().value}
         <div class="canvas-rail-sub">
           {canvasList().value.length} artifact{canvasList().value.length !== 1 ? 's' : ''}
         </div>
@@ -16,7 +16,7 @@
       {#while-loading of canvasList}
         <div class="canvas-rail-empty">Loading&hellip;</div>
       {/while-loading}
-      {#if canvasList().kind === 'ok'}
+      {#if canvasList().kind === 'ok' && canvasList().value}
         {#if canvasList().value.length === 0}
           <div class="canvas-rail-empty">
             No canvas artifacts yet. Agents create them by uploading HTML to
@@ -43,7 +43,7 @@
 
     <div class="canvas-rail-section" id="canvas-feedback-panel">
       <h2 class="canvas-rail-section-title">Recent Feedback</h2>
-      {#if canvasList().kind === 'ok' && canvasList().value.feedback && canvasList().value.feedback.length > 0}
+      {#if canvasList().kind === 'ok' && canvasList().value && canvasList().value.feedback && canvasList().value.feedback.length > 0}
         {#for fb of canvasList().value.feedback key={fb.id}}
           <div class="canvas-feedback-item">
             <span class="canvas-feedback-author">{fb.data?.actor || fb.created_by || 'human'}</span>
