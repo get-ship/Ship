@@ -17,6 +17,7 @@ import { createClient, type ShipSDK } from '@ship/sdk-client'
 import { shipFetch, gitStatus } from '@ship/sdk'
 import { initRailFeatures } from './rail-features'
 import { KernelBridge } from './kernel-bridge'
+import { initHmr } from './hmr'
 
 interface MountFn {
   (
@@ -25,6 +26,7 @@ interface MountFn {
     opts?: {
       cssScope?: 'adjacent' | 'document-head' | 'none'
       ship?: ShipSDK
+      module?: unknown
     },
   ): Promise<{ dispose(): void; element: HTMLElement }>
 }
@@ -129,7 +131,7 @@ let currentHandle: { dispose(): void } | null = null
 let latestMountToken = 0
 let currentRoute: Route | null = null
 
-async function mountRoute(r: Route): Promise<void> {
+async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<void> {
   const slot = document.getElementById('ship-content')
   if (!slot) throw new Error('shell: #ship-content missing from index.html')
 
@@ -181,6 +183,10 @@ async function mountRoute(r: Route): Promise<void> {
       // `ship` is undefined and the data lambda throws — visible
       // as views stuck on `Loading…` because the patch never lands.
       ship: shipClient,
+      // HMR path passes a cache-busted, freshly-imported view module.
+      // Without this, dynamic-import returns the cached old module and
+      // the rebuilt .sui never takes effect until a hard reload.
+      ...(opts.module !== undefined ? { module: opts.module } : {}),
     })
 
     // Race guard for rapid navigation: if a later mountRoute already
@@ -532,6 +538,17 @@ window.addEventListener('popstate', () => {
 initShipApi()
 initRail()
 initRailFeatures()
+initHmr({
+  getCurrentView: () => currentRoute?.view ?? null,
+  // mountRoute re-fetches the payload (dev mode bypasses SSR cache) and,
+  // when given `module`, mounts using the cache-busted view bundle in
+  // place of the cached one — so .sui edits land without a full reload.
+  remount: (module) => {
+    const r = currentRoute
+    if (!r) return Promise.resolve()
+    return module !== undefined ? mountRoute(r, { module }) : mountRoute(r)
+  },
+})
 setInterval(() => void updateStatus(), 15000)
 void updateStatus()
 

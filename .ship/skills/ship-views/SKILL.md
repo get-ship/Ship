@@ -404,6 +404,27 @@ fixed-position toast stack inside a transformed ancestor),
 | Cross-component reactive context (`shared` / `useShared`), controller tiers | `references/shared-context.md` |
 | Working on the SUI codebase itself (compiler, runtime, daemon SUI handlers) | `references/sui-internals.md` |
 
+## Hot reload
+
+In dev mode, `.sui` and `.controller.ts` edits trigger an in-place view
+re-mount without a full page reload. shell2's boot calls
+`initHmr()` (apps/shell2/src/hmr.ts), which uses
+`subscribeHmr` from `@ship/sui-runtime/dev` to listen on shipd's
+`/_sui/dev/hmr` SSE channel. When the Bun bundler emits
+`module-changed` for `views/<name>/view` and `<name>` matches the
+current route, shell2 cache-busts the rebuilt `view.js` and re-mounts
+through the existing `mount()` lifecycle.
+
+Other bundles (sui-components, sui-islands/*, sui-runtime, sui-dom,
+ship-elements) trigger a full reload — custom-element re-registration
+without reload isn't yet supported. Compile errors are logged to the
+browser console with `file:line`. Production builds inline
+`import.meta.env.DEV` to `false`, so HMR is a no-op and no
+EventSource opens.
+
+Run `just dev` and edit any view file under `views/<name>/` to see it
+apply in place.
+
 ## Smoke deploy
 
 Run `just smoke-deploy` before opening a PR — it builds the full
