@@ -1,4 +1,16 @@
-import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
+// Theme studio controller — token catalog comes from a baked map of
+// design-token defaults; contrast scoring posts the live draft to the
+// daemon's REST endpoint.
+//
+// Why not the SDK? The runtime-bundled SDK client carries neither a
+// `themes` namespace nor a registered `ship.themes.*` op on the
+// daemon, so any `<data live source="ship.themes.…" />` declaration
+// resolves to a perpetual `kind: 'loading'` (registry returns `null`,
+// no SSE patches fire). The daemon does expose `POST /api/v1/themes/
+// contrast` for the contrast report; we drive it from a tracked
+// `live()` thunk that re-POSTs whenever the draft tokens change.
+
+import { controller, signal, derived, live } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 const DRAFT_DEFAULTS: Record<string, string> = {
@@ -17,20 +29,31 @@ const DRAFT_DEFAULTS: Record<string, string> = {
   'accent-foreground': '#0a0a0a',
 }
 
+interface ContrastPair {
+  label?: string
+  foreground?: string
+  background?: string
+  ratio?: number
+  required_min?: number
+  aa_body?: boolean
+  aaa_body?: boolean
+  passes?: boolean
+}
+
+interface ContrastReport {
+  pairs?: ContrastPair[]
+}
+
 export default controller<Scope>({
-  scope: ({ ship, tokenCatalog }) => {
+  scope: () => {
     const draftTokens = signal<Record<string, string>>({ ...DRAFT_DEFAULTS })
 
-    const tokenEntries = derived(() => {
-      const catalog = unwrap(tokenCatalog)
-      if (!catalog?.tokens) {
-        return Object.entries(DRAFT_DEFAULTS).map(([name, def]) => ({
-          name,
-          meta: { type: 'color' as const, default: def, intent: undefined as string | undefined },
-        }))
-      }
-      return Object.entries(catalog.tokens).map(([name, meta]) => ({ name, meta }))
-    })
+    const tokenEntries = derived(() =>
+      Object.entries(DRAFT_DEFAULTS).map(([name, def]) => ({
+        name,
+        meta: { type: 'color' as const, default: def, intent: undefined as string | undefined },
+      })),
+    )
 
     const draftStyle = derived(() =>
       Object.entries(draftTokens())
@@ -38,18 +61,28 @@ export default controller<Scope>({
         .join('; ')
     )
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const s = ship as any
-    const contrastReport = live(() => s.themes.contrast({ tokens: draftTokens() }))
+    const contrastReport = live<ContrastReport>(async () => {
+      const tokens = draftTokens()
+      const resp = await fetch('/api/v1/themes/contrast', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ tokens }),
+      })
+      if (!resp.ok) {
+        throw new Error(`contrast ${resp.status}: ${await resp.text()}`)
+      }
+      return (await resp.json()) as ContrastReport
+    })
 
     const contrastRows = derived(() => {
       const env = contrastReport()
       if (env.kind !== 'ok') return []
-      const pairs = (env.value as { pairs?: unknown[] })?.pairs ?? []
-      return (pairs as Array<Record<string, unknown>>).map((p) => ({
+      const pairs = env.value.pairs ?? []
+      return pairs.map((p) => ({
         ...p,
-        ratioStr: typeof p.ratio === 'number' ? (p.ratio as number).toFixed(2) : '—',
-        minStr: typeof p.required_min === 'number' ? (p.required_min as number).toFixed(2) : '—',
+        ratioStr: typeof p.ratio === 'number' ? p.ratio.toFixed(2) : '—',
+        minStr: typeof p.required_min === 'number' ? p.required_min.toFixed(2) : '—',
       }))
     })
 
