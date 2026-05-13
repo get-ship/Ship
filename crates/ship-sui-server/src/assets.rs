@@ -5,9 +5,29 @@ use axum::{
     http::{StatusCode, header},
     response::Response,
 };
-use sui_compiler::islands::is_island_bundle;
 
 use crate::{DaemonMode, asset_cache, compute_etag, mode_from_ext};
+
+/// Islands that the daemon serves a bundle for. Mirrors the bundles we
+/// `include_str!` below; kept local to `serve_sui_island` so adding a
+/// new bundle is a one-file change. Distinct from `sui_compiler`'s
+/// `SUI_ISLANDS` table, which is consumed by the compiler to *preload*
+/// bundles a view references — the route still has to serve `<sui-X>`
+/// tags that show up unannounced at runtime.
+fn is_known_island(name: &str) -> bool {
+    matches!(
+        name,
+        "sui-terminal"
+            | "sui-command-bar"
+            | "sui-devtools"
+            | "sui-launcher"
+            | "sui-panel-dock"
+            | "sui-nav-top"
+            | "sui-rail"
+            | "sui-code-editor"
+            | "sui-markdown-editor"
+    )
+}
 
 const ASSETS_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
@@ -23,13 +43,20 @@ const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");
 const SUI_COMPONENTS_JS: &str = include_str!("../assets/sui-components.js");
 const SUI_LUCIDE_ICONS_JSON: &str = include_str!("../assets/lucide-icons.json");
-const SUI_TERMINAL_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-terminal.js");
-const SUI_COMMAND_BAR_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-command-bar.js");
-const SUI_DEVTOOLS_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-devtools.js");
-const SUI_LAUNCHER_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-launcher.js");
-const SUI_PANEL_DOCK_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-panel-dock.js");
-const SUI_NAV_TOP_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-nav-top.js");
+// Island bundles. `sui-build` emits these as flat files alongside the
+// framework bundles (`assets/<name>.js`); the legacy `sui-islands/`
+// subdirectory is retained only for `sui-rail`, which is no longer built
+// as a standalone island but still has a baked-in copy for the route.
+const SUI_TERMINAL_ISLAND_JS: &str = include_str!("../assets/sui-terminal.js");
+const SUI_COMMAND_BAR_ISLAND_JS: &str = include_str!("../assets/sui-command-bar.js");
+const SUI_DEVTOOLS_ISLAND_JS: &str = include_str!("../assets/sui-devtools.js");
+const SUI_LAUNCHER_ISLAND_JS: &str = include_str!("../assets/sui-launcher.js");
+const SUI_PANEL_DOCK_ISLAND_JS: &str = include_str!("../assets/sui-panel-dock.js");
+const SUI_NAV_TOP_ISLAND_JS: &str = include_str!("../assets/sui-nav-top.js");
 const SUI_RAIL_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-rail.js");
+const SUI_CODE_EDITOR_ISLAND_JS: &str = include_str!("../assets/sui-code-editor.js");
+const SUI_MARKDOWN_EDITOR_ISLAND_JS: &str =
+    include_str!("../assets/sui-markdown-editor.js");
 
 // Baked view JS + CSS for first-party views (production fallback).
 
@@ -114,7 +141,7 @@ pub async fn serve_sui_lucide_icons(mode: Option<Extension<DaemonMode>>) -> Resp
 
 pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(bundle): Path<String>) -> Response {
     let mode = mode_from_ext(mode);
-    if !is_island_bundle(&bundle) {
+    if !is_known_island(&bundle) {
         return not_found("unknown island");
     }
     let embedded: &'static str = match bundle.as_str() {
@@ -125,10 +152,17 @@ pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(bundle):
         "sui-panel-dock" => SUI_PANEL_DOCK_ISLAND_JS,
         "sui-nav-top" => SUI_NAV_TOP_ISLAND_JS,
         "sui-rail" => SUI_RAIL_ISLAND_JS,
+        "sui-code-editor" => SUI_CODE_EDITOR_ISLAND_JS,
+        "sui-markdown-editor" => SUI_MARKDOWN_EDITOR_ISLAND_JS,
         _ => return not_found("unknown island"),
     };
-    let rel = format!("sui-islands/{bundle}.js");
-    let js = match read_asset(&rel) {
+    // Bundles are emitted by sui-build as flat files in `assets/`. The
+    // legacy `sui-islands/` subdirectory is consulted as a fallback so a
+    // partially-rebuilt dev checkout keeps serving the older copy until
+    // the next build catches up.
+    let primary = format!("{bundle}.js");
+    let legacy = format!("sui-islands/{bundle}.js");
+    let js = match read_asset(&primary).or_else(|| read_asset(&legacy)) {
         Some(js) => js,
         None => embedded.to_string(),
     };

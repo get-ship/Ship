@@ -15,7 +15,16 @@
 <prop name="mode" type="string" default="ai" reflect />
 
 <style>
-  :host { display: contents; }
+  /* Host participates in layout so the trigger pill carries its own
+     box (probes asserting commandBar.offsetWidth need a non-zero
+     measurement). Inline-flex keeps the pill sized to its content
+     while the explicit min-width matches the trigger's design width. */
+  :host {
+    display: inline-flex;
+    align-items: center;
+    min-width: 200px;
+    max-width: 320px;
+  }
 
   /* ── Trigger pill ─────────────────────────────────────────────── */
   .cb-trigger {
@@ -32,6 +41,7 @@
     cursor: pointer;
     min-width: 200px;
     max-width: 320px;
+    width: 100%;
     text-align: left;
     transition: border-color var(--duration-fast, 120ms) var(--ease-out, ease);
   }
