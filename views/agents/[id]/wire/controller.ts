@@ -1,9 +1,11 @@
-import { controller, signal, derived, effect, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, effect, live, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: ({ wireCtx, route }) => {
+  scope: ({ route, ship }) => {
     const agentId = derived(() => route().params.id)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const wireCtx = live(() => (ship as any).agents.wire({ id: agentId() }))
     const wireData = derived(() => unwrap(wireCtx as any) ?? null)
     const selectedKind = signal('agent')
     const selectedId = signal('')
@@ -11,7 +13,7 @@ export default controller<Scope>({
     const pickerKind = signal('skill')
     const pickerSelected = signal<string[]>([])
     const _wireStop = signal<(() => void) | null>(null)
-    return { agentId, wireData, selectedKind, selectedId, pickerOpen, pickerKind, pickerSelected, _wireStop }
+    return { agentId, wireCtx, wireData, selectedKind, selectedId, pickerOpen, pickerKind, pickerSelected, _wireStop }
   },
   on: {
     selectNode: (s, kind: string, id: string) => { s.selectedKind = kind; s.selectedId = id },

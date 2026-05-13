@@ -1,5 +1,3 @@
-<data name="wireCtx" source="ship.agents.wire({id: route.params.id()})" live />
-
 {#while-loading of wireCtx}
   <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
 {/while-loading}
