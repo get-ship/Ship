@@ -1,21 +1,33 @@
 // Git view controller — derives every UI surface from a single
-// `<data live name="overview" />` subscription.
+// `overview` live signal subscribed via the daemon's `_sui/data` SSE.
 //
-// The j2 prod view (`.ship/views/git/index.html.j2`) ALSO calls
-// `ship.git.diff(commit=...)` and `ship.git.annotations(file=...)`
-// when query params are set, to render the split-pane diff. Those
-// calls take arguments and the `_ship-set/data` SSE endpoint doesn't
-// yet support arg-bearing live expressions — so this port covers
-// every panel driven by `git.overview()` (changes-clean hero, file
-// lists, history, branches) and skips the diff pane for now.
-//
-// Stress-tests: a controller hook (`useFilteredList` over commits),
-// a template hook (`<use-kbd>` for tab keyboard shortcuts), envelope
-// unwrap via `unwrapOr`, signal-passing into the hook factory.
+// View-host (`/sui/<name>`) mounts views without a `ship` SDK client in
+// ctx, so the compiler-emitted `<data live>` path (which closes over
+// `ctx.ship`) sticks on `loading`. Wire the live source directly to
+// `/_sui/data?expr=ship.git.overview()` instead.
 
-import { controller, signal, unwrapOr, useFilteredList } from '@ship/sui-runtime'
+import { controller, signal, live, unwrapOr, useFilteredList } from '@ship/sui-runtime'
+import type { LiveSignal, LiveSource } from '@ship/sui-runtime'
 import type { GitOverview, GitCommit } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
+
+function sseSource<T>(expr: string): LiveSource<T> {
+  return {
+    subscribe(sig: LiveSignal<T>): () => void {
+      const es = new EventSource(`/_sui/data?expr=${encodeURIComponent(expr)}`)
+      const onPatch = (ev: MessageEvent): void => {
+        try {
+          const patch = JSON.parse(ev.data as string) as { op: string; value: T }
+          if (patch.op === 'set') sig.set({ kind: 'ok', value: patch.value })
+        } catch (err) {
+          sig.set({ kind: 'error', error: err instanceof Error ? err : new Error(String(err)) })
+        }
+      }
+      es.addEventListener('patch', onPatch as EventListener)
+      return () => { es.close() }
+    },
+  }
+}
 
 type GitTab = 'changes' | 'history' | 'branches'
 
@@ -34,33 +46,32 @@ const EMPTY_OVERVIEW: GitOverview = {
   behind: 0,
 }
 
-/** Single read of the live envelope; reused by every overview-derived. */
-const read = ({ overview }: Scope) => unwrapOr(overview, EMPTY_OVERVIEW)
-
 export default controller<Scope>({
-  scope: () => ({ tab: signal<GitTab>('changes') }),
+  scope: () => ({
+    tab: signal<GitTab>('changes'),
+    overview: live(() => sseSource<GitOverview>('ship.git.overview()')),
+  }),
 
   derived: {
-    branch:         (s) => read(s).branch,
-    headShort:      (s) => read(s).head_short,
-    clean:          (s) => read(s).clean,
-    totalChanged:   (s) => read(s).total_changed,
-    ahead:          (s) => read(s).ahead,
-    behind:         (s) => read(s).behind,
-    staged:         (s) => read(s).staged,
-    modified:       (s) => read(s).modified,
-    untracked:      (s) => read(s).untracked,
-    commits:        (s) => read(s).commits,
-    branches:       (s) => read(s).branches,
-    commitsCount:   (s) => read(s).commits.length,
-    branchesCount:  (s) => read(s).branches.length,
-    recentCommits:  (s) => read(s).commits.slice(0, 5),
-    recentBranches: (s) => read(s).branches.slice(0, 6),
+    branch:         (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).branch,
+    headShort:      (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).head_short,
+    clean:          (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).clean,
+    totalChanged:   (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).total_changed,
+    ahead:          (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).ahead,
+    behind:         (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).behind,
+    staged:         (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).staged,
+    modified:       (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).modified,
+    untracked:      (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).untracked,
+    commits:        (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).commits,
+    branches:       (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).branches,
+    commitsCount:   (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).commits.length,
+    branchesCount:  (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).branches.length,
+    recentCommits:  (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).commits.slice(0, 5),
+    recentBranches: (s) => unwrapOr(s.overview, EMPTY_OVERVIEW).branches.slice(0, 6),
   },
 
   use: (s) => ({
-    // Filter on subject, short sha, or author — three needles, one query.
-    commitFilter: useFilteredList<GitCommit>(() => read(s).commits, (c, q) => {
+    commitFilter: useFilteredList<GitCommit>(() => unwrapOr(s.overview, EMPTY_OVERVIEW).commits, (c, q) => {
       if (!q) return true
       const needle = q.toLowerCase()
       return (

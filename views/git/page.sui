@@ -1,5 +1,3 @@
-<data name="overview" source="ship.git.overview()" live />
-
 <use-kbd>
   <on key="1" action="showChanges" />
   <on key="2" action="showHistory" />

@@ -1,5 +1,3 @@
-<data name="settings" source="ship.settings.state()" live />
-
 <div class="ship-view ship-view-settings">
   <main class="settings-wrap">
     <header class="settings-header">

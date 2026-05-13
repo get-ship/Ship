@@ -1,5 +1,3 @@
-<data name="snap" source="ship.mesh.snapshot()" live />
-
 <div class="ship-view ship-mesh">
 
   {#while-loading of snap}
