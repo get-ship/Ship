@@ -15,6 +15,10 @@ const config: SuiBuildConfig = {
     'sui-devtools':        'src/islands/sui-devtools/index.ts',
   },
   outdir: '../../crates/ship-sui-server/assets',
+  // Islands are code-split bundles loaded on demand by sui-runtime; keep
+  // them under `sui-islands/` so the always-loaded framework bundles
+  // (sui-components.js etc.) at the top of `assets/` stay distinguishable.
+  lazyOutSubdir: 'sui-islands',
   aggregateCemTo: '../../crates/ship-sui/assets/sui-custom-elements.json',
   aggregateCemSources: ['src'],
 }

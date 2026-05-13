@@ -1,5 +1,6 @@
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { existsSync } from 'node:fs'
+import { mkdir } from 'node:fs/promises'
 import type { SuiBundler, SuiBuildConfig, BuildResult, AdapterContext } from '../config.js'
 import { resolveEntrypoints, defaultSourcemap } from './util.js'
 import { mirrorResolverPlugin } from './import-rewrite.js'
@@ -100,14 +101,22 @@ export const bunAdapter: SuiBundler = {
     const nodeEnvDef = JSON.stringify(config.mode === 'production' ? 'production' : 'development')
 
     for (const [key, entrypoint] of Object.entries(entries)) {
+      // Keys with a `/` denote subdirectory placement (e.g. lazy bundles
+      // routed via `lazyOutSubdir`). Compute per-entry outdir + naming so
+      // we don't depend on Bun's naming template honoring a literal slash.
+      const subDir = dirname(key)
+      const baseName = basename(key)
+      const entryOutdir = subDir === '.' ? ctx.outdir : join(ctx.outdir, subDir)
+      if (subDir !== '.') await mkdir(entryOutdir, { recursive: true })
+
       const result = await Bun.build({
         entrypoints: [entrypoint],
-        outdir: ctx.outdir,
+        outdir: entryOutdir,
         target: 'browser',
         format: 'esm',
         minify: config.mode === 'production',
         sourcemap: sourcemap ? 'inline' : 'none',
-        naming: { entry: `${key}.js` },
+        naming: { entry: `${baseName}.js` },
         define: { 'process.env.NODE_ENV': nodeEnvDef },
         plugins: [mirrorResolverPlugin(ctx.packageRoot)],
         ...(config.loaders ? { loader: config.loaders } : {}),
@@ -118,7 +127,7 @@ export const bunAdapter: SuiBundler = {
         throw new Error(`bun adapter build failed for entry "${key}": ${errs}`)
       }
 
-      outputs.push(join(ctx.outdir, `${key}.js`))
+      outputs.push(join(entryOutdir, `${baseName}.js`))
 
       for (const log of result.logs) {
         if (log.level === 'warning') warnings.push(`[${key}] ${log.message}`)

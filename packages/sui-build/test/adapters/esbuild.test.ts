@@ -144,6 +144,23 @@ describe('esbuild adapter', () => {
     await expect(esbuildAdapter.build(config, ctx)).rejects.toThrow('unsupported loader')
   })
 
+  it('routes lazyBundles into outdir/<lazyOutSubdir>/', async () => {
+    await writeFile(
+      join(tmpDir, 'src', 'lazy.ts'),
+      `export const lazy = 'late'`,
+    )
+    const config: SuiBuildConfig = {
+      entries: { main: 'src/entry.ts' },
+      lazyBundles: { 'sui-foo': 'src/lazy.ts' },
+      outdir: 'dist',
+      lazyOutSubdir: 'sui-islands',
+    }
+    const result = await esbuildAdapter.build(config, ctx)
+    expect(result.outputs).toContain(join(tmpDir, 'dist', 'sui-islands', 'sui-foo.js'))
+    expect(existsSync(join(tmpDir, 'dist', 'sui-islands', 'sui-foo.js'))).toBe(true)
+    expect(existsSync(join(tmpDir, 'dist', 'sui-foo.js'))).toBe(false)
+  })
+
   it('does not minify when mode is explicitly development', async () => {
     const config: SuiBuildConfig = {
       entries: { 'dev-mode': 'src/entry.ts' },
