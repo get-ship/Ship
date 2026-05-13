@@ -147,10 +147,12 @@ clean-deep:
 
 # Capture a fresh perf baseline. Rebuilds the SUI bench bundle, runs the
 # js-framework-benchmark suite against SUI + comparison frameworks, and
-# writes .artifacts/sui-arc/benches/<date>-baseline.json. Commit the result.
+# writes tests/perf/baselines/<date>-<label>.json. Commit the result.
+# `label` is required — pass e.g. `just bench baseline` or `just bench post-d5`
+# (passes through to `--label`). No implicit overwrite of the date's anchor.
 [group('occasional')]
-bench:
-    @scripts/dev/bench-run.mjs
+bench label:
+    @scripts/dev/bench-run.mjs --label {{label}}
 
 # Compare current SUI perf vs the latest committed baseline. Exits non-zero
 # if any op regresses by more than 15% (override with
