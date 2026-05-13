@@ -211,6 +211,14 @@ export { suiTonesSheet, suiBaseSheet, adoptSuiSheets } from './styles/index'
 export { mount } from './mount'
 export type { ViewPayload, MountOptions, MountHandle } from './mount'
 
+// Re-export route surface so the bundled `@ship/sui-runtime/route`
+// importmap entry (which points at the single runtime.js bundle)
+// resolves to the actual symbols. Authors continue to use the subpath
+// import (`from '@ship/sui-runtime/route'`); the importmap routes it
+// here.
+export { defineRoutes, navigate, route } from './route'
+export type { RouteShape, RouteSignals } from './route'
+
 // Generated daemon ↔ runtime data contract. Authored by `cargo xtask
 // gen-types` from Rust source; do not edit `generated.ts` by hand.
 export type {
