@@ -183,10 +183,6 @@
   title="Toggle navigation (⌘B)" aria-label="Toggle navigation" on:click={onRailToggle}>
   <sui-icon slot="leading" name="menu"></sui-icon>
 </sui-button>
-<sui-button variant="ghost" size="sm" part="studio"
-  title="Open UI Studio" aria-label="Open UI Studio" on:click={onStudio}>
-  <sui-icon slot="leading" name="columns"></sui-icon>
-</sui-button>
 <sui-theme-picker placement="bottom-end" part="theme-picker"></sui-theme-picker>
 <sui-button variant="ghost" size="sm" part="dock-toggle"
   title="Toggle CLI / debug panel (⌘J)" aria-label="Toggle CLI / debug panel"

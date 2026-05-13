@@ -94,9 +94,6 @@ export default controller<Scope>({
         new CustomEvent('sui:rail:toggle', { bubbles: true, composed: true }),
       )
     }
-    function onStudio(): void {
-      navigateDoc('/ship-ui-studio')
-    }
     function onDockToggle(): void {
       hostEl?.dispatchEvent(
         new CustomEvent('sui:dock:toggle', { bubbles: true, composed: true }),
@@ -109,7 +106,7 @@ export default controller<Scope>({
 
     return {
       labels, dockOpen, crumbs,
-      onCrumbClick, onBrand, onRailToggle, onStudio,
+      onCrumbClick, onBrand, onRailToggle,
       onDockToggle, onFullscreen,
     }
   },

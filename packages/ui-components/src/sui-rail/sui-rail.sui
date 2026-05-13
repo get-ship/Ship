@@ -147,14 +147,6 @@
 
 <nav class="rail-nav" part="nav">
   <slot bind:this={navSlot}></slot>
-  <sui-rail-item
-    bind:this={missionEl}
-    part="mission-control"
-    data-view="mesh"
-    icon="message-square-plus"
-    label="Mission Control"
-    href="/mesh"
-  ></sui-rail-item>
 </nav>
 <div class="rail-footer" part="footer">
   <button
