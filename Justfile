@@ -364,9 +364,18 @@ check-no-set-var-global-dir:
     fi
     @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"
 
-# Seed the local registry with @unofficial packages.
-[group('occasional')]
+# Populate the local daemon with one agent + skill + collection + artifact
+# so first-run dev doesn't look like a dead app. Targets the daemon serving
+# the current worktree (discovers port + token from its daemon_dir).
+# Requires `just dev` to be running.
+[group('daily')]
 seed:
+    @scripts/dev/seed.sh
+
+# Seed the local *registry* (not the daemon) with @unofficial packages.
+# Separate from `just seed`; targets registry-site dev server on :3000.
+[group('occasional')]
+seed-registry:
     @echo "Seeding local registry — requires dev server running on :3000"
     curl -s -X POST http://localhost:3000/api/registry/seed \
       -H "Content-Type: application/json" \
