@@ -1,1 +1,1 @@
-import './dist/sui-terminal.compiled.js'
+import './sui-terminal.compiled.js'

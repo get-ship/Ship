@@ -233,14 +233,15 @@ function suiPlugin() {
     name: 'sui',
     setup(build: { onResolve: any; onLoad: any }) {
       // Redirect on-disk `.compiled.js` imports back to their `.sui` source
-      // so the plugin transforms them fresh. The convention across the
-      // monorepo is `<tag>/dist/<tag>.compiled.js` shadowing `<tag>/<tag>.sui`,
-      // used by sui-components/src/index.ts and the test pretest hook.
-      // Bundling reads the .sui directly — no on-disk shadow needed.
+      // so the plugin transforms them fresh. Post dist-relocation, imports
+      // name the artifact next to its source (`<tag>/<tag>.compiled.js`
+      // shadowing `<tag>/<tag>.sui`) — the actual artifact lives in the
+      // project mirror tree at `<repo-root>/.ship/sui-out/`, but the
+      // bundler reads the .sui directly so no on-disk shadow is needed.
       build.onResolve({ filter: /\.compiled\.js$/ }, ({ path: id, importer }: any) => {
         const abs = isAbsolute(id) ? id : resolve(dirname(importer ?? ''), id)
         const stem = basename(abs, '.compiled.js')
-        const sui = resolve(dirname(dirname(abs)), `${stem}.sui`)
+        const sui = resolve(dirname(abs), `${stem}.sui`)
         if (existsSync(sui)) return { path: sui }
         return null
       })

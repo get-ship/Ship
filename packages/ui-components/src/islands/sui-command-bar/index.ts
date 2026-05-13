@@ -1,3 +1,3 @@
-import './dist/sui-command-bar.compiled.js'
-import './dist/sui-command-chat.compiled.js'
-import './dist/sui-command-palette.compiled.js'
+import './sui-command-bar.compiled.js'
+import './sui-command-chat.compiled.js'
+import './sui-command-palette.compiled.js'

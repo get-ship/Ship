@@ -149,6 +149,106 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-alert-dialog.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiAlertDialog",
+          "tagName": "sui-alert-dialog",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'destructive'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "destructive"
+              ]
+            },
+            {
+              "name": "confirm-label",
+              "type": {
+                "text": "string"
+              },
+              "default": "Confirm"
+            },
+            {
+              "name": "cancel-label",
+              "type": {
+                "text": "string"
+              },
+              "default": "Cancel"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "open",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'destructive'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "confirmLabel",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "confirm-label",
+              "default": "Confirm"
+            },
+            {
+              "kind": "field",
+              "name": "cancelLabel",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "cancel-label",
+              "default": "Cancel"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-alert-dialog",
+          "declaration": {
+            "name": "SuiAlertDialog",
+            "module": "sui-alert-dialog.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-alert.sui",
       "declarations": [
         {
@@ -606,6 +706,151 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-area-chart.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiAreaChart",
+          "tagName": "sui-area-chart",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "series",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "default": "300"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "default": "200"
+            },
+            {
+              "name": "points",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "grid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "area chart"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "series",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "series",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "labels",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "width",
+              "default": "300"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "height",
+              "default": "200"
+            },
+            {
+              "kind": "field",
+              "name": "points",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "points",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "grid",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "grid",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "area chart"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-area-chart",
+          "declaration": {
+            "name": "SuiAreaChart",
+            "module": "sui-area-chart.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-avatar.sui",
       "declarations": [
         {
@@ -884,6 +1129,181 @@
           "declaration": {
             "name": "SuiBadge",
             "module": "sui-badge.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-bar-chart.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiBarChart",
+          "tagName": "sui-bar-chart",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "primary",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "orientation",
+              "type": {
+                "text": "'vertical' | 'horizontal'"
+              },
+              "default": "vertical",
+              "values": [
+                "vertical",
+                "horizontal"
+              ]
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "default": "300"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "default": "200"
+            },
+            {
+              "name": "max",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "bar chart"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "data",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "labels",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "primary",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "orientation",
+              "type": {
+                "text": "'vertical' | 'horizontal'"
+              },
+              "attribute": "orientation",
+              "default": "vertical",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "width",
+              "default": "300"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "height",
+              "default": "200"
+            },
+            {
+              "kind": "field",
+              "name": "max",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "max",
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "bar chart"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-bar-chart",
+          "declaration": {
+            "name": "SuiBarChart",
+            "module": "sui-bar-chart.sui"
           }
         }
       ]
@@ -1396,7 +1816,8 @@
               "type": {
                 "text": "boolean"
               },
-              "default": "false"
+              "default": "false",
+              "formValue": true
             },
             {
               "name": "indeterminate",
@@ -1410,7 +1831,8 @@
               "type": {
                 "text": "boolean"
               },
-              "default": "false"
+              "default": "false",
+              "formDisabled": true
             },
             {
               "name": "required",
@@ -1575,7 +1997,8 @@
               "attribute": "label",
               "default": ""
             }
-          ]
+          ],
+          "formAssociated": true
         }
       ],
       "exports": [
@@ -1738,6 +2161,188 @@
           "declaration": {
             "name": "SuiChip",
             "module": "sui-chip.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-code-editor.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiCodeEditor",
+          "tagName": "sui-code-editor",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "",
+              "formValue": true
+            },
+            {
+              "name": "language",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "placeholder",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "readonly",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "line-numbers",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'info' | 'success' | 'warning' | 'destructive'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "info",
+                "success",
+                "warning",
+                "destructive"
+              ]
+            },
+            {
+              "name": "theme",
+              "type": {
+                "text": "'light' | 'dark' | 'auto'"
+              },
+              "default": "auto",
+              "values": [
+                "light",
+                "dark",
+                "auto"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "value",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "language",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "language",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "placeholder",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "placeholder",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "readonly",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "readonly",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "lineNumbers",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "line-numbers",
+              "default": "true",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'info' | 'success' | 'warning' | 'destructive'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "theme",
+              "type": {
+                "text": "'light' | 'dark' | 'auto'"
+              },
+              "attribute": "theme",
+              "default": "auto",
+              "reflects": true
+            }
+          ],
+          "formAssociated": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-code-editor",
+          "declaration": {
+            "name": "SuiCodeEditor",
+            "module": "sui-code-editor.sui"
           }
         }
       ]
@@ -2616,6 +3221,101 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-donut.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiDonut",
+          "tagName": "sui-donut",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "default": "120"
+            },
+            {
+              "name": "thickness",
+              "type": {
+                "text": "number"
+              },
+              "default": "16"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "donut chart"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "data",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "size",
+              "default": "120"
+            },
+            {
+              "kind": "field",
+              "name": "thickness",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "thickness",
+              "default": "16"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "donut chart"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-donut",
+          "declaration": {
+            "name": "SuiDonut",
+            "module": "sui-donut.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-drawer.sui",
       "declarations": [
         {
@@ -2899,6 +3599,52 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-error-boundary.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiErrorBoundary",
+          "tagName": "sui-error-boundary",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "fallback-text",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "fallbackText",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "fallback-text",
+              "default": ""
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-error-boundary",
+          "declaration": {
+            "name": "SuiErrorBoundary",
+            "module": "sui-error-boundary.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-error-state.sui",
       "declarations": [
         {
@@ -3067,6 +3813,314 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-file-upload.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiFileUpload",
+          "tagName": "sui-file-upload",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "accept",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "multiple",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "max-size",
+              "type": {
+                "text": "number"
+              },
+              "default": "10485760"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "accept",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "accept",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "multiple",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "multiple",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "maxSize",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "max-size",
+              "default": "10485760"
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "disabled",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-file-upload",
+          "declaration": {
+            "name": "SuiFileUpload",
+            "module": "sui-file-upload.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-gauge.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiGauge",
+          "tagName": "sui-gauge",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "min",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "max",
+              "type": {
+                "text": "number"
+              },
+              "default": "100"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "low-threshold",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "high-threshold",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "default": "140"
+            },
+            {
+              "name": "thickness",
+              "type": {
+                "text": "number"
+              },
+              "default": "12"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "gauge"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "value",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "min",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "min",
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "max",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "max",
+              "default": "100"
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "lowThreshold",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "low-threshold",
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "highThreshold",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "high-threshold",
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "size",
+              "default": "140"
+            },
+            {
+              "kind": "field",
+              "name": "thickness",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "thickness",
+              "default": "12"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "gauge"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-gauge",
+          "declaration": {
+            "name": "SuiGauge",
+            "module": "sui-gauge.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-graph-canvas.sui",
       "declarations": [
         {
@@ -3195,6 +4249,160 @@
           "declaration": {
             "name": "SuiGraphCanvas",
             "module": "sui-graph-canvas.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-heatmap.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiHeatmap",
+          "tagName": "sui-heatmap",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "rows",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "cols",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "primary",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "cell-size",
+              "type": {
+                "text": "number"
+              },
+              "default": "20"
+            },
+            {
+              "name": "gap",
+              "type": {
+                "text": "number"
+              },
+              "default": "3"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "heatmap"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "data",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rows",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "rows",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "cols",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "cols",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "primary",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "cellSize",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "cell-size",
+              "default": "20"
+            },
+            {
+              "kind": "field",
+              "name": "gap",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "gap",
+              "default": "3"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "heatmap"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-heatmap",
+          "declaration": {
+            "name": "SuiHeatmap",
+            "module": "sui-heatmap.sui"
           }
         }
       ]
@@ -3449,7 +4657,8 @@
               "type": {
                 "text": "string"
               },
-              "default": ""
+              "default": "",
+              "formValue": true
             },
             {
               "name": "placeholder",
@@ -3484,7 +4693,8 @@
               "type": {
                 "text": "boolean"
               },
-              "default": "false"
+              "default": "false",
+              "formDisabled": true
             },
             {
               "name": "readonly",
@@ -3723,7 +4933,8 @@
               "attribute": "error-message",
               "default": ""
             }
-          ]
+          ],
+          "formAssociated": true
         }
       ],
       "exports": [
@@ -4012,6 +5223,151 @@
           "declaration": {
             "name": "SuiLauncher",
             "module": "sui-launcher.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-line-chart.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiLineChart",
+          "tagName": "sui-line-chart",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "series",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "default": "300"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "default": "200"
+            },
+            {
+              "name": "points",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "grid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "line chart"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "series",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "series",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "labels",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "width",
+              "default": "300"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "height",
+              "default": "200"
+            },
+            {
+              "kind": "field",
+              "name": "points",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "points",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "grid",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "grid",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "line chart"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-line-chart",
+          "declaration": {
+            "name": "SuiLineChart",
+            "module": "sui-line-chart.sui"
           }
         }
       ]
@@ -4465,6 +5821,258 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-markdown-editor.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiMarkdownEditor",
+          "tagName": "sui-markdown-editor",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "",
+              "formValue": true
+            },
+            {
+              "name": "placeholder",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "formDisabled": true
+            },
+            {
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "rows",
+              "type": {
+                "text": "number"
+              },
+              "default": "12"
+            },
+            {
+              "name": "full-height",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "show-selection-toolbar",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            },
+            {
+              "name": "allow-comment",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true"
+            },
+            {
+              "name": "allow-generate",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "value",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "placeholder",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "placeholder",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "tone",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "disabled",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "invalid",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rows",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "rows",
+              "default": "12"
+            },
+            {
+              "kind": "field",
+              "name": "fullHeight",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "full-height",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "name",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "showSelectionToolbar",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "show-selection-toolbar",
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "allowComment",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "allow-comment",
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "allowGenerate",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "allow-generate",
+              "default": "false"
+            }
+          ],
+          "formAssociated": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-markdown-editor",
+          "declaration": {
+            "name": "SuiMarkdownEditor",
+            "module": "sui-markdown-editor.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-markdown.sui",
       "declarations": [
         {
@@ -4576,6 +6184,85 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-meter.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiMeter",
+          "tagName": "sui-meter",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "segments",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "total",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "meter"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "segments",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "segments",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "total",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "total",
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "meter"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-meter",
+          "declaration": {
+            "name": "SuiMeter",
+            "module": "sui-meter.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-nav-top.sui",
       "declarations": [
         {
@@ -4594,6 +6281,20 @@
                 "text": "string"
               },
               "default": ""
+            },
+            {
+              "name": "project",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "view",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
             }
           ],
           "members": [
@@ -4604,6 +6305,24 @@
                 "text": "string"
               },
               "attribute": "path",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "project",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "project",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "view",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "view",
               "default": ""
             }
           ]
@@ -4616,6 +6335,150 @@
           "declaration": {
             "name": "SuiNavTop",
             "module": "sui-nav-top.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-navigation-item.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiNavigationItem",
+          "tagName": "sui-navigation-item",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "value",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "active",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "disabled",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "href",
+              "default": ""
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-navigation-item",
+          "declaration": {
+            "name": "SuiNavigationItem",
+            "module": "sui-navigation-item.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-navigation-menu.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiNavigationMenu",
+          "tagName": "sui-navigation-menu",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "value",
+              "default": "",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-navigation-menu",
+          "declaration": {
+            "name": "SuiNavigationMenu",
+            "module": "sui-navigation-menu.sui"
           }
         }
       ]
@@ -4851,6 +6714,205 @@
           "declaration": {
             "name": "SuiPopover",
             "module": "sui-popover.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-portal.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiPortal",
+          "tagName": "sui-portal",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "target",
+              "type": {
+                "text": "string"
+              },
+              "default": "body"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "target",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "target",
+              "default": "body"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-portal",
+          "declaration": {
+            "name": "SuiPortal",
+            "module": "sui-portal.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-progress-ring.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiProgressRing",
+          "tagName": "sui-progress-ring",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "max",
+              "type": {
+                "text": "number"
+              },
+              "default": "100"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "default": "48"
+            },
+            {
+              "name": "track-width",
+              "type": {
+                "text": "number"
+              },
+              "default": "4"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent'"
+              },
+              "default": "primary",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent"
+              ]
+            },
+            {
+              "name": "indeterminate",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "value",
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "max",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "max",
+              "default": "100"
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "size",
+              "default": "48"
+            },
+            {
+              "kind": "field",
+              "name": "trackWidth",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "track-width",
+              "default": "4"
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent'"
+              },
+              "attribute": "tone",
+              "default": "primary",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "indeterminate",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "indeterminate",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": ""
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-progress-ring",
+          "declaration": {
+            "name": "SuiProgressRing",
+            "module": "sui-progress-ring.sui"
           }
         }
       ]
@@ -5449,6 +7511,127 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-rail.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiRail",
+          "tagName": "sui-rail",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "collapsed",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "collapsed",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "collapsed",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-rail",
+          "declaration": {
+            "name": "SuiRail",
+            "module": "sui-rail.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-scroll-area.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiScrollArea",
+          "tagName": "sui-scroll-area",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "orientation",
+              "type": {
+                "text": "'vertical' | 'horizontal' | 'both'"
+              },
+              "default": "vertical",
+              "values": [
+                "vertical",
+                "horizontal",
+                "both"
+              ]
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "orientation",
+              "type": {
+                "text": "'vertical' | 'horizontal' | 'both'"
+              },
+              "attribute": "orientation",
+              "default": "vertical",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-scroll-area",
+          "declaration": {
+            "name": "SuiScrollArea",
+            "module": "sui-scroll-area.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-segmented-option.sui",
       "declarations": [
         {
@@ -5625,6 +7808,202 @@
           "declaration": {
             "name": "SuiSegmented",
             "module": "sui-segmented.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-select.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiSelect",
+          "tagName": "sui-select",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "",
+              "formValue": true
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "formDisabled": true
+            },
+            {
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "described-by",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "value",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "name",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "required",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "disabled",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "invalid",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "describedBy",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "described-by",
+              "default": ""
+            }
+          ],
+          "formAssociated": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-select",
+          "declaration": {
+            "name": "SuiSelect",
+            "module": "sui-select.sui"
           }
         }
       ]
@@ -5965,6 +8344,145 @@
           "declaration": {
             "name": "SuiSlider",
             "module": "sui-slider.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-sparkline.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiSparkline",
+          "tagName": "sui-sparkline",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "primary",
+              "values": [
+                "default",
+                "primary",
+                "info",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "default": "80"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "default": "20"
+            },
+            {
+              "name": "fill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "sparkline"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "data",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'primary' | 'info' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "primary",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "width",
+              "default": "80"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "height",
+              "default": "20"
+            },
+            {
+              "kind": "field",
+              "name": "fill",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "fill",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "label",
+              "default": "sparkline"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-sparkline",
+          "declaration": {
+            "name": "SuiSparkline",
+            "module": "sui-sparkline.sui"
           }
         }
       ]
@@ -6368,6 +8886,74 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-step-segments.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiStepSegments",
+          "tagName": "sui-step-segments",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "values",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md'"
+              },
+              "default": "sm",
+              "values": [
+                "sm",
+                "md"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "values",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "values",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md'"
+              },
+              "attribute": "size",
+              "default": "sm",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-step-segments",
+          "declaration": {
+            "name": "SuiStepSegments",
+            "module": "sui-step-segments.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-stepper.sui",
       "declarations": [
         {
@@ -6504,14 +9090,16 @@
               "type": {
                 "text": "boolean"
               },
-              "default": "false"
+              "default": "false",
+              "formValue": true
             },
             {
               "name": "disabled",
               "type": {
                 "text": "boolean"
               },
-              "default": "false"
+              "default": "false",
+              "formDisabled": true
             },
             {
               "name": "tone",
@@ -6632,7 +9220,8 @@
               "attribute": "label",
               "default": ""
             }
-          ]
+          ],
+          "formAssociated": true
         }
       ],
       "exports": [
@@ -7262,7 +9851,8 @@
               "type": {
                 "text": "string"
               },
-              "default": ""
+              "default": "",
+              "formValue": true
             },
             {
               "name": "placeholder",
@@ -7297,7 +9887,8 @@
               "type": {
                 "text": "boolean"
               },
-              "default": "false"
+              "default": "false",
+              "formDisabled": true
             },
             {
               "name": "readonly",
@@ -7514,7 +10105,8 @@
               "attribute": "described-by",
               "default": ""
             }
-          ]
+          ],
+          "formAssociated": true
         }
       ],
       "exports": [
@@ -8564,6 +11156,146 @@
           "declaration": {
             "name": "SuiTreeView",
             "module": "sui-tree-view.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-view-chrome.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiViewChrome",
+          "tagName": "sui-view-chrome",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "branch",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "ahead",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "behind",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "default": "default",
+              "values": [
+                "default",
+                "success",
+                "warning",
+                "destructive",
+                "accent",
+                "muted"
+              ]
+            },
+            {
+              "name": "busy",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "title",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "title",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "branch",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "branch",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "ahead",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "ahead",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "behind",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "behind",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "type": {
+                "text": "'default' | 'success' | 'warning' | 'destructive' | 'accent' | 'muted'"
+              },
+              "attribute": "tone",
+              "default": "default",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "busy",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "busy",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-view-chrome",
+          "declaration": {
+            "name": "SuiViewChrome",
+            "module": "sui-view-chrome.sui"
           }
         }
       ]

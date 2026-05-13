@@ -1,1 +1,1 @@
-import './dist/sui-markdown-editor.compiled.js'
+import './sui-markdown-editor.compiled.js'

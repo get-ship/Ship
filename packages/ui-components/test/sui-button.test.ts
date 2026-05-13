@@ -18,7 +18,7 @@
 //     since JSDOM reports the default slot as empty)
 
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-button/dist/sui-button.compiled.js'
+import '../src/sui-button/sui-button.compiled.js'
 
 const containers: HTMLElement[] = []
 const mkContainer = (): HTMLElement => {

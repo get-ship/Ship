@@ -140,12 +140,22 @@ export async function run(
 }
 
 function resolveCemSources(config: SuiBuildConfig, ctx: AdapterContext): string[] {
+  // CEM artifacts live in the project mirror tree at
+  // `<repo-root>/.ship/sui-out/<src-rel>/`. Translate each configured
+  // source dir into its mirror-tree counterpart so aggregateCem walks
+  // the right location.
+  const root = findWorkspaceRoot(ctx.packageRoot)
+  const mirrorRoot = join(root, '.ship/sui-out')
+  const toMirror = (absSrc: string): string => {
+    const rel = absSrc.startsWith(root + '/') ? absSrc.slice(root.length + 1) : absSrc
+    return join(mirrorRoot, rel)
+  }
   if (config.aggregateCemSources && config.aggregateCemSources.length > 0) {
-    return config.aggregateCemSources.map((s) => resolve(ctx.packageRoot, s))
+    return config.aggregateCemSources.map((s) => toMirror(resolve(ctx.packageRoot, s)))
   }
   const dirs = new Set<string>()
   for (const src of Object.values({ ...config.entries, ...(config.lazyBundles ?? {}) })) {
-    dirs.add(dirname(resolve(ctx.packageRoot, src)))
+    dirs.add(toMirror(dirname(resolve(ctx.packageRoot, src))))
   }
   return [...dirs]
 }

@@ -1,1 +1,1 @@
-import './dist/sui-panel-dock.compiled.js'
+import './sui-panel-dock.compiled.js'

@@ -158,12 +158,15 @@ describe.skipIf(!isBun || !hasCdylib)('runner FFI path', () => {
     expect(content).toContain('sui-runtime')
   })
 
-  it('FFI spawn emits a .sui.d.ts next to the source', async () => {
+  it('FFI spawn emits a .sui.d.ts into the canonical output dir', async () => {
     const spawn = await makeFfiSpawn(cdylibPath)
     expect(spawn).not.toBeNull()
     const suiPath = join(ffiTmpDir, 'src', 'hello.sui')
     await spawn!(suiPath, 'hello')
-    const dtsPath = join(ffiTmpDir, 'src', 'hello.sui.d.ts')
+    // Outside the workspace, the compiler falls back to a sibling
+    // `dist/` directory; in-tree it lands in the `.ship/sui-out/` mirror
+    // (see sui-compiler::out_layout::resolve_out_dir).
+    const dtsPath = join(ffiTmpDir, 'src', 'dist', 'hello.sui.d.ts')
     expect(existsSync(dtsPath)).toBe(true)
     const dts = await readFile(dtsPath, 'utf8')
     // The emitter walks <prop> declarations into the Scope interface.

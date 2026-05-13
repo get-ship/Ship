@@ -39,6 +39,7 @@ pub mod ir;
 pub mod islands;
 pub mod keys;
 pub mod lower;
+pub mod out_layout;
 pub mod parse;
 pub mod render;
 
@@ -113,7 +114,8 @@ pub struct CompileOutput {
     /// developer-tooling fuel.
     pub meta: Option<serde_json::Value>,
     /// Static SSR HTML body fragment, present when `CompileOpts::emit_ssr` is
-    /// true and mode is `View`. Written to `<dist>/<stem>.ssr.html` by the CLI.
+    /// true and mode is `View`. Written to the project mirror tree as
+    /// `<repo-root>/.ship/sui-out/<src-rel>/<stem>.ssr.html` by the CLI.
     pub ssr_html: Option<String>,
 }
 
