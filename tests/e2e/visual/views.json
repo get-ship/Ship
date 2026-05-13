@@ -13,12 +13,14 @@
     "overview",
     "pipelines",
     "pipelines-board",
+    "sessions",
     "settings",
     "setup",
     "ship-ui-studio",
     "skills",
     "specs",
-    "theme-studio"
+    "theme-studio",
+    "workspaces"
   ],
   "components": [
     {"tag": "sui-button", "slot": "<sui-button variant=\"solid\" tone=\"primary\">Primary</sui-button> <sui-button variant=\"outline\">Outline</sui-button> <sui-button variant=\"ghost\">Ghost</sui-button>"},

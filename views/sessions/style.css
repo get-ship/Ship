@@ -1,0 +1,98 @@
+.ship-view-sessions {
+  color: var(--foreground);
+  background: var(--background);
+  min-height: 100vh;
+}
+.ses-wrap {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.ses-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.ses-title {
+  font-size: var(--text-2xl);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+}
+.ses-sub {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+  margin: 4px 0 0;
+}
+.ses-actions { display: flex; gap: var(--space-2); }
+.ses-alert { margin-bottom: var(--space-2); }
+.ses-loading { color: var(--muted-foreground); }
+.ses-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.ses-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--card) 50%, var(--background));
+}
+.ses-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
+}
+.ses-row-kind {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--foreground);
+  text-transform: capitalize;
+}
+.ses-row-id {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ses-row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.ses-row-status {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  text-transform: capitalize;
+}
+.ses-end {
+  font-family: inherit;
+  font-size: var(--text-xs);
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--foreground);
+  cursor: pointer;
+}
+.ses-end:hover:not([disabled]) {
+  background: color-mix(in oklch, var(--destructive) 12%, transparent);
+  border-color: color-mix(in oklch, var(--destructive) 40%, var(--border));
+  color: var(--destructive);
+}
+.ses-end[disabled] { opacity: 0.5; cursor: not-allowed; }
