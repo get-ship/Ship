@@ -127,12 +127,15 @@ export default controller<Scope>({
 
     const hostEl = host as HTMLElement | null
     function activateNavItem(path: string): void {
-      void navigateTo(path)
-      bar!.value.set('')
-      bar!.open.set(false)
+      // Dispatch before closing: sui-dialog gates its <slot> on {#if open()},
+      // so flipping open=false synchronously detaches the projection path and
+      // a later composed event from the palette host can't reach the bar host.
       hostEl?.dispatchEvent(new CustomEvent('sui-command:select', {
         detail: { mode: 'find', item: { path } }, bubbles: true, composed: true,
       }))
+      void navigateTo(path)
+      bar!.value.set('')
+      bar!.open.set(false)
     }
 
     function activateCmd(key: string): void {
