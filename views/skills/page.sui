@@ -1,6 +1,3 @@
-<data name="rail" source="ship.skills.summaries({q: q(), kind: kind(), tag: tag()})" live />
-<data name="skill" source="ship.skills.detail({id: skillId()})" />
-
 <div class="ship-view ship-view-skills">
   <div class="skills-ide">
 

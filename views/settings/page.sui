@@ -55,7 +55,7 @@
                   </ship-badge>
                   <ship-select name="value" size="sm"
                     prop:value={settings().value.default_provider}
-                    on:ship-change={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}>
+                    on:ship-change={(e) => e.target.closest('form')?.requestSubmit()}>
                     {#for p of settings().value.providers key={p.id}}
                       <option value={p.id}>{p.id}</option>
                     {/for}
@@ -77,8 +77,8 @@
                   <ship-input name="value" size="sm"
                     prop:value={settings().value.default_model}
                     placeholder="e.g. sonnet"
-                    on:blur={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}
-                    on:keydown={(e) => { if ((e as KeyboardEvent).key === 'Enter') (e.target as HTMLElement).blur() }}></ship-input>
+                    on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></ship-input>
                 </form>
               </span>
             </ship-list-tile>
@@ -124,7 +124,7 @@
                   </ship-badge>
                   <ship-select name="value" size="sm"
                     prop:value={settings().value.terminal.program}
-                    on:ship-change={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}>
+                    on:ship-change={(e) => e.target.closest('form')?.requestSubmit()}>
                     {#for opt of settings().value.terminal.options key={opt.value}}
                       <option value={opt.value}>{opt.label}</option>
                     {/for}
@@ -146,8 +146,8 @@
                   <ship-input name="value" size="sm"
                     prop:value={settings().value.terminal.worktree_base}
                     placeholder="/path/to/worktrees"
-                    on:blur={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}
-                    on:keydown={(e) => { if ((e as KeyboardEvent).key === 'Enter') (e.target as HTMLElement).blur() }}></ship-input>
+                    on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                    on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></ship-input>
                 </form>
               </span>
             </ship-list-tile>
@@ -190,8 +190,8 @@
                       <ship-input name="value" size="sm"
                         prop:value={settings().value.advanced_registry}
                         placeholder="https://registry.getship.dev"
-                        on:blur={(e) => (e.target as HTMLElement).closest('form')?.requestSubmit()}
-                        on:keydown={(e) => { if ((e as KeyboardEvent).key === 'Enter') (e.target as HTMLElement).blur() }}></ship-input>
+                        on:blur={(e) => e.target.closest('form')?.requestSubmit()}
+                        on:keydown={(e) => { if (e.key === 'Enter') e.target.blur() }}></ship-input>
                     </form>
                   </span>
                 </ship-list-tile>
