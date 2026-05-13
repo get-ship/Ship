@@ -1,5 +1,3 @@
-<data name="ctx" source="ship.pipelines.run({slug: route.params.slug()})" />
-
 <style>
 .ship-view-run-detail { color: var(--foreground); background: var(--background); }
 .ship-run-detail-wrap { width: 100%; max-width: 96rem; margin: 0 auto; padding: var(--space-6) var(--space-8); display: flex; flex-direction: column; gap: var(--space-5); }
@@ -53,9 +51,9 @@
     </div>
 
     {#if run().error}
-      {#if run().error.includes('\n')}
+      {#if errorMultiline()}
       <sui-collapsible>
-        <sui-alert slot="trigger" tone="destructive" compact>Error: {run().error.split('\n')[0]}</sui-alert>
+        <sui-alert slot="trigger" tone="destructive" compact>Error: {errorFirstLine()}</sui-alert>
         <sui-code language="text">{run().error}</sui-code>
       </sui-collapsible>
       {:else}

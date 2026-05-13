@@ -1,13 +1,17 @@
-import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: ({ selected, route }) => {
+  scope: ({ ship, route }) => {
     const q = signal((route as any)().query?.q || '')
     const selectedId = derived(() => (route as any)().query?.id || '')
     const confirmDelete = signal(false)
-    const filterInputEl = signal<HTMLElement | null>(null)
-    return { q, selectedId, confirmDelete, filterInputEl }
+    const filterInputEl = ref<HTMLElement>(null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = ship as any
+    const rail = live(() => s.specs.summaries({ q: q(), selected: selectedId() }))
+    const selected = live(() => s.specs.detail({ id: selectedId() }))
+    return { q, selectedId, confirmDelete, filterInputEl, rail, selected }
   },
   on: {
     newSpec: async () => {

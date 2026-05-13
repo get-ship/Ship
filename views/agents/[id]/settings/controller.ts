@@ -1,11 +1,24 @@
-import { controller, signal, derived, effect, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, effect, live, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: ({ settings, route }) => {
+  scope: ({ ship, route }) => {
     const agentId = derived(() => route().params.id)
-    const agent = derived(() => unwrap(settings as any)?.agent ?? null)
-    const catalogs = derived(() => unwrap(settings as any)?.catalogs ?? null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = ship as any
+    const settings = live(() => s.agents.settings({ id: agentId() }))
+    const agent = derived(() => unwrap(settings)?.agent ?? null)
+    const catalogs = derived(() => unwrap(settings)?.catalogs ?? null)
+    const providers = derived(() => {
+      const a = unwrap(settings) as { agent?: { providers?: string[]; default_provider?: string } } | undefined
+      const list = a?.agent?.providers ?? []
+      const def = a?.agent?.default_provider
+      return list.map((id) => ({
+        id,
+        label: id.length > 0 ? id[0].toUpperCase() + id.slice(1) : id,
+        isDefault: id === def,
+      }))
+    })
     const pAllow = signal<string[]>([])
     const pAsk = signal<string[]>([])
     const pDeny = signal<string[]>([])
@@ -19,7 +32,7 @@ export default controller<Scope>({
     const pickerKind = signal('skill')
     const pickerSelected = signal<string[]>([])
     const _settStop = signal<(() => void) | null>(null)
-    return { agentId, agent, catalogs, pAllow, pAsk, pDeny, pPreset, pDirty, pSaving, allowDraft, askDraft, denyDraft, pickerOpen, pickerKind, pickerSelected, _settStop }
+    return { agentId, settings, agent, catalogs, providers, pAllow, pAsk, pDeny, pPreset, pDirty, pSaving, allowDraft, askDraft, denyDraft, pickerOpen, pickerKind, pickerSelected, _settStop }
   },
   on: {
     goWire: ({ navigate, agentId }) => navigate(`/agents/${agentId}/wire`),

@@ -74,8 +74,9 @@
         {/if}
 
         <form mutation="ship.projects.create"
-          on:ship-mutation-ok={() => { step.set(3); wsError.set('') }}
-          on:ship-mutation-error={onWsMutationError}>
+          on:submit={onWsSubmit}
+          on:success={onWsSuccess}
+          on:error={onWsMutationError}>
           <input type="hidden" name="mode" attr:value={wsMode()} />
           <input type="hidden" name="name" attr:value={wsName()} />
           <input type="hidden" name="path" attr:value={wsPath()} />
@@ -86,7 +87,7 @@
             </ship-button>
             <ship-button tone="primary" variant="solid" size="md" type="submit"
               prop:disabled={wsMode() === 'new' ? !wsName() : !wsPath()}
-              prop:loading={$mutation().kind === 'loading'}>
+              prop:loading={wsCreating()}>
               Continue
               <ship-icon slot="trailing" name="arrow-right"></ship-icon>
             </ship-button>
@@ -141,14 +142,15 @@
           </ship-field>
 
           <form mutation="ship.providers.test"
-            on:ship-mutation-ok={() => providerTestOk.set(true)}
-            on:ship-mutation-error={() => providerTestOk.set(false)}>
+            on:submit={onProviderTestSubmit}
+            on:success={onProviderTestSuccess}
+            on:error={onProviderTestError}>
             <input type="hidden" name="provider" attr:value={provider()} />
             <input type="hidden" name="key" attr:value={apiKey()} />
             <div style="display:flex; align-items:center; gap:var(--space-3); margin-top:var(--space-3)">
               <ship-button variant="outline" size="sm" type="submit"
-                prop:disabled={!apiKey() || $mutation().kind === 'loading'}
-                prop:loading={$mutation().kind === 'loading'}>
+                prop:disabled={!apiKey() || providerTesting()}
+                prop:loading={providerTesting()}>
                 Test connection
               </ship-button>
               {#if providerTestOk()}
@@ -156,9 +158,9 @@
                   <ship-icon slot="leading" name="check"></ship-icon>Connected
                 </ship-badge>
               {/if}
-              {#if $mutation().kind === 'error'}
+              {#if providerTestError()}
                 <ship-badge tone="destructive" variant="soft" size="sm">
-                  {$mutation().error.message}
+                  {providerTestError()}
                 </ship-badge>
               {/if}
             </div>
@@ -166,7 +168,9 @@
         {/if}
 
         <form mutation="ship.settings.configure"
-          on:ship-mutation-ok={() => step.set(4)}>
+          on:submit={onSettingsSubmit}
+          on:success={onSettingsSuccess}
+          on:error={onSettingsError}>
           <input type="hidden" name="provider" attr:value={provider()} />
           <input type="hidden" name="api_key" attr:value={apiKey()} />
           <div class="setup-actions">
@@ -176,7 +180,7 @@
             </ship-button>
             <ship-button tone="primary" variant="solid" size="md" type="submit"
               prop:disabled={!providerTestOk()}
-              prop:loading={$mutation().kind === 'loading'}>
+              prop:loading={settingsSaving()}>
               Save &amp; continue
               <ship-icon slot="trailing" name="arrow-right"></ship-icon>
             </ship-button>
