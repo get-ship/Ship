@@ -221,6 +221,18 @@ impl ShipRuntime {
             ship_platform::kv::migrate_from_platform_db(&dir)
                 .context("kv migration from platform.db")?;
             ship_substrate::db::ensure_db_at(&dir)?;
+            // Self-heal: if `_sqlx_migrations` claims 0001 is applied but the
+            // baseline tables are missing (post-`repair-migrations` foot-gun),
+            // re-execute the idempotent CREATE TABLE IF NOT EXISTS block.
+            // No-op on a healthy DB.
+            match ship_substrate::db::reconcile_baseline_schema(&dir) {
+                Ok(0) => {}
+                Ok(n) => tracing::warn!(
+                    "platform.db baseline schema reconciled ({n} statements); \
+                     `projects` table was missing despite migrations recorded as applied"
+                ),
+                Err(e) => tracing::warn!("platform schema reconcile failed: {e}"),
+            }
             // One-shot drain of the legacy `settings` KV namespace into the
             // daemon_settings table. Idempotent and inexpensive on every boot.
             if let Err(e) = ship_platform::config::drain_legacy_settings_kv() {
