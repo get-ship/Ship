@@ -31,7 +31,11 @@ pub enum DaemonCommand {
     /// `scripts/dev/*` without those reaching into ShipHome internals.
     Dir,
     Cleanup,
-    RepairMigrations { mark_applied: Option<i64> },
+    RepairMigrations {
+        mark_applied: Option<i64>,
+        prune_orphans: bool,
+        yes: bool,
+    },
     Run { host: String, port: u16, dev: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
     Supervise { host: String, dev: bool },
@@ -110,7 +114,9 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
             Ok(())
         }
         DaemonCommand::Cleanup => daemon_cleanup(),
-        DaemonCommand::RepairMigrations { mark_applied } => daemon_repair_migrations(mark_applied),
+        DaemonCommand::RepairMigrations { mark_applied, prune_orphans, yes } => {
+            daemon_repair_migrations(mark_applied, prune_orphans, yes)
+        }
         DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
         DaemonCommand::InstallService { shipd_path, no_start, no_autostart } => {
@@ -750,8 +756,13 @@ fn format_relative_time(ts: &str) -> String {
     }
 }
 
-fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
+fn daemon_repair_migrations(
+    mark_applied: Option<i64>,
+    prune_orphans: bool,
+    yes: bool,
+) -> Result<()> {
     use ship_substrate::db::repair;
+    use std::io::{BufRead, IsTerminal, Write};
 
     let global_dir = ship_application::project::get_global_dir()
         .context("resolve global ship dir")?;
@@ -777,7 +788,7 @@ fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
         return Ok(());
     }
 
-    let report = rt.block_on(async move { repair::repair_migrations(&mut conn).await })?;
+    let report = rt.block_on(async { repair::repair_migrations(&mut conn).await })?;
 
     println!("migration repair: {}", db_path.display());
     println!("  updated:   {} migrations", report.updated.len());
@@ -799,6 +810,38 @@ fn daemon_repair_migrations(mark_applied: Option<i64>) -> Result<()> {
     }
     if report.updated.is_empty() && report.orphaned.is_empty() {
         println!("nothing to repair — checksums already match.");
+    }
+
+    if prune_orphans {
+        if report.orphaned.is_empty() {
+            println!("no orphans to prune");
+            return Ok(());
+        }
+        let interactive = std::io::stdin().is_terminal();
+        if !yes {
+            if !interactive {
+                anyhow::bail!(
+                    "refusing to prune without --yes in non-interactive mode"
+                );
+            }
+            print!(
+                "Delete these {} rows from _sqlx_migrations? {:?} [y/N] ",
+                report.orphaned.len(),
+                report.orphaned
+            );
+            std::io::stdout().flush().ok();
+            let mut answer = String::new();
+            std::io::stdin().lock().read_line(&mut answer)?;
+            let answer = answer.trim().to_ascii_lowercase();
+            if answer != "y" && answer != "yes" {
+                println!("aborted — no rows deleted");
+                return Ok(());
+            }
+        }
+        let deleted = rt.block_on(async {
+            repair::prune_orphans(&mut conn, &report.orphaned).await
+        })?;
+        println!("pruned: {deleted} migrations");
     }
     Ok(())
 }
