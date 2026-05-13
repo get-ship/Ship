@@ -3,6 +3,7 @@
 //! Each test compiles a small `.sui` snippet with `emit_dts: true` and
 //! asserts the resulting d.ts contains the expected type lines.
 
+use std::fs;
 use sui_compiler::{compile, CompileMode, CompileOpts};
 
 fn compile_dts(source: &str) -> String {
@@ -16,6 +17,34 @@ fn compile_dts(source: &str) -> String {
         emit_ssr: false,
     };
     compile(source, opts)
+        .expect("compile")
+        .dts
+        .expect("dts emitted")
+}
+
+/// Compile a `.sui` source paired with a `controller.ts` (or
+/// `<stem>.controller.ts`) so the d.ts emitter can pull the scope
+/// factory's fields. Returns the emitted d.ts text.
+fn compile_dts_with_controller(stem: &str, sui_src: &str, controller_ts: &str) -> String {
+    let dir = tempfile::tempdir().expect("tempdir");
+    let sui_path = dir.path().join(format!("{stem}.sui"));
+    let ctrl_path = if stem == "page" {
+        dir.path().join("controller.ts")
+    } else {
+        dir.path().join(format!("{stem}.controller.ts"))
+    };
+    fs::write(&sui_path, sui_src).expect("write sui");
+    fs::write(&ctrl_path, controller_ts).expect("write controller");
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(sui_path),
+        styles: None,
+        component_meta: None,
+        emit_dts: true,
+        emit_ssr: false,
+    };
+    compile(sui_src, opts)
         .expect("compile")
         .dts
         .expect("dts emitted")
@@ -150,6 +179,119 @@ fn reflect_empty_does_not_add_scope_entry() {
     assert!(dts.contains("export interface Scope {}"), "got: {dts}");
     assert!(!dts.contains("data-icon-only"), "got: {dts}");
     assert!(!dts.contains("dataIconOnly"), "got: {dts}");
+}
+
+#[test]
+fn scope_factory_fields_appear_in_scope() {
+    let sui = r#"<p>{foo()} {label()}</p>"#;
+    let controller = r#"
+        import { controller, signal } from '@ship/sui-runtime'
+        export default controller({
+          scope: () => ({
+            foo: signal<number>(0),
+            label: signal(''),
+          }),
+        })
+    "#;
+    let dts = compile_dts_with_controller("page", sui, controller);
+    assert!(
+        dts.contains("foo: Signal<number>"),
+        "expected typed Signal<number>, got: {dts}"
+    );
+    assert!(
+        dts.contains("label: Signal<string>"),
+        "expected typed Signal<string>, got: {dts}"
+    );
+    assert!(
+        dts.contains("// From controller scope: factory"),
+        "expected factory section header, got: {dts}"
+    );
+}
+
+#[test]
+fn scope_factory_fields_resolve_shorthand_through_locals() {
+    // Block-body factory with shorthand return — exactly the pattern
+    // sui-error-boundary uses. The extractor should walk the body and
+    // pick up each binding's RHS heuristic.
+    let sui = r#"<p>x</p>"#;
+    let controller = r#"
+        import { controller, signal } from '@ship/sui-runtime'
+        export default controller({
+          scope: (_b: unknown, host?: Element) => {
+            const caughtError = signal<Error | null>(null)
+            const reset = (): void => { caughtError.set(null); host?.removeAttribute('x') }
+            return { caughtError, reset }
+          },
+        })
+    "#;
+    let dts = compile_dts_with_controller("page", sui, controller);
+    assert!(
+        dts.contains("caughtError: Signal<Error | null>"),
+        "expected shorthand caughtError typed, got: {dts}"
+    );
+    assert!(
+        dts.contains("reset: ") && dts.contains("=> void"),
+        "expected reset typed as void-returning arrow, got: {dts}"
+    );
+}
+
+#[test]
+fn empty_scope_factory_leaves_scope_unchanged() {
+    let sui = r#"<p>x</p>"#;
+    let controller = r#"
+        import { controller } from '@ship/sui-runtime'
+        export default controller({ scope: () => ({}) })
+    "#;
+    let dts = compile_dts_with_controller("page", sui, controller);
+    assert!(
+        dts.contains("export interface Scope {}"),
+        "expected empty Scope when factory adds nothing, got: {dts}"
+    );
+    assert!(
+        !dts.contains("// From controller scope: factory"),
+        "should not emit the factory header when factory is empty, got: {dts}"
+    );
+}
+
+#[test]
+fn no_scope_section_leaves_scope_unchanged() {
+    // Controller without a `scope:` section — falls back to template-derived
+    // Scope only. Existing controllers must continue typechecking.
+    let sui = r#"<p>x</p>"#;
+    let controller = r#"
+        import { controller } from '@ship/sui-runtime'
+        export default controller({
+          mount: (_state, _host) => {},
+        })
+    "#;
+    let dts = compile_dts_with_controller("page", sui, controller);
+    assert!(
+        dts.contains("export interface Scope {}"),
+        "expected empty Scope when no scope: section, got: {dts}"
+    );
+}
+
+#[test]
+fn controller_scope_field_overrides_template_member_on_clash() {
+    // If a name appears in BOTH the template's bindings AND the factory,
+    // the factory's inferred type wins (it's the authoritative shape).
+    let sui = r#"<data name="config" source="ship.config.get()" /><p>x</p>"#;
+    let controller = r#"
+        import { controller, signal } from '@ship/sui-runtime'
+        export default controller({
+          scope: () => ({ config: signal<{ url: string }>({ url: '' }) }),
+        })
+    "#;
+    let dts = compile_dts_with_controller("page", sui, controller);
+    assert!(
+        dts.contains("config: Signal<{ url: string }>"),
+        "expected factory-typed config to win, got: {dts}"
+    );
+    // The template-derived `Signal<unknown>` shape should NOT be present.
+    assert!(
+        !dts.contains("config: Signal<unknown>"),
+        "factory should override template-derived type, got: {dts}"
+    );
 }
 
 #[test]

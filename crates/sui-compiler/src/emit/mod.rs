@@ -12,6 +12,7 @@ pub mod expr_rewrite;
 pub mod js;
 pub mod meta;
 pub mod schema;
+pub mod scope_factory;
 pub mod ssr;
 pub mod styles;
 pub mod template_emit;

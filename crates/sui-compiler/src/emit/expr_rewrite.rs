@@ -150,7 +150,16 @@ pub fn rewrite_for_scope(src: &str, extra_locals: &[&str]) -> String {
             if c == b'('
                 && let Some(after) = peek_arrow_params(src, i, &mut locals)
             {
-                out.push_str(&src[i..after]);
+                // Author-written handlers in `on:` attributes routinely
+                // include TS type annotations on arrow params — `(g:
+                // string, i: number) => …`. Forwarding the raw slice
+                // would leak those into the emitted `.js`, where tsc
+                // rejects them with TS8010. Strip top-level `: TYPE`
+                // runs from the param list before emission; default-
+                // value expressions (`= 0`) and destructure annotations
+                // stay intact.
+                let sanitized = strip_param_type_annotations(&src[i..after]);
+                out.push_str(&sanitized);
                 i = after;
                 prev_dot = false;
                 continue;
@@ -353,6 +362,103 @@ fn harvest_destructure_idents(src: &str, start: usize, end: usize, into: &mut Ve
         }
 }
 
+/// Strip top-level `: TYPE` annotations from an arrow-param source
+/// slice (including the surrounding parens). The walker mirrors the
+/// param-harvest one used by `peek_arrow_params`:
+///
+///  * A `:` at paren-depth zero opens a type annotation; we copy
+///    nothing until the next top-level `,`, `)`, or `=` (default-value
+///    initialiser).
+///  * `=` resumes copying so default-value expressions survive
+///    (`(a: number = 5)` → `(a = 5)`).
+///  * Strings and nested groupings (`(`, `{`, `[`) carry the byte
+///    through unchanged — the type expression of e.g. `(opts: {
+///    label: string })` is opened with `:` at depth-0 and is fully
+///    dropped along with its inner braces.
+fn strip_param_type_annotations(raw: &str) -> String {
+    let bytes = raw.as_bytes();
+    if bytes.is_empty() || bytes[0] != b'(' {
+        return raw.to_string();
+    }
+    let mut out = String::with_capacity(raw.len());
+    out.push('(');
+    let mut i = 1;
+    let end = bytes.len().saturating_sub(1); // exclude the trailing `)`
+    let mut in_str: Option<u8> = None;
+    let mut depth: i32 = 0;
+    let mut dropping = false;
+    while i < end {
+        let c = bytes[i];
+        if let Some(q) = in_str {
+            if !dropping {
+                out.push(c as char);
+            }
+            if c == b'\\' && i + 1 < end {
+                if !dropping {
+                    out.push(bytes[i + 1] as char);
+                }
+                i += 2;
+                continue;
+            }
+            if c == q {
+                in_str = None;
+            }
+            i += 1;
+            continue;
+        }
+        match c {
+            b'"' | b'\'' | b'`' => {
+                if !dropping {
+                    out.push(c as char);
+                }
+                in_str = Some(c);
+                i += 1;
+            }
+            b'(' | b'{' | b'[' => {
+                if !dropping {
+                    out.push(c as char);
+                }
+                depth += 1;
+                i += 1;
+            }
+            b')' | b'}' | b']' => {
+                depth -= 1;
+                if depth < 0 {
+                    break;
+                }
+                if !dropping {
+                    out.push(c as char);
+                }
+                i += 1;
+            }
+            b':' if depth == 0 && !dropping => {
+                dropping = true;
+                i += 1;
+            }
+            b',' if depth == 0 => {
+                dropping = false;
+                out.push(',');
+                i += 1;
+            }
+            b'=' if depth == 0 && dropping => {
+                // Default-value separator — resume copying so `(a: T =
+                // expr)` keeps `= expr`.
+                dropping = false;
+                out.push('=');
+                i += 1;
+            }
+            _ => {
+                if !dropping {
+                    out.push(c as char);
+                }
+                i += 1;
+            }
+        }
+    }
+    out.push(')');
+    out
+}
+
 fn skip_balanced(bytes: &[u8], i: usize, end: usize) -> usize {
     if i >= end { return end; }
     let (open, close) = match bytes[i] {
@@ -539,6 +645,49 @@ mod tests {
         assert_eq!(
             rw("() => console.log(name)"),
             "() => console.log($scope.name)"
+        );
+    }
+
+    #[test]
+    fn ts_annotation_stripped_from_arrow_params() {
+        // Author-written handlers commonly carry param-type annotations:
+        // `on:click={(g: string, i: number) => …}`. The compiler emits
+        // handler sources verbatim into `.js`, so TS syntax must be
+        // stripped first — otherwise tsc fires TS8010 on the bundle.
+        // `g` / `i` are arrow-bound, so the body's references stay bare.
+        assert_eq!(
+            rw("(g: string, i: number) => g + i + count"),
+            "(g, i) => g + i + $scope.count"
+        );
+    }
+
+    #[test]
+    fn ts_annotation_strip_preserves_defaults() {
+        // Whitespace between the (now-removed) type and `=` collapses;
+        // syntactically still valid JS (`a= 5` and `a = 5` parse the
+        // same).
+        assert_eq!(
+            rw("(a: number = 5, b: string = 'x') => a + b"),
+            "(a= 5, b= 'x') => a + b"
+        );
+    }
+
+    #[test]
+    fn ts_annotation_strip_handles_nested_object_type() {
+        // The type expression `{ x: number }` opens with `:` at depth 0,
+        // so the whole annotation (including its inner braces) drops.
+        assert_eq!(
+            rw("(opts: { x: number }) => opts"),
+            "(opts) => opts"
+        );
+    }
+
+    #[test]
+    fn ts_annotation_strip_handles_array_filter_handler() {
+        // The exact shape that bit views/overview/page.sui.
+        assert_eq!(
+            rw("(_: string, i: number) => i !== idx"),
+            "(_, i) => i !== $scope.idx"
         );
     }
 }

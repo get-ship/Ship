@@ -500,3 +500,19 @@ apply in place.
 Run `just smoke-deploy` before opening a PR — it builds the full
 workspace, restarts the daemon, curls every baselined view, and runs
 Playwright. Quick proxy for what CI will see.
+
+## Controller scope is typed
+
+The compiler emits `Scope` in `<file>.sui.d.ts` covering BOTH template
+reactive identifiers AND the keys you add via `scope: () => ({...})`
+factory. `mount(state, host)` sees direct, typed members:
+
+```ts
+mount(state, host) {
+  state.caughtError.set(null)  // Signal<Error | null>
+  state.reset()                 // () => void
+}
+```
+
+No casts. No "scope signals missing" defensive throws. If a key is
+mistyped or missing, the TypeScript compiler catches it.

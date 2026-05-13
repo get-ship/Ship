@@ -176,3 +176,20 @@ Once a component is registered, `ship-ui-studio` is the fastest way to eyeball i
 |---|---|
 | Full component-authoring contract: scope resolution, slot patterns, `bind:this`, the distribution test | `references/component-contract.md` |
 | Component-pack manifests, distribution, on-demand loading | `references/packs.md` |
+
+## Controller scope is typed
+
+The compiler emits `Scope` in `<component>.sui.d.ts` covering BOTH
+template reactive identifiers AND the keys you add via
+`scope: () => ({...})` factory. `mount(state, host)` sees direct,
+typed members:
+
+```ts
+mount(state, host) {
+  state.caughtError.set(null)  // Signal<Error | null>
+  state.reset()                 // () => void
+}
+```
+
+No casts. No "scope signals missing" defensive throws. If a key is
+mistyped or missing, the TypeScript compiler catches it.
