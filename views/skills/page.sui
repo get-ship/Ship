@@ -24,8 +24,19 @@
 
       <div class="se-body" role="tree" aria-label="Skills tree">
         {#while-loading of rail}
-          <div class="se-empty">Loading&hellip;</div>
+          <div class="se-skel" aria-busy="true" aria-label="Loading skills">
+            {#for n of [0, 1, 2, 3, 4, 5] key={n}}
+              <div class="se-skel-row">
+                <sui-skeleton shape="line" size="md"></sui-skeleton>
+              </div>
+            {/for}
+          </div>
         {/while-loading}
+        {#while-error err of rail}
+          <sui-error-state variant="inline" size="sm" title="Couldn't load skills">
+            {err.message}
+          </sui-error-state>
+        {/while-error}
         {#if rail().kind === 'ok'}
           {#if rail().value.groups.length === 0}
             <div class="se-empty">

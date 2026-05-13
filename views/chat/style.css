@@ -91,6 +91,36 @@
   font-size: var(--text-xs);
   padding: var(--space-12) var(--space-4);
 }
+.chat-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+.chat-skel-row {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-end;
+  max-width: 100%;
+}
+.chat-skel-row[data-side="user"] {
+  flex-direction: row-reverse;
+  margin-left: auto;
+}
+.chat-skel-bubble {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 0 0 auto;
+  width: 60%;
+  max-width: 60%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklch, var(--muted) 40%, transparent);
+}
+.chat-skel-row[data-side="user"] .chat-skel-bubble {
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+}
 .chat-annotations {
   display: flex;
   flex-wrap: wrap;

@@ -8,11 +8,34 @@
 
 <div class="ship-view git-view">
   {#while-loading of overview}
-    <p class="git-loading" data-test="loading">Loading repo overview&hellip;</p>
+    <div class="git-skel" data-test="loading" aria-busy="true" aria-label="Loading repo overview">
+      <div class="git-skel-head">
+        <div class="git-skel-titles">
+          <sui-skeleton shape="line" size="lg" style="width:96px"></sui-skeleton>
+          <sui-skeleton shape="line" size="sm" style="width:180px"></sui-skeleton>
+        </div>
+        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
+      </div>
+      <div class="git-skel-tabs">
+        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
+        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
+        <sui-skeleton shape="line" size="md" style="width:80px"></sui-skeleton>
+      </div>
+      <div class="git-skel-card">
+        {#for n of [0, 1, 2] key={n}}
+          <div class="git-skel-row">
+            <sui-skeleton shape="circle" size="sm"></sui-skeleton>
+            <sui-skeleton shape="line" size="md"></sui-skeleton>
+          </div>
+        {/for}
+      </div>
+    </div>
   {/while-loading}
 
   {#while-error err of overview}
-    <p class="git-error" data-test="error">Failed to load: {err.message}</p>
+    <sui-error-state variant="default" size="md" title="Couldn't load repo" data-test="error">
+      {err.message}
+    </sui-error-state>
   {/while-error}
 
   {#if overview().kind === 'ok'}

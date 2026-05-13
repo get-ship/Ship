@@ -19,17 +19,30 @@
 
     <div class="chat-messages" id="chat-messages">
       {#while-loading of chatState}
-        <div class="chat-empty"><p>Loading&hellip;</p></div>
+        <div class="chat-skeleton" aria-busy="true" aria-label="Loading messages">
+          {#for n of [0, 1, 2] key={n}}
+            <div class="chat-skel-row" attr:data-side={n % 2 === 0 ? 'agent' : 'user'}>
+              <sui-skeleton shape="circle" size="sm"></sui-skeleton>
+              <div class="chat-skel-bubble">
+                <sui-skeleton shape="line" size="md"></sui-skeleton>
+                <sui-skeleton shape="line" size="sm"></sui-skeleton>
+              </div>
+            </div>
+          {/for}
+        </div>
       {/while-loading}
       {#while-error err of chatState}
-        <div class="chat-empty"><p style="color:var(--destructive)">{err.message}</p></div>
+        <sui-error-state variant="inline" size="sm" title="Couldn't load chat">
+          {err.message}
+        </sui-error-state>
       {/while-error}
       {#if chatState().kind === 'ok'}
         {#if chatState().value.messages.length === 0}
-          <div class="chat-empty">
-            <p>No messages yet</p>
-            <p style="font-size:10px;opacity:0.7">Send a message to the agent to get started.</p>
-          </div>
+          <sui-empty-state variant="placeholder" size="md" tone="muted">
+            <sui-icon slot="icon" name="message-circle"></sui-icon>
+            <span slot="title">No messages yet</span>
+            Send a message to the agent to get started.
+          </sui-empty-state>
         {:else}
           {#for m of chatState().value.messages key={m.id}}
             <div class="chat-row" attr:data-sender={m.sender}>
