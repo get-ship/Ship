@@ -174,6 +174,14 @@ export type { ShellContext } from './template-hooks/shell'
 // Register <sui-if>, <sui-for>, <sui-match> custom elements.
 import './boundary-elements'
 
+export {
+  attachBoundary,
+  detachBoundary,
+  findNearestBoundary,
+  runProtected,
+} from './error-boundary'
+export type { BoundaryHandle, BoundarySource } from './error-boundary'
+
 export { suiTonesSheet, suiBaseSheet, adoptSuiSheets } from './styles/index'
 
 // F1 mount unification — hosts call mount(target, payload, opts) to put

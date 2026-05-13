@@ -10,6 +10,8 @@
 // stop firing it. Mirrors `crates/sui-signals` to keep server-side
 // and browser-side reactivity in lockstep.
 
+import { findNearestBoundary } from './error-boundary'
+
 type Subscriber = () => void
 type UntrackThunk = () => void
 
@@ -19,6 +21,28 @@ let CURRENT_OBSERVER: Subscriber | null = null
 let CURRENT_UNTRACKS: UntrackThunk[] | null = null
 let BATCH_DEPTH = 0
 const PENDING: Set<Subscriber> = new Set()
+
+// Host stack — pushed/popped by the component factory wrapper so any
+// effect created during a component's setup captures `this` as its
+// host for error-boundary routing. Outside any setup the stack is
+// empty and effects fall through to console.error on throw.
+const HOST_STACK: Node[] = []
+
+/** Push a host on the stack while `fn` runs. Used by the component
+ *  factory wrapper so effects/deriveds created during setup capture
+ *  it. */
+export function withHost<T>(host: Node, fn: () => T): T {
+  HOST_STACK.push(host)
+  try {
+    return fn()
+  } finally {
+    HOST_STACK.pop()
+  }
+}
+
+function currentHost(): Node | null {
+  return HOST_STACK.length > 0 ? HOST_STACK[HOST_STACK.length - 1]! : null
+}
 
 /**
  * A reactive signal — a callable getter paired with a setter and a
@@ -229,6 +253,10 @@ export function effect(fn: () => void | (() => void)): () => void {
   let cleanup: (() => void) | void = undefined
   let active = true
   let untracks: UntrackThunk[] = []
+  // Capture host at creation so subsequent re-runs (which happen
+  // outside any `withHost` scope) still know which boundary subtree
+  // they belong to.
+  const host = currentHost()
 
   const run: Subscriber = () => {
     if (!active) return
@@ -252,7 +280,12 @@ export function effect(fn: () => void | (() => void)): () => void {
     try {
       cleanup = fn()
     } catch (e) {
-      console.error('[sui] effect threw:', e)
+      const boundary = host ? findNearestBoundary(host) : null
+      if (boundary) {
+        boundary.catch(e, 'effect')
+      } else {
+        console.error('[sui] effect threw:', e)
+      }
     } finally {
       CURRENT_OBSERVER = prevObs
       CURRENT_UNTRACKS = prevUnt

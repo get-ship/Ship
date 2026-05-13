@@ -9,6 +9,7 @@
 
 import { effect, type Signal } from './signal'
 import type { Disposer } from './bind'
+import { runProtected } from './error-boundary'
 
 /**
  * Inputs to `bindFor` — what to iterate, how to identify items, and
@@ -172,10 +173,16 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
       let record: ItemRecord<T>
       if (existing) {
         existing.item = item
-        existing.update?.(item, i)
+        runProtected(anchor, 'render', () => existing.update?.(item, i))
         record = existing
       } else {
-        const r = render(item, i)
+        const r = runProtected(anchor, 'render', () => render(item, i))
+        if (!r) {
+          // Render threw and was caught by a boundary (or logged when
+          // no boundary is in scope). Skip this item: the boundary
+          // will unmount the subtree shortly.
+          continue
+        }
         record = {
           key: k,
           item,
