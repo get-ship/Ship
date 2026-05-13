@@ -18,7 +18,7 @@
     "./themes.css": "./src/themes.css"
   },
   "scripts": {
-    "build": "sui-build",
+    "build": "node node_modules/@ship/sui-build/bin/sui-build.mjs",
     "icons": "node scripts/generate-lucide-registry.mjs",
     "manifest": "custom-elements-manifest analyze --config custom-elements-manifest.config.mjs",
     "catalog": "node scripts/generate-catalog.mjs",
