@@ -93,7 +93,7 @@ fn do_compile(
         source_path: Some(sui_path.clone()),
         styles: None,
         component_meta,
-        emit_dts: false,
+        emit_dts: true,
         emit_ssr: true,
     };
 
@@ -129,6 +129,18 @@ fn do_compile(
         let p = out_dir_path.join(format!("{stem}.ssr.html"));
         fs::write(&p, ssr_html).map_err(|e| e.to_string())?;
         outputs.push(p.to_string_lossy().into_owned());
+    }
+    // The `.sui.d.ts` lands next to the source — not in out_dir — so
+    // `import type { Scope } from './view.sui'` resolves via TS's
+    // module resolution regardless of emit layout. Mirrors the CLI
+    // write path in `bin/sui-compiler.rs::compile_one`.
+    if let Some(dts) = output.dts
+        && let Some(src_dir) = sui_path.parent()
+    {
+        let dts_path = src_dir.join(format!("{file_name}.d.ts"));
+        fs::write(&dts_path, dts)
+            .map_err(|e| format!("write {}: {e}", dts_path.display()))?;
+        outputs.push(dts_path.to_string_lossy().into_owned());
     }
 
     Ok(serde_json::json!({"ok": true, "outputs": outputs}).to_string())

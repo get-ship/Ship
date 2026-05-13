@@ -158,6 +158,19 @@ describe.skipIf(!isBun || !hasCdylib)('runner FFI path', () => {
     expect(content).toContain('sui-runtime')
   })
 
+  it('FFI spawn emits a .sui.d.ts next to the source', async () => {
+    const spawn = await makeFfiSpawn(cdylibPath)
+    expect(spawn).not.toBeNull()
+    const suiPath = join(ffiTmpDir, 'src', 'hello.sui')
+    await spawn!(suiPath, 'hello')
+    const dtsPath = join(ffiTmpDir, 'src', 'hello.sui.d.ts')
+    expect(existsSync(dtsPath)).toBe(true)
+    const dts = await readFile(dtsPath, 'utf8')
+    // The emitter walks <prop> declarations into the Scope interface.
+    expect(dts).toContain('Scope')
+    expect(dts).toContain('label')
+  })
+
   it('FFI and spawn paths produce equivalent JS output', async () => {
     const suiPath = join(ffiTmpDir, 'src', 'hello.sui')
 

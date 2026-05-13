@@ -2,14 +2,12 @@ import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   scope: ({ ship }) => {
     const q = signal('')
     const eventType = signal('')
     const actor = signal('')
     const entity = signal('')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const eventsData = live(() => (ship as any).events.list({
+    const eventsData = live(() => ship.events.list({
       q: q(),
       event_type: eventType(),
       actor: actor(),

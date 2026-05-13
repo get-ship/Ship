@@ -4,8 +4,7 @@ import type { Scope } from './page.sui'
 export default controller<Scope>({
   scope: ({ route, ship }) => {
     const agentId = derived(() => route().params.id)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const wireCtx = live(() => (ship as any).agents.wire({ id: agentId() }))
+    const wireCtx = live(() => ship.agents.wire({ id: agentId() }))
     const wireData = derived(() => unwrap(wireCtx as any) ?? null)
     const selectedKind = signal('agent')
     const selectedId = signal('')

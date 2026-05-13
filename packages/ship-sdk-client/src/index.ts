@@ -20,6 +20,7 @@ import {
   type GitOverview,
   type LiveSignal,
   type LiveSource,
+  type ShipSDK,
 } from '@ship/sui-runtime'
 // R3: applyPatch + Patch live at the /patch subpath now (the runtime
 // barrel no longer re-exports them). sdk-client uses them to mutate
@@ -38,30 +39,13 @@ export type {
   StatusFile as GitFileEntry,
 } from '@ship/sui-runtime'
 
-/** Public Ship SDK surface as exposed to view setups. */
-export interface ShipSDK {
-  agents: {
-    /**
-     * Stream of agent summaries — list-view payload. Subscribers receive
-     * the full list as the first patch and per-change patches afterward.
-     */
-    summaries(): LiveSource<AgentsSummariesResponse>
-  }
-  git: {
-    /**
-     * Repo overview — branch + head + clean/staged/modified/untracked
-     * file lists + recent commits + branches + ahead/behind. Fetched
-     * once on subscribe and re-fetched whenever the daemon emits a
-     * relevant change event.
-     */
-    overview(): LiveSource<GitOverview>
-    /**
-     * Unified diff for a specific commit (or the special `'WORKING'`
-     * value for the working-tree diff). Args are required.
-     */
-    diff(args: GitDiffArgs): LiveSource<GitDiff>
-  }
-}
+/**
+ * Public Ship SDK surface as exposed to view setups. Owned by
+ * `@ship/sui-runtime` (so controllers see the full shape without an
+ * extra import) and re-exported here for callers that prefer the
+ * sdk-client entrypoint.
+ */
+export type { ShipSDK } from '@ship/sui-runtime'
 
 /** Options accepted by `createClient`. */
 export interface CreateClientOpts {
@@ -92,22 +76,59 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
   const baseUrl = (opts?.baseUrl ?? '').replace(/\/$/, '')
   const ESCtor = opts?.EventSource ?? globalThis.EventSource
 
+  // Build the `/_sui/data?expr=...` SSE URL for a single op call. The
+  // daemon parses the expr as `ship.<domain>.<op>(<json>?)`. Args are
+  // emitted as a JSON object literal when present (same wire format
+  // git.diff has used since the SDK landed).
+  const sse = <T>(domain: string, op: string, args?: unknown): LiveSource<T> => {
+    const argsLit = args === undefined ? '' : JSON.stringify(args)
+    const expr = `ship.${domain}.${op}(${argsLit})`
+    return makeSseSource<T>(
+      `${baseUrl}/_sui/data?expr=${encodeURIComponent(expr)}`,
+      ESCtor,
+    )
+  }
+
   return {
     agents: {
-      summaries: () => makeSseSource<AgentsSummariesResponse>(
-        `${baseUrl}/_sui/data?expr=${encodeURIComponent('ship.agents.summaries()')}`,
-        ESCtor,
-      ),
+      summaries:   () => sse<AgentsSummariesResponse>('agents', 'summaries'),
+      create_ctx:  () => sse('agents', 'create_ctx'),
+      wire:      (args) => sse('agents', 'wire', args),
+      detail:    (args) => sse('agents', 'detail', args),
+      settings:  (args) => sse('agents', 'settings', args),
+      catalogs:    () => sse('agents', 'catalogs'),
+    },
+    canvas: {
+      doc:  (args) => sse('canvas', 'doc', args),
+      list:    () => sse('canvas', 'list'),
+    },
+    chat: {
+      state: (args) => sse('chat', 'state', args),
+    },
+    collections: {
+      state:  (args) => sse('collections', 'state', args),
+      detail: (args) => sse('collections', 'detail', args),
+      items:  (args) => sse('collections', 'items', args),
+      list:      () => sse('collections', 'list'),
+    },
+    dashboard: {
+      state: () => sse('dashboard', 'state'),
+    },
+    events: {
+      list: (args) => sse('events', 'list', args),
     },
     git: {
-      overview: () => makeSseSource<GitOverview>(
-        `${baseUrl}/_sui/data?expr=${encodeURIComponent('ship.git.overview()')}`,
-        ESCtor,
-      ),
-      diff: (args) => makeSseSource<GitDiff>(
-        `${baseUrl}/_sui/data?expr=${encodeURIComponent(`ship.git.diff(${JSON.stringify(args)})`)}`,
-        ESCtor,
-      ),
+      overview:    (args?: { workspace_id?: string; limit?: number }) =>
+        sse<GitOverview>('git', 'overview', args),
+      diff:        (args: GitDiffArgs) => sse<GitDiff>('git', 'diff', args),
+      annotations: (args: { file: string; workspace_id?: string }) =>
+        sse('git', 'annotations', args),
+    },
+    mesh: {
+      snapshot: () => sse('mesh', 'snapshot'),
+    },
+    settings: {
+      state: () => sse('settings', 'state'),
     },
   }
 }

@@ -10,8 +10,7 @@ export default controller<Scope>({
     })
     const activeSlug = signal((route as any)().query?.doc || '')
     const docEl = ref<HTMLElement>(null)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const canvasDoc = live(() => (ship as any).canvas.doc({ slug: activeSlug() }))
+    const canvasDoc = live(() => ship.canvas.doc({ slug: activeSlug() }))
     return { activeSlug, docEl, firstSlug, canvasDoc }
   },
   on: {
