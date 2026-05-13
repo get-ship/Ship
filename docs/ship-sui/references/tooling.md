@@ -192,3 +192,29 @@ For a clean dev restart use `just dev-restart`. Visual regressions: `just visual
 ## Fresh-clone bootstrap
 
 `just bootstrap` runs the full first-time-setup sequence (verifies bun + pnpm on PATH, then `cargo xtask gen-types` → `cargo build -p ship-cli` → `pnpm install` → `pnpm -F @ship/set icons` → `pnpm -F @ship/set build` → `pnpm -F @ship/ui-components build` → `just dev-runtime-install`). After it completes, `just dev` brings up the daemon.
+
+## Development vs production modes
+
+Shipd has two operating modes, selected via `--mode <development|production>` (or `SHIP_DAEMON_MODE`). The same binary, the same routes — different headers, different bundlers, different feedback loops.
+
+| Aspect | Development (default) | Production |
+|---|---|---|
+| Frontend serving | Vite dev server (`just shell2-dev`) at 3200 +offset, proxying `/api`, `/_sui`, `/view-host` to the daemon | Daemon serves prebuilt shell HTML directly; no Vite, no proxy, no second port |
+| Bundler | Bun worker spawned by shipd watches sources and rewrites the asset trees on edit | Pre-bundled by `just build`; daemon `include_str!`s the static output |
+| HMR | `/_sui/dev/hmr` SSE channel; `apps/shell2/src/hmr.ts` cache-busts view modules and re-runs `mount()` in place | Disabled — HMR routes are not registered in production |
+| Cache headers | `Cache-Control: no-cache` on every asset and view artifact; no ETag | `Cache-Control: public, immutable, max-age=31536000` on framework bundles, `must-revalidate` on view artifacts; ETag on every response |
+| SSR cache | Bypassed every request (sources may have changed under us) | Memoized on first hit and reused until the daemon restarts |
+| Error detail | Full error bodies | Redacted; only the kind of failure leaks to the client |
+| Status bar | `<sui-status-bar mode="development">` shows a hairline `DEV` badge between the connection dot and the branch | Badge hidden; same component, no chrome |
+
+The mode is exposed to the browser via `<meta name="ship-mode">` in the shell HTML. shell2's `main.ts` reads it into `window.__shipMode` (`'Production'` | `'Development'`) at boot and reflects it onto the status bar's `mode` attribute. When shipd serves the prebuilt shell itself, `ship_sui::inject_mode_meta` rewrites the meta to match the daemon's actual mode; the static default in `apps/shell2/index.html` is `development` so the Vite dev server doesn't need any special handling.
+
+Producing a deployable artifact set:
+
+```sh
+just build       # one-shot: gen-types → ship-set icons → ship-set build →
+                 # ui-components build → cargo build --release → verify outputs
+ship build       # equivalent CLI wrapper for users without `just` installed
+```
+
+Both write release binaries to `target/release/{ship,shipd,mcp}` and rebuild the front-end asset trees that shipd's `include_str!` directives consume (`crates/ship-sui-server/assets/`, `apps/shipd/assets/`). After `just build`, run `shipd --mode production` to serve them.

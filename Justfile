@@ -251,19 +251,59 @@ docs-check-drift:
 shell-dev:
     pnpm --filter shell dev
 
+# One-shot production build: gen-types, ship-set + ui-components rebuilds,
+# cargo --release, then verify outputs. Equivalent to `ship build`.
+[group('daily')]
+build:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v pnpm >/dev/null || { echo "build: pnpm not on PATH" >&2; exit 1; }
+    echo "[1/6] gen-types"
+    cargo run -p xtask --quiet -- gen-types
+    echo "[2/6] ship-set icons"
+    pnpm -F @ship/set icons
+    echo "[3/6] ship-set build (sui-build → apps/shipd/assets/)"
+    pnpm -F @ship/set build
+    echo "[4/6] ui-components build (sui-build → crates/ship-sui-server/assets/)"
+    pnpm -F @ship/ui-components build
+    echo "[5/6] cargo build --release (ship-cli + shipd + mcp)"
+    cargo build --release -p ship-cli -p shipd -p mcp
+    echo "[6/6] verify outputs"
+    target_dir=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
+    missing=0
+    for bin in ship shipd mcp; do
+        if [ ! -x "$target_dir/release/$bin" ]; then
+            echo "  ✗ $target_dir/release/$bin missing" >&2
+            missing=1
+        else
+            echo "  ✓ $target_dir/release/$bin"
+        fi
+    done
+    for asset in crates/ship-sui-server/assets/sui-runtime.js crates/ship-sui-server/assets/sui-components.js apps/shipd/assets/ship-elements.js; do
+        if [ ! -s "$asset" ]; then
+            echo "  ✗ $asset missing or empty" >&2
+            missing=1
+        else
+            echo "  ✓ $asset"
+        fi
+    done
+    [ "$missing" = "0" ] || { echo "build: outputs incomplete" >&2; exit 1; }
+    echo "build complete — release binaries at $target_dir/release/"
+
 # Build CLI + MCP + shipd (unstable dev build).
 [group('occasional')]
-build:
+build-dev:
     cargo build --features unstable -p ship-cli -p mcp -p shipd
 
-# Build release binary (stable, no unstable features — what users get).
+# Cargo-only release build (no front-end). Use `just build` for the full
+# production artifact set; this recipe is the cargo subset.
 [group('occasional')]
 build-release:
     cargo build --release -p ship-cli -p mcp -p shipd
 
 # Install dev binaries to ~/.local/bin (ship + shipd).
 [group('occasional')]
-install-dev: build
+install-dev: build-dev
     #!/usr/bin/env bash
     set -euo pipefail
     target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
