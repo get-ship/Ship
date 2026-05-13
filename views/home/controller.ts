@@ -1,10 +1,11 @@
 // Home view — proof of the new directory convention plus the
-// end-to-end `<data live>` SSE loop. Loading the controller
-// side-effect-imports _components/home-hero/, which runs its
-// `customElements.define()` registration. The visit counter signal
-// lives in the controller scope (the legacy in-template `<state>`
-// form was removed when authoring discipline moved every reactive
-// declaration into the controller).
+// end-to-end `<data live>` SSE loop. The `home-hero` private widget
+// under `_components/` is pure presentation and has no paired
+// controller; the router's registry picks it up from `<tag>.sui` and
+// the compiler emits its `customElements.define()`. The visit counter
+// signal lives in the controller scope (the legacy in-template
+// `<state>` form was removed when authoring discipline moved every
+// reactive declaration into the controller).
 //
 // The `git` signal arrives from the template's
 // `<data live source="ship.git.overview()" live />` block. The
@@ -16,7 +17,6 @@
 import { controller, signal, unwrapOr } from '@ship/sui-runtime'
 import type { GitOverview } from '@ship/sdk-client'
 import type { Scope } from './page.sui'
-import './_components/home-hero/home-hero.controller'
 
 const EMPTY_OVERVIEW: GitOverview = {
   workspace_id: null,
