@@ -1,5 +1,4 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-step-segments.sui'
 
 const KNOWN = new Set(['done', 'failed', 'pending', 'running'])
@@ -24,14 +23,10 @@ export default controller<Scope>({
   }),
 
   mount(state, _host) {
-    const scope = state as unknown as Scope
-    const segments = scope.segments as unknown as Signal<Segment[]>
-    const ariaLabel = scope.ariaLabel as unknown as Signal<string | null>
-
     const stop = effect(() => {
-      const states = parseValues(scope.values() || '')
-      segments.set(states.map((s, i) => ({ id: `s${i}`, state: s })))
-      ariaLabel.set(
+      const states = parseValues(state.values() || '')
+      state.segments.set(states.map((s, i) => ({ id: `s${i}`, state: s })))
+      state.ariaLabel.set(
         states.length === 0
           ? null
           : `${states.length} step outcome${states.length === 1 ? '' : 's'}`,
