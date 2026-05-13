@@ -1,5 +1,3 @@
-<data name="ctx" source="ship.pipelines.history({q: $scope.q(), pipeline: $scope.pipelineFilter(), offset: $scope.offset(), limit: $scope.limit()})" />
-
 <style>
 .ship-view-pipelines-history { color: var(--foreground); background: var(--background); }
 .ship-hist-wrap {

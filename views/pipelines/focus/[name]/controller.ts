@@ -1,4 +1,4 @@
-import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type StepDef = {
@@ -20,18 +20,47 @@ const read = (ctx: unknown): FocusCtx => (unwrap(ctx as any) as FocusCtx | undef
 
 type Ed = HTMLElement & { value: string; getAttribute(n: string): string | null; setDiagnostics?(d: unknown[]): void }
 
+const decorateRun = (r: RunView) => ({
+  ...r,
+  state_attr: r.state.replace('-', ''),
+  steps: r.steps?.map((step, i, arr) => ({ ...step, isLast: i === arr.length - 1 })),
+})
+
+const decorateDef = (d: PipelineDef) => ({
+  ...d,
+  success_pct: Math.floor((d.success_rate ?? 0) * 100),
+  success_accent: d.total_runs > 0
+    ? (d.success_rate >= 0.8 ? 'success' : d.success_rate >= 0.5 ? 'warning' : 'destructive')
+    : 'default',
+  active_accent: d.active_runs > 0 ? 'info' : 'default',
+  last_run_tone_safe: d.last_run_tone ?? 'muted',
+})
+
+const decorateStep = (step: StepDef, i: number) => ({
+  ...step,
+  index: i + 1,
+  step_type: step.run ? 'run' : step.gate ? 'gate' : 'agent',
+  after_joined: step.after ? step.after.join(',') : undefined,
+})
+
 export default controller<Scope>({
-  scope: ({ ctx, route }) => {
+  scope: ({ ship, route }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = ship as any
     const name = derived(() => String(route().params.name ?? ''))
-    const def = derived((s) => read(s.ctx).def)
-    const doc = derived((s) => read(s.ctx).doc)
-    const raw = derived((s) => read(s.ctx).raw)
-    const format = derived((s) => read(s.ctx).format)
-    const workspaceId = derived((s) => read(s.ctx).workspace_id ?? null)
-    const runs = derived((s) => read(s.ctx).runs)
-    const activeForPipeline = derived((s) => read(s.ctx).active_for_pipeline)
-    const opsMode = derived((s) => read(s.ctx).ops_mode)
-    const providers = derived((s) => read(s.ctx).providers)
+    const ctx = live(() => s.pipelines.focus({ name: name() }))
+    const def = derived(() => decorateDef(read(ctx()).def))
+    const doc = derived(() => {
+      const d = read(ctx()).doc
+      return { ...d, steps: d.steps.map(decorateStep) }
+    })
+    const raw = derived(() => read(ctx()).raw)
+    const format = derived(() => read(ctx()).format)
+    const workspaceId = derived(() => read(ctx()).workspace_id ?? null)
+    const runs = derived(() => read(ctx()).runs.map(decorateRun))
+    const activeForPipeline = derived(() => read(ctx()).active_for_pipeline.map(decorateRun))
+    const opsMode = derived(() => read(ctx()).ops_mode)
+    const providers = derived(() => read(ctx()).providers)
     const editMode = signal(false)
     const editSaving = signal(false)
     const editError = signal('')
@@ -43,9 +72,9 @@ export default controller<Scope>({
     const dispatchProvider = signal('')
     const dispatchHeadless = signal(true)
     const deleteOpen = signal(false)
-    const editorRef = signal<Ed | null>(null)
+    const editorRef = ref<Ed>(null)
     return {
-      name, def, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
+      ctx, name, def, doc, raw, format, workspaceId, runs, activeForPipeline, opsMode, providers,
       editMode, editSaving, editError, editErrorLine, editErrorCol, editIssueCount,
       dispatchOpen, dispatchSpec, dispatchProvider, dispatchHeadless, deleteOpen, editorRef,
     }

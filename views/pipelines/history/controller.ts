@@ -1,4 +1,4 @@
-import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type HistoryRow = {
@@ -18,19 +18,24 @@ const EMPTY: HistoryCtx = {
 const read = (ctx: unknown): HistoryCtx => (unwrap(ctx as any) as HistoryCtx | undefined) ?? EMPTY
 
 export default controller<Scope>({
-  scope: ({ ctx, route }) => {
+  scope: ({ ship, route }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = ship as any
     const q = derived(() => String((route().query as any)?.q ?? ''))
     const pipelineFilter = derived(() => String((route().query as any)?.pipeline ?? ''))
     const offset = derived(() => parseInt(String((route().query as any)?.offset ?? '0'), 10))
     const limit = derived(() => parseInt(String((route().query as any)?.limit ?? '50'), 10))
-    const rows = derived((s) => read(s.ctx).rows)
-    const total = derived((s) => read(s.ctx).total)
-    const hasPrev = derived((s) => read(s.ctx).has_prev)
-    const hasNext = derived((s) => read(s.ctx).has_next)
-    const pipelines = derived((s) => read(s.ctx).pipelines)
+    const ctx = live(() => s.pipelines.history({
+      q: q(), pipeline: pipelineFilter(), offset: offset(), limit: limit(),
+    }))
+    const rows = derived(() => read(ctx()).rows)
+    const total = derived(() => read(ctx()).total)
+    const hasPrev = derived(() => read(ctx()).has_prev)
+    const hasNext = derived(() => read(ctx()).has_next)
+    const pipelines = derived(() => read(ctx()).pipelines)
     const qInput = signal(String((route().query as any)?.q ?? ''))
     const pipelineInput = signal(String((route().query as any)?.pipeline ?? ''))
-    return { q, pipelineFilter, offset, limit, rows, total, hasPrev, hasNext, pipelines, qInput, pipelineInput }
+    return { ctx, q, pipelineFilter, offset, limit, rows, total, hasPrev, hasNext, pipelines, qInput, pipelineInput }
   },
   on: {
     applyFilter: ({ navigate, qInput, pipelineInput }: any) => {
