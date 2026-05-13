@@ -21,7 +21,7 @@ Forbidden in `*.controller.ts`:
 - Re-querying the shadow DOM after `mount` (use `bind:this` for refs)
 - A `.sui` body that is just `<div bind:this={ref}></div>` — the template is the renderer
 
-For HTML-blob cases (markdown rendering, third-party SVG generators, icon-pack swaps), use `bindHtml(el, () => string)` from `@ship/ui-runtime`.
+For HTML-blob cases (markdown rendering, third-party SVG generators, icon-pack swaps), use `bindHtml(el, () => string)` from `@ship/sui-runtime`.
 
 ## File layout
 
@@ -57,7 +57,7 @@ Five rules:
 
 Plain `.ts` files (not `controller.ts`, not under `_components/`) are helpers, types, or tests.
 
-Migration note: existing `views/agents/`, `views/counter/`, `views/git/` still use the legacy `view.sui` / `view.controller.ts` / `view.css` shape. They migrate in a separate job once the daemon resolver picks up the new convention. The router (`packages/ship-set/src/router/`) ignores legacy directories — it only walks views that ship a `manifest.jsonc`.
+Every first-party view in `views/` now uses the `page.sui` + `controller.ts` + `manifest.jsonc` shape — `views/home/`, `views/agents/`, `views/sessions/`, `views/workspaces/`, `views/git/`, `views/skills/`, `views/chat/`, `views/events/`, `views/dashboard/`, `views/settings/`, `views/canvas/`, `views/mesh/`, `views/pipelines/`, `views/overview/`. The router (`packages/ship-set/src/router/`) walks only manifest-bearing directories — a missing `manifest.jsonc` means the view is invisible to the rail, regardless of which template form it ships.
 
 ### Worked example: `views/home/`
 
@@ -100,7 +100,7 @@ Page composes the view-private widget. Reactive state lives in
 
 ```ts
 // views/home/controller.ts
-import { controller, signal } from '@ship/ui-runtime'
+import { controller, signal } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
@@ -128,16 +128,16 @@ node scripts/scaffold-view.mjs settings --component settings-toolbar
 <!-- reactive args — re-subscribes when selectedId changes.
      `selectedId` is a signal declared in the controller's `scope:`
      factory (see Controller contract below). -->
-<data name="agent" source="ship.agents.get({id: $scope.selectedId()})" live />
+<data name="agent" source="ship.agents.detail({id: $scope.selectedId()})" live />
 
 <!-- props (component .sui files only) -->
 <prop name="tone" values="default|primary" default="default" reflect />
 <prop name="disabled" type="bool" default="false" reflect />
 
 <!-- mutations (write-side complement to <data>) -->
-<form mutation="ship.agents.create">
-  <input name="name" />
-  <button type="submit" disabled={$mutation().kind === 'loading'}>Create</button>
+<form mutation="ship.workspaces.activate">
+  <input name="id" />
+  <button type="submit" disabled={$mutation().kind === 'loading'}>Switch</button>
 </form>
 
 <!-- control flow — block syntax -->
@@ -181,7 +181,7 @@ For full examples see `references/template-surface.md`.
 
 ```ts
 // view.controller.ts
-import { controller, signal, derived, shared, useShared, useFilteredList, unwrap } from '@ship/ui-runtime'
+import { controller, signal, derived, shared, useShared, useFilteredList, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './view.sui'   // compiler-emitted .d.ts
 
 export default controller<Scope>({
