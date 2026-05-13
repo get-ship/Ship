@@ -1,0 +1,59 @@
+<div class="ship-view ship-view-workspaces">
+  <div class="ws-wrap">
+
+    <header class="ws-head">
+      <div>
+        <h1 class="ws-title">Workspaces</h1>
+        <p class="ws-sub">{items().length} known project{items().length === 1 ? '' : 's'}</p>
+      </div>
+    </header>
+
+    {#if activationError()}
+      <sui-alert tone="destructive" class="ws-alert">{activationError()}</sui-alert>
+    {/if}
+
+    {#while-loading of projects}
+      <p class="ws-loading">Loading workspaces&hellip;</p>
+    {/while-loading}
+
+    {#while-error err of projects}
+      <sui-error-state variant="inline" size="sm" title="Couldn't load workspaces">
+        {err.message}
+      </sui-error-state>
+    {/while-error}
+
+    {#if projects().kind === 'ok'}
+      {#if items().length === 0}
+        <sui-empty-state icon="folder-tree" variant="default" size="lg">
+          <span slot="title">No workspaces registered</span>
+          Run <code>ship init</code> in a project folder to register it.
+        </sui-empty-state>
+      {:else}
+        <ul class="ws-list" data-test="list">
+          {#for p of items() key={p.id}}
+            <li class="ws-row" data-test="row" data-active={activeId() === p.id ? '1' : '0'}>
+              <div class="ws-row-main">
+                <sui-icon name="folder" size="sm" tone="muted"></sui-icon>
+                <div class="ws-row-text">
+                  <div class="ws-row-name">
+                    {p.label || p.name}
+                    {#if activeId() === p.id}
+                      <sui-chip tone="primary" variant="soft" size="sm">active</sui-chip>
+                    {/if}
+                  </div>
+                  <div class="ws-row-path">{p.path}</div>
+                </div>
+              </div>
+              <button class="ws-activate"
+                aria-label={'Activate ' + (p.label || p.name)}
+                prop:disabled={activatingId() === p.id || activeId() === p.id}
+                on:click={() => activate(p.id)}>
+                {activatingId() === p.id ? 'Activating…' : activeId() === p.id ? 'Active' : 'Activate'}
+              </button>
+            </li>
+          {/for}
+        </ul>
+      {/if}
+    {/if}
+  </div>
+</div>

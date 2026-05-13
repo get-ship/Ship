@@ -134,6 +134,35 @@
   transition: color 0.15s ease;
 }
 .se-skill:hover { color: var(--foreground); }
+.se-skill-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.se-skill-row .se-skill { flex: 1; min-width: 0; }
+.se-invoke {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+  color: var(--primary);
+  border: 1px solid color-mix(in oklch, var(--primary) 30%, transparent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: inherit;
+  visibility: hidden;
+}
+.se-skill-row:hover .se-invoke,
+.se-invoke:focus-visible { visibility: visible; }
+.se-invoke[disabled] { opacity: 0.6; cursor: progress; visibility: visible; }
+.se-invoke:hover:not([disabled]) {
+  background: color-mix(in oklch, var(--primary) 18%, transparent);
+}
+.se-invoke-alert {
+  margin: var(--space-2) var(--space-3);
+}
 .se-chevron {
   width: var(--space-3);
   height: var(--space-3);

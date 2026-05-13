@@ -22,6 +22,10 @@
         {/if}
       </div>
 
+      {#if invokeError()}
+        <sui-alert tone="warning" class="se-invoke-alert">{invokeError()}</sui-alert>
+      {/if}
+
       <div class="se-body" role="tree" aria-label="Skills tree">
         {#while-loading of rail}
           <div class="se-skel" aria-busy="true" aria-label="Loading skills">
@@ -56,7 +60,7 @@
                   <div class="se-empty">{q() ? 'No matches.' : 'No skills yet.'}</div>
                 {:else}
                   {#for s of g.skills key={s.id}}
-                    <div role="treeitem">
+                    <div role="treeitem" class="se-skill-row">
                       <button class="se-skill"
                         on:click={() => navigate('/skills/' + s.id)}
                         attr:title={s.description}>
@@ -70,6 +74,13 @@
                           {#if s.has_refs}<span class="se-dot refs" title="Reference docs"></span>{/if}
                           {#if s.has_evals}<span class="se-dot evals" title="Evals"></span>{/if}
                         </span>
+                      </button>
+                      <button class="se-invoke"
+                        aria-label={'Invoke ' + s.name}
+                        prop:disabled={invokeBusy() === s.id}
+                        on:click={() => invoke(s.id)}>
+                        <sui-icon name="play" size="xs"></sui-icon>
+                        <span>{invokeBusy() === s.id ? 'Invoking…' : 'Invoke'}</span>
                       </button>
                     </div>
                   {/for}

@@ -37,6 +37,7 @@ export type {
   GitDiffArgs,
   GitOverview,
   StatusFile as GitFileEntry,
+  WorkspaceSummary,
 } from '@ship/sui-runtime'
 
 /**
@@ -89,6 +90,49 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     )
   }
 
+  // Mutation helper — POST/DELETE against the daemon's REST surface.
+  // Cookie-bound so the auth middleware sees the session. JSON body
+  // when provided, no body for DELETE.
+  const mutate = async <T>(
+    method: 'POST' | 'DELETE',
+    path: string,
+    body?: unknown,
+  ): Promise<T> => {
+    const init: RequestInit = { method, credentials: 'same-origin' }
+    if (body !== undefined) {
+      init.headers = { 'content-type': 'application/json' }
+      init.body = JSON.stringify(body)
+    }
+    const resp = await fetch(`${baseUrl}${path}`, init)
+    if (!resp.ok) {
+      // Pull the daemon's JSON error envelope when we can; fall back
+      // to status text otherwise so the caller always sees a useful msg.
+      let detail = `${resp.status} ${resp.statusText}`
+      try {
+        const text = await resp.text()
+        if (text) detail = text
+      } catch { /* keep status-line fallback */ }
+      throw new Error(`[ship-sdk-client] ${method} ${path} failed: ${detail}`)
+    }
+    if (resp.status === 204) return undefined as unknown as T
+    const ct = resp.headers.get('content-type') ?? ''
+    if (ct.includes('application/json')) return (await resp.json()) as T
+    return undefined as unknown as T
+  }
+
+  // Structured rejection for documented server-side gaps. Lets views
+  // treat "no route yet" as a first-class state without parsing
+  // `Error.message`.
+  const notImplemented = (op: string): Promise<never> => {
+    const err = new Error(`[ship-sdk-client] ${op}: not wired (server route missing)`) as Error & {
+      code?: string
+      op?: string
+    }
+    err.code = 'not_implemented'
+    err.op = op
+    return Promise.reject(err)
+  }
+
   return {
     agents: {
       summaries:   () => sse<AgentsSummariesResponse>('agents', 'summaries'),
@@ -129,6 +173,47 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
     },
     settings: {
       state: () => sse('settings', 'state'),
+    },
+    sessions: {
+      list: () => sse('sessions', 'list'),
+      start: (args) =>
+        mutate<{ session_id: string; attached: boolean }>(
+          'POST',
+          '/api/v1/sessions/spawn',
+          args,
+        ),
+      end: (args) => mutate<void>('DELETE', `/api/v1/sessions/${encodeURIComponent(args.id)}`),
+    },
+    workspaces: {
+      // GET `/api/v1/projects` — daemon has no SSE op yet, so this is
+      // a one-shot fetch. `live(() => …)` consumes the promise.
+      list: async () => {
+        const resp = await fetch(`${baseUrl}/api/v1/projects`, {
+          credentials: 'same-origin',
+        })
+        if (!resp.ok) {
+          throw new Error(
+            `[ship-sdk-client] workspaces.list failed: ${resp.status} ${resp.statusText}`,
+          )
+        }
+        return (await resp.json()) as {
+          projects: import('@ship/sui-runtime').WorkspaceSummary[]
+          active?: string | null
+        }
+      },
+      activate: (args) =>
+        mutate<{ ok: true; active: string }>(
+          'POST',
+          '/api/v1/projects/switch',
+          { id: args.id },
+        ),
+    },
+    skills: {
+      summaries: (args) => sse('skills', 'summaries', args),
+      detail:    (args) => sse('skills', 'detail', args),
+      // Server route missing — see audit. Rejecting with a structured
+      // error keeps the failure path explicit at every call site.
+      invoke:    () => notImplemented('skills.invoke'),
     },
   }
 }

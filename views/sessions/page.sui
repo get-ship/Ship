@@ -1,0 +1,75 @@
+<data name="sessions" source="ship.sessions.list()" live />
+
+<div class="ship-view ship-view-sessions">
+  <div class="ses-wrap">
+
+    <header class="ses-head">
+      <div>
+        <h1 class="ses-title">Sessions</h1>
+        <p class="ses-sub">{total()} live session{total() === 1 ? '' : 's'}</p>
+      </div>
+      <div class="ses-actions">
+        <sui-button tone="primary" variant="solid"
+          prop:disabled={spawning()}
+          on:click={spawnShell}>
+          <sui-icon slot="leading" name="plus"></sui-icon>
+          {spawning() ? 'Spawning…' : 'New shell session'}
+        </sui-button>
+      </div>
+    </header>
+
+    {#if mutationError()}
+      <sui-alert tone="destructive" class="ses-alert">{mutationError()}</sui-alert>
+    {/if}
+
+    {#while-loading of sessions}
+      <p class="ses-loading" data-test="loading">Loading sessions&hellip;</p>
+    {/while-loading}
+
+    {#while-error err of sessions}
+      <sui-error-state variant="inline" size="sm" title="Couldn't load sessions">
+        {err.message}
+      </sui-error-state>
+    {/while-error}
+
+    {#if sessions().kind === 'ok'}
+      {#if items().length === 0}
+        <sui-empty-state icon="terminal" variant="default" size="lg" data-test="empty">
+          <span slot="title">No sessions running</span>
+          Spawn a shell or start an agent chat to populate this list.
+          <sui-button slot="action" tone="primary" variant="solid"
+            prop:disabled={spawning()}
+            on:click={spawnShell}>
+            <sui-icon slot="leading" name="plus"></sui-icon>
+            New shell session
+          </sui-button>
+        </sui-empty-state>
+      {:else}
+        <ul class="ses-list" data-test="list">
+          {#for s of items() key={s.id}}
+            <li class="ses-row" data-test="row" data-status={s.status}>
+              <div class="ses-row-main">
+                <sui-status-dot
+                  prop:tone={s.status === 'running' ? 'success' : s.status === 'exited' ? 'muted' : 'warning'}
+                  size="sm"></sui-status-dot>
+                <span class="ses-row-kind">{s.kind}</span>
+                <span class="ses-row-id" attr:title={s.id}>{s.id}</span>
+                {#if s.agent_id}<sui-chip tone="primary" variant="soft" size="sm">{s.agent_id}</sui-chip>{/if}
+                {#if s.provider}<sui-chip tone="muted" variant="outline" size="sm">{s.provider}</sui-chip>{/if}
+              </div>
+              <div class="ses-row-meta">
+                <span class="ses-row-status">{s.status}</span>
+                <button class="ses-end"
+                  aria-label={'End session ' + s.id}
+                  prop:disabled={endingId() === s.id || s.status === 'exited'}
+                  on:click={() => endSession(s.id)}>
+                  {endingId() === s.id ? 'Ending…' : 'End'}
+                </button>
+              </div>
+            </li>
+          {/for}
+        </ul>
+      {/if}
+    {/if}
+  </div>
+</div>

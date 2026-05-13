@@ -137,6 +137,113 @@ describe('createClient', () => {
     ])
   })
 
+  it('sessions.start POSTs JSON to /api/v1/sessions/spawn', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(JSON.stringify({ session_id: 'sess-1', attached: true }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      const resp = await ship.sessions.start({
+        workspace_id: 'ws-1',
+        kind: 'shell',
+      })
+      expect(resp).toEqual({ session_id: 'sess-1', attached: true })
+      expect(calls).toHaveLength(1)
+      expect(calls[0]!.url).toBe('/api/v1/sessions/spawn')
+      expect(calls[0]!.init?.method).toBe('POST')
+      expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({
+        workspace_id: 'ws-1',
+        kind: 'shell',
+      })
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('sessions.end DELETEs against the session id', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(null, { status: 204 })
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      await ship.sessions.end({ id: 'sess-2' })
+      expect(calls[0]!.url).toBe('/api/v1/sessions/sess-2')
+      expect(calls[0]!.init?.method).toBe('DELETE')
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('workspaces.activate POSTs to /api/v1/projects/switch', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
+    const orig = globalThis.fetch
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(JSON.stringify({ ok: true, active: 'proj-1' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      const resp = await ship.workspaces.activate({ id: 'proj-1' })
+      expect(resp).toEqual({ ok: true, active: 'proj-1' })
+      expect(calls[0]!.url).toBe('/api/v1/projects/switch')
+      expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({ id: 'proj-1' })
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('workspaces.list fetches /api/v1/projects', async () => {
+    const orig = globalThis.fetch
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify({ projects: [], active: null }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      const resp = await ship.workspaces.list()
+      expect(resp).toEqual({ projects: [], active: null })
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
+  it('skills.invoke rejects with a structured not_implemented error', async () => {
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    await expect(
+      ship.skills.invoke({ id: 'foo' }),
+    ).rejects.toMatchObject({ code: 'not_implemented', op: 'skills.invoke' })
+  })
+
+  it('mutation errors surface the daemon response body', async () => {
+    const orig = globalThis.fetch
+    globalThis.fetch = async () =>
+      new Response('{"error":"agent_id required"}', {
+        status: 400,
+        statusText: 'Bad Request',
+      })
+    try {
+      const ship = createClient({ EventSource: FakeEventSource as any })
+      await expect(
+        ship.sessions.start({ workspace_id: 'ws', kind: 'agent' }),
+      ).rejects.toThrow(/agent_id required/)
+    } finally {
+      globalThis.fetch = orig
+    }
+  })
+
   it('disposer closes the EventSource', () => {
     FakeEventSource.instances = []
     const source = makeSseSource('http://test', FakeEventSource as any)

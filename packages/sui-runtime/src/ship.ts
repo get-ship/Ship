@@ -21,6 +21,17 @@
 import type { AgentsSummariesResponse, GitDiff, GitDiffArgs, GitOverview } from './generated'
 import type { LiveSource } from './live'
 
+/** Project registry record returned by `ship.workspaces.list()`. Mirrors
+ *  the daemon's `routes::projects_api::Project` shape. */
+export interface WorkspaceSummary {
+  id: string
+  name: string
+  path: string
+  label?: string
+  created_at: string
+  last_seen_at: string
+}
+
 /** Live SDK handle exposed to controllers, hooks, and `<data>` sources. */
 export interface ShipSDK {
   agents: {
@@ -86,5 +97,47 @@ export interface ShipSDK {
   settings: {
     /** Settings view ctx — providers, defaults, terminal, about. */
     state(): LiveSource<unknown>
+  }
+  sessions: {
+    /** Live PTY-session registry (Mission Control feed). */
+    list(): LiveSource<unknown>
+    /** Spawn a new PTY session and attach the actor.
+     *  `kind` is `'agent' | 'shell'`; agents require `agent_id` + `provider`. */
+    start(args: {
+      workspace_id: string
+      kind: 'agent' | 'shell'
+      agent_id?: string
+      provider?: string
+    }): Promise<{ session_id: string; attached: boolean }>
+    /** Gracefully stop a live session. Resolves once the daemon acks. */
+    end(args: { id: string }): Promise<void>
+  }
+  workspaces: {
+    /** Known projects + active id.
+     *
+     *  REST one-shot (no SSE op on the daemon yet). `live(() => …)`
+     *  treats the returned promise as a loading→ok transition; views
+     *  re-call after `activate()` to refresh. */
+    list(): Promise<{ projects: WorkspaceSummary[]; active?: string | null }>
+    /** Switch the active project — daemon emits `config.changed`. */
+    activate(args: { id: string }): Promise<{ ok: true; active: string }>
+  }
+  skills: {
+    /** Skills tree (sources + groups) for the explorer. */
+    summaries(args?: {
+      q?: string
+      kind?: string
+      tag?: string
+    }): LiveSource<unknown>
+    /** Single skill detail (frontmatter + body + vars). */
+    detail(args: { id: string }): LiveSource<unknown>
+    /** Trigger a one-shot skill run.
+     *
+     *  Server-side gap: no canonical `POST /api/v1/skills/{id}/invoke`
+     *  route exists yet — calling this rejects with a structured
+     *  `not_implemented` error so views can degrade to "coming soon"
+     *  affordances without bespoke try/catch chains. See
+     *  `.artifacts/sui-arc/sdk-mutation-paths.md` for the audit. */
+    invoke(args: { id: string; vars?: Record<string, string> }): Promise<{ run_id: string }>
   }
 }
