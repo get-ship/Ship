@@ -89,7 +89,6 @@ declare module 'react' {
       'ship-icon': ShipElement
       'ship-link': ShipElement
       'ship-skeleton': ShipElement
-      'ship-step-segments': ShipElement
       'ship-toast': ShipElement
       'ship-toast-container': ShipElement
     }
