@@ -10549,6 +10549,70 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-tab-panel.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiTabPanel",
+          "tagName": "sui-tab-panel",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "name",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "active",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-tab-panel",
+          "declaration": {
+            "name": "SuiTabPanel",
+            "module": "sui-tab-panel.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-tab.sui",
       "declarations": [
         {
@@ -11825,6 +11889,61 @@
           "declaration": {
             "name": "SuiToastContainer",
             "module": "sui-toast-container.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-toast-host.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiToastHost",
+          "tagName": "sui-toast-host",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "position",
+              "type": {
+                "text": "'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'"
+              },
+              "default": "bottom-right",
+              "values": [
+                "top-left",
+                "top-center",
+                "top-right",
+                "bottom-left",
+                "bottom-center",
+                "bottom-right"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "position",
+              "type": {
+                "text": "'top-left' | 'top-center' | 'top-right' | 'bottom-left' | 'bottom-center' | 'bottom-right'"
+              },
+              "attribute": "position",
+              "default": "bottom-right",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-toast-host",
+          "declaration": {
+            "name": "SuiToastHost",
+            "module": "sui-toast-host.sui"
           }
         }
       ]
