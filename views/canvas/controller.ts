@@ -1,5 +1,4 @@
-import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
-import { bindHtml } from '@ship/ui-runtime'
+import { controller, signal, derived, live, ref, unwrap, bindHtml } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
@@ -8,7 +7,7 @@ export default controller<Scope>({
       const list = unwrap(canvasList as any)
       return Array.isArray(list) ? (list[0]?.slug ?? '') : ''
     })
-    const activeSlug = signal((route as any)().query?.doc || '')
+    const activeSlug = signal(route.query.doc() || '')
     const docEl = ref<HTMLElement>(null)
     const canvasDoc = live(() => ship.canvas.doc({ slug: activeSlug() }))
     return { activeSlug, docEl, firstSlug, canvasDoc }

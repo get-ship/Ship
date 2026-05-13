@@ -17,17 +17,20 @@ type SummariesCtx = {
 }
 
 const EMPTY: SummariesCtx = { stats_subtitle: '', defs: [], active_runs: [], providers: [] }
-const read = (ctx: unknown): SummariesCtx => (unwrap(ctx as any) as SummariesCtx | undefined) ?? EMPTY
+const read = (envelope: unknown): SummariesCtx => {
+  const env = envelope as { kind?: string; value?: SummariesCtx } | undefined
+  return env?.kind === 'ok' && env.value ? env.value : EMPTY
+}
 
 export default controller<Scope>({
   scope: ({ ship, route }) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const s = ship as any
-    const q = derived(() => String((route().query as any)?.q ?? ''))
-    const agent = derived(() => String((route().query as any)?.agent ?? ''))
-    const pipeline = derived(() => String((route().query as any)?.pipeline ?? ''))
-    const status = derived(() => String((route().query as any)?.status ?? ''))
-    const tab = derived(() => String((route().query as any)?.tab ?? ''))
+    const q = derived(() => String(route.query.q() ?? ''))
+    const agent = derived(() => String(route.query.agent() ?? ''))
+    const pipeline = derived(() => String(route.query.pipeline() ?? ''))
+    const status = derived(() => String(route.query.status() ?? ''))
+    const tab = derived(() => String(route.query.tab() ?? ''))
     const ctx = live(() => s.pipelines.summaries({
       q: q(), agent: agent(), pipeline: pipeline(), status: status(), tab: tab(),
     }))
