@@ -176,6 +176,10 @@ pub fn build_router(
             Route::SuiPatchElements_template(),
             views::sui_agent_push::serve_patch_elements,
         )
+        .ship_route(
+            Route::SuiSource_template(),
+            views::sui_source::serve_sui_source,
+        )
         // Glob-param SUI fallbacks — the Route enum doesn't model `{*sub_path}`,
         // so these stay as direct `.route()` calls to preserve the donor
         // surface (view-host + payload sub-path + studio /sui/{name}/{*sub_path}).

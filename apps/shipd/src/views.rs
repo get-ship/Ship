@@ -44,6 +44,7 @@ pub mod sui_data;
 pub mod sui_data_resolvers;
 pub mod sui_hmr;
 pub mod sui_mutation;
+pub mod sui_source;
 pub mod sui_sse;
 pub mod git_signal;
 pub mod sui_patches;

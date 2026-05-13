@@ -162,6 +162,14 @@ Components fall into three buckets:
 
 Discover what's registered by reading the MCP resource `ship://components` — the canonical agent-side component catalog. It returns the aggregated Custom Elements Manifest (every `<sui-*>` primitive's tagName, attributes, slots, parts, events, CSS custom properties) as JSON. For a single tag, read `ship://components/<tag>` (e.g. `ship://components/sui-button`). Don't `curl` the daemon's `/api/assets/sui-custom-elements.json` — that endpoint exists for browser tooling; agent auth blocks raw HTTP.
 
+## Visual sweep: ship-ui-studio
+
+Once a component is registered, `ship-ui-studio` is the fastest way to eyeball it. Open `/sui/ship-ui-studio/<tag>` (e.g. `/sui/ship-ui-studio/sui-button`) and the detail page renders:
+
+- A **single live preview** plus a prop panel for ad-hoc tweaking.
+- A **state variant matrix** — when the component declares enum props, every cell in the cartesian product of `variant × tone` (or the single largest enum, if there's only one) is rendered side-by-side, independent of the prop panel. This is the Storybook-style sweep that catches "ghost tone-warning has wrong contrast" without clicking through 40 combinations one at a time.
+- A **View source** link in the header that opens `/_sui/source/<tag>` — a static HTML page showing the on-disk `.sui` template and `.controller.ts` for the component. Useful when reviewing how an existing primitive wires its scope before authoring a similar one.
+
 ## References
 
 | When you need | Read |
