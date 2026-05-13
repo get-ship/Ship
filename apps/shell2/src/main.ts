@@ -15,7 +15,6 @@
 
 import { createClient, type ShipSDK } from '@ship/sdk-client'
 import { shipFetch, gitStatus } from '@ship/sdk'
-import { initRailFeatures } from './rail-features'
 import { KernelBridge } from './kernel-bridge'
 import { initHmr } from './hmr'
 
@@ -213,7 +212,6 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
 </div>`
   }
   updateNav(r)
-  updateRailActive(r)
 }
 
 function showLanding(slot: HTMLElement): void {
@@ -225,22 +223,11 @@ function showLanding(slot: HTMLElement): void {
   `
   currentRoute = null
   updateNav(null)
-  updateRailActive(null)
 }
 
 function updateNav(r: Route | null): void {
   const path = r ? routeToPath(r) : '/'
   document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: path } }))
-}
-
-// Mark the matching rail item active; clear all others.
-function updateRailActive(r: Route | null): void {
-  const items = document.querySelectorAll<HTMLElement>('sui-rail-item[data-view]')
-  const viewName = r?.view ?? ''
-  for (const item of items) {
-    if (item.dataset.view === viewName) item.setAttribute('active', '')
-    else item.removeAttribute('active')
-  }
 }
 
 // ── Click delegate ──────────────────────────────────────────────────
@@ -537,7 +524,6 @@ window.addEventListener('popstate', () => {
 
 initShipApi()
 initRail()
-initRailFeatures()
 initHmr({
   getCurrentView: () => currentRoute?.view ?? null,
   // mountRoute re-fetches the payload (dev mode bypasses SSR cache) and,

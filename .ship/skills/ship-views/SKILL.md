@@ -395,6 +395,50 @@ once teleported they detach). Where the native platform does NOT (a
 fixed-position toast stack inside a transformed ancestor),
 `<sui-portal>` is the right tool to teleport the whole thing.
 
+## Rail composition
+
+`<sui-rail>` is the left chrome container; views are addressed via
+slotted children. Author the rail in the shell HTML once and let the
+controller handle features (project switcher, session-count badge,
+launcher / create, active-view tracking, click-outside dismiss).
+
+```html
+<!-- apps/shell2/index.html — single static instance -->
+<sui-rail id="ship-rail">
+  <sui-rail-item icon="layout-dashboard" label="Dashboard" href="/" data-view="dashboard"></sui-rail-item>
+  <sui-rail-item icon="bot" label="Agents" href="/agents" data-view="agents"></sui-rail-item>
+  <sui-rail-item icon="git-branch" label="Git" href="/git" data-view="git"></sui-rail-item>
+  <sui-rail-item icon="sparkles" label="UI Studio" href="/ship-ui-studio" data-view="ship-ui-studio"></sui-rail-item>
+</sui-rail>
+```
+
+Three composition rules:
+
+1. **`data-view` is the active-view key.** The rail's controller
+   listens for `sui:navigate` (and `popstate`) and reads
+   `location.pathname.split('/').filter(Boolean)[0]`. The matching
+   `<sui-rail-item[data-view]>` child gets the `active` attribute set;
+   all others have it cleared. No manual wiring in the shell.
+2. **Mission Control is baked in.** `<sui-rail>` renders its own
+   `<sui-rail-item part="mission-control" data-view="mesh">` inside
+   the nav after the slot. The controller polls `/api/v1/pty-sessions`
+   every 15s and reflects the live count to the item's `badge`
+   attribute (suppressed at 0). Don't re-slot a Mission Control item
+   from the shell — it would collide.
+3. **Footer features dispatch bubbled events.** Project badge,
+   launcher, create — every footer action emits a composed bubbling
+   event the shell can listen for at the document level:
+   `sui-rail:toggle`, `ship:launcher:open`, `ship:create:open`,
+   `ship:project:change`. The project popover is wrapped in
+   `<sui-portal target="body">` with `transition:fade={{ duration: 150 }}`
+   so it escapes the rail's `overflow: hidden` + stacking context
+   cleanly.
+
+The rail controller fetches `/api/v1/projects` for the switcher and
+positions the portaled popover against the project-badge bounding
+rect (updates on `resize` / capturing `scroll`). When you need the
+selected project, listen on `document` for `ship:project:change`.
+
 ## References
 
 | When you need | Read |

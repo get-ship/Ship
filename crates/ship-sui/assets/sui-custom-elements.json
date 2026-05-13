@@ -5449,53 +5449,6 @@
     },
     {
       "kind": "javascript-module",
-      "path": "sui-rail.sui",
-      "declarations": [
-        {
-          "kind": "class",
-          "name": "SuiRail",
-          "tagName": "sui-rail",
-          "customElement": true,
-          "superclass": {
-            "name": "HTMLElement",
-            "package": "global"
-          },
-          "attributes": [
-            {
-              "name": "collapsed",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false"
-            }
-          ],
-          "members": [
-            {
-              "kind": "field",
-              "name": "collapsed",
-              "type": {
-                "text": "boolean"
-              },
-              "attribute": "collapsed",
-              "default": "false",
-              "reflects": true
-            }
-          ]
-        }
-      ],
-      "exports": [
-        {
-          "kind": "custom-element-definition",
-          "name": "sui-rail",
-          "declaration": {
-            "name": "SuiRail",
-            "module": "sui-rail.sui"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
       "path": "sui-segmented-option.sui",
       "declarations": [
         {

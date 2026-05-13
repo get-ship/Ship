@@ -1,33 +1,33 @@
 <!--
   <sui-rail> — SUI port of <ship-rail>.
-  Vertical chrome nav container with collapse toggle.
+  Vertical chrome nav container with collapse toggle, project switcher,
+  Mission Control session-count badge, and launcher/create actions.
 
   Prop / event surface
   ─────────────────────────────────────────────────────────────────────────────
   Props:
     collapsed (bool, false, reflect)  — icon-only collapsed mode
   ─────────────────────────────────────────────────────────────────────────────
-  Events:
-    sui-rail:toggle  { detail: { collapsed: bool } }  bubbles, composed
-      Fired when the user clicks the collapse toggle. Controlling state
-      (whether the rail is open) lives on the shell, not the rail — the
-      shell listens and persists collapsed state, then reflects it back
-      by setting/removing the [collapsed] attribute.
+  Events bubbled from the rail's footer actions:
+    sui-rail:toggle         { collapsed }   — collapse-button click
+    ship:launcher:open      { anchor }      — launcher-button click
+    ship:create:open        { }             — create-button click
+    ship:project:change     { id }          — project-switcher selection
   ─────────────────────────────────────────────────────────────────────────────
   Slots: (default) — accepts <sui-rail-item> and <sui-rail-section> children
-  Parts: nav, footer, toggle, project-badge, project-popover, launcher-btn, create-btn
+  Parts: nav, footer, toggle, project-badge, project-popover, launcher-btn,
+         create-btn, mission-control
   ─────────────────────────────────────────────────────────────────────────────
-  CSS custom properties emitted for co-located children:
-    --rail-label-display  block | none     drives label visibility on items
-    --rail-item-justify   flex-start | center  drives icon centering on items
-  Both properties are inherited by slotted sui-rail-item / sui-rail-section
-  children, which consume them in their own styles.
+  Behavior (controller-owned):
+    - Project switcher: portal-positioned popover; lists /api/v1/projects;
+      adds new project via prompt; transition:fade on open/close.
+    - Session count badge: polls /api/v1/pty-sessions every 15s; badged on
+      the baked-in Mission Control rail item; suppressed when count = 0.
+    - Active-view: listens to sui:navigate (and reads location.pathname);
+      mirrors the first path segment onto slotted <sui-rail-item[data-view]>
+      children as the `active` attribute.
+    - Click-outside dismiss for the project popover.
   ─────────────────────────────────────────────────────────────────────────────
-  Footer:
-    The footer exposes parts for shell-level feature wiring. The shell
-    populates the project badge, popover, launcher and create buttons via
-    standard DOM APIs. The rail is a passive container — all feature
-    logic lives in apps/shell2/src/main.ts.
 -->
 
 <prop name="collapsed" type="bool" default="false" reflect />
@@ -78,9 +78,6 @@
     border-top: 1px solid var(--border);
     flex-shrink: 0;
   }
-  :host([collapsed]) .rail-footer {
-    gap: 4px;
-  }
 
   .project-badge {
     appearance: none;
@@ -118,34 +115,7 @@
     width: auto;
   }
 
-  .footer-btn {
-    appearance: none;
-    background: transparent;
-    border: 1px solid transparent;
-    border-radius: var(--radius-sm, 4px);
-    padding: 4px;
-    color: var(--muted-foreground);
-    cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
-    transition:
-      background-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
-      border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
-      color var(--duration-fast, 100ms) var(--ease-out, ease-out);
-  }
-  .footer-btn:hover {
-    background: color-mix(in oklch, var(--foreground) 8%, transparent);
-    border-color: var(--border);
-    color: var(--foreground);
-  }
-  .footer-btn:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
-  }
-
+  .footer-btn,
   .toggle-btn {
     appearance: none;
     background: transparent;
@@ -164,11 +134,13 @@
       border-color var(--duration-fast, 100ms) var(--ease-out, ease-out),
       color var(--duration-fast, 100ms) var(--ease-out, ease-out);
   }
+  .footer-btn:hover,
   .toggle-btn:hover {
     background: color-mix(in oklch, var(--foreground) 8%, transparent);
     border-color: var(--border);
     color: var(--foreground);
   }
+  .footer-btn:focus-visible,
   .toggle-btn:focus-visible {
     outline: none;
     box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary, #3b82f6) 50%, transparent);
@@ -176,114 +148,38 @@
   .toggle-btn::before { content: '◀'; font-size: 10px; line-height: 1; }
   :host([collapsed]) .toggle-btn::before { content: '▶'; }
 
-  .project-popover-container {
-    position: relative;
-  }
-
-  .project-popover {
-    position: absolute;
-    bottom: 100%;
-    left: 8px;
-    margin-bottom: 4px;
-    min-width: 200px;
-    background: var(--popover, var(--card, white));
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md, 8px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    z-index: 100;
-    overflow: hidden;
-  }
-  .project-popover[hidden] {
-    display: none;
-  }
-  .project-popover-title {
-    padding: 8px 12px;
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--muted-foreground);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-  .project-popover-row {
-    padding: 8px 12px;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    transition: background-color var(--duration-fast, 100ms) var(--ease-out, ease-out);
-  }
-  .project-popover-row:hover {
-    background: color-mix(in oklch, var(--foreground) 6%, transparent);
-  }
-  .project-popover-row.active {
-    background: color-mix(in oklch, var(--primary) 12%, transparent);
-    color: var(--primary);
-  }
-  .project-popover-row-name {
-    font-size: 13px;
-    font-weight: 500;
-  }
-  .project-popover-row-path {
-    font-size: 11px;
-    color: var(--muted-foreground);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  .project-popover-sep {
-    height: 1px;
-    background: var(--border);
-    margin: 4px 0;
-  }
-  .project-popover-row.add {
-    color: var(--primary);
-    font-weight: 500;
-  }
-  .project-popover-empty {
-    padding: 12px;
-    text-align: center;
-    font-size: 12px;
-    color: var(--muted-foreground);
-  }
-
   @media (prefers-reduced-motion: reduce) {
     :host { transition: none; }
   }
 </style>
 
 <nav class="rail-nav" part="nav">
-  <slot></slot>
+  <slot bind:this={navSlot}></slot>
+  <sui-rail-item
+    bind:this={missionEl}
+    part="mission-control"
+    data-view="mesh"
+    icon="message-square-plus"
+    label="Mission Control"
+    href="/mesh"
+  ></sui-rail-item>
 </nav>
 <div class="rail-footer" part="footer">
   <button
     type="button"
     class="project-badge"
     part="project-badge"
-    data-rail="project-badge"
     aria-label="Switch project"
-  ></button>
-  <div class="project-popover-container">
-    <div
-      class="project-popover"
-      part="project-popover"
-      data-rail="project-popover"
-      hidden
-    >
-      <div class="project-popover-title">Projects</div>
-      <div data-rail="project-list"></div>
-      <div class="project-popover-sep"></div>
-      <div class="project-popover-row add" data-rail="add-project">
-        <span>+ Add project</span>
-      </div>
-    </div>
-  </div>
+    aria-haspopup="dialog"
+    bind:this={projectBadgeEl}
+  >{projectInitial()}</button>
   <div class="footer-actions">
     <button
       type="button"
       class="footer-btn"
       part="launcher-btn"
-      data-rail="launcher"
       aria-label="Open launcher"
+      bind:this={launcherBtnEl}
     >
       <sui-icon name="folder" size="sm"></sui-icon>
     </button>
@@ -291,8 +187,8 @@
       type="button"
       class="footer-btn"
       part="create-btn"
-      data-rail="create"
       aria-label="Create new"
+      bind:this={createBtnEl}
     >
       <sui-icon name="plus" size="sm"></sui-icon>
     </button>
@@ -300,8 +196,47 @@
       type="button"
       class="toggle-btn"
       part="toggle"
-      data-rail="toggle"
       aria-label="Collapse rail"
+      bind:this={toggleBtn}
     ></button>
   </div>
 </div>
+
+<!--
+  Project popover is teleported to <body> via <sui-portal> so it escapes
+  the rail's overflow:hidden + stacking context. The {#if} mounts the
+  popover only when open; transition:fade animates entry/exit. Position
+  is computed by the controller against the project-badge's bounding
+  rect — see updatePopoverPosition() in sui-rail.controller.ts.
+-->
+<sui-portal target="body">
+  {#if projectOpen()}
+    <div
+      class="sui-rail-project-popover"
+      part="project-popover"
+      role="dialog"
+      aria-label="Switch project"
+      bind:this={popoverEl}
+      transition:fade={{ duration: 150 }}
+    >
+      <div class="sui-rail-project-popover-title">Projects</div>
+      {#if projects().length === 0}
+        <div class="sui-rail-project-popover-empty">No projects tracked.</div>
+      {/if}
+      {#for p of projects() key={p.id}}
+        <div
+          class="sui-rail-project-popover-row"
+          class:active={p.id === activeProjectId()}
+          data-project-id={p.id}
+        >
+          <span class="sui-rail-project-popover-row-name">{p.label || p.name}</span>
+          <span class="sui-rail-project-popover-row-path">{p.path}</span>
+        </div>
+      {/for}
+      <div class="sui-rail-project-popover-sep"></div>
+      <div class="sui-rail-project-popover-row add" data-rail-add>
+        <span>+ Add project</span>
+      </div>
+    </div>
+  {/if}
+</sui-portal>
