@@ -149,7 +149,11 @@ export function today() {
 export function latestBaseline(repoRoot) {
   const dir = resolve(repoRoot, 'tests/perf/baselines')
   if (!existsSync(dir)) return null
-  const files = readdirSync(dir).filter(f => /^\d{4}-\d{2}-\d{2}-baseline\.json$/.test(f)).sort()
+  // Match YYYY-MM-DD-<label>.json — label can be "baseline" or any
+  // post-<change> suffix (e.g. "post-d2-d4"). Sorts lexicographically;
+  // for a given date the suffix order is alphabetical, so "post-*"
+  // beats "baseline" if both exist on the same day.
+  const files = readdirSync(dir).filter(f => /^\d{4}-\d{2}-\d{2}-[a-z0-9-]+\.json$/i.test(f)).sort()
   if (files.length === 0) return null
   return resolve(dir, files[files.length - 1])
 }
