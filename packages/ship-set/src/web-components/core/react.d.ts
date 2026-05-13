@@ -89,7 +89,6 @@ declare module 'react' {
       'ship-breadcrumb-item': ShipElement
       'ship-chip': ShipElement
       'ship-icon': ShipElement
-      'ship-kbd': ShipElement
       'ship-link': ShipElement
       'ship-metachip': ShipElement
       'ship-skeleton': ShipElement
