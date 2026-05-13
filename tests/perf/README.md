@@ -1,9 +1,23 @@
 # SUI perf baselines
 
 Checked-in median results from the js-framework-benchmark suite, captured
-against `keyed/sui` at a known git SHA. Each file is named
-`YYYY-MM-DD-baseline.json`; the latest filename (sorted) is the active
-baseline.
+against `keyed/sui` at a known git SHA. Standard filename is
+`YYYY-MM-DD-baseline.json`; the latest such filename (sorted) is the
+active anchor that `just bench-check` reads.
+
+## Current anchor
+
+- `2026-05-13-post-d2-d4.json` — post D2 (`bindFor` scratch reuse) + D4
+  (bind\* short-circuit) merges. Captured at `2a951ef6` on 2026-05-13.
+  See `.artifacts/sui-arc/perf-status.md` for the delta write-up.
+- `2026-05-13-baseline.json` — preserved pre-perf-cycle reference
+  (captured at `56bea690`). Do not overwrite.
+
+Files tagged with a `-<label>.json` suffix (e.g. `-post-d2-d4`) record
+a deliberate inflection point — a merged optimization, an abandoned
+attempt, a methodology change. They sit beside the standard
+`-baseline.json` files so history is legible. Naming convention for
+future deliberate captures: `YYYY-MM-DD-<short-label>.json`.
 
 ## Format
 
