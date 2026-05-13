@@ -9,6 +9,8 @@ use axum::{
     response::Response,
 };
 
+use sui_compiler::{bindings, parse, render};
+
 use crate::{DaemonMode, compute_etag, mode_from_ext, view_cache};
 use crate::resolver::resolve;
 
@@ -52,18 +54,38 @@ pub(crate) fn load_ssr_from_disk(name: &str) -> Option<String> {
     std::fs::read_to_string(&ssr_path).ok()
 }
 
+/// Render SSR HTML at request time from the source view. Used as a
+/// fallback when no precompiled `<dist>/<stem>.ssr.html` exists yet —
+/// without this, the shell ships an empty `#sui-root` and the client
+/// has nothing to morph onto.
+pub(crate) fn live_emit_ssr(name: &str) -> Option<String> {
+    let resolved = resolve(name, None).ok()?;
+    let program = parse::parse(&resolved.source).ok()?;
+    let registry = bindings::build(&program);
+    let opts = render::RenderOpts { view_name: name.to_string() };
+    let split = render::render_split(&program, &registry, &opts).ok()?;
+    Some(split.html)
+}
+
 pub async fn serve_view_host(
     mode: Option<Extension<DaemonMode>>,
     OriginalUri(uri): OriginalUri,
 ) -> Response {
     let mode = mode_from_ext(mode);
     // Dev: always re-read from disk (no cache). Prod: use in-memory cache.
+    // If no precompiled SSR exists, fall back to live-emit so the shell
+    // never ships an empty #sui-root — the client morphs onto real markup.
     let ssr_content = view_name_from_path(uri.path())
         .map(|name| {
-            if mode == DaemonMode::Production {
+            let from_disk = if mode == DaemonMode::Production {
                 ssr_html_for_view(&name)
             } else {
                 load_ssr_from_disk(&name).unwrap_or_default()
+            };
+            if from_disk.is_empty() {
+                live_emit_ssr(&name).unwrap_or_default()
+            } else {
+                from_disk
             }
         })
         .unwrap_or_default();

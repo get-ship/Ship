@@ -17,6 +17,7 @@ import { signal, type Signal } from './signal'
 import type { LiveSignal, LiveState } from './live'
 import type { RouteSignals } from './route'
 import { createScope, withScope } from './effect-scope'
+import { morph } from './morph'
 import type { ViewPayload as GeneratedViewPayload } from './generated'
 
 /**
@@ -77,8 +78,10 @@ const LIFECYCLE_KEY = '__shipSetLifecycle'
 /**
  * Mount a view into a DOM target.
  *
- * @param target Element to receive the rendered view. Existing
- *               innerHTML is replaced with payload.html.
+ * @param target Element to receive the rendered view. If the
+ *               target already contains markup (SSR pre-render),
+ *               mount morph-patches it toward payload.html, preserving
+ *               node identity. Otherwise children are built fresh.
  * @param payloadOrName  A fetched ViewPayload, or a `name[/sub]`
  *               string the runtime fetches from `/_sui/views/...`.
  * @param opts   ship / route / navigate / restoreScope / cssScope.
@@ -96,8 +99,18 @@ export async function mount<Scope = Record<string, unknown>>(
       ? await fetchPayload(payloadOrName)
       : payloadOrName
 
-  // 1. Inject SSR HTML.
-  target.innerHTML = payload.html
+  // 1. Adopt SSR markup if present (morph in place), else clean-mount.
+  //    The view-host shell ships SSR content inside `target` before this
+  //    runs; overwriting via `innerHTML = payload.html` would discard it
+  //    and cause a 140-200ms blank flash. Morph reconciles in place and
+  //    preserves focus/scroll/selection/custom-element state.
+  if (hasHydratableMarkup(target)) {
+    morph(target, payload.html)
+  } else {
+    const tmpl = (target.ownerDocument ?? document).createElement('template')
+    tmpl.innerHTML = payload.html
+    target.replaceChildren(...Array.from(tmpl.content.childNodes))
+  }
 
   // 2. Inject CSS.
   const styleEl = injectCss(target, payload.css, opts.cssScope ?? 'adjacent')
@@ -287,6 +300,16 @@ export async function mount<Scope = Record<string, unknown>>(
 }
 
 // ── Internals ─────────────────────────────────────────────────────────
+
+function hasHydratableMarkup(el: HTMLElement): boolean {
+  if (el.children.length > 0) return true
+  for (const n of Array.from(el.childNodes)) {
+    if (n.nodeType === Node.TEXT_NODE && (n.nodeValue ?? '').trim() !== '') {
+      return true
+    }
+  }
+  return false
+}
 
 async function fetchPayload(nameOrPath: string): Promise<ViewPayload> {
   const path = nameOrPath.startsWith('/_sui/views/')
