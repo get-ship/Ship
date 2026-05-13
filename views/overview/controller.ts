@@ -15,9 +15,62 @@ export default controller<Scope>({
       }
       return out
     })
+
+    // Live kernel-event feed driving the summary band — `events.list` returns
+    // most-recent-first groups keyed by entity. We flatten and sort
+    // chronologically so the open/close counting below applies the latest
+    // verdict per session / agent.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const events = live(() => (ship as any).events.list({ limit: 50 }))
+    type EventRow = {
+      event_type: string; actor: string; session_id: string; timestamp: string
+    }
+    const sortedRows = derived<EventRow[]>(() => {
+      const env = events()
+      if (env.kind !== 'ok') return []
+      const groups = ((env.value as { groups?: Array<{ rows?: EventRow[] }> }).groups ?? [])
+      const rows: EventRow[] = groups.flatMap((g) => g.rows ?? [])
+      rows.sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+      return rows
+    })
+    const activeSessions = derived(() => {
+      const open = new Set<string>()
+      for (const r of sortedRows()) {
+        if (!r.session_id) continue
+        if (r.event_type === 'session.started') open.add(r.session_id)
+        else if (r.event_type === 'session.ended') open.delete(r.session_id)
+      }
+      return open.size
+    })
+    const runningAgents = derived(() => {
+      const open = new Set<string>()
+      for (const r of sortedRows()) {
+        if (!r.actor) continue
+        if (r.event_type === 'agent.started') open.add(r.actor)
+        else if (
+          r.event_type === 'agent.completed' ||
+          r.event_type === 'agent.error' ||
+          r.event_type === 'agent.errored' ||
+          r.event_type === 'agent.failed'
+        ) open.delete(r.actor)
+      }
+      return open.size
+    })
+    const lastEventLabel = derived(() => {
+      const rows = sortedRows()
+      if (rows.length === 0) return 'no events yet'
+      const last = rows[rows.length - 1]
+      const ts = new Date(last.timestamp)
+      if (Number.isNaN(ts.getTime())) return last.event_type
+      return `${last.event_type} · ${ts.toLocaleTimeString()}`
+    })
     return {
       systems,
       depsJson,
+      events,
+      activeSessions,
+      runningAgents,
+      lastEventLabel,
       search: signal(''),
       filterStatus: signal(''),
       filterLayer: signal(''),
