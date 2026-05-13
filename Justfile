@@ -138,6 +138,21 @@ clean-deep:
     cargo clean
     rm -rf node_modules apps/*/node_modules packages/*/node_modules
 
+# Capture a fresh perf baseline. Rebuilds the SUI bench bundle, runs the
+# js-framework-benchmark suite against SUI + comparison frameworks, and
+# writes .artifacts/sui-arc/benches/<date>-baseline.json. Commit the result.
+[group('occasional')]
+bench:
+    @scripts/dev/bench-run.mjs
+
+# Compare current SUI perf vs the latest committed baseline. Exits non-zero
+# if any op regresses by more than 15% (override with
+# BENCH_REGRESSION_THRESHOLD). Manual gate before merging large runtime
+# changes.
+[group('occasional')]
+bench-check:
+    @scripts/dev/bench-check.mjs
+
 # Format Rust.
 [group('occasional')]
 fmt:
