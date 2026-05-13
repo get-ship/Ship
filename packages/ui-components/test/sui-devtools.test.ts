@@ -25,10 +25,9 @@ describe('<sui-devtools-source>', () => {
     expect(shadow(el).querySelector('.split')).not.toBeNull()
   })
 
-  it('diagnostics container is hidden initially', () => {
+  it('diagnostics container is not rendered initially', () => {
     const { el } = mount(reg, 'sui-devtools-source')
-    const diag = shadow(el).querySelector<HTMLElement>('.diagnostics')!
-    expect(diag.style.display).toBe('none')
+    expect(shadow(el).querySelector('.diagnostics')).toBeNull()
   })
 
   it('shows empty-state when fetch returns 404', async () => {
@@ -63,6 +62,59 @@ describe('<sui-devtools-source>', () => {
     const { el } = mount(reg, 'sui-devtools-source')
     await flush()
     expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
+  })
+
+  it('embeds <sui-code-editor> tags (not <ship-code-editor>) when source is present', async () => {
+    const origShip = (window as unknown as { ship?: unknown }).ship
+    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview' }) }
+    const origFetch = globalThis.fetch
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        view_name: 'myview.j2',
+        template_path: '/abs/views/myview/index.html.j2',
+        template: '<p>hi</p>',
+        manifest_filename: null,
+        manifest: null,
+        scope: 'project',
+      }),
+    })
+    const { el } = mount(reg, 'sui-devtools-source')
+    await flush(); await flush()
+    expect(shadow(el).querySelector('sui-code-editor')).not.toBeNull()
+    expect(shadow(el).querySelector('ship-code-editor')).toBeNull()
+    globalThis.fetch = origFetch
+    ;(window as unknown as { ship: unknown }).ship = origShip
+  })
+
+  it('triggers /api/v1/ship/schema + jinja-macros fetch for global-scope sources', async () => {
+    const origShip = (window as unknown as { ship?: unknown }).ship
+    ;(window as unknown as { ship: unknown }).ship = { current: () => ({ path: '/api/v/myview2' }) }
+    const origFetch = globalThis.fetch
+    const calls: string[] = []
+    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+      calls.push(url)
+      if (url.startsWith('/api/v1/view-source')) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({
+          view_name: 'myview2.j2',
+          template_path: '/abs/views/myview2/index.html.j2',
+          template: '',
+          manifest_filename: null,
+          manifest: null,
+          scope: 'global',
+        }) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true, data: { ops: [], findings: [] } }) })
+    }) as unknown as typeof fetch
+    mount(reg, 'sui-devtools-source')
+    await flush(); await flush(); await flush(); await flush()
+    // editor wiring is gated on the lazy sui-code-editor island; what we
+    // can observe is the lint + completion fetches firing for global scope.
+    expect(calls.some(u => u.includes('/api/v1/lint/view'))).toBe(true)
+    expect(calls.some(u => u.includes('/api/v1/ship/schema'))).toBe(true)
+    expect(calls.some(u => u.includes('/api/assets/jinja-macros.json'))).toBe(true)
+    globalThis.fetch = origFetch
+    ;(window as unknown as { ship: unknown }).ship = origShip
   })
 })
 
