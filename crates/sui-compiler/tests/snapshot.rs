@@ -28,6 +28,7 @@ fn fixtures() -> Vec<Fixture> {
             component_meta: Some(ComponentMeta { name: "shadow-tones-test".into(), shadow: true }) },
         Fixture { name: "comment-and-whitespace", setup_url: None,    mode: CompileMode::View,      component_meta: None },
         Fixture { name: "for-update",  setup_url: None,               mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-static",  setup_url: None,               mode: CompileMode::View,      component_meta: None },
     ]
 }
 
@@ -186,6 +187,92 @@ fn comment_and_whitespace_snapshot() {
 #[test]
 fn for_update_snapshot() {
     let fx = &fixtures()[8];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+/// D3: when a `{#for}` body contains no expression that reads the row
+/// or index binder, the compiler omits the per-row `__v` version
+/// signal, the `void $scope.__v()` reads, the `__v.set` increment, and
+/// the `update` field on the render-closure return. The `signal`
+/// runtime import is also dropped (nothing else here uses it).
+#[test]
+fn for_static_body_omits_v_sentinel() {
+    let path = fixtures_dir().join("for-static.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        !out.js.contains("signal(0)"),
+        "static row body must not allocate __v: \n{}",
+        out.js
+    );
+    assert!(
+        !out.js.contains("__v"),
+        "static row body must not reference __v anywhere: \n{}",
+        out.js
+    );
+    assert!(
+        !out.js.contains("update:"),
+        "static row body must not emit an update field: \n{}",
+        out.js
+    );
+    // The only `signal` usage in this fixture was the per-row sentinel.
+    // The runtime import list must drop it.
+    assert!(
+        !out.js.contains(" signal,") && !out.js.contains(", signal "),
+        "signal import must be dropped when no for-body needs __v: \n{}",
+        out.js
+    );
+}
+
+/// D3: a `{#for}` whose body holds a binding reading the index alone
+/// (no row-field reference) must still emit `__v` — reorders shift the
+/// index for surviving keys, so the binding has to re-fire.
+#[test]
+fn for_body_referencing_index_keeps_v_sentinel() {
+    use sui_compiler::compile;
+    let src = r#"<data name="rows" source="ship.rows()" live />
+<ul>
+  {#for (row, i) of rows().value key={row.id}}
+    <li>{i}</li>
+  {/for}
+</ul>
+"#;
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: None,
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = compile(src, opts).expect("compile");
+    assert!(
+        out.js.contains("__v = signal(0)"),
+        "index-only body still needs __v: \n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("$scope.__v.set(c => c + 1)"),
+        "index-only body still needs __v.set: \n{}",
+        out.js
+    );
+}
+
+#[test]
+fn for_static_snapshot() {
+    let fx = &fixtures()[9];
     let js = compile_fixture(fx);
     let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
     assert_snapshot(fx.name, &js, &path);

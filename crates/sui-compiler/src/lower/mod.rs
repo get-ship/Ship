@@ -17,6 +17,7 @@ use std::collections::BTreeSet;
 
 pub mod bindings;
 pub mod directives;
+pub mod for_uses_row;
 pub mod template;
 
 #[derive(Debug, Clone, Default)]
@@ -203,9 +204,18 @@ fn walk_instr(instr: &Instr, out: &mut Lowered, is_view: bool, depth: &mut usize
             }
             *depth -= 1;
         }
-        Instr::For(ForInstr { iterable, key, body, else_body, .. }) => {
+        Instr::For(ForInstr { var_name, index_name, iterable, key, body, else_body, .. }) => {
             out.runtime_imports.insert("bindFor");
-            out.runtime_imports.insert("signal");
+            // D3: `signal` only needed when the body actually observes
+            // the per-row update (i.e. emit_for will keep the `__v`
+            // version sentinel). Static row bodies skip it.
+            if for_uses_row::body_references_for_vars(
+                body,
+                var_name,
+                index_name.as_deref(),
+            ) {
+                out.runtime_imports.insert("signal");
+            }
             if is_view && *depth == 0 {
                 out.dom_imports.insert("collectElementMarkers");
             }
