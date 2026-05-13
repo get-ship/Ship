@@ -338,7 +338,26 @@
             </div>
           {/for}
         </div>
-      {:else}
+      {/if}
+      {#if viewItems().length > 0}
+        <div class="cb-mode-hint">Views</div>
+        <div class="cb-list" role="listbox">
+          {#for item of viewItems() key={item.path}}
+            <div
+              class="cb-item"
+              role="option"
+              aria-selected={bar.selectedIdx() === item.idx ? 'true' : 'false'}
+              data-path={item.path}
+              on:click={() => activateNavItem(item.path)}
+            >
+              <sui-icon name={item.icon} size="sm" aria-hidden="true"></sui-icon>
+              <span>{item.label}</span>
+              <span class="hint">{item.path}</span>
+            </div>
+          {/for}
+        </div>
+      {/if}
+      {#if findItems().length === 0 && viewItems().length === 0}
         <div class="cb-empty">No matches.</div>
       {/if}
 

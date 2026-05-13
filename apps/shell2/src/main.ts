@@ -541,6 +541,26 @@ window.addEventListener('popstate', () => {
   }
 })
 
+// External navigation requests — components that need to navigate dispatch
+// `sui:navigate` with `{ to: path }` (window.ship.navigate, sui-launcher,
+// sui-command-bar palette items). They push history state themselves, but
+// without this listener nothing remounts the view, so picking a result in
+// the cmd-bar or the views picker updated the URL silently and the page
+// kept showing the old view. mountRoute's own dispatches use either no
+// detail or fire after currentRoute is updated, so the sameView guard
+// prevents a remount loop.
+document.addEventListener('sui:navigate', (e: Event) => {
+  const detail = (e as CustomEvent).detail as { to?: string } | undefined
+  if (!detail?.to) return
+  const next = readRouteFromUrl(detail.to)
+  if (!next) return
+  const sameView = currentRoute
+    && currentRoute.view === next.view
+    && (currentRoute.sub ?? '') === (next.sub ?? '')
+  if (sameView) return
+  void mountRoute(next)
+})
+
 initShipApi()
 initRail()
 initHmr({
