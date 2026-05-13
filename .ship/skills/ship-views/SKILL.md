@@ -282,6 +282,10 @@ The router (`packages/ship-set/src/router/`) walks `views/` at build/start time 
 10. **`on:<event>` event names must match the platform whitelist:** DOM events (`click`, `input`, …), `sui-*` / `ship-*` custom-event families, and `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos like `on:Click` with Levenshtein suggestions.
 11. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
 
+## Perf gate
+
+Before merging runtime-affecting changes, run `just bench-check` — it re-runs the js-framework-benchmark suite against the current bundle and fails if any op regresses >15% vs the latest committed baseline under `tests/perf/baselines/`.
+
 ## Diagnostics via MCP
 
 Before declaring a `.sui` edit done, call `mcp__ship__sui_diagnostics` with the

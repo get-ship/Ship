@@ -1,0 +1,117 @@
+{
+  "captured": "2026-05-13",
+  "git_sha": "56bea690",
+  "framework_version": "0.1.0",
+  "compared_against": [
+    "solid",
+    "svelte",
+    "vue",
+    "vanillajs"
+  ],
+  "operations": {
+    "01_run1k": {
+      "sui": 55.7,
+      "solid": 50.9,
+      "svelte": 50.9,
+      "vue": 57.4,
+      "vanillajs": 47.2
+    },
+    "02_replace1k": {
+      "sui": 61.8,
+      "solid": 53.9,
+      "svelte": 55.1,
+      "vue": 62.5,
+      "vanillajs": 52.8
+    },
+    "03_update10th1k_x16": {
+      "sui": 11,
+      "solid": 7.6,
+      "svelte": 11.5,
+      "vue": 15.2,
+      "vanillajs": 19.8
+    },
+    "04_select1k": {
+      "sui": 7.4,
+      "solid": 3.1,
+      "svelte": 3.7,
+      "vue": 5.7,
+      "vanillajs": 3.3
+    },
+    "05_swap1k": {
+      "sui": 11.7,
+      "solid": 7.6,
+      "svelte": 6.4,
+      "vue": 7.7,
+      "vanillajs": 11
+    },
+    "06_remove-one-1k": {
+      "sui": 14.7,
+      "solid": 10.4,
+      "svelte": 10.6,
+      "vue": 12.9,
+      "vanillajs": 9.9
+    },
+    "08_create1k-after1k_x2": {
+      "sui": 99.8,
+      "solid": 59.9,
+      "svelte": 65.6,
+      "vue": 199.2,
+      "vanillajs": 56
+    },
+    "09_clear1k_x8": {
+      "sui": 8.6,
+      "solid": 6.5,
+      "svelte": 8.3,
+      "vue": 7.7,
+      "vanillajs": 4.4
+    }
+  },
+  "memory_mb": {
+    "21_ready-memory": {
+      "sui": 0.6,
+      "solid": 0.6,
+      "svelte": 0.7,
+      "vue": 0.9,
+      "vanillajs": 0.6
+    },
+    "22_run-memory": {
+      "sui": 4.1,
+      "solid": 2.6,
+      "svelte": 2.8,
+      "vue": 3.7,
+      "vanillajs": 1.8
+    },
+    "25_run-clear-memory": {
+      "sui": 0.9,
+      "solid": 0.7,
+      "svelte": 0.9,
+      "vue": 1.1,
+      "vanillajs": 0.6
+    }
+  },
+  "size_kb": {
+    "41_size-uncompressed": {
+      "sui": 24.8,
+      "solid": 11.5,
+      "svelte": 34.3,
+      "vue": 63.7,
+      "vanillajs": 11.3
+    },
+    "42_size-compressed": {
+      "sui": 7.6,
+      "solid": 4.5,
+      "svelte": 12.2,
+      "vue": 22.8,
+      "vanillajs": 2.5
+    }
+  },
+  "first_paint_ms": {
+    "43_first-paint": {
+      "sui": 65.9,
+      "solid": 49.9,
+      "svelte": 62.6,
+      "vue": 91.4,
+      "vanillajs": 51.5
+    }
+  }
+}
