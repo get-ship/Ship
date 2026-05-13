@@ -60,6 +60,28 @@ export default controller<Scope>({
         .map((d, i) => ({ ...d, idx: i }))
     })
 
+    // Installed views from /api/v1/views — anything not already in
+    // NAV_DESTINATIONS, listed as a second "Views" section so the user can
+    // jump to views the curated nav doesn't cover (custom views, examples
+    // like `counter`, etc.). Indices are offset past findItems so the
+    // shared selectedIdx + getPaletteItems() walk in DOM order stays in
+    // sync — ArrowDown/Enter use a single document-order query.
+    const viewItems = derived(() => {
+      const needle = bar!.value().replace(/^>+\s*/, '').toLowerCase().trim()
+      const offset = findItems().length
+      const navPaths = new Set(NAV_DESTINATIONS.map((d) => d.path))
+      return bar!.views()
+        .filter((name: string) => !navPaths.has('/' + name))
+        .filter((name: string) => !needle || name.toLowerCase().includes(needle))
+        .map((name: string, i: number) => ({
+          name,
+          label: name.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
+          path: '/' + name,
+          icon: 'app-window',
+          idx: offset + i,
+        }))
+    })
+
     const cmdItems = derived(() => {
       const needle = bar!.value().replace(/^\/+\s*/, '').toLowerCase().trim()
       return SLASH_COMMANDS
@@ -177,7 +199,7 @@ export default controller<Scope>({
       modeGlyph, searchPlaceholder,
       chipLabel, chipDotBg,
       activeSessions,
-      findItems, cmdItems, mentionItems,
+      findItems, viewItems, cmdItems, mentionItems,
       createSurfaces, currentSurfaceDef, createNameValid,
       endSession, selectSession, startNewSession, viewChats,
       activateNavItem, activateCmd, activateMention,

@@ -370,6 +370,56 @@ describe('<sui-command-bar>', () => {
     })
   })
 
+  describe('navigation contract — shell listens for sui:navigate', () => {
+    // The shell (apps/shell2/src/main.ts) wires the actual mountRoute call
+    // off sui:navigate-with-detail. The bar's job is to dispatch that event
+    // with the chosen path — without it, selecting a result updated the URL
+    // silently and the page kept showing the old view.
+    it('clicking a find item dispatches sui:navigate with detail.to', async () => {
+      const { el } = makeBar()
+      ;(el as CB).show('find')
+      await flush()
+      const events: CustomEvent[] = []
+      const onNav = (e: Event) => {
+        const ce = e as CustomEvent<{ to?: string }>
+        if (ce.detail?.to) events.push(ce)
+      }
+      document.addEventListener('sui:navigate', onNav)
+      try {
+        const item = palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null
+        const expectedPath = item?.dataset['path']
+        item?.click()
+        await flush()
+        expect(events.length).toBeGreaterThan(0)
+        expect(events[0]!.detail.to).toBe(expectedPath)
+      } finally {
+        document.removeEventListener('sui:navigate', onNav)
+      }
+    })
+
+    it('Enter on a find result dispatches sui:navigate with detail.to', async () => {
+      const { el } = makeBar()
+      ;(el as CB).show('find')
+      await flush()
+      const events: CustomEvent[] = []
+      const onNav = (e: Event) => {
+        const ce = e as CustomEvent<{ to?: string }>
+        if (ce.detail?.to) events.push(ce)
+      }
+      document.addEventListener('sui:navigate', onNav)
+      try {
+        const expectedPath = (palShadow(el)?.querySelector('.cb-item[data-path]') as HTMLElement | null)
+          ?.dataset['path']
+        el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, composed: true }))
+        await flush()
+        expect(events.length).toBeGreaterThan(0)
+        expect(events[0]!.detail.to).toBe(expectedPath)
+      } finally {
+        document.removeEventListener('sui:navigate', onNav)
+      }
+    })
+  })
+
   describe('focus retention (regression)', () => {
     it('palette input stays focused after ArrowDown', async () => {
       const { el } = makeBar()
