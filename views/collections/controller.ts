@@ -1,9 +1,24 @@
-import { controller, signal, derived } from '@ship/sui-runtime'
+import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
+type SchemaField = {
+  name: string
+  field_type: string
+  required?: boolean
+  values?: string[]
+}
+
 export default controller<Scope>({
-  scope: ({ route }) => {
+  scope: ({ route, ship }) => {
     const activeId = derived(() => (route as any)().query?.collection || '')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const colDetail = live(() => (ship as any).collections.detail({ id: activeId() }))
+    const schemaFieldsView = derived(() => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d = unwrap(colDetail as any) as { schema?: { fields?: SchemaField[] } } | undefined
+      const fields = d?.schema?.fields ?? []
+      return fields.map(f => ({ ...f, values_pretty: (f.values ?? []).join(' | ') }))
+    })
     const tab = signal('rows')
     const newRowOpen = signal(false)
     const editOpen = signal(false)
@@ -15,7 +30,7 @@ export default controller<Scope>({
     const newColDraftName = signal('')
     const drawerError = signal('')
     return {
-      activeId, tab,
+      activeId, colDetail, schemaFieldsView, tab,
       newRowOpen, editOpen, editId, newColOpen,
       rowDraft, editDraft, newColDraftId, newColDraftName,
       drawerError,
@@ -69,6 +84,26 @@ export default controller<Scope>({
       s.editOpen = false
       s.editDraft = {}
       s.drawerError = ''
+    },
+    removeSchemaField: async (s, fieldName: string) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const detail = unwrap(s.colDetail as any) as { schema?: { fields?: SchemaField[] } } | undefined
+      const fields = detail?.schema?.fields ?? []
+      const fs = fields
+        .filter(x => x.name !== fieldName)
+        .map(x => ({
+          name: x.name,
+          type: x.field_type,
+          required: x.required,
+          values: x.values ?? [],
+        }))
+      const colId = s.activeId as string
+      await fetch('/api/v1/collections/' + colId + '/schema', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: colId, fields: fs }),
+      })
     },
     createCollection: async (s) => {
       const id = (s.newColDraftId as string).trim()
