@@ -62,7 +62,6 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-toast>` [tone size duration dismissible show-progress] events: ship-dismiss
 - `<ship-toast-container>` [position max-visible]
 - `<ship-toolbar>` [justify=start|center|end|between align=center|start|end|baseline gap=sm|md|lg variant=default|bordered]
-- `<ship-tooltip>` [placement=top|bottom|left|right]
 - `<ship-tree-node>` [label expanded selected leaf]
 - `<ship-tree-view>`
 - `<ship-view-chrome>` [title branch ahead behind tone=default|success|warning|destructive|accent|muted busy]

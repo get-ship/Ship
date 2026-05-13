@@ -58,7 +58,6 @@ import './core/ship-timestamp'
 import './core/ship-toast'
 import './core/ship-toast-container'
 import './core/ship-toolbar'
-import './core/ship-tooltip'
 import './core/ship-tree-view'
 import './core/ship-view-chrome'
 
@@ -104,7 +103,6 @@ export { ShipTabs, ShipTab, ShipTabPanel } from './core/ship-tabs'
 export { ShipTextarea } from './core/ship-textarea'
 export { ShipThemeToggle } from './core/ship-theme-toggle'
 export { ShipToolbar } from './core/ship-toolbar'
-export { ShipTooltip } from './core/ship-tooltip'
 export { ShipViewChrome } from './core/ship-view-chrome'
 
 // Observability primitives (now under core/)
