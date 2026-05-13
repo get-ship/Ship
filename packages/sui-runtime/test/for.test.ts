@@ -520,6 +520,44 @@ describe('bindFor — LIS minimality', () => {
     expect(ids()).toEqual(['0', '4', '3', '2', '1'])
   })
 
+  it('does not leak state across consecutive disjoint-key renders (scratch reuse)', () => {
+    // Renders three full replacements with disjoint key sets. If the
+    // hoisted scratch Maps/Sets/Arrays inside bindFor are not cleared
+    // between renders, stale keys would linger and corrupt the DOM
+    // (e.g. an "existing" reused-record lookup would find a record
+    // whose nodes were already removed).
+    const { $list, ids, cleanupCalls } = setup(
+      Array.from({ length: 50 }, (_, i) => ({ id: `a${i}`, label: `A${i}` })),
+    )
+    expect(ids()).toHaveLength(50)
+    $list.set(Array.from({ length: 50 }, (_, i) => ({ id: `b${i}`, label: `B${i}` })))
+    expect(ids()).toEqual(Array.from({ length: 50 }, (_, i) => `b${i}`))
+    expect(cleanupCalls.filter((id) => id.startsWith('a'))).toHaveLength(50)
+    $list.set(Array.from({ length: 50 }, (_, i) => ({ id: `c${i}`, label: `C${i}` })))
+    expect(ids()).toEqual(Array.from({ length: 50 }, (_, i) => `c${i}`))
+    expect(cleanupCalls.filter((id) => id.startsWith('b'))).toHaveLength(50)
+    // Final state: only c-keyed rows are present, all a/b rows were cleaned up.
+    expect(cleanupCalls.filter((id) => id.startsWith('c'))).toHaveLength(0)
+  })
+
+  it('reuses scratch buffers when list size oscillates', () => {
+    // Stresses the buffer-growth path: list grows past initial capacity,
+    // shrinks, grows again. Typed-array reads past `matchedCount` must
+    // not affect placement.
+    const { $list, ids, renderCalls } = setup([{ id: 'a', label: 'A' }])
+    const big = Array.from({ length: 100 }, (_, i) => ({ id: `b${i}`, label: `B${i}` }))
+    $list.set(big)
+    expect(ids()).toHaveLength(100)
+    $list.set([{ id: 'b0', label: 'B0' }])
+    expect(ids()).toEqual(['b0'])
+    // Re-grow with a superset — b0 is reused, b1..b99 fresh-render again.
+    $list.set(big)
+    expect(ids()).toEqual(big.map((b) => b.id))
+    // 1 ('a') + 100 (b0..b99 first appearance, 'a' was cleaned up)
+    //         + 99 (b1..b99 re-rendered after shrink; b0 reused) = 200.
+    expect(renderCalls.length).toBe(1 + 100 + 99)
+  })
+
   it('multi-node rows: swap moves only the unstable rows', () => {
     const root = document.createElement('div')
     document.body.appendChild(root)
