@@ -48,7 +48,7 @@
                 </div>
                 <div class="art-row-meta">
                   <span class="art-row-mime">{a.mime}</span>
-                  <span class="art-row-size">{formatSize(a.size)}</span>
+                  <span class="art-row-size">{a.size_label}</span>
                   <span class="art-row-id mono-snip">{a.id.slice(0, 12)}</span>
                 </div>
               </div>

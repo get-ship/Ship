@@ -6,6 +6,10 @@ interface ArtifactRow {
   name: string
   mime: string
   size: number
+  /** Pre-formatted human-readable size ("12.3 KB"). Computed in the
+   *  controller because the renderable-subset rejects function calls
+   *  with arguments. */
+  size_label: string
   path: string
   scope: string
   collection_id?: string | null
@@ -40,7 +44,9 @@ export default controller<Scope>({
           return
         }
         const body = (await resp.json()) as ArtifactsListResponse
-        items.set(Array.isArray(body.data) ? body.data : [])
+        const rows = Array.isArray(body.data) ? body.data : []
+        for (const r of rows) r.size_label = formatSize(r.size)
+        items.set(rows)
       } catch (e) {
         loadError.set((e as Error).message)
         items.set([])
@@ -61,6 +67,6 @@ export default controller<Scope>({
 
     void refresh()
 
-    return { items, loading, loadError, refresh, formatSize }
+    return { items, loading, loadError, refresh }
   },
 })
