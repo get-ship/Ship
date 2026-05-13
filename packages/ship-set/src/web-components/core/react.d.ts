@@ -62,7 +62,6 @@ declare module 'react' {
 
       // Observability
       'ship-code': ShipElement
-      'ship-copy-button': ShipElement
       'ship-diff': ShipElement
       'ship-json-view': ShipElement
       'ship-markdown': ShipElement
