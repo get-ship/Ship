@@ -49,11 +49,26 @@ impl TemplateEmitter {
             AttrInstr::Expr { name, expr, .. } => {
                 let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
-                let fv = self.for_version_comma();
-                w.line(&format!(
-                    "{cleanups_var}.push(bindAttr({el_var}, {n}, () => ({fv}{rw})));",
-                    n = js_string(name)
-                ));
+                if self.is_static_row_expr(&expr.source) {
+                    // D5: row-scope static attr — initial setAttribute
+                    // only, matching bindAttr's null/false/"" → drop and
+                    // true → "" semantics. Also recorded for the for's
+                    // `update()` callback so keyed-row reuse refreshes
+                    // the attribute when the row instance changes.
+                    let v = self.fresh("av");
+                    let stmt = format!(
+                        "{{ const {v} = ({rw}); if ({v} == null || {v} === false || {v} === \"\") {el_var}.removeAttribute({n}); else {el_var}.setAttribute({n}, {v} === true ? \"\" : String({v})); }}",
+                        n = js_string(name)
+                    );
+                    w.line(&stmt);
+                    self.inline_update_stmts.push(stmt);
+                } else {
+                    let fv = self.for_version_comma();
+                    w.line(&format!(
+                        "{cleanups_var}.push(bindAttr({el_var}, {n}, () => ({fv}{rw})));",
+                        n = js_string(name)
+                    ));
+                }
                 if self.is_view && self.boundary_depth == 0 {
                     self.hydrate_uses_markers = true;
                     self.hydrate_calls.line(&format!(
@@ -148,11 +163,23 @@ impl TemplateEmitter {
             AttrInstr::Class { name, expr, .. } => {
                 let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
-                let fv = self.for_version_comma();
-                w.line(&format!(
-                    "{cleanups_var}.push(bindClass({el_var}, {n}, () => ({fv}{rw})));",
-                    n = js_string(name)
-                ));
+                if self.is_static_row_expr(&expr.source) {
+                    // D5: row-scope static class — truthy → add. Also
+                    // recorded for the for's `update()` callback so
+                    // keyed-row reuse refreshes the class.
+                    let stmt = format!(
+                        "if ({rw}) {el_var}.classList.add({n}); else {el_var}.classList.remove({n});",
+                        n = js_string(name)
+                    );
+                    w.line(&stmt);
+                    self.inline_update_stmts.push(stmt);
+                } else {
+                    let fv = self.for_version_comma();
+                    w.line(&format!(
+                        "{cleanups_var}.push(bindClass({el_var}, {n}, () => ({fv}{rw})));",
+                        n = js_string(name)
+                    ));
+                }
                 if self.is_view && self.boundary_depth == 0 {
                     self.hydrate_uses_markers = true;
                     self.hydrate_calls.line(&format!(
@@ -166,10 +193,23 @@ impl TemplateEmitter {
                 let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
                 let prop = js_string(name);
-                let fvs = self.for_version_stmt();
-                w.line(&format!(
-                    "{cleanups_var}.push(effect(() => {{ {fvs}const __v = ({rw}); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
-                ));
+                if self.is_static_row_expr(&expr.source) {
+                    // D5: row-scope static style — initial setProperty,
+                    // matching the effect's null → remove pass. Also
+                    // recorded for the for's `update()` callback so
+                    // keyed-row reuse refreshes the style.
+                    let v = self.fresh("sv");
+                    let stmt = format!(
+                        "{{ const {v} = ({rw}); if ({v} == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String({v})); }}"
+                    );
+                    w.line(&stmt);
+                    self.inline_update_stmts.push(stmt);
+                } else {
+                    let fvs = self.for_version_stmt();
+                    w.line(&format!(
+                        "{cleanups_var}.push(effect(() => {{ {fvs}const __v = ({rw}); if (__v == null) {el_var}.style.removeProperty({prop}); else {el_var}.style.setProperty({prop}, String(__v)); }}));"
+                    ));
+                }
                 if self.is_view && self.boundary_depth == 0 {
                     self.hydrate_uses_markers = true;
                     self.hydrate_calls.line(&format!(
@@ -182,11 +222,23 @@ impl TemplateEmitter {
             AttrInstr::Prop { name, expr, .. } => {
                 let key = self.next_key();
                 let rw = rewrite_for_scope(&expr.source, &[]);
-                let fv = self.for_version_comma();
-                w.line(&format!(
-                    "{cleanups_var}.push(bindProp({el_var}, {n}, () => ({fv}{rw})));",
-                    n = js_string(name)
-                ));
+                if self.is_static_row_expr(&expr.source) {
+                    // D5: row-scope static prop — initial assignment.
+                    // Also recorded for the for's `update()` callback
+                    // so keyed-row reuse refreshes the prop.
+                    let stmt = format!(
+                        "{el_var}[{n}] = ({rw});",
+                        n = js_string(name)
+                    );
+                    w.line(&stmt);
+                    self.inline_update_stmts.push(stmt);
+                } else {
+                    let fv = self.for_version_comma();
+                    w.line(&format!(
+                        "{cleanups_var}.push(bindProp({el_var}, {n}, () => ({fv}{rw})));",
+                        n = js_string(name)
+                    ));
+                }
                 if self.is_view && self.boundary_depth == 0 {
                     self.hydrate_uses_markers = true;
                     self.hydrate_calls.line(&format!(

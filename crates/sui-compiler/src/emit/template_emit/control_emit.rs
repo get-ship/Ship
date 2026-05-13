@@ -183,8 +183,12 @@ impl TemplateEmitter {
         let hoist_snapshot = self.boundary_hoists.len();
         self.boundary_depth += 1;
         let outer_for = std::mem::replace(&mut self.for_in_scope, body_needs_v);
+        // D5: scope inline-update statements per for-loop so a nested
+        // for inside this one collects into its own bucket, not ours.
+        let outer_inline = std::mem::take(&mut self.inline_update_stmts);
         self.emit_children(&mut body_w, &instr.body, &frag, &cl);
         self.for_in_scope = outer_for;
+        let inline_updates = std::mem::replace(&mut self.inline_update_stmts, outer_inline);
         self.boundary_depth -= 1;
         let captured_hoists = self.boundary_hoists.split_off_from(hoist_snapshot);
         if !captured_hoists.is_empty() {
@@ -193,11 +197,22 @@ impl TemplateEmitter {
             h.push_str(&captured_hoists);
         }
         h.push_str(&body_w.into_string());
-        if body_needs_v {
+        let needs_update = body_needs_v || !inline_updates.is_empty();
+        if needs_update {
             let new_var = self.fresh("new");
             let new_idx = self.fresh("newI");
+            // The update body re-runs each inlined static assignment
+            // so keyed-row reuse refreshes the DOM when bindFor
+            // reassigns the row instance. `__v.set` only fires when a
+            // reactive binding (a `()` call in source) is present.
+            let inline_run = inline_updates.join(" ");
+            let v_bump = if body_needs_v {
+                " $scope.__v.set(c => c + 1);"
+            } else {
+                ""
+            };
             h.line(&format!(
-                "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }}, update: ({new_var}, {new_idx}) => {{ $scope.{var} = {new_var}; $scope.{idx_name} = {new_idx}; $scope.__v.set(c => c + 1); }} }};"
+                "return {{ nodes: Array.from({frag}.childNodes), cleanup: () => {{ for (const c of {cl}) try {{ c(); }} catch (e) {{}} }}, update: ({new_var}, {new_idx}) => {{ $scope.{var} = {new_var}; $scope.{idx_name} = {new_idx}; {inline_run}{v_bump} }} }};"
             ));
         } else {
             // No body expression reads the row/index — bindFor's
