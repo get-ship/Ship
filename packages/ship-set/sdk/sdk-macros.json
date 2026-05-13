@@ -1,0 +1,1515 @@
+{
+  "_generated": "just gen-sdk — DO NOT EDIT",
+  "version": "0.1.0",
+  "$schema": "https://ship.design/schemas/sdk-macros.schema.json",
+  "entries": {
+    "head": {
+      "name": "head",
+      "category": "page-setup",
+      "signature": "head(title='Ship View')",
+      "params": [
+        {
+          "name": "title",
+          "type": "string",
+          "required": false,
+          "default": "'Ship View'",
+          "description": "Document title. Shown in the browser tab. Defaults to 'Ship View'."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Emit the standard <head> contents for a view: meta tags, title, design\ntoken CSS, Datastar, and the ship-elements bundle. In fragment mode\n(loaded inside the shell via Datastar) these assets are already present,\nso the macro emits nothing.",
+      "summary": "Emit the standard <head> contents for a view: meta tags, title, design token CSS, Datastar, and the ship-elements bundle. In fragment mode (loaded inside the shell via Datastar) these assets are already present, so the macro emits nothing.",
+      "example": "<head>{{ head('Tasks') }}</head>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:23"
+    },
+    "signal": {
+      "name": "signal",
+      "category": "signals-and-reactivity",
+      "signature": "signal(name, default='')",
+      "params": [
+        {
+          "name": "name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Signal name. Use a leading underscore (`_loading`, `_showForm`) for client-only state that should not round-trip to the server."
+        },
+        {
+          "name": "default",
+          "type": "string",
+          "required": false,
+          "default": "''",
+          "description": "Initial value. String, number, boolean, `none`, or a JSON-like literal such as `{}` or `[]`. Defaults to the empty string."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Declare a reactive Datastar signal on the current element. String defaults\nare emitted wrapped in single quotes, `none` becomes literal `null`, and\nother types pass through unquoted so objects/arrays/numbers/booleans\nserialize correctly.",
+      "summary": "Declare a reactive Datastar signal on the current element. String defaults are emitted wrapped in single quotes, `none` becomes literal `null`, and other types pass through unquoted so objects/arrays/numbers/booleans serialize correctly.",
+      "example": "<div {{ signal('collection', 'task') }}\n       {{ signal('_showForm', false) }}\n       {{ signal('form', {}) }}>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:55"
+    },
+    "signals": {
+      "name": "signals",
+      "category": "signals-and-reactivity",
+      "signature": "signals(fields)",
+      "params": [
+        {
+          "name": "fields",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "mapping of signal name → default value."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Declare multiple Datastar signals at once with inferred types. Preferred\nover repeated `signal()` calls when a view has more than two or three\nsignals: concise at the call site, and the type metadata it emits\n(`data-ship-signal-types`) drives AST-lint's type-mismatch rule so a\nlater `$count = 'hello'` against a numeric signal is flagged.\n\nTypes are inferred from each default: strings → str, booleans → bool,\nintegers → int, other numbers → num, null → any, other → any.",
+      "summary": "Declare multiple Datastar signals at once with inferred types. Preferred over repeated `signal()` calls when a view has more than two or three signals: concise at the call site, and the type metadata it emits (`data-ship-signal-types`) drives AST-lint's type-mismatch rule so a later `$count = 'hello'` against a numeric signal is flagged.",
+      "example": "<div {{ signals({'title': '', 'count': 0, 'active': false}) }}>\n\nEmits (roughly):\n  data-signals:title=\"''\" data-signals:count=\"0\" data-signals:active=\"false\"\n  data-ship-signal-types='{\"title\":\"str\",\"count\":\"int\",\"active\":\"bool\"}'",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:79"
+    },
+    "show": {
+      "name": "show",
+      "category": "signals-and-reactivity",
+      "signature": "show(expr)",
+      "params": [
+        {
+          "name": "expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar expression (references signals with `$name`)."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Hide the element until the Datastar expression becomes truthy. Emits\n`display:none` as an inline style so the element cannot flash into view\nbefore Datastar hydrates.",
+      "summary": "Hide the element until the Datastar expression becomes truthy. Emits `display:none` as an inline style so the element cannot flash into view before Datastar hydrates.",
+      "example": "<ship-card {{ show('$_showForm') }}>...</ship-card>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:97"
+    },
+    "toggle_class": {
+      "name": "toggle_class",
+      "category": "signals-and-reactivity",
+      "signature": "toggle_class(cls, expr)",
+      "params": [
+        {
+          "name": "cls",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Class name to add/remove."
+        },
+        {
+          "name": "expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar expression; class is present when truthy."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Reactively toggle a single CSS class based on a Datastar expression.",
+      "summary": "Reactively toggle a single CSS class based on a Datastar expression.",
+      "example": "<div {{ toggle_class('active', '$tab == \"details\"') }}>...</div>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:111"
+    },
+    "attr": {
+      "name": "attr",
+      "category": "signals-and-reactivity",
+      "signature": "attr(name, expr)",
+      "params": [
+        {
+          "name": "name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Attribute name (e.g. `selected`, `disabled`, `aria-pressed`)."
+        },
+        {
+          "name": "expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar expression producing the attribute value."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Reactively bind an HTML attribute's value to a Datastar expression.",
+      "summary": "Reactively bind an HTML attribute's value to a Datastar expression.",
+      "example": "<ship-chip {{ attr('selected', '$status == \"active\"') }}>Active</ship-chip>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:125"
+    },
+    "live": {
+      "name": "live",
+      "category": "sse-and-live-updates",
+      "signature": "live(view_name)",
+      "params": [
+        {
+          "name": "view_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "View slug registered with the daemon. Resolves to `/api/v1/view/<view_name>/sse`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Subscribe the current element to a view's long-lived SSE stream on\nconnect. The daemon pushes `datastar-patch-elements` frames that replace\nmarked regions whenever the view's declared kernel events fire.",
+      "summary": "Subscribe the current element to a view's long-lived SSE stream on connect. The daemon pushes `datastar-patch-elements` frames that replace marked regions whenever the view's declared kernel events fire.",
+      "example": "<div {{ live('tasks') }}>\n    <div id=\"tasks-content\">Loading...</div>\n  </div>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:145"
+    },
+    "live_topic": {
+      "name": "live_topic",
+      "category": "sse-and-live-updates",
+      "signature": "live_topic(topics, into='events')",
+      "params": [
+        {
+          "name": "topics",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "into",
+          "type": "string",
+          "required": false,
+          "default": "'events'",
+          "description": null
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Subscribe to a filtered slice of the kernel event stream and merge the\npayloads into a Datastar signal. Unlike `live()` which refreshes the\nwhole view via SSE morph, this primitive streams raw events into a\nsignal for client-side rendering.",
+      "summary": "Subscribe to a filtered slice of the kernel event stream and merge the payloads into a Datastar signal. Unlike `live()` which refreshes the whole view via SSE morph, this primitive streams raw events into a signal for client-side rendering.",
+      "example": "<div {{ live_topic('job.updated,job.failed', into='jobs') }}>\n    <template data-for=\"$jobs\" ...>...</template>\n  </div>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:170"
+    },
+    "loading": {
+      "name": "loading",
+      "category": "loading-and-indicators",
+      "signature": "loading(signal_name)",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Signal that will flip to `true` while the fetch is in flight. Conventionally underscore-prefixed (`_creating`)."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Mark the element as a Datastar action trigger whose in-flight state\nwrites a boolean to the given signal. Pair with `spinner()` or\n`show()` to render a visual indicator.",
+      "summary": "Mark the element as a Datastar action trigger whose in-flight state writes a boolean to the given signal. Pair with `spinner()` or `show()` to render a visual indicator.",
+      "example": "<ship-button {{ create('task', '$form') }}\n               {{ loading('_creating') }}>Create</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:189"
+    },
+    "spinner": {
+      "name": "spinner",
+      "category": "loading-and-indicators",
+      "signature": "spinner(signal_name)",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Signal the spinner watches. Same value passed to `loading()`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Render an inline spinner that is visible while the given signal is\ntruthy. Designed to sit next to a button that uses `loading()` on the\nsame signal.",
+      "summary": "Render an inline spinner that is visible while the given signal is truthy. Designed to sit next to a button that uses `loading()` on the same signal.",
+      "example": "<ship-button {{ create('task', '$form') }}\n               {{ loading('_creating') }}>Create</ship-button>\n  {{ spinner('_creating') }}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:207"
+    },
+    "error_state": {
+      "name": "error_state",
+      "category": "loading-and-indicators",
+      "signature": "error_state(err, size='md', variant='default', retry=none)",
+      "params": [
+        {
+          "name": "err",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "dict/struct with .title (str), .body (str), .details (str?)"
+        },
+        {
+          "name": "size",
+          "type": "string",
+          "required": false,
+          "default": "'md'",
+          "description": "sm | md | lg (default md)"
+        },
+        {
+          "name": "variant",
+          "type": "string",
+          "required": false,
+          "default": "'default'",
+          "description": "default | inline (default default)"
+        },
+        {
+          "name": "retry",
+          "type": "null",
+          "required": false,
+          "default": "none",
+          "description": "optional hypermedia endpoint; when set, emits a primary \"Retry\" button that GETs the endpoint. Use the current view's own URL for a full reload."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Standard error branch for any view. Takes an `ErrorView`-shaped dict\n({title, body, details?}) and renders a <ship-error-state>. Keep\ntemplates simple: one line at the top of each view guarded by\n`{% if error %}`.",
+      "summary": "Standard error branch for any view. Takes an `ErrorView`-shaped dict ({title, body, details?}) and renders a <ship-error-state>. Keep templates simple: one line at the top of each view guarded by `{% if error %}`.",
+      "example": "{% if error %}{{ error_state(error, retry='/api/v1/v/git') }}{% endif %}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:228"
+    },
+    "on_click": {
+      "name": "on_click",
+      "category": "datastar-event-/-binding-primitives",
+      "signature": "on_click(action)",
+      "params": [
+        {
+          "name": "action",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a raw click handler. The `action` payload is Datastar syntax\n(e.g. `@get('/x')` or `$y = true`) passed through verbatim.",
+      "summary": "Wire a raw click handler. The `action` payload is Datastar syntax (e.g. `@get('/x')` or `$y = true`) passed through verbatim.",
+      "example": "<ship-button {{ on_click(\"@get('/api/v1/v/foo')\") }}>Refresh</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:257"
+    },
+    "on_click_prevent": {
+      "name": "on_click_prevent",
+      "category": "datastar-event-/-binding-primitives",
+      "signature": "on_click_prevent(action)",
+      "params": [
+        {
+          "name": "action",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Like `on_click`, but with `.prevent` to stop the default action. Use\nfor anchors and form buttons where a bare click would navigate or\nsubmit.",
+      "summary": "Like `on_click`, but with `.prevent` to stop the default action. Use for anchors and form buttons where a bare click would navigate or submit.",
+      "example": "<a href=\"/foo\" {{ on_click_prevent(\"@get('/api/v1/v/foo')\") }}>Foo</a>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:269"
+    },
+    "on_submit": {
+      "name": "on_submit",
+      "category": "datastar-event-/-binding-primitives",
+      "signature": "on_submit(action)",
+      "params": [
+        {
+          "name": "action",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a form-submit handler that always prevents the default browser\nsubmission. `action` is Datastar syntax.",
+      "summary": "Wire a form-submit handler that always prevents the default browser submission. `action` is Datastar syntax.",
+      "example": "<form {{ on_submit(\"@post('/api/v1/collections/task/items', {payload: $form})\") }}>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:280"
+    },
+    "on_change": {
+      "name": "on_change",
+      "category": "datastar-event-/-binding-primitives",
+      "signature": "on_change(action)",
+      "params": [
+        {
+          "name": "action",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a handler for the ship-element `ship-change` custom event. Use\nfor `<ship-select>`, `<ship-switch>`, etc. `evt` is in scope.",
+      "summary": "Wire a handler for the ship-element `ship-change` custom event. Use for `<ship-select>`, `<ship-switch>`, etc. `evt` is in scope.",
+      "example": "<ship-select {{ on_change(\"$status = evt.detail.value\") }}>...</ship-select>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:291"
+    },
+    "class_if": {
+      "name": "class_if",
+      "category": "datastar-event-/-binding-primitives",
+      "signature": "class_if(expr, cls)",
+      "params": [
+        {
+          "name": "expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "cls",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Toggle a CSS class reactively. Equivalent to `toggle_class(cls, expr)`\nwith natural \"condition-first\" argument order.",
+      "summary": "Toggle a CSS class reactively. Equivalent to `toggle_class(cls, expr)` with natural \"condition-first\" argument order.",
+      "example": "<div {{ class_if(\"$tab === 'rows'\", 'active') }}>...</div>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:302"
+    },
+    "attr_if": {
+      "name": "attr_if",
+      "category": "datastar-event-/-binding-primitives",
+      "signature": "attr_if(expr, name)",
+      "params": [
+        {
+          "name": "expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        },
+        {
+          "name": "name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Reactively toggle/bind an HTML attribute. Natural argument order\n(condition first, name second) — mirrors `class_if`. For the\nlegacy name-first form see `attr(name, expr)`.",
+      "summary": "Reactively toggle/bind an HTML attribute. Natural argument order (condition first, name second) — mirrors `class_if`. For the legacy name-first form see `attr(name, expr)`.",
+      "example": "<ship-button {{ attr_if('$_saving', 'disabled') }}>Save</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:314"
+    },
+    "init": {
+      "name": "init",
+      "category": "datastar-event-/-binding-primitives",
+      "signature": "init(action)",
+      "params": [
+        {
+          "name": "action",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": null
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Run a Datastar action when the element connects. Mostly used to\nbootstrap an SSE subscription or seed signals on mount.",
+      "summary": "Run a Datastar action when the element connects. Mostly used to bootstrap an SSE subscription or seed signals on mount.",
+      "example": "<div {{ init(\"@get('/api/v1/sse/chat')\") }}>...</div>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:325"
+    },
+    "create": {
+      "name": "create",
+      "category": "collection-actions",
+      "signature": "create(collection, data)",
+      "params": [
+        {
+          "name": "collection",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Collection id (matches a schema in `.ship/collections/`)."
+        },
+        {
+          "name": "data",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar expression whose value becomes the item's `data` payload."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that POSTs a new item into a collection. The\npayload's `data` field is a Datastar expression — typically a form\nsignal such as `$form`.",
+      "summary": "Wire a click handler that POSTs a new item into a collection. The payload's `data` field is a Datastar expression — typically a form signal such as `$form`.",
+      "example": "<ship-button {{ create('task', '$form') }}\n               {{ loading('_creating') }}>Create</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:345"
+    },
+    "update": {
+      "name": "update",
+      "category": "collection-actions",
+      "signature": "update(collection, id, data)",
+      "params": [
+        {
+          "name": "collection",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Collection id."
+        },
+        {
+          "name": "id",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Target item id."
+        },
+        {
+          "name": "data",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar expression for the new `data` payload."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that PUTs updated data onto a specific collection\nitem.",
+      "summary": "Wire a click handler that PUTs updated data onto a specific collection item.",
+      "example": "<ship-button {{ update('task', item.id, '$form') }}>Save</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:361"
+    },
+    "delete": {
+      "name": "delete",
+      "category": "collection-actions",
+      "signature": "delete(collection, id)",
+      "params": [
+        {
+          "name": "collection",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Collection id."
+        },
+        {
+          "name": "id",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Item id to delete."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that DELETEs a specific collection item. Does not\nprompt — use `confirm_delete()` when a confirmation step is required.",
+      "summary": "Wire a click handler that DELETEs a specific collection item. Does not prompt — use `confirm_delete()` when a confirmation step is required.",
+      "example": "<ship-button {{ delete('task', item.id) }}>Delete</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:376"
+    },
+    "navigate": {
+      "name": "navigate",
+      "category": "navigation",
+      "signature": "navigate(url)",
+      "params": [
+        {
+          "name": "url",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "URL to GET (typically under `/api/v1/view/...`)."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that fetches another view via Datastar `@get`,\ntriggering an in-page morph. Use this for partial updates within the\ncurrent view. For full shell-level routing use `nav()` or `view()`.",
+      "summary": "Wire a click handler that fetches another view via Datastar `@get`, triggering an in-page morph. Use this for partial updates within the current view. For full shell-level routing use `nav()` or `view()`.",
+      "example": "<ship-button {{ navigate('/api/v1/view/pipelines') }}>\n    Pipelines\n  </ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:395"
+    },
+    "nav": {
+      "name": "nav",
+      "category": "navigation",
+      "signature": "nav(path)",
+      "params": [
+        {
+          "name": "path",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Shell path to navigate to (e.g. `/agents`)."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that navigates via the shell router when present,\nfalling back to a full page load. Use this for shell-level navigation.",
+      "summary": "Wire a click handler that navigates via the shell router when present, falling back to a full page load. Use this for shell-level navigation.",
+      "example": "<ship-button {{ nav('/agents') }}>Agents</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:409"
+    },
+    "view": {
+      "name": "view",
+      "category": "navigation",
+      "signature": "view(name)",
+      "params": [
+        {
+          "name": "name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "View slug. Becomes the path `/<name>`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that navigates to a named view via the shell router\nwhen present, falling back to a full page load at `/<name>`.",
+      "summary": "Wire a click handler that navigates to a named view via the shell router when present, falling back to a full page load at `/<name>`.",
+      "example": "<ship-button {{ view('tasks') }}>Tasks</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:423"
+    },
+    "on": {
+      "name": "on",
+      "category": "event-listeners",
+      "signature": "on(event, expr)",
+      "params": [
+        {
+          "name": "event",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Event name. Prefix is not required (no `on`)."
+        },
+        {
+          "name": "expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar expression to run when the event fires. `evt` is in scope."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Generic event-listener binding. Use for ship-element custom events\n(`ship-change`, `ship-select`, etc.) and any DOM event not covered by\nthe action-specific macros.",
+      "summary": "Generic event-listener binding. Use for ship-element custom events (`ship-change`, `ship-select`, etc.) and any DOM event not covered by the action-specific macros.",
+      "example": "<ship-select {{ on('ship-change', '$status = evt.detail.value') }}>\n    ...\n  </ship-select>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:444"
+    },
+    "get": {
+      "name": "get",
+      "category": "generic-actions",
+      "signature": "get(url)",
+      "params": [
+        {
+          "name": "url",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Fully-qualified path to GET."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that issues a Datastar `@get` to the given URL.",
+      "summary": "Wire a click handler that issues a Datastar `@get` to the given URL.",
+      "example": "<ship-button {{ get('/api/v1/jobs') }}>Refresh jobs</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:459"
+    },
+    "post": {
+      "name": "post",
+      "category": "generic-actions",
+      "signature": "post(url, payload='{}')",
+      "params": [
+        {
+          "name": "url",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Target URL."
+        },
+        {
+          "name": "payload",
+          "type": "string",
+          "required": false,
+          "default": "'{}'",
+          "description": "Datastar expression (or JSON literal) passed as the request body. Defaults to an empty object."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that issues a Datastar `@post` to the given URL\nwith the supplied payload expression.",
+      "summary": "Wire a click handler that issues a Datastar `@post` to the given URL with the supplied payload expression.",
+      "example": "<ship-button {{ post('/api/v1/jobs', '$newJob') }}>Run</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:475"
+    },
+    "put": {
+      "name": "put",
+      "category": "generic-actions",
+      "signature": "put(url, payload='{}')",
+      "params": [
+        {
+          "name": "url",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Target URL."
+        },
+        {
+          "name": "payload",
+          "type": "string",
+          "required": false,
+          "default": "'{}'",
+          "description": "Request body expression. Defaults to an empty object."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that issues a Datastar `@put`.",
+      "summary": "Wire a click handler that issues a Datastar `@put`.",
+      "example": "<ship-button {{ put('/api/v1/settings', '{theme: $theme}') }}>Save</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:489"
+    },
+    "put_on_change": {
+      "name": "put_on_change",
+      "category": "generic-actions",
+      "signature": "put_on_change(url, payload='{}')",
+      "params": [
+        {
+          "name": "url",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Target URL."
+        },
+        {
+          "name": "payload",
+          "type": "string",
+          "required": false,
+          "default": "'{}'",
+          "description": "Request body expression. Defaults to an empty object."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a change-event handler (fires on every committed input change)\nthat issues a Datastar `@put`. Good for settings inputs that persist\non change without an explicit save button.",
+      "summary": "Wire a change-event handler (fires on every committed input change) that issues a Datastar `@put`. Good for settings inputs that persist on change without an explicit save button.",
+      "example": "<ship-input {{ bind('theme') }}\n              {{ put_on_change('/api/v1/settings', '{theme: $theme}') }}>\n  </ship-input>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:507"
+    },
+    "submit": {
+      "name": "submit",
+      "category": "generic-actions",
+      "signature": "submit(url, payload='{}')",
+      "params": [
+        {
+          "name": "url",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Target URL."
+        },
+        {
+          "name": "payload",
+          "type": "string",
+          "required": false,
+          "default": "'{}'",
+          "description": "Request body expression. Defaults to an empty object."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a form `submit` handler that POSTs the given payload.",
+      "summary": "Wire a form `submit` handler that POSTs the given payload.",
+      "example": "<form {{ submit('/api/v1/specs', '$form') }}>...</form>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:521"
+    },
+    "bind": {
+      "name": "bind",
+      "category": "generic-actions",
+      "signature": "bind(signal_name)",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Signal to bind. Dotted paths (`form.title`) are supported when the parent signal is an object."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Two-way-bind an input element's value to a Datastar signal.",
+      "summary": "Two-way-bind an input element's value to a Datastar signal.",
+      "example": "<ship-input {{ bind('form.title') }} placeholder=\"Title\"></ship-input>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:535"
+    },
+    "create_job": {
+      "name": "create_job",
+      "category": "job-actions",
+      "signature": "create_job(agent_expr, pipeline='')",
+      "params": [
+        {
+          "name": "agent_expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar expression producing the agent slug (e.g. `$selectedAgent`)."
+        },
+        {
+          "name": "pipeline",
+          "type": "string",
+          "required": false,
+          "default": "''",
+          "description": "Optional pipeline name. When truthy it is inlined into the request body. Defaults to the empty string (omitted)."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that POSTs a new job to the runtime. The agent is\npassed as a Datastar expression so UI state (a select value, signal,\netc.) can drive it. When `pipeline` is supplied it is added to the\npayload verbatim.",
+      "summary": "Wire a click handler that POSTs a new job to the runtime. The agent is passed as a Datastar expression so UI state (a select value, signal, etc.) can drive it. When `pipeline` is supplied it is added to the payload verbatim.",
+      "example": "<ship-button {{ create_job('$selectedAgent', 'review') }}>\n    Run\n  </ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:558"
+    },
+    "emit": {
+      "name": "emit",
+      "category": "job-actions",
+      "signature": "emit(event_type, data_expr='{}')",
+      "params": [
+        {
+          "name": "event_type",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Kernel event type (e.g. `task.requested`)."
+        },
+        {
+          "name": "data_expr",
+          "type": "string",
+          "required": false,
+          "default": "'{}'",
+          "description": "Datastar expression for the event's `data` payload. Defaults to an empty object."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that posts a kernel event via `/api/v1/events/emit`.\nUse to trigger backend side-effects that other views listen to over SSE.",
+      "summary": "Wire a click handler that posts a kernel event via `/api/v1/events/emit`. Use to trigger backend side-effects that other views listen to over SSE.",
+      "example": "<ship-button {{ emit('task.requested', '{title: $title}') }}>\n    Request\n  </ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:576"
+    },
+    "feedback": {
+      "name": "feedback",
+      "category": "agent-feedback",
+      "signature": "feedback(payload_expr)",
+      "params": [
+        {
+          "name": "payload_expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar/JS object expression that becomes the feedback `payload`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that posts structured feedback to the active\nagent/session. The payload shape is whatever the agent designed — the\nreceiving prompt reads it. Use this when an agent-authored view needs\ntyped human input beyond free-text (ratings, selections, pick-one).\n\nEmits as feedback (kind=action) so it flows through the\nstudio.feedback.created pipeline. The agent reads `payload` on the\nevent to see what the user picked.",
+      "summary": "Wire a click handler that posts structured feedback to the active agent/session. The payload shape is whatever the agent designed — the receiving prompt reads it. Use this when an agent-authored view needs typed human input beyond free-text (ratings, selections, pick-one).",
+      "example": "<ship-button {{ feedback(\"{selected: 2, comment: 'bolder one'}\") }}>\n    Pick A\n  </ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:601"
+    },
+    "tab": {
+      "name": "tab",
+      "category": "tabs",
+      "signature": "tab(signal_name, value, label='')",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Signal that tracks the active tab value."
+        },
+        {
+          "name": "value",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "The string value this tab represents."
+        },
+        {
+          "name": "label",
+          "type": "string",
+          "required": false,
+          "default": "''",
+          "description": "Accepted for call-site readability; currently unused by the emitted attributes. Defaults to the empty string."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a tab button. Sets the named signal to `value` on click and\nexposes `aria-selected` reactively so CSS can style the active tab.",
+      "summary": "Wire a tab button. Sets the named signal to `value` on click and exposes `aria-selected` reactively so CSS can style the active tab.",
+      "example": "<ship-tab {{ tab('activeTab', 'details') }}>Details</ship-tab>\n  <ship-tab {{ tab('activeTab', 'history') }}>History</ship-tab>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:621"
+    },
+    "tab_panel": {
+      "name": "tab_panel",
+      "category": "tabs",
+      "signature": "tab_panel(signal_name, value)",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "The same signal used with `tab()`."
+        },
+        {
+          "name": "value",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "The value this panel is visible for."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Show the tab panel only when the tab signal matches `value`. Uses\n`display:none` as a base style so panels don't flash before Datastar\nhydrates.",
+      "summary": "Show the tab panel only when the tab signal matches `value`. Uses `display:none` as a base style so panels don't flash before Datastar hydrates.",
+      "example": "<div {{ tab_panel('activeTab', 'details') }}>...</div>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:637"
+    },
+    "chip": {
+      "name": "chip",
+      "category": "filter-chips",
+      "signature": "chip(signal_name, value, view_name='')",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Filter signal."
+        },
+        {
+          "name": "value",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Value this chip selects."
+        },
+        {
+          "name": "view_name",
+          "type": "string",
+          "required": false,
+          "default": "''",
+          "description": "When set, a `@get('/api/v1/view/<view_name>/sse')` is appended to refresh results. Defaults to the empty string (client-only filter)."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a filter chip: on click, sets the named signal to `value` and\n(optionally) refreshes the view's SSE stream so the server reruns the\nquery with the new filter. Also exposes `selected` reactively for the\nactive chip.",
+      "summary": "Wire a filter chip: on click, sets the named signal to `value` and (optionally) refreshes the view's SSE stream so the server reruns the query with the new filter. Also exposes `selected` reactively for the active chip.",
+      "example": "<ship-chip {{ chip('status', 'active', 'tasks') }}>Active</ship-chip>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:659"
+    },
+    "chip_all": {
+      "name": "chip_all",
+      "category": "filter-chips",
+      "signature": "chip_all(signal_name, view_name='')",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Filter signal to clear."
+        },
+        {
+          "name": "view_name",
+          "type": "string",
+          "required": false,
+          "default": "''",
+          "description": "When set, refreshes `/api/v1/view/<view_name>/sse` after clearing."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "A companion to `chip()` that clears the filter (sets the signal to the\nempty string) and optionally refreshes SSE. Use for an \"All\" chip next\nto value-specific chips.",
+      "summary": "A companion to `chip()` that clears the filter (sets the signal to the empty string) and optionally refreshes SSE. Use for an \"All\" chip next to value-specific chips.",
+      "example": "<ship-chip {{ chip_all('status', 'tasks') }}>All</ship-chip>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:676"
+    },
+    "search": {
+      "name": "search",
+      "category": "search-and-debounce",
+      "signature": "search(signal_name, view_name, delay='300ms')",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Query signal (bound with `data-bind`)."
+        },
+        {
+          "name": "view_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "View whose SSE stream to refresh on input."
+        },
+        {
+          "name": "delay",
+          "type": "string",
+          "required": false,
+          "default": "'300ms'",
+          "description": "Datastar debounce modifier (e.g. `300ms`, `500ms`). Defaults to `300ms`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a debounced search input: two-way-binds to a signal and refreshes\nthe view's SSE stream when the user pauses typing.",
+      "summary": "Wire a debounced search input: two-way-binds to a signal and refreshes the view's SSE stream when the user pauses typing.",
+      "example": "<ship-input {{ search('q', 'tasks') }} placeholder=\"Search...\"></ship-input>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:695"
+    },
+    "on_change_debounced": {
+      "name": "on_change_debounced",
+      "category": "search-and-debounce",
+      "signature": "on_change_debounced(expr, delay='300ms')",
+      "params": [
+        {
+          "name": "expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar expression."
+        },
+        {
+          "name": "delay",
+          "type": "string",
+          "required": false,
+          "default": "'300ms'",
+          "description": "Debounce duration. Defaults to `300ms`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Run an expression on `change`, debounced. Useful for settings that\nauto-save after the user finishes editing.",
+      "summary": "Run an expression on `change`, debounced. Useful for settings that auto-save after the user finishes editing.",
+      "example": "<ship-input {{ bind('name') }}\n              {{ on_change_debounced(\"@put('/api/v1/settings', {payload: {name: $name}})\") }}>\n  </ship-input>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:712"
+    },
+    "radio": {
+      "name": "radio",
+      "category": "radio-/-selection",
+      "signature": "radio(signal_name, value)",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Selection signal."
+        },
+        {
+          "name": "value",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Value this option represents."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a radio-style button: sets the named signal to `value` on click\nand reflects the selection via `aria-checked`.",
+      "summary": "Wire a radio-style button: sets the named signal to `value` on click and reflects the selection via `aria-checked`.",
+      "example": "<ship-button {{ radio('theme', 'dark') }}>Dark</ship-button>\n  <ship-button {{ radio('theme', 'light') }}>Light</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:730"
+    },
+    "confirm_delete": {
+      "name": "confirm_delete",
+      "category": "confirmation",
+      "signature": "confirm_delete(collection, id)",
+      "params": [
+        {
+          "name": "collection",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Collection id."
+        },
+        {
+          "name": "id",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Item id to delete."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that shows a browser `confirm()` dialog with\n\"Delete this item?\" and, on OK, DELETEs the item. For a typed\nShip-styled confirm dialog use `confirm_dialog()` / `confirm_trigger()`.",
+      "summary": "Wire a click handler that shows a browser `confirm()` dialog with \"Delete this item?\" and, on OK, DELETEs the item. For a typed Ship-styled confirm dialog use `confirm_dialog()` / `confirm_trigger()`.",
+      "example": "<ship-button {{ confirm_delete('task', item.id) }}>Delete</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:748"
+    },
+    "confirm": {
+      "name": "confirm",
+      "category": "confirmation",
+      "signature": "confirm(message, action_expr)",
+      "params": [
+        {
+          "name": "message",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Dialog text."
+        },
+        {
+          "name": "action_expr",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Datastar expression to run when the user confirms."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that shows a browser `confirm()` dialog with the\ngiven message and, on OK, runs the Datastar expression.",
+      "summary": "Wire a click handler that shows a browser `confirm()` dialog with the given message and, on OK, runs the Datastar expression.",
+      "example": "<ship-button {{ confirm('Cancel this job?', \"@post('/api/v1/jobs/\" ~ job.id ~ \"/cancel')\") }}>\n    Cancel\n  </ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:765"
+    },
+    "live_persistent": {
+      "name": "live_persistent",
+      "category": "extended-live",
+      "signature": "live_persistent(view_name)",
+      "params": [
+        {
+          "name": "view_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "View slug whose SSE stream to subscribe to."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Like `live()`, but configures Datastar with `requestCancellation: 'disabled'`\nso the SSE connection is not aborted when other `@get`/`@post` actions\nfire on the page. Use for views that must stay subscribed across\nnavigations within the same shell region.",
+      "summary": "Like `live()`, but configures Datastar with `requestCancellation: 'disabled'` so the SSE connection is not aborted when other `@get`/`@post` actions fire on the page. Use for views that must stay subscribed across navigations within the same shell region.",
+      "example": "<div {{ live_persistent('events') }}>\n    <div id=\"events-content\"></div>\n  </div>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:785"
+    },
+    "on_fetch_error": {
+      "name": "on_fetch_error",
+      "category": "fetch-error-handling",
+      "signature": "on_fetch_error(signal_name, message=\"'HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?')\")",
+      "params": [
+        {
+          "name": "signal_name",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Signal that receives the error message when the fetch fails."
+        },
+        {
+          "name": "message",
+          "type": "string",
+          "required": false,
+          "default": "\"'HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?')\"",
+          "description": "JS expression producing the error message. Has access to `evt.detail.argsRaw.status`. Defaults to `'HTTP ' + status`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Bind a signal to receive a failure message when a fetch action on\nTHIS element returns an HTTP error or non-SSE body.\n\nDatastar fires a `datastar-fetch` event on document with\n  detail: { type: 'error', el: <trigger>, argsRaw: { status } }\nwhen `onopen` sees a >= 400 response. This macro attaches a\ndocument-level listener scoped to the current element so a failed\n`@post`/`@get`/`@put`/`@delete` patches the named error signal.",
+      "summary": "Bind a signal to receive a failure message when a fetch action on THIS element returns an HTTP error or non-SSE body.",
+      "example": "<ship-button\n    data-on:click=\"$step = 3; @post('/api/v1/projects', {payload: ...})\"\n    {{ on_fetch_error('ws_error') }}>\n    Continue\n  </ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:814"
+    },
+    "form": {
+      "name": "form",
+      "category": "data-macros",
+      "signature": "form(schema, collection, form_signal='form')",
+      "params": [
+        {
+          "name": "schema",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Collection schema (from `ship_schema(collection)`)."
+        },
+        {
+          "name": "collection",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Collection id. Kept for future extension and lint alignment."
+        },
+        {
+          "name": "form_signal",
+          "type": "string",
+          "required": false,
+          "default": "'form'",
+          "description": "Parent signal object inputs bind into. Defaults to `form`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Auto-generate field inputs from a collection schema, two-way-bound to\n$<form_signal>.<field>. For the full CRUD surface (submit, loading,\nerror surface, create vs update), pair this with explicit `create()`\nor `update()` macros on a separate button — the deferred full-CRUD\nprimitive is tracked in docs/ship-sdk/references/docs/roadmap.md.\n\nField types: enum → <ship-select>, boolean → <ship-switch>, number →\nnumeric <ship-input>, markdown → <ship-textarea>, else <ship-input>.\nRequired fields render a red asterisk suffix.",
+      "summary": "Auto-generate field inputs from a collection schema, two-way-bound to $<form_signal>.<field>. For the full CRUD surface (submit, loading, error surface, create vs update), pair this with explicit `create()` or `update()` macros on a separate button — the deferred full-CRUD primitive is tracked in docs/ship-sdk/references/docs/roadmap.md.",
+      "example": "<div {{ signal('form', {}) }}>\n    {{ form(ship_schema('notes'), 'notes') }}\n    <ship-button {{ create('notes', '$form') }}>Save</ship-button>\n  </div>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:843"
+    },
+    "table": {
+      "name": "table",
+      "category": "data-macros",
+      "signature": "table(schema, items, collection)",
+      "params": [
+        {
+          "name": "schema",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Collection schema dict."
+        },
+        {
+          "name": "items",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Iterable of item records with `.id`, `.data`, `.updated_at`."
+        },
+        {
+          "name": "collection",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Collection id (used by the per-row delete button)."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Auto-generate a data table from a schema plus a list of items. Emits\nan ID column, one column per schema field with type-appropriate\nformatting (enum -> chip, boolean -> badge, number -> monospace,\narray -> up-to-4 chips with overflow badge), an Updated column, and a\nper-row delete button wired with `delete(collection, item.id)`.",
+      "summary": "Auto-generate a data table from a schema plus a list of items. Emits an ID column, one column per schema field with type-appropriate formatting (enum -> chip, boolean -> badge, number -> monospace, array -> up-to-4 chips with overflow badge), an Updated column, and a per-row delete button wired with `delete(collection, item.id)`.",
+      "example": "{{ table(ship_schema('task'), ship_items('task'), 'task') }}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:886"
+    },
+    "layout_center": {
+      "name": "layout_center",
+      "category": "layout",
+      "signature": "layout_center(max_width='768px')",
+      "params": [
+        {
+          "name": "max_width",
+          "type": "string",
+          "required": false,
+          "default": "'768px'",
+          "description": "CSS length for the column's maximum width. Defaults to `768px`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Open a centered single-column layout wrapper: `max-width` with\nhorizontal auto-margins and generous vertical padding (space-6 top,\nspace-12 bottom). Must be closed with `layout_end()`. Good for\nsettings pages, forms, and detail views.",
+      "summary": "Open a centered single-column layout wrapper: `max-width` with horizontal auto-margins and generous vertical padding (space-6 top, space-12 bottom). Must be closed with `layout_end()`. Good for settings pages, forms, and detail views.",
+      "example": "{{ layout_center('960px') }}\n    ...content...\n  {{ layout_end() }}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:936"
+    },
+    "layout_sidebar": {
+      "name": "layout_sidebar",
+      "category": "layout",
+      "signature": "layout_sidebar(sidebar_width='240px')",
+      "params": [
+        {
+          "name": "sidebar_width",
+          "type": "string",
+          "required": false,
+          "default": "'240px'",
+          "description": "CSS length for the sidebar column. Defaults to `240px`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Open a two-column grid: fixed sidebar + flexible main pane, full\nheight. Must be closed with `layout_end()`. Good for explorers and\ncanvas-style views.",
+      "summary": "Open a two-column grid: fixed sidebar + flexible main pane, full height. Must be closed with `layout_end()`. Good for explorers and canvas-style views.",
+      "example": "{{ layout_sidebar() }}\n    <aside>...</aside>\n    <main>...</main>\n  {{ layout_end() }}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:957"
+    },
+    "layout_three_col": {
+      "name": "layout_three_col",
+      "category": "layout",
+      "signature": "layout_three_col(left='240px', right='320px')",
+      "params": [
+        {
+          "name": "left",
+          "type": "string",
+          "required": false,
+          "default": "'240px'",
+          "description": "CSS length for the left column. Defaults to `240px`."
+        },
+        {
+          "name": "right",
+          "type": "string",
+          "required": false,
+          "default": "'320px'",
+          "description": "CSS length for the right column. Defaults to `320px`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Open a three-column grid: fixed left sidebar + flexible main pane +\nfixed right info panel, full height. Must be closed with\n`layout_end()`. Good for IDE-style views.",
+      "summary": "Open a three-column grid: fixed left sidebar + flexible main pane + fixed right info panel, full height. Must be closed with `layout_end()`. Good for IDE-style views.",
+      "example": "{{ layout_three_col() }}\n    <aside>...</aside>\n    <main>...</main>\n    <aside>...</aside>\n  {{ layout_end() }}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:979"
+    },
+    "layout_end": {
+      "name": "layout_end",
+      "category": "layout",
+      "signature": "layout_end()",
+      "params": [],
+      "returns": "html-attributes",
+      "description": "Close a layout wrapper opened by `layout_center()`, `layout_sidebar()`,\nor `layout_three_col()`.",
+      "summary": "Close a layout wrapper opened by `layout_center()`, `layout_sidebar()`, or `layout_three_col()`.",
+      "example": "{{ layout_center() }}\n    ...content...\n  {{ layout_end() }}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:994"
+    },
+    "toast_container": {
+      "name": "toast_container",
+      "category": "toast-notifications",
+      "signature": "toast_container()",
+      "params": [],
+      "returns": "html-attributes",
+      "description": "Mount the `<ship-toast-container>` in the bottom-right corner with the\nid `ship-toasts`. `toast_action()` looks this up by id to dispatch\ntoasts. Place once per page.",
+      "summary": "Mount the `<ship-toast-container>` in the bottom-right corner with the id `ship-toasts`. `toast_action()` looks this up by id to dispatch toasts. Place once per page.",
+      "example": "{{ toast_container() }}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:1008"
+    },
+    "toast_action": {
+      "name": "toast_action",
+      "category": "toast-notifications",
+      "signature": "toast_action(message, tone='default', duration=3000)",
+      "params": [
+        {
+          "name": "message",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Toast title text."
+        },
+        {
+          "name": "tone",
+          "type": "string",
+          "required": false,
+          "default": "'default'",
+          "description": "Visual tone — `default`, `info`, `success`, `warning`, `destructive`. Defaults to `default`."
+        },
+        {
+          "name": "duration",
+          "type": "number",
+          "required": false,
+          "default": "3000",
+          "description": "Time in milliseconds before auto-dismiss. Defaults to `3000`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that dispatches a toast through the container\nmounted by `toast_container()`.",
+      "summary": "Wire a click handler that dispatches a toast through the container mounted by `toast_container()`.",
+      "example": "<ship-button {{ toast_action('Saved!', 'success') }}>Save</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:1028"
+    },
+    "confirm_dialog": {
+      "name": "confirm_dialog",
+      "category": "confirm-dialog",
+      "signature": "confirm_dialog(id, title, description, action_attrs)",
+      "params": [
+        {
+          "name": "id",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Unique id suffix. The dialog's DOM id becomes `confirm-<id>`."
+        },
+        {
+          "name": "title",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Heading text."
+        },
+        {
+          "name": "description",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Body text under the heading."
+        },
+        {
+          "name": "action_attrs",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Pre-rendered attributes for the confirm button — typically a `delete()` / `post()` / `put()` macro call."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Render a `<ship-alert-dialog>` that gates a destructive action.\nCancel closes the dialog; Confirm executes `action_attrs` and then\ncloses. Pair with `confirm_trigger(id)` on the opening button.",
+      "summary": "Render a `<ship-alert-dialog>` that gates a destructive action. Cancel closes the dialog; Confirm executes `action_attrs` and then closes. Pair with `confirm_trigger(id)` on the opening button.",
+      "example": "{{ confirm_dialog('delete-item', 'Delete this item?',\n     'This cannot be undone.', delete('task', item.id)) }}\n  <ship-button {{ confirm_trigger('delete-item') }}>Delete</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:1051"
+    },
+    "confirm_trigger": {
+      "name": "confirm_trigger",
+      "category": "confirm-dialog",
+      "signature": "confirm_trigger(id)",
+      "params": [
+        {
+          "name": "id",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Matching id passed to `confirm_dialog()`."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Wire a click handler that opens a `confirm_dialog()` by id (adds the\n`open` attribute to `confirm-<id>`).",
+      "summary": "Wire a click handler that opens a `confirm_dialog()` by id (adds the `open` attribute to `confirm-<id>`).",
+      "example": "<ship-button {{ confirm_trigger('delete-item') }}>Delete</ship-button>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:1075"
+    },
+    "section": {
+      "name": "section",
+      "category": "section-(card-with-standardized-header)",
+      "signature": "section(title, icon=none, link_href=none, link_label=none)",
+      "params": [
+        {
+          "name": "title",
+          "type": "any",
+          "required": true,
+          "default": null,
+          "description": "Section heading text. Required."
+        },
+        {
+          "name": "icon",
+          "type": "null",
+          "required": false,
+          "default": "none",
+          "description": "ship-icon registry name (e.g. `activity`, `cpu`). Optional."
+        },
+        {
+          "name": "link_href",
+          "type": "null",
+          "required": false,
+          "default": "none",
+          "description": "URL for the trailing pill. Optional."
+        },
+        {
+          "name": "link_label",
+          "type": "null",
+          "required": false,
+          "default": "none",
+          "description": "Visible text on the trailing pill. Optional."
+        }
+      ],
+      "returns": "html-attributes",
+      "description": "Open a `<ship-card>` with a standardized slot-header row: optional\nleading ship-icon + title on the left, optional trailing link pill\n(muted text + right-chevron) on the right. Must be paired with\n`endsection()`.\n\nWhen `link_href` starts with `/api/v1/view/`, the trailing link\nis wired to `@get(link_href)` with `.prevent` so SSE-aware navigation\ntakes over. Otherwise it is a plain anchor.\n\nThe layout is inline-styled on purpose — the macro owns the\nstandardized design tokens so view authors don't have to re-declare\n`.dash-section-head`.",
+      "summary": "Open a `<ship-card>` with a standardized slot-header row: optional leading ship-icon + title on the left, optional trailing link pill (muted text + right-chevron) on the right. Must be paired with `endsection()`.",
+      "example": "{{ section('Recent jobs', icon='activity',\n             link_href='/api/v1/view/pipelines',\n             link_label='View all') }}\n    <ship-list-tile>...</ship-list-tile>\n  {{ endsection() }}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:1108"
+    },
+    "endsection": {
+      "name": "endsection",
+      "category": "section-(card-with-standardized-header)",
+      "signature": "endsection()",
+      "params": [],
+      "returns": "html-attributes",
+      "description": "Close the `<ship-card>` opened by `section()`.",
+      "summary": "Close the `<ship-card>` opened by `section()`.",
+      "example": "{{ section('Recent jobs') }}\n    ...body...\n  {{ endsection() }}",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:1136"
+    },
+    "styles": {
+      "name": "styles",
+      "category": "shared-styles",
+      "signature": "styles()",
+      "params": [],
+      "returns": "html-attributes",
+      "description": "Emit the shared `<style>` block used by `form()` and `table()`:\n`.ship-form-field`, `.ship-form-label`, `.ship-table`, `.mono`,\n`.muted`, `.null`. Place once in `<head>` when a view renders an\nauto-form or auto-table.",
+      "summary": "Emit the shared `<style>` block used by `form()` and `table()`: `.ship-form-field`, `.ship-form-label`, `.ship-table`, `.mono`, `.muted`, `.null`. Place once in `<head>` when a view renders an auto-form or auto-table.",
+      "example": "<head>{{ head('Tasks') }}{{ styles() }}</head>",
+      "since": "0.1.0",
+      "documented": true,
+      "source": "apps/shipd/templates/_ship.html.j2:1151"
+    }
+  }
+}
