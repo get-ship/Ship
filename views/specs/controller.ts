@@ -3,8 +3,8 @@ import type { Scope } from './page.sui'
 
 export default controller<Scope>({
   scope: ({ ship, route }) => {
-    const q = signal((route as any)().query?.q || '')
-    const selectedId = derived(() => (route as any)().query?.id || '')
+    const q = signal(route.query.q() || '')
+    const selectedId = derived(() => route.query.id() || '')
     const confirmDelete = signal(false)
     const filterInputEl = ref<HTMLElement>(null)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

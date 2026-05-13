@@ -10,7 +10,7 @@ type SchemaField = {
 
 export default controller<Scope>({
   scope: ({ route, ship }) => {
-    const activeId = derived(() => (route as any)().query?.collection || '')
+    const activeId = derived(() => route.query.collection() || '')
     const colDetail = live(() => ship.collections.detail({ id: activeId() }))
     const schemaFieldsView = derived(() => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
