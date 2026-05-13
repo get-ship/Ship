@@ -107,16 +107,15 @@ pub(crate) fn is_valid_view_name(name: &str) -> bool {
     !name.is_empty() && !name.contains("..") && !name.contains('/') && !name.contains('\\')
 }
 
-/// Resolve a view directory by name. Checks project then global dirs.
+/// Resolve a view directory by name. Walks the same priority order as
+/// `view_search_dirs` — workspace `views/` first, then `.ship/views/`,
+/// then global. First hit wins so workspace-scoped views can shadow
+/// built-ins without renaming.
 pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
     if !is_valid_view_name(name) { return None; }
-    if let Ok(d) = ship_application::project::get_project_dir(None) {
-        let c = d.join("views").join(name);
-        if c.is_dir() { return Some((c, "project")); }
-    }
-    if let Ok(d) = ship_application::project::get_global_dir() {
-        let c = d.join("views").join(name);
-        if c.is_dir() { return Some((c, "global")); }
+    for d in super::discovery::view_search_dirs() {
+        let c = d.path.join(name);
+        if c.is_dir() { return Some((c, d.source)); }
     }
     None
 }
@@ -200,6 +199,11 @@ fn detect_view_type(dir: &PathBuf) -> Option<String> {
     }
     if dir.join("index.html").exists() { return Some("html".into()); }
     if dir.join("index.js").exists() { return Some("component".into()); }
+    // SUI-authored views — both layouts. Recognized without a manifest so
+    // user apps don't need ceremonial config to appear in `/api/v1/views`.
+    if dir.join("page.sui").exists() || dir.join("index.sui").exists() {
+        return Some("sui".into());
+    }
     None
 }
 

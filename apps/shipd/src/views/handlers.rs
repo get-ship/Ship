@@ -21,8 +21,9 @@ use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 )]
 pub async fn list_views() -> impl IntoResponse {
     let mut views: HashMap<String, ViewListEntry> = HashMap::new();
-    if let Ok(d) = ship_application::project::get_project_dir(None) { scan_views_dir(&d.join("views"), "project", &mut views); }
-    if let Ok(d) = ship_application::project::get_global_dir() { scan_views_dir(&d.join("views"), "global", &mut views); }
+    for d in super::discovery::view_search_dirs() {
+        scan_views_dir(&d.path, d.source, &mut views);
+    }
     let mut list: Vec<ViewListEntry> = views.into_values().collect();
     list.sort_by(|a, b| a.name.cmp(&b.name));
     mesh_ok(serde_json::json!({ "views": list }))

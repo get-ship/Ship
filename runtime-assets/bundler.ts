@@ -98,24 +98,41 @@ function discoverIslandBundles(): BundleTarget[] {
   return out
 }
 
-// Views: one bundle per views/<name>/, entrypoint is page.sui itself. The
-// plugin's onLoad transforms the .sui via sui-compiler, and the resulting
-// `import setup from "./controller.ts"` resolves to views/<name>/controller.ts
-// (the .sui's own directory).
+// Views: one bundle per discovered view, entrypoint is the leaf .sui file.
+// The plugin's onLoad transforms the .sui via sui-compiler, and the
+// resulting `import setup from "./controller.ts"` resolves to the .sui's
+// own directory.
+//
+// Two layouts are honored, both rooted at the workspace (SHIP_REPO_ROOT
+// is the daemon's attached workspace, NOT the Ship repo):
+//
+// - `<workspace>/views/<name>/page.sui`        — top-level app convention
+// - `<workspace>/.ship/views/<name>/index.sui` — colocated with .ship/ config
+//
+// Top-level wins when both exist (mirrors the resolver's priority order,
+// which lets workspace `views/` shadow `.ship/views/` by name).
 function discoverViewBundles(): BundleTarget[] {
-  const viewsDir = resolve(repoRoot, 'views')
-  if (!existsSync(viewsDir)) return []
   const out: BundleTarget[] = []
-  for (const e of readdirSync(viewsDir, { withFileTypes: true })) {
-    if (!e.isDirectory()) continue
-    const pageSui = resolve(viewsDir, e.name, 'page.sui')
-    if (!existsSync(pageSui)) continue
-    out.push({
-      name: `views/${e.name}/view`,
-      entry: pageSui,
-      external: ['@ship/sui-runtime', '@ship/sui-runtime/template-hooks', '@ship/sui-dom', '@ship/sdk-client'],
-      outFile: `views/${e.name}/view.js`,
-    })
+  const seen = new Set<string>()
+  const candidates: Array<{ dir: string; leaf: string }> = [
+    { dir: resolve(repoRoot, 'views'), leaf: 'page.sui' },
+    { dir: resolve(repoRoot, '.ship', 'views'), leaf: 'index.sui' },
+  ]
+  for (const { dir, leaf } of candidates) {
+    if (!existsSync(dir)) continue
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      if (!e.isDirectory()) continue
+      if (seen.has(e.name)) continue
+      const entry = resolve(dir, e.name, leaf)
+      if (!existsSync(entry)) continue
+      seen.add(e.name)
+      out.push({
+        name: `views/${e.name}/view`,
+        entry,
+        external: ['@ship/sui-runtime', '@ship/sui-runtime/template-hooks', '@ship/sui-dom', '@ship/sdk-client'],
+        outFile: `views/${e.name}/view.js`,
+      })
+    }
   }
   return out
 }
@@ -357,7 +374,7 @@ function startWatching() {
   if (activeWatcher) return
 
   const watchDirs: string[] = []
-  for (const d of ['packages', 'views']) {
+  for (const d of ['packages', 'views', '.ship/views']) {
     const abs = resolve(repoRoot, d)
     if (existsSync(abs)) watchDirs.push(abs)
   }

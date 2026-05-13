@@ -58,6 +58,7 @@ pub mod sanitize;
 
 pub mod assets;
 pub mod context;
+pub mod discovery;
 pub mod error_overlay;
 pub mod generic_sse;
 pub mod handlers;
