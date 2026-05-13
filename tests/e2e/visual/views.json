@@ -1,26 +1,24 @@
 {
-  "_comment": "Visual baseline registry. Top-level views render at /sui/<name>; components render in a synthesized harness page. ship-ui-studio is excluded (in-flight on a separate worktree). Views below are the subset that compiles cleanly against the current daemon. Themes captured: paper (light) and ship-dark.",
-  "_excluded_views_and_reason": {
-    "canvas": "SUI compile error at line 31 col 40 — [<a> attr:href] attr: expects attr:{nameExpr}",
-    "chat": "SUI compile error in current source",
-    "collections": "SUI compile error in current source",
-    "events": "SUI compile error in current source",
-    "overview": "SUI compile error in current source",
-    "pipelines": "SUI compile error in current source",
-    "setup": "SUI compile error in current source",
-    "skills": "SUI compile error in current source",
-    "specs": "SUI compile error in current source",
-    "theme-studio": "SUI compile error in current source",
-    "ship-ui-studio": "in-flight on studio-iframe-fix worktree; baselining a moving target is noise",
-    "git": "client-side mount fails — '@ship/sui-runtime/template-hooks' module specifier unresolved by host shell importmap",
-    "mesh": "client-side mount fails — view.js dynamic import 404 / load error",
-    "settings": "client-side mount fails — view.js dynamic import 404 / load error"
-  },
+  "_comment": "Visual baseline registry. Top-level views render at /sui/<name>; components render in a synthesized harness page. Themes captured: paper (light) and ship-dark. All 18 views compile and serve as of this update; any captured-but-broken renders are recorded in .artifacts/sui-arc/views-baseline-coverage.md.",
   "views": [
     "agents",
+    "canvas",
+    "chat",
+    "collections",
     "dashboard",
+    "events",
+    "git",
     "home",
-    "pipelines-board"
+    "mesh",
+    "overview",
+    "pipelines",
+    "pipelines-board",
+    "settings",
+    "setup",
+    "ship-ui-studio",
+    "skills",
+    "specs",
+    "theme-studio"
   ],
   "components": [
     {"tag": "sui-button", "slot": "<sui-button variant=\"solid\" tone=\"primary\">Primary</sui-button> <sui-button variant=\"outline\">Outline</sui-button> <sui-button variant=\"ghost\">Ghost</sui-button>"},
