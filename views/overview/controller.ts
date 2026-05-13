@@ -1,27 +1,43 @@
-import { controller, signal } from '@ship/sui-runtime'
+import { controller, signal, live, derived, ref } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: () => ({
-    search: signal(''),
-    filterStatus: signal(''),
-    filterLayer: signal(''),
-    drawerOpen: signal(false),
-    drawerId: signal<string | null>(null),
-    drawerTitle: signal('New system'),
-    fldName: signal(''),
-    fldLayer: signal(''),
-    fldStatus: signal('spec'),
-    fldSummary: signal(''),
-    fldDocSkill: signal(''),
-    fldGaps: signal<string[]>([]),
-    fldCodePaths: signal<string[]>([]),
-    fldDependsOn: signal<string[]>([]),
-    // DOM refs wired via bind:this in the template.
-    wrapRef: signal<HTMLElement | null>(null),
-    canvasRef: signal<HTMLElement | null>(null),
-    edgesRef: signal<SVGElement | null>(null),
-  }),
+  scope: ({ ship }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const systems = live(() => (ship as any).collections.items({ collection: 'systems' }))
+    const depsJson = derived(() => {
+      const env = systems()
+      if (env.kind !== 'ok') return {} as Record<string, string>
+      const out: Record<string, string> = {}
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const item of env.value.items as Array<{ id: string; data?: { depends_on?: unknown } }>) {
+        out[item.id] = JSON.stringify(item.data?.depends_on ?? [])
+      }
+      return out
+    })
+    return {
+      systems,
+      depsJson,
+      search: signal(''),
+      filterStatus: signal(''),
+      filterLayer: signal(''),
+      drawerOpen: signal(false),
+      drawerId: signal<string | null>(null),
+      drawerTitle: signal('New system'),
+      fldName: signal(''),
+      fldLayer: signal(''),
+      fldStatus: signal('spec'),
+      fldSummary: signal(''),
+      fldDocSkill: signal(''),
+      fldGaps: signal<string[]>([]),
+      fldCodePaths: signal<string[]>([]),
+      fldDependsOn: signal<string[]>([]),
+      // DOM refs wired via bind:this in the template.
+      wrapRef: ref<HTMLElement>(null),
+      canvasRef: ref<HTMLElement>(null),
+      edgesRef: ref<SVGElement>(null),
+    }
+  },
 
   on: {
     openNewDrawer: (s) => {
@@ -33,6 +49,22 @@ export default controller<Scope>({
       s.drawerOpen = true
     },
     closeDrawer: (s) => { s.drawerOpen = false },
+    fitView: () => (window as Window & { __ovFit?: () => void }).__ovFit?.(),
+    askAgent: (s) => {
+      fetch('/api/v1/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kind: 'system_dispatch',
+          system: {
+            name: s.fldName,
+            summary: s.fldSummary,
+            status: s.fldStatus,
+            layer: s.fldLayer,
+          },
+        }),
+      }).catch(() => {})
+    },
     addGap: (s) => { s.fldGaps = [...s.fldGaps, ''] },
     addDependsOn: (s) => { s.fldDependsOn = [...s.fldDependsOn, ''] },
     saveDrawer: (s) => {
