@@ -149,8 +149,11 @@ export interface Derived<T> extends Signal<T> {}
  * seed the cache, then re-runs on demand when a tracked dependency
  * invalidates.
  *
- * Subscribers are notified on invalidation, not on recompute — readers
- * pay the recomputation cost only when they actually pull. Dependencies
+ * Notifications are referentially memoized: when a dep changes we
+ * eagerly recompute and skip notifying subscribers when the new value
+ * is `Object.is`-equal to the cached one (so a derived returning the
+ * same ref doesn't churn its downstream effects). When no subscribers
+ * exist we stay lazy and defer recompute to the next read. Dependencies
  * are diffed each run: deps read in run N but not in run N+1 are
  * unsubscribed, so conditional reads (e.g. `if cond() { a() } else
  * { b() }`) do not leak stale subscriptions.
@@ -178,7 +181,13 @@ export function derived<T>(fn: () => T): Derived<T> {
   const invalidate: Subscriber = () => {
     if (dirty) return
     dirty = true
-    // Notify subscribers — they pull us lazily on their next run.
+    if (subs.size === 0) return
+    // Eagerly recompute so we can suppress notify on identity-equal
+    // results. Holds an immutable-ref contract: derived returning the
+    // same mutated reference will look unchanged here.
+    const prev = value
+    recompute()
+    if (Object.is(prev, value)) return
     for (const s of [...subs]) s()
   }
 

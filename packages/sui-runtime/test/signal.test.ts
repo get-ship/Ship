@@ -140,6 +140,77 @@ describe('derived', () => {
     const $d = derived(() => $x() + 1)
     expect(() => $d.set(99)).toThrow(/derived/)
   })
+
+  it('skips notify when recomputed value is Object.is-equal', () => {
+    const $count = signal(0)
+    const $positive = derived(() => $count() > 0)
+    const fn = vi.fn()
+    effect(() => {
+      $positive()
+      fn()
+    })
+    expect(fn).toHaveBeenCalledTimes(1)
+    // 0 → 5 flips false → true; subscriber should fire.
+    $count.set(5)
+    expect(fn).toHaveBeenCalledTimes(2)
+    // 5 → 10 stays true → true; subscriber should NOT fire.
+    $count.set(10)
+    expect(fn).toHaveBeenCalledTimes(2)
+    $count.set(20)
+    expect(fn).toHaveBeenCalledTimes(2)
+    // 20 → -1 flips true → false; subscriber fires again.
+    $count.set(-1)
+    expect(fn).toHaveBeenCalledTimes(3)
+  })
+
+  it('preserves identity-equal object refs (immutable-ref contract)', () => {
+    // Holding the same object ref across a "write" looks unchanged to
+    // the derived — callers must produce a fresh ref to signal a change.
+    const obj = { a: 1 }
+    const $s = signal(obj)
+    const $d = derived(() => $s())
+    const fn = vi.fn()
+    effect(() => {
+      $d()
+      fn()
+    })
+    expect(fn).toHaveBeenCalledTimes(1)
+    $s.set(obj)
+    expect(fn).toHaveBeenCalledTimes(1)
+    $s.set({ a: 1 }) // new ref → does fire
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
+
+  it('recomputes lazily when no subscribers exist', () => {
+    // Without downstream subs, invalidation should stay lazy: the
+    // derived recomputes on the next read, not eagerly on dep change.
+    const $x = signal(1)
+    const compute = vi.fn(() => $x() * 2)
+    const $d = derived(compute)
+    expect($d()).toBe(2)
+    expect(compute).toHaveBeenCalledTimes(1)
+    $x.set(2)
+    $x.set(3)
+    $x.set(4)
+    expect(compute).toHaveBeenCalledTimes(1)
+    expect($d()).toBe(8)
+    expect(compute).toHaveBeenCalledTimes(2)
+  })
+
+  it('chained derived also memoizes downstream', () => {
+    const $x = signal(0)
+    const $isPositive = derived(() => $x() > 0)
+    const $label = derived(() => ($isPositive() ? 'yes' : 'no'))
+    const computeLabel = vi.fn(() => $label())
+    const fn = vi.fn(computeLabel)
+    effect(fn)
+    expect(fn).toHaveBeenCalledTimes(1)
+    $x.set(1)
+    expect(fn).toHaveBeenCalledTimes(2)
+    $x.set(2)
+    // $isPositive stayed true → $label stayed 'yes' → no re-run.
+    expect(fn).toHaveBeenCalledTimes(2)
+  })
 })
 
 describe('batch', () => {
