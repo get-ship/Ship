@@ -851,6 +851,113 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-auth-dialog.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiAuthDialog",
+          "tagName": "sui-auth-dialog",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "mode",
+              "type": {
+                "text": "'sign-in' | 'sign-up'"
+              },
+              "default": "sign-in",
+              "values": [
+                "sign-in",
+                "sign-up"
+              ]
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "backdrop",
+              "type": {
+                "text": "'default' | 'blur' | 'solid'"
+              },
+              "default": "blur",
+              "values": [
+                "default",
+                "blur",
+                "solid"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "open",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mode",
+              "type": {
+                "text": "'sign-in' | 'sign-up'"
+              },
+              "attribute": "mode",
+              "default": "sign-in",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "loading",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "backdrop",
+              "type": {
+                "text": "'default' | 'blur' | 'solid'"
+              },
+              "attribute": "backdrop",
+              "default": "blur",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-auth-dialog",
+          "declaration": {
+            "name": "SuiAuthDialog",
+            "module": "sui-auth-dialog.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-avatar.sui",
       "declarations": [
         {
@@ -4121,6 +4228,352 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-git-diff-file.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiGitDiffFile",
+          "tagName": "sui-git-diff-file",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "path",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "collapsed",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "path",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "path",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "additions",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "deletions",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "collapsed",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "collapsed",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-git-diff-file",
+          "declaration": {
+            "name": "SuiGitDiffFile",
+            "module": "sui-git-diff-file.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-git-diff-hunk.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiGitDiffHunk",
+          "tagName": "sui-git-diff-hunk",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "header",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "header",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "header",
+              "default": "",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-git-diff-hunk",
+          "declaration": {
+            "name": "SuiGitDiffHunk",
+            "module": "sui-git-diff-hunk.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-git-diff-line.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiGitDiffLine",
+          "tagName": "sui-git-diff-line",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "type",
+              "type": {
+                "text": "'add' | 'del' | 'context'"
+              },
+              "default": "context",
+              "values": [
+                "add",
+                "del",
+                "context"
+              ]
+            },
+            {
+              "name": "old",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "new",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "comment-count",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "type",
+              "type": {
+                "text": "'add' | 'del' | 'context'"
+              },
+              "attribute": "type",
+              "default": "context",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "old",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "old",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "new",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "new",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "commentCount",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "comment-count",
+              "default": "0",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-git-diff-line",
+          "declaration": {
+            "name": "SuiGitDiffLine",
+            "module": "sui-git-diff-line.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-git-diff.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiGitDiff",
+          "tagName": "sui-git-diff",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "files",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "empty",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "files",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "files",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "additions",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "deletions",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "empty",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "empty",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-git-diff",
+          "declaration": {
+            "name": "SuiGitDiff",
+            "module": "sui-git-diff.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-graph-canvas.sui",
       "declarations": [
         {
@@ -4403,6 +4856,172 @@
           "declaration": {
             "name": "SuiHeatmap",
             "module": "sui-heatmap.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-history-row.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiHistoryRow",
+          "tagName": "sui-history-row",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "sha",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "subject",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "author",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "timestamp",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "human",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "sha",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "sha",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "subject",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "subject",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "author",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "author",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "timestamp",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "timestamp",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "additions",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "deletions",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "active",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "human",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "human",
+              "default": "false",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-history-row",
+          "declaration": {
+            "name": "SuiHistoryRow",
+            "module": "sui-history-row.sui"
           }
         }
       ]
@@ -5764,6 +6383,120 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-log-stream.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiLogStream",
+          "tagName": "sui-log-stream",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "url",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "event",
+              "type": {
+                "text": "string"
+              },
+              "default": "log"
+            },
+            {
+              "name": "autoscroll",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false"
+            },
+            {
+              "name": "max-bytes",
+              "type": {
+                "text": "number"
+              },
+              "default": "1000000"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "url",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "url",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "event",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "event",
+              "default": "log",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "autoscroll",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "autoscroll",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "attribute": "active",
+              "default": "false",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "maxBytes",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "max-bytes",
+              "default": "1000000"
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-log-stream",
+          "declaration": {
+            "name": "SuiLogStream",
+            "module": "sui-log-stream.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-mark.sui",
       "declarations": [
         {
@@ -6646,6 +7379,488 @@
     },
     {
       "kind": "javascript-module",
+      "path": "sui-pipeline-dag.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiPipelineDag",
+          "tagName": "sui-pipeline-dag",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [],
+          "members": []
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-pipeline-dag",
+          "declaration": {
+            "name": "SuiPipelineDag",
+            "module": "sui-pipeline-dag.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-pipeline-definition.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiPipelineDefinition",
+          "tagName": "sui-pipeline-definition",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "steps",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            },
+            {
+              "name": "description",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "name",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "steps",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "steps",
+              "default": "0",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "description",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "description",
+              "default": "",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-pipeline-definition",
+          "declaration": {
+            "name": "SuiPipelineDefinition",
+            "module": "sui-pipeline-definition.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-pipeline-run.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiPipelineRun",
+          "tagName": "sui-pipeline-run",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "state",
+              "type": {
+                "text": "'dispatched' | 'gatepending' | 'running' | 'completed' | 'failed' | 'merged' | 'pending'"
+              },
+              "default": "pending",
+              "values": [
+                "dispatched",
+                "gatepending",
+                "running",
+                "completed",
+                "failed",
+                "merged",
+                "pending"
+              ]
+            },
+            {
+              "name": "slug",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "agent",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "state",
+              "type": {
+                "text": "'dispatched' | 'gatepending' | 'running' | 'completed' | 'failed' | 'merged' | 'pending'"
+              },
+              "attribute": "state",
+              "default": "pending",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "slug",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "slug",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "agent",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "agent",
+              "default": "",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-pipeline-run",
+          "declaration": {
+            "name": "SuiPipelineRun",
+            "module": "sui-pipeline-run.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-pipeline-step-def.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiPipelineStepDef",
+          "tagName": "sui-pipeline-step-def",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "step-type",
+              "type": {
+                "text": "'agent' | 'gate' | 'run' | 'merge' | 'human'"
+              },
+              "default": "agent",
+              "values": [
+                "agent",
+                "gate",
+                "run",
+                "merge",
+                "human"
+              ]
+            },
+            {
+              "name": "agent",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "provider",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "model",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "after",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "command",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "index",
+              "type": {
+                "text": "number"
+              },
+              "default": "0"
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "name",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "stepType",
+              "type": {
+                "text": "'agent' | 'gate' | 'run' | 'merge' | 'human'"
+              },
+              "attribute": "step-type",
+              "default": "agent",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "agent",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "agent",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "provider",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "provider",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "model",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "model",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "after",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "after",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "command",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "command",
+              "default": ""
+            },
+            {
+              "kind": "field",
+              "name": "index",
+              "type": {
+                "text": "number"
+              },
+              "attribute": "index",
+              "default": "0",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-pipeline-step-def",
+          "declaration": {
+            "name": "SuiPipelineStepDef",
+            "module": "sui-pipeline-step-def.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-pipeline-step.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiPipelineStep",
+          "tagName": "sui-pipeline-step",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            },
+            {
+              "name": "step-type",
+              "type": {
+                "text": "'agent' | 'gate' | 'merge' | 'run' | 'human'"
+              },
+              "default": "agent",
+              "values": [
+                "agent",
+                "gate",
+                "merge",
+                "run",
+                "human"
+              ]
+            },
+            {
+              "name": "state",
+              "type": {
+                "text": "'pending' | 'running' | 'completed' | 'failed'"
+              },
+              "default": "pending",
+              "values": [
+                "pending",
+                "running",
+                "completed",
+                "failed"
+              ]
+            },
+            {
+              "name": "agent",
+              "type": {
+                "text": "string"
+              },
+              "default": ""
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "name",
+              "default": "",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "stepType",
+              "type": {
+                "text": "'agent' | 'gate' | 'merge' | 'run' | 'human'"
+              },
+              "attribute": "step-type",
+              "default": "agent",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "state",
+              "type": {
+                "text": "'pending' | 'running' | 'completed' | 'failed'"
+              },
+              "attribute": "state",
+              "default": "pending",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "agent",
+              "type": {
+                "text": "string"
+              },
+              "attribute": "agent",
+              "default": "",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-pipeline-step",
+          "declaration": {
+            "name": "SuiPipelineStep",
+            "module": "sui-pipeline-step.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "sui-popover.sui",
       "declarations": [
         {
@@ -7056,6 +8271,103 @@
           "declaration": {
             "name": "SuiProgress",
             "module": "sui-progress.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-provider-blob.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiProviderBlob",
+          "tagName": "sui-provider-blob",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "provider",
+              "type": {
+                "text": "'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'"
+              },
+              "default": "claude",
+              "values": [
+                "claude",
+                "codex",
+                "cursor",
+                "gemini",
+                "opencode"
+              ]
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "default": "md",
+              "values": [
+                "sm",
+                "md",
+                "lg"
+              ]
+            },
+            {
+              "name": "variant",
+              "type": {
+                "text": "'tile' | 'glyph'"
+              },
+              "default": "tile",
+              "values": [
+                "tile",
+                "glyph"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "provider",
+              "type": {
+                "text": "'claude' | 'codex' | 'cursor' | 'gemini' | 'opencode'"
+              },
+              "attribute": "provider",
+              "default": "claude",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md' | 'lg'"
+              },
+              "attribute": "size",
+              "default": "md",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "variant",
+              "type": {
+                "text": "'tile' | 'glyph'"
+              },
+              "attribute": "variant",
+              "default": "tile",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-provider-blob",
+          "declaration": {
+            "name": "SuiProviderBlob",
+            "module": "sui-provider-blob.sui"
           }
         }
       ]
@@ -10211,6 +11523,58 @@
           "declaration": {
             "name": "SuiThemePicker",
             "module": "sui-theme-picker.sui"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "sui-theme-toggle.sui",
+      "declarations": [
+        {
+          "kind": "class",
+          "name": "SuiThemeToggle",
+          "tagName": "sui-theme-toggle",
+          "customElement": true,
+          "superclass": {
+            "name": "HTMLElement",
+            "package": "global"
+          },
+          "attributes": [
+            {
+              "name": "theme",
+              "type": {
+                "text": "'light' | 'dark' | 'auto'"
+              },
+              "default": "auto",
+              "values": [
+                "light",
+                "dark",
+                "auto"
+              ]
+            }
+          ],
+          "members": [
+            {
+              "kind": "field",
+              "name": "theme",
+              "type": {
+                "text": "'light' | 'dark' | 'auto'"
+              },
+              "attribute": "theme",
+              "default": "auto",
+              "reflects": true
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "custom-element-definition",
+          "name": "sui-theme-toggle",
+          "declaration": {
+            "name": "SuiThemeToggle",
+            "module": "sui-theme-toggle.sui"
           }
         }
       ]

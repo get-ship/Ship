@@ -112,8 +112,16 @@ import './sui-pipeline-dag/sui-pipeline-dag.compiled.js'
 import './sui-pipeline-step/sui-pipeline-step.compiled.js'
 import './sui-pipeline-run/sui-pipeline-run.compiled.js'
 import './sui-pipeline-step-def/sui-pipeline-step-def.compiled.js'
+import './sui-pipeline-definition/sui-pipeline-definition.compiled.js'
 import './sui-log-stream/sui-log-stream.compiled.js'
 import './sui-provider-blob/sui-provider-blob.compiled.js'
+import './sui-theme-toggle/sui-theme-toggle.compiled.js'
+import './sui-history-row/sui-history-row.compiled.js'
+import './sui-auth-dialog/sui-auth-dialog.compiled.js'
+import './sui-git-diff/sui-git-diff.compiled.js'
+import './sui-git-diff/sui-git-diff-file.compiled.js'
+import './sui-git-diff/sui-git-diff-hunk.compiled.js'
+import './sui-git-diff/sui-git-diff-line.compiled.js'
 // sui-panel-dock is island-bundled; see islands/sui-panel-dock/.
 // sui-devtools-* are island-bundled; see islands/sui-devtools/.
 // Island bundles — loaded on demand by hosts that need them. See
