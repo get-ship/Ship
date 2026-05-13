@@ -3,6 +3,7 @@ import { mkdir } from 'node:fs/promises'
 import { build, type Loader } from 'esbuild'
 import type { SuiBundler, SuiBuildConfig, BuildResult, AdapterContext } from '../config.js'
 import { resolveEntrypoints, defaultSourcemap } from './util.js'
+import { mirrorResolverPlugin } from './import-rewrite.js'
 
 const ESBUILD_LOADERS = new Set<string>([
   'base64', 'binary', 'copy', 'css', 'dataurl', 'empty', 'file',
@@ -38,6 +39,7 @@ export const esbuildAdapter: SuiBundler = {
       minify: config.mode === 'production',
       sourcemap: sourcemap ? 'inline' : false,
       logLevel: 'silent',
+      plugins: [mirrorResolverPlugin(ctx.packageRoot)],
       ...(config.loaders ? { loader: config.loaders as Record<string, Loader> } : {}),
     })
 
