@@ -35,12 +35,12 @@ Flags (from `crates/sui-compiler/src/bin/sui-compiler.rs`):
 
 The binary is also exposed as a `cdylib` (`crate-type = ["lib", "cdylib"]` in `Cargo.toml`) so editor extensions and `@ship/sui-build` can call it without spawning a subprocess. The Rust release build is what the daemon ships at `~/.ship/runtime/sui-compiler` (see `docs/ship-architecture/references/docs/toolchain.md`).
 
-## `@ship/sui-build` — the project bundler
+## `@ship/sui-build` — the package-level CI bundler
 
-The Node/Bun-driven build pipeline that wraps `sui-compiler` for the whole repo. Source: `packages/sui-build/`.
+The Node/Bun-driven build pipeline that wraps `sui-compiler` for one package at a time. Source: `packages/sui-build/`.
 
 ```sh
-sui-build                          # one-shot production build
+sui-build                          # one-shot production build (cwd's sui.config.ts)
 sui-build --watch                  # rebuild on source changes
 sui-build --bundler bun            # force the Bun adapter
 sui-build --bundler esbuild        # force the esbuild adapter
@@ -48,9 +48,11 @@ sui-build --config path/to/sui.config.ts
 sui-build --mode development       # passes through to compile flags + bundler env
 ```
 
-Entry: `packages/sui-build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo `target/debug/sui-compiler` build, falling back to `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
+Entry: `packages/sui-build/bin/sui-build.mjs` → `dist/cli.js` via Bun. The runner (`src/runner.ts`) walks the configured source globs, invokes `sui-compiler` (preferring the in-repo FFI build of `libsui_compiler`, falling back to `target/debug/sui-compiler` or `cargo run --quiet -p sui-compiler`), and feeds the emitted JS / CSS / CEM through the chosen bundler adapter (`adapters/bun.ts`, `adapters/esbuild.ts`).
 
-Configuration: `sui.config.ts` at the repo root. Watch mode wires `chokidar` over the source globs and re-runs the affected files.
+Configuration: `<package>/sui.config.ts`. Each package opts in by adding a `build` script — currently `packages/ui-components/` (writes `crates/ship-sui-server/assets/`) and `packages/ship-set/` (writes `apps/shipd/assets/`).
+
+**Role.** `@ship/sui-build` is the CI / pre-merge bundler — it's what `smoke-deploy.sh` runs and what `just cem` invokes. It is *not* what shipd uses at dev time. The dev-time bundler is `runtime-assets/bundler.ts`, a Bun worker spawned by the daemon (see [end-to-end dev loop](#end-to-end-edit-loop-in-dev) below). Both pipelines target the same on-disk asset trees that the release binary later `include_str!`s.
 
 ## `@ship/sui-lsp` — the language server
 
@@ -173,11 +175,20 @@ Both scaffolds emit the manifest / template / controller / style files documente
 ## End-to-end edit loop in dev
 
 ```sh
-just dev                              # daemon + bundler + shell2 in watch mode
+just dev                              # daemon + embedded Bun bundler worker
+# (optional) just shell2-dev          # vite outer shell at :3200, proxies to daemon
 # edit views/home/page.sui or controller.ts
-#  → bundler emits module-changed on /_sui/dev/hmr (SSE)
+#  → bundler.ts re-runs Bun.build, writes to crates/ship-sui-server/assets/...
+#  → emits module_changed over JSON stdout to shipd
+#  → shipd republishes on /_sui/dev/hmr (SSE)
 #  → apps/shell2/src/hmr.ts cache-busts /_sui/views/home/view.js
 #  → mount() re-runs in place; SSR snapshot stays, no full reload
 ```
 
+`just dev` starts only the daemon (`scripts/dev/start.sh`); the bundler worker is spawned by shipd itself (`apps/shipd/src/lib.rs:214`). To hit the daemon through the shell2 outer shell, run `just shell2-dev` in a second terminal — it proxies `/api`, `/_sui`, `^/sui/.*`, and `/view-host` to the daemon. To force-rebuild every served asset without editing, run `just dev-build-all` (runs `bundler.ts --all` for a one-shot full rebuild).
+
 For a clean dev restart use `just dev-restart`. Visual regressions: `just visual` (Playwright vs committed PNGs; pass `--update-snapshots` to refresh after a deliberate change). Perf regressions: `just bench-check` (fails on >15% vs the latest committed baseline; override via `BENCH_REGRESSION_THRESHOLD`).
+
+## Fresh-clone bootstrap
+
+`just bootstrap` runs the full first-time-setup sequence (verifies bun + pnpm on PATH, then `cargo xtask gen-types` → `cargo build -p ship-cli` → `pnpm install` → `pnpm -F @ship/set icons` → `pnpm -F @ship/set build` → `pnpm -F @ship/ui-components build` → `just dev-runtime-install`). After it completes, `just dev` brings up the daemon.
