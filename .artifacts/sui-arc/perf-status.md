@@ -66,5 +66,11 @@ Cumulative changes since `post-d2-d4`: D5 (inline static row bindings), ssr-hydr
 ## Recommended follow-up
 
 1. **Rerun `08_create1k-after1k_x2` and `43_first-paint`.** The cross-framework regression pattern points at environment noise (thermal / system load) rather than a SUI change. A single clean rerun should land both back near the d2-d4 numbers.
-2. **Investigate `25_run-clear-memory` +54.5%.** Isolated to SUI, no other framework moved. Likely ssr-hydrate-wire (morph keeps live refs around). Worth profiling whether the post-clear DOM holds detached nodes that the old innerHTML reset path released.
-3. **Filename collision in `bench-run.mjs`.** The runner writes `<date>-baseline.json` and overwrote the historical `2026-05-13-baseline.json` anchor when run today. The file was restored from git for this job; a follow-up should add a `--label` argument so post-cycle captures don't stomp the anchor.
+2. **Investigate `25_run-clear-memory` +54.5%.** Isolated to SUI, no other framework moved. Likely ssr-hydrate-wire (morph keeps live refs around). Worth profiling whether the post-clear DOM holds detached nodes that the old innerHTML reset path released. — **Resolved 2026-05-13:** code audit (`perf-followups.md`) found no retention path; rerun (`2026-05-13-confirm.json`, 2.7 MB) lands between d2-d4 (2.2) and post-d5 (3.4). Confirmed as bench noise. See `bench-rerun-confirm.md`.
+3. **Filename collision in `bench-run.mjs`.** The runner writes `<date>-baseline.json` and overwrote the historical `2026-05-13-baseline.json` anchor when run today. The file was restored from git for this job; a follow-up should add a `--label` argument so post-cycle captures don't stomp the anchor. — **Resolved:** `--label` is required and refuses to overwrite an existing file.
+
+## Resolution (2026-05-13, SHA f36d8e1b)
+
+`25_run-clear-memory` rerun: `tests/perf/baselines/2026-05-13-confirm.json` — SUI 2.7 MB. Sequence 2.2 → 3.4 → 2.7 confirms post-d5's reading was inside this metric's natural per-run variance band, not a regression. `22_run-memory` showed the same direction (4.1 → 2.9 MB) on identical runtime code, further evidence that the memory-op variance on this host is ±~0.6 MB. No SUI code change needed.
+
+Caveats on `2026-05-13-confirm.json`: the bench harness failed plausibility on `01_run1k`, `02_replace1k`, `08_create1k-after1k_x2` (and `07_create10k`, already excluded). The aggregator silently re-read stale result JSONs from the post-d5 run for those ops, so those SUI values are duplicates of post-d5, not fresh measurements. Memory and size/paint readings are fresh. Full breakdown in `bench-rerun-confirm.md`.
