@@ -1,4 +1,4 @@
-import { controller, derived, unwrap } from '@ship/sui-runtime'
+import { controller, derived, live, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type StepRun = { id: string; state: string; step_type: string; agent?: string }
@@ -13,16 +13,25 @@ const EMPTY: RunCtx = { run: EMPTY_RUN, observations: [], timeline: [] }
 const read = (ctx: unknown): RunCtx => (unwrap(ctx as any) as RunCtx | undefined) ?? EMPTY
 
 export default controller<Scope>({
-  scope: ({ ctx }) => {
-    const run = derived((s) => read(s.ctx).run)
-    const observations = derived((s) => read(s.ctx).observations)
-    const timeline = derived((s) => read(s.ctx).timeline)
-    const steps = derived<StepRunWithFlag[]>((s) => {
-      const list = read(s.ctx).run.steps ?? []
+  scope: ({ ship, route }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = ship as any
+    const ctx = live(() => s.pipelines.run({ slug: route().params.slug }))
+    const run = derived(() => read(ctx()).run)
+    const observations = derived(() => read(ctx()).observations)
+    const timeline = derived(() => read(ctx()).timeline)
+    const steps = derived<StepRunWithFlag[]>(() => {
+      const list = read(ctx()).run.steps ?? []
       const last = list.length - 1
       return list.map((step, i) => ({ ...step, isLast: i === last }))
     })
-    return { run, observations, timeline, steps }
+    const errorFirstLine = derived(() => {
+      const err = read(ctx()).run.error ?? ''
+      const nl = err.indexOf('\n')
+      return nl >= 0 ? err.slice(0, nl) : err
+    })
+    const errorMultiline = derived(() => (read(ctx()).run.error ?? '').includes('\n'))
+    return { ctx, run, observations, timeline, steps, errorFirstLine, errorMultiline }
   },
   on: {
     stopRun: async (_s, jobId: string) => {
