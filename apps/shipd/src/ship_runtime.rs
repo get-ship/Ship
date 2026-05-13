@@ -303,14 +303,22 @@ impl ShipRuntime {
             ship_dir: global_dir.clone(),
             daemon_dir: {
                 // Pick the worktree daemon dir if launched from inside a
-                // project root, else the singleton. Mirrors lib.rs::run_network.
+                // git worktree, else the singleton. Mirrors lib.rs::run_network —
+                // hash the worktree's own root so each linked worktree gets
+                // its own slot.
                 let probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
-                let root = probe
+                let wt_root = probe
                     .as_ref()
-                    .and_then(|p| ship_substrate::home::ProjectRoot::discover(p));
+                    .and_then(|p| ship_substrate::home::worktree_root_for(p))
+                    .or_else(|| {
+                        probe
+                            .as_ref()
+                            .and_then(|p| ship_substrate::home::ProjectRoot::discover(p))
+                            .map(|r| r.path().to_path_buf())
+                    });
                 let home = ship_substrate::ShipHome::at(global_dir.clone());
-                match root.as_ref() {
-                    Some(r) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(r.path())),
+                match wt_root.as_ref() {
+                    Some(r) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(r)),
                     None => home.daemon_dir(),
                 }
             },
