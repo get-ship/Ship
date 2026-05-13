@@ -75,7 +75,6 @@ declare module 'react' {
       'ship-tree-item': ShipElement
 
       // Charts
-      'ship-area-chart': ShipElement
       'ship-bar-chart': ShipElement
       'ship-donut': ShipElement
       'ship-gauge': ShipElement
