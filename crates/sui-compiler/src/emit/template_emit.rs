@@ -291,7 +291,18 @@ impl TemplateEmitter {
 
     /// Emit a `{ nodes, cleanup }` branch result. Used by `bindIf`,
     /// `bindFor`, and the `<while-*>` helpers.
+    ///
+    /// D5's static-inline path collects per-row update statements into
+    /// `self.inline_update_stmts` so the surrounding `{#for}`'s
+    /// `update(new, idx)` callback can re-run them on row reuse. But
+    /// the vars they reference (text-node consts like `__t12`) are
+    /// declared INSIDE this branch's closure — invisible to the outer
+    /// `update`. Leaving the pushes in place crashes every navigation
+    /// with `ReferenceError: __t12 is not defined`. Save + restore the
+    /// stack so branch-local static bindings stay branch-local; their
+    /// initial values are still set inline during branch render.
     pub(super) fn emit_branch(&mut self, w: &mut Writer, body: &[Instr]) {
+        let outer_inline = std::mem::take(&mut self.inline_update_stmts);
         w.line("() => {");
         w.enter();
         let frag = self.fresh("frag");
@@ -308,5 +319,6 @@ impl TemplateEmitter {
         ));
         w.leave();
         w.line("},");
+        self.inline_update_stmts = outer_inline;
     }
 }
