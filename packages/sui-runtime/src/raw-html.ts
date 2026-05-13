@@ -14,6 +14,7 @@
 
 import { effect, type Signal } from './signal'
 import type { Disposer } from './bind'
+import { morph } from './morph'
 
 /**
  * Replace `el.innerHTML` with the value of `get()` on every dependency
@@ -25,12 +26,17 @@ import type { Disposer } from './bind'
  * that aren't read inside `get` (e.g. `get` is a pre-rendered string
  * but should still re-run when some toggle flips).
  *
+ * If `el` carries the `morph` directive (`<element morph>…</element>`
+ * in `.sui`), updates go through `morph()` instead of `innerHTML =`,
+ * preserving DOM identity (focus, scroll, selection, custom-element
+ * state) across re-renders.
+ *
  * **Not** emitted by the compiler today — call this directly from a
  * controller when raw HTML is genuinely required. Future compiler
  * support (if added) must refuse interpolations that mix attacker-
  * controlled values into the rendered HTML.
  *
- * @param el Element whose `innerHTML` is rewritten.
+ * @param el Element whose `innerHTML` is rewritten (or morphed).
  * @param get Reactive read of the HTML string.
  * @param deps Extra signals to subscribe to (default `[]`).
  * @returns Disposer that stops the binding.
@@ -41,7 +47,7 @@ import type { Disposer } from './bind'
  * bindRawHtml(span, () => html())
  * ```
  *
- * @see bindText for safe, escaped interpolation.
+ * @see bindText for safe, escaped interpolation; morph for the in-place patcher.
  */
 export function bindRawHtml(
   el: Element,
@@ -51,6 +57,11 @@ export function bindRawHtml(
   return effect(() => {
     // touch deps for the dependency tracker
     for (const d of deps) d()
-    el.innerHTML = String(get() ?? '')
+    const next = String(get() ?? '')
+    if (el.hasAttribute('morph')) {
+      morph(el, next)
+    } else {
+      el.innerHTML = next
+    }
   })
 }

@@ -439,6 +439,32 @@ positions the portaled popover against the project-badge bounding
 rect (updates on `resize` / capturing `scroll`). When you need the
 selected project, listen on `document` for `ship:project:change`.
 
+## Morph (in-place DOM patching)
+
+Add the `morph` directive to any element whose contents are produced
+by `bindRawHtml` (or another HTML-string-replacing path) to preserve
+focus, scroll, selection, and event-listener identity across
+re-renders:
+
+```html
+<div morph>
+  {/* server-rendered HTML — bindRawHtml in the controller */}
+</div>
+```
+
+Without the directive, `bindRawHtml` replaces `innerHTML` and destroys
+any in-progress UI state on the children. With the directive,
+`bindRawHtml` routes updates through `morph()` — same-id elements are
+reused (even across reorders), attributes are swapped only when they
+change, and only truly-different subtrees are touched.
+
+`bindHtml` always morphs (no directive required); the directive only
+matters for `bindRawHtml` and any future HTML-producing binding.
+
+Limitations: doesn't preserve `<select>` value across morphs (browser
+quirk), doesn't morph into shadow DOM, matches only by `id` and
+tag-plus-position (no content-similarity heuristics).
+
 ## References
 
 | When you need | Read |

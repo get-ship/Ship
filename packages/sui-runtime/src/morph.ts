@@ -7,10 +7,12 @@
 // - Same-tag elements: morph attributes + recurse children
 // - Different-tag: replace
 // - Text nodes: update nodeValue
-// - Children align by index (Sail's anchors give us key-stable order)
+// - Children align by id first (best signal), then tag+position
 //
-// Key-aware list reconciliation lives in `bindFor`; this morph is for
-// non-keyed structural alignment of templates.
+// Limitations:
+// - Doesn't preserve `<select>` value across morphs (browser-specific)
+// - Doesn't morph into shadow DOM (use a fresh re-render for those)
+// - No content-similarity heuristics — only id and tag+position
 
 /** Options that control which subtrees `morph` will descend into. */
 export interface MorphOptions {
@@ -23,25 +25,42 @@ export interface MorphOptions {
  * preserving DOM identity where possible (focus, scroll, selection,
  * custom-element state, animations).
  *
- * Same-tag elements have their attributes morphed and children walked
- * by index. Different-tag elements are replaced. Text and Comment
- * nodes have their `nodeValue` patched. Children align by index — Sail
- * relies on `bindFor` for keyed list reconciliation; `morph` is the
- * non-keyed fallback used for HMR + SSR-hydration.
+ * `source` may be an `Element` whose shape `target` converges to, or
+ * an HTML string (parsed via `<template>` and treated as the contents
+ * of `target`).
+ *
+ * Children align by id first (best signal). Same-id nodes are reused
+ * — moved into place if needed — even across reorders. Children
+ * without ids align by tag + position. Different-tag elements are
+ * replaced. Text and Comment nodes have their `nodeValue` patched.
  *
  * @param target DOM element to mutate in place.
- * @param source Element whose shape `target` should converge to.
+ * @param source Element whose shape `target` should converge to, or
+ *   HTML string to parse as `target`'s new contents.
  * @param opts Optional skip predicate.
  *
  * @example
  * ```ts
- * const next = parseHtml(serverHtml).body.firstElementChild!
- * morph(rootEl, next, { skip: (el) => el.hasAttribute('data-no-morph') })
+ * morph(rootEl, '<div>new content</div>')
+ * morph(rootEl, otherElement, { skip: (el) => el.hasAttribute('data-no-morph') })
  * ```
  *
  * @see bindFor for keyed list reconciliation.
  */
-export function morph(target: Element, source: Element, opts: MorphOptions = {}): void {
+export function morph(
+  target: Element,
+  source: string | Element,
+  opts: MorphOptions = {},
+): void {
+  if (typeof source === 'string') {
+    const tag = target.tagName.toLowerCase()
+    const tmp = target.namespaceURI === 'http://www.w3.org/2000/svg'
+      ? target.ownerDocument.createElementNS('http://www.w3.org/2000/svg', tag)
+      : target.ownerDocument.createElement(tag)
+    tmp.innerHTML = source
+    morphChildren(target, tmp, opts)
+    return
+  }
   morphElement(target, source, opts)
 }
 
@@ -56,12 +75,10 @@ function morphElement(target: Element, source: Element, opts: MorphOptions): voi
 }
 
 function morphAttributes(target: Element, source: Element): void {
-  // Remove attrs gone in source.
   const tAttrs = Array.from(target.attributes)
   for (const a of tAttrs) {
     if (!source.hasAttribute(a.name)) target.removeAttribute(a.name)
   }
-  // Set/update attrs from source.
   const sAttrs = Array.from(source.attributes)
   for (const a of sAttrs) {
     if (target.getAttribute(a.name) !== a.value) {
@@ -81,25 +98,73 @@ function morphAttributes(target: Element, source: Element): void {
 }
 
 function morphChildren(target: Element, source: Element, opts: MorphOptions): void {
-  const tChildren = Array.from(target.childNodes)
-  const sChildren = Array.from(source.childNodes)
-  const max = Math.max(tChildren.length, sChildren.length)
-  for (let i = 0; i < max; i++) {
-    const t = tChildren[i]
-    const s = sChildren[i]
-    if (!s && t) {
-      // Surplus on target — remove.
-      target.removeChild(t)
-      continue
-    }
-    if (!t && s) {
-      // Missing on target — append clone.
-      target.appendChild(s.cloneNode(true))
-      continue
-    }
-    if (!t || !s) continue
-    morphNode(t, s, target, opts)
+  // Id index of target's element children — lets us reuse nodes
+  // across reorders, not just at matching indices.
+  const targetById = new Map<string, Element>()
+  for (const c of Array.from(target.children)) {
+    if (c.id) targetById.set(c.id, c)
   }
+  // Ids in source — used to recognise that a cursor target node is
+  // wanted later (and shouldn't be claimed by tag+position now).
+  const sourceIds = new Set<string>()
+  for (const c of Array.from(source.children)) {
+    if (c.id) sourceIds.add(c.id)
+  }
+
+  const sChildren = Array.from(source.childNodes)
+  let cursor: Node | null = target.firstChild
+
+  for (const s of sChildren) {
+    // Skip any cursor target child whose id belongs to source but to
+    // a *later* source position — leave it in place for its rightful
+    // claimant.
+    while (
+      cursor &&
+      cursor.nodeType === Node.ELEMENT_NODE &&
+      (cursor as Element).id &&
+      sourceIds.has((cursor as Element).id) &&
+      !(s.nodeType === Node.ELEMENT_NODE && (s as Element).id === (cursor as Element).id)
+    ) {
+      cursor = cursor.nextSibling
+    }
+
+    let claim: Node | null = null
+    if (s.nodeType === Node.ELEMENT_NODE) {
+      const sId = (s as Element).id
+      if (sId && targetById.has(sId)) {
+        claim = targetById.get(sId)!
+        targetById.delete(sId)
+      }
+    }
+    if (!claim && cursor && nodesAlign(cursor, s)) {
+      claim = cursor
+    }
+
+    if (claim) {
+      if (claim === cursor) {
+        cursor = cursor.nextSibling
+      } else {
+        target.insertBefore(claim, cursor)
+      }
+      morphNode(claim, s, target, opts)
+    } else {
+      target.insertBefore(s.cloneNode(true), cursor)
+    }
+  }
+
+  while (cursor) {
+    const next = cursor.nextSibling
+    target.removeChild(cursor)
+    cursor = next
+  }
+}
+
+function nodesAlign(a: Node, b: Node): boolean {
+  if (a.nodeType !== b.nodeType) return false
+  if (a.nodeType === Node.ELEMENT_NODE) {
+    return (a as Element).tagName === (b as Element).tagName
+  }
+  return true
 }
 
 function morphNode(t: Node, s: Node, parent: Element, opts: MorphOptions): void {
