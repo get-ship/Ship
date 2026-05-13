@@ -59,21 +59,47 @@ Bindings, control flow, hooks — same surface as views. See `ship-views`'s `ref
 
 ## Paired controller
 
+Templates declare; controllers contribute state via the `scope:()` factory.
+The compiler reads that factory and emits each returned key into the
+`Scope` interface of `<file>.sui.d.ts`, so `mount(state, host)` sees direct,
+typed members — no casts, no defensive throws.
+
 ```ts
-// sui-terminal.controller.ts
-import { controller } from '@ship/ui-runtime'
-import type { Scope } from './sui-terminal.sui'  // compiler-emitted
+// sui-error-boundary.controller.ts — the canonical exemplar.
+import { controller, signal, attachBoundary, detachBoundary } from '@ship/sui-runtime'
+import type { Scope } from './sui-error-boundary.sui'
 
 export default controller<Scope>({
-  mount: (state, host) => {
-    // host = the <sui-terminal> element; shadow root + template are
-    // already rendered. Wire listeners, return disposer.
-    return () => { /* cleanup */ }
+  scope: (_baseScope, host) => {
+    const caughtError = signal<Error | null>(null)
+    const reset = () => { caughtError.set(null) }
+    return { caughtError, reset }
+  },
+  mount(state, host) {
+    attachBoundary(host, {
+      catch(err) { state.caughtError.set(err instanceof Error ? err : new Error(String(err))) },
+      reset: state.reset,
+    })
+    return () => detachBoundary(host)
   },
 })
 ```
 
+Three things to notice:
+
+- `scope:` returns plain identifiers (`caughtError`, `reset`). Those keys
+  land in template scope AND on the typed `state` arg to `mount`.
+- `state.caughtError.set(err)` — direct, typed `Signal<Error | null>`. No
+  `state['caughtError'] as unknown as Signal<...>` cast. No
+  `throw new Error('scope signals missing')` defensive guard.
+- If you rename `caughtError` in the factory but forget to update a
+  template reference, the TypeScript compiler catches it.
+
 Use `controller(def)` only — raw `function setup(ctx)` is not accepted. Get refs via `bind:this={el}` in the template; declarative slot reactivity (`<slot reflect-empty="<attr>">`) replaces hand-rolled slotchange listeners.
+
+Working exemplars: `packages/ui-components/src/sui-error-boundary/`,
+`packages/ui-components/src/sui-portal/`,
+`packages/ui-components/src/sui-toast-container/`.
 
 ## Form-aware components
 
@@ -185,26 +211,103 @@ Once a component is registered, `ship-ui-studio` is the fastest way to eyeball i
 - A **state variant matrix** — when the component declares enum props, every cell in the cartesian product of `variant × tone` (or the single largest enum, if there's only one) is rendered side-by-side, independent of the prop panel. This is the Storybook-style sweep that catches "ghost tone-warning has wrong contrast" without clicking through 40 combinations one at a time.
 - A **View source** link in the header that opens `/_sui/source/<tag>` — a static HTML page showing the on-disk `.sui` template and `.controller.ts` for the component. Useful when reviewing how an existing primitive wires its scope before authoring a similar one.
 
+## Platform features (shared with views)
+
+Components live inside the same runtime as views; the same primitives are
+available. Skim the matrix below; for deep treatment of each, see the
+`ship-views` skill section of the same name.
+
+### Morph
+
+Add the `morph` attribute to any element whose contents are produced by
+`bindRawHtml` (or another HTML-string path) to preserve focus, scroll,
+selection, and event-listener identity across re-renders. `bindHtml`
+morphs unconditionally — the directive only matters for `bindRawHtml`.
+
+```html
+<div morph>{/* server-rendered HTML — bindRawHtml in the controller */}</div>
+```
+
+Limitations: no `<select>`-value preservation, no shadow-DOM matching,
+matches by `id` and tag-plus-position only.
+
+### Error boundaries
+
+Wrap fault-prone subtrees in `<sui-error-boundary>` — throws inside
+effects, controller `mount`, or render expressions are caught and the
+fallback renders. `fallback-text` for a string fallback or
+`<template slot="fallback">` for custom markup. Call `.reset()` on the
+host to retry. Fires `sui-error-boundary:caught` (bubbling, composed)
+with `{ error, source: 'effect' | 'mount' | 'render' | 'unknown' }`.
+
+```html
+<sui-error-boundary fallback-text="Couldn't load">
+  <sui-some-component prop={maybeThrows()}></sui-some-component>
+</sui-error-boundary>
+```
+
+### Portal
+
+`<sui-portal target="body">` teleports slotted content out of the host
+shadow tree for stacking-context escape (modals, popovers, toasts).
+`target` is a CSS selector resolved against `document`; default `body`.
+The portal element stays the logical parent, so reactive bindings and
+event bubbling still flow through the original DOM ancestry. Missing
+target warns and leaves children in place. See `sui-dialog`,
+`sui-popover`, `sui-toast-container` for composition patterns.
+
+### Transitions
+
+`transition:<name>` animates enter/exit of `{#if}` / `{#for}` mounts.
+Built-ins: `fade`, `slide`, `scale`. Use `in:` / `out:` for asymmetric
+directions. Custom transitions live on the controller's `scope:` factory
+and match the `Transition` type. `prefers-reduced-motion: reduce`
+collapses duration + delay to `0`. Transitions don't surface in SSR —
+they register on construction (CSR + hydrate paths).
+
+```html
+{#if open()}
+  <div transition:scale={{ duration: 120 }}>...</div>
+{/if}
+```
+
+### Routes
+
+URL state is reactive. Components rarely consume routes directly — that's
+a view-controller concern — but a component controller may read
+`route()` to surface URL-dependent behavior (e.g. a tab strip whose
+active tab is `route().query.tab`).
+
+```ts
+import { route, defineRoutes, navigate } from '@ship/sui-runtime/route'
+// route().params.<name> / route().query.<name> are Signal<string | undefined>
+```
+
+Full treatment: `ship-views` § Routes.
+
+### HMR
+
+In dev mode, `.sui` and `.controller.ts` edits trigger an in-place re-mount.
+shell2's boot calls `initHmr()` (`apps/shell2/src/hmr.ts`), which uses
+`subscribeHmr` from `@ship/sui-runtime/dev` to listen on shipd's
+`/_sui/dev/hmr` SSE channel. Component-tag changes still need a full
+reload (custom-element re-registration isn't yet supported); compile
+errors surface in the browser console. Production builds inline
+`import.meta.env.DEV` to `false`, so HMR is a no-op.
+
+### Performance gates
+
+- `just bench-check` — js-framework-benchmark vs latest baseline under
+  `tests/perf/baselines/`; fails on >15% regression. Run before merging
+  runtime-affecting component changes.
+- `just visual` — Playwright screenshots vs committed PNGs (daemon must
+  be running). Use `--update-snapshots` after a deliberate visual change.
+- `just smoke-deploy` — full build + daemon restart + every baselined
+  view curled + Playwright. Proxy for CI; aim for green before PR.
+
 ## References
 
 | When you need | Read |
 |---|---|
 | Full component-authoring contract: scope resolution, slot patterns, `bind:this`, the distribution test | `references/component-contract.md` |
 | Component-pack manifests, distribution, on-demand loading | `references/packs.md` |
-
-## Controller scope is typed
-
-The compiler emits `Scope` in `<component>.sui.d.ts` covering BOTH
-template reactive identifiers AND the keys you add via
-`scope: () => ({...})` factory. `mount(state, host)` sees direct,
-typed members:
-
-```ts
-mount(state, host) {
-  state.caughtError.set(null)  // Signal<Error | null>
-  state.reset()                 // () => void
-}
-```
-
-No casts. No "scope signals missing" defensive throws. If a key is
-mistyped or missing, the TypeScript compiler catches it.
