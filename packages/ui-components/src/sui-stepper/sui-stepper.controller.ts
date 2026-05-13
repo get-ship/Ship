@@ -23,15 +23,16 @@ export default controller<Scope>({
 
       const container = scope.dotsEl() as HTMLElement | null
       if (!container) return
-      container.textContent = ''
+      const dots: HTMLSpanElement[] = []
       for (let i = 1; i <= t; i++) {
         const dot = document.createElement('span')
         dot.className = 'dot'
         dot.setAttribute('part', 'dot')
         dot.setAttribute('data-state', i === c ? 'active' : i < c ? 'done' : 'pending')
         dot.setAttribute('aria-hidden', 'true')
-        container.appendChild(dot)
+        dots.push(dot)
       }
+      container.replaceChildren(...dots)
     })
 
     return () => {
