@@ -100,7 +100,7 @@
       </div>
     </div>
 
-    {#if skill().kind === 'ok'}
+    {#if skill().kind === 'ok' && skill().value}
       <aside class="skills-info" aria-label="Skill info panel">
         <div class="si-header"><span class="si-skill-id">{skill().value.id}</span></div>
       </aside>
