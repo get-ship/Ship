@@ -1,8 +1,15 @@
 use ship_substrate::db::daemon_settings;
 use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
+use ship_substrate::events::{
+    CallerKind, EmitContext, EventEnvelope, KernelRouter,
+};
 use anyhow::Result;
 use std::collections::HashMap;
+use std::sync::Arc;
 use sqlx::Row;
+use tokio::sync::Mutex;
+use ship_types::event_types::CONFIG_CHANGED;
+use ship_types::payload::ConfigChanged;
 
 /// Return the default value for a well-known setting key.
 ///
@@ -31,6 +38,34 @@ pub fn get_setting(key: &str) -> Result<Option<serde_json::Value>> {
 /// Set a single setting in daemon_settings.
 pub fn set_setting(key: &str, value: serde_json::Value) -> Result<()> {
     daemon_settings::set(key, &value)
+}
+
+/// Set a daemon setting and publish a `config.changed` kernel event.
+///
+/// The file-tier watcher (`config::watcher`) emits `agent.changed` /
+/// `skill.changed` / etc. when files under `.ship/` are touched, but
+/// `daemon_settings` lives in SQLite and is invisible to `notify`. This
+/// is the canonical write seam for daemon-managed settings — daemon
+/// route handlers that mutate a setting should call this so SSE
+/// consumers of `config.*` see the change.
+pub async fn set_setting_and_emit(
+    kernel: &Arc<Mutex<KernelRouter>>,
+    key: &str,
+    value: serde_json::Value,
+) -> Result<()> {
+    set_setting(key, value.clone())?;
+    let payload = ConfigChanged {
+        subject: key.to_string(),
+        detail: Some(value.to_string()),
+    };
+    let envelope = EventEnvelope::new(CONFIG_CHANGED, key, &payload)?;
+    let ctx = EmitContext {
+        caller_kind: CallerKind::Runtime,
+        skill_id: None,
+        project_id: None,
+        session_id: None,
+    };
+    kernel.lock().await.emit(envelope, &ctx).await
 }
 
 /// Return all persisted settings merged with defaults.
