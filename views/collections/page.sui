@@ -18,12 +18,12 @@
           </sui-button>
         </div>
       </div>
-      {#if collections().kind === 'ok' && collections().value.items.length === 0}
+      {#if collections().kind === 'ok' && collections().value && collections().value.items.length === 0}
         <sui-empty-state>
           <span slot="title">No collections yet</span>
           <span slot="description">Click &ldquo;New collection&rdquo; or drop a .jsonc file in .ship/collections/ to get started.</span>
         </sui-empty-state>
-      {:else if collections().kind === 'ok'}
+      {:else if collections().kind === 'ok' && collections().value}
         <div class="data-card-grid">
           {#for c of collections().value.items key={c.id}}
             <a class="data-card" attr:href={'/collections?collection=' + c.id}
@@ -69,7 +69,7 @@
             <sui-icon name="plus" size="sm"></sui-icon>
           </span>
         </div>
-        {#if collections().kind === 'ok'}
+        {#if collections().kind === 'ok' && collections().value}
           {#if collections().value.items.length === 0}<div class="col-nav-empty"><span slot="title">No collections defined</span></div>{/if}
           {#for c of collections().value.items key={c.id}}
             <a class="col-nav-row" class:is-active={c.id === activeId()}
@@ -93,7 +93,7 @@
         <div class="col-head">
           <div class="col-head-identity">
             <span class="col-head-icon"><sui-icon name="database" size="sm"></sui-icon></span>
-            {#if colDetail().kind === 'ok'}
+            {#if colDetail().kind === 'ok' && colDetail().value}
               <span class="col-head-name">{colDetail().value.schema.name || activeId()}</span>
               <span class="col-head-id mono-snip">{activeId()}</span>
               <span class="col-head-count">{colDetail().value.items.length} of {colDetail().value.total_items}</span>
@@ -117,7 +117,7 @@
             {#while-loading of colDetail}
               <div style="padding:var(--space-4);color:var(--muted-foreground)">Loading&hellip;</div>
             {/while-loading}
-            {#if colDetail().kind === 'ok'}
+            {#if colDetail().kind === 'ok' && colDetail().value}
               {#if colDetail().value.items.length === 0}
                 <sui-empty-state style="padding:var(--space-8)">
                   <span slot="title">No items in {colDetail().value.schema.name || activeId()}</span>
@@ -155,7 +155,7 @@
 
         {#if tab() === 'schema'}
           <div class="col-tab-panel schema-panel">
-            {#if colDetail().kind === 'ok'}
+            {#if colDetail().kind === 'ok' && colDetail().value}
               <div class="schema-pane">
                 <div class="schema-pane-head">
                   <div>
@@ -200,7 +200,7 @@
   <sui-drawer attr:open={newRowOpen() ? '' : null} size="md"
     on:sui-close={() => { newRowOpen.set(false); drawerError.set('') }}>
     <span slot="title">New row</span>
-    {#if colDetail().kind === 'ok'}
+    {#if colDetail().kind === 'ok' && colDetail().value}
       <span slot="description">Add a new item to {colDetail().value.schema.name || activeId()}</span>
       <div class="drawer-form">
         {#for f of colDetail().value.schema.fields key={f.name}}
@@ -235,7 +235,7 @@
   <sui-drawer attr:open={editOpen() ? '' : null} size="md"
     on:sui-close={() => { editOpen.set(false); drawerError.set('') }}>
     <span slot="title">Edit row</span>
-    {#if colDetail().kind === 'ok'}
+    {#if colDetail().kind === 'ok' && colDetail().value}
       <span slot="description">Editing {editId()}</span>
       <div class="drawer-form">
         {#for f of colDetail().value.schema.fields key={f.name}}

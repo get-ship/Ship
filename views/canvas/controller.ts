@@ -1,8 +1,10 @@
 import { controller, signal, derived, live, ref, unwrap, bindHtml } from '@ship/sui-runtime'
+import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: ({ canvasList, route, ship }) => {
+  scope: ({ canvasList, ship }) => {
+    const route = routeFactory()
     const firstSlug = derived(() => {
       const list = unwrap(canvasList as any)
       return Array.isArray(list) ? (list[0]?.slug ?? '') : ''
@@ -18,7 +20,7 @@ export default controller<Scope>({
       navigate('/canvas?doc=' + slug)
     },
   },
-  mount: ({ state }) => {
+  mount: (state) => {
     const list = unwrap((state as Record<string, unknown>).canvasList as any)
     if (!state.activeSlug && Array.isArray(list) && list.length > 0) {
       state.activeSlug = list[0].slug

@@ -1,4 +1,4 @@
-<data name="tokenCatalog" source="ship.themes.tokenCatalog()" />
+<data name="tokenCatalog" source="ship.themes.tokenCatalog()" live />
 
 <div class="ship-view ship-theme-studio">
 

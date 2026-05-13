@@ -3,7 +3,7 @@
   <!-- Toolbar -->
   <div class="overview-toolbar">
     <h1 class="ov-title">Overview</h1>
-    {#if systems().kind === 'ok'}
+    {#if systems().kind === 'ok' && systems().value}
       <span style="color:var(--muted-foreground); font-size: var(--text-xs)">
         {systems().value.items.length} system{systems().value.items.length === 1 ? '' : 's'}
       </span>
@@ -78,7 +78,7 @@
       </div>
     {/while-error}
 
-    {#if systems().kind === 'ok'}
+    {#if systems().kind === 'ok' && systems().value}
       {#if systems().value.items.length === 0}
         <div class="ov-empty">
           <ship-empty-state>

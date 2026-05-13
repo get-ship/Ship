@@ -1,4 +1,5 @@
 import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
+import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './page.sui'
 
 type SchemaField = {
@@ -9,7 +10,8 @@ type SchemaField = {
 }
 
 export default controller<Scope>({
-  scope: ({ route, ship }) => {
+  scope: ({ ship }) => {
+    const route = routeFactory()
     const activeId = derived(() => route.query.collection() || '')
     const colDetail = live(() => ship.collections.detail({ id: activeId() }))
     const schemaFieldsView = derived(() => {

@@ -1,8 +1,10 @@
 import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
+import { route as routeFactory } from '@ship/sui-runtime/route'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: ({ ship, route }) => {
+  scope: ({ ship }) => {
+    const route = routeFactory()
     const q = signal(route.query.q() || '')
     const selectedId = derived(() => route.query.id() || '')
     const confirmDelete = signal(false)
