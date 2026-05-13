@@ -70,8 +70,8 @@ function makeProcessSpawn(compilerBin: string): CompilerSpawn {
       const hasBin = existsSync(compilerBin)
       const cmd = hasBin ? compilerBin : 'cargo'
       const args = hasBin
-        ? ['build', suiPath, '--component-name', stem, '--no-dts']
-        : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--component-name', stem, '--no-dts']
+        ? ['build', suiPath, '--component-name', stem]
+        : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--component-name', stem]
       execFile(cmd, args, (err, _out, stderr) => {
         if (err) rej(new Error(`sui-compiler failed for ${suiPath}: ${stderr || err.message}`))
         else res()

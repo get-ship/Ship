@@ -101,6 +101,42 @@ describe('createClient', () => {
     )
   })
 
+  it('events.list serializes filter args as a JSON object literal', () => {
+    FakeEventSource.instances = []
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    live(() => ship.events.list({ q: 'foo', event_type: 'job.completed' }))
+    const url = FakeEventSource.instances[0]!.url
+    expect(decodeURIComponent(url.split('expr=')[1]!)).toBe(
+      'ship.events.list({"q":"foo","event_type":"job.completed"})',
+    )
+  })
+
+  it('canvas.doc serializes slug args into the expr', () => {
+    FakeEventSource.instances = []
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    live(() => ship.canvas.doc({ slug: 'roadmap' }))
+    const url = FakeEventSource.instances[0]!.url
+    expect(decodeURIComponent(url.split('expr=')[1]!)).toBe(
+      'ship.canvas.doc({"slug":"roadmap"})',
+    )
+  })
+
+  it('argless ops emit empty parens (chat.state, mesh.snapshot, settings.state)', () => {
+    FakeEventSource.instances = []
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    live(() => ship.mesh.snapshot())
+    live(() => ship.settings.state())
+    live(() => ship.dashboard.state())
+    const exprs = FakeEventSource.instances.map((es) =>
+      decodeURIComponent(es.url.split('expr=')[1]!),
+    )
+    expect(exprs).toEqual([
+      'ship.mesh.snapshot()',
+      'ship.settings.state()',
+      'ship.dashboard.state()',
+    ])
+  })
+
   it('disposer closes the EventSource', () => {
     FakeEventSource.instances = []
     const source = makeSseSource('http://test', FakeEventSource as any)
