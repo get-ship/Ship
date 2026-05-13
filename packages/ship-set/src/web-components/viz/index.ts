@@ -4,14 +4,12 @@
  */
 
 import './ship-sparkline'
-import './ship-line-chart'
 import './ship-gauge'
 import './ship-progress-ring'
 import './ship-heatmap'
 import './ship-meter'
 
 export { ShipSparkline } from './ship-sparkline'
-export { ShipLineChart } from './ship-line-chart'
 export { ShipGauge } from './ship-gauge'
 export { ShipProgressRing } from './ship-progress-ring'
 export { ShipHeatmap } from './ship-heatmap'
