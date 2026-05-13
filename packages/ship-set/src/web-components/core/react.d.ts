@@ -66,8 +66,6 @@ declare module 'react' {
       'ship-json-view': ShipElement
       'ship-markdown': ShipElement
       'ship-table': ShipElement
-      'ship-timeline': ShipElement
-      'ship-timeline-item': ShipElement
       'ship-timestamp': ShipElement
       'ship-tree-view': ShipElement
       'ship-tree-item': ShipElement
