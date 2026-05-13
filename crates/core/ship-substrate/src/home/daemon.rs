@@ -57,6 +57,25 @@ pub fn path_hash(path: &Path) -> String {
     out
 }
 
+/// Walk ancestors of `from` looking for the nearest `.git` entry — file or
+/// directory. Returns that ancestor canonicalized, mirroring the semantics
+/// of `git rev-parse --show-toplevel`:
+///
+/// - main checkout: `.git` is a directory, ancestor is the repo root
+/// - linked worktree: `.git` is a FILE pointing at `<main>/.git/worktrees/<name>`,
+///   ancestor is the linked worktree's own root (NOT the main repo's root)
+///
+/// `None` outside any git tree. Used as the hash input for per-worktree
+/// daemon dirs and port derivation so each worktree gets its own slot.
+pub fn worktree_root_for(from: &Path) -> Option<PathBuf> {
+    for ancestor in from.ancestors() {
+        if ancestor.join(".git").exists() {
+            return Some(std::fs::canonicalize(ancestor).unwrap_or_else(|_| ancestor.to_path_buf()));
+        }
+    }
+    None
+}
+
 /// Loaded view of one daemon's IPC handshake — port, token, pid (and
 /// optional workspace path / build SHA on multi-daemon installs).
 #[derive(Debug, Clone)]
@@ -101,17 +120,25 @@ impl DaemonHandle {
     }
 }
 
+/// Hash input for the daemon dir keyed off `from`. Prefers the git
+/// worktree root (so each linked worktree gets its own slot); falls back
+/// to the redirected project root for non-git trees with a bare `.ship/`.
+fn daemon_hash_input(from: &Path) -> Option<PathBuf> {
+    worktree_root_for(from)
+        .or_else(|| crate::home::ProjectRoot::discover(from).map(|r| r.path().to_path_buf()))
+}
+
 /// Discover the running daemon for `from`. Order:
 ///
-/// 1. If `from` resolves to a project root, look for a per-worktree daemon
-///    at `machine/daemons/<hash(project_root)>/`.
+/// 1. If `from` lives in a git worktree (or under a `.ship/` project), look
+///    for a per-worktree daemon at `machine/daemons/<hash(worktree_root)>/`.
 /// 2. Fall back to the global `machine/daemon/`.
 ///
 /// Returns `None` when neither location holds a complete handshake.
 pub fn discover_running_daemon(from: &Path) -> Option<DaemonHandle> {
     let home = crate::ShipHome::from_env();
-    if let Some(root) = crate::home::ProjectRoot::discover(from) {
-        let hash = path_hash(root.path());
+    if let Some(root) = daemon_hash_input(from) {
+        let hash = path_hash(&root);
         let dir = home.worktree_daemon_dir(&hash);
         if let Some(handle) = DaemonHandle::load(&dir) {
             return Some(handle);
@@ -122,14 +149,14 @@ pub fn discover_running_daemon(from: &Path) -> Option<DaemonHandle> {
 
 /// The directory the daemon serving `from` should write its IPC files to.
 ///
-/// Resolution mirrors `discover_running_daemon`: if `from` lives under a
-/// project root, returns `machine/daemons/<hash(project_root)>/` (creating
-/// the dir is the caller's responsibility). Otherwise returns the singleton
-/// `machine/daemon/`.
+/// Resolution mirrors `discover_running_daemon`: if `from` lives inside a
+/// git worktree, returns `machine/daemons/<hash(worktree_root)>/` — each
+/// linked worktree gets its own slot, so they don't trample each other's
+/// IPC handshakes. Outside any project, returns the singleton `machine/daemon/`.
 pub fn daemon_dir_for(from: &Path) -> PathBuf {
     let home = crate::ShipHome::from_env();
-    match crate::home::ProjectRoot::discover(from) {
-        Some(root) => home.worktree_daemon_dir(&path_hash(root.path())),
+    match daemon_hash_input(from) {
+        Some(root) => home.worktree_daemon_dir(&path_hash(&root)),
         None => home.daemon_dir(),
     }
 }
@@ -265,6 +292,48 @@ mod tests {
         let tmp1 = TempDir::new().unwrap();
         let tmp2 = TempDir::new().unwrap();
         assert_ne!(path_hash(tmp1.path()), path_hash(tmp2.path()));
+    }
+
+    #[test]
+    fn worktree_root_distinguishes_main_from_linked() {
+        // Simulate the on-disk layout `git worktree add` produces:
+        //   <tmp>/main/.git/worktrees/feat/   ← linked worktree's gitdir
+        //   <tmp>/wt/.git                     ← pointer file
+        // worktree_root_for must return the linked worktree's own root,
+        // not the main repo's root.
+        let tmp = TempDir::new().unwrap();
+        let main = tmp.path().join("main");
+        let common_git = main.join(".git");
+        let wt = tmp.path().join("wt");
+        std::fs::create_dir_all(common_git.join("worktrees").join("feat")).unwrap();
+        std::fs::create_dir_all(wt.join("src")).unwrap();
+        std::fs::write(
+            wt.join(".git"),
+            format!("gitdir: {}\n", common_git.join("worktrees/feat").display()),
+        )
+        .unwrap();
+
+        let main_root = worktree_root_for(&main.join("src")).unwrap();
+        let wt_root = worktree_root_for(&wt.join("src")).unwrap();
+
+        // Without the fix, both ancestor walks landed on `main` for linked
+        // worktrees (via ProjectRoot::discover's redirect); after the fix
+        // each worktree returns its own root.
+        assert_ne!(main_root, wt_root);
+        assert_eq!(path_hash(&main_root).len(), 8);
+        assert_ne!(
+            path_hash(&main_root),
+            path_hash(&wt_root),
+            "daemon dir hash must differ between main and linked worktrees"
+        );
+    }
+
+    #[test]
+    fn worktree_root_returns_none_outside_git() {
+        let tmp = TempDir::new().unwrap();
+        let dir = tmp.path().join("not-a-repo");
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(worktree_root_for(&dir).is_none());
     }
 
     #[test]

@@ -106,18 +106,47 @@ pub async fn run_network(
     let init_started_at = std::time::Instant::now();
 
     // Per devx-04, pick the daemon IPC dir based on workspace cwd. A daemon
-    // launched from inside a project root writes to
-    // `<root>/machine/daemons/<hash>/`; bare/global startup writes to the
-    // singleton `<root>/machine/daemon/`.
+    // launched from inside a git worktree writes to
+    // `<root>/machine/daemons/<hash(worktree_root)>/`; bare/global startup
+    // writes to the singleton `<root>/machine/daemon/`. Hashing the
+    // worktree's own root (not the redirected main project root) is what
+    // lets each linked worktree run its own daemon without trampling the
+    // others' IPC handshakes.
     let project_probe = workspace_dir.clone().or_else(|| std::env::current_dir().ok());
     let project_root = project_probe
         .as_ref()
         .and_then(|p| ship_substrate::home::ProjectRoot::discover(p));
+    let worktree_root = project_probe
+        .as_ref()
+        .and_then(|p| ship_substrate::home::worktree_root_for(p))
+        .or_else(|| project_root.as_ref().map(|r| r.path().to_path_buf()));
     let home = ship_substrate::ShipHome::at(global_dir.clone());
-    let daemon_dir = match project_root.as_ref() {
-        Some(root) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(root.path())),
+    let daemon_dir = match worktree_root.as_ref() {
+        Some(root) => home.worktree_daemon_dir(&ship_substrate::home::path_hash(root)),
         None => home.daemon_dir(),
     };
+
+    // One-time hint for the worktree footgun: if `ProjectRoot::discover`
+    // redirects to a different (main) checkout and there's a live daemon
+    // sitting at the OLD (main-root) hash, surface it so the operator can
+    // clean up at their leisure. Don't auto-kill — that's their call.
+    if let (Some(pr), Some(wt)) = (project_root.as_ref(), worktree_root.as_ref())
+        && pr.path() != wt.as_path()
+    {
+        let main_hash = ship_substrate::home::path_hash(pr.path());
+        let main_dir = home.worktree_daemon_dir(&main_hash);
+        if let Some(handle) = ship_substrate::home::DaemonHandle::load(&main_dir)
+            && handle.is_alive()
+        {
+            tracing::warn!(
+                old_dir = %main_dir.display(),
+                old_pid = handle.pid.unwrap_or(0),
+                "found a daemon at the main-worktree hash for this repo; \
+                 kill it if you no longer use shipd from {}",
+                pr.path().display()
+            );
+        }
+    }
 
     daemon::cleanup_stale_daemon_files(&daemon_dir).map_err(|e| {
         eprintln!("\nshipd startup aborted: {e}\n");
@@ -148,11 +177,13 @@ pub async fn run_network(
     }
 
     // Resolve the desired port. Caller-supplied --port wins; otherwise we
-    // derive from the project root (path-hash + local.jsonc:worktrees.ports
-    // pin, see ship_substrate::home::worktree_port_for). Outside any project, use
-    // the historical default.
-    let desired_port = port.unwrap_or_else(|| match project_root.as_ref() {
-        Some(root) => ship_substrate::home::worktree_port_for(root.path()),
+    // derive from the worktree root (path-hash + local.jsonc:worktrees.ports
+    // pin, see ship_substrate::home::worktree_port_for). Using the worktree
+    // root rather than the redirected main project root means each linked
+    // worktree gets its own derived port slot. Outside any project, use the
+    // historical default.
+    let desired_port = port.unwrap_or_else(|| match worktree_root.as_ref() {
+        Some(root) => ship_substrate::home::worktree_port_for(root),
         None => 9315,
     });
 
@@ -247,7 +278,13 @@ pub async fn run_network(
         }
     };
     daemon::write_pid_file(&daemon_dir)?;
-    if let Some(root) = project_root.as_ref() {
+    // Record the *worktree* this daemon serves, not the main-checkout
+    // root we'd get from ProjectRoot::discover's redirect. `just status`
+    // and the e2e visual harness consult this to verify they're talking
+    // to the daemon scoped to their cwd.
+    if let Some(root) = worktree_root.as_ref() {
+        daemon::write_workspace_file(&daemon_dir, root)?;
+    } else if let Some(root) = project_root.as_ref() {
         daemon::write_workspace_file(&daemon_dir, root.path())?;
     }
     daemon::write_sha_file(&daemon_dir, build_info::build_info!().git_sha)?;

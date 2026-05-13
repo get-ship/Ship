@@ -14,7 +14,7 @@ pub mod vector;
 
 pub use daemon::{
     DaemonFile, DaemonHandle, current_daemon_dir, daemon_dir_for, derive_worktree_port,
-    discover_running_daemon, path_hash, worktree_port_for,
+    discover_running_daemon, path_hash, worktree_port_for, worktree_root_for,
 };
 pub use ensure::ensure_layout;
 pub use project::ProjectRoot;
