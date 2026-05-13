@@ -155,3 +155,80 @@ describe('esbuild adapter', () => {
     expect(content).toContain('greeting')
   })
 })
+
+describe('esbuild adapter — mirror tree import rewrite', () => {
+  let repoRoot: string
+  let pkgRoot: string
+  let ctx: AdapterContext
+
+  beforeAll(async () => {
+    // Simulate a repo: Cargo.toml at root, a package under `packages/foo`,
+    // and the SUI mirror tree under `.ship/sui-out/packages/foo/src/widget`.
+    repoRoot = await mkdtemp(join(tmpdir(), 'sui-build-esbuild-mirror-'))
+    await writeFile(join(repoRoot, 'Cargo.toml'), '[workspace]\n')
+
+    pkgRoot = join(repoRoot, 'packages', 'foo')
+    await mkdir(join(pkgRoot, 'src', 'widget'), { recursive: true })
+    await mkdir(join(pkgRoot, 'dist'), { recursive: true })
+
+    await writeFile(
+      join(pkgRoot, 'src', 'index.ts'),
+      // Sibling-style import — actual artifact lives in the mirror tree.
+      `import './widget/widget.compiled.js'\nexport const name = 'foo'`,
+    )
+
+    const mirrorDir = join(repoRoot, '.ship/sui-out/packages/foo/src/widget')
+    await mkdir(mirrorDir, { recursive: true })
+    // Top-level side effect so esbuild's tree-shaker can't drop the import.
+    await writeFile(
+      join(mirrorDir, 'widget.compiled.js'),
+      `globalThis.__suiMirrorMark = 'mirror-rewrite-ok'`,
+    )
+
+    ctx = { packageRoot: pkgRoot, outdir: join(pkgRoot, 'dist') }
+  })
+
+  afterAll(() => {
+    rmSync(repoRoot, { recursive: true, force: true })
+  })
+
+  it('rewrites sibling `.compiled.js` imports to the project mirror tree', async () => {
+    const config: SuiBuildConfig = {
+      entries: { app: 'src/index.ts' },
+      outdir: 'dist',
+      mode: 'development',
+    }
+    const result = await esbuildAdapter.build(config, ctx)
+    expect(result.outputs).toContain(join(pkgRoot, 'dist', 'app.js'))
+    const content = await readFile(join(pkgRoot, 'dist', 'app.js'), 'utf8')
+    expect(content).toContain('mirror-rewrite-ok')
+  })
+
+  it('re-anchors `@ship/<pkg>` imports inside mirror artifacts to package source', async () => {
+    // Add a sibling workspace package and have the mirror artifact import it.
+    const sibRoot = join(repoRoot, 'packages', 'sib')
+    await mkdir(join(sibRoot, 'src'), { recursive: true })
+    await writeFile(
+      join(sibRoot, 'src', 'index.ts'),
+      `export const shared = 'from-sibling-source'`,
+    )
+
+    const mirrorFile = join(
+      repoRoot,
+      '.ship/sui-out/packages/foo/src/widget/widget.compiled.js',
+    )
+    await writeFile(
+      mirrorFile,
+      `import { shared } from '@ship/sib'\nglobalThis.__suiMirrorShared = shared`,
+    )
+
+    const config: SuiBuildConfig = {
+      entries: { reanchor: 'src/index.ts' },
+      outdir: 'dist',
+      mode: 'development',
+    }
+    await esbuildAdapter.build(config, ctx)
+    const content = await readFile(join(pkgRoot, 'dist', 'reanchor.js'), 'utf8')
+    expect(content).toContain('from-sibling-source')
+  })
+})
