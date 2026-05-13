@@ -301,6 +301,21 @@ VS Code extension shows.
 // mcp__ship__sui_hover({ file: "…/sui-button.sui", line: 12, col: 4 })
 ```
 
+## LSP integration
+
+`.sui` files get diagnostics + hover via the `@ship/sui-lsp` language
+server. Two integration paths:
+
+1. **MCP** (for agents that don't speak LSP): call
+   `mcp__ship__sui_diagnostics` or `mcp__ship__sui_hover` with a file path —
+   see "Diagnostics via MCP" above.
+2. **Native LSP** (for editors): the `apps/vscode/` extension auto-launches
+   the server when a `.sui` file is opened (`.vscode/extensions.json`
+   recommends it). Other editors can launch the server directly over stdio:
+   `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build the package first
+   with `pnpm -F @ship/sui-lsp build`). Configure your client to map the
+   `sui` language ID to that command for files matching `*.sui`.
+
 ## Components
 
 Views compose `<sui-*>` components from `packages/ui-components/`. See the `ship-components` skill for the component contract.

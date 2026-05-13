@@ -152,6 +152,21 @@ returns the declaration source + setup return type for an identifier.
 // mcp__ship__sui_hover({ file: "…/sui-button.sui", line: 12, col: 4 })
 ```
 
+## LSP integration
+
+`.sui` files get diagnostics + hover via the `@ship/sui-lsp` language
+server. Two integration paths:
+
+1. **MCP** (for agents that don't speak LSP): call
+   `mcp__ship__sui_diagnostics` or `mcp__ship__sui_hover` with a file path —
+   see "Diagnostics via MCP" above.
+2. **Native LSP** (for editors): the `apps/vscode/` extension auto-launches
+   the server when a `.sui` file is opened (`.vscode/extensions.json`
+   recommends it). Other editors can launch the server directly over stdio:
+   `node packages/sui-lsp/bin/sui-lsp.js --stdio` (build first with
+   `pnpm -F @ship/sui-lsp build`). Map the `sui` language ID to that command
+   for files matching `*.sui`.
+
 ## What's available in a view
 
 Components fall into three buckets:

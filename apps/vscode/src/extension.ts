@@ -42,7 +42,7 @@ export async function activate(context: ExtensionContext): Promise<void> {
 
 function nodeServer(context: ExtensionContext): ServerOptions {
   const module = context.asAbsolutePath(
-    path.join('..', '..', 'packages', 'ui-lsp', 'dist', 'server.js'),
+    path.join('..', '..', 'packages', 'sui-lsp', 'dist', 'server.js'),
   );
   return {
     run: { module, transport: TransportKind.ipc },
