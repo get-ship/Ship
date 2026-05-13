@@ -40,7 +40,7 @@
 
         <ship-tabs variant="segmented" size="md"
           prop:active={wsMode()}
-          on:ship-tab-change={(e) => { wsMode.set((e as CustomEvent).detail.name); wsError.set('') }}
+          on:ship-tab-change={onWsModeChange}
           style="width:100%; margin-bottom: var(--space-5)">
           <ship-tab name="new" label="Create new project"></ship-tab>
           <ship-tab name="existing" label="Open existing project"></ship-tab>
@@ -75,7 +75,7 @@
 
         <form mutation="ship.projects.create"
           on:ship-mutation-ok={() => { step.set(3); wsError.set('') }}
-          on:ship-mutation-error={(e) => wsError.set((e as CustomEvent).detail?.message ?? 'Could not create workspace')}>
+          on:ship-mutation-error={onWsMutationError}>
           <input type="hidden" name="mode" attr:value={wsMode()} />
           <input type="hidden" name="name" attr:value={wsName()} />
           <input type="hidden" name="path" attr:value={wsPath()} />
@@ -158,7 +158,7 @@
               {/if}
               {#if $mutation().kind === 'error'}
                 <ship-badge tone="destructive" variant="soft" size="sm">
-                  {($mutation() as { kind: 'error'; error: Error }).error.message}
+                  {$mutation().error.message}
                 </ship-badge>
               {/if}
             </div>

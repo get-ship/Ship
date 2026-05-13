@@ -16,7 +16,7 @@
       <div class="specs-rail-filter">
         <sui-input size="sm" placeholder="Filter…"
           bind:value={q}
-          attr:bind:this={filterInputEl}></sui-input>
+          bind:this={filterInputEl}></sui-input>
       </div>
 
       {#while-loading of rail}
@@ -89,10 +89,10 @@
               </div>
             </div>
             <div class="specs-metachips">
-              <sui-metachip attr:label="Status" attr:value={selected().value.status_label}></sui-metachip>
-              <sui-metachip attr:label="Pipeline" attr:value={selected().value.pipeline_label}></sui-metachip>
-              <sui-metachip attr:label="Agent" attr:value={selected().value.agent}></sui-metachip>
-              <sui-metachip attr:label="Branch" attr:value={selected().value.branch}></sui-metachip>
+              <sui-metachip label="Status" attr:value={selected().value.status_label}></sui-metachip>
+              <sui-metachip label="Pipeline" attr:value={selected().value.pipeline_label}></sui-metachip>
+              <sui-metachip label="Agent" attr:value={selected().value.agent}></sui-metachip>
+              <sui-metachip label="Branch" attr:value={selected().value.branch}></sui-metachip>
             </div>
           </header>
           <article class="specs-prose">

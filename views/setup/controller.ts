@@ -12,4 +12,15 @@ export default controller<Scope>({
     apiKey: signal(''),
     providerTestOk: signal(false),
   }),
+  on: {
+    onWsModeChange: (s, e: Event) => {
+      const detail = (e as CustomEvent).detail
+      s.wsMode = detail?.name ?? 'new'
+      s.wsError = ''
+    },
+    onWsMutationError: (s, e: Event) => {
+      const detail = (e as CustomEvent).detail
+      s.wsError = detail?.message ?? 'Could not create workspace'
+    },
+  },
 })

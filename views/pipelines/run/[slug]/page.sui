@@ -63,13 +63,13 @@
       {/if}
     {/if}
 
-    {#if run().steps && run().steps.length > 0}
+    {#if steps().length > 0}
     <sui-card>
       <h3 slot="header" class="ship-run-detail-section-title">Pipeline</h3>
       <ship-pipeline-dag>
-        {#for step of run().steps key={step.id}}
+        {#for step of steps() key={step.id}}
           <ship-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></ship-pipeline-step>
-          {#if run().steps.indexOf(step) < run().steps.length - 1}<span class="arrow" aria-hidden="true">→</span>{/if}
+          {#if !step.isLast}<span class="arrow" aria-hidden="true">→</span>{/if}
         {/for}
       </ship-pipeline-dag>
     </sui-card>

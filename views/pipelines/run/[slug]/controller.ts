@@ -2,6 +2,7 @@ import { controller, derived, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type StepRun = { id: string; state: string; step_type: string; agent?: string }
+type StepRunWithFlag = StepRun & { isLast: boolean }
 type ObsRow = { step_name: string; trigger: string; duration_secs: number; exit_code?: number; commits: number; done_declared: boolean; succeeded: boolean; verdict: string; log_tail?: string }
 type TimelineEvent = { at: string; event_type: string; summary: string }
 type RunDetail = { slug: string; agent: string; branch?: string; provider?: string; model?: string; updated_at: string; tone: string; status_text: string; state: string; job_id: string; error?: string; steps?: StepRun[] }
@@ -16,7 +17,12 @@ export default controller<Scope>({
     const run = derived((s) => read(s.ctx).run)
     const observations = derived((s) => read(s.ctx).observations)
     const timeline = derived((s) => read(s.ctx).timeline)
-    return { run, observations, timeline }
+    const steps = derived<StepRunWithFlag[]>((s) => {
+      const list = read(s.ctx).run.steps ?? []
+      const last = list.length - 1
+      return list.map((step, i) => ({ ...step, isLast: i === last }))
+    })
+    return { run, observations, timeline, steps }
   },
   on: {
     stopRun: async (_s, jobId: string) => {
