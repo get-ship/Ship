@@ -120,7 +120,7 @@ AGENTS.md
 .codex/
 skills-lock.json
 .gstack/
-.artifacts/
+.artifacts/*
 .cursor/
 .opencode/
 opencode.json
@@ -131,6 +131,10 @@ test-results/
 # Canvas agent scratch — canvas artifacts live in the artifacts collection
 # (data.db + ~/.ship/artifacts/<project>/blobs/), never on disk under .ship/.
 .artifacts/canvas/
+
+# SUI perf-cycle status doc — tracked alongside the baselines it summarizes.
+!.artifacts/sui-arc/
+!.artifacts/sui-arc/perf-status.md
 .ship/views/datastar.min.js
 .ship/views/*.min.js
 
