@@ -42,3 +42,70 @@ fn bad_scope_value_is_rejected() {
     // would need ApiState. Instead: assert the error shape via
     // contract. The service-layer tests already cover dispatch.
 }
+
+#[test]
+fn launch_view_ops_are_registered() {
+    // Acceptance gate: every view called out in launch-view-data-flow
+    // must appear in both the dispatch chain and the op catalog. If
+    // either gets dropped, this test trips.
+    let n = names();
+    for required in [
+        "agents.summaries",
+        "skills.list",
+        "collections.list",
+        "artifacts.list",
+    ] {
+        assert!(
+            n.contains(&required),
+            "launch-view op `{required}` missing from registry catalog"
+        );
+    }
+}
+
+fn temp_state() -> crate::routes::rest_api::ApiState {
+    let dir = tempfile::TempDir::new().unwrap();
+    let ship_dir = ship_substrate::ShipHome::project_ship_dir(dir.path());
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    ship_substrate::db::ensure_db_at(&ship_dir).unwrap();
+    let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
+        ship_substrate::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+    ));
+    // Leak the tempdir for the lifetime of the test — db handles inside
+    // ApiState reference paths under it.
+    std::mem::forget(dir);
+    std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
+}
+
+#[test]
+fn collections_list_returns_user_schema_items() {
+    let state = temp_state();
+    let v = call("collections.list", &json!({}), &state).expect("collections.list ok");
+    let items = v.get("items").and_then(|i| i.as_array()).expect("items array");
+    // Built-in user schemas always present (feedback / annotations etc.).
+    assert!(!items.is_empty(), "collections.list must include built-ins");
+    let first = items.first().unwrap();
+    assert!(first.get("id").is_some(), "items have id");
+    assert!(first.get("fields").and_then(|f| f.as_array()).is_some(), "items have fields[]");
+    if let Some(fields) = first.get("fields").and_then(|f| f.as_array())
+        && let Some(f0) = fields.first()
+    {
+        assert!(f0.get("name").is_some(), "field record has name");
+        assert!(f0.get("type").is_some(), "field record has type");
+    }
+}
+
+#[test]
+fn artifacts_list_returns_empty_when_unused() {
+    let state = temp_state();
+    let v = call("artifacts.list", &json!({}), &state).expect("artifacts.list ok");
+    let items = v.get("items").and_then(|i| i.as_array()).expect("items array");
+    assert_eq!(items.len(), 0, "fresh daemon has no artifacts");
+    assert_eq!(v.get("scope").and_then(|s| s.as_str()), Some("project"));
+}
+
+#[test]
+fn skills_list_returns_array() {
+    let state = temp_state();
+    let v = call("skills.list", &json!({}), &state).expect("skills.list ok");
+    assert!(v.get("items").and_then(|i| i.as_array()).is_some(), "skills.list returns items[]");
+}

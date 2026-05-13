@@ -21,6 +21,52 @@
 import type { AgentsSummariesResponse, GitDiff, GitDiffArgs, GitOverview } from './generated'
 import type { LiveSource } from './live'
 
+/** Artifact metadata record — mirrors the daemon's `ArtifactRecord`. */
+export interface ArtifactRecord {
+  id: string
+  name: string
+  mime: string
+  size: number
+  path: string
+  scope: string
+  project_id?: string | null
+  run_id?: string | null
+  user_id?: string | null
+  content_hash?: string | null
+  expires_at?: string | null
+  owner_actor?: string | null
+  collection_id?: string | null
+  item_id?: string | null
+  created_at: string
+}
+
+/** Minimal skill index row — mirrors the daemon's `IndexEntry`. */
+export interface SkillIndexEntry {
+  id: string
+  scope: 'project' | 'user'
+  name: string
+  description: string
+}
+
+/** Collection field record for view controllers (id+attrs). */
+export interface CollectionFieldRecord {
+  name: string
+  type: string
+  field_type: string
+  required: boolean
+  values: string[]
+  default: unknown
+}
+
+/** Collection summary row exposed by `ship.collections.list()`. */
+export interface CollectionSummary {
+  id: string
+  name: string
+  field_count: number
+  fields: CollectionFieldRecord[]
+  builtin: boolean
+}
+
 /** Project registry record returned by `ship.workspaces.list()`. Mirrors
  *  the daemon's `routes::projects_api::Project` shape. */
 export interface WorkspaceSummary {
@@ -62,11 +108,23 @@ export interface ShipSDK {
     /** Collections list + active schema + items. */
     state(args?: { active?: string }): LiveSource<unknown>
     /** Single collection's schema + items. */
-    detail(args: { id: string }): LiveSource<unknown>
+    detail(args: { id: string }): LiveSource<{
+      schema: {
+        id: string
+        name: string
+        fields: CollectionFieldRecord[]
+        builtin: boolean
+      }
+      items: unknown[]
+      total_items: number
+    }>
     /** Rows within a collection. */
-    items(args: { collection: string }): LiveSource<unknown>
+    items(args: { collection: string }): LiveSource<{
+      items: unknown[]
+      total_items: number
+    }>
     /** All collection summaries. */
-    list(): LiveSource<unknown>
+    list(): LiveSource<{ items: CollectionSummary[] }>
   }
   dashboard: {
     /** Aggregate stats + recent runs + events + agents + collections. */
@@ -125,7 +183,27 @@ export interface ShipSDK {
     /** Switch the active project — daemon emits `config.changed`. */
     activate(args: { id: string }): Promise<{ ok: true; active: string }>
   }
+  artifacts: {
+    /** Artifact metadata records, filterable by scope/mime/collection/etc. */
+    list(args?: {
+      scope?: string
+      mime?: string
+      collection_id?: string
+      item_id?: string
+      owner_actor?: string
+      content_hash?: string
+      sort?: string
+      limit?: number
+      offset?: number
+    }): LiveSource<{
+      items: ArtifactRecord[]
+      count: number
+      scope: string
+    }>
+  }
   skills: {
+    /** All skill IndexEntry rows across project + user scopes. */
+    list(): LiveSource<{ items: SkillIndexEntry[] }>
     /** Skills tree (sources + groups) for the explorer. */
     summaries(args?: {
       q?: string

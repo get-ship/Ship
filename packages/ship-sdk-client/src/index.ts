@@ -181,7 +181,11 @@ export function createClient(opts?: CreateClientOpts): ShipSDK {
           { id: args.id },
         ),
     },
+    artifacts: {
+      list: (args) => sse('artifacts', 'list', args),
+    },
     skills: {
+      list:        () => sse('skills', 'list'),
       summaries: (args) => sse('skills', 'summaries', args),
       detail:    (args) => sse('skills', 'detail', args),
       invoke:    (args) =>
