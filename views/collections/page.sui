@@ -1,5 +1,4 @@
 <data name="collections" source="ship.collections.list()" live />
-<data name="colDetail" source="ship.collections.detail({id: activeId()})" live />
 
 <div class="ship-view data-view">
 
@@ -137,7 +136,7 @@
                       <tr>
                         <td class="col-cell">{item.id}</td>
                         {#for f of colDetail().value.schema.fields key={f.name}}
-                          <td class="col-cell">{String(item.data?.[f.name] ?? '')}</td>
+                          <td class="col-cell">{item.data?.[f.name] ?? ''}</td>
                         {/for}
                         <td>
                           <sui-button size="sm" variant="ghost" aria-label={'Edit row ' + item.id}
@@ -178,15 +177,15 @@
                   </div>
                 {/if}
                 <div class="schema-fields">
-                  {#for f of colDetail().value.schema.fields key={f.name}}
+                  {#for f of schemaFieldsView() key={f.name}}
                     <div class="schema-field">
                       <span class={'ft-badge ft-' + f.field_type}>{f.field_type}</span>
                       <span class="schema-field-name mono-snip">{f.name}</span>
                       {#if f.required}<span class="schema-field-req">required</span>{/if}
                       {#if f.values && f.values.length > 0}
-                        <span class="schema-field-values mono-snip">{f.values.join(' | ')}</span>
+                        <span class="schema-field-values mono-snip">{f.values_pretty}</span>
                       {/if}
-                      {#if !colDetail().value.schema.builtin}<sui-button size="sm" variant="ghost" aria-label="Remove field" on:click={() => { const fs = colDetail().value.schema.fields.filter(x => x.name !== f.name).map(x => ({name: x.name, type: x.field_type, required: x.required, values: x.values ?? []})); fetch('/api/v1/collections/' + activeId() + '/schema', {method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({id: activeId(), fields: fs})}) }}><sui-icon name="trash" size="xs"></sui-icon></sui-button>{/if}
+                      {#if !colDetail().value.schema.builtin}<sui-button size="sm" variant="ghost" aria-label="Remove field" on:click={() => removeSchemaField(f.name)}><sui-icon name="trash" size="xs"></sui-icon></sui-button>{/if}
                     </div>
                   {/for}
                 </div>

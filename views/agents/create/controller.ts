@@ -1,4 +1,4 @@
-import { controller, signal, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
@@ -13,7 +13,16 @@ export default controller<Scope>({
     const preset = signal('standard')
     const creating = signal(false)
     const err = signal('')
-    return { step, template, hue, name, id, desc, providers, preset, creating, err }
+    const reviewJson = derived(() => JSON.stringify({
+      id: id(),
+      name: name(),
+      description: desc(),
+      template: template(),
+      hue: hue(),
+      providers: providers(),
+      permissions: { preset: preset() },
+    }, null, 2))
+    return { step, template, hue, name, id, desc, providers, preset, creating, err, reviewJson }
   },
   on: {
     cancel: ({ navigate }) => navigate('/agents'),

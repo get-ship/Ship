@@ -74,7 +74,7 @@
               <sui-input value={id()} on:sui-input={(e) => id.set(e.detail.value)} placeholder="rust-compiler"></sui-input>
             </div>
           </div>
-          <div class="slug-hint">saves to <code>.ship/agents/{id() || '<id>'}.jsonc</code></div>
+          <div class="slug-hint">saves to <code>.ship/agents/{id() || '(id)'}.jsonc</code></div>
           <div class="field">
             <label>Description</label>
             <sui-textarea value={desc()} on:sui-input={(e) => desc.set(e.detail.value)} rows="3" placeholder="What does this agent do?"></sui-textarea>
@@ -122,7 +122,7 @@
       <h2 class="create-h">Review</h2>
       <p class="create-sub">Creates <code>.ship/agents/{id() || 'new'}.jsonc</code> on submit.</p>
       <sui-card class="review-card" padding="md">
-        <pre>{JSON.stringify({ id: id(), name: name(), description: desc(), template: template(), hue: hue(), providers: providers(), permissions: { preset: preset() } }, null, 2)}</pre>
+        <pre>{reviewJson()}</pre>
       </sui-card>
       {#if err()}
         <sui-alert tone="destructive" style="margin-top:var(--space-3)">{err()}</sui-alert>
@@ -139,7 +139,7 @@
     {/if}
     <span class="spacer"></span>
     <sui-button variant="ghost" size="sm" on:click={cancel}>Cancel</sui-button>
-    {#if step() < 3}
+    {#if step() !== 3}
       <sui-button tone="primary" variant="solid" size="sm" on:click={next}>
         Continue
         <sui-icon slot="trailing" name="arrow-right" size="xs"></sui-icon>
