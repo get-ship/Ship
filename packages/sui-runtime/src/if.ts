@@ -23,6 +23,7 @@
 
 import { effect } from './signal'
 import type { Disposer } from './bind'
+import { runProtected } from './error-boundary'
 
 /**
  * One branch's rendered nodes plus an optional teardown. Returned by
@@ -128,7 +129,12 @@ export function bindIf(opts: BindIfOptions): Disposer {
       active = null
       return
     }
-    active = branches[idx]!()
+    const rendered = runProtected(anchor, 'render', () => branches[idx]!())
+    if (!rendered) {
+      active = null
+      return
+    }
+    active = rendered
     const parent = anchor.parentNode
     if (!parent) return
     for (const n of active.nodes) {

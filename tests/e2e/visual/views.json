@@ -42,6 +42,7 @@
     {"tag": "sui-stat", "slot": "<sui-stat label=\"Active jobs\" value=\"12\"></sui-stat>"},
     {"tag": "sui-tabs", "slot": "<sui-tabs><button slot=\"tab\" data-tab=\"a\">Overview</button><button slot=\"tab\" data-tab=\"b\">Details</button><button slot=\"tab\" data-tab=\"c\">Logs</button></sui-tabs>"},
     {"tag": "sui-empty-state", "slot": "<sui-empty-state><span slot=\"title\">Nothing here yet</span>Create your first item to get started.</sui-empty-state>"},
-    {"tag": "sui-breadcrumb", "slot": "<sui-breadcrumb><sui-breadcrumb-item>Home</sui-breadcrumb-item><sui-breadcrumb-item>Projects</sui-breadcrumb-item><sui-breadcrumb-item>Ship</sui-breadcrumb-item></sui-breadcrumb>"}
+    {"tag": "sui-breadcrumb", "slot": "<sui-breadcrumb><sui-breadcrumb-item>Home</sui-breadcrumb-item><sui-breadcrumb-item>Projects</sui-breadcrumb-item><sui-breadcrumb-item>Ship</sui-breadcrumb-item></sui-breadcrumb>"},
+    {"tag": "sui-error-boundary", "slot": "<div style=\"display:flex;gap:24px;flex-direction:column;max-width:480px\"><sui-error-boundary id=\"eb-healthy\"><div style=\"padding:8px 12px;border:1px solid var(--border);border-radius:6px\">Healthy content inside the boundary.</div></sui-error-boundary><sui-error-boundary id=\"eb-caught\" fallback-text=\"Something went wrong\"><span>protected</span></sui-error-boundary><script>customElements.whenDefined('sui-error-boundary').then(() => requestAnimationFrame(() => { const sym = Symbol.for('sui:error-boundary'); const target = document.getElementById('eb-caught'); const handle = target && target[sym]; if (handle) handle.catch(new Error('Demo failure'), 'render'); window.__harnessReady = true; }));</script></div>"}
   ]
 }

@@ -301,6 +301,25 @@ VS Code extension shows.
 
 Views compose `<sui-*>` components from `packages/ui-components/`. See the `ship-components` skill for the component contract.
 
+## Error handling
+
+Wrap fault-prone subtrees in `<sui-error-boundary>`. Throws inside the
+wrapped subtree (effects, controller mount, render expressions) are caught
+and the fallback is rendered. Use `fallback-text` for a string fallback or
+`<template slot="fallback">` for custom markup. Call `.reset()` on the host
+element to retry.
+
+```html
+<sui-error-boundary fallback-text="Couldn't load feed">
+  <sui-some-component prop={maybeThrows()}></sui-some-component>
+</sui-error-boundary>
+```
+
+The boundary fires `sui-error-boundary:caught` (bubbling, composed) with
+`{ error, source }` where `source` is `'effect' | 'mount' | 'render' |
+'unknown'`. Nest boundaries to scope recovery — the innermost catches
+first, mirroring React.
+
 ## References
 
 | When you need | Read |

@@ -1,0 +1,79 @@
+<!--
+  <sui-error-boundary> — render-fault isolation.
+
+  Wraps a subtree. If any rendering, controller `mount()`, or reactive
+  effect inside throws, the subtree is unmounted and the boundary
+  displays its fallback. React-style propagation: the innermost
+  boundary catches a thrown error and outer boundaries see nothing.
+
+  Fallback resolution (first match wins):
+    1. `<template slot="fallback">…</template>` child — projected via
+       the named slot. Authors can read the message via the host's
+       `data-error-message` attribute or by listening for
+       `sui-error-boundary:caught`.
+    2. `fallback-text` attribute — rendered inside a default container
+       with a "Retry" button.
+    3. Built-in "Something went wrong" + retry button.
+
+  Programmatic recovery: `host.reset()` re-renders the protected
+  subtree. The default fallback's retry button calls the same path.
+
+  Event: `sui-error-boundary:caught` fires on the host when an error
+  is caught; detail carries `{ error, source }` where `source` is
+  `'effect' | 'mount' | 'render' | 'unknown'`.
+-->
+
+<prop name="fallback-text" type="string" default="" />
+
+<style>
+  :host {
+    display: block;
+    font-family: var(--font-body);
+  }
+  :host([hidden]) { display: none; }
+
+  .fallback {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+    padding: var(--space-3, 12px) var(--space-4, 16px);
+    border: 1px solid color-mix(in oklch, var(--destructive) 30%, var(--border));
+    border-radius: var(--radius);
+    background: color-mix(in oklch, var(--destructive) 6%, var(--background));
+    color: var(--foreground);
+    font-size: var(--text-sm, 13px);
+  }
+
+  .message {
+    color: var(--muted-foreground);
+  }
+
+  .retry {
+    appearance: none;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    font: inherit;
+    font-size: var(--text-xs, 12px);
+    color: var(--foreground);
+    cursor: pointer;
+  }
+  .retry:hover {
+    background: var(--muted);
+  }
+</style>
+
+{#if caughtError() === null}
+  <slot></slot>
+{:else}
+  {#if hasFallbackSlot()}
+    <slot name="fallback"></slot>
+  {:else}
+    <div class="fallback" part="fallback" role="alert">
+      <div class="message" part="message">{fallbackText() || 'Something went wrong'}</div>
+      <button class="retry" part="retry" type="button" on:click={reset}>Retry</button>
+    </div>
+  {/if}
+{/if}

@@ -8,7 +8,9 @@
 import type { Disposer } from './bind'
 import type { Signal } from './signal'
 import { createScope, withScope, type EffectScope } from './effect-scope'
+import { withHost } from './signal'
 import { attachHostApi } from './host-api'
+import { findNearestBoundary } from './error-boundary'
 
 // The declarative `component()` factory lives in component-factory.ts to
 // keep this file under the 300-line cap. Re-exported here so the public
@@ -159,9 +161,18 @@ export function defineComponent(
         this.dataset.component = tag
         attachHostApi(this)
         this.scope = createScope()
-        this.cleanup = withScope(this.scope, () =>
-          factory(this, this.propSignals, this.internals),
-        )
+        try {
+          this.cleanup = withScope(this.scope, () =>
+            withHost(this, () => factory(this, this.propSignals, this.internals)),
+          )
+        } catch (err) {
+          const boundary = findNearestBoundary(this.parentNode)
+          if (boundary) {
+            boundary.catch(err, 'mount')
+          } else {
+            console.error(`[ship-set:${tag}] setup threw:`, err)
+          }
+        }
       }
 
       disconnectedCallback() {
@@ -238,9 +249,18 @@ export function defineComponent(
       this.dataset.component = tag
       attachHostApi(this)
       this.scope = createScope()
-      this.cleanup = withScope(this.scope, () =>
-        factory(this, this.propSignals),
-      )
+      try {
+        this.cleanup = withScope(this.scope, () =>
+          withHost(this, () => factory(this, this.propSignals)),
+        )
+      } catch (err) {
+        const boundary = findNearestBoundary(this.parentNode)
+        if (boundary) {
+          boundary.catch(err, 'mount')
+        } else {
+          console.error(`[ship-set:${tag}] setup threw:`, err)
+        }
+      }
     }
 
     disconnectedCallback() {
