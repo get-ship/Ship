@@ -1,7 +1,3 @@
-<data name="rail" source="ship.skills.summaries({q: q(), kind: kind(), tag: tag()})" live />
-<data name="skill" source="ship.skills.detail({id: skillId()})" />
-<data name="fileContent" source="ship.skills.file({id: skillId(), path: selectedFile()})" />
-
 <div class="ship-view ship-view-skills">
   <div class="skills-ide">
 
@@ -66,9 +62,9 @@
                           role="treeitem"
                           on:click={() => selectFile(f)}
                           attr:title={f}>
-                          <sui-icon attr:name={f === 'SKILL.md' ? 'file' : f.endsWith('.json') ? 'file' : f.endsWith('.md') ? 'file' : 'file'} size="xs"
-                            attr:tone={f === 'SKILL.md' ? 'info' : f.endsWith('.json') ? 'warning' : f.endsWith('.md') ? 'success' : 'muted'}></sui-icon>
-                          <span class="se-fname">{f.split('/').pop()}</span>
+                          <sui-icon name="file" size="xs"
+                            attr:tone={f === 'SKILL.md' ? 'info' : f.slice(-5) === '.json' ? 'warning' : f.slice(-3) === '.md' ? 'success' : 'muted'}></sui-icon>
+                          <span class="se-fname">{f}</span>
                         </button>
                       {/for}
                     {/if}
