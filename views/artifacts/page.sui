@@ -1,0 +1,67 @@
+<div class="ship-view ship-view-artifacts">
+  <div class="art-wrap">
+
+    <header class="art-head">
+      <div class="art-head-titles">
+        <h1 class="art-title">Artifacts</h1>
+        <p class="art-sub">{items().length} artifact{items().length === 1 ? '' : 's'}</p>
+      </div>
+    </header>
+
+    {#if loadError()}
+      <sui-error-state title="Couldn't load artifacts" data-test="error">
+        {loadError()}
+        <sui-button slot="action" tone="primary" variant="solid"
+          on:click={() => refresh()}>Retry</sui-button>
+      </sui-error-state>
+    {:else if loading()}
+      <ul class="art-list" data-test="loading" aria-label="Loading artifacts">
+        {#for n of [0,1,2] key={n}}
+          <li class="art-skel-row" aria-hidden="true">
+            <sui-skeleton shape="block" size="sm" class="art-skel-icon"></sui-skeleton>
+            <div class="art-skel-text">
+              <sui-skeleton shape="line" size="md" style="width:40%"></sui-skeleton>
+              <sui-skeleton shape="line" size="sm" style="width:60%"></sui-skeleton>
+            </div>
+          </li>
+        {/for}
+      </ul>
+    {:else if items().length === 0}
+      <sui-empty-state variant="default" size="sm" data-test="empty">
+        <sui-icon slot="icon" name="file"></sui-icon>
+        <span slot="title">No artifacts yet</span>
+        Agents upload artifacts by <code class="art-empty-code">POST /api/v1/artifacts</code>.
+        Canvas, generated assets, and run outputs land here.
+      </sui-empty-state>
+    {:else}
+      <ul class="art-list" data-test="list">
+        {#for a of items() key={a.id}}
+          <li class="art-row" data-test="row">
+            <div class="art-row-main">
+              <sui-icon name="file" size="sm" tone="muted"></sui-icon>
+              <div class="art-row-text">
+                <div class="art-row-name">
+                  {a.name || a.id}
+                  {#if a.collection_id}
+                    <sui-chip tone="muted" variant="soft" size="sm">{a.collection_id}</sui-chip>
+                  {/if}
+                </div>
+                <div class="art-row-meta">
+                  <span class="art-row-mime">{a.mime}</span>
+                  <span class="art-row-size">{formatSize(a.size)}</span>
+                  <span class="art-row-id mono-snip">{a.id.slice(0, 12)}</span>
+                </div>
+              </div>
+            </div>
+            <a class="art-row-link" href={'/api/v1/artifacts/' + a.id}
+              attr:title={'Download ' + (a.name || a.id)}
+              data-no-router>
+              <sui-icon name="download" size="sm"></sui-icon>
+            </a>
+          </li>
+        {/for}
+      </ul>
+    {/if}
+
+  </div>
+</div>
