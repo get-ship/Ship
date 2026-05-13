@@ -104,3 +104,28 @@
   padding: 12px 0;
   font-style: italic;
 }
+.mesh-skel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+.mesh-skel-head {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: var(--space-2);
+}
+.mesh-skel-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.mesh-skel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+}
+.mesh-skel-row sui-skeleton[shape="line"] { flex: 1; }

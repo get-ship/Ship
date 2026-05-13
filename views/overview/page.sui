@@ -46,9 +46,21 @@
   <div class="overview-canvas-wrap" bind:this={wrapRef}>
     {#while-loading of systems}
       <div class="ov-empty">
-        <p style="color:var(--muted-foreground)">Loading systems&hellip;</p>
+        <ship-empty-state variant="connecting" tone="muted" size="md">
+          <ship-icon slot="icon" name="loader"></ship-icon>
+          <span slot="title">Loading systems&hellip;</span>
+          Wiring up the canvas.
+        </ship-empty-state>
       </div>
     {/while-loading}
+
+    {#while-error err of systems}
+      <div class="ov-empty">
+        <sui-error-state variant="default" size="md" title="Couldn't load systems">
+          {err.message}
+        </sui-error-state>
+      </div>
+    {/while-error}
 
     {#if systems().kind === 'ok'}
       {#if systems().value.items.length === 0}

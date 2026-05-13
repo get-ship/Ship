@@ -33,6 +33,19 @@
 
 .s-loading { color: var(--muted-foreground); padding: var(--space-4); }
 
+.s-skel { display: flex; flex-direction: column; gap: var(--space-4); }
+.s-skel-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-4) var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.s-skel-head { display: flex; align-items: center; gap: var(--space-2); }
+.s-skel-body { display: flex; flex-direction: column; gap: var(--space-2); }
+
 .s-sections { display: flex; flex-direction: column; gap: var(--space-4); }
 
 .s-section-body { padding: var(--space-1) var(--space-4); }

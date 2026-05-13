@@ -110,6 +110,14 @@
   font-style: italic;
   color: var(--muted-foreground);
 }
+.se-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--space-3) var(--space-4);
+}
+.se-skel-row { display: flex; align-items: center; }
+.se-skel-row sui-skeleton[shape="line"] { flex: 1; }
 .se-skill {
   display: flex;
   width: 100%;

@@ -8,11 +8,26 @@
     </header>
 
     {#while-loading of settings}
-      <p class="s-loading">Loading settings&hellip;</p>
+      <div class="s-skel" aria-busy="true" aria-label="Loading settings">
+        {#for n of [0, 1, 2] key={n}}
+          <div class="s-skel-card">
+            <div class="s-skel-head">
+              <sui-skeleton shape="circle" size="sm"></sui-skeleton>
+              <sui-skeleton shape="line" size="md" style="width:120px"></sui-skeleton>
+            </div>
+            <div class="s-skel-body">
+              <sui-skeleton shape="line" size="md"></sui-skeleton>
+              <sui-skeleton shape="line" size="md"></sui-skeleton>
+            </div>
+          </div>
+        {/for}
+      </div>
     {/while-loading}
 
     {#while-error err of settings}
-      <p class="s-loading">Error loading settings: {err.message}</p>
+      <sui-error-state variant="default" size="md" title="Couldn't load settings">
+        {err.message}
+      </sui-error-state>
     {/while-error}
 
     {#if settings().kind === 'ok'}
