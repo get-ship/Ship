@@ -243,6 +243,121 @@ unwrapOr(sig, fallback)   // T
 {/if}
 ```
 
+## Live SSE data
+
+The full end-to-end loop for `<data live>` — what's on the wire, where each
+piece lives, and how to confirm it locally.
+
+### Wire path
+
+```
+.sui  <data live source="ship.git.overview()" live />
+  ↓ sui-compiler
+.js   $scope.git = live(() => ship.git.overview())
+  ↓ @ship/sdk-client createClient()
+HTTP  GET /_sui/data?expr=ship.git.overview()    [text/event-stream]
+  ↓ apps/shipd/src/views/sui_data.rs
+Rust  registry::call("git.overview", {}) → initial; subscribe `config` ns
+  ↓ kernel event → re-resolve
+SSE   event: patch \n data: {"op":"set","value":{…}}
+  ↓ makeSseSource() in @ship/sdk-client
+sig   LiveSignal<T> flips loading → ok → ok (per patch)
+  ↓ bindWhileLoading / bindWhileError / bindIf
+DOM   morphs in place — no re-render of the surrounding view
+```
+
+The compiler turns each `source=` attribute into a literal expression
+inside `live(() => …)`. The expression must resolve to a `LiveSource<T>`
+(has `.subscribe(sig)`) — that's the shape every SDK method returns, so
+`ship.<domain>.<op>(args)` is the idiomatic form. Don't hand-roll an
+`EventSource` in the controller; let the SDK own the wire.
+
+### Worked example: `views/home/`
+
+The home view ships the canonical demo. `<data live>` subscribes to
+`ship.git.overview()`; the daemon's git_signal singleton refreshes on
+filesystem events under `.ship/` and on git ops, so staging a file in
+the worktree visibly flips the "clean / N changed" badge without a
+page reload.
+
+```html
+<!-- views/home/page.sui -->
+<data name="git" source="ship.git.overview()" live />
+
+<section class="home-live" aria-live="polite">
+  {#while-loading of git}
+    <p>Connecting…</p>
+  {/while-loading}
+  {#while-error err of git}
+    <p>SSE error: {err.message}</p>
+  {/while-error}
+  {#if git().kind === 'ok'}
+    <p>
+      Branch <strong>{branch()}</strong>
+      · <span>{headShort()}</span>
+      · <span>{clean() ? 'clean' : changedSummary()}</span>
+    </p>
+  {/if}
+</section>
+```
+
+```ts
+// views/home/controller.ts
+import { controller, signal, unwrapOr } from '@ship/sui-runtime'
+import type { GitOverview } from '@ship/sdk-client'
+import type { Scope } from './page.sui'
+
+const EMPTY: GitOverview = { branch: '', head_short: '', clean: true,
+  total_changed: 0, staged: [], modified: [], untracked: [],
+  commits: [], branches: [], ahead: 0, behind: 0, workspace_id: null }
+
+const read = ({ git }: Scope) => unwrapOr(git, EMPTY)
+
+export default controller<Scope>({
+  scope: () => ({ seen: signal(0) }),
+  derived: {
+    branch:    (s) => read(s).branch,
+    headShort: (s) => read(s).head_short,
+    clean:     (s) => read(s).clean,
+    changedSummary: (s) => `${read(s).total_changed} changed`,
+  },
+})
+```
+
+### Verify locally
+
+```bash
+just dev-restart            # rebuilds shipd + restarts the daemon
+PORT=$(cat $(./target/debug/ship daemon dir)/port)
+
+# 1. Confirm the SDK channel is live (Ctrl-C after a few `patch` events).
+curl -N "http://localhost:$PORT/_sui/data?expr=$(printf 'ship.git.overview()' | jq -sRr @uri)"
+
+# 2. Open the view, stage a file, watch the badge flip.
+xdg-open "http://localhost:$PORT/"            # or open in your browser
+touch CHANGE_ME && git add CHANGE_ME           # status flips to "1 changed"
+git restore --staged CHANGE_ME && rm CHANGE_ME # back to "clean"
+```
+
+### When to add a new live source
+
+A new `ship.<domain>.<op>(...)` live source needs three things:
+
+1. **Registry entry** — `apps/shipd/src/services/registry/<domain>.rs` returns
+   the current value synchronously. The dispatcher in `registry.rs` and the
+   schema row in `services/schema.rs` keep the catalog honest.
+2. **SDK method** — `packages/ship-sdk-client/src/index.ts` exposes the
+   method returning `makeSseSource(...)` against `/_sui/data?expr=…`.
+3. **(Optional) signal-backed source** — if the data has a tighter wake-up
+   surface than the default `config` kernel namespace, mirror the pattern in
+   `apps/shipd/src/views/git_signal.rs`: a `Signal<Value>` plus a singleton
+   background task that updates it. `sui_sse.rs::is_signal_backed_expr` picks
+   up the new registry name automatically.
+
+The view-side surface (`<data live source="ship.X.Y()" live />` + controller
+derived helpers) is the same regardless of which mechanism powers the
+re-resolves on the daemon.
+
 ## Manifest
 
 ```jsonc

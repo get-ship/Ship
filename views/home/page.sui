@@ -1,3 +1,5 @@
+<data name="git" source="ship.git.overview()" live />
+
 <div class="home">
   <home-hero prop:title={'Welcome to Ship'}></home-hero>
 
@@ -6,8 +8,33 @@
     <button data-test="bump" on:click={() => seen.set(seen() + 1)}>Bump</button>
   </section>
 
+  <section class="home-live" aria-live="polite">
+    <h2 class="home-live-title">Live from the daemon</h2>
+    {#while-loading of git}
+      <p class="home-live-line" data-test="live-loading">Connecting&hellip;</p>
+    {/while-loading}
+    {#while-error err of git}
+      <p class="home-live-line" data-test="live-error">SSE error: {err.message}</p>
+    {/while-error}
+    {#if git().kind === 'ok'}
+      <p class="home-live-line" data-test="live-ok">
+        <span class="home-live-dot" data-clean={clean() ? '1' : '0'} aria-hidden="true"></span>
+        Branch <strong data-test="live-branch">{branch()}</strong>
+        &middot;
+        <span class="home-live-mono" data-test="live-head">{headShort()}</span>
+        &middot;
+        <span data-test="live-status">{clean() ? 'clean' : changedSummary()}</span>
+      </p>
+    {/if}
+  </section>
+
   <p class="caption">
     Proof view for the new directory convention — page.sui + controller.ts +
     style.css + manifest.jsonc, with a view-private widget under _components/.
+    The <code>&lt;data live&gt;</code> block above subscribes to
+    <code>ship.git.overview()</code>; the SDK opens an SSE channel against
+    <code>/_sui/data?expr=ship.git.overview()</code> and patches in a fresh
+    payload whenever the daemon's git signal updates — stage a file in this
+    worktree to watch the status flip without a page reload.
   </p>
 </div>
