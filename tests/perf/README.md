@@ -60,3 +60,56 @@ threshold with `BENCH_REGRESSION_THRESHOLD=0.25 just bench-check`.
    baseline with `just bench` and commit that, with a commit message
    explaining the deliberate movement.
 3. Never silently raise `BENCH_REGRESSION_THRESHOLD` to hide a regression.
+
+## Profiling methodology
+
+`just bench` answers "how fast"; profiling answers "why this fast / what's
+the dominant cost". Use `scripts/dev/perf-profile.mjs` to capture a V8
+CPU profile of any bench op against SUI plus one comparison framework.
+
+```sh
+# Default: SUI / 01_run1k / 10 iterations
+node scripts/dev/perf-profile.mjs
+
+# Sweep the create-path ops against both frameworks
+node scripts/dev/perf-profile.mjs --all --iter 10
+
+# Targeted capture
+node scripts/dev/perf-profile.mjs --framework solid --op 02_replace1k --iter 20
+
+# Watch the run in a visible browser (useful when the page can't load)
+node scripts/dev/perf-profile.mjs --headed
+```
+
+The harness:
+
+1. Starts the bench's http-server on :8080 if it isn't already up
+   (override the path with `BENCH_HOME=…`).
+2. Launches Playwright Chromium (already a devDep — no new install).
+3. Attaches a CDP session and enables `Profiler` at 100µs sampling
+   (10 kHz — fine enough to resolve sub-ms native calls).
+4. Warms the page with one unprofiled click, clears, then runs the
+   op N times under the profiler with `waitForFunction` predicates
+   between iterations.
+5. Writes `tests/perf/profiles/YYYY-MM-DD-<framework>-<op>.cpuprofile`
+   (open it in Chrome devtools → Performance → Load profile) and
+   prints a self-time top-10 to stdout.
+
+Currently mapped ops: `01_run1k`, `02_replace1k`, `05_swap1k`. Add new
+ops to the `OPS` table in `scripts/dev/perf-profile.mjs` (each entry
+declares the setup clicks, measured click(s), and a `waitForFunction`
+predicate so the profiled window covers the right work).
+
+When analysing a profile, group self-time by:
+
+- **native** (`createElement`, `setAttribute`, `appendChild`, etc.)
+  — the DOM construction model. Compare against the comparison
+  framework's `cloneNode` count.
+- **framework code** (URLs ending `.compiled.js`, `dist/main.js`,
+  or `sui-runtime/*`) — reconciler + binding overhead. The `bindFor`
+  effect body's per-render allocations show up here.
+- **GC** — proxy for allocation pressure. Bigger gap than the bench
+  number suggests = signal/object churn in the row body.
+
+The first audit using this harness is `.artifacts/sui-arc/perf-profile.md`
+(gitignored — transient report).
