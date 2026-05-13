@@ -86,9 +86,6 @@ import './domain/ship-provider-blob'
 import './domain/ship-history-row'
 import './domain/ship-auth-dialog'
 
-// Viz — chart primitives (index registers its own)
-export * from './viz'
-
 // Core named exports
 export { ShipAccordion, ShipAccordionItem } from './core/ship-accordion'
 export { ShipAlert } from './core/ship-alert'
