@@ -134,22 +134,28 @@ export interface ShipSDK {
     }): LiveSource<unknown>
     /** Single skill detail (frontmatter + body + vars). */
     detail(args: { id: string }): LiveSource<unknown>
-    /** Trigger a skill run.
+    /** Invoke a library skill — attach its reference content to a
+     *  session and emit lifecycle events on the kernel bus.
      *
-     *  Minimal-stub today: validates the skill, mints a `run_id`,
-     *  emits `skill.started` on the kernel event bus, and returns the
-     *  identifiers. Standalone-execution (i.e. without an attached
-     *  agent provider) is tracked in
-     *  `.artifacts/sui-arc/daemon-sdk-mutation-ops.md`. */
+     *  Resolves the skill, mints a `run_id`, picks a `session_id`
+     *  (explicit > active-agent-for-workspace > synthetic = run_id),
+     *  and emits `skill.started` → `skill.attached_to_session` →
+     *  `skill.completed`. Operator + mode skill types are not yet
+     *  wired through this surface — see
+     *  `.artifacts/sui-arc/skills-invoke-real.md`. */
     invoke(args: {
       id: string
       vars?: Record<string, unknown>
       workspace_id?: string
+      session_id?: string
     }): Promise<{
       ok: true
       run_id: string
       skill_id: string
+      session_id: string
       workspace_id: string | null
+      mode: 'library'
+      reused_session: boolean
     }>
   }
 }
