@@ -45,7 +45,7 @@
 
     {#if projects().kind === 'ok'}
       {#if items().length === 0}
-        <sui-empty-state variant="default" size="lg" data-test="empty">
+        <sui-empty-state variant="default" size="sm" data-test="empty">
           <sui-icon slot="icon" name="folder-tree"></sui-icon>
           <span slot="title">No workspaces registered</span>
           Run <code class="ws-empty-code">ship init</code> in a project folder to register it.

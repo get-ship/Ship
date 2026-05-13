@@ -27,6 +27,7 @@ html, body {
   display: grid;
   grid-template-columns: auto 1fr;
   grid-template-rows: var(--ship-top-bar-h) 1fr auto var(--ship-status-bar-h);
+  column-gap: 6px;
   height: 100vh;
   overflow: hidden;
 }

@@ -171,12 +171,13 @@
           </div>
         </sui-card>
 
-        <!-- Latest events (full width) -->
-        <sui-card padding="none" class="dash-section dash-body--wide" aria-label="Latest events">
+        <!-- Recent activity (full width) -->
+        <sui-card padding="none" class="dash-section dash-body--wide dash-activity" aria-label="Recent activity">
           <div slot="header" class="dash-section-head">
             <h2 class="dash-section-title">
               <sui-icon class="dash-section-icon" name="activity" aria-hidden="true"></sui-icon>
-              Latest events
+              Recent activity
+              <sui-badge tone="muted" variant="soft" size="sm">{dash().value.events.length}</sui-badge>
             </h2>
             <a class="dash-section-link" href="/events">
               Full stream <sui-icon name="chevron-right" size="10" aria-hidden="true"></sui-icon>
@@ -184,25 +185,28 @@
           </div>
           <div class="dash-section-body">
             {#if dash().value.events.length > 0}
-              {#for r of dash().value.events key={r.id ?? r.timestamp}}
-                <div class="dash-event-row">
-                  <span class="dash-event-ts">{r.timestamp}</span>
-                  <span class="dash-event-type">{r.event_type}</span>
-                  <span class="dash-event-actor">
-                    {#if r.actor}
-                      <sui-avatar size="sm" prop:identity-hue={r.actor}
-                        prop:name={r.actor}
-                        prop:initials={r.actor.slice(0, 1).toUpperCase()}></sui-avatar>
-                      <span>{r.actor}</span>
-                    {:else}
-                      <span>—</span>
-                    {/if}
-                  </span>
-                </div>
-              {/for}
+              <ol class="dash-activity-stream" data-view-enter>
+                {#for r of dash().value.events key={r.id ?? r.timestamp}}
+                  <li class="dash-activity-row">
+                    <span class="dash-activity-rail" aria-hidden="true"></span>
+                    <span class="dash-event-ts">{r.timestamp}</span>
+                    <span class="dash-event-type">{r.event_type}</span>
+                    <span class="dash-event-actor">
+                      {#if r.actor}
+                        <sui-avatar size="sm" prop:identity-hue={r.actor}
+                          prop:name={r.actor}
+                          prop:initials={r.actor.slice(0, 1).toUpperCase()}></sui-avatar>
+                        <span>{r.actor}</span>
+                      {:else}
+                        <span>—</span>
+                      {/if}
+                    </span>
+                  </li>
+                {/for}
+              </ol>
             {:else}
               <sui-empty-state variant="placeholder" size="sm" icon="activity">
-                <span slot="title">Waiting for events</span>
+                <span slot="title">Waiting for activity</span>
                 The stream will fill as the daemon emits events.
               </sui-empty-state>
             {/if}
