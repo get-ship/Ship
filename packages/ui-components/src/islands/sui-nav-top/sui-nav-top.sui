@@ -7,7 +7,13 @@
   Prop / event surface
   ─────────────────────────────────────────────────────────────────────────────
   Props:
-    path (string, '')  current navigation path — auto-updated on sui:navigate
+    path    (string, '')  current navigation path — auto-updated on sui:navigate
+    project (string, '')  optional project label — when set, prepends a leading
+                          home-linked breadcrumb segment (e.g. "Ship")
+    view    (string, '')  optional explicit view name — when set, overrides the
+                          path-derived root segment (humanized + label lookup
+                          still apply). Lets the bar render correctly in
+                          standalone harnesses where location.pathname is "/"
   ─────────────────────────────────────────────────────────────────────────────
   Events dispatched (bubbling, composed):
     sui:rail:toggle   {}  — request to toggle the left rail
@@ -20,7 +26,7 @@
   ─────────────────────────────────────────────────────────────────────────────
   Slots:
     actions      per-view action buttons injected by the mounted view
-    command-bar  command palette placeholder (accept <sui-command-bar> when ported)
+    command-bar  command palette host — shell2 slots <sui-command-bar> here
   ─────────────────────────────────────────────────────────────────────────────
   Parts: brand, crumbs, rail-toggle, studio, theme-picker, dock-toggle,
          fullscreen, chat-toggle
@@ -29,20 +35,37 @@
     --ship-top-bar-h (default 40px)  host height; matches layout grid row
   ─────────────────────────────────────────────────────────────────────────────
   Parity vs Lit ship-nav-top:
-    #topbar-brand          → part="brand"              ✓
-    #breadcrumbs           → part="crumbs" + {#for} crumbs() ✓
-    #view-topbar-actions   → slot name="actions"       ✓
-    ship-command-bar       → slot name="command-bar"   (deferred, not ported)
-    #toggle-rail           → part="rail-toggle"        ✓
-    #open-ui-studio        → part="studio"             ✓
-    ship-popover#theme-picker → <sui-theme-picker>     ✓ (no ID handshake)
-    #toggle-dock           → part="dock-toggle"        ✓
-    #toggle-fullscreen     → part="fullscreen"         ✓
-    #toggle-drawer         → part="chat-toggle"        ✓
+    #topbar-brand              → part="brand"               ✓
+    #breadcrumbs               → part="crumbs" + {#for} crumbs()  ✓
+    #view-topbar-actions       → slot name="actions"        ✓
+    <ship-command-bar>         → slot name="command-bar"    ✓ (filled by shell2)
+    #toggle-rail               → part="rail-toggle"         ✓
+    #open-ui-studio            → part="studio"              ✓
+    <ship-popover#theme-picker>→ <sui-theme-picker>         ✓ (runtime-exceed:
+                                                              sui-popover uses
+                                                              sui-portal + a
+                                                              transition:scale
+                                                              for open/close
+                                                              animation, no
+                                                              hand-rolled CSS
+                                                              keyframes)
+    #toggle-dock               → part="dock-toggle"         ✓
+    #toggle-fullscreen         → part="fullscreen"          ✓
+    #toggle-drawer (message-square-plus) → part="chat-toggle" ✓ (icon parity)
+  ─────────────────────────────────────────────────────────────────────────────
+  Runtime-exceed moves over Lit ship-nav-top:
+    1. Theme picker: <sui-theme-picker> wraps <sui-popover> which portals out
+       of shadow-DOM into <body> and animates with transition:scale; Lit
+       used a pure-CSS ship-popover + manual grid fill.
+    2. Crumb transitions: each {#for} crumb gets transition:fade so route
+       changes animate cleanly without a manual state machine; Lit just
+       re-renders.
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
 <prop name="path" type="string" default="" />
+<prop name="project" type="string" default="" />
+<prop name="view" type="string" default="" />
 
 <style>
   :host {
@@ -147,9 +170,9 @@
 <nav class="crumbs" part="crumbs" aria-label="Breadcrumbs">
   {#for c of crumbs() key={c.href}}
     {#if c.isLast}
-      <span class="current" id="breadcrumbs-title">{c.label}</span>
+      <span class="current" id="breadcrumbs-title" transition:fade={{ duration: 120 }}>{c.label}</span>
     {:else}
-      <a href={c.href} on:click={(e) => onCrumbClick(e, c.href)}>{c.label}</a>
+      <a href={c.href} on:click={(e) => onCrumbClick(e, c.href)} transition:fade={{ duration: 120 }}>{c.label}</a>
       <span class="chevron" aria-hidden="true">›</span>
     {/if}
   {/for}
@@ -177,6 +200,6 @@
   <sui-icon slot="leading" name="maximize"></sui-icon>
 </sui-button>
 <sui-button variant="ghost" size="sm" part="chat-toggle"
-  title="Toggle chat drawer" aria-label="Toggle chat drawer" on:click={onChatToggle}>
-  <sui-icon slot="leading" name="message-square"></sui-icon>
+  title="Chat (⌘/)" aria-label="Toggle chat drawer" on:click={onChatToggle}>
+  <sui-icon slot="leading" name="message-square-plus"></sui-icon>
 </sui-button>
