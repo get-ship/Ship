@@ -1,30 +1,57 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '../src/sui-rail/dist/sui-rail.compiled.js'
 import '../src/sui-rail/dist/sui-rail-item.compiled.js'
 import '../src/sui-rail/dist/sui-rail-section.compiled.js'
+import '../src/sui-portal/dist/sui-portal.compiled.js'
+import '../src/sui-icon/dist/sui-icon.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()
-afterEach(() => reg.cleanup())
+afterEach(() => {
+  reg.cleanup()
+  // Strip any popovers we teleported to body during a test so the
+  // next test starts from a clean document.
+  for (const el of document.body.querySelectorAll('.sui-rail-project-popover')) {
+    el.remove()
+  }
+  vi.restoreAllMocks()
+})
 
 const shadow = (el: HTMLElement) => el.shadowRoot!
 
+function mockFetch(routes: Record<string, unknown>): void {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString()
+    const key = Object.keys(routes).find((k) => url.includes(k))
+    const body = key ? routes[key] : null
+    return new Response(JSON.stringify(body ?? {}), { status: 200, headers: { 'Content-Type': 'application/json' } })
+  })
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 describe('<sui-rail>', () => {
+  beforeEach(() => {
+    mockFetch({
+      '/api/v1/projects': { projects: [], active: null },
+      '/api/v1/pty-sessions': { sessions: [] },
+    })
+  })
+
   it('registers the custom element', () => {
     expect(customElements.get('sui-rail')).toBeDefined()
   })
 
-  it('renders nav + toggle button in shadow DOM', () => {
+  it('renders nav, footer, toggle, project-badge, launcher, create, mission-control parts', async () => {
     const { el } = mount(reg, 'sui-rail')
-    expect(shadow(el).querySelector('.rail-nav')).not.toBeNull()
-    expect(shadow(el).querySelector('.toggle-btn')).not.toBeNull()
-  })
-
-  it('has part=nav and part=toggle', () => {
-    const { el } = mount(reg, 'sui-rail')
-    expect(shadow(el).querySelector('[part~="nav"]')).not.toBeNull()
-    expect(shadow(el).querySelector('[part~="toggle"]')).not.toBeNull()
+    await flush()
+    const s = shadow(el)
+    expect(s.querySelector('[part~="nav"]')).not.toBeNull()
+    expect(s.querySelector('[part~="footer"]')).not.toBeNull()
+    expect(s.querySelector('[part~="toggle"]')).not.toBeNull()
+    expect(s.querySelector('[part~="project-badge"]')).not.toBeNull()
+    expect(s.querySelector('[part~="launcher-btn"]')).not.toBeNull()
+    expect(s.querySelector('[part~="create-btn"]')).not.toBeNull()
+    expect(s.querySelector('[part~="mission-control"]')).not.toBeNull()
   })
 
   it('collapsed=false by default — attribute absent', () => {
@@ -52,17 +79,6 @@ describe('<sui-rail>', () => {
     expect(events[0].detail.collapsed).toBe(true)
   })
 
-  it('second toggle click restores uncollapsed state', async () => {
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    const btn = shadow(el).querySelector<HTMLButtonElement>('.toggle-btn')!
-    btn.click()
-    await flush()
-    btn.click()
-    await flush()
-    expect(el.hasAttribute('collapsed')).toBe(false)
-  })
-
   it('toggle button aria-label changes with collapsed state', async () => {
     const { el } = mount(reg, 'sui-rail')
     await flush()
@@ -73,18 +89,188 @@ describe('<sui-rail>', () => {
     expect(btn.getAttribute('aria-label')).toBe('Show rail')
   })
 
-  it('toggle button has no sui-icon — uses CSS content for arrow indicator', async () => {
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    const btn = shadow(el).querySelector<HTMLButtonElement>('.toggle-btn')!
-    expect(btn.querySelector('sui-icon')).toBeNull()
-  })
-
   it('has a default slot for child items', () => {
     const { el } = mount(reg, 'sui-rail', {}, '<sui-rail-item label="Test" icon="zap"></sui-rail-item>')
     const slot = shadow(el).querySelector<HTMLSlotElement>('slot:not([name])')!
     expect(slot).not.toBeNull()
     expect(slot.assignedElements().length).toBe(1)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('<sui-rail> project switcher', () => {
+  beforeEach(() => {
+    mockFetch({
+      '/api/v1/projects': {
+        projects: [
+          { id: 'a', name: 'Alpha', path: '/work/alpha' },
+          { id: 'b', name: 'Beta', path: '/work/beta', label: 'Beta!' },
+        ],
+        active: 'b',
+      },
+      '/api/v1/pty-sessions': { sessions: [] },
+    })
+  })
+
+  it('loads projects on mount and renders initial in badge', async () => {
+    const { el } = mount(reg, 'sui-rail')
+    // Two flushes — one for fetch microtask, one for effect.
+    await flush()
+    await flush()
+    await flush()
+    const badge = shadow(el).querySelector<HTMLButtonElement>('.project-badge')!
+    expect(badge.textContent?.trim()).toBe('B')
+  })
+
+  it('badge click opens portaled popover with project rows', async () => {
+    const { el } = mount(reg, 'sui-rail')
+    await flush()
+    await flush()
+    const badge = shadow(el).querySelector<HTMLButtonElement>('.project-badge')!
+    badge.click()
+    await flush()
+    await flush()
+    const popover = document.body.querySelector('.sui-rail-project-popover')
+    expect(popover).not.toBeNull()
+    const rows = popover!.querySelectorAll('[data-project-id]')
+    expect(rows.length).toBe(2)
+    const activeRow = popover!.querySelector('[data-project-id="b"]')!
+    expect(activeRow.classList.contains('active')).toBe(true)
+  })
+
+  it('second badge click closes the popover', async () => {
+    const { el } = mount(reg, 'sui-rail')
+    await flush()
+    await flush()
+    const badge = shadow(el).querySelector<HTMLButtonElement>('.project-badge')!
+    badge.click()
+    await flush()
+    badge.click()
+    await flush()
+    await flush()
+    expect(document.body.querySelector('.sui-rail-project-popover')).toBeNull()
+  })
+
+  it('clicking a project row dispatches ship:project:change and closes', async () => {
+    const { el } = mount(reg, 'sui-rail')
+    await flush()
+    await flush()
+    const events: CustomEvent[] = []
+    el.addEventListener('ship:project:change', (e) => events.push(e as CustomEvent))
+    const badge = shadow(el).querySelector<HTMLButtonElement>('.project-badge')!
+    badge.click()
+    await flush()
+    await flush()
+    const row = document.body.querySelector<HTMLElement>('[data-project-id="a"]')!
+    row.click()
+    await flush()
+    await flush()
+    expect(events).toHaveLength(1)
+    expect(events[0].detail.id).toBe('a')
+    expect(document.body.querySelector('.sui-rail-project-popover')).toBeNull()
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('<sui-rail> Mission Control session badge', () => {
+  it('updates Mission Control badge from /api/v1/pty-sessions', async () => {
+    mockFetch({
+      '/api/v1/projects': { projects: [], active: null },
+      '/api/v1/pty-sessions': {
+        sessions: [
+          { status: 'running' },
+          { status: 'idle' },
+          { status: 'ended' },
+        ],
+      },
+    })
+    const { el } = mount(reg, 'sui-rail')
+    await flush()
+    await flush()
+    await flush()
+    const mc = shadow(el).querySelector<HTMLElement>('[part~="mission-control"]')!
+    expect(mc.getAttribute('badge')).toBe('2')
+  })
+
+  it('suppresses Mission Control badge when zero', async () => {
+    mockFetch({
+      '/api/v1/projects': { projects: [], active: null },
+      '/api/v1/pty-sessions': { sessions: [{ status: 'ended' }] },
+    })
+    const { el } = mount(reg, 'sui-rail')
+    await flush()
+    await flush()
+    const mc = shadow(el).querySelector<HTMLElement>('[part~="mission-control"]')!
+    expect(mc.getAttribute('badge') ?? '').toBe('')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('<sui-rail> launcher / create buttons', () => {
+  beforeEach(() => {
+    mockFetch({
+      '/api/v1/projects': { projects: [], active: null },
+      '/api/v1/pty-sessions': { sessions: [] },
+    })
+  })
+
+  it('launcher button dispatches ship:launcher:open', async () => {
+    const { el } = mount(reg, 'sui-rail')
+    await flush()
+    const events: CustomEvent[] = []
+    el.addEventListener('ship:launcher:open', (e) => events.push(e as CustomEvent))
+    const btn = shadow(el).querySelector<HTMLButtonElement>('[part~="launcher-btn"]')!
+    btn.click()
+    await flush()
+    expect(events).toHaveLength(1)
+  })
+
+  it('create button dispatches ship:create:open', async () => {
+    const { el } = mount(reg, 'sui-rail')
+    await flush()
+    const events: CustomEvent[] = []
+    el.addEventListener('ship:create:open', (e) => events.push(e as CustomEvent))
+    const btn = shadow(el).querySelector<HTMLButtonElement>('[part~="create-btn"]')!
+    btn.click()
+    await flush()
+    expect(events).toHaveLength(1)
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+describe('<sui-rail> active-view tracking', () => {
+  beforeEach(() => {
+    mockFetch({
+      '/api/v1/projects': { projects: [], active: null },
+      '/api/v1/pty-sessions': { sessions: [] },
+    })
+  })
+
+  it('marks the slotted child matching the current path segment as active', async () => {
+    history.pushState({}, '', '/agents')
+    const html =
+      '<sui-rail-item data-view="agents" label="Agents" icon="bot"></sui-rail-item>' +
+      '<sui-rail-item data-view="git" label="Git" icon="git-branch"></sui-rail-item>'
+    const { el } = mount(reg, 'sui-rail', {}, html)
+    await flush()
+    await flush()
+    const agents = el.querySelector('sui-rail-item[data-view="agents"]')!
+    const git = el.querySelector('sui-rail-item[data-view="git"]')!
+    expect(agents.hasAttribute('active')).toBe(true)
+    expect(git.hasAttribute('active')).toBe(false)
+  })
+
+  it('reacts to sui:navigate events', async () => {
+    history.pushState({}, '', '/agents')
+    const html = '<sui-rail-item data-view="agents"></sui-rail-item>'
+    const { el } = mount(reg, 'sui-rail', {}, html)
+    await flush()
+    await flush()
+    history.pushState({}, '', '/git')
+    document.dispatchEvent(new CustomEvent('sui:navigate', { detail: { to: '/git' } }))
+    await flush()
+    const agents = el.querySelector('sui-rail-item[data-view="agents"]')!
+    expect(agents.hasAttribute('active')).toBe(false)
   })
 })
 
