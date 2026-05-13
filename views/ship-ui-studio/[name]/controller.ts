@@ -9,6 +9,8 @@ import {
   type MatrixAxis,
 } from './matrix'
 import { SLOT_COMPOSITIONS } from './slot-compositions'
+import { buildSnippet } from './snippet'
+import { readSearchParams, writeSearchParams, highlightActiveCell } from './deep-link'
 
 type StudioFilterKind = 'all' | 'sui' | 'view'
 
@@ -40,6 +42,7 @@ export default controller<Scope>({
     _dispose: signal<(() => void) | null>(null),
     filterKind: signal<StudioFilterKind>('all'),
     filterText: signal(''),
+    copyFeedback: signal(false),
   }),
 
   derived: {
@@ -86,6 +89,18 @@ export default controller<Scope>({
         [propName]: value,
       }
     },
+    copyCode: (state, entry: CatalogEntry | null) => {
+      if (!entry) return
+      const snippet = buildSnippet(
+        entry.tag,
+        state.propValues as Record<string, unknown>,
+        (entry.props ?? []) as PropEntry[],
+        SLOT_COMPOSITIONS[entry.tag],
+      )
+      void navigator.clipboard.writeText(snippet)
+      state.copyFeedback = true
+      setTimeout(() => { state.copyFeedback = false }, 1500)
+    },
   },
 
   mount: async (state, el) => {
@@ -114,6 +129,9 @@ export default controller<Scope>({
         initVals[prop.name] = prop.default
       }
     }
+    // URL ?key=value overrides defaults so shared links land on the right state.
+    const fromUrl = readSearchParams(location.search, (entry.props ?? []) as PropEntry[])
+    Object.assign(initVals, fromUrl)
     state.propValues = initVals
     state.loading = false
 
@@ -240,15 +258,20 @@ export default controller<Scope>({
     }
     applyProps(initVals)
 
-    // Reactively sync propValues → element attributes
+    // Reactively sync propValues → element attributes + URL search params,
+    // and re-highlight the matching matrix cell so the deep-link stays
+    // visible as the user clicks around the prop panel.
     const stopEffect = effect(() => {
       const vals = state.propValues as Record<string, unknown>
       applyProps(vals)
+      writeSearchParams(vals, props)
+      highlightActiveCell(el, vals)
     })
 
     // Populate state-matrix cells. Independent of `state.propValues` —
     // the prop panel only drives the single preview above.
     mountMatrixCells(el, entry.tag, (tag) => SLOT_COMPOSITIONS[tag])
+    highlightActiveCell(el, state.propValues as Record<string, unknown>)
 
     // Leave the node attached — next mount reuses it (same tag) or
     // swaps it (different tag). Just stop the prior reactive binding

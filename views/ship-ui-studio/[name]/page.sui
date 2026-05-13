@@ -125,6 +125,17 @@
         {/if}
 
         <div class="detail-render-wrap">
+          {#if entry().kind === 'sui'}
+            <div class="detail-render-toolbar">
+              <button
+                type="button"
+                class="copy-code-btn"
+                data-test="copy-code"
+                data-copied={copyFeedback() ? 'true' : 'false'}
+                on:click={() => copyCode(entry())}
+              >{copyFeedback() ? 'Copied' : 'Copy code'}</button>
+            </div>
+          {/if}
           <div class="detail-render-stage" data-stage-kind={entry().kind}>
             <div class="detail-render" data-render-slot data-test="render-slot"></div>
           </div>
