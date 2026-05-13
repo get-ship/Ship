@@ -15,7 +15,6 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-annotation-list>` [staged] events: ship-annotation-remove
 - `<ship-annotation-marker>` [kind x y rect active index]
 - `<ship-app-icon>` [name variant size radius= | | | | | | |  label]
-- `<ship-area-chart>` [series labels width height points grid label]
 - `<ship-avatar>` [src name initials size shape tone icon-slug identity-hue _errored]
 - `<ship-badge>` [tone variant size pill]
 - `<ship-bar-chart>` [data labels tone orientation=vertical|horizontal width height max label]
@@ -32,7 +31,6 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-copy-button>` [value label copied] events: ship-copy
 - `<ship-dialog>` [open size backdrop dismissible no-close-button no-header no-footer role-override=dialog|alertdialog] events: ship-open
 - `<ship-diff>` [from to value]
-- `<ship-donut>` [data size thickness label]
 - `<ship-drawer>` [open side size dismissible] events: ship-open
 - `<ship-dropdown-menu>` [open]
 - `<ship-empty-state>` [variant size tone icon]
@@ -40,7 +38,6 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-field>` [invalid]
 - `<ship-file-upload>` [accept multiple max-size disabled tone _files _over _error] events: ship-change
 - `<ship-gauge>` [value min max tone low-threshold high-threshold size thickness label]
-- `<ship-graph-canvas>` [nodes edges width height layout=positioned|radial selected-id] events: name
 - `<ship-heatmap>` [data rows cols tone label]
 - `<ship-hover-card>` [open placement=top|bottom|left|right show-delay hide-delay] events: name
 - `<ship-icon>` [name size tone label]
