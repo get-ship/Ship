@@ -52,36 +52,32 @@ interface ItemRecord<T> {
   update?: (item: unknown, index: number) => void
 }
 
-// Returns a boolean mask where mask[i] is true iff seq[i] participates in
-// a longest increasing subsequence. O(n log n) via patience sorting.
-// seq must contain non-negative integers with no duplicates.
-function lisMask(seq: number[]): boolean[] {
-  const n = seq.length
-  const mask = new Array<boolean>(n).fill(false)
-  if (n === 0) return mask
-
-  const pred = new Array<number>(n).fill(-1) // predecessor index in seq
-  const tails: number[] = [] // tails[k] = index into seq of smallest-tail IS of length k+1
-
-  for (let i = 0; i < n; i++) {
-    const v = seq[i]!
-    let lo = 0
-    let hi = tails.length
+// `matched` packs each matched record's (newIndex, prevIndex) pair into
+// adjacent Int32 slots: matched[2*i]=new-array index, matched[2*i+1]=prev-array
+// index. mask/pred/tails are caller-owned scratch (length >= count). On
+// return, mask[i]=1 iff matched record i is in the LIS of its prev positions.
+// O(n log n) patience sort.
+function computeLisMaskInto(
+  matched: Int32Array, count: number,
+  mask: Uint8Array, pred: Int32Array, tails: Int32Array,
+): void {
+  mask.fill(0, 0, count)
+  if (count === 0) return
+  let tailsLen = 0
+  for (let i = 0; i < count; i++) {
+    const v = matched[2 * i + 1]!
+    let lo = 0, hi = tailsLen
     while (lo < hi) {
       const mid = (lo + hi) >>> 1
-      if (seq[tails[mid]!]! < v) lo = mid + 1
+      if (matched[2 * tails[mid]! + 1]! < v) lo = mid + 1
       else hi = mid
     }
-    if (lo > 0) pred[i] = tails[lo - 1]!
+    pred[i] = lo > 0 ? tails[lo - 1]! : -1
     tails[lo] = i
+    if (lo === tailsLen) tailsLen++
   }
-
-  let idx = tails[tails.length - 1]!
-  while (idx >= 0) {
-    mask[idx] = true
-    idx = pred[idx]!
-  }
-  return mask
+  let idx = tails[tailsLen - 1]!
+  while (idx >= 0) { mask[idx] = 1; idx = pred[idx]! }
 }
 
 /**
@@ -124,6 +120,18 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
   // them synchronously without waiting for animations.
   const departing = new Set<ItemRecord<T>>()
 
+  // Scratch — allocated once at bindFor setup, .clear()'d each render so
+  // reconciliation reuses a constant working set instead of allocating
+  // O(N) transient collections per effect run.
+  const nextKeys = new Map<unknown, number>() // key → first-seen index
+  const prevByKey = new Map<unknown, ItemRecord<T>>()
+  const prevPos = new Map<unknown, number>()
+  const stable = new Set<number>()
+  const freshNodes: Node[] = []
+  let nextRecords: ItemRecord<T>[] = []
+  let matched = new Int32Array(0)        // [newIdx, prevIdx] pairs
+  let lisMaskBuf = new Uint8Array(0), lisPred = new Int32Array(0), lisTails = new Int32Array(0)
+
   const flush = (r: ItemRecord<T>) => {
     for (const n of r.nodes) {
       try {
@@ -138,8 +146,16 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
   const dispose = effect(() => {
     if (!active) return
     const next = items()
-    const nextKeys = new Map<unknown, { item: T; index: number }>()
-    for (let i = 0; i < next.length; i++) {
+    const n = next.length
+
+    // Grow scratch typed arrays to the new high-water mark; never shrink.
+    if (matched.length < n * 2) matched = new Int32Array(Math.max(matched.length * 2, n * 2, 16))
+    if (lisMaskBuf.length < n) {
+      const cap = Math.max(lisMaskBuf.length * 2, n, 8)
+      lisMaskBuf = new Uint8Array(cap); lisPred = new Int32Array(cap); lisTails = new Int32Array(cap)
+    }
+
+    for (let i = 0; i < n; i++) {
       const item = next[i]!
       const k = key(item, i)
       if (nextKeys.has(k)) {
@@ -154,21 +170,20 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
           'at index',
           i,
           '(prior at',
-          nextKeys.get(k)!.index,
+          nextKeys.get(k),
           '); the earlier item will be dropped from the rendered output.',
           'Fix the key function so each item maps to a unique value.',
         )
       }
-      nextKeys.set(k, { item, index: i })
+      nextKeys.set(k, i)
     }
 
-    const prevByKey = new Map<unknown, ItemRecord<T>>()
     for (const r of prev) prevByKey.set(r.key, r)
 
     // 1. Remove items that are gone in the next array. Rows with an
     //    out-transition stay in DOM until the animation resolves; the
     //    LIS reposition below skips them naturally since they're
-    //    absent from `newRecords`. No transition → synchronous flush
+    //    absent from `nextRecords`. No transition → synchronous flush
     //    (preserves the historical non-animated behaviour).
     for (const r of prev) {
       if (nextKeys.has(r.key)) continue
@@ -186,9 +201,9 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
 
     // 2. Build new records list — reuse matched keys, render new ones.
     //    No DOM mutations in this pass.
-    const newRecords: ItemRecord<T>[] = []
-    const freshNodes: Node[] = []
-    for (let i = 0; i < next.length; i++) {
+    nextRecords.length = 0
+    freshNodes.length = 0
+    for (let i = 0; i < n; i++) {
       const item = next[i]!
       const k = key(item, i)
       const existing = prevByKey.get(k)
@@ -214,50 +229,61 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
         }
         freshNodes.push(...r.nodes)
       }
-      newRecords.push(record)
+      nextRecords.push(record)
     }
 
     // 3. Find matched records already in a stable relative order (LIS of
     //    their previous-array positions). These records don't need DOM
     //    moves — only non-LIS and new records are repositioned.
-    const prevPos = new Map<unknown, number>()
     for (let i = 0; i < prev.length; i++) prevPos.set(prev[i]!.key, i)
 
-    const matchedAt: number[] = []   // new-array positions of matched records
-    const matchedPrev: number[] = [] // their prev-array positions
-    for (let i = 0; i < newRecords.length; i++) {
-      const p = prevPos.get(newRecords[i]!.key)
+    let matchedCount = 0
+    for (let i = 0; i < nextRecords.length; i++) {
+      const p = prevPos.get(nextRecords[i]!.key)
       if (p !== undefined) {
-        matchedAt.push(i)
-        matchedPrev.push(p)
+        matched[2 * matchedCount] = i
+        matched[2 * matchedCount + 1] = p
+        matchedCount++
       }
     }
 
-    const lisMasked = lisMask(matchedPrev)
-    const stable = new Set<number>()
-    for (let j = 0; j < matchedAt.length; j++) {
-      if (lisMasked[j]) stable.add(matchedAt[j]!)
+    computeLisMaskInto(matched, matchedCount, lisMaskBuf, lisPred, lisTails)
+    for (let j = 0; j < matchedCount; j++) {
+      if (lisMaskBuf[j]) stable.add(matched[2 * j]!)
     }
 
     // 4. Place all records. Stable records advance the cursor without any
     //    DOM mutation. Unstable / new records are moved via insertBefore.
     const parent = anchor.parentNode
     let cursor: Node = anchor
-    for (let i = 0; i < newRecords.length; i++) {
+    for (let i = 0; i < nextRecords.length; i++) {
       if (!parent) break
-      const record = newRecords[i]!
+      const record = nextRecords[i]!
       if (stable.has(i)) {
         cursor = record.nodes[record.nodes.length - 1] ?? cursor
       } else {
-        for (const n of record.nodes) {
-          parent.insertBefore(n, cursor.nextSibling)
-          cursor = n
+        for (const node of record.nodes) {
+          parent.insertBefore(node, cursor.nextSibling)
+          cursor = node
         }
       }
     }
 
-    prev = newRecords
+    // Swap buffers: `nextRecords` becomes the new prev; the old prev
+    // (now stale) becomes the empty buffer for the next render.
+    const tmp = prev
+    prev = nextRecords
+    nextRecords = tmp
+
     if (freshNodes.length > 0) runEnter(freshNodes)
+
+    // Drop scratch contents so we don't pin references (records, items,
+    // keys) between renders. The Maps/Sets themselves are reused.
+    nextKeys.clear()
+    prevByKey.clear()
+    prevPos.clear()
+    stable.clear()
+    freshNodes.length = 0
   })
 
   return () => {
@@ -268,6 +294,7 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
     for (const d of departing) flush(d)
     departing.clear()
     prev = []
+    nextRecords.length = 0
   }
 }
 
