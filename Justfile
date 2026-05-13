@@ -109,6 +109,13 @@ lint:
 qa:
     node tests/loops/run.mjs
 
+# Full smoke: build everything, restart the daemon, hit every baselined
+# view, run the Playwright visual suite. What CI will run — aim for green
+# before opening a PR.
+[group('daily')]
+smoke-deploy:
+    @scripts/dev/smoke-deploy.sh
+
 # ── Occasional ───────────────────────────────────────────────────────────────
 
 # Set up a worktree for a branch. Drops .ship/.boundary so views/pipelines

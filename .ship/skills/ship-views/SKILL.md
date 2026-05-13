@@ -403,3 +403,9 @@ fixed-position toast stack inside a transformed ancestor),
 | Form-aware components — full contract, constraints, controller access to `internals` | `references/form-association.md` |
 | Cross-component reactive context (`shared` / `useShared`), controller tiers | `references/shared-context.md` |
 | Working on the SUI codebase itself (compiler, runtime, daemon SUI handlers) | `references/sui-internals.md` |
+
+## Smoke deploy
+
+Run `just smoke-deploy` before opening a PR — it builds the full
+workspace, restarts the daemon, curls every baselined view, and runs
+Playwright. Quick proxy for what CI will see.
