@@ -451,32 +451,38 @@ function getCommandBar(): CommandBar | null {
 
 document.addEventListener('keydown', (e: KeyboardEvent) => {
   const mod = e.metaKey || e.ctrlKey
+  // `e.key` reports the produced character: Chromium yields lowercase
+  // 'b' for Ctrl+B without Shift, but some automation drivers (and a few
+  // platform keyboard layouts) emit uppercase. Normalize so the
+  // shortcuts trigger regardless of caller. Keep ⌘⇧E gated on Shift via
+  // its dedicated branch below.
+  const key = e.key.toLowerCase()
 
-  if (mod && e.key === 'j') {
+  if (mod && key === 'j') {
     e.preventDefault()
     getDock()?.toggle()
     return
   }
 
-  if (mod && e.key === 'k') {
+  if (mod && key === 'k') {
     e.preventDefault()
     getCommandBar()?.toggle('find')
     return
   }
 
-  if (mod && e.key === 'p') {
+  if (mod && key === 'p') {
     e.preventDefault()
     getCommandBar()?.show('find')
     return
   }
 
-  if (mod && e.shiftKey && e.key === 'E') {
+  if (mod && e.shiftKey && key === 'e') {
     e.preventDefault()
     document.body.classList.toggle('edit-mode')
     return
   }
 
-  if (mod && e.key === 'b') {
+  if (mod && key === 'b') {
     e.preventDefault()
     document.dispatchEvent(new CustomEvent('sui:rail:toggle', { bubbles: true }))
     return
