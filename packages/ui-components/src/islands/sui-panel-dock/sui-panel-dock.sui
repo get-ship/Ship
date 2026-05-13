@@ -16,6 +16,18 @@
   ─────────────────────────────────────────────────────────────────────────────
   Slots: <id> — body for tab id (terminal, source, signals, lint, schema, components)
          toolbar:<id> — slim toolbar row for tab id (optional)
+
+  Runtime-exceed notes
+  ─────────────────────────────────────────────────────────────────────────────
+  Tabstrip, toolbars, and body slots all render from a single `{#for}` over
+  the `tabs()` signal — the j2 Lit version only iterates the tabstrip and
+  hard-codes the toolbar/body slot ids, so a custom `tabs` array silently
+  drops projection. Here, setting `host.tabs` rebuilds the whole strip.
+
+  Drag-height pill: while a resize drag is in progress, a small floating
+  badge teleports to <body> via <sui-portal> and fades in via
+  `transition:fade`. Lit had no comparable affordance — height changed
+  silently during drag.
   ─────────────────────────────────────────────────────────────────────────────
 -->
 
@@ -192,22 +204,32 @@
     </button>
   {/for}
   <span class="tools">
-    <button class="tool" type="button" aria-label="Clear" title="Clear" data-action="clear" on:click={onClear}><sui-icon name="refresh-ccw" size="sm"></sui-icon></button>
-    <button class="tool" type="button" aria-label="Pop out" title="Pop out" data-action="popout" on:click={onPopout}><sui-icon name="maximize-2" size="sm"></sui-icon></button>
+    <button class="tool" type="button" aria-label="Clear" title="Clear" data-action="clear" on:click={onClear}><sui-icon name="refresh-cw" size="sm"></sui-icon></button>
+    <button class="tool" type="button" aria-label="Pop out" title="Pop out" data-action="popout" on:click={onPopout}><sui-icon name="maximize" size="sm"></sui-icon></button>
     <button class="tool" type="button" aria-label="Close panel" title="Close (⌘J)" data-action="close" on:click={onClose}><sui-icon name="x" size="sm"></sui-icon></button>
   </span>
 </div>
-<div class="toolbar" data-toolbar="terminal" hidden={activeTab() !== 'terminal'}><slot name="toolbar:terminal"></slot></div>
-<div class="toolbar" data-toolbar="source" hidden={activeTab() !== 'source'}><slot name="toolbar:source"></slot></div>
-<div class="toolbar" data-toolbar="signals" hidden={activeTab() !== 'signals'}><slot name="toolbar:signals"></slot></div>
-<div class="toolbar" data-toolbar="lint" hidden={activeTab() !== 'lint'}><slot name="toolbar:lint"></slot></div>
-<div class="toolbar" data-toolbar="schema" hidden={activeTab() !== 'schema'}><slot name="toolbar:schema"></slot></div>
-<div class="toolbar" data-toolbar="components" hidden={activeTab() !== 'components'}><slot name="toolbar:components"></slot></div>
+{#for t of tabs() key={t.id}}
+  <div class="toolbar" data-toolbar={t.id} hidden={t.id !== activeTab()}>
+    <slot name={'toolbar:' + t.id}></slot>
+  </div>
+{/for}
 <div class="bodies">
-  <slot name="terminal" data-active={activeTab() === 'terminal'}></slot>
-  <slot name="source" data-active={activeTab() === 'source'}></slot>
-  <slot name="signals" data-active={activeTab() === 'signals'}></slot>
-  <slot name="lint" data-active={activeTab() === 'lint'}></slot>
-  <slot name="schema" data-active={activeTab() === 'schema'}></slot>
-  <slot name="components" data-active={activeTab() === 'components'}></slot>
+  {#for t of tabs() key={t.id}}
+    <slot name={t.id} data-active={t.id === activeTab()}></slot>
+  {/for}
 </div>
+
+<!--
+  Drag-height pill: teleported to <body> so it escapes the dock's own
+  stacking context and lives above any view content. Mounts only while
+  the user is actively dragging the resize handle; `transition:fade`
+  drives entry/exit.
+-->
+<sui-portal target="body">
+  {#if resizing()}
+    <div class="sui-dock-resize-pill" part="resize-pill" transition:fade={{ duration: 120 }}>
+      {dragHeight()}px
+    </div>
+  {/if}
+</sui-portal>

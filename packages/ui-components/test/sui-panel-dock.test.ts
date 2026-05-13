@@ -224,4 +224,79 @@ describe('<sui-panel-dock>', () => {
     expect(events).toHaveLength(1)
     expect(events[0]!.detail.height).toBe(240)
   })
+
+  it('clicking a tab writes the new active tab to localStorage', async () => {
+    const { el } = mount(reg, 'sui-panel-dock')
+    await flush()
+    tabBtn(el, 'lint')?.click()
+    await flush()
+    expect(localStorage.getItem('ship-dock-active')).toBe('lint')
+  })
+
+  it('imperative activate() also writes the new tab to localStorage', async () => {
+    const { el } = mount(reg, 'sui-panel-dock')
+    await flush()
+    ;(el as Dock).activate('schema')
+    await flush()
+    expect(localStorage.getItem('ship-dock-active')).toBe('schema')
+  })
+
+  it('storage-key prop scopes the persisted key', async () => {
+    const { el } = mount(reg, 'sui-panel-dock', { 'storage-key': 'devtools-dock' })
+    await flush()
+    tabBtn(el, 'signals')?.click()
+    await flush()
+    expect(localStorage.getItem('devtools-dock-active')).toBe('signals')
+    expect(localStorage.getItem('ship-dock-active')).toBeNull()
+  })
+
+  it('hydrates active tab from localStorage on mount', async () => {
+    localStorage.setItem('ship-dock-active', 'schema')
+    const { el } = mount(reg, 'sui-panel-dock')
+    await flush()
+    expect(el.getAttribute('active-tab')).toBe('schema')
+    expect(activeSlot(el)?.getAttribute('name')).toBe('schema')
+  })
+
+  it('hydration ignores unknown tab ids', async () => {
+    localStorage.setItem('ship-dock-active', 'does-not-exist')
+    const { el } = mount(reg, 'sui-panel-dock')
+    await flush()
+    // Falls back to the prop default ('terminal').
+    expect(tabBtn(el, 'terminal')?.getAttribute('aria-selected')).toBe('true')
+  })
+
+  it('setting host.tabs to a custom list rebuilds toolbar and body slots', async () => {
+    const { el } = mount(reg, 'sui-panel-dock')
+    await flush()
+    ;(el as unknown as { tabs: unknown[] }).tabs = [
+      { id: 'alpha', label: 'Alpha', icon: 'zap' },
+      { id: 'beta', label: 'Beta', icon: 'box' },
+    ]
+    await flush()
+    const sr = shadow(el)
+    // Tabstrip rebuilt.
+    expect(sr.querySelectorAll('[data-tab]').length).toBe(2)
+    // Toolbar slots rebuilt.
+    expect(sr.querySelector('slot[name="toolbar:alpha"]')).not.toBeNull()
+    expect(sr.querySelector('slot[name="toolbar:beta"]')).not.toBeNull()
+    expect(sr.querySelector('slot[name="toolbar:terminal"]')).toBeNull()
+    // Body slots rebuilt.
+    expect(sr.querySelector('slot[name="alpha"]')).not.toBeNull()
+    expect(sr.querySelector('slot[name="beta"]')).not.toBeNull()
+    expect(sr.querySelector('slot[name="terminal"]')).toBeNull()
+  })
+
+  it('resize-height pill only mounts while resizing', async () => {
+    const { el } = mount(reg, 'sui-panel-dock')
+    await flush()
+    // At rest, no pill in document.body (it portals out of shadow DOM).
+    expect(document.body.querySelector('.sui-dock-resize-pill')).toBeNull()
+    // Drive a dblclick reset — resizing remains false; pill stays absent.
+    shadow(el).querySelector<HTMLElement>('.resize')!.dispatchEvent(
+      new MouseEvent('dblclick', { bubbles: true }),
+    )
+    await flush()
+    expect(document.body.querySelector('.sui-dock-resize-pill')).toBeNull()
+  })
 })
