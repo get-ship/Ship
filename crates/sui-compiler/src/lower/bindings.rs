@@ -89,5 +89,14 @@ pub fn collect_attr_imports(a: &AttrInstr, out: &mut Lowered, is_view: bool, dep
                 out.dom_imports.insert("collectElementMarkers");
             }
         }
+        AttrInstr::Transition { name, .. } => {
+            out.runtime_imports.insert("registerTransition");
+            match name.as_str() {
+                "fade" => { out.transition_builtins.insert("fade"); }
+                "slide" => { out.transition_builtins.insert("slide"); }
+                "scale" => { out.transition_builtins.insert("scale"); }
+                _ => {}
+            }
+        }
     }
 }

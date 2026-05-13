@@ -36,6 +36,10 @@ const BUILTINS: &[&str] = &[
     "document", "window", "console", "globalThis",
     // Runtime helpers imported by the compiled module.
     "unwrap", "unwrapOr",
+    // Built-in transition factories. The compiler auto-imports any of
+    // these that the template references; the directive name then
+    // resolves as a bare ESM binding (no `$scope.` prefix).
+    "fade", "slide", "scale",
 ];
 
 const KEYWORDS: &[&str] = &[

@@ -84,6 +84,25 @@ export type { BindForOptions, RenderedItem } from './for'
 export { bindIf } from './if'
 export type { BindIfOptions, BranchRender } from './if'
 
+export {
+  registerTransition,
+  runIn,
+  runOut,
+  runEnter,
+  runLeave,
+  cancelTransitions,
+  fade,
+  slide,
+  scale,
+} from './transition'
+export type {
+  Transition,
+  TransitionConfig,
+  TransitionDir,
+  SlideConfig,
+  ScaleConfig,
+} from './transition'
+
 export { bindAwait } from './await'
 export type { BindAwaitOptions } from './await'
 

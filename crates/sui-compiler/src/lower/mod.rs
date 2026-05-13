@@ -41,6 +41,12 @@ pub struct Lowered {
     /// "@ship/sui-runtime/route"` so routeless views don't pull in the
     /// route module.
     pub uses_route: bool,
+    /// Built-in transition names referenced by `transition:` / `in:` /
+    /// `out:` directives — limited to `fade`, `slide`, `scale`. The
+    /// emitter folds these into the `@ship/sui-runtime` import list so
+    /// authors don't have to import them manually. Custom transition
+    /// names (anything else) resolve through `$scope`.
+    pub transition_builtins: BTreeSet<&'static str>,
 }
 
 /// Walk the program, build a `Lowered` summary.
@@ -116,6 +122,13 @@ fn check_attr_for_route(a: &AttrInstr, out: &mut Lowered) {
         AttrInstr::Static { .. }
         | AttrInstr::BindThis { .. }
         | AttrInstr::SlotReflectEmpty { .. } => {}
+        AttrInstr::Transition { opts, .. } => {
+            if let Some(e) = opts
+                && expr_references_route(&e.source)
+            {
+                out.uses_route = true;
+            }
+        }
     }
 }
 

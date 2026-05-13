@@ -210,6 +210,22 @@ impl TemplateEmitter {
                     ));
                 }
             }
+            AttrInstr::Transition { name, opts, dir, .. } => {
+                // Built-in names (fade/slide/scale) are auto-imported,
+                // so `rewrite_for_scope` leaves them bare; custom names
+                // resolve through `$scope`. Transitions register on
+                // element creation — no boundary key, no SSR marker,
+                // no manifest entry.
+                let name_rw = rewrite_for_scope(name, &[]);
+                let opts_rw = opts
+                    .as_ref()
+                    .map(|e| rewrite_for_scope(&e.source, &[]))
+                    .unwrap_or_else(|| "{}".to_string());
+                w.line(&format!(
+                    "registerTransition({el_var}, {name_rw}, ({opts_rw}), \"{d}\");",
+                    d = dir.as_str(),
+                ));
+            }
         }
     }
 

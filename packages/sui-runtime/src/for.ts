@@ -10,6 +10,7 @@
 import { effect, type Signal } from './signal'
 import type { Disposer } from './bind'
 import { runProtected } from './error-boundary'
+import { runEnter, runLeave } from './transition'
 
 /**
  * Inputs to `bindFor` — what to iterate, how to identify items, and
@@ -118,6 +119,21 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
   const { anchor, items, key, render } = opts
   let prev: ItemRecord<T>[] = []
   let active = true
+  // Rows whose key disappeared from the items array and whose
+  // out-transition is in flight. Tracked so the disposer can flush
+  // them synchronously without waiting for animations.
+  const departing = new Set<ItemRecord<T>>()
+
+  const flush = (r: ItemRecord<T>) => {
+    for (const n of r.nodes) {
+      try {
+        n.parentNode?.removeChild(n)
+      } catch {
+        // Already detached.
+      }
+    }
+    r.cleanup?.()
+  }
 
   const dispose = effect(() => {
     if (!active) return
@@ -149,23 +165,29 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
     const prevByKey = new Map<unknown, ItemRecord<T>>()
     for (const r of prev) prevByKey.set(r.key, r)
 
-    // 1. Remove items that are gone in the next array.
+    // 1. Remove items that are gone in the next array. Rows with an
+    //    out-transition stay in DOM until the animation resolves; the
+    //    LIS reposition below skips them naturally since they're
+    //    absent from `newRecords`. No transition → synchronous flush
+    //    (preserves the historical non-animated behaviour).
     for (const r of prev) {
-      if (!nextKeys.has(r.key)) {
-        for (const n of r.nodes) {
-          try {
-            n.parentNode?.removeChild(n)
-          } catch {
-            // Already detached — ignore.
-          }
-        }
-        r.cleanup?.()
+      if (nextKeys.has(r.key)) continue
+      const leaving = runLeave(r.nodes)
+      if (leaving === null) {
+        flush(r)
+        continue
       }
+      departing.add(r)
+      leaving.then(() => {
+        if (!departing.delete(r)) return
+        flush(r)
+      })
     }
 
     // 2. Build new records list — reuse matched keys, render new ones.
     //    No DOM mutations in this pass.
     const newRecords: ItemRecord<T>[] = []
+    const freshNodes: Node[] = []
     for (let i = 0; i < next.length; i++) {
       const item = next[i]!
       const k = key(item, i)
@@ -190,6 +212,7 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
           ...(r.cleanup && { cleanup: r.cleanup }),
           ...(r.update && { update: r.update }),
         }
+        freshNodes.push(...r.nodes)
       }
       newRecords.push(record)
     }
@@ -234,21 +257,16 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
     }
 
     prev = newRecords
+    if (freshNodes.length > 0) runEnter(freshNodes)
   })
 
   return () => {
     active = false
     dispose()
-    for (const r of prev) {
-      for (const n of r.nodes) {
-        try {
-          n.parentNode?.removeChild(n)
-        } catch {
-          // Already detached.
-        }
-      }
-      r.cleanup?.()
-    }
+    for (const r of prev) flush(r)
+    // Departing rows: hard teardown skips out-animations.
+    for (const d of departing) flush(d)
+    departing.clear()
     prev = []
   }
 }
