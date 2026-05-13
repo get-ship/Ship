@@ -1,5 +1,3 @@
-<data name="ctx" source="ship.pipelines.focus({name: route.params.name()})" live />
-
 <style>
 .ship-view-pipeline-focus { color: var(--foreground); background: var(--background); }
 .ship-focus-wrap { width: 100%; max-width: 96rem; margin: 0 auto; padding: var(--space-6) var(--space-8); display: flex; flex-direction: column; gap: var(--space-6); }
@@ -37,7 +35,7 @@
         </sui-button>
         <h1 class="ship-focus-title">
           {#if def().active_runs > 0}<sui-status-dot tone="info" pulse></sui-status-dot>
-          {:else if def().last_run_tone}<sui-status-dot attr:tone={def().last_run_tone}></sui-status-dot>
+          {:else if def().last_run_tone}<sui-status-dot attr:tone={def().last_run_tone_safe}></sui-status-dot>
           {:else}<sui-status-dot tone="muted"></sui-status-dot>{/if}
           <span class="ship-focus-name">{name()}</span>
           <sui-chip size="sm">{def().step_count} step{def().step_count !== 1 ? 's' : ''}</sui-chip>
@@ -76,7 +74,7 @@
       <h2 class="ship-focus-section-label" style="margin-bottom: var(--space-3);">Ops · active now</h2>
       <div class="ship-focus-stack">
         {#for run of activeForPipeline() key={run.slug}}
-          <ship-pipeline-run class="ship-live-run" attr:state={run.state.replace('-', '')} attr:slug={run.slug} attr:agent={run.agent} on:ship-log-tick={(e) => pulseRun(e.currentTarget as HTMLElement)}>
+          <ship-pipeline-run class="ship-live-run" attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent} on:ship-log-tick={(e) => pulseRun(e.currentTarget)}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
@@ -88,7 +86,7 @@
             <ship-pipeline-dag>
               {#for step of run.steps key={step.id}}
                 <ship-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></ship-pipeline-step>
-                {#if run.steps.indexOf(step) < run.steps.length - 1}<span class="arrow" aria-hidden="true">→</span>{/if}
+                {#if !step.isLast}<span class="arrow" aria-hidden="true">→</span>{/if}
               {/for}
             </ship-pipeline-dag>
             {/if}
@@ -103,17 +101,17 @@
       <h2 class="ship-focus-section-label" style="margin-bottom: var(--space-3);">{opsMode() ? 'Overview' : 'Stats'}</h2>
       <div class="ship-focus-stats">
         <sui-stat><span slot="label">Total runs</span>{def().total_runs ?? 0}</sui-stat>
-        <sui-stat attr:accent={def().total_runs > 0 ? (def().success_rate >= 0.8 ? 'success' : def().success_rate >= 0.5 ? 'warning' : 'destructive') : 'default'}>
-          <span slot="label">Success rate</span>{Math.floor((def().success_rate ?? 0) * 100)}%
+        <sui-stat attr:accent={def().success_accent}>
+          <span slot="label">Success rate</span>{def().success_pct}%
         </sui-stat>
-        <sui-stat attr:accent={def().active_runs > 0 ? 'info' : 'default'}>
+        <sui-stat attr:accent={def().active_accent}>
           <span slot="label">Active now</span>{def().active_runs ?? 0}
         </sui-stat>
         <sui-stat>
           <span slot="label">Last run</span>
           {#if def().last_run_at}
             <sui-timestamp attr:value={def().last_run_at} relative></sui-timestamp>
-            {#if def().last_run_status}<sui-badge slot="trend" size="sm" attr:tone={def().last_run_tone ?? 'muted'}>{def().last_run_status}</sui-badge>{/if}
+            {#if def().last_run_status}<sui-badge slot="trend" size="sm" attr:tone={def().last_run_tone_safe}>{def().last_run_status}</sui-badge>{/if}
           {:else}—{/if}
         </sui-stat>
       </div>
@@ -148,11 +146,11 @@
       {#if doc().steps && doc().steps.length > 0}
         {#for step of doc().steps key={step.id}}
           <ship-pipeline-step-def
-            attr:index={doc().steps.indexOf(step) + 1}
+            attr:index={step.index}
             attr:name={step.id}
-            attr:step-type={step.run ? 'run' : step.gate ? 'gate' : 'agent'}
+            attr:step-type={step.step_type}
             attr:agent={step.agent} attr:provider={step.provider}
-            attr:model={step.model} attr:after={step.after?.join(',')}
+            attr:model={step.model} attr:after={step.after_joined}
             attr:command={step.run}>
             {#if step.gate}
             <div slot="gate">
@@ -174,7 +172,7 @@
       <div class="ship-focus-stack">
         {#for run of runs() key={run.slug}}
           {#if !opsMode() || (run.state !== 'dispatched' && run.state !== 'pending' && run.state !== 'gate-pending')}
-          <ship-pipeline-run attr:state={run.state.replace('-', '')} attr:slug={run.slug} attr:agent={run.agent}>
+          <ship-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
@@ -189,7 +187,7 @@
             <ship-pipeline-dag>
               {#for step of run.steps key={step.id}}
                 <ship-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></ship-pipeline-step>
-                {#if run.steps.indexOf(step) < run.steps.length - 1}<span class="arrow" aria-hidden="true">→</span>{/if}
+                {#if !step.isLast}<span class="arrow" aria-hidden="true">→</span>{/if}
               {/for}
             </ship-pipeline-dag>
             {/if}
