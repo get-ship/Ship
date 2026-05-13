@@ -1,6 +1,3 @@
-<data name="rail" source="ship.specs.summaries({q: q(), selected: selectedId()})" live />
-<data name="selected" source="ship.specs.detail({id: selectedId()})" />
-
 <use-kbd>
   <on key="/" action="focusFilter" />
 </use-kbd>
