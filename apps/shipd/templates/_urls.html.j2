@@ -42,6 +42,7 @@
 {%- macro sui_data() -%}/_sui/data{%- endmacro -%}
 {%- macro sui_mutation(name) -%}/_sui/mutation/{{ name }}{%- endmacro -%}
 {%- macro sui_patch_elements(name) -%}/_sui/views/{{ name }}/patch-elements{%- endmacro -%}
+{%- macro sui_source(tag) -%}/_sui/source/{{ tag }}{%- endmacro -%}
 {%- macro agents_list() -%}/api/v1/agents{%- endmacro -%}
 {%- macro agents_get(id) -%}/api/v1/agents/{{ id }}{%- endmacro -%}
 {%- macro agents_put(id) -%}/api/v1/agents/{{ id }}{%- endmacro -%}

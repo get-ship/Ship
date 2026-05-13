@@ -193,6 +193,9 @@ pub enum Route {
     /// @route POST "/_sui/views/{name}/patch-elements"
     SuiPatchElements { name: String },
 
+    /// @route GET "/_sui/source/{tag}"
+    SuiSource { tag: String },
+
     // ── AgentService — service-shaped CRUD + lifecycle ──
 
     /// @route GET "/api/v1/agents"

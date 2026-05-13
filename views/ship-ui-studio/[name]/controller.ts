@@ -2,6 +2,13 @@ import { controller, signal, effect } from '@ship/sui-runtime'
 import { defineRoutes } from '@ship/sui-runtime/route'
 import type { Scope } from './page.sui'
 import { loadCatalog, type CatalogEntry, type PropEntry } from '../catalog'
+import {
+  buildCells,
+  deriveAxes,
+  mountMatrixCells,
+  type MatrixAxis,
+} from './matrix'
+import { SLOT_COMPOSITIONS } from './slot-compositions'
 
 type StudioFilterKind = 'all' | 'sui' | 'view'
 
@@ -24,66 +31,6 @@ defineRoutes([
 let sharedFrame: HTMLIFrameElement | null = null
 let sharedNode: HTMLElement | null = null
 let sharedNodeTag: string | null = null
-
-// Default-slot fillers for compound components — atomic ones render
-// fine with just an "example" text node, but compounds need real
-// child elements to show their layout (sui-rail empty looks like a
-// blank rectangle). Keyed by host tag.
-const SLOT_COMPOSITIONS: Record<string, string> = {
-  'sui-rail': `
-    <sui-rail-section label="Section A">
-      <sui-rail-item data-view="counter">Counter</sui-rail-item>
-      <sui-rail-item data-view="agents" active>Agents</sui-rail-item>
-    </sui-rail-section>
-    <sui-rail-section label="Section B">
-      <sui-rail-item data-view="git">Git</sui-rail-item>
-    </sui-rail-section>
-  `,
-  'sui-tabs': `
-    <sui-tab name="overview" active>Overview</sui-tab>
-    <sui-tab name="details">Details</sui-tab>
-    <sui-tab name="logs">Logs</sui-tab>
-  `,
-  'sui-dialog': `
-    <span slot="header">Confirm action</span>
-    <p>Are you sure you want to continue? This affects 3 items.</p>
-    <span slot="footer">
-      <sui-button variant="outline">Cancel</sui-button>
-      <sui-button variant="primary">Continue</sui-button>
-    </span>
-  `,
-  'sui-alert-dialog': `
-    <span slot="title">Delete workspace?</span>
-    <p>This permanently removes the workspace and its history.</p>
-  `,
-  'sui-card': `
-    <span slot="header">Card title</span>
-    <p>Card body content. Use cards to group related information.</p>
-    <span slot="footer">
-      <sui-button variant="outline" size="sm">Action</sui-button>
-    </span>
-  `,
-  'sui-accordion': `
-    <sui-accordion-item value="one">
-      <span slot="trigger">Section one</span>
-      <p>First section body.</p>
-    </sui-accordion-item>
-    <sui-accordion-item value="two">
-      <span slot="trigger">Section two</span>
-      <p>Second section body.</p>
-    </sui-accordion-item>
-  `,
-  'sui-popover': `
-    <sui-button slot="trigger">Open popover</sui-button>
-    <p>Popover panel content.</p>
-  `,
-  'sui-dropdown-menu': `
-    <sui-button slot="trigger">Open menu</sui-button>
-    <button role="menuitem" data-value="rename">Rename</button>
-    <button role="menuitem" data-value="duplicate">Duplicate</button>
-    <button role="menuitem" data-value="delete">Delete</button>
-  `,
-}
 
 export default controller<Scope>({
   scope: () => ({
@@ -117,6 +64,19 @@ export default controller<Scope>({
     },
     totalCount: ({ allCatalog }) => (allCatalog() as CatalogEntry[]).length,
     filteredCount: ({ filteredCatalog }) => (filteredCatalog() as CatalogEntry[]).length,
+    matrixAxes: ({ entry }) => {
+      const e = entry() as CatalogEntry | null
+      // Skip the matrix for view-kind entries (iframe previews) and any
+      // sui-kind component without enum props.
+      if (!e || e.kind !== 'sui') return [] as MatrixAxis[]
+      return deriveAxes(e.props ?? [])
+    },
+    matrixCells: ({ matrixAxes }) => buildCells(matrixAxes() as MatrixAxis[]),
+    matrixAxesLabel: ({ matrixAxes }) => {
+      const axes = matrixAxes() as MatrixAxis[]
+      if (axes.length === 0) return ''
+      return axes.map(a => a.name).join(' × ')
+    },
   },
 
   on: {
@@ -285,6 +245,10 @@ export default controller<Scope>({
       const vals = state.propValues as Record<string, unknown>
       applyProps(vals)
     })
+
+    // Populate state-matrix cells. Independent of `state.propValues` —
+    // the prop panel only drives the single preview above.
+    mountMatrixCells(el, entry.tag, (tag) => SLOT_COMPOSITIONS[tag])
 
     // Leave the node attached — next mount reuses it (same tag) or
     // swaps it (different tag). Just stop the prior reactive binding
