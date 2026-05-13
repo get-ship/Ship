@@ -1,16 +1,18 @@
-import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, ref, unwrap } from '@ship/sui-runtime'
 import { bindHtml } from '@ship/ui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: ({ canvasList, route }) => {
+  scope: ({ canvasList, route, ship }) => {
     const firstSlug = derived(() => {
       const list = unwrap(canvasList as any)
       return Array.isArray(list) ? (list[0]?.slug ?? '') : ''
     })
     const activeSlug = signal((route as any)().query?.doc || '')
-    const docEl = signal<HTMLElement | null>(null)
-    return { activeSlug, docEl, firstSlug }
+    const docEl = ref<HTMLElement>(null)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const canvasDoc = live(() => (ship as any).canvas.doc({ slug: activeSlug() }))
+    return { activeSlug, docEl, firstSlug, canvasDoc }
   },
   on: {
     selectDoc: ({ state, navigate }, slug: string) => {

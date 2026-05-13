@@ -1,14 +1,16 @@
-import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 export default controller<Scope>({
-  scope: ({ chatState, route }) => {
+  scope: ({ route, ship }) => {
     const workspaceId = derived(() => (route as any)().query?.workspace_id || '')
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const chatState = live(() => (ship as any).chat.state({ workspace_id: workspaceId() }))
     const draft = signal('')
     const sending = signal(false)
     const workingTitle = signal('')
     const annotations = signal<{ selector?: string; tag?: string; id?: string; preview?: string }[]>([])
-    return { workspaceId, draft, sending, workingTitle, annotations }
+    return { workspaceId, chatState, draft, sending, workingTitle, annotations }
   },
   on: {
     submitMessage: async (s, e: Event) => {

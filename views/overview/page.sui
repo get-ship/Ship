@@ -1,5 +1,3 @@
-<data name="systems" source="ship.collections.items({collection: 'systems'})" live />
-
 <div class="ship-view overview-root">
 
   <!-- Toolbar -->
@@ -39,7 +37,7 @@
       <ship-icon slot="leading" name="plus"></ship-icon>New system
     </ship-button>
     <ship-button size="sm" variant="ghost" aria-label="Fit view"
-      on:click={() => (window as typeof window & { __ovFit?: () => void }).__ovFit?.()}>
+      on:click={fitView}>
       <ship-icon slot="leading" name="maximize"></ship-icon>Fit
     </ship-button>
   </div>
@@ -73,7 +71,7 @@
               attr:data-status={item.data?.status ?? 'spec'}
               attr:data-layer={item.data?.layer ?? 'runtime'}
               attr:data-name={item.data?.name ?? ''}
-              attr:data-depends={JSON.stringify(item.data?.depends_on ?? [])}
+              attr:data-depends={depsJson()[item.id]}
               class:dimmed={
                 (search() !== '' && !(item.data?.name ?? '').toLowerCase().includes(search().toLowerCase())) ||
                 (filterStatus() !== '' && item.data?.status !== filterStatus()) ||
@@ -89,8 +87,8 @@
               </div>
               {#if item.data?.summary}
                 <div class="ov-node-summary">
-                  {(item.data.summary as string).length > 80
-                    ? (item.data.summary as string).slice(0, 80) + '…'
+                  {item.data.summary.length > 80
+                    ? item.data.summary.slice(0, 80) + '…'
                     : item.data.summary}
                 </div>
               {/if}
@@ -146,12 +144,12 @@
 
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label">gaps</label>
-            {#for gap of fldGaps() key={gap + '_' + fldGaps().indexOf(gap)}}
+            {#for (gap, idx) of fldGaps() key={'g_' + idx}}
               <div class="ov-list-row">
                 <ship-input size="sm" prop:value={gap} style="flex:1"
-                  on:ship-input={(e) => fldGaps.set(fldGaps().map((g: string, i: number) => i === fldGaps().indexOf(gap) ? (e as CustomEvent).detail?.value ?? g : g))}></ship-input>
+                  on:ship-input={(e) => fldGaps.set(fldGaps().map((g: string, i: number) => i === idx ? e.detail?.value ?? g : g))}></ship-input>
                 <ship-button size="xs" variant="ghost" aria-label="Remove gap"
-                  on:click={() => fldGaps.set(fldGaps().filter((_: string, i: number) => i !== fldGaps().indexOf(gap)))}>
+                  on:click={() => fldGaps.set(fldGaps().filter((_: string, i: number) => i !== idx))}>
                   <ship-icon name="x"></ship-icon>
                 </ship-button>
               </div>
@@ -163,12 +161,12 @@
 
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label">depends on</label>
-            {#for dep of fldDependsOn() key={dep + '_' + fldDependsOn().indexOf(dep)}}
+            {#for (dep, idx) of fldDependsOn() key={'d_' + idx}}
               <div class="ov-list-row">
                 <ship-input size="sm" prop:value={dep} placeholder="system name" style="flex:1"
-                  on:ship-input={(e) => fldDependsOn.set(fldDependsOn().map((d: string, i: number) => i === fldDependsOn().indexOf(dep) ? (e as CustomEvent).detail?.value ?? d : d))}></ship-input>
+                  on:ship-input={(e) => fldDependsOn.set(fldDependsOn().map((d: string, i: number) => i === idx ? e.detail?.value ?? d : d))}></ship-input>
                 <ship-button size="xs" variant="ghost" aria-label="Remove dependency"
-                  on:click={() => fldDependsOn.set(fldDependsOn().filter((_: string, i: number) => i !== fldDependsOn().indexOf(dep)))}>
+                  on:click={() => fldDependsOn.set(fldDependsOn().filter((_: string, i: number) => i !== idx))}>
                   <ship-icon name="x"></ship-icon>
                 </ship-button>
               </div>
@@ -182,7 +180,7 @@
       <div class="ov-drawer-foot">
         <ship-button tone="primary" variant="solid" on:click={saveDrawer}>Save</ship-button>
         <ship-button variant="outline" aria-label="Send system to agent"
-          on:click={() => fetch('/api/v1/feedback', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({kind: 'system_dispatch', system: {name: fldName(), summary: fldSummary(), status: fldStatus(), layer: fldLayer()}})})}>
+          on:click={askAgent}>
           <ship-icon slot="leading" name="send"></ship-icon>Ask agent
         </ship-button>
         <ship-button variant="ghost" on:click={closeDrawer}>Cancel</ship-button>
