@@ -95,14 +95,13 @@ interface Route {
   sub?: string
 }
 
-// Empty path → dashboard. Matches j2 shell's convention where the
-// dashboard rail item links to `/` and the daemon serves the dashboard
-// view at the root. Without this, clicking the Dashboard rail item
-// (href="/") fell through onAnchorClick's null guard, triggering a full
-// page reload instead of an in-app navigation.
+// Empty path → agents. Launch priorities (Agents · Skills · Collections ·
+// Artifacts · Workspaces · Settings) put Agents first on the rail, so
+// landing on `/` mounts the agents view rather than the deprioritized
+// dashboard. Pre-shift this returned `{ view: 'dashboard' }`.
 function readRoute(): Route | null {
   const segs = location.pathname.split('/').filter(Boolean)
-  if (segs.length === 0) return { view: 'dashboard' }
+  if (segs.length === 0) return { view: 'agents' }
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
@@ -213,7 +212,7 @@ function showLanding(slot: HTMLElement): void {
   slot.innerHTML = `
     <div class="shell-empty">
       <h2>Ship</h2>
-      <p>Open a view: <a href="/ship-ui-studio">/ship-ui-studio</a> · <a href="/counter">/counter</a> · <a href="/sui-demo">/sui-demo</a></p>
+      <p>Open a view: <a href="/agents">/agents</a> · <a href="/skills">/skills</a> · <a href="/collections">/collections</a> · <a href="/artifacts">/artifacts</a></p>
     </div>
   `
   currentRoute = null
@@ -269,7 +268,7 @@ function onAnchorClick(e: MouseEvent): void {
 
 function readRouteFromUrl(pathname: string): Route | null {
   const segs = pathname.split('/').filter(Boolean)
-  if (segs.length === 0) return { view: 'dashboard' }
+  if (segs.length === 0) return { view: 'agents' }
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
@@ -558,8 +557,16 @@ setInterval(() => void updateStatus(), 15000)
 void updateStatus()
 
 const initial = readRoute()
-if (initial) void mountRoute(initial)
-else {
+if (initial) {
+  // Bare `/` resolves to the agents view; rewrite the URL so the rail
+  // (which derives the active item from `location.pathname`) can
+  // highlight Agents on first paint. Use replaceState so back-button
+  // history doesn't pick up the synthetic redirect.
+  if (location.pathname === '/' || location.pathname === '') {
+    history.replaceState({}, '', '/' + initial.view)
+  }
+  void mountRoute(initial)
+} else {
   const slot = document.getElementById('ship-content')
   if (slot) showLanding(slot)
 }
