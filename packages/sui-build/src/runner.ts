@@ -21,6 +21,23 @@ function findWorkspaceRoot(startDir: string): string {
   }
 }
 
+/**
+ * Path the compiler will write `<stem>.compiled.js` to. Mirrors the Rust-side
+ * fallback in `crates/sui-compiler/src/out_layout.rs` (mirror tree under repo,
+ * sibling `dist/` outside it).
+ */
+function expectedCompiledPath(suiPath: string, repoRoot: string): string {
+  const srcDir = dirname(suiPath)
+  const stem = basename(suiPath, '.sui')
+  const inRepo = existsSync(join(repoRoot, 'Cargo.toml'))
+    && (srcDir === repoRoot || srcDir.startsWith(repoRoot + '/'))
+  if (inRepo) {
+    const rel = srcDir === repoRoot ? '' : srcDir.slice(repoRoot.length + 1)
+    return join(repoRoot, '.ship/sui-out', rel, `${stem}.compiled.js`)
+  }
+  return join(srcDir, 'dist', `${stem}.compiled.js`)
+}
+
 function resolveCompilerBin(packageRoot: string): string {
   const envPath = process.env['SUI_COMPILER_PATH']
   if (envPath) return envPath
@@ -100,6 +117,7 @@ export async function run(
 
   const suiFiles = collectSuiFiles(config, ctx)
   const warnings: string[] = []
+  const repoRoot = findWorkspaceRoot(ctx.packageRoot)
 
   for (const suiPath of suiFiles) {
     let mtime: number
@@ -109,7 +127,12 @@ export async function run(
       warnings.push(`skipped missing file: ${suiPath}`)
       continue
     }
-    if (cache[suiPath] === mtime) continue
+    // Skip only when mtime matches AND the compiled artifact still exists in
+    // the mirror tree. If the mirror was wiped (clean state) but the cache
+    // wasn't, esbuild/bun would otherwise fail to resolve the .compiled.js
+    // import that the source siblings reference.
+    const expected = expectedCompiledPath(suiPath, repoRoot)
+    if (cache[suiPath] === mtime && existsSync(expected)) continue
     const stem = basename(suiPath, '.sui')
     await doSpawn(suiPath, stem)
     cache[suiPath] = mtime

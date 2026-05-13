@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
-import { mkdtemp, writeFile, mkdir, readFile } from 'node:fs/promises'
+import { mkdtemp, writeFile, mkdir, readFile, unlink } from 'node:fs/promises'
 import { rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { run } from '../src/runner.js'
 import { makeFfiSpawn } from '../src/adapters/bun.js'
@@ -34,6 +34,18 @@ function mockAdapter(warnings: string[] = []): SuiBundler {
       return { outputs: [join(ctx.outdir, 'app.js')], warnings, durationMs: 1 }
     },
   }
+}
+
+/**
+ * Mock spawn that mimics sui-compiler's out-of-repo fallback: write a stub
+ * `<stem>.compiled.js` into `<src>/dist/`. The runner's cache check requires
+ * the artifact to exist; using a writing spawn lets tests exercise the real
+ * cache-hit path.
+ */
+async function writingSpawn(suiPath: string, stem: string): Promise<void> {
+  const distDir = join(dirname(suiPath), 'dist')
+  await mkdir(distDir, { recursive: true })
+  await writeFile(join(distDir, `${stem}.compiled.js`), `// stub for ${basename(suiPath)}`)
 }
 
 describe('runner', () => {
@@ -68,13 +80,36 @@ describe('runner', () => {
 
   it('skips unchanged files on a second run (mtime cache hit)', async () => {
     const spawned: string[] = []
-    const spawn = async (_path: string, stem: string) => { spawned.push(stem) }
+    const spawn = async (suiPath: string, stem: string) => {
+      spawned.push(stem)
+      await writingSpawn(suiPath, stem)
+    }
     // First run populates cache
     await run(config, ctx, mockAdapter(), spawn)
     const afterFirst = spawned.length
-    // Second run — same mtimes — should not spawn again
+    // Second run — same mtimes, artifact still present — should not spawn again
     await run(config, ctx, mockAdapter(), spawn)
     expect(spawned.length).toBe(afterFirst)
+  })
+
+  it('re-compiles when the cached artifact is missing (regression: stale cache vs wiped mirror)', async () => {
+    const spawned: string[] = []
+    const spawn = async (suiPath: string, stem: string) => {
+      spawned.push(stem)
+      await writingSpawn(suiPath, stem)
+    }
+    // Populate the cache + artifact
+    await run(config, ctx, mockAdapter(), spawn)
+    const afterFirst = spawned.length
+    // Wipe the artifact (simulates `rm -rf .ship/sui-out` while
+    // `.sui-build-cache.json` still records the source's mtime)
+    const artifact = join(tmpDir, 'src', 'dist', 'hello.compiled.js')
+    expect(existsSync(artifact)).toBe(true)
+    await unlink(artifact)
+    // Same mtime in cache, but artifact missing → must re-spawn
+    await run(config, ctx, mockAdapter(), spawn)
+    expect(spawned.length).toBeGreaterThan(afterFirst)
+    expect(existsSync(artifact)).toBe(true)
   })
 
   it('re-compiles a file whose content has changed (mtime updated)', async () => {
@@ -82,7 +117,10 @@ describe('runner', () => {
     // Overwrite to update mtime
     await writeFile(suiFile, `<span>updated</span>`)
     const spawned: string[] = []
-    await run(config, ctx, mockAdapter(), async (_p, stem) => spawned.push(stem))
+    await run(config, ctx, mockAdapter(), async (suiPath, stem) => {
+      spawned.push(stem)
+      await writingSpawn(suiPath, stem)
+    })
     expect(spawned).toContain('hello')
   })
 
@@ -115,7 +153,10 @@ describe('runner', () => {
       outdir: 'dist',
     }
     const spawned: string[] = []
-    await run(lazyConfig, ctx, mockAdapter(), async (_p, stem) => spawned.push(stem))
+    await run(lazyConfig, ctx, mockAdapter(), async (suiPath, stem) => {
+      spawned.push(stem)
+      await writingSpawn(suiPath, stem)
+    })
     expect(spawned).toContain('widget')
   })
 })
