@@ -1,5 +1,4 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-meter.sui'
 import { parseJson, toneColor } from '../chart-util'
 
@@ -21,17 +20,14 @@ export default controller<Scope>({
   }),
 
   mount(state, _host) {
-    const scope = state as unknown as Scope
-    const bars = scope.bars as unknown as Signal<Bar[]>
-
     const stop = effect(() => {
-      const segs = parseJson<SegInput[]>(scope.segments() as string, [])
+      const segs = parseJson<SegInput[]>(state.segments(), [])
       const sum = segs.reduce((a, s) => a + Math.max(0, s.count), 0)
-      const rawTotal = scope.total() as number
+      const rawTotal = state.total()
       const denom = rawTotal > 0 ? rawTotal : sum
       const safeDenom = denom <= 0 ? 1 : denom
 
-      bars.set(
+      state.bars.set(
         segs
           .filter((s) => s.count > 0)
           .map((s, i) => {

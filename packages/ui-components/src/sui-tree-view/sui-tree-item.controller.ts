@@ -1,16 +1,15 @@
 import { controller, signal, derived, effect, ref } from '@ship/sui-runtime'
 import type { Scope } from './sui-tree-item.sui'
-import type { Signal } from '@ship/sui-runtime'
 import type { TreeNode } from './sui-tree-view.controller'
 
 export default controller<Scope>({
   scope: ({ label }) => {
     const node = signal<TreeNode | null>(null)
-    const nodeLabel = derived(() => {
+    const nodeLabel = derived<string>(() => {
       const n = node()
-      return n ? n.label : (label as unknown as Signal<string>)()
+      return n ? n.label : (label as () => string)()
     })
-    const nodeChildren = derived(() => {
+    const nodeChildren = derived<TreeNode[]>(() => {
       const n = node()
       return n?.children ?? []
     })
@@ -19,23 +18,19 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope
-
     if (!host.hasAttribute('role')) host.setAttribute('role', 'treeitem')
 
-    // Wire node property so prop:node={n} from parent updates the signal.
-    const nodeSignal = scope.node as unknown as Signal<TreeNode | null>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const initNode = (host as any).node
-    if (initNode != null) nodeSignal.set(initNode)
+    if (initNode != null) state.node.set(initNode)
     Object.defineProperty(host, 'node', {
       configurable: true,
-      get: () => nodeSignal(),
-      set: (v: TreeNode | null) => nodeSignal.set(v),
+      get: () => state.node(),
+      set: (v: TreeNode | null) => state.node.set(v),
     })
 
-    // Sync leaf attribute from node data (node with no children → leaf).
     const stopLeafSync = effect(() => {
-      const n = nodeSignal()
+      const n = state.node()
       if (n !== null) {
         const isLeaf = !n.children || n.children.length === 0
         if (isLeaf) host.setAttribute('leaf', '')
@@ -44,21 +39,21 @@ export default controller<Scope>({
     })
 
     const syncAria = effect(() => {
-      const row = scope.rowEl() as HTMLElement | null
+      const row = state.rowEl()
       if (!row) return
-      if (!scope.leaf()) {
-        row.setAttribute('aria-expanded', String(scope.expanded()))
+      if (!state.leaf()) {
+        row.setAttribute('aria-expanded', String(state.expanded()))
       } else {
         row.removeAttribute('aria-expanded')
       }
-      row.setAttribute('aria-selected', String(scope.selected()))
+      row.setAttribute('aria-selected', String(state.selected()))
     })
 
     const toggle = (e: Event) => {
-      if (scope.leaf()) return
+      if (state.leaf()) return
       e.stopPropagation()
-      const next = !scope.expanded()
-      scope.expanded.set(next)
+      const next = !state.expanded()
+      state.expanded.set(next)
       host.dispatchEvent(
         new CustomEvent('sui-toggle', {
           detail: { expanded: next },
@@ -87,17 +82,17 @@ export default controller<Scope>({
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         select()
-      } else if (e.key === 'ArrowRight' && !scope.leaf() && !scope.expanded()) {
+      } else if (e.key === 'ArrowRight' && !state.leaf() && !state.expanded()) {
         e.preventDefault()
         toggle(e)
-      } else if (e.key === 'ArrowLeft' && scope.expanded()) {
+      } else if (e.key === 'ArrowLeft' && state.expanded()) {
         e.preventDefault()
         toggle(e)
       }
     }
 
     const stopRow = effect(() => {
-      const row = scope.rowEl() as HTMLElement | null
+      const row = state.rowEl()
       if (!row) return
       row.addEventListener('click', onRowClick)
       row.addEventListener('keydown', onKey)

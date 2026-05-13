@@ -1,5 +1,4 @@
 import { controller, derived, ref, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-file-upload.sui'
 
 function fmtSize(bytes: number): string {
@@ -37,13 +36,8 @@ export default controller<Scope>({
   },
 
   mount(state, host) {
-    const scope = state as unknown as Scope
-    const filesSig = scope.files as unknown as Signal<File[]>
-    const overSig = scope.over as unknown as Signal<boolean>
-    const errSig = scope.errorMsg as unknown as Signal<string>
-
     const matchesAccept = (file: File): boolean => {
-      const tokens = scope
+      const tokens = state
         .accept()
         .split(',')
         .map((t) => t.trim().toLowerCase())
@@ -69,58 +63,57 @@ export default controller<Scope>({
     }
 
     const addFiles = (incoming: File[]) => {
-      errSig.set('')
+      state.errorMsg.set('')
       const valid: File[] = []
       for (const f of incoming) {
-        if (f.size > scope.maxSize()) {
-          errSig.set(`"${f.name}" exceeds max size (${fmtSize(scope.maxSize())}).`)
+        if (f.size > state.maxSize()) {
+          state.errorMsg.set(`"${f.name}" exceeds max size (${fmtSize(state.maxSize())}).`)
           continue
         }
-        if (scope.accept() && !matchesAccept(f)) {
-          errSig.set(`"${f.name}" is not an accepted file type.`)
+        if (state.accept() && !matchesAccept(f)) {
+          state.errorMsg.set(`"${f.name}" is not an accepted file type.`)
           continue
         }
         valid.push(f)
       }
-      const cur = filesSig()
-      const next = scope.multiple() ? [...cur, ...valid] : valid.slice(0, 1)
-      filesSig.set(next)
+      const cur = state.files()
+      const next = state.multiple() ? [...cur, ...valid] : valid.slice(0, 1)
+      state.files.set(next)
       emitChange(next)
     }
 
     const removeAt = (idx: number) => {
-      const cur = filesSig()
+      const cur = state.files()
       if (idx < 0 || idx >= cur.length) return
       const next = cur.filter((_, i) => i !== idx)
-      filesSig.set(next)
-      errSig.set('')
+      state.files.set(next)
+      state.errorMsg.set('')
       emitChange(next)
     }
 
     const openPicker = () => {
-      if (scope.disabled()) return
-      const inp = scope.inputEl() as HTMLInputElement | null
-      inp?.click()
+      if (state.disabled()) return
+      state.inputEl()?.click()
     }
 
     const onClick = () => openPicker()
     const onKey = (e: KeyboardEvent) => {
-      if (scope.disabled()) return
+      if (state.disabled()) return
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault()
         openPicker()
       }
     }
     const onDragOver = (e: DragEvent) => {
-      if (scope.disabled()) return
+      if (state.disabled()) return
       e.preventDefault()
-      overSig.set(true)
+      state.over.set(true)
     }
-    const onDragLeave = () => overSig.set(false)
+    const onDragLeave = () => state.over.set(false)
     const onDrop = (e: DragEvent) => {
-      if (scope.disabled()) return
+      if (state.disabled()) return
       e.preventDefault()
-      overSig.set(false)
+      state.over.set(false)
       const list = e.dataTransfer?.files
       if (list && list.length) addFiles(Array.from(list))
     }
@@ -130,8 +123,8 @@ export default controller<Scope>({
       inp.value = ''
     }
 
-    const dropzoneEl = scope.dropzoneEl() as HTMLDivElement | null
-    const inputEl = scope.inputEl() as HTMLInputElement | null
+    const dropzoneEl = state.dropzoneEl()
+    const inputEl = state.inputEl()
 
     dropzoneEl?.addEventListener('click', onClick)
     dropzoneEl?.addEventListener('keydown', onKey)

@@ -1,27 +1,6 @@
 import { controller, effect, ref, signal } from '@ship/sui-runtime'
-import type { Ref, Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-rail.sui'
 import { setupProjectSwitcher, type Project } from './sui-rail-project-switcher'
-
-// Type augmentation: the `scope:` factory contributes these reactive
-// entries to the template scope. The compiler generates `Scope` from
-// `<prop>` declarations only, so we widen it here.
-interface RailScope extends Scope {
-  collapsed: Signal<boolean>
-  projectOpen: Signal<boolean>
-  projects: Signal<Project[]>
-  activeProjectId: Signal<string | null>
-  activeView: Signal<string>
-  sessionCount: Signal<number>
-  projectInitial: () => string
-  popoverEl: Ref<HTMLElement>
-  projectBadgeEl: Ref<HTMLElement>
-  launcherBtnEl: Ref<HTMLElement>
-  createBtnEl: Ref<HTMLElement>
-  toggleBtn: Ref<HTMLElement>
-  missionEl: Ref<HTMLElement>
-  navSlot: Ref<HTMLSlotElement>
-}
 
 const SESSION_POLL_MS = 15000
 
@@ -38,7 +17,7 @@ function dispatchBubble(host: HTMLElement, type: string, detail?: unknown): void
   }))
 }
 
-export default controller<RailScope>({
+export default controller<Scope>({
   scope: () => {
     const projectOpen = signal(false)
     const projects = signal<Project[]>([])
@@ -71,41 +50,36 @@ export default controller<RailScope>({
   },
 
   mount(state, host) {
-    const scope = state as unknown as RailScope
-
-    // ── Toggle (collapse) button ─────────────────────────────────────
     const stopToggleAria = effect(() => {
-      const btn = scope.toggleBtn()
-      const col = scope.collapsed()
+      const btn = state.toggleBtn()
+      const col = state.collapsed()
       if (btn) btn.setAttribute('aria-label', col ? 'Show rail' : 'Hide rail')
     })
 
     const onToggleClick = (): void => {
-      const next = !scope.collapsed()
-      scope.collapsed.set(next)
+      const next = !state.collapsed()
+      state.collapsed.set(next)
       dispatchBubble(host, 'sui-rail:toggle', { collapsed: next })
     }
 
     const stopToggleBind = effect(() => {
-      const btn = scope.toggleBtn()
+      const btn = state.toggleBtn()
       if (!btn) return
       btn.addEventListener('click', onToggleClick)
       return () => btn.removeEventListener('click', onToggleClick)
     })
 
-    // ── Project switcher (extracted to sui-rail-project-switcher.ts) ─
     const switcher = setupProjectSwitcher({
       host,
-      open: scope.projectOpen,
-      projects: scope.projects,
-      activeProjectId: scope.activeProjectId,
-      popoverEl: scope.popoverEl,
-      badgeEl: scope.projectBadgeEl,
+      open: state.projectOpen,
+      projects: state.projects,
+      activeProjectId: state.activeProjectId,
+      popoverEl: state.popoverEl,
+      badgeEl: state.projectBadgeEl,
     })
     void switcher.loadProjects()
 
-    // ── Launcher / Create buttons ────────────────────────────────────
-    const closePopover = (): void => scope.projectOpen.set(false)
+    const closePopover = (): void => state.projectOpen.set(false)
     const onLauncherClick = (e: MouseEvent): void => {
       dispatchBubble(host, 'ship:launcher:open', { anchor: e.currentTarget })
       closePopover()
@@ -116,26 +90,25 @@ export default controller<RailScope>({
     }
 
     const stopLauncherBind = effect(() => {
-      const btn = scope.launcherBtnEl()
+      const btn = state.launcherBtnEl()
       if (!btn) return
       btn.addEventListener('click', onLauncherClick)
       return () => btn.removeEventListener('click', onLauncherClick)
     })
     const stopCreateBind = effect(() => {
-      const btn = scope.createBtnEl()
+      const btn = state.createBtnEl()
       if (!btn) return
       btn.addEventListener('click', onCreateClick)
       return () => btn.removeEventListener('click', onCreateClick)
     })
 
-    // ── Session count polling ────────────────────────────────────────
     const pollSessions = async (): Promise<void> => {
       try {
         const resp = await fetch('/api/v1/pty-sessions', { credentials: 'same-origin' })
         if (!resp.ok) return
         const body = (await resp.json()) as { sessions: Array<{ status: string }> }
         const live = body.sessions.filter((s) => s.status !== 'ended').length
-        scope.sessionCount.set(live)
+        state.sessionCount.set(live)
       } catch { /* leave previous count */ }
     }
 
@@ -145,29 +118,27 @@ export default controller<RailScope>({
     window.addEventListener('ship:session:changed', onExternalChange)
 
     const stopBadgeEffect = effect(() => {
-      const item = scope.missionEl()
+      const item = state.missionEl()
       if (!item) return
-      const n = scope.sessionCount()
+      const n = state.sessionCount()
       item.setAttribute('badge', n > 0 ? String(n) : '')
     })
 
-    // ── Active-view tracking ─────────────────────────────────────────
     const recomputeActive = (): void => {
-      scope.activeView.set(routeToViewName(location.pathname))
+      state.activeView.set(routeToViewName(location.pathname))
     }
     const onNavigate = (): void => recomputeActive()
     document.addEventListener('sui:navigate', onNavigate)
     window.addEventListener('popstate', onNavigate)
 
     const stopActiveSync = effect(() => {
-      const name = scope.activeView()
+      const name = state.activeView()
       const items = host.querySelectorAll<HTMLElement>('sui-rail-item[data-view]')
       for (const item of items) {
         if (item.dataset.view === name) item.setAttribute('active', '')
         else item.removeAttribute('active')
       }
-      // Mission Control is in shadow DOM, not light children.
-      const mc = scope.missionEl()
+      const mc = state.missionEl()
       if (mc) {
         if (name === 'mesh') mc.setAttribute('active', '')
         else mc.removeAttribute('active')

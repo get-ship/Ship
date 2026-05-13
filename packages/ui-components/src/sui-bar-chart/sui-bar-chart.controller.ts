@@ -1,5 +1,4 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-bar-chart.sui'
 import { parseLabels, parseNums, toneColor } from '../chart-util'
 
@@ -23,30 +22,26 @@ export default controller<Scope>({
   },
 
   mount(state, _host) {
-    const scope = state as unknown as Scope
-    const bars = scope.bars as unknown as Signal<Bar[]>
-    const isEmpty = scope.isEmpty as unknown as Signal<boolean>
-
     const stop = effect(() => {
-      const nums = parseNums(scope.data() as string)
+      const nums = parseNums(state.data())
       if (nums.length === 0) {
-        bars.set([])
-        isEmpty.set(true)
+        state.bars.set([])
+        state.isEmpty.set(true)
         return
       }
-      const labels = parseLabels(scope.labels() as string)
-      const w = scope.width() as number
-      const h = scope.height() as number
-      const rawMax = scope.max() as number
+      const labels = parseLabels(state.labels())
+      const w = state.width()
+      const h = state.height()
+      const rawMax = state.max()
       const maxVal = rawMax > 0 ? rawMax : Math.max(...nums, 0)
       const safeMax = maxVal <= 0 ? 1 : maxVal
-      const color = toneColor(scope.tone() as string)
+      const color = toneColor(state.tone())
       const gap = 4
       const radius = 3
-      const horizontal = (scope.orientation() as string) === 'horizontal'
+      const horizontal = state.orientation() === 'horizontal'
       const n = nums.length
 
-      bars.set(
+      state.bars.set(
         nums.map((v, i) => {
           const ratio = Math.max(0, v) / safeMax
           let x: number, y: number, barW: number, barH: number
@@ -74,7 +69,7 @@ export default controller<Scope>({
           }
         }),
       )
-      isEmpty.set(false)
+      state.isEmpty.set(false)
     })
 
     return () => stop()

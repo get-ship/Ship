@@ -1,5 +1,4 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-heatmap.sui'
 import { parseJson, parseLabels, parseNums, toneColor } from '../chart-util'
 
@@ -20,17 +19,12 @@ export default controller<Scope>({
   }),
 
   mount(state, _host) {
-    const scope = state as unknown as Scope
-    const cells = scope.cells as unknown as Signal<Cell[]>
-    const svgW = scope.svgW as unknown as Signal<number>
-    const svgH = scope.svgH as unknown as Signal<number>
-
     const stop = effect(() => {
-      const rowLabels = parseLabels(scope.rows() as string)
-      const colLabels = parseLabels(scope.cols() as string)
-      const cs = scope.cellSize() as number
-      const gp = scope.gap() as number
-      const rawData = scope.data() as string
+      const rowLabels = parseLabels(state.rows())
+      const colLabels = parseLabels(state.cols())
+      const cs = state.cellSize()
+      const gp = state.gap()
+      const rawData = state.data()
 
       // Resolve grid: prefer JSON 2D array, fall back to 1D comma-separated numbers.
       const jsonResult = parseJson<number[][]>(rawData, [])
@@ -57,11 +51,11 @@ export default controller<Scope>({
       const vMax = allVals.length ? Math.max(...allVals) : 1
       const vRange = vMax - vMin
 
-      const toneVar = toneColor(scope.tone() as string)
+      const toneVar = toneColor(state.tone())
       const step = cs + gp
 
-      svgW.set(ncols > 0 ? ncols * cs + (ncols - 1) * gp : 0)
-      svgH.set(nrows > 0 ? nrows * cs + (nrows - 1) * gp : 0)
+      state.svgW.set(ncols > 0 ? ncols * cs + (ncols - 1) * gp : 0)
+      state.svgH.set(nrows > 0 ? nrows * cs + (nrows - 1) * gp : 0)
 
       const result: Cell[] = []
       for (let ri = 0; ri < nrows; ri++) {
@@ -85,7 +79,7 @@ export default controller<Scope>({
           })
         }
       }
-      cells.set(result)
+      state.cells.set(result)
     })
 
     return () => stop()

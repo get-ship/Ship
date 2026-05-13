@@ -1,5 +1,4 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-donut.sui'
 import { arcPath, parseJson, toneColor } from '../chart-util'
 
@@ -16,28 +15,25 @@ export default controller<Scope>({
   }),
 
   mount(state, _host) {
-    const scope = state as unknown as Scope
-    const segments = scope.segments as unknown as Signal<Segment[]>
-
     const stop = effect(() => {
       const raw = parseJson<Array<{ label: string; value: number; tone?: string }>>(
-        scope.data() as string,
+        state.data(),
         [],
       )
       const total = raw.reduce((acc, s) => acc + Math.max(0, s.value), 0)
       if (total <= 0) {
-        segments.set([])
+        state.segments.set([])
         return
       }
-      const sz = scope.size() as number
-      const t = scope.thickness() as number
+      const sz = state.size()
+      const t = state.thickness()
       const r = (sz - t) / 2
       const cx = sz / 2
       const cy = sz / 2
       const TWO_PI = 2 * Math.PI
       let angle = -Math.PI / 2
 
-      segments.set(
+      state.segments.set(
         raw
           .filter((seg) => seg.value > 0)
           .map((seg, i) => {
