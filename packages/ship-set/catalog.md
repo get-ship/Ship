@@ -7,8 +7,6 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 
 ## Core primitives
 
-- `<ship-accordion>` [type=single|multiple value] events: ship-change
-- `<ship-accordion-item>` [value disabled open]
 - `<ship-alert>` [tone dismissible] events: ship-dismiss
 - `<ship-alert-dialog>` [open tone=default|destructive confirm-label cancel-label] events: name
 - `<ship-annotation-layer>` [view-id mode endpoint staging staged _pending _drag] events: ship-annotation-staged, ship-annotation-error, ship-annotation-sent
@@ -45,19 +43,10 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-mark>` [size]
 - `<ship-markdown>` [value]
 - `<ship-markdown-editor>` [value placeholder size tone disabled invalid rows full-height name label show-selection-toolbar allow-comment allow-generate] events: input, ship-change
-- `<ship-navigation-item>` [value active disabled href]
-- `<ship-navigation-menu>` [value]
-- `<ship-pagination>` [page total per-page tone] events: ship-change
 - `<ship-popover>` [open placement=top|bottom|left|right] events: name
-- `<ship-radio>` [value disabled checked tone size]
-- `<ship-radio-group>` [value disabled tone size name label]
-- `<ship-scroll-area>` [orientation=vertical|horizontal|both size=sm|md|lg]
-- `<ship-segmented>` [value size disabled] events: ship-change
-- `<ship-segmented-option>` [value icon disabled]
 - `<ship-select>` [value name required disabled invalid tone size label described-by] events: ship-change
 - `<ship-separator>` [orientation=horizontal|vertical variant=solid|dashed]
 - `<ship-skeleton>` [variant width height lines animate]
-- `<ship-slider>` [value min max step disabled tone size label] events: ship-change
 - `<ship-spinner>` [tone size label]
 - `<ship-stat>` [accent interactive]
 - `<ship-status-dot>` [tone pulse size=sm|md label]
@@ -72,8 +61,6 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-timestamp>` [value format]
 - `<ship-toast>` [tone size duration dismissible show-progress] events: ship-dismiss
 - `<ship-toast-container>` [position max-visible]
-- `<ship-toggle>` [pressed disabled value size=sm|md|lg variant=outline|ghost]
-- `<ship-toggle-group>` [type=single|multiple value size=sm|md|lg variant=outline|ghost] events: ship-change
 - `<ship-toolbar>` [justify=start|center|end|between align=center|start|end|baseline gap=sm|md|lg variant=default|bordered]
 - `<ship-tooltip>` [placement=top|bottom|left|right]
 - `<ship-tree-node>` [label expanded selected leaf]
