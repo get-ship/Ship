@@ -14,7 +14,7 @@ const config: SuiBuildConfig = {
     'sui-panel-dock':      'src/islands/sui-panel-dock/index.ts',
     'sui-devtools':        'src/islands/sui-devtools/index.ts',
   },
-  outdir: '../../apps/shipd/assets',
+  outdir: '../../crates/ship-sui-server/assets',
   aggregateCemTo: '../../crates/ship-sui/assets/sui-custom-elements.json',
   aggregateCemSources: ['src'],
 }

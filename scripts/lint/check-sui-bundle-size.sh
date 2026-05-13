@@ -18,14 +18,14 @@ declare -A BUDGETS=(
   [sui-dom.js]=4000
 )
 
-# Run bundles. Output goes to apps/shipd/assets/ per the bundle scripts.
+# Run bundles. Output goes to crates/ship-sui-server/assets/ per the bundle scripts.
 pnpm -F @ship/sui-runtime bundle >/dev/null 2>&1
 pnpm -F @ship/sui-dom bundle >/dev/null 2>&1
 
 failures=0
 echo "sui bundle sizes:"
 for name in "${!BUDGETS[@]}"; do
-  path="apps/shipd/assets/$name"
+  path="crates/ship-sui-server/assets/$name"
   if [ ! -f "$path" ]; then
     echo "  FAIL: $name not produced at $path" >&2
     failures=$((failures + 1))

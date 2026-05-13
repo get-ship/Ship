@@ -5,8 +5,8 @@
 //! level mirror tree at `<repo-root>/.ship/sui-out/<source-rel>/` instead
 //! of a per-component sibling `dist/` directory.
 //!
-//! Production-distribution bundles (`apps/shipd/assets/sui-*.js`) are a
-//! separate concern and are NOT routed through this module.
+//! Production-distribution bundles (`crates/ship-sui-server/assets/sui-*.js`)
+//! are a separate concern and are NOT routed through this module.
 
 use std::path::{Path, PathBuf};
 
