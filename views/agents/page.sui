@@ -8,7 +8,7 @@
         <h1 class="agents-title">Agents</h1>
         <p class="agents-sub">{total()} agent{total() === 1 ? '' : 's'}</p>
       </div>
-      <sui-button tone="primary" variant="solid" on:click={newAgent}>
+      <sui-button tone="primary" variant="solid" on:click={openNew}>
         <sui-icon slot="leading" name="plus"></sui-icon>
         New agent
       </sui-button>
@@ -43,9 +43,9 @@
           Drop a JSONC file under
           <code class="agents-empty-code">.ship/agents/</code>
           or create one from the Studio.
-          <sui-button slot="action" tone="primary" variant="solid" on:click={newAgent}>
+          <sui-button slot="action" tone="primary" variant="solid" on:click={openNew} data-test="cta-create-first">
             <sui-icon slot="leading" name="plus"></sui-icon>
-            New agent
+            Create your first agent
           </sui-button>
         </sui-empty-state>
       {:else}
@@ -113,6 +113,13 @@
                   {/if}
                 </div>
               </div>
+              <sui-button slot="trailing" variant="ghost" size="sm"
+                  data-test="open-session"
+                  attr:data-agent={a.id}
+                  on:click={(e) => openSession(a.id, (a.providers && a.providers[0]) || 'claude', e)}>
+                <sui-icon slot="leading" name="play" size="xs"></sui-icon>
+                Open in session
+              </sui-button>
             </sui-list-tile>
           {/for}
         </div>
@@ -120,4 +127,45 @@
     {/if}
 
   </div>
+
+  <sui-dialog attr:open={dialogOpen() ? '' : null} size="sm" on:sui-close={closeNew} data-test="new-agent-dialog">
+    <span slot="header">New agent</span>
+    <sui-field label="Name" hint="Human-readable label.">
+      <sui-input value={formName()} on:sui-input={nameInput} placeholder="e.g. Rust Compiler" autofocus></sui-input>
+    </sui-field>
+    <sui-field label="ID" hint="Lowercase kebab-case — becomes the filename stem.">
+      <sui-input value={formId()} on:sui-input={idInput} placeholder="rust-compiler"></sui-input>
+    </sui-field>
+    <sui-field label="Provider">
+      <sui-select value={formProvider()} on:sui-change={providerChange}>
+        <option value="claude">claude</option>
+        <option value="codex">codex</option>
+        <option value="cursor">cursor</option>
+        <option value="gemini">gemini</option>
+        <option value="opencode">opencode</option>
+      </sui-select>
+    </sui-field>
+    <sui-field label="Model" hint="Optional override — leave blank for the provider default.">
+      <sui-select value={formModel()} on:sui-change={modelChange}>
+        <option value="">(provider default)</option>
+        {#for m of modelOptions() key={m}}
+          <option attr:value={m}>{m}</option>
+        {/for}
+      </sui-select>
+    </sui-field>
+    {#if formErr()}
+      <sui-alert tone="destructive" compact>{formErr()}</sui-alert>
+    {/if}
+    <sui-toolbar slot="footer">
+      <sui-button variant="outline" on:click={closeNew}>Cancel</sui-button>
+      <sui-button tone="primary" variant="solid"
+          data-test="submit-new-agent"
+          attr:loading={submitting() ? '' : null}
+          attr:disabled={canSubmit() ? null : ''}
+          on:click={submitNew}>
+        <sui-icon slot="leading" name="plus" size="sm"></sui-icon>
+        Create
+      </sui-button>
+    </sui-toolbar>
+  </sui-dialog>
 </div>

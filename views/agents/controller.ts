@@ -1,4 +1,4 @@
-import { controller, unwrap, live, derived } from '@ship/sui-runtime'
+import { controller, signal, unwrap, live, derived } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type AgentStatus = 'running' | 'completed' | 'errored'
@@ -6,11 +6,19 @@ type AgentStatus = 'running' | 'completed' | 'errored'
 interface EventRow { event_type: string; actor: string; timestamp: string }
 interface EventsEnvelope { groups: Array<{ rows: EventRow[] }> }
 
+const PROVIDER_MODELS: Record<string, string[]> = {
+  claude: ['claude-opus-4-7', 'claude-sonnet-4-6', 'claude-haiku-4-5-20251001'],
+  codex: ['o4-mini', 'o4'],
+  cursor: ['gpt-5', 'gpt-5-mini'],
+  gemini: ['gemini-2.5-pro', 'gemini-2.5-flash'],
+  opencode: ['opencode-default'],
+}
+
+const slugify = (s: string): string =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+
 export default controller<Scope>({
   scope: ({ ship }) => {
-    // Subscribe to the live kernel-event stream filtered to `agent.*`.
-    // `events.list` returns groups keyed by entity; we flatten + sort
-    // chronologically so the most recent verdict per actor wins.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const agentEvents = live(() => (ship as any).events.list({ event_type: 'agent.', limit: 50 }))
     const agentStatus = derived<Record<string, AgentStatus>>(() => {
@@ -32,13 +40,107 @@ export default controller<Scope>({
       }
       return map
     })
-    return { agentEvents, agentStatus }
+
+    const dialogOpen = signal(false)
+    const formName = signal('')
+    const formId = signal('')
+    const formIdTouched = signal(false)
+    const formProvider = signal('claude')
+    const formModel = signal('')
+    const submitting = signal(false)
+    const formErr = signal('')
+
+    const modelOptions = derived(() => PROVIDER_MODELS[formProvider()] ?? [])
+    const canSubmit = derived(() =>
+      !submitting() &&
+      formName().trim().length > 0 &&
+      /^[a-z][a-z0-9-]*$/.test(formId()) &&
+      formProvider().length > 0,
+    )
+
+    return {
+      agentEvents, agentStatus,
+      dialogOpen, formName, formId, formIdTouched, formProvider, formModel,
+      submitting, formErr, modelOptions, canSubmit,
+    }
   },
   derived: {
     items: ({ agents }) => unwrap(agents)?.items ?? [],
     total: ({ agents }) => unwrap(agents)?.items.length ?? 0,
   },
   on: {
-    newAgent: ({ navigate }) => navigate('/agents/create'),
+    openNew: (s) => {
+      s.dialogOpen = true
+      s.formName = ''
+      s.formId = ''
+      s.formIdTouched = false
+      s.formProvider = 'claude'
+      s.formModel = ''
+      s.formErr = ''
+    },
+    closeNew: (s) => { s.dialogOpen = false },
+    nameInput: (s, e: CustomEvent<{ value: string }>) => {
+      const v = e.detail.value
+      s.formName = v
+      if (!s.formIdTouched) s.formId = slugify(v)
+    },
+    idInput: (s, e: CustomEvent<{ value: string }>) => {
+      s.formId = e.detail.value
+      s.formIdTouched = true
+    },
+    providerChange: (s, e: CustomEvent<{ value: string }>) => {
+      s.formProvider = e.detail.value
+      s.formModel = ''
+    },
+    modelChange: (s, e: CustomEvent<{ value: string }>) => {
+      s.formModel = e.detail.value
+    },
+    submitNew: async (s) => {
+      if (!s.canSubmit) return
+      s.submitting = true
+      s.formErr = ''
+      const id = String(s.formId)
+      const name = String(s.formName).trim()
+      const provider = String(s.formProvider)
+      const model = String(s.formModel).trim()
+      const doc: Record<string, unknown> = {
+        $schema: '../../schemas/agent.schema.json',
+        schema_version: '1',
+        agent: { id, name, providers: [provider], ...(model ? { model } : {}) },
+        permissions: { preset: 'standard' },
+      }
+      try {
+        const resp = await fetch('/api/v1/agents', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, doc }),
+        })
+        if (!resp.ok) {
+          const body = await resp.json().catch(() => ({}))
+          s.formErr = (body as { message?: string }).message ?? `HTTP ${resp.status}`
+          s.submitting = false
+          return
+        }
+        s.dialogOpen = false
+        window.location.reload()
+      } catch (err) {
+        s.formErr = 'Network: ' + (err instanceof Error ? err.message : String(err))
+        s.submitting = false
+      }
+    },
+    openSession: async (_s, agentId: string, provider: string, evt?: Event) => {
+      if (evt) { evt.preventDefault(); evt.stopPropagation() }
+      try {
+        const resp = await fetch('/api/v1/sessions/spawn', {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ workspace_id: 'main', kind: 'agent', agent_id: agentId, provider }),
+        })
+        if (!resp.ok) return
+        window.location.href = '/sessions'
+      } catch { /* ignore */ }
+    },
   },
 })
