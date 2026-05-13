@@ -10,11 +10,12 @@
 //   bun packages/sui-lsp/src/cli.ts hover <file.sui> --line <n> --col <n>
 
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import * as url from 'node:url';
 import { parse } from './parse';
 import { diagnose } from './diagnostics';
 import { hover } from './hover';
-import { loadSetup } from './setup';
+import { analyzeSetup, loadSetup, type SetupInfo } from './setup';
 
 interface ParsedArgs {
   subcommand: string;
@@ -70,7 +71,7 @@ function runDiagnostics(file: string): void {
   }
   const source = fs.readFileSync(file, 'utf8');
   const parsed = parse(source);
-  const setup = loadSetup(file);
+  const setup = resolveSetup(file);
   const diagnostics = diagnose(source, parsed.nodes, parsed.errors, setup);
   const out = diagnostics.map(d => ({
     range: {
@@ -92,7 +93,7 @@ function runHover(file: string, line: number, col: number): void {
   }
   const source = fs.readFileSync(file, 'utf8');
   const parsed = parse(source);
-  const setup = loadSetup(file);
+  const setup = resolveSetup(file);
   const offset = offsetAt(source, line, col);
   const h = hover(source, offset, parsed.nodes, setup);
   if (!h) {
@@ -133,6 +134,33 @@ function main(): void {
       process.stderr.write(JSON.stringify({ error: `unknown subcommand: ${parsed.subcommand}` }) + '\n');
       process.exit(1);
   }
+}
+
+// Locate the paired controller for a `.sui` template. Tries, in order:
+//   1. `<stem>.ts`              — the `loadSetup` default
+//   2. `<stem>.controller.ts`   — sui-* component convention
+//   3. `<dir>/controller.ts`    — views/<view>/page.sui convention
+// Returns the first that exists, analyzed; null if none.
+function resolveSetup(file: string): SetupInfo | null {
+  const direct = loadSetup(file);
+  if (direct && hasMembers(direct)) return direct;
+  if (!file.endsWith('.sui')) return direct;
+  const stem = file.slice(0, -'.sui'.length);
+  for (const candidate of [`${stem}.controller.ts`, path.join(path.dirname(file), 'controller.ts')]) {
+    if (!fs.existsSync(candidate)) continue;
+    let source: string;
+    try { source = fs.readFileSync(candidate, 'utf8'); } catch { continue; }
+    const info = analyzeSetup(candidate, source);
+    if (hasMembers(info)) return info;
+  }
+  return direct;
+}
+
+function hasMembers(s: SetupInfo): boolean {
+  if (s.members.length > 0) return true;
+  if ((s.namespaces?.length ?? 0) > 0) return true;
+  if ((s.onHandlers?.length ?? 0) > 0) return true;
+  return false;
 }
 
 function resolveFile(file: string): string {
