@@ -1,10 +1,45 @@
 // Shell2 behavioral probe. Captures screenshots + console logs + nav state
 // per interaction so we can spec the actual bugs.
+//
+// Direct-goto checks (section 5) wait for `load` rather than `networkidle`:
+// views that own a live SSE source (skills/mesh/events/settings/git)
+// hold an EventSource open for the whole mount lifecycle, so
+// `networkidle` never settles. `load` fires after the document is
+// parsed + the initial sub-resources finish — by that point the
+// runtime has imported the view module and called `mount()`. We
+// then wait for the SUI root to gain children (DOM count, not visible
+// text — loading skeletons have no text but are valid rendered
+// content) before we measure.
 import { chromium } from 'playwright'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
 
 const OUT = '/tmp/shell2-probe-out'
 mkdirSync(OUT, { recursive: true })
+
+function resolveBaseUrl() {
+  if (process.env.SHELL2_URL) return process.env.SHELL2_URL.replace(/\/$/, '')
+  // Default: derive vite port from this worktree's daemon. Daemon dir
+  // lives at $HOME/.ship/machine/daemons/<hash>/, daemon-port + offset
+  // maps to vite-port via `port - 9315 + 3200`.
+  const daemonsDir = join(process.env.HOME ?? '', '.ship', 'machine', 'daemons')
+  const repoRoot = process.cwd().replace(/\/apps\/shell2$/, '')
+  // Best-effort: cargo run target/debug/ship to read daemon dir; fall
+  // back to 3270 (legacy default).
+  try {
+    const { execFileSync } = require('node:child_process')
+    const bin = `${repoRoot}/target/debug/ship`
+    if (existsSync(bin)) {
+      const dir = execFileSync(bin, ['daemon', 'dir'], { encoding: 'utf8' }).trim()
+      const port = readFileSync(join(dir, 'port'), 'utf8').trim()
+      const vite = 3200 + (Number(port) - 9315)
+      return `http://127.0.0.1:${vite}`
+    }
+  } catch { /* ignore */ }
+  void daemonsDir
+  return 'http://127.0.0.1:3270'
+}
+const BASE = resolveBaseUrl()
 
 const browser = await chromium.launch({ headless: true })
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } })
@@ -28,8 +63,10 @@ async function snap(label) {
   console.log(`  → ${label}: url=${url} rail=${railVisible} nav=${navTopVisible} content="${mainContent?.slice(0, 60)}…"`)
 }
 
+console.log(`=== Probe target: ${BASE} ===`)
 console.log('=== 1. Open root ===')
-await page.goto('http://127.0.0.1:3270/', { waitUntil: 'networkidle', timeout: 10000 }).catch(e => console.log('goto err:', e.message))
+await page.goto(`${BASE}/`, { waitUntil: 'load', timeout: 10000 }).catch(e => console.log('goto err:', e.message))
+await page.waitForTimeout(500)
 await snap('01-root')
 
 console.log('=== 2. List rail items ===')
@@ -74,16 +111,33 @@ console.log('=== 5. Direct goto each /sui/<view> ===')
 const views = ['home', 'agents', 'overview', 'sessions', 'workspaces', 'skills', 'chat', 'mesh', 'events', 'settings', 'git', 'canvas', 'specs', 'collections', 'pipelines', 'pipelines-board', 'dashboard', 'theme-studio', 'setup']
 for (const v of views) {
   try {
-    const url = `http://127.0.0.1:3270/sui/${v}`
-    const resp = await page.goto(url, { waitUntil: 'networkidle', timeout: 4000 })
+    const url = `${BASE}/sui/${v}`
+    // `waitUntil: 'load'` (not 'networkidle') — direct /sui/<view>
+    // mounts open a long-lived SSE EventSource that keeps the network
+    // busy for the lifetime of the view, so 'networkidle' would never
+    // resolve. 'load' fires after the document + initial sub-resources
+    // parse, by which point mount() has run.
+    const resp = await page.goto(url, { waitUntil: 'load', timeout: 5000 })
     const status = resp?.status() ?? 0
-    await page.waitForTimeout(200)
+    // Wait for the SUI root to gain a child (loading skeleton, error
+    // banner, or real content — anything but the empty placeholder).
+    // 1500ms cap matches the budget acceptance criteria allow.
+    await page.waitForFunction(
+      () => {
+        const root = document.querySelector('#sui-root, #ship-content, [data-ship-content], main')
+        return !!root && root.children.length > 0
+      },
+      { timeout: 1500 },
+    ).catch(() => {})
     const text = await page.locator('body').innerText().catch(() => '')
     const len = text.length
     const head = text.slice(0, 80).replace(/\s+/g, ' ')
+    // Element count — a more honest "rendered" check than innerText,
+    // since loading skeletons / icon-only chrome have no visible text.
+    const elCount = await page.locator('#sui-root *, #ship-content *').count().catch(() => 0)
     await page.screenshot({ path: `${OUT}/view-${v}.png` })
-    console.log(`  /sui/${v}: ${status} len=${len} head="${head}"`)
-    trace.push({ view: v, status, contentLen: len, contentHead: head })
+    console.log(`  /sui/${v}: ${status} len=${len} els=${elCount} head="${head}"`)
+    trace.push({ view: v, status, contentLen: len, contentEls: elCount, contentHead: head })
   } catch (e) {
     console.log(`  /sui/${v}: ERROR ${e.message}`)
   }
