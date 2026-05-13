@@ -198,6 +198,9 @@ importers:
       '@ship/sdk-client':
         specifier: workspace:*
         version: link:../../packages/ship-sdk-client
+      '@ship/sui-runtime':
+        specifier: workspace:*
+        version: link:../../packages/sui-runtime
     devDependencies:
       playwright:
         specifier: ^1.59.1
