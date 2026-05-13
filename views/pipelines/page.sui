@@ -38,7 +38,7 @@
       </div>
       <div class="ship-pipelines-run-list">
         {#for run of activeRuns() key={run.slug}}
-          <ship-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
+          <sui-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
@@ -49,20 +49,20 @@
             <div class="ship-run-detail">
               {#if run.agent}<sui-avatar size="sm" shape="circle" attr:identity-hue={run.agent} attr:name={run.agent}></sui-avatar>{/if}
               {#if run.branch}<code>{run.branch}</code>{/if}
-              {#if run.provider}<ship-provider-blob attr:provider={run.provider} size="sm" variant="glyph"></ship-provider-blob>{/if}
+              {#if run.provider}<sui-provider-blob attr:provider={run.provider} size="sm" variant="glyph"></sui-provider-blob>{/if}
               {#if run.model}<sui-chip size="sm">{run.model}</sui-chip>{/if}
             </div>
             {#if run.blocker}<sui-alert tone="warning" compact>Blocked: {run.blocker}</sui-alert>{/if}
             {#if run.steps && run.steps.length > 0}
-            <ship-pipeline-dag>
+            <sui-pipeline-dag>
               {#for step of run.steps key={step.id}}
-                <ship-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></ship-pipeline-step>
+                <sui-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></sui-pipeline-step>
                 {#if !step.isLast}<span class="arrow" aria-hidden="true">→</span>{/if}
               {/for}
-            </ship-pipeline-dag>
+            </sui-pipeline-dag>
             {/if}
-            <ship-log-stream slot="footer" attr:id={'logs-' + run.slug} attr:url={'/api/v1/pipelines/runs/' + run.slug + '/log/stream'} autoscroll></ship-log-stream>
-          </ship-pipeline-run>
+            <sui-log-stream slot="footer" attr:id={'logs-' + run.slug} attr:url={'/api/v1/pipelines/runs/' + run.slug + '/log/stream'} autoscroll></sui-log-stream>
+          </sui-pipeline-run>
         {/for}
       </div>
     </div>

@@ -25,48 +25,48 @@
       </span>
     </span>
     <span class="ov-sep"></span>
-    <ship-input size="sm" placeholder="Search…" style="width:180px;"
-      bind:value={search}></ship-input>
+    <sui-input size="sm" placeholder="Search…" style="width:180px;"
+      bind:value={search}></sui-input>
     <span class="ov-sep"></span>
 
     <div class="ov-group" role="group" aria-label="Status">
-      <ship-chip size="sm" class:selected={filterStatus() === ''}
-        on:click={() => filterStatus.set('')}>all</ship-chip>
+      <sui-chip size="sm" class:selected={filterStatus() === ''}
+        on:click={() => filterStatus.set('')}>all</sui-chip>
       {#for v of (['spec', 'building', 'shipping', 'complete']) key={v}}
-        <ship-chip size="sm" class:selected={filterStatus() === v}
-          on:click={() => filterStatus.set(filterStatus() === v ? '' : v)}>{v}</ship-chip>
+        <sui-chip size="sm" class:selected={filterStatus() === v}
+          on:click={() => filterStatus.set(filterStatus() === v ? '' : v)}>{v}</sui-chip>
       {/for}
     </div>
     <span class="ov-sep"></span>
 
     <div class="ov-group" role="group" aria-label="Layer">
-      <ship-chip size="sm" class:selected={filterLayer() === ''}
-        on:click={() => filterLayer.set('')}>all</ship-chip>
+      <sui-chip size="sm" class:selected={filterLayer() === ''}
+        on:click={() => filterLayer.set('')}>all</sui-chip>
       {#for v of (['primitive', 'runtime', 'interface', 'meta']) key={v}}
-        <ship-chip size="sm" class:selected={filterLayer() === v}
-          on:click={() => filterLayer.set(filterLayer() === v ? '' : v)}>{v}</ship-chip>
+        <sui-chip size="sm" class:selected={filterLayer() === v}
+          on:click={() => filterLayer.set(filterLayer() === v ? '' : v)}>{v}</sui-chip>
       {/for}
     </div>
 
     <div style="flex:1"></div>
-    <ship-button size="sm" tone="primary" variant="solid" on:click={openNewDrawer}>
-      <ship-icon slot="leading" name="plus"></ship-icon>New system
-    </ship-button>
-    <ship-button size="sm" variant="ghost" aria-label="Fit view"
+    <sui-button size="sm" tone="primary" variant="solid" on:click={openNewDrawer}>
+      <sui-icon slot="leading" name="plus"></sui-icon>New system
+    </sui-button>
+    <sui-button size="sm" variant="ghost" aria-label="Fit view"
       on:click={fitView}>
-      <ship-icon slot="leading" name="maximize"></ship-icon>Fit
-    </ship-button>
+      <sui-icon slot="leading" name="maximize"></sui-icon>Fit
+    </sui-button>
   </div>
 
   <!-- Canvas -->
   <div class="overview-canvas-wrap" bind:this={wrapRef}>
     {#while-loading of systems}
       <div class="ov-empty">
-        <ship-empty-state variant="connecting" tone="muted" size="md">
-          <ship-icon slot="icon" name="loader"></ship-icon>
+        <sui-empty-state variant="connecting" tone="muted" size="md">
+          <sui-icon slot="icon" name="loader"></sui-icon>
           <span slot="title">Loading systems&hellip;</span>
           Wiring up the canvas.
-        </ship-empty-state>
+        </sui-empty-state>
       </div>
     {/while-loading}
 
@@ -81,13 +81,13 @@
     {#if systems().kind === 'ok' && systems().value}
       {#if systems().value.items.length === 0}
         <div class="ov-empty">
-          <ship-empty-state>
+          <sui-empty-state>
             <span slot="title">No systems yet</span>
             <span slot="description">Map your project by adding its first system.</span>
-            <ship-button slot="actions" tone="primary" variant="solid" on:click={openNewDrawer}>
+            <sui-button slot="actions" tone="primary" variant="solid" on:click={openNewDrawer}>
               Create first system
-            </ship-button>
-          </ship-empty-state>
+            </sui-button>
+          </sui-empty-state>
         </div>
       {:else}
         <div class="overview-canvas" bind:this={canvasRef}>
@@ -107,7 +107,7 @@
               }
               style={'left:' + (item.data?.position_x ?? 100) + 'px;top:' + (item.data?.position_y ?? 80) + 'px'}>
               <div class="ov-node-head">
-                <ship-status-dot prop:status={item.data?.status ?? 'spec'}></ship-status-dot>
+                <sui-status-dot prop:status={item.data?.status ?? 'spec'}></sui-status-dot>
                 <span>{item.data?.name ?? '(unnamed)'}</span>
               </div>
               <div class="ov-node-layer">
@@ -132,86 +132,86 @@
       aria-labelledby="ov-drawer-title" aria-modal="true">
       <div class="ov-drawer-head">
         <strong id="ov-drawer-title">{drawerTitle()}</strong>
-        <ship-button size="sm" variant="ghost" aria-label="Close" on:click={closeDrawer}>
-          <ship-icon slot="leading" name="x"></ship-icon>
-        </ship-button>
+        <sui-button size="sm" variant="ghost" aria-label="Close" on:click={closeDrawer}>
+          <sui-icon slot="leading" name="x"></sui-icon>
+        </sui-button>
       </div>
       <div class="ov-drawer-body">
         <div class="ship-form">
           <div class="ship-form-field">
             <label class="ship-form-label">name <span style="color:var(--destructive)">*</span></label>
-            <ship-input size="sm" placeholder="ship-&lt;system&gt;" bind:value={fldName}></ship-input>
+            <sui-input size="sm" placeholder="ship-&lt;system&gt;" bind:value={fldName}></sui-input>
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">layer</label>
-            <ship-select size="sm" bind:value={fldLayer}>
+            <sui-select size="sm" bind:value={fldLayer}>
               <option value="">--</option>
               <option value="primitive">primitive</option>
               <option value="runtime">runtime</option>
               <option value="interface">interface</option>
               <option value="meta">meta</option>
-            </ship-select>
+            </sui-select>
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">status</label>
-            <ship-select size="sm" bind:value={fldStatus}>
+            <sui-select size="sm" bind:value={fldStatus}>
               <option value="spec">spec</option>
               <option value="building">building</option>
               <option value="shipping">shipping</option>
               <option value="complete">complete</option>
-            </ship-select>
+            </sui-select>
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">summary</label>
-            <ship-input size="sm" placeholder="one-liner" bind:value={fldSummary}></ship-input>
+            <sui-input size="sm" placeholder="one-liner" bind:value={fldSummary}></sui-input>
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">doc skill</label>
-            <ship-input size="sm" placeholder="ship-&lt;name&gt;" bind:value={fldDocSkill}></ship-input>
+            <sui-input size="sm" placeholder="ship-&lt;name&gt;" bind:value={fldDocSkill}></sui-input>
           </div>
 
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label">gaps</label>
             {#for (gap, idx) of fldGaps() key={'g_' + idx}}
               <div class="ov-list-row">
-                <ship-input size="sm" prop:value={gap} style="flex:1"
-                  on:ship-input={(e) => fldGaps.set(fldGaps().map((g: string, i: number) => i === idx ? e.detail?.value ?? g : g))}></ship-input>
-                <ship-button size="xs" variant="ghost" aria-label="Remove gap"
+                <sui-input size="sm" prop:value={gap} style="flex:1"
+                  on:ship-input={(e) => fldGaps.set(fldGaps().map((g: string, i: number) => i === idx ? e.detail?.value ?? g : g))}></sui-input>
+                <sui-button size="xs" variant="ghost" aria-label="Remove gap"
                   on:click={() => fldGaps.set(fldGaps().filter((_: string, i: number) => i !== idx))}>
-                  <ship-icon name="x"></ship-icon>
-                </ship-button>
+                  <sui-icon name="x"></sui-icon>
+                </sui-button>
               </div>
             {/for}
-            <ship-button size="sm" variant="outline" on:click={addGap}>
-              <ship-icon slot="leading" name="plus"></ship-icon>Add gap
-            </ship-button>
+            <sui-button size="sm" variant="outline" on:click={addGap}>
+              <sui-icon slot="leading" name="plus"></sui-icon>Add gap
+            </sui-button>
           </div>
 
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label">depends on</label>
             {#for (dep, idx) of fldDependsOn() key={'d_' + idx}}
               <div class="ov-list-row">
-                <ship-input size="sm" prop:value={dep} placeholder="system name" style="flex:1"
-                  on:ship-input={(e) => fldDependsOn.set(fldDependsOn().map((d: string, i: number) => i === idx ? e.detail?.value ?? d : d))}></ship-input>
-                <ship-button size="xs" variant="ghost" aria-label="Remove dependency"
+                <sui-input size="sm" prop:value={dep} placeholder="system name" style="flex:1"
+                  on:ship-input={(e) => fldDependsOn.set(fldDependsOn().map((d: string, i: number) => i === idx ? e.detail?.value ?? d : d))}></sui-input>
+                <sui-button size="xs" variant="ghost" aria-label="Remove dependency"
                   on:click={() => fldDependsOn.set(fldDependsOn().filter((_: string, i: number) => i !== idx))}>
-                  <ship-icon name="x"></ship-icon>
-                </ship-button>
+                  <sui-icon name="x"></sui-icon>
+                </sui-button>
               </div>
             {/for}
-            <ship-button size="sm" variant="outline" on:click={addDependsOn}>
-              <ship-icon slot="leading" name="plus"></ship-icon>Add dependency
-            </ship-button>
+            <sui-button size="sm" variant="outline" on:click={addDependsOn}>
+              <sui-icon slot="leading" name="plus"></sui-icon>Add dependency
+            </sui-button>
           </div>
         </div>
       </div>
       <div class="ov-drawer-foot">
-        <ship-button tone="primary" variant="solid" on:click={saveDrawer}>Save</ship-button>
-        <ship-button variant="outline" aria-label="Send system to agent"
+        <sui-button tone="primary" variant="solid" on:click={saveDrawer}>Save</sui-button>
+        <sui-button variant="outline" aria-label="Send system to agent"
           on:click={askAgent}>
-          <ship-icon slot="leading" name="send"></ship-icon>Ask agent
-        </ship-button>
-        <ship-button variant="ghost" on:click={closeDrawer}>Cancel</ship-button>
+          <sui-icon slot="leading" name="send"></sui-icon>Ask agent
+        </sui-button>
+        <sui-button variant="ghost" on:click={closeDrawer}>Cancel</sui-button>
       </div>
     </div>
   </div>

@@ -6,8 +6,8 @@
     <!-- Header -->
     <header class="dash-header">
       <div class="dash-wordmark">
-        <ship-app-icon class="dash-logo" name="dashboard" variant="solid"
-          size="lg" radius="md" aria-hidden="true"></ship-app-icon>
+        <sui-app-icon class="dash-logo" name="dashboard" variant="solid"
+          size="lg" radius="md" aria-hidden="true"></sui-app-icon>
         <div>
           <h1 class="dash-title">SHIP</h1>
           <p class="dash-workspace">
@@ -39,32 +39,32 @@
       <!-- Stats -->
       <div class="dash-stats" role="list" aria-label="Workspace statistics" data-view-enter>
         <div class="dash-stat-wrap dash-stat-wrap--jobs" role="listitem">
-          <ship-stat>
+          <sui-stat>
             <span slot="label">Total jobs</span>
             {dash().value.stats.active + dash().value.stats.history}
             <span slot="hint">{dash().value.stats.active} active</span>
-          </ship-stat>
+          </sui-stat>
         </div>
         <div class="dash-stat-wrap dash-stat-wrap--agents" role="listitem">
-          <ship-stat>
+          <sui-stat>
             <span slot="label">Agents</span>
             {dash().value.agents.length}
             <span slot="hint">configured</span>
-          </ship-stat>
+          </sui-stat>
         </div>
         <div class="dash-stat-wrap dash-stat-wrap--events" role="listitem">
-          <ship-stat>
+          <sui-stat>
             <span slot="label">Events</span>
             {dash().value.total_events}
             <span slot="hint">in stream</span>
-          </ship-stat>
+          </sui-stat>
         </div>
         <div class="dash-stat-wrap dash-stat-wrap--collections" role="listitem">
-          <ship-stat>
+          <sui-stat>
             <span slot="label">Collections</span>
             {dash().value.collections.length}
             <span slot="hint">schemas defined</span>
-          </ship-stat>
+          </sui-stat>
         </div>
       </div>
 
@@ -72,70 +72,70 @@
       <div class="dash-body">
 
         <!-- Recent jobs -->
-        <ship-card padding="none" class="dash-section" aria-label="Recent jobs">
+        <sui-card padding="none" class="dash-section" aria-label="Recent jobs">
           <div slot="header" class="dash-section-head">
             <h2 class="dash-section-title">
-              <ship-icon class="dash-section-icon" name="workflow" aria-hidden="true"></ship-icon>
+              <sui-icon class="dash-section-icon" name="workflow" aria-hidden="true"></sui-icon>
               Recent jobs
             </h2>
             <a class="dash-section-link" href="/pipelines">
-              View all <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
+              View all <sui-icon name="chevron-right" size="10" aria-hidden="true"></sui-icon>
             </a>
           </div>
           <div class="dash-jobs-list">
             {#if dash().value.recent_runs.length > 0}
               {#for run of dash().value.recent_runs key={run.id}}
-                <ship-list-tile density="compact" class="dash-job-tile">
-                  <ship-status-dot slot="leading" prop:tone={run.tone ?? 'muted'}></ship-status-dot>
+                <sui-list-tile density="compact" class="dash-job-tile">
+                  <sui-status-dot slot="leading" prop:tone={run.tone ?? 'muted'}></sui-status-dot>
                   <span class="dash-job-name">{run.slug ?? run.id}</span>
                   <span slot="trailing" class="dash-job-trailing">
                     {#if run.agent}
-                      <ship-avatar size="sm" prop:identity-hue={run.agent}
+                      <sui-avatar size="sm" prop:identity-hue={run.agent}
                         prop:name={run.agent}
-                        prop:initials={run.agent.slice(0, 1).toUpperCase()}></ship-avatar>
+                        prop:initials={run.agent.slice(0, 1).toUpperCase()}></sui-avatar>
                       <span class="dash-job-agent">{run.agent}</span>
                     {:else}
                       <span class="dash-job-agent">—</span>
                     {/if}
                     {#if run.started_at ?? run.created_at}
-                      <ship-timestamp prop:value={run.started_at ?? run.created_at} class="dash-job-time"></ship-timestamp>
+                      <sui-timestamp prop:value={run.started_at ?? run.created_at} class="dash-job-time"></sui-timestamp>
                     {:else}
                       <span class="dash-job-time">—</span>
                     {/if}
                   </span>
-                </ship-list-tile>
+                </sui-list-tile>
               {/for}
             {:else}
-              <ship-empty-state variant="placeholder" size="sm" icon="play">
+              <sui-empty-state variant="placeholder" size="sm" icon="play">
                 <span slot="title">No jobs yet</span>
                 Start a workflow to see runs here.
-              </ship-empty-state>
+              </sui-empty-state>
             {/if}
           </div>
-        </ship-card>
+        </sui-card>
 
         <!-- Agents -->
-        <ship-card padding="none" class="dash-section" aria-label="Agents">
+        <sui-card padding="none" class="dash-section" aria-label="Agents">
           <div slot="header" class="dash-section-head">
             <h2 class="dash-section-title">
-              <ship-icon class="dash-section-icon" name="users" aria-hidden="true"></ship-icon>
+              <sui-icon class="dash-section-icon" name="users" aria-hidden="true"></sui-icon>
               Agents
-              <ship-badge tone="muted" variant="soft" size="sm">{dash().value.agents.length}</ship-badge>
+              <sui-badge tone="muted" variant="soft" size="sm">{dash().value.agents.length}</sui-badge>
             </h2>
             <a class="dash-section-link" href="/agents">
-              Manage <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
+              Manage <sui-icon name="chevron-right" size="10" aria-hidden="true"></sui-icon>
             </a>
           </div>
           <div class="dash-section-body">
             {#if dash().value.agents.length > 0}
               <div class="dash-agents-grid" data-view-enter>
                 {#for agent of dash().value.agents.slice(0, 6) key={agent.id}}
-                  <ship-list-tile variant="card" density="compact" interactive
+                  <sui-list-tile variant="card" density="compact" interactive
                     prop:navigable={'/agents/' + agent.id}
                     class="dash-agent-tile">
-                    <ship-avatar slot="leading" size="md" shape="square"
+                    <sui-avatar slot="leading" size="md" shape="square"
                       prop:name={agent.name ?? agent.id}
-                      prop:initials={(agent.letter ?? (agent.name ?? agent.id).slice(0, 1)).toUpperCase()}></ship-avatar>
+                      prop:initials={(agent.letter ?? (agent.name ?? agent.id).slice(0, 1)).toUpperCase()}></sui-avatar>
                     <div class="dash-agent-body">
                       <div class="dash-agent-head">
                         <span class="dash-agent-name">{agent.name ?? agent.id}</span>
@@ -147,39 +147,39 @@
                         {#if agent.providers?.length > 0}
                           <span class="dash-agent-providers" aria-label="Compiles to">
                             {#for p of agent.providers key={p}}
-                              <ship-provider-blob prop:provider={p} size="sm" variant="glyph" prop:title={p}></ship-provider-blob>
+                              <sui-provider-blob prop:provider={p} size="sm" variant="glyph" prop:title={p}></sui-provider-blob>
                             {/for}
                           </span>
                         {/if}
                         {#for t of (agent.tags ?? []).slice(0, 2) key={t}}
-                          <ship-chip tone="muted" variant="soft" size="sm">{t}</ship-chip>
+                          <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>
                         {/for}
                         {#if (agent.tags ?? []).length > 2}
-                          <ship-chip tone="muted" variant="outline" size="sm">+{(agent.tags ?? []).length - 2}</ship-chip>
+                          <sui-chip tone="muted" variant="outline" size="sm">+{(agent.tags ?? []).length - 2}</sui-chip>
                         {/if}
                       </div>
                     </div>
-                  </ship-list-tile>
+                  </sui-list-tile>
                 {/for}
               </div>
             {:else}
-              <ship-empty-state variant="placeholder" size="sm" icon="user-plus">
+              <sui-empty-state variant="placeholder" size="sm" icon="user-plus">
                 <span slot="title">No agents configured</span>
                 Add an agent to dispatch work.
-              </ship-empty-state>
+              </sui-empty-state>
             {/if}
           </div>
-        </ship-card>
+        </sui-card>
 
         <!-- Latest events (full width) -->
-        <ship-card padding="none" class="dash-section dash-body--wide" aria-label="Latest events">
+        <sui-card padding="none" class="dash-section dash-body--wide" aria-label="Latest events">
           <div slot="header" class="dash-section-head">
             <h2 class="dash-section-title">
-              <ship-icon class="dash-section-icon" name="activity" aria-hidden="true"></ship-icon>
+              <sui-icon class="dash-section-icon" name="activity" aria-hidden="true"></sui-icon>
               Latest events
             </h2>
             <a class="dash-section-link" href="/events">
-              Full stream <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
+              Full stream <sui-icon name="chevron-right" size="10" aria-hidden="true"></sui-icon>
             </a>
           </div>
           <div class="dash-section-body">
@@ -190,9 +190,9 @@
                   <span class="dash-event-type">{r.event_type}</span>
                   <span class="dash-event-actor">
                     {#if r.actor}
-                      <ship-avatar size="sm" prop:identity-hue={r.actor}
+                      <sui-avatar size="sm" prop:identity-hue={r.actor}
                         prop:name={r.actor}
-                        prop:initials={r.actor.slice(0, 1).toUpperCase()}></ship-avatar>
+                        prop:initials={r.actor.slice(0, 1).toUpperCase()}></sui-avatar>
                       <span>{r.actor}</span>
                     {:else}
                       <span>—</span>
@@ -201,55 +201,55 @@
                 </div>
               {/for}
             {:else}
-              <ship-empty-state variant="placeholder" size="sm" icon="activity">
+              <sui-empty-state variant="placeholder" size="sm" icon="activity">
                 <span slot="title">Waiting for events</span>
                 The stream will fill as the daemon emits events.
-              </ship-empty-state>
+              </sui-empty-state>
             {/if}
           </div>
-        </ship-card>
+        </sui-card>
 
         <!-- Quick links (full width) -->
-        <ship-card padding="none" class="dash-section dash-body--wide" aria-label="Quick links">
+        <sui-card padding="none" class="dash-section dash-body--wide" aria-label="Quick links">
           <div slot="header" class="dash-section-head">
             <h2 class="dash-section-title">
-              <ship-icon class="dash-section-icon" name="external-link" aria-hidden="true"></ship-icon>
+              <sui-icon class="dash-section-icon" name="external-link" aria-hidden="true"></sui-icon>
               Quick links
             </h2>
           </div>
           <div class="dash-links">
             <a class="dash-link-btn" href="/pipelines">
               <div class="dash-link-icon dash-link-icon--workflows" aria-hidden="true">
-                <ship-icon name="workflow" size="16"></ship-icon>
+                <sui-icon name="workflow" size="16"></sui-icon>
               </div>Workflows
             </a>
             <a class="dash-link-btn" href="/agents">
               <div class="dash-link-icon dash-link-icon--agents" aria-hidden="true">
-                <ship-icon name="users" size="16"></ship-icon>
+                <sui-icon name="users" size="16"></sui-icon>
               </div>Agents
             </a>
             <a class="dash-link-btn" href="/skills">
               <div class="dash-link-icon dash-link-icon--skills" aria-hidden="true">
-                <ship-icon name="book" size="16"></ship-icon>
+                <sui-icon name="book" size="16"></sui-icon>
               </div>Skills
             </a>
             <a class="dash-link-btn" href="/collections">
               <div class="dash-link-icon dash-link-icon--data" aria-hidden="true">
-                <ship-icon name="database" size="16"></ship-icon>
+                <sui-icon name="database" size="16"></sui-icon>
               </div>Data
             </a>
             <a class="dash-link-btn" href="/events">
               <div class="dash-link-icon dash-link-icon--events" aria-hidden="true">
-                <ship-icon name="activity" size="16"></ship-icon>
+                <sui-icon name="activity" size="16"></sui-icon>
               </div>Events
             </a>
             <a class="dash-link-btn" href="/settings">
               <div class="dash-link-icon dash-link-icon--settings" aria-hidden="true">
-                <ship-icon name="settings" size="16"></ship-icon>
+                <sui-icon name="settings" size="16"></sui-icon>
               </div>Settings
             </a>
           </div>
-        </ship-card>
+        </sui-card>
 
       </div>
     {/if}

@@ -76,7 +76,7 @@
           <div class="git-clean">
             <div class="git-hero">
               <div class="git-halo">
-                <ship-icon name="check" size="md"></ship-icon>
+                <sui-icon name="check" size="md"></sui-icon>
               </div>
               <div>
                 <h2 class="git-hero-title">Working tree is clean.</h2>
@@ -118,7 +118,7 @@
                 {:else}
                   {#for b of recentBranches() key={b.name}}
                     <div class="git-row">
-                      <ship-icon name="git-branch" size="xs" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></ship-icon>
+                      <sui-icon name="git-branch" size="xs" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></sui-icon>
                       <div class="git-row-body">
                         <div class="git-row-title git-mono">{b.name}</div>
                         <div class="git-row-sub">{b.upstream ? b.upstream : 'local only'}</div>
@@ -221,7 +221,7 @@
             <div class="git-history-rows">
               {#for b of branches() key={b.name}}
                 <div class="git-history-row">
-                  <ship-icon name="git-branch" size="sm" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></ship-icon>
+                  <sui-icon name="git-branch" size="sm" class={b.active ? 'git-icon-active' : 'git-icon-muted'}></sui-icon>
                   <div class="git-row-body">
                     <div class="git-row-title git-mono">{b.name}{b.active ? ' (HEAD)' : ''}</div>
                     <div class="git-row-sub">{b.upstream ? b.upstream : 'local only'}</div>
