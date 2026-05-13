@@ -1,7 +1,7 @@
 import { controller, signal, effect } from '@ship/sui-runtime'
 import { defineRoutes } from '@ship/sui-runtime/route'
 import type { Scope } from './page.sui'
-import { loadCatalog, type CatalogEntry, type PropEntry } from '../catalog'
+import { loadCatalog, type CatalogEntry } from '../catalog'
 import {
   buildCells,
   deriveAxes,
@@ -49,23 +49,23 @@ export default controller<Scope>({
     entry: ({ allCatalog, route }) => {
       const name = route.params.name()
       if (!name) return null
-      return (allCatalog() as CatalogEntry[]).find(e => e.id === name) ?? null
+      return allCatalog().find(e => e.id === name) ?? null
     },
     hasProps: ({ entry }) => {
-      const e = (entry() as CatalogEntry | null)
+      const e = entry() as CatalogEntry | null
       return e !== null && (e.props ?? []).length > 0
     },
     currentName: ({ route }) => route.params.name() ?? '',
     filteredCatalog: ({ allCatalog, filterKind, filterText }) => {
       const kind = filterKind()
       const text = filterText().toLowerCase()
-      return (allCatalog() as CatalogEntry[]).filter(e => {
+      return allCatalog().filter(e => {
         const kindMatch = kind === 'all' || e.kind === kind
         const textMatch = !text || e.id.toLowerCase().includes(text)
         return kindMatch && textMatch
       })
     },
-    totalCount: ({ allCatalog }) => (allCatalog() as CatalogEntry[]).length,
+    totalCount: ({ allCatalog }) => allCatalog().length,
     filteredCount: ({ filteredCatalog }) => (filteredCatalog() as CatalogEntry[]).length,
     matrixAxes: ({ entry }) => {
       const e = entry() as CatalogEntry | null
@@ -85,7 +85,7 @@ export default controller<Scope>({
   on: {
     setProp: (state, propName: string, value: unknown) => {
       state.propValues = {
-        ...(state.propValues as Record<string, unknown>),
+        ...state.propValues,
         [propName]: value,
       }
     },
@@ -93,8 +93,8 @@ export default controller<Scope>({
       if (!entry) return
       const snippet = buildSnippet(
         entry.tag,
-        state.propValues as Record<string, unknown>,
-        (entry.props ?? []) as PropEntry[],
+        state.propValues,
+        entry.props ?? [],
         SLOT_COMPOSITIONS[entry.tag],
       )
       void navigator.clipboard.writeText(snippet)
@@ -122,7 +122,7 @@ export default controller<Scope>({
     // Seed prop defaults. For size props, prefer the largest enum variant
     // so small components (badge, kbd, status-dot) are legible in the preview.
     const initVals: Record<string, unknown> = {}
-    for (const prop of (entry.props ?? []) as PropEntry[]) {
+    for (const prop of entry.props ?? []) {
       if (prop.name === 'size' && prop.values && prop.values.length > 0) {
         initVals[prop.name] = prop.values[prop.values.length - 1]
       } else if (prop.default !== undefined) {
@@ -130,7 +130,7 @@ export default controller<Scope>({
       }
     }
     // URL ?key=value overrides defaults so shared links land on the right state.
-    const fromUrl = readSearchParams(location.search, (entry.props ?? []) as PropEntry[])
+    const fromUrl = readSearchParams(location.search, entry.props ?? [])
     Object.assign(initVals, fromUrl)
     state.propValues = initVals
     state.loading = false
@@ -222,10 +222,9 @@ export default controller<Scope>({
     // <select> so author markup stays simple; sync the JS-property
     // here once the DOM exists.
     const syncSelects = () => {
-      const root = el as ParentNode
-      for (const sel of root.querySelectorAll<HTMLSelectElement>('.prop-select')) {
+      for (const sel of el.querySelectorAll<HTMLSelectElement>('.prop-select')) {
         const propName = sel.id.replace(/^prop-/, '')
-        const v = (state.propValues as Record<string, unknown>)[propName]
+        const v = state.propValues[propName]
         if (v != null) sel.value = String(v)
       }
     }
@@ -239,7 +238,7 @@ export default controller<Scope>({
     // components reflect emptiness). For unset / `undefined` props, the
     // attribute is removed so the component falls back to its declared
     // default.
-    const props = (entry.props ?? []) as PropEntry[]
+    const props = entry.props ?? []
     const propTypes = new Map(props.map(p => [p.name, p.type]))
     const applyProps = (vals: Record<string, unknown>) => {
       for (const p of props) {
@@ -260,9 +259,13 @@ export default controller<Scope>({
 
     // Reactively sync propValues → element attributes + URL search params,
     // and re-highlight the matching matrix cell so the deep-link stays
-    // visible as the user clicks around the prop panel.
+    // visible as the user clicks around the prop panel. The render-slot
+    // div carries the `morph` directive so any controller-driven re-render
+    // patches in place rather than wholesale-replacing the live preview
+    // node — keeps focus / scroll / custom-element state stable while
+    // the prop panel toggles attributes on the host.
     const stopEffect = effect(() => {
-      const vals = state.propValues as Record<string, unknown>
+      const vals = state.propValues
       applyProps(vals)
       writeSearchParams(vals, props)
       highlightActiveCell(el, vals)
@@ -271,7 +274,7 @@ export default controller<Scope>({
     // Populate state-matrix cells. Independent of `state.propValues` —
     // the prop panel only drives the single preview above.
     mountMatrixCells(el, entry.tag, (tag) => SLOT_COMPOSITIONS[tag])
-    highlightActiveCell(el, state.propValues as Record<string, unknown>)
+    highlightActiveCell(el, state.propValues)
 
     // Leave the node attached — next mount reuses it (same tag) or
     // swaps it (different tag). Just stop the prior reactive binding
@@ -280,7 +283,6 @@ export default controller<Scope>({
   },
 
   unmount: (state) => {
-    const fn = state._dispose as (() => void) | undefined
-    fn?.()
+    state._dispose?.()
   },
 })
