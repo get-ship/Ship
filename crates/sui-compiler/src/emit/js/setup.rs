@@ -1,10 +1,11 @@
 use super::super::template_emit::TemplateEmitter;
 use super::super::util::{camel_of, js_ident};
-use super::super::writer::Writer;
+use super::super::writer::{js_string, Writer};
 use crate::ir::*;
 use crate::keys::BindingRegistry;
 use crate::lower::Lowered;
 use crate::{CompileMode, CompileOpts};
+use std::collections::BTreeSet;
 
 pub(super) fn emit_setup_body(
     w: &mut Writer,
@@ -42,6 +43,15 @@ pub(super) fn emit_setup_body(
         w.line("$scope.navigate = navigate;");
     }
     emit_data_decls(w, program);
+    // Pre-seed `$scope.<var> = signal(null)` for every `bind:this={var}`
+    // target the template references — including ones inside conditional /
+    // loop branches that won't render until later. The controller's
+    // scope: factory may overwrite specific keys with an author-declared
+    // `ref(null)`; either way, `scope.<var>()` is always callable at
+    // setup time, so a controller mount() reading `scope.headerEl()`
+    // before the `{#if open()}` branch first renders sees `null`
+    // instead of crashing with `headerEl is not a function`.
+    emit_ref_slot_seeds(w, &program.template);
     if opts.setup_url.is_some() {
         if is_component {
             // Component path: pass $scope as ctx.scope so the controller's
@@ -177,6 +187,57 @@ fn emit_data_decls(w: &mut Writer, program: &Program) {
                 name = js_ident(&d.name),
                 src = src
             ));
+        }
+    }
+}
+
+fn emit_ref_slot_seeds(w: &mut Writer, template: &[Instr]) {
+    let mut names: BTreeSet<String> = BTreeSet::new();
+    collect_bind_this_targets(template, &mut names);
+    for name in &names {
+        w.line(&format!(
+            "$scope[{n}] = signal(null);",
+            n = js_string(name),
+        ));
+    }
+}
+
+fn collect_bind_this_targets(instrs: &[Instr], out: &mut BTreeSet<String>) {
+    for instr in instrs {
+        match instr {
+            Instr::Element(el) => {
+                for a in &el.attrs {
+                    if let AttrInstr::BindThis { var, .. } = a {
+                        out.insert(var.clone());
+                    }
+                }
+                collect_bind_this_targets(&el.children, out);
+            }
+            Instr::If(if_instr) => {
+                for b in &if_instr.branches {
+                    collect_bind_this_targets(&b.body, out);
+                }
+                if let Some(eb) = &if_instr.else_body {
+                    collect_bind_this_targets(eb, out);
+                }
+            }
+            Instr::For(f) => {
+                collect_bind_this_targets(&f.body, out);
+                if let Some(eb) = &f.else_body {
+                    collect_bind_this_targets(eb, out);
+                }
+            }
+            Instr::Match(m) => {
+                for c in &m.cases {
+                    collect_bind_this_targets(&c.body, out);
+                }
+                if let Some(d) = &m.default {
+                    collect_bind_this_targets(d, out);
+                }
+            }
+            Instr::WhileLoading(wl) => collect_bind_this_targets(&wl.body, out),
+            Instr::WhileError(we) => collect_bind_this_targets(&we.body, out),
+            _ => {}
         }
     }
 }
