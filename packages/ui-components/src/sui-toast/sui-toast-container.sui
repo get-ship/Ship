@@ -26,77 +26,25 @@
 <prop name="max-visible" type="number" default="5" reflect />
 
 <style>
-  :host {
-    position: fixed;
-    z-index: var(--z-toast, 9999);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-2, 8px);
-    pointer-events: none;
-    max-width: min(440px, calc(100vw - 32px));
-    --toast-edge: 16px;
-    padding: 0;
-    margin: 0;
-    box-sizing: border-box;
-  }
+  /* Host collapses — the visible stack lives in body via <sui-portal>
+     (see template). The host stays minimal so it can sit anywhere in
+     the document without taking layout space. */
+  :host { display: contents; }
   :host([hidden]) { display: none; }
-
-  :host(:not([position])),
-  :host([position='bottom-right']) {
-    bottom: var(--toast-edge);
-    right: var(--toast-edge);
-    top: auto;
-    left: auto;
-    flex-direction: column-reverse;
-    align-items: flex-end;
-  }
-  :host([position='bottom-left']) {
-    bottom: var(--toast-edge);
-    left: var(--toast-edge);
-    top: auto;
-    right: auto;
-    flex-direction: column-reverse;
-    align-items: flex-start;
-  }
-  :host([position='bottom-center']) {
-    bottom: var(--toast-edge);
-    left: 50%;
-    transform: translateX(-50%);
-    top: auto;
-    right: auto;
-    flex-direction: column-reverse;
-    align-items: center;
-  }
-  :host([position='top-right']) {
-    top: var(--toast-edge);
-    right: var(--toast-edge);
-    bottom: auto;
-    left: auto;
-    flex-direction: column;
-    align-items: flex-end;
-  }
-  :host([position='top-left']) {
-    top: var(--toast-edge);
-    left: var(--toast-edge);
-    bottom: auto;
-    right: auto;
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  :host([position='top-center']) {
-    top: var(--toast-edge);
-    left: 50%;
-    transform: translateX(-50%);
-    bottom: auto;
-    right: auto;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  ::slotted(sui-toast) {
-    pointer-events: auto;
-    width: auto;
-  }
 </style>
 
+<!--
+  Why `<sui-portal target="body">`? Transform / overflow / contain
+  parents create new containing blocks for descendants — even
+  `position: fixed`. A toast stack rendered inside such a parent
+  visually clips at the wrong edge or, worse, sits inside the
+  transform's bounds. Teleporting the stack to `body` puts it in
+  the document's root containing block so it always anchors to the
+  viewport. The .stack has no slot inside the portal (slots break
+  projection when teleported); the controller moves slotted toasts
+  + show()-created toasts into .stackEl directly.
+-->
+<sui-portal target="body">
+  <div class="sui-toast-stack" data-sui-toast-stack bind:this={stackEl}></div>
+</sui-portal>
 <slot bind:this={defaultSlotEl}></slot>

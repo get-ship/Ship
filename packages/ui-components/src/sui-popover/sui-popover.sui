@@ -81,16 +81,9 @@
     -webkit-backdrop-filter: var(--card-backdrop-filter, none);
     font-family: var(--font-body, system-ui);
     font-size: var(--text-base, 14px);
-    opacity: 0;
-    transform: translateY(-4px);
-    transition:
-      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
-      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
   }
-  .panel:popover-open > .surface {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  /* Open/close polish is driven by `transition:scale` on the
+     #if-mounted .surface (see template). No CSS transition here. */
 
   /* CSS Anchor Positioning. Controller sets a unique anchor-name on the
      SLOTTED trigger element via `--sui-popover-anchor`, so each instance
@@ -138,11 +131,35 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .panel > .surface { transition: none; transform: none; }
+    .panel > .surface { transform: none; }
   }
 </style>
 
+<!--
+  Why `{#if open()}` + `transition:scale` here? The native popover
+  element (`.panel`) must stay mounted so `popovertarget` on the
+  trigger can keep wiring it; what fades/scales is the *.surface*.
+  Slots inside .surface re-enter the shadow tree on each open so
+  projection survives every toggle.
+
+  Why the `<sui-portal>` below? Native `popover="auto"` already
+  escapes parent stacking context via the browser top layer — the
+  panel doesn't NEED to be teleported. The portal supplies a
+  document-level `[data-sui-popover-open]` marker that page-level
+  styles (e.g. trigger highlight, scrim) can target via `:has`
+  selectors without poking into shadow DOM.
+-->
+
 <slot name="trigger" bind:this={triggerSlot}></slot>
 <div class="panel" part="panel" popover="auto" bind:this={panelEl} role="dialog" aria-modal="false">
-  <div class="surface"><slot></slot></div>
+  {#if open()}
+    <div class="surface" transition:scale={{ duration: 120 }}>
+      <slot></slot>
+    </div>
+  {/if}
 </div>
+{#if open()}
+  <sui-portal target="body">
+    <div class="sui-popover-presence" aria-hidden="true" data-sui-popover-open></div>
+  </sui-portal>
+{/if}

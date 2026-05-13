@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
+import '../src/sui-portal/dist/sui-portal.compiled.js'
 import '../src/sui-dialog/dist/sui-dialog.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
@@ -88,8 +89,9 @@ describe('<sui-dialog>', () => {
     expect(el.hasAttribute('no-close-button')).toBe(true)
   })
 
-  it('has header, body, and footer slots', () => {
-    const { el } = makeDialog()
+  it('has header, body, and footer slots when open', async () => {
+    const { el } = makeDialog({ open: true })
+    await flush()
     const slots = Array.from(shadow(el).querySelectorAll('slot'))
     const names = slots.map(s => s.getAttribute('name'))
     expect(names).toContain('header')
@@ -126,7 +128,7 @@ describe('<sui-dialog>', () => {
   })
 
   it('header region gets aria id linked from dialog', async () => {
-    const { el } = makeDialog()
+    const { el } = makeDialog({ open: true })
     await flush()
     const labelledBy = dialogEl(el)!.getAttribute('aria-labelledby')
     expect(labelledBy).toMatch(/sui-dialog-header-\d+/)
@@ -135,7 +137,7 @@ describe('<sui-dialog>', () => {
   })
 
   it('body region gets aria id linked from dialog', async () => {
-    const { el } = makeDialog()
+    const { el } = makeDialog({ open: true })
     await flush()
     const describedBy = dialogEl(el)!.getAttribute('aria-describedby')
     expect(describedBy).toMatch(/sui-dialog-body-\d+/)
