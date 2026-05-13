@@ -357,20 +357,32 @@ pub async fn delete_var(
     Ok(Json(serde_json::json!({ "ok": true, "id": id, "key": key, "removed": had })))
 }
 
-// ── Invoke (minimal stub) ────────────────────────────────────────────
+// ── Invoke ───────────────────────────────────────────────────────────
 //
-// Skill execution proper still rides through the agent hook surface
-// (`cli-framework/src/hooks/mod.rs` emits `skill.started`/`completed`
-// when a provider invokes a ship-namespaced tool). The daemon doesn't
-// yet have an actor-free "run this skill standalone" executor — see
-// `.artifacts/sui-arc/daemon-sdk-mutation-ops.md` for the open design
-// question.
+// Library-skill path — the most common skill type. A library skill is
+// reference material (markdown body + companion files) that gets
+// attached to a session's context. There's no process to spawn; the
+// "action" is wiring the skill's content into a session and recording
+// the lifecycle on the event bus so views can render progress.
 //
-// What this route gives consumers today: a stable run identifier and a
-// `skill.started` event correlated to that run on the existing kernel
-// bus, so views that want to chart "this user kicked off skill X"
-// have a place to attach. A follow-up step will wire a `skill.completed`
-// or `skill.failed` event when standalone execution lands.
+// Flow:
+//   1. Resolve + parse SKILL.md (validate frontmatter exists, get id).
+//   2. Mint a run_id (ULID).
+//   3. Pick a session_id — reuse the most-recently-active agent session
+//      for the workspace if one exists, else use the run_id as a
+//      synthetic "library invoke" session id. The UI can navigate to
+//      `/sessions/<id>` either way.
+//   4. Emit lifecycle on the kernel bus:
+//        skill.started
+//        skill.attached_to_session
+//        skill.completed   (attach is the entire body of work)
+//   5. Return `{ ok, run_id, skill_id, session_id, workspace_id, mode,
+//      reused_session }`.
+//
+// Operator + mode skill types are not yet implemented — they require
+// either an interpreter (operator) or a profile-compile pipeline (mode)
+// that the daemon doesn't expose today. The arc note at
+// `.artifacts/sui-arc/skills-invoke-real.md` tracks the gaps.
 
 #[derive(Deserialize, Default)]
 pub struct InvokeBody {
@@ -383,6 +395,21 @@ pub struct InvokeBody {
     /// workspace if the caller doesn't pass one.
     #[serde(default)]
     pub workspace_id: Option<String>,
+    /// Optional explicit session to attach to. When omitted, the
+    /// daemon picks the most-recently-active agent session in the
+    /// workspace, falling back to the run_id as a synthetic session id.
+    #[serde(default)]
+    pub session_id: Option<String>,
+}
+
+/// Per-invocation outcome — kept narrow so the JSON return shape and
+/// the test surface agree on the contract.
+struct InvokeOutcome {
+    run_id: String,
+    session_id: String,
+    workspace_id: Option<String>,
+    mode: &'static str,
+    reused_session: bool,
 }
 
 /// POST /api/v1/skills/{id}/invoke
@@ -393,42 +420,161 @@ pub async fn invoke(
     body: Option<Json<InvokeBody>>,
 ) -> Result<Json<serde_json::Value>, Resp> {
     let scope = parse_scope(&q)?;
-    // Resolve the skill so we 404 before emitting a started event for
-    // a skill the user can't actually run.
-    let _detail = state.services().skills().get(&id, scope).map_err(map_err)?;
+    // Resolve the skill so we 404 before emitting any started event for
+    // a skill the user can't actually run. `load` parses the SKILL.md
+    // frontmatter for us; we surface a slim summary on `skill.started`.
+    let detail = state.services().skills().get(&id, scope).map_err(map_err)?;
 
     let body = body.map(|Json(b)| b).unwrap_or_default();
     let run_id = ship_substrate::gen_ulid();
     let workspace_id = body.workspace_id.clone().or_else(active_workspace_id);
 
-    let payload = serde_json::json!({
+    let (session_id, reused_session) = resolve_session_id(
+        state.actor_sessions(),
+        workspace_id.as_deref(),
+        body.session_id.as_deref(),
+        &run_id,
+    );
+
+    let frontmatter_summary = serde_json::json!({
+        "id": detail.id,
+        "name": detail
+            .frontmatter
+            .get("name")
+            .and_then(|v| v.as_str())
+            .unwrap_or(&detail.id),
+        "description": detail
+            .frontmatter
+            .get("description")
+            .and_then(|v| v.as_str())
+            .unwrap_or(""),
+    });
+
+    // skill.started — observable on SSE; entity_id is the skill id.
+    let started_payload = serde_json::json!({
         "skill_id": id,
         "run_id": run_id,
-        "vars": body.vars.unwrap_or_default(),
+        "mode": "library",
+        "vars": body.vars.clone().unwrap_or_default(),
         "workspace_id": workspace_id,
+        "session_id": session_id,
+        "frontmatter": frontmatter_summary,
     });
-    let envelope = ship_substrate::events::EventEnvelope::new(
+    emit_skill_event(
+        &state,
         ship_types::event_types::SKILL_STARTED,
         &id,
-        &payload,
+        &started_payload,
+        workspace_id.as_deref(),
+        Some(&session_id),
     )
-    .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "emit", e.to_string()))?;
-    let ctx = ship_substrate::events::EmitContext {
-        caller_kind: ship_substrate::events::CallerKind::Runtime,
-        skill_id: Some(id.clone()),
-        project_id: workspace_id.clone(),
-        session_id: None,
+    .await?;
+
+    // skill.attached_to_session — records the (run, session) binding.
+    let attached = ship_types::payload::SkillAttachedToSession {
+        skill_id: id.clone(),
+        run_id: run_id.clone(),
+        session_id: session_id.clone(),
+        mode: "library".to_string(),
+        workspace_id: workspace_id.clone(),
+        reused: reused_session,
     };
-    if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
-        return Err(err(StatusCode::INTERNAL_SERVER_ERROR, "emit", e.to_string()));
-    }
+    emit_skill_event(
+        &state,
+        ship_types::event_types::SKILL_ATTACHED_TO_SESSION,
+        &id,
+        &attached,
+        workspace_id.as_deref(),
+        Some(&session_id),
+    )
+    .await?;
+
+    // skill.completed — library attach is synchronous, complete here.
+    let completed = ship_types::payload::SkillCompleted {
+        skill_id: id.clone(),
+        duration_ms: Some(0),
+    };
+    emit_skill_event(
+        &state,
+        ship_types::event_types::SKILL_COMPLETED,
+        &id,
+        &completed,
+        workspace_id.as_deref(),
+        Some(&session_id),
+    )
+    .await?;
+
+    let outcome = InvokeOutcome {
+        run_id,
+        session_id,
+        workspace_id,
+        mode: "library",
+        reused_session,
+    };
 
     Ok(Json(serde_json::json!({
         "ok": true,
-        "run_id": run_id,
+        "run_id": outcome.run_id,
         "skill_id": id,
-        "workspace_id": workspace_id,
+        "session_id": outcome.session_id,
+        "workspace_id": outcome.workspace_id,
+        "mode": outcome.mode,
+        "reused_session": outcome.reused_session,
     })))
+}
+
+/// Resolve the session a library invoke binds to. Priority:
+///   1. caller-supplied `session_id` (explicit attach)
+///   2. most-recently-active agent session for the workspace
+///   3. synthetic — the run_id itself stands in as the session
+fn resolve_session_id(
+    actors: &crate::sessions::ActorRegistry,
+    workspace_id: Option<&str>,
+    explicit: Option<&str>,
+    run_id: &str,
+) -> (String, bool) {
+    if let Some(sid) = explicit {
+        if !sid.is_empty() {
+            return (sid.to_string(), true);
+        }
+    }
+    if let Some(ws) = workspace_id {
+        // list() is already sorted most-recent-first.
+        for meta in actors.list() {
+            if meta.workspace_id == ws
+                && matches!(meta.kind, crate::sessions::SessionKind::Agent)
+            {
+                return (meta.id, true);
+            }
+        }
+    }
+    (run_id.to_string(), false)
+}
+
+async fn emit_skill_event<P: serde::Serialize>(
+    state: &ApiState,
+    event_type: &'static str,
+    skill_id: &str,
+    payload: &P,
+    workspace_id: Option<&str>,
+    session_id: Option<&str>,
+) -> Result<(), Resp> {
+    let envelope = ship_substrate::events::EventEnvelope::new(event_type, skill_id, payload)
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "emit", e.to_string()))?;
+    let ctx = ship_substrate::events::EmitContext {
+        caller_kind: ship_substrate::events::CallerKind::Runtime,
+        skill_id: Some(skill_id.to_string()),
+        project_id: workspace_id.map(str::to_string),
+        session_id: session_id.map(str::to_string),
+    };
+    state
+        .kernel()
+        .lock()
+        .await
+        .emit(envelope, &ctx)
+        .await
+        .map_err(|e| err(StatusCode::INTERNAL_SERVER_ERROR, "emit", e.to_string()))?;
+    Ok(())
 }
 
 fn active_workspace_id() -> Option<String> {

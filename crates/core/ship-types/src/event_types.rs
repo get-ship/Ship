@@ -33,6 +33,11 @@ pub const PROJECT_LOG: &str = "project.log";
 pub const SKILL_STARTED: &str = "skill.started";
 pub const SKILL_COMPLETED: &str = "skill.completed";
 pub const SKILL_FAILED: &str = "skill.failed";
+/// Emitted after `skill.started` for library-mode invokes. Records the
+/// session_id (existing chat session or the synthetic invoke run id)
+/// that the skill's reference content is attached to. `entity_id` is the
+/// skill id. Payload: `SkillAttachedToSession`.
+pub const SKILL_ATTACHED_TO_SESSION: &str = "skill.attached_to_session";
 pub const SUPERVISOR_SHUTTING_DOWN: &str = "supervisor.shutting_down";
 pub const SUPERVISOR_SWEEP_STARTED: &str = "supervisor.sweep_started";
 pub const SUPERVISOR_SWEEP_COMPLETED: &str = "supervisor.sweep_completed";
@@ -169,6 +174,7 @@ pub const ALL: &[&str] = &[
     SKILL_STARTED,
     SKILL_COMPLETED,
     SKILL_FAILED,
+    SKILL_ATTACHED_TO_SESSION,
     SUPERVISOR_SHUTTING_DOWN,
     SUPERVISOR_SWEEP_STARTED,
     SUPERVISOR_SWEEP_COMPLETED,
