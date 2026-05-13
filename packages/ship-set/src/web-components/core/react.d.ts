@@ -89,7 +89,6 @@ declare module 'react' {
       'ship-chip': ShipElement
       'ship-icon': ShipElement
       'ship-link': ShipElement
-      'ship-metachip': ShipElement
       'ship-skeleton': ShipElement
       'ship-step-segments': ShipElement
       'ship-toast': ShipElement
