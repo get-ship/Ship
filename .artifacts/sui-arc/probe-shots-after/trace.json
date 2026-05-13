@@ -1,0 +1,376 @@
+{
+  "railItems": [
+    {
+      "tag": "a",
+      "text": "Dashboard",
+      "href": "/",
+      "title": "Dashboard",
+      "cls": "item"
+    },
+    {
+      "tag": "a",
+      "text": "Agents",
+      "href": "/agents",
+      "title": "Agents",
+      "cls": "item"
+    },
+    {
+      "tag": "a",
+      "text": "Git",
+      "href": "/git",
+      "title": "Git",
+      "cls": "item"
+    },
+    {
+      "tag": "a",
+      "text": "UI Studio",
+      "href": "/ship-ui-studio",
+      "title": "UI Studio",
+      "cls": "item"
+    },
+    {
+      "tag": "a",
+      "text": "SUI Demo",
+      "href": "/sui-demo",
+      "title": "SUI Demo",
+      "cls": "item"
+    },
+    {
+      "tag": "a",
+      "text": "Demos",
+      "href": "/demos",
+      "title": "Demos",
+      "cls": "item"
+    },
+    {
+      "tag": "a",
+      "text": "Mission Control",
+      "href": "/mesh",
+      "title": "Mission Control",
+      "cls": "item"
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "href": null,
+      "title": "Switch project",
+      "cls": "project-badge"
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "href": null,
+      "title": "Open launcher",
+      "cls": "footer-btn"
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "href": null,
+      "title": "Create new",
+      "cls": "footer-btn"
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "href": null,
+      "title": "Show rail",
+      "cls": "toggle-btn"
+    }
+  ],
+  "navItems": [
+    {
+      "tag": "button",
+      "text": "Ask Ship or jump to…⌘K",
+      "title": "Open command bar",
+      "cls": "cb-trigger"
+    },
+    {
+      "tag": "button",
+      "text": "Start session",
+      "title": null,
+      "cls": "cb-spawn-start"
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "title": "Close dialog",
+      "cls": "close"
+    },
+    {
+      "tag": "a",
+      "text": "",
+      "title": "Ship home",
+      "cls": "brand"
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "title": null,
+      "cls": ""
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "title": null,
+      "cls": ""
+    },
+    {
+      "tag": "button",
+      "text": "SHIP Light",
+      "title": "Choose theme",
+      "cls": "trigger"
+    },
+    {
+      "tag": "button",
+      "text": "THEMESHIP LightThe quick brown",
+      "title": "SHIP Light",
+      "cls": "card"
+    },
+    {
+      "tag": "button",
+      "text": "THEMESHIP DarkThe quick brown ",
+      "title": "SHIP Dark",
+      "cls": "card"
+    },
+    {
+      "tag": "button",
+      "text": "THEMEPaperThe quick brown fox{",
+      "title": "Paper",
+      "cls": "card"
+    },
+    {
+      "tag": "button",
+      "text": "THEMEHalo (Soft)The quick brow",
+      "title": "Halo (Soft)",
+      "cls": "card"
+    },
+    {
+      "tag": "button",
+      "text": "THEMEGlassThe quick brown fox{",
+      "title": "Glass",
+      "cls": "card"
+    },
+    {
+      "tag": "button",
+      "text": "THEMEConsoleThe quick brown fo",
+      "title": "Console",
+      "cls": "card"
+    },
+    {
+      "tag": "button",
+      "text": "THEMEHigh ContrastThe quick br",
+      "title": "High Contrast",
+      "cls": "card"
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "title": null,
+      "cls": ""
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "title": null,
+      "cls": ""
+    },
+    {
+      "tag": "button",
+      "text": "",
+      "title": null,
+      "cls": ""
+    }
+  ],
+  "trace": [
+    {
+      "label": "01-root",
+      "url": "http://127.0.0.1:3291/",
+      "railVisible": true,
+      "navTopVisible": true,
+      "mainContentHead": "Ship\n\nOpen a view: /ship-ui-studio · /counter · /sui-demo"
+    },
+    {
+      "label": "02-rail-click-0-_",
+      "url": "http://127.0.0.1:3291/",
+      "railVisible": true,
+      "navTopVisible": true,
+      "mainContentHead": "Ship\n\nOpen a view: /ship-ui-studio · /counter · /sui-demo"
+    },
+    {
+      "label": "02-rail-click-1-_agents",
+      "url": "http://127.0.0.1:3291/agents",
+      "railVisible": true,
+      "navTopVisible": true,
+      "mainContentHead": "Agents\n\n0 agents\n\nNew agent"
+    },
+    {
+      "label": "02-rail-click-2-_git",
+      "url": "http://127.0.0.1:3291/git",
+      "railVisible": true,
+      "navTopVisible": true,
+      "mainContentHead": ""
+    },
+    {
+      "label": "02-rail-click-3-_ship-ui-studio",
+      "url": "http://127.0.0.1:3291/ship-ui-studio",
+      "railVisible": true,
+      "navTopVisible": true,
+      "mainContentHead": "◐\nSUI Studio\nAll\nComponents\nViews\nsui-accordion\nSUI\nsui-accordion-item\nSUI\nsui-alert\nSUI\nsui-alert-dialog\nSUI\nsui-annotation-layer\nSUI\nsui-annotation-list\nSUI\nsui-annotation-marker\nSUI\nsui-app-icon\nSU"
+    },
+    {
+      "label": "02-rail-click-4-_sui-demo",
+      "url": "http://127.0.0.1:3291/sui-demo",
+      "railVisible": true,
+      "navTopVisible": true,
+      "mainContentHead": "Page not found\n\nThe view sui-demo isn't registered.\n\n← Home"
+    },
+    {
+      "label": "02-rail-click-5-_demos",
+      "url": "http://127.0.0.1:3291/demos",
+      "railVisible": true,
+      "navTopVisible": true,
+      "mainContentHead": "Page not found\n\nThe view demos isn't registered.\n\n← Home"
+    },
+    {
+      "label": "02-rail-click-6-_mesh",
+      "url": "http://127.0.0.1:3291/mesh",
+      "railVisible": true,
+      "navTopVisible": true,
+      "mainContentHead": "Mesh\nwhat Ship is running on this machine, right now\n4 actors\n13 processes\n1 integrations\nActors\n4\nlive mailboxes — anything reachable via target_actor_id\n\tKIND\tNAME\tPROVIDER\tWORKSPACE\tPID\tLAST ACTIVI"
+    },
+    {
+      "view": "home",
+      "status": 200,
+      "contentLen": 501,
+      "contentEls": 29,
+      "contentHead": "You've opened the home page 0 times this session. Bump LIVE FROM THE DAEMON Pr"
+    },
+    {
+      "view": "agents",
+      "status": 200,
+      "contentLen": 27,
+      "contentEls": 108,
+      "contentHead": "Agents 0 agents New agent"
+    },
+    {
+      "view": "overview",
+      "status": 200,
+      "contentLen": 329,
+      "contentEls": 94,
+      "contentHead": "Overview active session running agent all spec building shipping complete all pr"
+    },
+    {
+      "view": "sessions",
+      "status": 200,
+      "contentLen": 44,
+      "contentEls": 79,
+      "contentHead": "Sessions 0 live sessions New shell session"
+    },
+    {
+      "view": "workspaces",
+      "status": 200,
+      "contentLen": 28,
+      "contentEls": 55,
+      "contentHead": "Workspaces 0 known projects"
+    },
+    {
+      "view": "skills",
+      "status": 200,
+      "contentLen": 63,
+      "contentEls": 59,
+      "contentHead": "No file open Select a skill from the explorer to start editing."
+    },
+    {
+      "view": "chat",
+      "status": 200,
+      "contentLen": 9,
+      "contentEls": 53,
+      "contentHead": "Chat Send"
+    },
+    {
+      "view": "mesh",
+      "status": 200,
+      "contentLen": 0,
+      "contentEls": 64,
+      "contentHead": ""
+    },
+    {
+      "view": "events",
+      "status": 200,
+      "contentLen": 6,
+      "contentEls": 35,
+      "contentHead": "Events"
+    },
+    {
+      "view": "settings",
+      "status": 200,
+      "contentLen": 38,
+      "contentEls": 54,
+      "contentHead": "Settings CLI and studio configuration"
+    },
+    {
+      "view": "git",
+      "status": 200,
+      "contentLen": 0,
+      "contentEls": 53,
+      "contentHead": ""
+    },
+    {
+      "view": "canvas",
+      "status": 200,
+      "contentLen": 357,
+      "contentEls": 20,
+      "contentHead": "Canvas Loading… RECENT FEEDBACK No feedback yet Ask an agent to create a canvas "
+    },
+    {
+      "view": "specs",
+      "status": 200,
+      "contentLen": 20,
+      "contentEls": 41,
+      "contentHead": "Specs + New Loading…"
+    },
+    {
+      "view": "collections",
+      "status": 200,
+      "contentLen": 133,
+      "contentEls": 97,
+      "contentHead": "New rowEdit rowNew collectionDefine a typed dataset stored in data.db Collection"
+    },
+    {
+      "view": "pipelines",
+      "status": 200,
+      "contentLen": 0,
+      "contentEls": 6,
+      "contentHead": ""
+    },
+    {
+      "view": "pipelines-board",
+      "status": 200,
+      "contentLen": 74,
+      "contentEls": 5,
+      "contentHead": "Pipeline runs Live board of dispatched jobs. Select a run to see its DAG."
+    },
+    {
+      "view": "dashboard",
+      "status": 200,
+      "contentLen": 51,
+      "contentEls": 16,
+      "contentHead": "SHIP workspace dashboard live Loading dashboard…"
+    },
+    {
+      "view": "theme-studio",
+      "status": 200,
+      "contentLen": 325,
+      "contentEls": 22,
+      "contentHead": "TOKENS Loading tokens… Primary headline Body copy lives in muted-foreground. "
+    },
+    {
+      "view": "setup",
+      "status": 200,
+      "contentLen": 0,
+      "contentEls": 9,
+      "contentHead": ""
+    }
+  ]
+}
