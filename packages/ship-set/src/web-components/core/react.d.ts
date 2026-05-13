@@ -36,7 +36,6 @@ declare module 'react' {
       'ship-label': ShipElement
       'ship-list-tile': ShipElement
       'ship-popover': ShipElement
-      'ship-progress': ShipElement
       'ship-select': ShipElement
       'ship-separator': ShipElement
       'ship-spinner': ShipElement
@@ -63,13 +62,10 @@ declare module 'react' {
 
       // Observability
       'ship-code': ShipElement
-      'ship-copy-button': ShipElement
       'ship-diff': ShipElement
       'ship-json-view': ShipElement
       'ship-markdown': ShipElement
       'ship-table': ShipElement
-      'ship-timeline': ShipElement
-      'ship-timeline-item': ShipElement
       'ship-timestamp': ShipElement
       'ship-tree-view': ShipElement
       'ship-tree-item': ShipElement
@@ -89,11 +85,8 @@ declare module 'react' {
       'ship-breadcrumb-item': ShipElement
       'ship-chip': ShipElement
       'ship-icon': ShipElement
-      'ship-kbd': ShipElement
       'ship-link': ShipElement
-      'ship-metachip': ShipElement
       'ship-skeleton': ShipElement
-      'ship-step-segments': ShipElement
       'ship-toast': ShipElement
       'ship-toast-container': ShipElement
     }
