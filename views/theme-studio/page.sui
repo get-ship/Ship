@@ -1,33 +1,26 @@
-<data name="tokenCatalog" source="ship.themes.tokenCatalog()" live />
-
 <div class="ship-view ship-theme-studio">
 
   <!-- Left: token editor -->
   <aside class="ts-editor">
     <h2>Tokens</h2>
-    {#while-loading of tokenCatalog}
-      <p style="color: var(--muted-foreground); font-size: var(--text-xs)">Loading tokens…</p>
-    {/while-loading}
-    {#if tokenCatalog().kind === 'ok' || tokenEntries().length > 0}
-      {#for entry of tokenEntries() key={entry.name}}
-        <div class="ts-row">
-          <label attr:for={'ts-' + entry.name}>{entry.name}</label>
-          {#if entry.meta.type === 'color'}
-            <span class="ts-swatch" style:background={draftTokens()[entry.name] ?? entry.meta.default}></span>
-          {:else}
-            <span class="ts-swatch" style="background: transparent; border-style: dashed"></span>
-          {/if}
-          <input type="text"
-            attr:id={'ts-' + entry.name}
-            attr:value={draftTokens()[entry.name] ?? entry.meta.default}
-            attr:aria-label={entry.name + ' value'}
-            on:input={(e) => draftTokens.set({ ...draftTokens(), [entry.name]: e.target.value })} />
-          {#if entry.meta.intent}
-            <span class="ts-intent">{entry.meta.intent}</span>
-          {/if}
-        </div>
-      {/for}
-    {/if}
+    {#for entry of tokenEntries() key={entry.name}}
+      <div class="ts-row">
+        <label attr:for={'ts-' + entry.name}>{entry.name}</label>
+        {#if entry.meta.type === 'color'}
+          <span class="ts-swatch" style:background={draftTokens()[entry.name] ?? entry.meta.default}></span>
+        {:else}
+          <span class="ts-swatch" style="background: transparent; border-style: dashed"></span>
+        {/if}
+        <input type="text"
+          attr:id={'ts-' + entry.name}
+          attr:value={draftTokens()[entry.name] ?? entry.meta.default}
+          attr:aria-label={entry.name + ' value'}
+          on:input={(e) => draftTokens.set({ ...draftTokens(), [entry.name]: e.target.value })} />
+        {#if entry.meta.intent}
+          <span class="ts-intent">{entry.meta.intent}</span>
+        {/if}
+      </div>
+    {/for}
   </aside>
 
   <!-- Right top: live preview -->
@@ -57,9 +50,6 @@
 
   <!-- Right bottom: contrast report -->
   <section class="ts-contrast">
-    {#while-loading of contrastReport}
-      <div>Computing contrast…</div>
-    {/while-loading}
     {#if contrastReport().kind === 'ok'}
       <table>
         <thead>
@@ -84,6 +74,11 @@
           {/for}
         </tbody>
       </table>
+    {/if}
+    {#if contrastReport().kind === 'error'}
+      <p style="color: var(--destructive); font-size: var(--text-xs)">
+        Contrast unavailable: {contrastReport().error.message}
+      </p>
     {/if}
   </section>
 
