@@ -27,7 +27,7 @@ interface MountFn {
       ship?: ShipSDK
       module?: unknown
     },
-  ): Promise<{ dispose(): void; element: HTMLElement }>
+  ): Promise<{ dispose(): void; element: HTMLElement; scope: Record<string, unknown> }>
 }
 
 // Single SDK client instance, shared across every mounted view.
@@ -68,7 +68,18 @@ declare global {
       subscribe(namespace: string, handler: (event: { event_type: string; entity: string; timestamp: string; payload: unknown; [k: string]: unknown }) => () => void): () => void
       command(): void
     }
+    /** Devtools surface: scope of the currently-mounted view. Re-published
+     *  on every successful mountRoute and cleared when landing/dispose
+     *  runs. `<sui-devtools-signals>` reads this to render the live tree —
+     *  a corresponding `sui:scope:change` event fires on document so
+     *  consumers can re-anchor without polling. */
+    __suiCurrentScope?: Record<string, unknown> | null
   }
+}
+
+function publishScope(scope: Record<string, unknown> | null): void {
+  window.__suiCurrentScope = scope
+  document.dispatchEvent(new CustomEvent('sui:scope:change', { detail: { scope } }))
 }
 
 interface SuiRuntime {
@@ -121,7 +132,7 @@ function payloadUrl(r: Route): string {
 // latest navigation and become the current handle; otherwise we were
 // superseded mid-flight and immediately dispose ourselves so SSE
 // connections + style elements don't leak.
-let currentHandle: { dispose(): void } | null = null
+let currentHandle: { dispose(): void; scope?: Record<string, unknown> } | null = null
 let latestMountToken = 0
 let currentRoute: Route | null = null
 
@@ -139,6 +150,7 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
     // SUI handle since its bindings reference DOM we're about to wipe.
     currentHandle?.dispose()
     currentHandle = null
+    publishScope(null)
     return showLanding(slot)
   }
 
@@ -195,6 +207,7 @@ async function mountRoute(r: Route, opts: { module?: unknown } = {}): Promise<vo
 
     currentHandle = handle
     currentRoute = r
+    publishScope(handle.scope as unknown as Record<string, unknown>)
     // The new mount has replaced slot.innerHTML, so the previous view's
     // DOM nodes are detached. Run its dispose to close SSE + remove the
     // stale <style> element. Dispose is idempotent.

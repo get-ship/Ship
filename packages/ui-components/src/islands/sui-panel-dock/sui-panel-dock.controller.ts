@@ -3,6 +3,36 @@ import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-panel-dock.sui'
 import { ensureResizePillStyles } from './resize-pill-styles'
 
+// Lazy-load the sui-terminal island bundle. The shell ships <sui-panel-dock>
+// eagerly but not xterm.js — the dock auto-populates an empty terminal slot
+// on first mount so the Terminal tab renders the live engine rather than
+// the empty area users were reporting. Subsequent mounts no-op via the
+// custom-elements registry check + dedup of the inserted script tag.
+const SUI_TERMINAL_BUNDLE = '/_sui/islands/sui-terminal/island.js'
+
+function ensureTerminalLoaded(): void {
+  if (customElements.get('sui-terminal')) return
+  if (document.querySelector('script[data-sui-terminal-island]')) return
+  const s = document.createElement('script')
+  s.type = 'module'
+  s.src = SUI_TERMINAL_BUNDLE
+  s.dataset['suiTerminalIsland'] = '1'
+  document.head.appendChild(s)
+}
+
+function ensureTerminalSlotFilled(host: HTMLElement): void {
+  // If an outer surface already projects a terminal child, defer to it —
+  // index.html / app shells may want to project a real engine elsewhere.
+  const existing = host.querySelector(':scope > [slot="terminal"]')
+  if (existing) return
+  const term = document.createElement('sui-terminal')
+  term.setAttribute('slot', 'terminal')
+  term.setAttribute('fit', '')
+  // Light-DOM child of the dock → projected into <slot name="terminal">.
+  host.appendChild(term)
+  ensureTerminalLoaded()
+}
+
 export interface DockTabDef {
   id: string
   label: string
@@ -87,6 +117,7 @@ export default controller<Scope>({
     const resizeHandle = (scope as unknown as { resizeHandle: () => HTMLElement }).resizeHandle()
 
     ensureResizePillStyles()
+    ensureTerminalSlotFilled(host)
 
     const readStored = (suffix: string): string | null => {
       try { return localStorage.getItem(`${storageKey()}-${suffix}`) }

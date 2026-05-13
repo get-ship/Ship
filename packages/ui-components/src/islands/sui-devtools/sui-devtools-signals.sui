@@ -1,7 +1,10 @@
 <!--
-  <sui-devtools-signals> — SUI port of <ship-devtools-signals>.
-  Live Datastar signal inspector. Polls every 500ms while the tab is active.
-  Read-only: inspects page state via window._ds / document.querySelectorAll.
+  <sui-devtools-signals> — Live tree of the mounted view's scope.
+  Polls window.__suiCurrentScope every 500ms while the tab is active and
+  re-samples on `sui:scope:change`. apps/shell2/src/main.ts publishes the
+  current MountHandle's scope after each successful mountRoute. Framework
+  helpers (`ship`, `route`, `navigate`) are hidden; signal getters are
+  read via `__peek()` so the readout stays out of any ambient observer.
 -->
 
 <style>
@@ -60,7 +63,7 @@
     <sui-empty-state>
       <sui-icon slot="icon" name={filter() ? 'search' : 'radio'}></sui-icon>
       <span slot="title">{filter() ? 'No matches' : 'No signals'}</span>
-      {filter() ? 'No signals match the current filter.' : 'Live events will appear here when actors emit.'}
+      {filter() ? 'No signals match the current filter.' : 'Mount a view — its scope appears here. SUI publishes window.__suiCurrentScope on every navigation.'}
     </sui-empty-state>
   {:else}
     {#for entry of shownEntries() key={entry.key}}
