@@ -36,7 +36,6 @@ declare module 'react' {
       'ship-label': ShipElement
       'ship-list-tile': ShipElement
       'ship-popover': ShipElement
-      'ship-progress': ShipElement
       'ship-select': ShipElement
       'ship-separator': ShipElement
       'ship-spinner': ShipElement
