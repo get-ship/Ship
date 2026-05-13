@@ -108,6 +108,9 @@ export type { BindAwaitOptions } from './await'
 
 export { bindRawHtml } from './raw-html'
 
+export { morph } from './morph'
+export type { MorphOptions } from './morph'
+
 export { resolveSlots, snapshotChildren, slotFilled } from './slot'
 export type { SlotDecl } from './slot'
 

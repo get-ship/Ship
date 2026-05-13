@@ -47,6 +47,20 @@ describe('bindRawHtml', () => {
     expect(el.innerHTML).toContain('onerror')
   })
 
+  it('morph directive routes updates through morph() — preserves identity', () => {
+    const el = document.createElement('div')
+    el.setAttribute('morph', '')
+    document.body.appendChild(el)
+    const sig = signal('<p id="a">first</p>')
+    bindRawHtml(el, () => sig(), [sig])
+    const p = el.querySelector('#a')!
+    expect(p.textContent).toBe('first')
+    sig.set('<p id="a">second</p>')
+    expect(el.querySelector('#a')).toBe(p) // identity preserved
+    expect(p.textContent).toBe('second')
+    el.remove()
+  })
+
   it('script tags are inert via innerHTML (HTML5 spec) but markup survives', () => {
     const el = document.createElement('div')
     const sig = signal('<script>window.__xss=true</script><b>after</b>')
