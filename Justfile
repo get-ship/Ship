@@ -15,10 +15,42 @@ default:
 
 # ── Daily ────────────────────────────────────────────────────────────────────
 
+# One-shot fresh-clone setup. Order matters: gen-types feeds the workspace,
+# ship-set icons feed @ship/set build, both pnpm builds populate the asset
+# trees that shipd's include_str! consumes, and dev-runtime-install copies
+# bun + sui-compiler + bundler.ts into ~/.ship/runtime/.
+[group('daily')]
+bootstrap:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v bun  >/dev/null || { echo "bun not on PATH — install via 'curl -fsSL https://bun.sh/install | bash'" >&2; exit 1; }
+    command -v pnpm >/dev/null || { echo "pnpm not on PATH" >&2; exit 1; }
+    cargo run -p xtask --quiet -- gen-types
+    cargo build -p ship-cli
+    pnpm install
+    pnpm -F @ship/set icons
+    pnpm -F @ship/set build
+    pnpm -F @ship/ui-components build
+    just dev-runtime-install
+    echo "bootstrap complete — 'just dev' to start the daemon"
+
 # Build + stash + start the dev daemon for this worktree.
 [group('daily')]
 dev:
     @scripts/dev/start.sh
+
+# Frontend dev server for shell2 (vite). Proxies /api, /_sui, /sui, /view-host
+# to the daemon — `just dev` must already be running.
+[group('daily')]
+shell2-dev:
+    @scripts/dev/shell2-start.sh
+
+# Force a one-shot rebuild of every asset bundle served by the daemon
+# (sui-runtime, sui-dom, sui-components, islands, ship-elements, views/*).
+# Runs `runtime-assets/bundler.ts --all` against the installed bun toolchain.
+[group('daily')]
+dev-build-all:
+    @bun runtime-assets/bundler.ts --all
 
 # Stop, rebuild, re-stash, start. Use after Rust changes.
 [group('daily')]
