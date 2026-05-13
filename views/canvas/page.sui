@@ -1,5 +1,4 @@
 <data name="canvasList" source="ship.canvas.list()" live />
-<data name="canvasDoc" source="ship.canvas.doc({slug: activeSlug()})" />
 
 <div class="ship-view canvas-workspace">
 
