@@ -115,6 +115,28 @@ fn transition_directive_rejects_unknown_value_shape() {
 }
 
 #[test]
+fn transition_opts_object_literal_passes_scope_bound() {
+    // Regression: scope-bound check used to flag the keys of a
+    // transition opts object literal (`duration`, `axis`, etc.) as
+    // free identifiers. The keys are property names — they don't
+    // reference any outer binding and must be skipped even when the
+    // surrounding scope doesn't declare them.
+    //
+    // `source_path` must be set so `scope_bound::check` actually
+    // runs; without it the check is skipped (synthetic fragments in
+    // unit tests). The path doesn't need to exist on disk — only the
+    // paired-controller lookup reads from the filesystem and a
+    // missing controller is fine.
+    let source = r#"<div transition:slide={{ duration: 180 }}></div>"#;
+    let opts = CompileOpts {
+        mode: CompileMode::View,
+        source_path: Some(PathBuf::from("/nonexistent/_regression.sui")),
+        ..CompileOpts::default()
+    };
+    compile(source, opts).expect("transition opts object literal must compile");
+}
+
+#[test]
 fn transition_directive_custom_name_resolves_via_scope() {
     let source = r#"
 <div transition:myfx={{ duration: 100 }}></div>
