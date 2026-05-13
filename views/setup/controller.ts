@@ -8,9 +8,13 @@ export default controller<Scope>({
     wsName: signal(''),
     wsPath: signal(''),
     wsError: signal(''),
+    wsCreating: signal(false),
     provider: signal(''),
     apiKey: signal(''),
     providerTestOk: signal(false),
+    providerTesting: signal(false),
+    providerTestError: signal(''),
+    settingsSaving: signal(false),
   }),
   on: {
     onWsModeChange: (s, e: Event) => {
@@ -20,7 +24,25 @@ export default controller<Scope>({
     },
     onWsMutationError: (s, e: Event) => {
       const detail = (e as CustomEvent).detail
-      s.wsError = detail?.message ?? 'Could not create workspace'
+      s.wsError = detail?.message ?? detail?.error?.message ?? 'Could not create workspace'
+      s.wsCreating = false
     },
+    onWsSubmit: (s) => { s.wsCreating = true; s.wsError = '' },
+    onWsSuccess: (s) => { s.wsCreating = false; s.step = 3; s.wsError = '' },
+    onProviderTestSubmit: (s) => { s.providerTesting = true; s.providerTestError = '' },
+    onProviderTestSuccess: (s) => {
+      s.providerTesting = false
+      s.providerTestOk = true
+      s.providerTestError = ''
+    },
+    onProviderTestError: (s, e: Event) => {
+      const detail = (e as CustomEvent).detail
+      s.providerTesting = false
+      s.providerTestOk = false
+      s.providerTestError = detail?.error?.message ?? 'Connection failed'
+    },
+    onSettingsSubmit: (s) => { s.settingsSaving = true },
+    onSettingsSuccess: (s) => { s.settingsSaving = false; s.step = 4 },
+    onSettingsError: (s) => { s.settingsSaving = false },
   },
 })
