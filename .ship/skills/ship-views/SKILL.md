@@ -320,6 +320,29 @@ The boundary fires `sui-error-boundary:caught` (bubbling, composed) with
 'unknown'`. Nest boundaries to scope recovery — the innermost catches
 first, mirroring React.
 
+## Portal
+
+Use `<sui-portal target="body">` to teleport its slotted content into a
+different DOM location (typically `document.body`) for stacking-context
+escape — modals, dropdowns, popovers, toasts. The portal element stays
+the logical parent, so reactive bindings inside continue to fire and
+events bubble through the original DOM ancestry, not the target's.
+
+```html
+<sui-popover-trigger>Open</sui-popover-trigger>
+<sui-portal target="body">
+  <sui-popover-panel>Floating content</sui-popover-panel>
+</sui-portal>
+```
+
+`target` is a CSS selector resolved against `document`; the default is
+`body`. Common alternatives: `#modal-root`, `[data-portal-root]`. A
+missing target warns to the console and leaves children in place
+(graceful degradation). Multiple portals targeting the same selector
+append in registration order — z-index ordering remains the author's
+job. Teleported nodes are removed from the target when the portal
+itself unmounts.
+
 ## References
 
 | When you need | Read |
