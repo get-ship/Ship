@@ -252,19 +252,31 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
       if (lisMaskBuf[j]) stable.add(matched[2 * j]!)
     }
 
-    // 4. Place all records. Stable records advance the cursor without any
-    //    DOM mutation. Unstable / new records are moved via insertBefore.
+    // 4. Place all records. Fast path: when the previous render was
+    //    empty every record is new and goes after the anchor in order —
+    //    batch into a DocumentFragment so the parent sees one mutation
+    //    instead of N. Custom elements still upgrade and receive
+    //    connectedCallback when the fragment lands in the live tree.
     const parent = anchor.parentNode
-    let cursor: Node = anchor
-    for (let i = 0; i < nextRecords.length; i++) {
-      if (!parent) break
-      const record = nextRecords[i]!
-      if (stable.has(i)) {
-        cursor = record.nodes[record.nodes.length - 1] ?? cursor
-      } else {
-        for (const node of record.nodes) {
-          parent.insertBefore(node, cursor.nextSibling)
-          cursor = node
+    if (parent && prev.length === 0 && nextRecords.length > 0) {
+      const frag = document.createDocumentFragment()
+      for (let i = 0; i < nextRecords.length; i++) {
+        const nodes = nextRecords[i]!.nodes
+        for (let j = 0; j < nodes.length; j++) frag.appendChild(nodes[j]!)
+      }
+      parent.insertBefore(frag, anchor.nextSibling)
+    } else {
+      let cursor: Node = anchor
+      for (let i = 0; i < nextRecords.length; i++) {
+        if (!parent) break
+        const record = nextRecords[i]!
+        if (stable.has(i)) {
+          cursor = record.nodes[record.nodes.length - 1] ?? cursor
+        } else {
+          for (const node of record.nodes) {
+            parent.insertBefore(node, cursor.nextSibling)
+            cursor = node
+          }
         }
       }
     }
