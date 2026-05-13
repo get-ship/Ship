@@ -1,4 +1,4 @@
-import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 const DRAFT_DEFAULTS: Record<string, string> = {
@@ -18,7 +18,7 @@ const DRAFT_DEFAULTS: Record<string, string> = {
 }
 
 export default controller<Scope>({
-  scope: ({ tokenCatalog }) => {
+  scope: ({ ship, tokenCatalog }) => {
     const draftTokens = signal<Record<string, string>>({ ...DRAFT_DEFAULTS })
 
     const tokenEntries = derived(() => {
@@ -38,6 +38,21 @@ export default controller<Scope>({
         .join('; ')
     )
 
-    return { draftTokens, tokenEntries, draftStyle }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = ship as any
+    const contrastReport = live(() => s.themes.contrast({ tokens: draftTokens() }))
+
+    const contrastRows = derived(() => {
+      const env = contrastReport()
+      if (env.kind !== 'ok') return []
+      const pairs = (env.value as { pairs?: unknown[] })?.pairs ?? []
+      return (pairs as Array<Record<string, unknown>>).map((p) => ({
+        ...p,
+        ratioStr: typeof p.ratio === 'number' ? (p.ratio as number).toFixed(2) : '—',
+        minStr: typeof p.required_min === 'number' ? (p.required_min as number).toFixed(2) : '—',
+      }))
+    })
+
+    return { draftTokens, tokenEntries, draftStyle, contrastReport, contrastRows }
   },
 })

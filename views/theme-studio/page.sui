@@ -1,5 +1,4 @@
 <data name="tokenCatalog" source="ship.themes.tokenCatalog()" />
-<data name="contrastReport" source="ship.themes.contrast({tokens: $scope.draftTokens()})" />
 
 <div class="ship-view ship-theme-studio">
 
@@ -22,7 +21,7 @@
             attr:id={'ts-' + entry.name}
             attr:value={draftTokens()[entry.name] ?? entry.meta.default}
             attr:aria-label={entry.name + ' value'}
-            on:input={(e) => draftTokens.set({ ...draftTokens(), [entry.name]: (e.target as HTMLInputElement).value })} />
+            on:input={(e) => draftTokens.set({ ...draftTokens(), [entry.name]: e.target.value })} />
           {#if entry.meta.intent}
             <span class="ts-intent">{entry.meta.intent}</span>
           {/if}
@@ -69,11 +68,11 @@
           </tr>
         </thead>
         <tbody>
-          {#for p of (contrastReport().value?.pairs ?? []) key={p.label}}
+          {#for p of contrastRows() key={p.label}}
             <tr>
               <td>{p.label} ({p.foreground}/{p.background})</td>
-              <td>{p.ratio ? (p.ratio as number).toFixed(2) : '—'}</td>
-              <td>{(p.required_min as number).toFixed(2)}</td>
+              <td>{p.ratioStr}</td>
+              <td>{p.minStr}</td>
               <td>{p.aa_body === true ? '✓' : p.aa_body === false ? '✗' : '?'}</td>
               <td>{p.aaa_body === true ? '✓' : p.aaa_body === false ? '✗' : '?'}</td>
               <td>
