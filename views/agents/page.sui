@@ -68,11 +68,28 @@
                 {/if}
                 <div class="agents-card-badges">
                   <sui-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{a.source}</sui-badge>
-                  {#if a.active}
-                    <sui-chip tone="primary" variant="soft" size="sm">
-                      <sui-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></sui-status-dot>
-                      active session
+                  {#if agentStatus()[a.id]}
+                    <sui-chip
+                        tone={agentStatus()[a.id] === 'errored' ? 'destructive' : agentStatus()[a.id] === 'completed' ? 'success' : 'primary'}
+                        variant="soft"
+                        size="sm"
+                        data-test="live-status"
+                        attr:data-status={agentStatus()[a.id]}>
+                      <sui-status-dot
+                          slot="leading"
+                          tone={agentStatus()[a.id] === 'errored' ? 'destructive' : agentStatus()[a.id] === 'completed' ? 'success' : 'primary'}
+                          size="sm"
+                          attr:pulse={agentStatus()[a.id] === 'running' ? '' : null}
+                          label={agentStatus()[a.id]}></sui-status-dot>
+                      {agentStatus()[a.id]}
                     </sui-chip>
+                  {:else}
+                    {#if a.active}
+                      <sui-chip tone="primary" variant="soft" size="sm">
+                        <sui-status-dot slot="leading" tone="primary" size="sm" pulse label="Active session"></sui-status-dot>
+                        active session
+                      </sui-chip>
+                    {/if}
                   {/if}
                   {#for t of (a.tags || []).slice(0, 2)}
                     <sui-chip tone="muted" variant="soft" size="sm">{t}</sui-chip>

@@ -9,6 +9,22 @@
       </span>
     {/if}
     <span class="ov-sep"></span>
+    <span class="ov-summary" data-test="live-summary" aria-live="polite">
+      <span class="ov-summary-item" data-test="live-sessions" title="Sessions with a session.started not followed by session.ended in the most recent 50 events.">
+        <span class="ov-summary-dot" data-tone={activeSessions() > 0 ? 'on' : 'off'}></span>
+        <strong>{activeSessions()}</strong>
+        <span>active session{activeSessions() === 1 ? '' : 's'}</span>
+      </span>
+      <span class="ov-summary-item" data-test="live-agents" title="Agents with an agent.started not followed by agent.completed/error in the most recent 50 events.">
+        <span class="ov-summary-dot" data-tone={runningAgents() > 0 ? 'on' : 'off'}></span>
+        <strong>{runningAgents()}</strong>
+        <span>running agent{runningAgents() === 1 ? '' : 's'}</span>
+      </span>
+      <span class="ov-summary-item" data-test="live-last-event" title="Most recent kernel event observed by the live summary band.">
+        <span>{lastEventLabel()}</span>
+      </span>
+    </span>
+    <span class="ov-sep"></span>
     <ship-input size="sm" placeholder="Search…" style="width:180px;"
       bind:value={search}></ship-input>
     <span class="ov-sep"></span>

@@ -10,6 +10,44 @@
 .overview-toolbar .ov-group { display: flex; gap: var(--space-1); align-items: center; }
 .overview-toolbar .ov-sep { width: 1px; height: 20px; background: var(--border); margin: 0 var(--space-1); }
 
+.ov-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+.ov-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+.ov-summary-item strong {
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+}
+.ov-summary-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--muted-foreground);
+  opacity: 0.6;
+}
+.ov-summary-dot[data-tone='on'] {
+  background: var(--primary);
+  opacity: 1;
+  box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 25%, transparent);
+  animation: ov-pulse 1.4s ease-in-out infinite;
+}
+@keyframes ov-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ov-summary-dot[data-tone='on'] { animation: none; }
+}
+
 .overview-canvas-wrap {
   position: relative; flex: 1; overflow: hidden; min-height: 400px;
   background: var(--muted);
