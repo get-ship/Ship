@@ -1,7 +1,10 @@
 <!--
-  <sui-devtools-components> — SUI port of <ship-devtools-components>.
-  Browsable catalog of ship-elements from /api/assets/custom-elements.json (CEM).
-  Read-only. Supports filter + copy-to-clipboard snippet.
+  <sui-devtools-components> — SUI inventory browser.
+  Reads /api/assets/sui-custom-elements.json (CEM emitted by sui-build for
+  packages/ui-components/src/sui-*) and renders an attribute/slot reference
+  with a copy-to-clipboard snippet. Read-only. The legacy lit `<ship-*>`
+  catalog at /api/assets/custom-elements.json is intentionally NOT shown
+  here — apps/shell (j2) keeps that surface.
 -->
 
 <style>
@@ -93,8 +96,9 @@
   {#if entries().length === 0}
     <sui-empty-state>
       <sui-icon slot="icon" name="package"></sui-icon>
-      <span slot="title">Loading components…</span>
-      Fetching the component catalog from the daemon.
+      <span slot="title">Loading sui-* components…</span>
+      Fetching the SUI inventory from /api/assets/sui-custom-elements.json.
+      Empty after load means sui-build hasn't emitted a CEM yet — run `just build`.
     </sui-empty-state>
   {:else if shown().length === 0}
     <sui-empty-state>

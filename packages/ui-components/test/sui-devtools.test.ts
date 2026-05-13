@@ -137,7 +137,7 @@ describe('<sui-devtools-components>', () => {
     globalThis.fetch = fetchSpy
     const { el } = mount(reg, 'sui-devtools-components')
     await flush()
-    expect(body(el).innerHTML).toContain('Loading components')
+    expect(body(el).innerHTML).toContain('Loading sui-* components')
     resolve({ ok: true, json: () => Promise.resolve({ modules: [] }) })
     globalThis.fetch = origFetch
   })
@@ -189,6 +189,19 @@ describe('<sui-devtools-components>', () => {
     const { el } = mount(reg, 'sui-devtools-components')
     await flush()
     expect(typeof (el as unknown as { refresh?: unknown }).refresh).toBe('function')
+  })
+
+  it('fetches the SUI inventory (sui-custom-elements.json), not the legacy lit CEM', async () => {
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({ modules: [] }) })
+    const origFetch = globalThis.fetch
+    globalThis.fetch = fetchSpy
+    mount(reg, 'sui-devtools-components')
+    await flush(); await flush()
+    expect(fetchSpy).toHaveBeenCalled()
+    const calledUrl = String(fetchSpy.mock.calls[0]?.[0] ?? '')
+    expect(calledUrl).toContain('/api/assets/sui-custom-elements.json')
+    expect(calledUrl).not.toBe('/api/assets/custom-elements.json')
+    globalThis.fetch = origFetch
   })
 })
 
@@ -313,13 +326,21 @@ describe('<sui-devtools-signals>', () => {
   })
 
   it('filter input narrows shown signals', async () => {
-    // Inject synthetic signals into _ds
-    ;(document as unknown as { _ds: unknown })._ds = {
-      signals: { foo: { value: 'bar' }, baz: { value: 42 } },
+    // The signals tree reads window.__suiCurrentScope. Stub a scope with
+    // two signal getters (matching the runtime's Signal shape — callable
+    // plus `__peek()`) so the controller surfaces them as live entries.
+    type FakeSig<T> = (() => T) & { __peek: () => T }
+    const mk = <T>(v: T): FakeSig<T> => {
+      const s = (() => v) as FakeSig<T>
+      s.__peek = () => v
+      return s
+    }
+    ;(window as unknown as { __suiCurrentScope: Record<string, unknown> }).__suiCurrentScope = {
+      foo: mk('bar'),
+      baz: mk(42),
     }
     const { el } = mount(reg, 'sui-devtools-signals')
     await flush()
-    // Force a sample via refresh
     ;(el as unknown as { refresh(): void }).refresh()
     await flush()
     const input = toolbar(el).querySelector<HTMLInputElement>('input')!
@@ -328,6 +349,6 @@ describe('<sui-devtools-signals>', () => {
     await flush()
     expect(body(el).innerHTML).toContain('foo')
     expect(body(el).innerHTML).not.toContain('baz')
-    ;(document as unknown as { _ds: unknown })._ds = undefined
+    ;(window as unknown as { __suiCurrentScope: unknown }).__suiCurrentScope = null
   })
 })
