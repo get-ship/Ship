@@ -41,17 +41,23 @@ describe('<sui-rail>', () => {
     expect(customElements.get('sui-rail')).toBeDefined()
   })
 
-  it('renders nav, footer, toggle, project-badge, launcher, create, mission-control parts', async () => {
+  it('renders nav, footer, project-badge, launcher, create, mission-control parts', async () => {
     const { el } = mount(reg, 'sui-rail')
     await flush()
     const s = shadow(el)
     expect(s.querySelector('[part~="nav"]')).not.toBeNull()
     expect(s.querySelector('[part~="footer"]')).not.toBeNull()
-    expect(s.querySelector('[part~="toggle"]')).not.toBeNull()
     expect(s.querySelector('[part~="project-badge"]')).not.toBeNull()
     expect(s.querySelector('[part~="launcher-btn"]')).not.toBeNull()
     expect(s.querySelector('[part~="create-btn"]')).not.toBeNull()
     expect(s.querySelector('[part~="mission-control"]')).not.toBeNull()
+  })
+
+  it('has no arrow toggle button — toggle is owned by the top-nav menu', async () => {
+    const { el } = mount(reg, 'sui-rail')
+    await flush()
+    expect(shadow(el).querySelector('[part~="toggle"]')).toBeNull()
+    expect(shadow(el).querySelector('.toggle-btn')).toBeNull()
   })
 
   it('collapsed=false by default — attribute absent', () => {
@@ -62,31 +68,6 @@ describe('<sui-rail>', () => {
   it('reflects [collapsed] attribute when set', () => {
     const { el } = mount(reg, 'sui-rail', { collapsed: true })
     expect(el.hasAttribute('collapsed')).toBe(true)
-  })
-
-  it('toggle button click flips collapsed and dispatches sui-rail:toggle', async () => {
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    const events: CustomEvent[] = []
-    el.addEventListener('sui-rail:toggle', (e) => events.push(e as CustomEvent))
-
-    const btn = shadow(el).querySelector<HTMLButtonElement>('.toggle-btn')!
-    btn.click()
-    await flush()
-
-    expect(el.hasAttribute('collapsed')).toBe(true)
-    expect(events).toHaveLength(1)
-    expect(events[0].detail.collapsed).toBe(true)
-  })
-
-  it('toggle button aria-label changes with collapsed state', async () => {
-    const { el } = mount(reg, 'sui-rail')
-    await flush()
-    const btn = shadow(el).querySelector<HTMLButtonElement>('.toggle-btn')!
-    expect(btn.getAttribute('aria-label')).toBe('Hide rail')
-    btn.click()
-    await flush()
-    expect(btn.getAttribute('aria-label')).toBe('Show rail')
   })
 
   it('has a default slot for child items', () => {
@@ -298,6 +279,13 @@ describe('<sui-rail-item>', () => {
     await flush()
     const labelEl = shadow(el).querySelector('.label')!
     expect(labelEl.textContent?.trim()).toBe('Agents')
+  })
+
+  it('sets the native title tooltip from label', async () => {
+    const { el } = mount(reg, 'sui-rail-item', { label: 'Agents', icon: 'bot', href: '/agents' })
+    await flush()
+    const a = shadow(el).querySelector<HTMLAnchorElement>('a.item')!
+    expect(a.getAttribute('title')).toBe('Agents')
   })
 
   it('passes icon name to sui-icon', () => {

@@ -52,12 +52,6 @@ function initShipApi(): void {
       }))
     },
     subscribe: kernelBridge.subscribe.bind(kernelBridge),
-    chat: {
-      open() { document.dispatchEvent(new CustomEvent('sui:chat:toggle', { bubbles: true })) },
-      send(message: string) {
-        document.dispatchEvent(new CustomEvent('sui:chat:send', { detail: { message }, bubbles: true }))
-      },
-    },
     command() {
       document.dispatchEvent(new CustomEvent('ship:bar:open', { bubbles: true }))
     },
@@ -72,10 +66,6 @@ declare global {
       current(): { path: string }
       notify(message: string, tone?: 'success' | 'warning' | 'error' | 'info'): void
       subscribe(namespace: string, handler: (event: { event_type: string; entity: string; timestamp: string; payload: unknown; [k: string]: unknown }) => () => void): () => void
-      chat: {
-        open(): void
-        send(message: string): void
-      }
       command(): void
     }
   }
@@ -105,9 +95,14 @@ interface Route {
   sub?: string
 }
 
+// Empty path → dashboard. Matches j2 shell's convention where the
+// dashboard rail item links to `/` and the daemon serves the dashboard
+// view at the root. Without this, clicking the Dashboard rail item
+// (href="/") fell through onAnchorClick's null guard, triggering a full
+// page reload instead of an in-app navigation.
 function readRoute(): Route | null {
   const segs = location.pathname.split('/').filter(Boolean)
-  if (segs.length === 0) return null
+  if (segs.length === 0) return { view: 'dashboard' }
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
@@ -262,25 +257,30 @@ function onAnchorClick(e: MouseEvent): void {
   const next = readRouteFromUrl(a.pathname)
   if (!next) return
   e.preventDefault()
-  const path = routeToPath(next)
-  if (currentRoute && path === routeToPath(currentRoute)) return
-  history.pushState({}, '', path)
+  // Preserve the anchor's own pathname for the URL (so `href="/"` stays
+  // as `/` and survives a reload), while resolving the route to a view
+  // name for the SUI mount call.
+  const urlPath = a.pathname || '/'
+  const sameView = currentRoute && currentRoute.view === next.view && (currentRoute.sub ?? '') === (next.sub ?? '')
+  if (sameView) return
+  history.pushState({}, '', urlPath + a.search + a.hash)
   void mountRoute(next)
 }
 
 function readRouteFromUrl(pathname: string): Route | null {
   const segs = pathname.split('/').filter(Boolean)
-  if (segs.length === 0) return null
+  if (segs.length === 0) return { view: 'dashboard' }
   return { view: segs[0]!, ...(segs.length > 1 ? { sub: segs.slice(1).join('/') } : {}) }
 }
 
-// ── Rail collapse persistence ────────────────────────────────────────
+// ── Rail visibility persistence ──────────────────────────────────────
 //
-// Default behavior matches apps/shell: rail starts COLLAPSED (icon-only),
-// expands when the user opens it, persists via the same `ship-rail-open`
-// key so users who flip back and forth between shell + shell2 see the
-// same state. Pre-fix shell2 used its own inverted key
-// `ship-rail-collapsed` with the opposite default — port mismatch.
+// Two states only: visible (icon-only, 48px wide) or hidden (display:none).
+// The arrow toggle on the rail was removed — the top-nav menu button
+// dispatches `sui:rail:toggle` on document; this listener flips the
+// `[collapsed]` attribute on the rail. Persisted under `ship-rail-open`:
+// presence of the key means "visible". Default is visible on first load
+// so users see the nav before being asked to discover the menu button.
 
 const RAIL_OPEN_KEY = 'ship-rail-open'
 
@@ -288,23 +288,19 @@ function initRail(): void {
   const rail = document.getElementById('ship-rail')
   if (!rail) return
 
-  // Restore persisted state before first paint. Default: collapsed.
-  // The rail expands only when the user has explicitly opened it.
-  let open = false
+  // Default to visible. Users who explicitly hide the rail get an
+  // explicit `0` written (we don't rely on key-absence-as-default since
+  // that fights the "default visible" intent).
+  let open = true
   try {
-    open = !!localStorage.getItem(RAIL_OPEN_KEY)
+    const v = localStorage.getItem(RAIL_OPEN_KEY)
+    if (v === '0') open = false
   } catch { /* best-effort */ }
   applyRail(rail, open)
 
-  // sui-rail:toggle — fired by the rail's own collapse button
-  rail.addEventListener('sui-rail:toggle', (e: Event) => {
-    const collapsed = (e as CustomEvent<{ collapsed: boolean }>).detail?.collapsed
-    persistRailOpen(!collapsed)
-  })
-
   // sui:rail:toggle — fired by sui-nav-top's menu button (toggle request)
   document.addEventListener('sui:rail:toggle', () => {
-    const nextOpen = rail.hasAttribute('collapsed') // currently collapsed → open it
+    const nextOpen = rail.hasAttribute('collapsed') // currently hidden → show it
     applyRail(rail, nextOpen)
     persistRailOpen(nextOpen)
   })
@@ -314,18 +310,17 @@ function applyRail(rail: HTMLElement, open: boolean): void {
   if (open) {
     rail.removeAttribute('collapsed')
     document.body.classList.add('rail-open')
-    document.body.classList.remove('rail-collapsed')
+    document.body.classList.remove('rail-hidden')
   } else {
     rail.setAttribute('collapsed', '')
     document.body.classList.remove('rail-open')
-    document.body.classList.add('rail-collapsed')
+    document.body.classList.add('rail-hidden')
   }
 }
 
 function persistRailOpen(open: boolean): void {
   try {
-    if (open) localStorage.setItem(RAIL_OPEN_KEY, '1')
-    else localStorage.removeItem(RAIL_OPEN_KEY)
+    localStorage.setItem(RAIL_OPEN_KEY, open ? '1' : '0')
   } catch { /* best-effort */ }
 }
 
@@ -501,15 +496,33 @@ document.addEventListener('keydown', (e: KeyboardEvent) => {
 // Wire close event from dock.
 document.addEventListener('sui:dock:close', () => getDock()?.hide(), true)
 
-// ── Event bridges ────────────────────────────────────────────────────
+// ── Chrome event wiring ─────────────────────────────────────────────
 //
-// Reflect chrome component state into body classes so layout.css rules
-// (and any third-party CSS) can key off predictable class names.
+// Bridges component-dispatched events from <sui-nav-top> and <sui-rail>
+// to the corresponding chrome elements that already live in the shell.
+// Without these, clicking the menu / CLI / launcher / "+" buttons fired
+// the event but no surface listened (pre-fix shell2 had no plumbing).
 
-// sui-rail:toggle → body.rail-collapsed
-document.addEventListener('sui-rail:toggle', (e: Event) => {
-  const collapsed = (e as CustomEvent<{ collapsed: boolean }>).detail?.collapsed
-  document.body.classList.toggle('rail-collapsed', collapsed)
+// Top-nav CLI / debug-panel button → toggle the panel-dock. The dock's
+// `toggle()` method flips `body.dock-open`, which layout.css uses to
+// reveal the dock surface.
+document.addEventListener('sui:dock:toggle', () => getDock()?.toggle())
+
+// Rail launcher button → open <sui-launcher>. The launcher listens for
+// `sui:launcher:open` on document; the rail dispatches the legacy
+// `ship:launcher:open` for parity with apps/shell wiring. Bridge so
+// both names work without forcing the rail to know about the SUI
+// island's listener name.
+document.addEventListener('ship:launcher:open', () => {
+  document.dispatchEvent(new CustomEvent('sui:launcher:open', { bubbles: true }))
+})
+
+// Rail "+" button → open the command bar in create mode. Parity with
+// apps/shell where ship-command-bar listens for `ship:create:open` and
+// calls openBar('create'). In shell2 the bar is `<sui-command-bar>`,
+// which exposes the same imperative surface (`show(mode)`).
+document.addEventListener('ship:create:open', () => {
+  getCommandBar()?.show('create')
 })
 
 document.addEventListener('click', onAnchorClick)
