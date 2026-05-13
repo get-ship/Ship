@@ -434,6 +434,146 @@ describe('bindFor — duplicate keys', () => {
   })
 })
 
+describe('bindFor — first-render fragment batching', () => {
+  it('uses a single parent mutation for initial 100-row render', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+    const items = Array.from({ length: 100 }, (_, i) => ({ id: String(i) }))
+
+    const obs = new MutationObserver(() => {})
+    obs.observe(root, { childList: true })
+
+    bindFor({
+      anchor,
+      items: () => items,
+      key: (it) => it.id,
+      render: (it) => {
+        const li = document.createElement('li')
+        li.id = `item-${it.id}`
+        return { nodes: [li] }
+      },
+    })
+
+    const records = obs.takeRecords()
+    obs.disconnect()
+    expect(records.length).toBe(1)
+    expect(records[0]!.addedNodes.length).toBe(100)
+    expect(root.querySelectorAll('li').length).toBe(100)
+  })
+
+  it('uses a single parent mutation when growing from 0 → 100 rows', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+    const $list = signal<Item[]>([])
+    bindForSignal(anchor, $list, (it) => it.id, (it) => {
+      const li = document.createElement('li')
+      li.id = `item-${it.id}`
+      li.textContent = it.label
+      return { nodes: [li] }
+    })
+
+    const obs = new MutationObserver(() => {})
+    obs.observe(root, { childList: true })
+    $list.set(Array.from({ length: 100 }, (_, i) => ({ id: String(i), label: `${i}` })))
+    const records = obs.takeRecords()
+    obs.disconnect()
+
+    expect(records.length).toBe(1)
+    expect(records[0]!.addedNodes.length).toBe(100)
+    expect(root.querySelectorAll('li').length).toBe(100)
+  })
+
+  it('produces identical DOM to per-row appendChild', () => {
+    // Behavioural equivalence: order, attributes, text — all match.
+    const items = Array.from({ length: 25 }, (_, i) => ({ id: `k${i}`, label: `L${i}` }))
+    const { root, ids } = setup(items)
+    expect(ids()).toEqual(items.map((i) => i.id))
+    expect(Array.from(root.querySelectorAll('li')).map((el) => el.textContent))
+      .toEqual(items.map((i) => i.label))
+  })
+
+  it('multi-node rows batch into a single parent mutation on first render', () => {
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+    const items = Array.from({ length: 20 }, (_, i) => ({ id: String(i) }))
+
+    const obs = new MutationObserver(() => {})
+    obs.observe(root, { childList: true })
+
+    bindFor({
+      anchor,
+      items: () => items,
+      key: (it) => it.id,
+      render: (it) => {
+        const a = document.createElement('span')
+        a.className = `r${it.id}-a`
+        const b = document.createElement('span')
+        b.className = `r${it.id}-b`
+        return { nodes: [a, b] }
+      },
+    })
+
+    const records = obs.takeRecords()
+    obs.disconnect()
+    expect(records.length).toBe(1)
+    expect(records[0]!.addedNodes.length).toBe(40) // 20 rows × 2 nodes
+    expect(root.querySelectorAll('span').length).toBe(40)
+  })
+
+  it('custom elements upgrade and receive connectedCallback inside the fragment batch', () => {
+    let connectedCount = 0
+    const tag = 'sui-frag-batch-test-el'
+    if (!customElements.get(tag)) {
+      customElements.define(tag, class extends HTMLElement {
+        connectedCallback() { connectedCount++ }
+      })
+    }
+
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+    const items = Array.from({ length: 10 }, (_, i) => ({ id: String(i) }))
+
+    bindFor({
+      anchor,
+      items: () => items,
+      key: (it) => it.id,
+      render: (it) => {
+        const li = document.createElement('li')
+        li.id = `item-${it.id}`
+        const el = document.createElement(tag)
+        li.appendChild(el)
+        return { nodes: [li] }
+      },
+    })
+
+    expect(root.querySelectorAll(tag).length).toBe(10)
+    expect(connectedCount).toBe(10)
+    root.querySelectorAll(tag).forEach((el) => {
+      expect((el as HTMLElement).isConnected).toBe(true)
+    })
+  })
+
+  it('falls back to per-row insertBefore when prev is non-empty', () => {
+    // Update path is unchanged: append after initial render still uses
+    // the cursor loop (verified indirectly by the LIS minimality tests).
+    const { $list, ids } = setup([{ id: 'a', label: 'A' }])
+    $list.set([
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+      { id: 'c', label: 'C' },
+    ])
+    expect(ids()).toEqual(['a', 'b', 'c'])
+  })
+})
+
 describe('bindFor — LIS minimality', () => {
   // Count insertBefore calls during a signal update by spying on Element.prototype.
   // The spy is installed AFTER initial render so we only count moves from the update.
