@@ -2,7 +2,7 @@
 
   <!-- Toolbar -->
   <div class="overview-toolbar">
-    <strong style="font-family: var(--font-display)">Overview</strong>
+    <h1 class="ov-title">Overview</h1>
     {#if systems().kind === 'ok'}
       <span style="color:var(--muted-foreground); font-size: var(--text-xs)">
         {systems().value.items.length} system{systems().value.items.length === 1 ? '' : 's'}

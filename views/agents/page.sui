@@ -15,11 +15,25 @@
     </header>
 
     {#while-loading of agents}
-      <p class="loading-copy" data-test="loading">Loading agents&hellip;</p>
+      <div class="agents-grid" data-test="loading" aria-label="Loading agents">
+        {#for n of [0,1,2,3,4,5] key={n}}
+          <div class="agents-skel-card" aria-hidden="true">
+            <sui-skeleton shape="block" size="md" class="agents-skel-icon"></sui-skeleton>
+            <div class="agents-skel-body">
+              <sui-skeleton shape="line" size="md" style="width:70%"></sui-skeleton>
+              <sui-skeleton shape="line" size="sm" style="width:95%"></sui-skeleton>
+              <sui-skeleton shape="line" size="sm" style="width:55%"></sui-skeleton>
+            </div>
+          </div>
+        {/for}
+      </div>
     {/while-loading}
 
     {#while-error err of agents}
-      <p class="loading-copy" data-test="error">Error loading agents: {err.message}</p>
+      <sui-error-state title="Couldn't load agents" data-test="error">
+        {err.message}
+        <sui-button slot="action" tone="primary" variant="solid" on:click={() => window.location.reload()}>Retry</sui-button>
+      </sui-error-state>
     {/while-error}
 
     {#if agents().kind === 'ok'}

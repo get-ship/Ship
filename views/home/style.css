@@ -12,11 +12,12 @@
   background: var(--background-elevated, #fff);
 }
 
-.home .counter button {
-  font: inherit;
-  margin-top: 0.75rem;
-  padding: 0.4rem 0.9rem;
-  cursor: pointer;
+.home .counter sui-button { margin-top: 0.75rem; }
+
+.home .home-live-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
 }
 
 .home p.caption {

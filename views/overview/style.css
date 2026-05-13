@@ -1,5 +1,14 @@
 .overview-root { height: 100%; display: flex; flex-direction: column; }
 
+.ov-title {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: var(--font-weight-semibold);
+  margin: 0;
+  color: var(--foreground);
+  line-height: 1;
+}
+
 .overview-toolbar {
   display: flex; align-items: center; gap: var(--space-2);
   padding: var(--space-2) var(--space-3);

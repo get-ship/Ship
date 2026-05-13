@@ -287,12 +287,16 @@ export default controller<Scope>({
       tx = pad - minX * scale; ty = pad - minY * scale; applyTransform()
     }
 
-    document.addEventListener('keydown', e => { if (e.key === 'Escape') state.drawerOpen.set(false) })
+    const onKeydown = (e: KeyboardEvent) => { if (e.key === 'Escape') state.drawerOpen.set(false) }
+    document.addEventListener('keydown', onKeydown)
+    ;(state as { _ovKeydown?: (e: KeyboardEvent) => void })._ovKeydown = onKeydown
     drawEdges()
     requestAnimationFrame(() => (window as Window & { __ovFit?: () => void }).__ovFit?.())
   },
 
-  unmount: () => {
+  unmount: (state) => {
     delete (window as Window & { __ovFit?: () => void }).__ovFit
+    const fn = (state as { _ovKeydown?: (e: KeyboardEvent) => void })._ovKeydown
+    if (fn) document.removeEventListener('keydown', fn)
   },
 })
