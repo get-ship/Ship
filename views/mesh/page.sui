@@ -35,7 +35,7 @@
             <tr><th></th><th>Kind</th><th>Name</th><th>Provider</th><th>Workspace</th><th>Pid</th><th>Last activity</th></tr>
           </thead>
           <tbody>
-            {#for a of snap().value.actors key={a.actor_id}}
+            {#for a of actorsFormatted() key={a.actor_id}}
               <tr>
                 <td><span class="dot dot-live"></span></td>
                 <td><span class="mesh-badge">{a.kind}</span></td>
@@ -49,7 +49,7 @@
                 <td>{a.provider || '—'}{a.transport ? ' · ' + a.transport : ''}</td>
                 <td>{a.workspace_id || '—'}</td>
                 <td class="mesh-pid">{a.pid || '—'}</td>
-                <td class="mesh-ts">{(a.last_event_at || '—').slice(0, 19).replace('T', ' ')}</td>
+                <td class="mesh-ts">{a.last_event_at_pretty}</td>
               </tr>
             {/for}
           </tbody>
