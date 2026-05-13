@@ -153,4 +153,60 @@ describe('<sui-nav-top>', () => {
     const btn = shadow(el).querySelector('[part~="dock-toggle"]')!
     expect(btn.hasAttribute('aria-pressed')).toBe(true)
   })
+
+  it('chat-toggle uses the message-square-plus lucide icon (ship-nav-top parity)', async () => {
+    const { el } = mount(reg, 'sui-nav-top')
+    await flush()
+    const btn = shadow(el).querySelector('[part~="chat-toggle"]')!
+    const icon = btn.querySelector('sui-icon')!
+    expect(icon.getAttribute('name')).toBe('message-square-plus')
+  })
+
+  it('project prop prepends a home-linked crumb', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { project: 'Ship', path: '/agents' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    const links = crumbs.querySelectorAll('a')
+    expect(links.length).toBeGreaterThanOrEqual(1)
+    expect(links[0]!.getAttribute('href')).toBe('/')
+    expect(links[0]!.textContent).toBe('Ship')
+  })
+
+  it('view prop overrides path-derived root segment', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { view: 'home', path: '/pipelines' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    // 'home' should be the leaf, not 'pipelines'
+    expect(crumbs.textContent).toContain('Home')
+    expect(crumbs.textContent).not.toContain('Pipelines')
+  })
+
+  it('project + view together render "Project › View"', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { project: 'Ship', view: 'home' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    const projectLink = crumbs.querySelector('a')!
+    expect(projectLink.getAttribute('href')).toBe('/')
+    expect(projectLink.textContent).toBe('Ship')
+    expect(crumbs.querySelector('.current')!.textContent).toBe('Home')
+  })
+
+  it('empty project + empty view falls back to path-only crumbs', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { path: '/git' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    // No leading anchor segment beyond the path-derived one (which would be the leaf)
+    expect(crumbs.textContent).toContain('Git')
+    expect(crumbs.textContent).not.toContain('Ship')
+  })
+
+  it('crumb anchors carry a data-sui-transition marker (transition:fade wired)', async () => {
+    const { el } = mount(reg, 'sui-nav-top', { project: 'Ship', path: '/agents' })
+    await flush()
+    const crumbs = shadow(el).querySelector('.crumbs')!
+    // transition: directive registers `data-sui-transition` on the node.
+    // See packages/sui-runtime/src/transition.ts MARK constant.
+    expect(crumbs.querySelector('a[data-sui-transition]')).not.toBeNull()
+    expect(crumbs.querySelector('.current[data-sui-transition]')).not.toBeNull()
+  })
 })
