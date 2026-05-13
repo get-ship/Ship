@@ -71,6 +71,7 @@ import './sui-accordion/dist/sui-accordion.compiled.js'
 import './sui-accordion/dist/sui-accordion-item.compiled.js'
 import './sui-list-tile/dist/sui-list-tile.compiled.js'
 import './sui-error-boundary/dist/sui-error-boundary.compiled.js'
+import './sui-portal/dist/sui-portal.compiled.js'
 import './sui-error-state/dist/sui-error-state.compiled.js'
 import './sui-stepper/dist/sui-stepper.compiled.js'
 import "./sui-step-segments/dist/sui-step-segments.compiled.js"
