@@ -57,9 +57,9 @@ const __e28 = document.createElement("li");
 __e28.setAttribute("data-test", "agent");
 const __t29 = document.createTextNode("");
 __e28.appendChild(__t29);
-__c27.push(bindText(__t29, () => (void $scope.__v(), $scope.agent.name)));
+__t29.textContent = ($scope.agent.name);
 __frag26.appendChild(__e28);
-      return { nodes: Array.from(__frag26.childNodes), cleanup: () => { for (const c of __c27) try { c(); } catch (e) {} }, update: (__new30, __newI31) => { $scope.agent = __new30; $scope.__i = __newI31; $scope.__v.set(c => c + 1); } };
+      return { nodes: Array.from(__frag26.childNodes), cleanup: () => { for (const c of __c27) try { c(); } catch (e) {} }, update: (__new30, __newI31) => { $scope.agent = __new30; $scope.__i = __newI31; __t29.textContent = ($scope.agent.name); $scope.__v.set(c => c + 1); } };
     })(__childScope25);
   },
 });

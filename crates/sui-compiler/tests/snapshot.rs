@@ -29,6 +29,9 @@ fn fixtures() -> Vec<Fixture> {
         Fixture { name: "comment-and-whitespace", setup_url: None,    mode: CompileMode::View,      component_meta: None },
         Fixture { name: "for-update",  setup_url: None,               mode: CompileMode::View,      component_meta: None },
         Fixture { name: "for-static",  setup_url: None,               mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-static-text", setup_url: None,           mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-static-attr", setup_url: None,           mode: CompileMode::View,      component_meta: None },
+        Fixture { name: "for-dynamic-mixed", setup_url: None,         mode: CompileMode::View,      component_meta: None },
     ]
 }
 
@@ -276,6 +279,117 @@ fn for_static_snapshot() {
     let js = compile_fixture(fx);
     let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
     assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn for_static_text_snapshot() {
+    let fx = &fixtures()[10];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn for_static_attr_snapshot() {
+    let fx = &fixtures()[11];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+#[test]
+fn for_dynamic_mixed_snapshot() {
+    let fx = &fixtures()[12];
+    let js = compile_fixture(fx);
+    let path = fixtures_dir().join(format!("{}.expected.js", fx.name));
+    assert_snapshot(fx.name, &js, &path);
+}
+
+/// D5: a `{#for}` body whose only DynamicText reads a row property
+/// (no `()`) must inline the assignment as `node.textContent = …`
+/// and never call `bindText` for that read.
+#[test]
+fn for_static_text_inlines_text_content() {
+    let path = fixtures_dir().join("for-static-text.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains(".textContent = ($scope.row.label)"),
+        "expected inlined textContent assignment, got:\n{}",
+        out.js
+    );
+    assert!(
+        !out.js.contains("bindText("),
+        "static row text must not emit bindText call, got:\n{}",
+        out.js
+    );
+}
+
+/// D5: a `{#for}` body whose only AttrInstr::Expr reads a row property
+/// must inline the assignment as `el.setAttribute(...)` and never call
+/// `bindAttr` for that read.
+#[test]
+fn for_static_attr_inlines_set_attribute() {
+    let path = fixtures_dir().join("for-static-attr.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains("setAttribute(\"id\""),
+        "expected inlined setAttribute, got:\n{}",
+        out.js
+    );
+    assert!(
+        !out.js.contains("bindAttr("),
+        "static row attr must not emit bindAttr call, got:\n{}",
+        out.js
+    );
+}
+
+/// D5: a `{#for}` body that mixes a reactive binding (`()` present)
+/// with a static row read inlines only the static one. The reactive
+/// binding still emits its `bind*` effect.
+#[test]
+fn for_dynamic_mixed_inlines_only_static() {
+    let path = fixtures_dir().join("for-dynamic-mixed.sui");
+    let source = std::fs::read_to_string(&path).unwrap();
+    let opts = CompileOpts {
+        setup_url: None,
+        mode: CompileMode::View,
+        source_path: Some(path),
+        styles: None,
+        component_meta: None,
+        emit_dts: false,
+        emit_ssr: false,
+    };
+    let out = sui_compiler::compile(&source, opts).expect("compile");
+    assert!(
+        out.js.contains(".textContent = ($scope.row.label)"),
+        "expected inlined textContent for row.label, got:\n{}",
+        out.js
+    );
+    assert!(
+        out.js.contains("bindClass("),
+        "expected bindClass effect for class:active={{selected()}}, got:\n{}",
+        out.js
+    );
 }
 
 #[test]

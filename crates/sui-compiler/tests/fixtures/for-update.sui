@@ -2,6 +2,6 @@
 
 <ul>
   {#for row of rows().value key={row.id}}
-    <li>{row.label}</li>
+    <li>{row.label.toUpperCase()}</li>
   {/for}
 </ul>

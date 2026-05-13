@@ -92,6 +92,13 @@ pub struct TemplateEmitter {
     /// When set, reactive binding closures void-read `$scope.__v` to
     /// track the per-row version signal and re-run when `update` fires.
     pub(super) for_in_scope: bool,
+    /// D5: statements that re-execute an inlined static assignment
+    /// (`__t.textContent = $scope.row.label;`, …). Accumulated while
+    /// emitting the current `{#for}` row body; spliced into that for's
+    /// `update()` callback so keyed-row reuse refreshes the inlined
+    /// DOM. `emit_for` saves/restores this list around its body walk
+    /// to scope it per for-loop.
+    pub(super) inline_update_stmts: Vec<String>,
 }
 
 impl TemplateEmitter {
@@ -109,6 +116,7 @@ impl TemplateEmitter {
             keys: KeyAllocator::default(),
             is_view,
             for_in_scope: false,
+            inline_update_stmts: Vec::new(),
         }
     }
 
@@ -155,6 +163,24 @@ impl TemplateEmitter {
     /// Used as a leading statement inside `effect(() => { … })` bodies.
     pub(super) fn for_version_stmt(&self) -> &'static str {
         if self.for_in_scope { "void $scope.__v(); " } else { "" }
+    }
+
+    /// D5: classify a binding-expression source as "static enough to
+    /// inline as a direct DOM assignment". Conservative — any `()`
+    /// call, optional-chain `?.`, or nullish-coalescing `??` defers
+    /// back to the `bind*` effect path so reactivity / null semantics
+    /// stay correct. Only meaningful inside a `{#for}` row body, where
+    /// each effect costs a closure + cleanup slot × every row × every
+    /// render.
+    pub(super) fn is_static_row_expr(&self, source: &str) -> bool {
+        // TEMP-DISABLE for A/B bench measurement; revert before commit.
+        if std::env::var_os("SUI_D5_DISABLE").is_some() {
+            return false;
+        }
+        self.for_in_scope
+            && !source.contains('(')
+            && !source.contains("?.")
+            && !source.contains("??")
     }
 
     pub(super) fn fresh(&mut self, prefix: &str) -> String {
@@ -214,12 +240,24 @@ impl TemplateEmitter {
                 let key = self.next_key();
                 let v = self.fresh("t");
                 let rw = rewrite_for_scope(&expr.source, &[]);
-                let fv = self.for_version_comma();
                 w.line(&format!("const {v} = document.createTextNode(\"\");"));
                 w.line(&format!("{parent_var}.appendChild({v});"));
-                w.line(&format!(
-                    "{cleanups_var}.push(bindText({v}, () => ({fv}{rw})));"
-                ));
+                if self.is_static_row_expr(&expr.source) {
+                    // D5: row-scope static read — skip the bindText
+                    // effect and write textContent directly. Saves a
+                    // closure + cleanup slot per row per binding. The
+                    // assignment is also re-run by the for's
+                    // `update()` callback so keyed-row reuse refreshes
+                    // the DOM when the row instance changes.
+                    let stmt = format!("{v}.textContent = ({rw});");
+                    w.line(&stmt);
+                    self.inline_update_stmts.push(stmt);
+                } else {
+                    let fv = self.for_version_comma();
+                    w.line(&format!(
+                        "{cleanups_var}.push(bindText({v}, () => ({fv}{rw})));"
+                    ));
+                }
                 // Phase 3b.3: at depth 0 in views, also emit a direct
                 // hydrate call so SSR'd `<!--sui:text:bN-->…<!--/sui-->`
                 // markers wire up without going through the runtime
