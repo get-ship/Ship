@@ -5,16 +5,22 @@
 
   <section class="counter">
     <p>You've opened the home page <strong>{seen()}</strong> times this session.</p>
-    <button data-test="bump" on:click={() => seen.set(seen() + 1)}>Bump</button>
+    <sui-button data-test="bump" size="sm" variant="outline" on:click={() => seen.set(seen() + 1)}>Bump</sui-button>
   </section>
 
   <section class="home-live" aria-live="polite">
     <h2 class="home-live-title">Live from the daemon</h2>
     {#while-loading of git}
-      <p class="home-live-line" data-test="live-loading">Connecting&hellip;</p>
+      <div class="home-live-skel" data-test="live-loading" aria-label="Loading git status">
+        <sui-skeleton shape="line" size="sm" style="width:60%"></sui-skeleton>
+        <sui-skeleton shape="line" size="sm" style="width:40%"></sui-skeleton>
+      </div>
     {/while-loading}
     {#while-error err of git}
-      <p class="home-live-line" data-test="live-error">SSE error: {err.message}</p>
+      <sui-error-state variant="inline" size="sm" title="Live git stream offline" data-test="live-error">
+        {err.message}
+        <sui-button slot="action" size="sm" variant="outline" on:click={() => window.location.reload()}>Retry</sui-button>
+      </sui-error-state>
     {/while-error}
     {#if git().kind === 'ok'}
       <p class="home-live-line" data-test="live-ok">
