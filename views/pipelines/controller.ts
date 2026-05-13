@@ -1,4 +1,4 @@
-import { controller, signal, derived, unwrap } from '@ship/sui-runtime'
+import { controller, signal, derived, live, unwrap } from '@ship/sui-runtime'
 import type { Scope } from './page.sui'
 
 type PipelineDef = {
@@ -20,17 +20,28 @@ const EMPTY: SummariesCtx = { stats_subtitle: '', defs: [], active_runs: [], pro
 const read = (ctx: unknown): SummariesCtx => (unwrap(ctx as any) as SummariesCtx | undefined) ?? EMPTY
 
 export default controller<Scope>({
-  scope: ({ ctx, route }) => {
+  scope: ({ ship, route }) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const s = ship as any
     const q = derived(() => String((route().query as any)?.q ?? ''))
     const agent = derived(() => String((route().query as any)?.agent ?? ''))
     const pipeline = derived(() => String((route().query as any)?.pipeline ?? ''))
     const status = derived(() => String((route().query as any)?.status ?? ''))
     const tab = derived(() => String((route().query as any)?.tab ?? ''))
-    const defs = derived((s) => read(s.ctx).defs)
-    const activeRuns = derived((s) => read(s.ctx).active_runs)
-    const providers = derived((s) => read(s.ctx).providers)
-    const workspaceId = derived((s) => read(s.ctx).workspace_id ?? null)
-    const statsSubtitle = derived((s) => read(s.ctx).stats_subtitle)
+    const ctx = live(() => s.pipelines.summaries({
+      q: q(), agent: agent(), pipeline: pipeline(), status: status(), tab: tab(),
+    }))
+    const defs = derived(() => read(ctx()).defs.map((d) => ({
+      ...d, success_pct: Math.floor(d.success_rate * 100),
+    })))
+    const activeRuns = derived(() => read(ctx()).active_runs.map((r) => ({
+      ...r,
+      state_attr: r.state.replace('-', ''),
+      steps: r.steps?.map((step, i, arr) => ({ ...step, isLast: i === arr.length - 1 })),
+    })))
+    const providers = derived(() => read(ctx()).providers)
+    const workspaceId = derived(() => read(ctx()).workspace_id ?? null)
+    const statsSubtitle = derived(() => read(ctx()).stats_subtitle)
     const dispatchOpen = signal(false)
     const dispatchSpec = signal('')
     const dispatchPipeline = signal('')
@@ -41,7 +52,7 @@ export default controller<Scope>({
     const newPipeError = signal('')
     const newPipeCreating = signal(false)
     return {
-      q, agent, pipeline, status, tab,
+      ctx, q, agent, pipeline, status, tab,
       defs, activeRuns, providers, workspaceId, statsSubtitle,
       dispatchOpen, dispatchSpec, dispatchPipeline, dispatchProvider, dispatchHeadless,
       newPipeOpen, newPipeName, newPipeError, newPipeCreating,

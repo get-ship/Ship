@@ -1,5 +1,3 @@
-<data name="ctx" source="ship.pipelines.summaries({q: $scope.q(), agent: $scope.agent(), pipeline: $scope.pipeline(), status: $scope.status(), tab: $scope.tab()})" live />
-
 {#while-loading of ctx}
   <sui-spinner size="md" style="margin: var(--space-8) auto; display: block"></sui-spinner>
 {/while-loading}
@@ -40,7 +38,7 @@
       </div>
       <div class="ship-pipelines-run-list">
         {#for run of activeRuns() key={run.slug}}
-          <ship-pipeline-run attr:state={run.state.replace('-', '')} attr:slug={run.slug} attr:agent={run.agent}>
+          <ship-pipeline-run attr:state={run.state_attr} attr:slug={run.slug} attr:agent={run.agent}>
             <sui-timestamp slot="actions" attr:value={run.updated_at} relative></sui-timestamp>
             <sui-button slot="actions" variant="ghost" size="sm" on:click={() => navigate('/pipelines/run/' + run.slug)}>
               <sui-icon slot="leading" name="chevron-right"></sui-icon>Open
@@ -59,7 +57,7 @@
             <ship-pipeline-dag>
               {#for step of run.steps key={step.id}}
                 <ship-pipeline-step attr:name={step.id} attr:state={step.state} attr:step-type={step.step_type} attr:agent={step.agent}></ship-pipeline-step>
-                {#if run.steps.indexOf(step) < run.steps.length - 1}<span class="arrow" aria-hidden="true">→</span>{/if}
+                {#if !step.isLast}<span class="arrow" aria-hidden="true">→</span>{/if}
               {/for}
             </ship-pipeline-dag>
             {/if}
@@ -98,7 +96,7 @@
                   <span class="ship-def-stat-label">runs</span>
                 </span>
                 <span class="ship-def-stat">
-                  <span class="ship-def-stat-value">{Math.floor(def.success_rate * 100)}<span class="ship-def-stat-unit">%</span></span>
+                  <span class="ship-def-stat-value">{def.success_pct}<span class="ship-def-stat-unit">%</span></span>
                   <span class="ship-def-stat-label">success</span>
                 </span>
                 {#if def.last_run_at}
