@@ -1,5 +1,5 @@
 import { defineConfig } from 'vitest/config'
-import { resolve, dirname, basename } from 'node:path'
+import { resolve, dirname, basename, relative } from 'node:path'
 import { existsSync, readFileSync } from 'node:fs'
 import { SHIP_VITEST_DEFAULTS } from '../../vitest.shared'
 // @ts-expect-error — JS module, no .d.ts.
@@ -7,6 +7,7 @@ import { spawnBoundedOrThrow } from '../../scripts/spawn-bounded.mjs'
 
 const repoRoot = resolve(__dirname, '../..')
 const compilerBin = resolve(repoRoot, 'target/debug/sui-compiler')
+const mirrorRoot = resolve(repoRoot, '.ship/sui-out')
 
 // Test-time fallback for the watch/HMR loop. The `pretest` hook (see
 // package.json) precompiles every .sui ahead of vitest, so cold runs
@@ -20,6 +21,14 @@ function compileSui(suiPath: string, stem: string): void {
     ? ['build', suiPath, '--component-name', stem, '--no-dts']
     : ['run', '--quiet', '-p', 'sui-compiler', '--', 'build', suiPath, '--component-name', stem, '--no-dts']
   spawnBoundedOrThrow(cmd, args, `sui-compiler ${suiPath}`, { cwd: repoRoot })
+}
+
+// Map a `.compiled.js` virtual import to its mirror-tree artifact path.
+// Source layout: `<repo>/<src-rel>/<stem>.sui` → emit at
+// `<repo>/.ship/sui-out/<src-rel>/<stem>.compiled.js`.
+function mirrorArtifactFor(sourceDir: string, stem: string): string {
+  const srcRel = relative(repoRoot, sourceDir)
+  return resolve(mirrorRoot, srcRel, `${stem}.compiled.js`)
 }
 
 export default defineConfig({
@@ -40,14 +49,15 @@ export default defineConfig({
     ...SHIP_VITEST_DEFAULTS,
   },
   // `<tag>.compiled.js` shim. Production bundles use AOT-compiled modules
-  // emitted by the Rust sui-compiler into a sibling `dist/` directory.
+  // emitted by the Rust sui-compiler into the project mirror tree at
+  // `<repo-root>/.ship/sui-out/<src-rel>/`.
   // For tests, an `import '.../<stem>.compiled.js'` is resolved as:
-  //   (a) `<importer-dir>/dist/<stem>.compiled.js` if it already exists
+  //   (a) `<mirror-root>/<src-rel>/<stem>.compiled.js` if it already exists
   //       (built by build-bundles, the pretest precompile hook, or a prior
   //       test run).
   //   (b) Otherwise, if a sibling `<stem>.sui` source file exists, compile
   //       it on-demand via the Rust binary (or `cargo run` fallback). The
-  //       compiler emits to `dist/<stem>.compiled.js` automatically.
+  //       compiler emits to the mirror tree automatically.
   //   (c) Otherwise fall back to the legacy `.html.set` hydrate path.
   plugins: [
     {
@@ -65,24 +75,21 @@ export default defineConfig({
       name: 'compiled-js-test-shim',
       resolveId(id: string, importer?: string) {
         if (!id.endsWith('.compiled.js') || !importer) return null
-        // Resolve the import to the absolute artifact path. Test files
-        // import the dist-based path directly, e.g.
-        // `'../src/sui-foo/dist/sui-foo.compiled.js'`, so a relative
-        // resolution from the importer hits the actual artifact location.
+        // Resolve the import against the importer's directory to recover
+        // the source-tree location, then look up the mirror-tree artifact.
         const importerDir = resolve(importer, '..')
-        const actualFile = resolve(importerDir, id)
+        const sourceArtifact = resolve(importerDir, id)
+        const sourceDir = dirname(sourceArtifact)
+        const stem = basename(sourceArtifact).replace(/\.compiled\.js$/, '')
+        const mirrorFile = mirrorArtifactFor(sourceDir, stem)
 
-        if (existsSync(actualFile)) return actualFile
+        if (existsSync(mirrorFile)) return mirrorFile
 
-        // Source layout: `<source-dir>/<stem>.sui` → emit at
-        // `<source-dir>/dist/<stem>.compiled.js`. Walk one segment up
-        // from the artifact's directory to find the source.
-        const stem = basename(actualFile).replace(/\.compiled\.js$/, '')
-        const sourceDir = dirname(dirname(actualFile))
+        // No mirror artifact yet — compile on-demand if a sibling .sui exists.
         const suiFile = resolve(sourceDir, `${stem}.sui`)
         if (existsSync(suiFile)) {
           compileSui(suiFile, stem)
-          if (existsSync(actualFile)) return actualFile
+          if (existsSync(mirrorFile)) return mirrorFile
         }
 
         // Legacy fallback: virtual module using the old hydrate path.

@@ -47,16 +47,16 @@ fn ssr_html_for_view(name: &str) -> String {
 pub(crate) fn load_ssr_from_disk(name: &str) -> Option<String> {
     let resolved = resolve(name, None).ok()?;
     let source_path = resolved.source_path?;
-    let src_dir = source_path.parent()?;
     let stem = source_path.file_stem()?.to_str()?;
     let stem_clean = stem.trim_end_matches(".html");
-    let ssr_path = src_dir.join("dist").join(format!("{stem_clean}.ssr.html"));
+    let mirror = sui_compiler::out_layout::resolve_out_dir(&source_path);
+    let ssr_path = mirror.join(format!("{stem_clean}.ssr.html"));
     std::fs::read_to_string(&ssr_path).ok()
 }
 
 /// Render SSR HTML at request time from the source view. Used as a
-/// fallback when no precompiled `<dist>/<stem>.ssr.html` exists yet —
-/// without this, the shell ships an empty `#sui-root` and the client
+/// fallback when no precompiled mirror-tree `<stem>.ssr.html` exists yet
+/// — without this, the shell ships an empty `#sui-root` and the client
 /// has nothing to morph onto.
 pub(crate) fn live_emit_ssr(name: &str) -> Option<String> {
     let resolved = resolve(name, None).ok()?;

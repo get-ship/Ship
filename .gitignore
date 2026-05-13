@@ -85,6 +85,10 @@ typings/
 
 dist/
 
+# sui-compiler tooling outputs (dev-time only; production bundles live
+# in apps/shipd/assets/ and crates/ship-sui-server/assets/).
+.ship/sui-out/
+
 # Added by cargo
 /target
 

@@ -83,7 +83,8 @@ fn read_precompiled_ssr(source_path: Option<&std::path::Path>) -> Option<String>
     let p = source_path?;
     let stem = p.file_stem()?.to_str()?;
     let stem_clean = stem.trim_end_matches(".html");
-    let ssr_path = p.parent()?.join("dist").join(format!("{stem_clean}.ssr.html"));
+    let mirror = sui_compiler::out_layout::resolve_out_dir(p);
+    let ssr_path = mirror.join(format!("{stem_clean}.ssr.html"));
     std::fs::read_to_string(&ssr_path).ok()
 }
 

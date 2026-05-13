@@ -4,9 +4,14 @@ use std::ffi::{c_char, CStr, CString};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use crate::out_layout::resolve_out_dir;
 use crate::{compile, CompileMode, ComponentMeta, CompileOpts};
 
 /// Compile a .sui file by path, writing outputs to out_dir.
+///
+/// When `out_dir` is empty or null, outputs land in the project mirror
+/// tree at `<repo-root>/.ship/sui-out/<source-rel>/` (resolved per-call
+/// from the .sui path so the binary works regardless of caller cwd).
 ///
 /// Returns JSON: `{"ok":true,"outputs":[...]}` or `{"ok":false,"error":"..."}`.
 /// Caller MUST free the returned pointer via `sui_compiler_free_string`.
@@ -48,9 +53,13 @@ fn do_compile(
     let path_str = unsafe { CStr::from_ptr(path) }
         .to_str()
         .map_err(|e| e.to_string())?;
-    let out_dir_str = unsafe { CStr::from_ptr(out_dir) }
-        .to_str()
-        .map_err(|e| e.to_string())?;
+    let out_dir_str = if out_dir.is_null() {
+        ""
+    } else {
+        unsafe { CStr::from_ptr(out_dir) }
+            .to_str()
+            .map_err(|e| e.to_string())?
+    };
     let component_name_opt = if component_name.is_null() {
         None
     } else {
@@ -62,7 +71,11 @@ fn do_compile(
     };
 
     let sui_path = PathBuf::from(path_str);
-    let out_dir_path = Path::new(out_dir_str);
+    let out_dir_path: PathBuf = if out_dir_str.is_empty() {
+        resolve_out_dir(&sui_path)
+    } else {
+        PathBuf::from(out_dir_str)
+    };
 
     let source = fs::read_to_string(&sui_path)
         .map_err(|e| format!("read {}: {e}", sui_path.display()))?;
@@ -76,7 +89,7 @@ fn do_compile(
         .or_else(|| file_name.strip_suffix(".sui"))
         .unwrap_or(file_name);
 
-    let setup_url = paired_setup(&sui_path);
+    let setup_url = paired_setup(&sui_path, &out_dir_path);
     let component_meta = component_name_opt.map(|name| ComponentMeta {
         name: name.to_string(),
         shadow: true,
@@ -99,7 +112,7 @@ fn do_compile(
 
     let output = compile(&source, opts).map_err(|e| e.render(&source))?;
 
-    fs::create_dir_all(out_dir_path).map_err(|e| e.to_string())?;
+    fs::create_dir_all(&out_dir_path).map_err(|e| e.to_string())?;
 
     let js_path = out_dir_path.join(format!("{stem}.compiled.js"));
     fs::write(&js_path, &output.js)
@@ -130,14 +143,12 @@ fn do_compile(
         fs::write(&p, ssr_html).map_err(|e| e.to_string())?;
         outputs.push(p.to_string_lossy().into_owned());
     }
-    // The `.sui.d.ts` lands next to the source — not in out_dir — so
-    // `import type { Scope } from './view.sui'` resolves via TS's
-    // module resolution regardless of emit layout. Mirrors the CLI
-    // write path in `bin/sui-compiler.rs::compile_one`.
-    if let Some(dts) = output.dts
-        && let Some(src_dir) = sui_path.parent()
-    {
-        let dts_path = src_dir.join(format!("{file_name}.d.ts"));
+    // `.sui.d.ts` lands in the mirror tree alongside the other emit
+    // artifacts. Controllers' `import type { Scope } from './<name>.sui'`
+    // resolves to it via the workspace tsconfig `paths` mapping. Mirrors
+    // the CLI write path in `bin/sui-compiler.rs::compile_one`.
+    if let Some(dts) = output.dts {
+        let dts_path = out_dir_path.join(format!("{file_name}.d.ts"));
         fs::write(&dts_path, dts)
             .map_err(|e| format!("write {}: {e}", dts_path.display()))?;
         outputs.push(dts_path.to_string_lossy().into_owned());
@@ -146,7 +157,7 @@ fn do_compile(
     Ok(serde_json::json!({"ok": true, "outputs": outputs}).to_string())
 }
 
-fn paired_setup(path: &Path) -> Option<String> {
+fn paired_setup(path: &Path, out_dir: &Path) -> Option<String> {
     let file_name = path.file_name()?.to_str()?;
     let stem = file_name
         .strip_suffix(".html.set")
@@ -157,8 +168,36 @@ fn paired_setup(path: &Path) -> Option<String> {
     } else {
         format!("{stem}.controller.ts")
     };
-    if !parent.join(&filename).exists() {
+    let candidate = parent.join(&filename);
+    if !candidate.exists() {
         return None;
     }
-    Some(format!("../{filename}"))
+    Some(pathdiff(&candidate, out_dir))
+}
+
+fn pathdiff(to_file: &Path, from_dir: &Path) -> String {
+    use std::path::Component;
+    let to = to_file.canonicalize().unwrap_or_else(|_| to_file.to_path_buf());
+    let from = from_dir.canonicalize().unwrap_or_else(|_| from_dir.to_path_buf());
+    let to_parts: Vec<Component> = to.components().collect();
+    let from_parts: Vec<Component> = from.components().collect();
+    let common = to_parts
+        .iter()
+        .zip(from_parts.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+    if common == 0 {
+        return to.to_string_lossy().into_owned();
+    }
+    let ups = from_parts.len() - common;
+    let mut out = String::new();
+    for _ in 0..ups {
+        out.push_str("../");
+    }
+    if ups == 0 {
+        out.push_str("./");
+    }
+    let remainder: PathBuf = to_parts[common..].iter().collect();
+    out.push_str(&remainder.to_string_lossy());
+    out
 }

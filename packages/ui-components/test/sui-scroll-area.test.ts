@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-scroll-area/dist/sui-scroll-area.compiled.js'
+import '../src/sui-scroll-area/sui-scroll-area.compiled.js'
 import { createContainerRegistry, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

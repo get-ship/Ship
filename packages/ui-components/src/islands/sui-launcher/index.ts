@@ -1,1 +1,1 @@
-import './dist/sui-launcher.compiled.js'
+import './sui-launcher.compiled.js'

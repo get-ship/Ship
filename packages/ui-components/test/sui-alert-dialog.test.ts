@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-dialog/dist/sui-dialog.compiled.js'
-import '../src/sui-button/dist/sui-button.compiled.js'
-import '../src/sui-alert-dialog/dist/sui-alert-dialog.compiled.js'
+import '../src/sui-dialog/sui-dialog.compiled.js'
+import '../src/sui-button/sui-button.compiled.js'
+import '../src/sui-alert-dialog/sui-alert-dialog.compiled.js'
 import { createContainerRegistry, flush, mount } from '../src/test-utils'
 
 const reg = createContainerRegistry()

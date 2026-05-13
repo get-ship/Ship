@@ -1,1 +1,1 @@
-import './dist/sui-code-editor.compiled.js'
+import './sui-code-editor.compiled.js'

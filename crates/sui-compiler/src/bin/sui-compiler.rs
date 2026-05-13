@@ -1,9 +1,9 @@
-//! `sui-compiler` CLI. Compiles a single `.sui` file or a
-//! directory of them, writing the emitted JS (and CEM JSON for
-//! components) into a sibling `dist/` directory next to each
-//! source file. Pass `--out <dir>` to override and emit every
-//! file to a single directory (legacy behaviour). Errors render
-//! with file path, line, and column.
+//! `sui-compiler` CLI. Compiles a single `.sui` file or a directory of
+//! them, writing the emitted JS (and CEM/schema/meta/dts/ssr.html sidecars)
+//! into a project-level mirror tree at `<repo-root>/.ship/sui-out/<source-
+//! relative-path>/`. Pass `--out <dir>` to override and emit every file to
+//! a single directory (legacy behaviour). Errors render with file path,
+//! line, and column.
 
 use std::collections::HashSet;
 use std::fs;
@@ -15,6 +15,7 @@ use std::time::Duration;
 use anyhow::{anyhow, Context, Result};
 use clap::{Parser, Subcommand};
 
+use sui_compiler::out_layout::resolve_out_dir;
 use sui_compiler::{compile, CompileMode, ComponentMeta, CompileOpts};
 
 /// Hard caps on virtual memory and wall-clock time. A bug in the
@@ -63,14 +64,14 @@ enum Command {
     Build {
         /// Path to a `.sui` file or a directory.
         input: PathBuf,
-        /// Output directory. When omitted, each file's outputs land in a
-        /// sibling `dist/` directory next to its source (`<source-dir>/dist/`)
+        /// Output directory. When omitted, each file's outputs land in the
+        /// project mirror tree at `<repo-root>/.ship/sui-out/<source-rel>/`
         /// and the JS module is named `<stem>.compiled.js`. When supplied,
         /// every file is emitted into this single directory and the JS
         /// module is named `<stem>.js` (legacy behaviour).
         #[arg(long)]
         out: Option<PathBuf>,
-        /// Remove each source file's `dist/` directory (or `--out` directory)
+        /// Remove each source file's mirror directory (or `--out` directory)
         /// before emitting. Idempotent rebuilds.
         #[arg(long)]
         clean: bool,
@@ -162,14 +163,13 @@ fn build(
                     .with_context(|| format!("clean {}", out_dir.display()))?;
             }
         } else {
-            // Per-source dist/ mode: clean each unique <source-dir>/dist/.
+            // Mirror-tree mode: clean each unique target mirror directory.
             let mut cleaned: HashSet<PathBuf> = HashSet::new();
             for path in &targets {
-                let src_dir = path.parent().unwrap_or(Path::new(".")).to_path_buf();
-                let dist = src_dir.join("dist");
-                if cleaned.insert(dist.clone()) && dist.exists() {
-                    fs::remove_dir_all(&dist)
-                        .with_context(|| format!("clean {}", dist.display()))?;
+                let mirror = resolve_out_dir(path);
+                if cleaned.insert(mirror.clone()) && mirror.exists() {
+                    fs::remove_dir_all(&mirror)
+                        .with_context(|| format!("clean {}", mirror.display()))?;
                 }
             }
         }
@@ -251,25 +251,24 @@ fn compile_one(
     let source = fs::read_to_string(path)
         .with_context(|| format!("read {}", path.display()))?;
     let mode = mode.map(|m| m.into()).unwrap_or(CompileMode::Auto);
-    // Resolve the emit dir for this file. Without --out, every file
-    // gets its own sibling `dist/`; with --out, all files share that
-    // directory (legacy single-dir mode).
-    let src_dir = path.parent().unwrap_or(Path::new("."));
-    let dist_mode = out_override.is_none();
+    // Resolve the emit dir for this file. Without --out, outputs land in
+    // the project mirror tree at `<repo-root>/.ship/sui-out/<src-rel>/`;
+    // with --out, all files share that directory (legacy single-dir mode).
+    let mirror_mode = out_override.is_none();
     let out_dir: PathBuf = match out_override {
         Some(p) => p.to_path_buf(),
-        None => src_dir.join("dist"),
+        None => resolve_out_dir(path),
     };
     fs::create_dir_all(&out_dir)
         .with_context(|| format!("create out dir {}", out_dir.display()))?;
     // Paired controller is auto-detected: if `<stem>.controller.ts`
     // exists next to the source, the compiler emits
     // `import setup from "<rel>"` where `<rel>` is the path from the
-    // emit dir back to the controller. In dist/ mode that's
-    // `../<stem>.controller.ts`; in legacy --out=source-dir mode it's
+    // emit dir back to the controller. In mirror mode that's an absolute
+    // path back to the source dir; in legacy --out=source-dir mode it's
     // `./<stem>.controller.ts`. Authors who want template-only just
     // don't write the .controller.ts file.
-    let setup_url = paired_setup(path, dist_mode);
+    let setup_url = paired_setup(path, &out_dir, mirror_mode);
     let opts = CompileOpts {
         setup_url,
         mode,
@@ -292,11 +291,11 @@ fn compile_one(
         .strip_suffix(".html.set")
         .or_else(|| stem.strip_suffix(".sui"))
         .unwrap_or(stem);
-    // In dist/ mode the emitted JS is named `<stem>.compiled.js` so
+    // In mirror mode the emitted JS is named `<stem>.compiled.js` so
     // imports can name it directly without a separate rename step in
     // the build pipeline. With --out we keep the legacy `<stem>.js`
     // for callers that expect that name.
-    let js_name = if dist_mode {
+    let js_name = if mirror_mode {
         format!("{stem_no_ext}.compiled.js")
     } else {
         format!("{stem_no_ext}.js")
@@ -324,10 +323,11 @@ fn compile_one(
         fs::write(&meta_path, pretty)
             .with_context(|| format!("write {}", meta_path.display()))?;
     }
-    // Write the .d.ts next to the source file so `import type { Scope } from
-    // './view.sui'` resolves correctly regardless of emit placement.
+    // `.sui.d.ts` lands in the mirror tree alongside the other emit
+    // artifacts. Controllers' `import type { Scope } from './<name>.sui'`
+    // resolves to it via the workspace tsconfig `paths` mapping.
     if let Some(dts) = result.dts {
-        let dts_path = src_dir.join(format!("{stem}.d.ts"));
+        let dts_path = out_dir.join(format!("{stem}.d.ts"));
         fs::write(&dts_path, dts)
             .with_context(|| format!("write {}", dts_path.display()))?;
     }
@@ -341,7 +341,7 @@ fn compile_one(
     Ok(())
 }
 
-fn paired_setup(path: &Path, dist_mode: bool) -> Option<String> {
+fn paired_setup(path: &Path, out_dir: &Path, mirror_mode: bool) -> Option<String> {
     let file_name = path.file_name()?.to_str()?;
     let stem = file_name
         .strip_suffix(".html.set")
@@ -358,6 +358,48 @@ fn paired_setup(path: &Path, dist_mode: bool) -> Option<String> {
     if !candidate.exists() {
         return None;
     }
-    let prefix = if dist_mode { ".." } else { "." };
-    Some(format!("{prefix}/{filename}"))
+    if mirror_mode {
+        // Mirror tree may be far from the source. Walk up from out_dir
+        // until we hit the source dir, then reuse that as the import path.
+        let rel = pathdiff(&candidate, out_dir);
+        Some(rel)
+    } else {
+        Some(format!("./{filename}"))
+    }
+}
+
+/// Compute a relative path from `from_dir` to `to_file` using `..`
+/// segments. Falls back to the absolute `to_file` path when the two have
+/// no common ancestor.
+fn pathdiff(to_file: &Path, from_dir: &Path) -> String {
+    use std::path::Component;
+    let to = match to_file.canonicalize() {
+        Ok(p) => p,
+        Err(_) => to_file.to_path_buf(),
+    };
+    let from = match from_dir.canonicalize() {
+        Ok(p) => p,
+        Err(_) => from_dir.to_path_buf(),
+    };
+    let to_parts: Vec<Component> = to.components().collect();
+    let from_parts: Vec<Component> = from.components().collect();
+    let common = to_parts
+        .iter()
+        .zip(from_parts.iter())
+        .take_while(|(a, b)| a == b)
+        .count();
+    if common == 0 {
+        return to.to_string_lossy().into_owned();
+    }
+    let ups = from_parts.len() - common;
+    let mut out = String::new();
+    for _ in 0..ups {
+        out.push_str("../");
+    }
+    if ups == 0 {
+        out.push_str("./");
+    }
+    let remainder: PathBuf = to_parts[common..].iter().collect();
+    out.push_str(&remainder.to_string_lossy());
+    out
 }

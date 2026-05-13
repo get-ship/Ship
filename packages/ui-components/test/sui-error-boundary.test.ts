@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import '../src/sui-error-boundary/dist/sui-error-boundary.compiled.js'
+import '../src/sui-error-boundary/sui-error-boundary.compiled.js'
 import { findNearestBoundary } from '@ship/sui-runtime'
 import { createContainerRegistry, mount } from '../src/test-utils'
 
