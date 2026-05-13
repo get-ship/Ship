@@ -1,5 +1,4 @@
 import { controller, effect, signal } from '@ship/sui-runtime'
-import type { Signal } from '@ship/sui-runtime'
 import type { Scope } from './sui-line-chart.sui'
 import { linePath, parseJson, toneColor } from '../chart-util'
 
@@ -35,22 +34,18 @@ export default controller<Scope>({
   },
 
   mount(state, _host) {
-    const scope = state as unknown as Scope
-    const seriesPaths = scope.seriesPaths as unknown as Signal<SeriesPath[]>
-    const gridLines = scope.gridLines as unknown as Signal<GridLine[]>
-
     const stop = effect(() => {
-      const allSeries = parseJson<Series[]>(scope.series() as string, [])
-      const w = scope.width() as number
-      const h = scope.height() as number
+      const allSeries = parseJson<Series[]>(state.series(), [])
+      const w = state.width()
+      const h = state.height()
       const flat = allSeries.flatMap((s) => s.data)
       const min = flat.length ? Math.min(...flat) : 0
       const max = flat.length ? Math.max(...flat) : 1
       const range = max - min || 1
       const innerH = h - 4
 
-      gridLines.set(
-        (scope.grid() as boolean)
+      state.gridLines.set(
+        state.grid()
           ? [0.25, 0.5, 0.75].map((f, i) => ({ id: `g${i}`, y: 2 + innerH * f }))
           : [],
       )
@@ -69,7 +64,7 @@ export default controller<Scope>({
           pts: points.map(([cx, cy], i) => ({ id: `${s.name}-${i}`, cx, cy })),
         })
       }
-      seriesPaths.set(paths)
+      state.seriesPaths.set(paths)
     })
 
     return () => stop()
