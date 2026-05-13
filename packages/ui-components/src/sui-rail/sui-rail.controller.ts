@@ -33,7 +33,10 @@ export default controller<Scope>({
     const projectInitial = (): string => {
       const list = projects()
       const cur = list.find((p) => p.id === activeProjectId()) ?? list[0]
-      if (!cur) return ''
+      // Always render SOMETHING — `·` placeholder when no project is tracked
+      // so the badge isn't a featureless solid color square. Matches j2
+      // shell's ship-rail behavior.
+      if (!cur) return '·'
       return (cur.label ?? cur.name).charAt(0).toUpperCase()
     }
     return {
