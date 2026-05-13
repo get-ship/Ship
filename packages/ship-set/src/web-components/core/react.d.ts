@@ -76,7 +76,6 @@ declare module 'react' {
 
       // Charts
       'ship-bar-chart': ShipElement
-      'ship-donut': ShipElement
       'ship-gauge': ShipElement
       'ship-heatmap': ShipElement
       'ship-line-chart': ShipElement
