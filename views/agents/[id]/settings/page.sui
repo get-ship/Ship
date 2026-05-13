@@ -1,5 +1,3 @@
-<data name="settings" source="ship.agents.settings({id: route.params.id()})" live />
-
 {#while-loading of settings}
   <sui-spinner size="md" style="margin: var(--space-8) auto; display:block"></sui-spinner>
 {/while-loading}
@@ -161,11 +159,11 @@
               <div class="ad-empty">No providers configured. Add one under <code style="font-family:var(--font-mono);font-size:var(--text-xs)">agent.providers</code> to run this agent.</div>
             {:else}
               <div class="ad-provider-grid">
-                {#for p of agent().providers key={p}}
+                {#for p of providers() key={p.id}}
                   <sui-list-tile variant="card" density="compact" interactive>
-                    <span slot="leading" class="ad-provider-logo">{p.slice(0,2)}</span>
-                    <span class="ad-provider-name">{p.charAt(0).toUpperCase() + p.slice(1)}
-                      {#if agent().default_provider === p}<sui-badge tone="accent" variant="soft" size="sm">default</sui-badge>{/if}
+                    <span slot="leading" class="ad-provider-logo">{p.id.slice(0,2)}</span>
+                    <span class="ad-provider-name">{p.label}
+                      {#if p.isDefault}<sui-badge tone="accent" variant="soft" size="sm">default</sui-badge>{/if}
                     </span>
                     <span slot="meta" class="ad-provider-sub"><sui-status-dot tone="success" size="sm"></sui-status-dot>defaults</span>
                   </sui-list-tile>
