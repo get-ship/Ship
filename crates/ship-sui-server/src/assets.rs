@@ -36,27 +36,33 @@ fn read_asset(rel: &str) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
-// Baked-in fallbacks (production / no-workspace)
+// Baked-in fallbacks (production / no-workspace).
+//
+// Canonical asset layout under `crates/ship-sui-server/assets/`:
+//   * top-level (`assets/<name>.js`) — always-loaded framework bundles
+//     (sui-runtime, sui-dom, sui-sdk-client, sui-components) and
+//     out-of-band assets (lucide-icons.json, sui-custom-elements.json).
+//   * `assets/sui-islands/<name>.js` — every code-split island bundle.
+//     Both writers (runtime-assets/bundler.ts and packages/sui-build via
+//     ui-components/sui.config.ts `lazyOutSubdir`) emit here. Adding a
+//     second location is forbidden; see job/bundle-output-canonical.
+//   * `assets/views/<name>/view.js` — per-view bundles.
 
 const SUI_RUNTIME_JS: &str = include_str!("../assets/sui-runtime.js");
 const SUI_DOM_JS: &str = include_str!("../assets/sui-dom.js");
 const SUI_SDK_CLIENT_JS: &str = include_str!("../assets/sui-sdk-client.js");
 const SUI_COMPONENTS_JS: &str = include_str!("../assets/sui-components.js");
 const SUI_LUCIDE_ICONS_JSON: &str = include_str!("../assets/lucide-icons.json");
-// Island bundles. `sui-build` emits these as flat files alongside the
-// framework bundles (`assets/<name>.js`); the legacy `sui-islands/`
-// subdirectory is retained only for `sui-rail`, which is no longer built
-// as a standalone island but still has a baked-in copy for the route.
-const SUI_TERMINAL_ISLAND_JS: &str = include_str!("../assets/sui-terminal.js");
-const SUI_COMMAND_BAR_ISLAND_JS: &str = include_str!("../assets/sui-command-bar.js");
-const SUI_DEVTOOLS_ISLAND_JS: &str = include_str!("../assets/sui-devtools.js");
-const SUI_LAUNCHER_ISLAND_JS: &str = include_str!("../assets/sui-launcher.js");
-const SUI_PANEL_DOCK_ISLAND_JS: &str = include_str!("../assets/sui-panel-dock.js");
-const SUI_NAV_TOP_ISLAND_JS: &str = include_str!("../assets/sui-nav-top.js");
+const SUI_TERMINAL_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-terminal.js");
+const SUI_COMMAND_BAR_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-command-bar.js");
+const SUI_DEVTOOLS_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-devtools.js");
+const SUI_LAUNCHER_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-launcher.js");
+const SUI_PANEL_DOCK_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-panel-dock.js");
+const SUI_NAV_TOP_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-nav-top.js");
 const SUI_RAIL_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-rail.js");
-const SUI_CODE_EDITOR_ISLAND_JS: &str = include_str!("../assets/sui-code-editor.js");
+const SUI_CODE_EDITOR_ISLAND_JS: &str = include_str!("../assets/sui-islands/sui-code-editor.js");
 const SUI_MARKDOWN_EDITOR_ISLAND_JS: &str =
-    include_str!("../assets/sui-markdown-editor.js");
+    include_str!("../assets/sui-islands/sui-markdown-editor.js");
 
 // Baked view JS + CSS for first-party views (production fallback).
 
@@ -156,16 +162,11 @@ pub async fn serve_sui_island(mode: Option<Extension<DaemonMode>>, Path(bundle):
         "sui-markdown-editor" => SUI_MARKDOWN_EDITOR_ISLAND_JS,
         _ => return not_found("unknown island"),
     };
-    // Bundles are emitted by sui-build as flat files in `assets/`. The
-    // legacy `sui-islands/` subdirectory is consulted as a fallback so a
-    // partially-rebuilt dev checkout keeps serving the older copy until
-    // the next build catches up.
-    let primary = format!("{bundle}.js");
-    let legacy = format!("sui-islands/{bundle}.js");
-    let js = match read_asset(&primary).or_else(|| read_asset(&legacy)) {
-        Some(js) => js,
-        None => embedded.to_string(),
-    };
+    // Single canonical path: `assets/sui-islands/<bundle>.js`. Both
+    // writers (runtime-assets bundler + packages/sui-build) target it;
+    // fall back to the baked-in copy when the on-disk file is missing.
+    let rel = format!("sui-islands/{bundle}.js");
+    let js = read_asset(&rel).unwrap_or_else(|| embedded.to_string());
     js_response_mode(js, mode)
 }
 

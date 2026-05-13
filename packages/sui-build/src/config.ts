@@ -8,11 +8,16 @@ export interface SuiBuildConfig {
   /** Code-split bundles loaded on demand. Same shape as `entries`. */
   lazyBundles?: Record<string, string>
 
-  /** Where bundled outputs land. Relative to the package root.
-   *  Flat layout — both `entries` and `lazyBundles` write to the same
-   *  directory; no subdirectory for lazy. The daemon's importmap
-   *  controls when each loads. */
+  /** Where bundled outputs land. Relative to the package root. `entries`
+   *  emit directly under `outdir`; `lazyBundles` emit under
+   *  `outdir/<lazyOutSubdir>` when set (see below). */
   outdir: string
+
+  /** Subdirectory of `outdir` for `lazyBundles` outputs. When omitted,
+   *  lazy bundles share `outdir` with `entries`. Used to keep
+   *  code-split islands segregated from always-loaded framework bundles
+   *  (e.g. `sui-islands/`). */
+  lazyOutSubdir?: string
 
   /** Build mode. Defaults to 'production'. CLI sets to 'development'
    *  in watch mode. */
