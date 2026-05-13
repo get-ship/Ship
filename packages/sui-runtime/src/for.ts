@@ -47,6 +47,9 @@ export interface RenderedItem {
 interface ItemRecord<T> {
   key: unknown
   item: T
+  /** Last index the row was rendered at; paired with `item` so the
+   *  identity-skip in step 2 only fires when both are unchanged. */
+  __i: number
   nodes: Node[]
   cleanup?: () => void
   update?: (item: unknown, index: number) => void
@@ -143,9 +146,21 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
     r.cleanup?.()
   }
 
+  // Last-seen items array, retained so we can short-circuit when the
+  // reactive source re-fires with the same reference (e.g. a derived
+  // upstream re-evaluates and returns its cached array). Cleared by
+  // disposal alongside `prev`.
+  let lastItems: readonly T[] | null = null
+
   const dispose = effect(() => {
     if (!active) return
     const next = items()
+    // Same-array short-circuit: if the reactive source produced the
+    // exact same array reference, no key set or position changed, so
+    // the reconciler has nothing to do. Per-row state still flows
+    // through each row's own signals — those re-render independently.
+    if (next === lastItems) return
+    lastItems = next
     const n = next.length
 
     // Grow scratch typed arrays to the new high-water mark; never shrink.
@@ -203,14 +218,23 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
     //    No DOM mutations in this pass.
     nextRecords.length = 0
     freshNodes.length = 0
+    let anyReused = false
     for (let i = 0; i < n; i++) {
       const item = next[i]!
       const k = key(item, i)
       const existing = prevByKey.get(k)
       let record: ItemRecord<T>
       if (existing) {
-        existing.item = item
-        runProtected(anchor, 'render', () => existing.update?.(item, i))
+        anyReused = true
+        // Skip the per-row update push when the item reference and its
+        // position are both unchanged. The row's internal signals would
+        // short-circuit on Object.is anyway, but the function-call /
+        // closure-allocation overhead per row dominates at N=1000.
+        if (existing.item !== item || existing.__i !== i) {
+          existing.item = item
+          existing.__i = i
+          runProtected(anchor, 'render', () => existing.update?.(item, i))
+        }
         record = existing
       } else {
         const r = runProtected(anchor, 'render', () => render(item, i))
@@ -223,6 +247,7 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
         record = {
           key: k,
           item,
+          __i: i,
           nodes: r.nodes,
           ...(r.cleanup && { cleanup: r.cleanup }),
           ...(r.update && { update: r.update }),
@@ -234,31 +259,39 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
 
     // 3. Find matched records already in a stable relative order (LIS of
     //    their previous-array positions). These records don't need DOM
-    //    moves — only non-LIS and new records are repositioned.
-    for (let i = 0; i < prev.length; i++) prevPos.set(prev[i]!.key, i)
-
+    //    moves — only non-LIS and new records are repositioned. Skipped
+    //    entirely when step 2 reused no rows (full-replace / first
+    //    render): with no matches there's no LIS to compute and the
+    //    placement loop below takes the fragment fast path.
     let matchedCount = 0
-    for (let i = 0; i < nextRecords.length; i++) {
-      const p = prevPos.get(nextRecords[i]!.key)
-      if (p !== undefined) {
-        matched[2 * matchedCount] = i
-        matched[2 * matchedCount + 1] = p
-        matchedCount++
+    if (anyReused) {
+      for (let i = 0; i < prev.length; i++) prevPos.set(prev[i]!.key, i)
+
+      for (let i = 0; i < nextRecords.length; i++) {
+        const p = prevPos.get(nextRecords[i]!.key)
+        if (p !== undefined) {
+          matched[2 * matchedCount] = i
+          matched[2 * matchedCount + 1] = p
+          matchedCount++
+        }
+      }
+
+      computeLisMaskInto(matched, matchedCount, lisMaskBuf, lisPred, lisTails)
+      for (let j = 0; j < matchedCount; j++) {
+        if (lisMaskBuf[j]) stable.add(matched[2 * j]!)
       }
     }
 
-    computeLisMaskInto(matched, matchedCount, lisMaskBuf, lisPred, lisTails)
-    for (let j = 0; j < matchedCount; j++) {
-      if (lisMaskBuf[j]) stable.add(matched[2 * j]!)
-    }
-
-    // 4. Place all records. Fast path: when the previous render was
-    //    empty every record is new and goes after the anchor in order —
-    //    batch into a DocumentFragment so the parent sees one mutation
-    //    instead of N. Custom elements still upgrade and receive
-    //    connectedCallback when the fragment lands in the live tree.
+    // 4. Place all records. Fast path: when no records were matched
+    //    against the previous render, every record's nodes are freshly
+    //    created and unparented — batch them into a DocumentFragment so
+    //    the parent sees one mutation instead of N. Covers both the
+    //    initial mount (prev empty) and full-replace (prev fully
+    //    discarded, all new keys). Custom elements still upgrade and
+    //    receive connectedCallback when the fragment lands in the live
+    //    tree.
     const parent = anchor.parentNode
-    if (parent && prev.length === 0 && nextRecords.length > 0) {
+    if (parent && matchedCount === 0 && nextRecords.length > 0) {
       const frag = document.createDocumentFragment()
       for (let i = 0; i < nextRecords.length; i++) {
         const nodes = nextRecords[i]!.nodes
@@ -307,6 +340,7 @@ export function bindFor<T>(opts: BindForOptions<T>): Disposer {
     departing.clear()
     prev = []
     nextRecords.length = 0
+    lastItems = null
   }
 }
 
