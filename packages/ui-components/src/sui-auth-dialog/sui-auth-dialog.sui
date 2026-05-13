@@ -1,0 +1,219 @@
+<!--
+  <sui-auth-dialog> — SUI port of <ship-auth-dialog>.
+
+  Domain wrapper for authentication modals. Composes <sui-dialog> as the
+  modal chrome, <sui-tabs> + <sui-tab> to switch between sign-in /
+  sign-up, and <sui-button> for the primary submit. Bare <input>s are
+  retained for the email + password fields to match the lit version's
+  field treatment; <sui-input> is value-bound, while these are a one-shot
+  read on form submit.
+
+  Prop / event / slot parity vs <ship-auth-dialog>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  open (bool, false)           open (bool, false,       ✓ reflects
+                                  reflect)
+  mode (sign-in|sign-up)       mode (enum, 'sign-in',   ✓ reflects
+                                  reflect)
+  loading (bool, false)        loading (bool, false,    ✓ reflects
+                                  reflect)
+  backdrop (default|blur|      backdrop (enum, 'blur',  ✓ forwarded to
+    solid)                       reflect)                 sui-dialog
+  ─────────────────────────────────────────────────────────────────────────────
+  ship-auth-submit             sui-auth-submit          renamed per
+                                                          convention
+  ship-mode-change             sui-mode-change          renamed per
+                                                          convention
+  ship-close                   sui-close                renamed per
+                                                          convention
+  ─────────────────────────────────────────────────────────────────────────────
+  slots: header, providers,    same                     ✓
+    terms
+  parts: dialog, form, submit  same                     ✓
+  methods: show()/showModal()  exposed by controller    ✓ same names
+    /close()
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="open" type="bool" default="false" reflect />
+<prop name="mode" values="sign-in|sign-up" default="sign-in" reflect />
+<prop name="loading" type="bool" default="false" reflect />
+<prop name="backdrop" values="default|blur|solid" default="blur" reflect />
+
+<style>
+  :host { display: none; }
+  :host([open]) { display: contents; }
+
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 4px 0 0;
+    font-family: var(--font-body);
+    color: var(--foreground);
+  }
+
+  .providers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  ::slotted(*) { width: 100%; }
+
+  .or {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--muted-foreground);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .or::before, .or::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: color-mix(in oklch, var(--border) 55%, transparent);
+  }
+
+  form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 500;
+  }
+  input {
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--foreground);
+    font: inherit;
+    font-size: 14px;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+  }
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--tone-accent-ring, var(--ring));
+  }
+
+  .submit-row {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .submit-row sui-button { width: 100%; }
+
+  .terms {
+    color: var(--muted-foreground);
+    font-size: 11.5px;
+    text-align: center;
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .switch {
+    color: var(--muted-foreground);
+    font-size: 12.5px;
+    text-align: center;
+    margin: 0;
+  }
+  .switch button {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 0;
+    color: var(--accent);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+</style>
+
+<sui-dialog
+  part="dialog"
+  size="sm"
+  backdrop={backdrop()}
+  bind:this={dialogRef}
+  on:sui-close={onDialogClose}
+>
+  <div slot="header">
+    <slot name="header">{defaultTitle()}</slot>
+  </div>
+
+  <div class="body">
+    <sui-tabs
+      variant="pill"
+      active={mode()}
+      on:sui-tab-change={onTabChange}
+    >
+      <sui-tab name="sign-in" label="Sign in"></sui-tab>
+      <sui-tab name="sign-up" label="Sign up"></sui-tab>
+    </sui-tabs>
+
+    <div class="providers">
+      <slot name="providers" bind:this={providersSlot}></slot>
+    </div>
+
+    {#if hasProviders()}
+      <div class="or">or</div>
+    {/if}
+
+    <form part="form" on:submit={onSubmit} novalidate bind:this={formRef}>
+      <label>
+        Email
+        <input
+          name="email"
+          type="email"
+          autocomplete="email"
+          inputmode="email"
+          required
+          placeholder="you@company.com"
+        />
+      </label>
+      <label>
+        Password
+        <input
+          name="password"
+          type="password"
+          autocomplete={passwordAutocomplete()}
+          required
+          minlength="8"
+        />
+      </label>
+
+      <div class="submit-row">
+        <sui-button
+          part="submit"
+          tone="accent"
+          variant="solid"
+          size="md"
+          type="submit"
+          loading={loading()}
+          disabled={loading()}
+        >{submitLabel()}</sui-button>
+        <p class="terms"><slot name="terms"></slot></p>
+      </div>
+    </form>
+
+    <p class="switch">
+      {switchPrompt()}
+      <button type="button" on:click={onSwitchClick}>{switchLabel()}</button>
+    </p>
+  </div>
+</sui-dialog>

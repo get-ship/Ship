@@ -1,0 +1,57 @@
+<!--
+  <sui-theme-toggle> — SUI port of <ship-theme-toggle>.
+
+  Binary toggle between light and dark by flipping the `.dark` class on
+  documentElement. Persists the choice in localStorage under
+  `ship-theme`. Distinct from <sui-theme-picker>, which exposes the
+  full brand palette.
+
+  Prop / event / slot parity vs <ship-theme-toggle>
+  ─────────────────────────────────────────────────────────────────────────────
+  Lit                          SUI                      Notes
+  ─────────────────────────────────────────────────────────────────────────────
+  theme (light|dark|auto,      theme (enum, 'auto',     ✓ reflects; `auto`
+    'auto')                       reflect)                resolves on mount
+                                                            to the persisted
+                                                            value or
+                                                            prefers-color-
+                                                            scheme
+  ─────────────────────────────────────────────────────────────────────────────
+  ship-theme-change            sui-theme-change         renamed per
+                                                          convention
+  ─────────────────────────────────────────────────────────────────────────────
+  default slot label            default slot label      ✓ falls back to
+                                                          "Dark" / "Light"
+  ─────────────────────────────────────────────────────────────────────────────
+-->
+
+<prop name="theme" values="light|dark|auto" default="auto" reflect />
+
+<style>
+  :host { display: inline-flex; }
+  :host([hidden]) { display: none; }
+  button {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font: inherit;
+    font-size: 12px;
+    color: var(--foreground);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  button:hover { background: var(--muted); }
+</style>
+
+<button
+  type="button"
+  aria-label="Toggle theme"
+  aria-pressed={isDark() ? 'true' : 'false'}
+  title="Toggle theme"
+  on:click={toggle}
+>
+  {isDark() ? '🌙' : '☀'} <slot>{isDark() ? 'Dark' : 'Light'}</slot>
+</button>
