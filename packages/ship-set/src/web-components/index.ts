@@ -7,7 +7,6 @@
  */
 
 // Core primitives — root UI + observability + utility (formerly three dirs)
-import './core/ship-accordion'
 import './core/ship-alert'
 import './core/ship-alert-dialog'
 import './core/ship-annotation-layer'
@@ -76,7 +75,6 @@ import './domain/ship-history-row'
 import './domain/ship-auth-dialog'
 
 // Core named exports
-export { ShipAccordion, ShipAccordionItem } from './core/ship-accordion'
 export { ShipAlert } from './core/ship-alert'
 export { ShipAlertDialog } from './core/ship-alert-dialog'
 export { ShipBadge } from './core/ship-badge'
