@@ -4,6 +4,7 @@ mod add_from_write;
 mod agent_config;
 mod audit;
 mod auth;
+mod build;
 mod cli;
 mod commands;
 mod compile;
@@ -224,6 +225,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 run_daemon(cmd)
             }
             Commands::Doctor => doctor::run(),
+            Commands::Build { dry_run } => build::run(dry_run),
             Commands::Runtime { action } => match action {
                 cli::RuntimeCommands::Install { bun, sui_compiler } => {
                     runtime_cmd::run_install(bun, sui_compiler)

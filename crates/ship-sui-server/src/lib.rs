@@ -1,5 +1,6 @@
 pub mod assets;
 pub mod bundle;
+pub mod mode_html;
 pub mod render_helpers;
 pub mod resolver;
 pub mod view;
@@ -24,6 +25,7 @@ pub use assets::{
     serve_sui_components, serve_sui_dom, serve_sui_island, serve_sui_lucide_icons,
     serve_sui_runtime, serve_sui_sdk_client,
 };
+pub use mode_html::{inject_mode_meta, mode_str};
 pub use view::{
     serve_sui_view_css, serve_sui_view_setup, serve_sui_view_template, ViewSetupQuery,
 };

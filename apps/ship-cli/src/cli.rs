@@ -290,6 +290,15 @@ pub enum Commands {
     /// Diagnose ship setup — build identity, daemon status, home layout
     Doctor,
 
+    /// One-shot production build: regen types, rebuild ship-set + ui-components,
+    /// then `cargo build --release` and verify all expected outputs exist.
+    /// Equivalent to `just build`; provided so users without `just` can ship.
+    Build {
+        /// Print each stage's command without running it
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// Manage the bundled JS toolchain at ~/.ship/runtime/ (Bun + sui-compiler + bundler.ts)
     Runtime {
         #[command(subcommand)]

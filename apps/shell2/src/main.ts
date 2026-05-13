@@ -74,7 +74,22 @@ declare global {
      *  a corresponding `sui:scope:change` event fires on document so
      *  consumers can re-anchor without polling. */
     __suiCurrentScope?: Record<string, unknown> | null
+    /** Daemon operating mode, derived from `<meta name="ship-mode">` at
+     *  boot. `'Production'` when shipd serves prebuilt shell HTML in
+     *  production; `'Development'` everywhere else (Vite dev server,
+     *  un-rewritten static index). The status bar renders a DEV badge
+     *  whenever this is `'Development'`. */
+    __shipMode?: 'Production' | 'Development'
   }
+}
+
+/** Read `<meta name="ship-mode">` and normalize. Anything that isn't
+ *  `production` falls back to development so the badge errs on the side
+ *  of being shown. */
+function readShipMode(): 'Production' | 'Development' {
+  const meta = document.querySelector('meta[name="ship-mode"]') as HTMLMetaElement | null
+  const raw = (meta?.content ?? '').trim().toLowerCase()
+  return raw === 'production' ? 'Production' : 'Development'
 }
 
 function publishScope(scope: Record<string, unknown> | null): void {
@@ -344,6 +359,14 @@ function persistRailOpen(open: boolean): void {
 
 const statusBar = document.getElementById('ship-status-bar') as HTMLElement | null
 let daemonOnline = false
+
+const shipMode = readShipMode()
+window.__shipMode = shipMode
+if (statusBar) {
+  // Lowercase mode value so status-bar can compare with `attr === 'development'`.
+  statusBar.setAttribute('mode', shipMode.toLowerCase())
+}
+document.dispatchEvent(new CustomEvent('ship:mode', { detail: { mode: shipMode } }))
 
 async function updateStatus(): Promise<void> {
   if (!statusBar) return
