@@ -204,27 +204,51 @@ describe('createClient', () => {
     }
   })
 
-  it('workspaces.list fetches /api/v1/projects', async () => {
+  it('workspaces.list opens an SSE channel', () => {
+    FakeEventSource.instances = []
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    const sig = live(() => ship.workspaces.list())
+    expect(sig().kind).toBe('loading')
+    expect(FakeEventSource.instances).toHaveLength(1)
+    expect(FakeEventSource.instances[0]!.url).toMatch(/workspaces\.list/)
+  })
+
+  it('workspaces.active opens an SSE channel', () => {
+    FakeEventSource.instances = []
+    const ship = createClient({ EventSource: FakeEventSource as any })
+    const sig = live(() => ship.workspaces.active())
+    expect(sig().kind).toBe('loading')
+    expect(FakeEventSource.instances).toHaveLength(1)
+    expect(FakeEventSource.instances[0]!.url).toMatch(/workspaces\.active/)
+  })
+
+  it('skills.invoke POSTs to /api/v1/skills/{id}/invoke', async () => {
+    const calls: Array<{ url: string; init?: RequestInit }> = []
     const orig = globalThis.fetch
-    globalThis.fetch = async () =>
-      new Response(JSON.stringify({ projects: [], active: null }), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      })
+    globalThis.fetch = async (url: any, init?: any) => {
+      calls.push({ url: String(url), init })
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          run_id: 'run-1',
+          skill_id: 'foo',
+          workspace_id: null,
+        }),
+        { status: 200, headers: { 'content-type': 'application/json' } },
+      )
+    }
     try {
       const ship = createClient({ EventSource: FakeEventSource as any })
-      const resp = await ship.workspaces.list()
-      expect(resp).toEqual({ projects: [], active: null })
+      const resp = await ship.skills.invoke({ id: 'foo', vars: { k: 'v' } })
+      expect(resp.run_id).toBe('run-1')
+      expect(resp.skill_id).toBe('foo')
+      expect(calls[0]!.url).toBe('/api/v1/skills/foo/invoke')
+      expect(JSON.parse(calls[0]!.init?.body as string)).toEqual({
+        vars: { k: 'v' },
+      })
     } finally {
       globalThis.fetch = orig
     }
-  })
-
-  it('skills.invoke rejects with a structured not_implemented error', async () => {
-    const ship = createClient({ EventSource: FakeEventSource as any })
-    await expect(
-      ship.skills.invoke({ id: 'foo' }),
-    ).rejects.toMatchObject({ code: 'not_implemented', op: 'skills.invoke' })
   })
 
   it('mutation errors surface the daemon response body', async () => {

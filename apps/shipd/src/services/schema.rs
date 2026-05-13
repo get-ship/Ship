@@ -434,4 +434,21 @@ pub const OPS: &[OpDescriptor] = &[
         returns: "{items: [SessionMeta]}",
         permission: "ship.sessions.read", sensitive: false,
     },
+    // ── workspaces ────────────────────────────────────────────────
+    OpDescriptor {
+        name: "workspaces.list",
+        description: "Known project workspaces with active flag per row.",
+        args: &[],
+        returns: "{items: [WorkspaceSummary], active: string?}",
+        permission: "ship.workspaces.read",
+        sensitive: false,
+    },
+    OpDescriptor {
+        name: "workspaces.active",
+        description: "Currently-active workspace id (null if none).",
+        args: &[],
+        returns: "{id: string?}",
+        permission: "ship.workspaces.read",
+        sensitive: false,
+    },
 ];

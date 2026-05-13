@@ -113,12 +113,15 @@ export interface ShipSDK {
     end(args: { id: string }): Promise<void>
   }
   workspaces: {
-    /** Known projects + active id.
-     *
-     *  REST one-shot (no SSE op on the daemon yet). `live(() => …)`
-     *  treats the returned promise as a loading→ok transition; views
-     *  re-call after `activate()` to refresh. */
-    list(): Promise<{ projects: WorkspaceSummary[]; active?: string | null }>
+    /** Known projects + active flag per row. Live SSE — patches re-emit
+     *  whenever the project registry or `shell.project.active` changes. */
+    list(): LiveSource<{
+      items: (WorkspaceSummary & { active: boolean })[]
+      active: string | null
+    }>
+    /** Currently-active workspace id (or null). Live SSE — patches on
+     *  `config.changed` for `shell.project.active`. */
+    active(): LiveSource<{ id: string | null }>
     /** Switch the active project — daemon emits `config.changed`. */
     activate(args: { id: string }): Promise<{ ok: true; active: string }>
   }
@@ -131,13 +134,22 @@ export interface ShipSDK {
     }): LiveSource<unknown>
     /** Single skill detail (frontmatter + body + vars). */
     detail(args: { id: string }): LiveSource<unknown>
-    /** Trigger a one-shot skill run.
+    /** Trigger a skill run.
      *
-     *  Server-side gap: no canonical `POST /api/v1/skills/{id}/invoke`
-     *  route exists yet — calling this rejects with a structured
-     *  `not_implemented` error so views can degrade to "coming soon"
-     *  affordances without bespoke try/catch chains. See
-     *  `.artifacts/sui-arc/sdk-mutation-paths.md` for the audit. */
-    invoke(args: { id: string; vars?: Record<string, string> }): Promise<{ run_id: string }>
+     *  Minimal-stub today: validates the skill, mints a `run_id`,
+     *  emits `skill.started` on the kernel event bus, and returns the
+     *  identifiers. Standalone-execution (i.e. without an attached
+     *  agent provider) is tracked in
+     *  `.artifacts/sui-arc/daemon-sdk-mutation-ops.md`. */
+    invoke(args: {
+      id: string
+      vars?: Record<string, unknown>
+      workspace_id?: string
+    }): Promise<{
+      ok: true
+      run_id: string
+      skill_id: string
+      workspace_id: string | null
+    }>
   }
 }

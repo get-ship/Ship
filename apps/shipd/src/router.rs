@@ -516,6 +516,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SkillsGetVars_template(), services::skills::get_vars)
         .ship_route(Route::SkillsPutVar_template(), services::skills::put_var)
         .ship_route(Route::SkillsDeleteVar_template(), services::skills::delete_var)
+        .ship_route(Route::SkillsInvoke_template(), services::skills::invoke)
         .ship_route(Route::ChatSend, services::chat::send_message)
         // Specs REST
         .ship_route(Route::ListSpecs, specs_api::list_specs)
