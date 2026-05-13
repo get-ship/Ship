@@ -1,16 +1,20 @@
 //! Cargo validates SUI bundle production.
 //!
-//! `include_str!` in `src/view.rs` bakes bundle outputs into the
-//! framework binary at compile time. The bundles are produced by the
-//! Bun bundler worker at `~/.ship/runtime/bundler.ts`:
+//! `include_str!` in `src/assets.rs` bakes bundle outputs into the
+//! framework binary at compile time. Every asset under `assets/` is
+//! gitignored — the build emits them on demand and `dispatch.sh`
+//! bootstraps fresh worktrees by copying from the launching repo (or
+//! rebuilding when that's empty). Producers:
 //!
-//!   * `bun run ~/.ship/runtime/bundler.ts` (or `just dev-build-all`) —
-//!     runs the in-process Bun bundler for sui-runtime.js, sui-dom.js,
-//!     sui-sdk-client.js, sui-components.js, sui-islands/*.js, and
-//!     views/*/view.js. Lit bundles (ship-elements/code-editor/
-//!     markdown-editor/terminal) ship to apps/shipd/assets/.
-//!   * `packages/ship-set/scripts/generate-lucide-registry.mjs` —
-//!     lucide-icons.json
+//!   * `pnpm -F @ship/sui-runtime bundle` — sui-runtime.js
+//!   * `pnpm -F @ship/sui-dom bundle`     — sui-dom.js
+//!   * `pnpm -F @ship/sdk-client bundle`  — sui-sdk-client.js
+//!   * `pnpm -F @ship/ui-components build` — sui-components.js,
+//!     sui-islands/*.js, sui-custom-elements.json (via sui-build)
+//!   * the in-daemon Bun worker at `~/.ship/runtime/bundler.ts` —
+//!     refreshes everything above plus views/*/view.js while shipd
+//!     runs in dev mode
+//!   * `pnpm -F @ship/set icons` — lucide-icons.json
 //!
 //! What this build script DOES is verify the assets are populated.
 //! Pre-existing failure mode: `cargo build` on a fresh clone wrote
@@ -19,9 +23,11 @@
 //! now panic with a clear message so the failure is immediate and
 //! actionable.
 //!
-//! On a fresh clone, run `ship runtime install && just dev-build-all &&
-//! node packages/ship-set/scripts/generate-lucide-registry.mjs`
-//! before `cargo build`. `just dev-restart` does this for you.
+//! On a fresh clone without dispatch.sh, run the producers above (the
+//! convenience aggregate `pnpm -F @ship/sui-runtime bundle && pnpm -F
+//! @ship/sui-dom bundle && pnpm -F @ship/sdk-client bundle && pnpm -F
+//! @ship/ui-components build && pnpm -F @ship/set build && pnpm -F
+//! @ship/set icons`) before `cargo build`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -100,12 +106,17 @@ fn main() {
             .join("\n");
         panic!(
             "build.rs: SUI bundle assets are missing or empty.\n{lines}\n\n\
-             Bundles are produced by the Bun worker at\n\
-             `~/.ship/runtime/bundler.ts`. Run:\n\n  \
-             ship runtime install   # one-time, populates ~/.ship/runtime/\n  \
-             just dev-build-all     # or: bun run ~/.ship/runtime/bundler.ts (one-shot)\n  \
-             node packages/ship-set/scripts/generate-lucide-registry.mjs\n\n\
-             then re-run `cargo build`. `just dev-restart` does this for you."
+             Every asset under crates/ship-sui-server/assets/ is gitignored.\n\
+             On fresh worktrees, dispatch.sh bootstraps them automatically.\n\
+             For a standalone cargo build, regenerate by running (in order):\n\n  \
+             pnpm install --frozen-lockfile\n  \
+             pnpm -F @ship/sui-runtime bundle\n  \
+             pnpm -F @ship/sui-dom bundle\n  \
+             pnpm -F @ship/sdk-client bundle\n  \
+             pnpm -F @ship/ui-components build\n  \
+             pnpm -F @ship/set build\n  \
+             pnpm -F @ship/set icons\n\n\
+             then re-run `cargo build`."
         );
     }
 

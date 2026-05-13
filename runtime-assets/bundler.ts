@@ -45,7 +45,7 @@ interface BundleManifest {
 
 const repoRoot = process.env.SHIP_REPO_ROOT ?? process.cwd()
 const litAssetsDir = resolve(repoRoot, 'apps/shipd/assets')
-const suiAssetsDir = resolve(repoRoot, 'crates/ship-ui-framework/assets')
+const suiAssetsDir = resolve(repoRoot, 'crates/ship-sui-server/assets')
 
 function assetsDirFor(name: string): string {
   if (name.startsWith('sui-') || name.startsWith('views/')) return suiAssetsDir
