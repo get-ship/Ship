@@ -14,6 +14,33 @@ const SLIDE_FROM: Record<ToastPosition, 'top' | 'bottom'> = {
   'bottom-right': 'bottom',
 }
 
+// Stack lives in `document.body` via sui-portal — shadow CSS doesn't
+// reach it, so positioning is applied inline by the controller.
+const EDGE = '16px'
+const STACK_BASE_STYLE =
+  'position:fixed;display:flex;gap:var(--space-2,8px);' +
+  'pointer-events:none;z-index:var(--z-toast,9999);' +
+  'max-width:min(440px,calc(100vw - 32px));' +
+  'padding:0;margin:0;box-sizing:border-box;'
+
+function stackStyleFor(position: ToastPosition): string {
+  switch (position) {
+    case 'top-right':
+      return `${STACK_BASE_STYLE}top:${EDGE};right:${EDGE};flex-direction:column;align-items:flex-end;`
+    case 'top-left':
+      return `${STACK_BASE_STYLE}top:${EDGE};left:${EDGE};flex-direction:column;align-items:flex-start;`
+    case 'top-center':
+      return `${STACK_BASE_STYLE}top:${EDGE};left:50%;transform:translateX(-50%);flex-direction:column;align-items:center;`
+    case 'bottom-left':
+      return `${STACK_BASE_STYLE}bottom:${EDGE};left:${EDGE};flex-direction:column-reverse;align-items:flex-start;`
+    case 'bottom-center':
+      return `${STACK_BASE_STYLE}bottom:${EDGE};left:50%;transform:translateX(-50%);flex-direction:column-reverse;align-items:center;`
+    case 'bottom-right':
+    default:
+      return `${STACK_BASE_STYLE}bottom:${EDGE};right:${EDGE};flex-direction:column-reverse;align-items:flex-end;`
+  }
+}
+
 interface ShowToastOptions {
   tone?: string
   size?: string
@@ -35,16 +62,32 @@ export default controller<Scope>({
     if (!host.hasAttribute('aria-live')) host.setAttribute('aria-live', 'polite')
 
     const slotVersion = signal(0)
-    const defaultSlotEl = scope.defaultSlotEl()
+    const defaultSlotEl = scope.defaultSlotEl() as HTMLSlotElement | null
+    const stackEl = scope.stackEl() as HTMLElement | null
 
-    const getToasts = (): HTMLElement[] => {
-      if (defaultSlotEl) {
-        return (defaultSlotEl as HTMLSlotElement)
-          .assignedElements()
-          .filter((e) => e.tagName.toLowerCase() === 'sui-toast') as HTMLElement[]
-      }
-      return Array.from(host.querySelectorAll(':scope > sui-toast')) as HTMLElement[]
+    // Pull any author-supplied <sui-toast> children out of the host's
+    // light DOM and into the portal-teleported stack. The slot still
+    // exists in shadow for SSR-friendliness, but at runtime the toasts
+    // live alongside their siblings in body so the stack layout
+    // applies uniformly to slot + show()-created toasts.
+    const adoptIntoStack = (toast: HTMLElement): void => {
+      if (!stackEl) return
+      if (toast.parentElement !== stackEl) stackEl.appendChild(toast)
     }
+
+    const getStackToasts = (): HTMLElement[] => {
+      if (!stackEl) return []
+      return Array.from(stackEl.children).filter(
+        (c) => c.tagName.toLowerCase() === 'sui-toast',
+      ) as HTMLElement[]
+    }
+
+    const stopStackStyleEffect = effect(() => {
+      if (!stackEl) return
+      const pos = scope.position() as ToastPosition
+      stackEl.style.cssText = stackStyleFor(pos)
+      stackEl.setAttribute('data-position', pos)
+    })
 
     const stopSlotEffect = effect(() => {
       slotVersion()
@@ -52,9 +95,12 @@ export default controller<Scope>({
       const maxVis = scope.maxVisible()
       const dir = SLIDE_FROM[pos] ?? 'bottom'
 
-      const toasts = getToasts()
+      const toasts = getStackToasts()
       for (const t of toasts) {
         t.setAttribute('data-slide-from', dir)
+        // Each toast needs its own `pointer-events` since the stack
+        // is `pointer-events: none`.
+        t.style.pointerEvents = 'auto'
       }
 
       if (maxVis > 0 && toasts.length > maxVis) {
@@ -70,9 +116,61 @@ export default controller<Scope>({
       }
     })
 
-    const onSlotChange = () => slotVersion.set(slotVersion() + 1)
+    const onSlotChange = () => {
+      if (defaultSlotEl) {
+        for (const node of defaultSlotEl.assignedElements()) {
+          if (node.tagName.toLowerCase() === 'sui-toast') {
+            adoptIntoStack(node as HTMLElement)
+          }
+        }
+      }
+      slotVersion.set(slotVersion() + 1)
+    }
     if (defaultSlotEl) {
       defaultSlotEl.addEventListener('slotchange', onSlotChange)
+      // Initial adoption — assignedElements() is populated synchronously
+      // when slotted children were in light DOM at construct time, but
+      // slotchange doesn't fire for that initial assignment. Drain now.
+      onSlotChange()
+    }
+
+    // Also observe direct light-DOM children appended after mount but
+    // before they slot — show() routes through stackEl directly, but a
+    // test or consumer doing `host.appendChild(sui-toast)` should still
+    // land in the stack.
+    const hostObserver = new MutationObserver((records) => {
+      let dirty = false
+      for (const r of records) {
+        for (const n of r.addedNodes) {
+          if (n.nodeType === Node.ELEMENT_NODE) {
+            const el = n as HTMLElement
+            if (el.tagName.toLowerCase() === 'sui-toast') {
+              adoptIntoStack(el)
+              dirty = true
+            }
+          }
+        }
+        if (r.removedNodes.length) dirty = true
+      }
+      if (dirty) slotVersion.set(slotVersion() + 1)
+    })
+    hostObserver.observe(host, { childList: true })
+
+    // Drain any pre-existing light children at mount.
+    for (const child of Array.from(host.children)) {
+      if (child.tagName.toLowerCase() === 'sui-toast') {
+        adoptIntoStack(child as HTMLElement)
+      }
+    }
+    slotVersion.set(slotVersion() + 1)
+
+    // Track stack mutations too — toasts removing themselves via
+    // dismiss() should drop the stack count for max-visible enforcement.
+    const stackObserver = stackEl
+      ? new MutationObserver(() => slotVersion.set(slotVersion() + 1))
+      : null
+    if (stackEl && stackObserver) {
+      stackObserver.observe(stackEl, { childList: true })
     }
 
     function show(opts: ShowToastOptions = {}): HTMLElement {
@@ -103,7 +201,8 @@ export default controller<Scope>({
         bindHtml(wrap, () => html)
         t.appendChild(wrap)
       }
-      host.appendChild(t)
+      if (stackEl) stackEl.appendChild(t)
+      else host.appendChild(t)
       return t
     }
 
@@ -111,6 +210,9 @@ export default controller<Scope>({
 
     return () => {
       stopSlotEffect()
+      stopStackStyleEffect()
+      hostObserver.disconnect()
+      stackObserver?.disconnect()
       if (defaultSlotEl) {
         defaultSlotEl.removeEventListener('slotchange', onSlotChange)
       }

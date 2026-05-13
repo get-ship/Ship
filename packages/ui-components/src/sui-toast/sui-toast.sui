@@ -96,17 +96,6 @@
   :host([data-slide-from='top'])    { --toast-slide-x: 0;     --toast-slide-y: -12px; }
   :host([data-slide-from='bottom']) { --toast-slide-x: 0;     --toast-slide-y: 12px; }
 
-  @keyframes sui-toast-in {
-    from {
-      opacity: 0;
-      transform: translate3d(var(--toast-slide-x), var(--toast-slide-y), 0) scale(0.98);
-    }
-    to {
-      opacity: 1;
-      transform: translate3d(0, 0, 0) scale(1);
-    }
-  }
-
   .toast {
     display: grid;
     grid-template-columns: auto 1fr auto;
@@ -130,8 +119,9 @@
     position: relative;
     overflow: hidden;
     isolation: isolate;
-    animation: sui-toast-in var(--duration-medium, 200ms) var(--ease-out, ease-out) both;
   }
+  /* Enter/exit polish is driven by `in:slide` + `out:fade` on the
+     #if-mounted .toast (see template). */
 
   :host(:not([tone])) .toast,
   :host([tone='default']) .toast {
@@ -268,19 +258,7 @@
     to   { transform: scaleX(0); }
   }
 
-  :host([closing]) {
-    animation: sui-toast-out var(--duration-medium, 200ms) var(--ease-in, ease-in) forwards;
-  }
-  @keyframes sui-toast-out {
-    to {
-      opacity: 0;
-      transform: translate3d(var(--toast-slide-x), var(--toast-slide-y), 0) scale(0.96);
-    }
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .toast { animation: none; }
-    :host([closing]) { animation: none; }
     .progress { animation: none; }
   }
 
@@ -290,7 +268,17 @@
   }
 </style>
 
+<!--
+  `{#if visible()}` + asymmetric `in:slide` / `out:fade` drive the
+  enter/exit polish. Controller flips `visible` to false in `close()`
+  and the bindIf-driven out-transition keeps the toast in the DOM
+  until the fade finishes (after which the controller calls
+  `dismiss()` to remove the host).
+-->
+{#if visible()}
 <div class="toast"
+  in:slide={{ axis: 'y', duration: 200 }}
+  out:fade={{ duration: 180 }}
   role={tone() === 'destructive' || tone() === 'warning' ? 'alert' : 'status'}
   aria-live={tone() === 'destructive' || tone() === 'warning' ? 'assertive' : 'polite'}
   aria-atomic="true"
@@ -350,3 +338,4 @@
     <span class="progress" aria-hidden="true"></span>
   {/if}
 </div>
+{/if}

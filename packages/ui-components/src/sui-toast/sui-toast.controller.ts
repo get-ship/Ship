@@ -8,11 +8,12 @@ const TONES_WITH_AUTO_ICON = new Set(['info', 'success', 'warning', 'destructive
 export default controller<Scope>({
   scope: () => {
     const hasSlottedIcon = signal(false)
+    const visible = signal(true)
     const iconSlotEl = ref<HTMLSlotElement>(null)
     const titleSlotEl = ref<HTMLSlotElement>(null)
     const actionsSlotEl = ref<HTMLSlotElement>(null)
     const closeBtn = ref<HTMLButtonElement>(null)
-    return { hasSlottedIcon, iconSlotEl, titleSlotEl, actionsSlotEl, closeBtn }
+    return { hasSlottedIcon, visible, iconSlotEl, titleSlotEl, actionsSlotEl, closeBtn }
   },
 
   mount(state, host) {
@@ -63,14 +64,12 @@ export default controller<Scope>({
       }
       clearTimer()
       host.setAttribute('closing', '')
-      await new Promise<void>((resolve) => {
-        const onEnd = () => {
-          host.removeEventListener('animationend', onEnd)
-          resolve()
-        }
-        host.addEventListener('animationend', onEnd)
-        setTimeout(() => resolve(), 260)
-      })
+      // Flip `visible` to false; bindIf runs `out:fade` on the .toast
+      // wrapper. The out-transition's duration (180ms — see template)
+      // gates when we tear the host down.
+      const visSignal = scope.visible as unknown as ReturnType<typeof signal<boolean>>
+      visSignal.set(false)
+      await new Promise<void>((resolve) => setTimeout(resolve, 200))
       dismiss(reason)
     }
 

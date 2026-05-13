@@ -370,6 +370,27 @@ re-rendering. `prefers-reduced-motion: reduce` collapses duration and
 delay to `0` automatically. Transitions don't surface in SSR output —
 they register on element construction (CSR + hydrate paths).
 
+## When components use these — real-world exemplars
+
+The portal + transition primitives are composed by three platform
+components. Read them when you're authoring a new overlay-style
+primitive:
+
+| Primitive | Portal role | Transition |
+|---|---|---|
+| `sui-dialog` | `<sui-portal target="body">` teleports a `[data-sui-dialog-open]` marker so page-level styles can react to "any modal open" via `:has` selectors. The dialog element itself stays in shadow because native `showModal()` already escapes parent stacking context via top layer. | `transition:fade={{ duration: 150 }}` on the #if-mounted content wrapper drives open/close polish. |
+| `sui-popover` | Same pattern — `[data-sui-popover-open]` marker portaled to body. Native `popover="auto"` handles top-layer + light dismiss; the marker is for page-level hooks. | `transition:scale={{ duration: 120 }}` on the #if-mounted `.surface`. |
+| `sui-toast-container` | `<sui-portal target="body">` teleports the actual stack of toasts. Toast containers *genuinely* need to escape ancestor `transform` / `overflow` containing blocks — `position: fixed` alone isn't enough. The slot stays in shadow; the controller adopts slotted + `show()`-created toasts into the body-side stack. | Each `<sui-toast>` uses asymmetric `in:slide={{ axis: 'y' }}` + `out:fade` on its `#if visible()` panel. The controller flips `visible` to false on `close()` and tears the host down after the out-transition. |
+
+The takeaway: where the native platform already provides top-layer
+rendering (`<dialog>.showModal()`, `popover="auto"`), `<sui-portal>`
+is best used for *document-level state markers* that page chrome can
+target — not for re-portaling the panel itself, which would break
+slot projection (slots only project inside their host's shadow tree;
+once teleported they detach). Where the native platform does NOT (a
+fixed-position toast stack inside a transformed ancestor),
+`<sui-portal>` is the right tool to teleport the whole thing.
+
 ## References
 
 | When you need | Read |

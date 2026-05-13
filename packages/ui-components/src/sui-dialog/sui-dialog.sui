@@ -59,25 +59,14 @@
     overflow: visible;
     display: flex;
     flex-direction: column;
-    opacity: 0;
-    /* Closed state: don't intercept clicks. The dialog stays in the
-       layout tree so the open-state CSS transition has something to
-       animate from, but `position: fixed; inset: 0` would otherwise
-       cover the entire viewport with an invisible (opacity: 0) but
-       click-eating overlay — clicks would land on the dialog instead
-       of the underlying app surface. `pointer-events: none` lifts that
-       restriction whenever the dialog isn't open. */
-    pointer-events: none;
-    transform: translateY(8px) scale(0.96);
-    transition:
-      opacity var(--duration-medium, 200ms) var(--ease-out, ease-out),
-      transform var(--duration-medium, 200ms) var(--ease-out, ease-out);
   }
   :host([size='full']) dialog { max-height: 90vh; }
-  dialog[open] {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    pointer-events: auto;
+
+  /* Open/close polish is driven by the `transition:fade` directive on
+     the content wrapper (Web Animations API) and by the native
+     ::backdrop fade below — no CSS transition on `dialog` itself. */
+  .dialog-content {
+    display: contents;
   }
 
   dialog::backdrop {
@@ -142,13 +131,28 @@
   :host([no-close-button]) .close { display: none; }
 
   @media (prefers-reduced-motion: reduce) {
-    dialog { transition: none; transform: none !important; opacity: 1; }
     dialog::backdrop { transition: none; }
   }
   @media (forced-colors: active) {
     dialog { border: 1px solid CanvasText; }
   }
 </style>
+
+<!--
+  Why the `{#if open()}` + `transition:fade` here (and not on the
+  native dialog itself)? The dialog element must stay mounted so
+  showModal()/.close() drive top-layer + ::backdrop; what fades is
+  the *content*. The `<slot>` elements live inside the #if branch,
+  so they re-enter the shadow tree on every open and projection
+  survives without juggling.
+
+  Why the `<sui-portal>` below? Native showModal() already escapes
+  parent stacking context via the browser top layer — sui-dialog
+  doesn't NEED to teleport its panel. The portal supplies a
+  document-level `[data-sui-dialog-open]` marker that page-level
+  styles (global scroll lock, chrome dimming, etc.) can target via
+  `:has` selectors without poking into shadow DOM.
+-->
 
 <dialog part="dialog" bind:this={dialogEl}>
   <span tabindex="0" class="sentinel" aria-hidden="true" bind:this={sentinelStart}></span>
@@ -158,14 +162,23 @@
       <path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/>
     </svg>
   </button>
-  <div class="header" part="header" bind:this={headerEl}>
-    <slot name="header"></slot>
-  </div>
-  <div class="body" part="body" bind:this={bodyEl}>
-    <slot></slot>
-  </div>
-  <div class="footer" part="footer">
-    <slot name="footer"></slot>
-  </div>
+  {#if open()}
+    <div class="dialog-content" transition:fade={{ duration: 150 }}>
+      <div class="header" part="header" bind:this={headerEl}>
+        <slot name="header"></slot>
+      </div>
+      <div class="body" part="body" bind:this={bodyEl}>
+        <slot></slot>
+      </div>
+      <div class="footer" part="footer">
+        <slot name="footer"></slot>
+      </div>
+    </div>
+  {/if}
   <span tabindex="0" class="sentinel" aria-hidden="true" bind:this={sentinelEnd}></span>
 </dialog>
+{#if open()}
+  <sui-portal target="body">
+    <div class="sui-dialog-presence" aria-hidden="true" data-sui-dialog-open></div>
+  </sui-portal>
+{/if}
