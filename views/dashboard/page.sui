@@ -171,12 +171,13 @@
           </div>
         </ship-card>
 
-        <!-- Latest events (full width) -->
-        <ship-card padding="none" class="dash-section dash-body--wide" aria-label="Latest events">
+        <!-- Recent activity (full width) -->
+        <ship-card padding="none" class="dash-section dash-body--wide dash-activity" aria-label="Recent activity">
           <div slot="header" class="dash-section-head">
             <h2 class="dash-section-title">
               <ship-icon class="dash-section-icon" name="activity" aria-hidden="true"></ship-icon>
-              Latest events
+              Recent activity
+              <ship-badge tone="muted" variant="soft" size="sm">{dash().value.events.length}</ship-badge>
             </h2>
             <a class="dash-section-link" href="/events">
               Full stream <ship-icon name="chevron-right" size="10" aria-hidden="true"></ship-icon>
@@ -184,25 +185,28 @@
           </div>
           <div class="dash-section-body">
             {#if dash().value.events.length > 0}
-              {#for r of dash().value.events key={r.id ?? r.timestamp}}
-                <div class="dash-event-row">
-                  <span class="dash-event-ts">{r.timestamp}</span>
-                  <span class="dash-event-type">{r.event_type}</span>
-                  <span class="dash-event-actor">
-                    {#if r.actor}
-                      <ship-avatar size="sm" prop:identity-hue={r.actor}
-                        prop:name={r.actor}
-                        prop:initials={r.actor.slice(0, 1).toUpperCase()}></ship-avatar>
-                      <span>{r.actor}</span>
-                    {:else}
-                      <span>—</span>
-                    {/if}
-                  </span>
-                </div>
-              {/for}
+              <ol class="dash-activity-stream" data-view-enter>
+                {#for r of dash().value.events key={r.id ?? r.timestamp}}
+                  <li class="dash-activity-row">
+                    <span class="dash-activity-rail" aria-hidden="true"></span>
+                    <span class="dash-event-ts">{r.timestamp}</span>
+                    <span class="dash-event-type">{r.event_type}</span>
+                    <span class="dash-event-actor">
+                      {#if r.actor}
+                        <ship-avatar size="sm" prop:identity-hue={r.actor}
+                          prop:name={r.actor}
+                          prop:initials={r.actor.slice(0, 1).toUpperCase()}></ship-avatar>
+                        <span>{r.actor}</span>
+                      {:else}
+                        <span>—</span>
+                      {/if}
+                    </span>
+                  </li>
+                {/for}
+              </ol>
             {:else}
               <ship-empty-state variant="placeholder" size="sm" icon="activity">
-                <span slot="title">Waiting for events</span>
+                <span slot="title">Waiting for activity</span>
                 The stream will fill as the daemon emits events.
               </ship-empty-state>
             {/if}

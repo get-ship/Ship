@@ -110,14 +110,30 @@
 .dash-agent-foot { display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; overflow: hidden; min-height: 22px; }
 .dash-agent-providers { display: inline-flex; align-items: center; gap: 4px; }
 
-/* Events feed */
-.dash-event-row {
-  display: grid; grid-template-columns: 80px 1fr 100px; gap: var(--space-3);
-  padding: var(--space-2) var(--space-5); align-items: baseline; font-size: var(--text-xs);
-  border-bottom: 1px solid color-mix(in oklch, var(--border) 25%, transparent);
+/* Recent activity stream */
+.dash-activity-stream {
+  list-style: none;
+  padding: var(--space-1) 0 var(--space-2);
+  margin: 0;
+  position: relative;
 }
-.dash-event-row:last-child { border-bottom: none; }
-.dash-event-row:hover { background: color-mix(in oklch, var(--muted) 20%, transparent); }
+.dash-activity-row {
+  display: grid;
+  grid-template-columns: 8px 88px 1fr 120px;
+  gap: var(--space-3);
+  padding: 6px var(--space-5);
+  align-items: center;
+  font-size: var(--text-xs);
+  position: relative;
+}
+.dash-activity-row + .dash-activity-row { border-top: 1px solid color-mix(in oklch, var(--border) 20%, transparent); }
+.dash-activity-row:hover { background: color-mix(in oklch, var(--muted) 20%, transparent); }
+.dash-activity-rail {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: color-mix(in oklch, var(--primary) 60%, transparent);
+  align-self: center;
+  box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 15%, transparent);
+}
 .dash-event-ts { color: var(--muted-foreground); font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dash-event-type { font-family: var(--font-mono); color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dash-event-actor { color: var(--muted-foreground); overflow: hidden; white-space: nowrap; display: inline-flex; align-items: center; gap: var(--space-1); justify-content: flex-end; min-width: 0; }
@@ -125,11 +141,11 @@
 .dash-job-trailing ship-avatar { flex-shrink: 0; }
 
 /* Quick links */
-.dash-links { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); padding: var(--space-4) var(--space-5); }
+.dash-links { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-2); padding: var(--space-3) var(--space-5); }
 @media (min-width: 640px) { .dash-links { grid-template-columns: repeat(6, 1fr); } }
 .dash-link-btn {
-  display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-4);
-  border: 1px solid var(--border); border-radius: var(--radius-md); text-decoration: none; text-align: center;
+  display: flex; flex-direction: row; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--border); border-radius: var(--radius-md); text-decoration: none; text-align: left;
   background: color-mix(in oklch, var(--muted) 15%, transparent); color: var(--muted-foreground);
   font-size: var(--text-xs); font-weight: var(--font-weight-medium); cursor: pointer;
   transition: border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out),
@@ -137,7 +153,7 @@
 }
 .dash-link-btn:hover { border-color: color-mix(in oklch, var(--primary) 50%, transparent); color: var(--foreground); background: color-mix(in oklch, var(--muted) 30%, transparent); transform: translateY(-1px); }
 .dash-link-btn:focus-visible { outline: none; box-shadow: 0 0 0 2px var(--ring); }
-.dash-link-icon { width: 32px; height: 32px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; }
+.dash-link-icon { width: 24px; height: 24px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .dash-link-icon--workflows { background: color-mix(in oklch, var(--primary) 15%, transparent); color: var(--primary); }
 .dash-link-icon--agents    { background: color-mix(in oklch, var(--accent)  15%, transparent); color: var(--accent); }
 .dash-link-icon--skills    { background: color-mix(in oklch, var(--info)    15%, transparent); color: var(--info); }
@@ -149,7 +165,7 @@
 @media (max-width: 639px) {
   .dash-header { flex-direction: column; }
   .dash-agents-grid { grid-template-columns: 1fr; }
-  .dash-event-row { grid-template-columns: 70px 1fr; }
+  .dash-activity-row { grid-template-columns: 8px 70px 1fr; }
   .dash-event-actor { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {

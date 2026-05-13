@@ -49,7 +49,7 @@
 
     {#if sessions().kind === 'ok'}
       {#if items().length === 0}
-        <sui-empty-state variant="default" size="lg" data-test="empty">
+        <sui-empty-state variant="default" size="sm" data-test="empty">
           <sui-icon slot="icon" name="terminal"></sui-icon>
           <span slot="title">No sessions running</span>
           Spawn a shell or start an agent chat to populate this list.

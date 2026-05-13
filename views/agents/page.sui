@@ -38,7 +38,7 @@
 
     {#if agents().kind === 'ok'}
       {#if items().length === 0}
-        <sui-empty-state icon="sparkles" variant="default" size="lg" data-test="empty">
+        <sui-empty-state icon="sparkles" variant="default" size="sm" data-test="empty">
           <span slot="title">No agents yet</span>
           Drop a JSONC file under
           <code class="agents-empty-code">.ship/agents/</code>

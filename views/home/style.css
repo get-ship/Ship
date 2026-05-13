@@ -1,18 +1,19 @@
 .home {
   max-width: 36rem;
-  margin: 4rem auto;
-  font-family: system-ui, sans-serif;
+  margin: 1.5rem auto;
+  padding: 0 var(--space-4);
+  font-family: var(--font-body, system-ui, sans-serif);
 }
 
 .home .counter {
-  margin: 2rem 0;
-  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
   border: 1px solid var(--border, #d0d7de);
   border-radius: 0.5rem;
   background: var(--background-elevated, #fff);
 }
 
-.home .counter sui-button { margin-top: 0.75rem; }
+.home .counter sui-button { margin-top: 0.5rem; }
 
 .home .home-live-skel {
   display: flex;
@@ -23,12 +24,12 @@
 .home p.caption {
   color: var(--muted-foreground, #57606a);
   font-size: 0.875rem;
-  margin-top: 1.5rem;
+  margin-top: 1rem;
 }
 
 .home .home-live {
-  margin: 2rem 0;
-  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
   border: 1px solid var(--border, #d0d7de);
   border-radius: 0.5rem;
   background: var(--background-elevated, #fff);
