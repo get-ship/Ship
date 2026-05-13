@@ -282,9 +282,22 @@ The router (`packages/ship-set/src/router/`) walks `views/` at build/start time 
 10. **`on:<event>` event names must match the platform whitelist:** DOM events (`click`, `input`, …), `sui-*` / `ship-*` custom-event families, and `tag:event`-prefixed cross-component events. `sui-event-name` lint warns on typos like `on:Click` with Levenshtein suggestions.
 11. **Form-aware components use `form-value` / `form-disabled` on `<prop>`** — never hand-roll `attachInternals()` / `setFormValue` / `formResetCallback`. See "Form-aware components" above.
 
-## Perf gate
+## Performance gates
 
-Before merging runtime-affecting changes, run `just bench-check` — it re-runs the js-framework-benchmark suite against the current bundle and fails if any op regresses >15% vs the latest committed baseline under `tests/perf/baselines/`.
+Three recipes guard runtime + visual surface before a PR:
+
+- `just bench` — capture a fresh js-framework-benchmark baseline; commit the
+  resulting `tests/perf/baselines/<date>-baseline.json`.
+- `just bench-check` — re-runs the bench suite against the current bundle and
+  fails if any op regresses >15% vs the latest committed baseline. Override
+  the threshold via `BENCH_REGRESSION_THRESHOLD`. Run before merging any
+  runtime-affecting change.
+- `just visual` — Playwright screenshots vs committed PNGs (daemon must be
+  running). Pass `--update-snapshots` to refresh baselines after a
+  deliberate visual change.
+- `just smoke-deploy` — full build + daemon restart + every baselined view
+  curled + Playwright visual suite. Proxy for what CI will see; aim for
+  green before opening a PR.
 
 ## Diagnostics via MCP
 
@@ -510,11 +523,37 @@ EventSource opens.
 Run `just dev` and edit any view file under `views/<name>/` to see it
 apply in place.
 
-## Smoke deploy
+## Routes
 
-Run `just smoke-deploy` before opening a PR — it builds the full
-workspace, restarts the daemon, curls every baselined view, and runs
-Playwright. Quick proxy for what CI will see.
+URL state is reactive. Import from `@ship/sui-runtime/route`:
+
+```ts
+import { controller } from '@ship/sui-runtime'
+import { route, defineRoutes, navigate } from '@ship/sui-runtime/route'
+import type { Scope } from './page.sui'
+
+defineRoutes([{ pattern: '/agents/:id' }])
+
+export default controller<Scope>({
+  scope: () => {
+    const r = route()
+    return {
+      agentId: r.params.id,             // Signal<string | undefined>
+      tab:     r.query.tab,             // Signal<string | undefined>
+      goHome:  () => navigate('/'),
+    }
+  },
+})
+```
+
+`route().params.<name>` and `route().query.<name>` are signals — call them
+to read (and subscribe) inside `effect`, `derived`, or a `<data>` source
+thunk. Param keys are lazy: reading `r.params.id` the first time creates
+the signal and seeds it from the current pathname. `defineRoutes([...])`
+registers patterns whose `:param` segments populate `params`; safe to
+call any number of times. Mutate the URL via `navigate(path)` —
+assigning to `params`/`query` throws. `popstate` and `navigate` both
+fire the global updater so every attached `route()` instance re-evaluates.
 
 ## Controller scope is typed
 
