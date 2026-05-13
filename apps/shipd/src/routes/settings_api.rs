@@ -128,7 +128,7 @@ pub async fn list_settings(
     tag = "settings"
 )]
 pub async fn update_setting(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,
     Json(req): Json<SettingsUpdateReq>,
 ) -> impl IntoResponse {
@@ -141,7 +141,7 @@ pub async fn update_setting(
             }),
         );
     }
-    match ship_platform::config::set_setting(&req.key, req.value.clone()) {
+    match ship_platform::config::set_setting_and_emit(state.kernel(), &req.key, req.value.clone()).await {
         Ok(()) => (
             StatusCode::OK,
             Json(MeshResponse {

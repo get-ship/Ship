@@ -169,7 +169,7 @@ pub async fn add_project(
     tag = "framework"
 )]
 pub async fn switch_project(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     Json(req): Json<ProjectSwitchReq>,
 ) -> axum::response::Response {
     match ship_platform::projects::get(&req.id) {
@@ -182,8 +182,12 @@ pub async fn switch_project(
         }
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
-    if let Err(e) =
-        ship_platform::config::set_setting("shell.project.active", serde_json::json!(req.id))
+    if let Err(e) = ship_platform::config::set_setting_and_emit(
+        state.kernel(),
+        "shell.project.active",
+        serde_json::json!(req.id),
+    )
+    .await
     {
         return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }
