@@ -48,13 +48,10 @@ export default controller<Scope>({
     const syncOptions = () => {
       const sel = scope.selectEl() as HTMLSelectElement | null
       if (!sel) return
-      while (sel.firstChild) sel.removeChild(sel.firstChild)
-      const fragment = document.createDocumentFragment()
       const sourceOpts = host.querySelectorAll(
         ':scope > option, :scope > optgroup',
       )
-      for (const o of Array.from(sourceOpts)) fragment.appendChild(o.cloneNode(true))
-      sel.appendChild(fragment)
+      sel.replaceChildren(...Array.from(sourceOpts, (o) => o.cloneNode(true)))
       sel.value = scope.value()
     }
 
