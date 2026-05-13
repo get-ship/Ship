@@ -740,3 +740,135 @@ describe('bindFor — LIS minimality', () => {
   })
 })
 
+describe('bindFor — perf followups (runtime-perf-followups)', () => {
+  it('full-replace (disjoint keys) batches inserts via a single parent mutation', () => {
+    // Win 1: when no prev key survives the next render, the placement
+    // step must take the fragment fast path, not the per-row cursor loop.
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+    const $list = signal<Item[]>(
+      Array.from({ length: 20 }, (_, i) => ({ id: `a${i}`, label: `A${i}` })),
+    )
+    bindForSignal(anchor, $list, (it) => it.id, (it) => {
+      const li = document.createElement('li')
+      li.id = `item-${it.id}`
+      li.textContent = it.label
+      return { nodes: [li] }
+    })
+    expect(root.querySelectorAll('li').length).toBe(20)
+
+    // Spy on insertBefore AFTER initial render. The replace must produce
+    // exactly one insertBefore (the DocumentFragment), not 20.
+    const spy = vi.spyOn(Element.prototype, 'insertBefore')
+    $list.set(Array.from({ length: 20 }, (_, i) => ({ id: `b${i}`, label: `B${i}` })))
+    const inserts = spy.mock.calls.length
+    spy.mockRestore()
+
+    expect(root.querySelectorAll('li').length).toBe(20)
+    expect(Array.from(root.querySelectorAll('li')).map((el) => el.id))
+      .toEqual(Array.from({ length: 20 }, (_, i) => `item-b${i}`))
+    expect(inserts).toBe(1)
+  })
+
+  it('items() returning the same array reference is a no-op', () => {
+    // Win: short-circuit when the reactive source emits the same array.
+    // No render() invocations, no DOM mutations. Verifies the cleanup
+    // path also keeps state consistent (a follow-up real change still
+    // works).
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+    const items: Item[] = [
+      { id: 'a', label: 'A' },
+      { id: 'b', label: 'B' },
+    ]
+    const $list = signal<Item[]>(items)
+    let renders = 0
+    bindForSignal(anchor, $list, (it) => it.id, (it) => {
+      renders++
+      const li = document.createElement('li')
+      li.id = `item-${it.id}`
+      return { nodes: [li] }
+    })
+    expect(renders).toBe(2)
+
+    const spy = vi.spyOn(Element.prototype, 'insertBefore')
+    $list.set(items) // identical reference
+    const inserts = spy.mock.calls.length
+    spy.mockRestore()
+
+    expect(renders).toBe(2)
+    expect(inserts).toBe(0)
+    expect(Array.from(root.querySelectorAll('li')).map((el) => el.id))
+      .toEqual(['item-a', 'item-b'])
+
+    // A real change after the no-op still reconciles correctly.
+    $list.set([items[0]!, { id: 'c', label: 'C' }])
+    expect(Array.from(root.querySelectorAll('li')).map((el) => el.id))
+      .toEqual(['item-a', 'item-c'])
+  })
+
+  it('reused-key with identical item+index skips the update push', () => {
+    // Win 2: when the next array contains an identity-equal item at the
+    // same position as before, the row's update() must NOT fire. The
+    // signal would short-circuit anyway, but we save the closure/call
+    // overhead at N=1000.
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+
+    const row0 = { id: 'a', label: 'A' }
+    const row1 = { id: 'b', label: 'B' }
+    const $list = signal<Item[]>([row0, row1])
+    const updates: { id: string; index: number }[] = []
+    bindForSignal(anchor, $list, (it) => it.id, (it, i) => {
+      const li = document.createElement('li')
+      li.id = `item-${it.id}`
+      return {
+        nodes: [li],
+        update: (item, index) =>
+          updates.push({ id: (item as Item).id, index }),
+      }
+    })
+
+    // Mutate one slot only; the other row should not receive update().
+    const changedRow1 = { id: 'b', label: 'B2' }
+    $list.set([row0, changedRow1])
+
+    expect(updates).toEqual([{ id: 'b', index: 1 }])
+  })
+
+  it('reused-key at a new index still pushes the update', () => {
+    // Reordering still must propagate the new index even if the item
+    // reference is unchanged — row closures depend on index for things
+    // like striping or animation staggers.
+    const root = document.createElement('div')
+    document.body.appendChild(root)
+    const anchor = document.createComment('list')
+    root.appendChild(anchor)
+
+    const a = { id: 'a', label: 'A' }
+    const b = { id: 'b', label: 'B' }
+    const $list = signal<Item[]>([a, b])
+    const updates: { id: string; index: number }[] = []
+    bindForSignal(anchor, $list, (it) => it.id, (it) => {
+      const li = document.createElement('li')
+      return {
+        nodes: [li],
+        update: (item, index) =>
+          updates.push({ id: (item as Item).id, index }),
+      }
+    })
+
+    $list.set([b, a]) // reorder; same refs, different indices.
+    // Both rows moved positions — both updates must fire so closures
+    // can re-sync on the new index.
+    expect(updates.some((u) => u.id === 'a' && u.index === 1)).toBe(true)
+    expect(updates.some((u) => u.id === 'b' && u.index === 0)).toBe(true)
+  })
+})
+
