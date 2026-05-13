@@ -189,10 +189,25 @@ just smoke-deploy
 
 For bundle-size + bench regressions: `just bench-check` (gates at >15% vs the latest committed baseline in `tests/perf/baselines/`). Current cumulative numbers and known regressions in `.artifacts/sui-arc/perf-status.md`.
 
+## Authoring a view in one shot (AI agents)
+
+If you're an AI agent producing a new view from a job spec — read
+`references/agent-authoring.md`. It is the do-now checklist: the
+30-second scaffold, the canonical 3-branch loading shape, the SDK
+domain table, the rail-registration steps, the 10 common pitfalls,
+and the verification commands. Paired with `references/cookbook.md`
+(7 copy-paste worked examples for list views, mutations,
+master-detail, tabs/sub-routes, conditional branches, skeleton/empty/
+error states, and custom-element prop wiring) it covers the path
+from empty `views/<name>/` to a registered, rendering view in one
+session.
+
 ## References
 
 | When you need | Read |
 |---|---|
+| Author a new view in one shot (agent-first checklist) | `references/agent-authoring.md` |
+| Copy-paste worked examples (lists, mutations, master-detail, tabs, branches, states, props) | `references/cookbook.md` |
 | Compiler API, runtime exports, daemon routes, where each piece lives | `references/4-layer-overview.md` |
 | Component vs view, controller shape, `<prop>`, scope typing, `bindHtml`, `bind:this` refs | `references/authoring-patterns.md` |
 | Reactive primitives, control flow, `<data live>` end-to-end, transitions, morph, error-boundary, portal, route signals | `references/runtime-primitives.md` |
