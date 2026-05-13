@@ -230,6 +230,11 @@ where
         | AttrInstr::Style { expr, .. }
         | AttrInstr::Prop { expr, .. } => f(expr)?,
         AttrInstr::Mutation { .. } => {}
+        AttrInstr::Transition { opts, .. } => {
+            if let Some(e) = opts {
+                f(e)?;
+            }
+        }
     }
     Ok(())
 }

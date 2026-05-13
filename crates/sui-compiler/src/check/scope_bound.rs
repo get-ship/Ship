@@ -50,6 +50,10 @@ const BUILTINS: &[&str] = &[
     // Runtime helpers (unwrap variants are imported by the compiled
     // module; templates may also reference them via `use:` results).
     "unwrap", "unwrapOr",
+    // Built-in transition factories — auto-imported when referenced by
+    // `transition:` / `in:` / `out:` directives, so resolving them
+    // without an explicit declaration is correct here.
+    "fade", "slide", "scale",
 ];
 
 pub fn check(
@@ -372,5 +376,10 @@ fn visit_attr(attr: &AttrInstr, v: &mut Visitor) {
         }
         AttrInstr::On { handler, .. } => check_expr(handler, v, &[]),
         AttrInstr::Mutation { .. } => {}
+        AttrInstr::Transition { opts, .. } => {
+            if let Some(e) = opts {
+                check_expr(e, v, &[]);
+            }
+        }
     }
 }

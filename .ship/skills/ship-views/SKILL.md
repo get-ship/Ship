@@ -343,6 +343,33 @@ append in registration order — z-index ordering remains the author's
 job. Teleported nodes are removed from the target when the portal
 itself unmounts.
 
+## Transitions
+
+Wrap elements with `transition:<name>` to animate enter/exit on `{#if}`
+or `{#for}` mount/unmount. Built-ins: `fade`, `slide`, `scale`. Use
+`in:<name>` + `out:<name>` for asymmetric directions. Custom transitions
+export `{ in?, out? }` matching the `Transition` type.
+
+```html
+{#if visible()}
+  <div transition:fade={{ duration: 200 }}>...</div>
+{/if}
+
+<!-- Asymmetric: slide in, fade out -->
+{#if visible()}
+  <div in:slide out:fade={{ duration: 150 }}>...</div>
+{/if}
+```
+
+The compiler auto-imports built-in names from `@ship/sui-runtime`;
+custom transitions must be on the controller's `scope:` factory.
+Out-transitions defer DOM removal until the animation finishes; a
+rapid toggle while an out-transition is in flight rescues the same
+nodes so the in-transition picks up from current state without
+re-rendering. `prefers-reduced-motion: reduce` collapses duration and
+delay to `0` automatically. Transitions don't surface in SSR output —
+they register on element construction (CSR + hydrate paths).
+
 ## References
 
 | When you need | Read |
