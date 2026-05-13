@@ -34,9 +34,17 @@ export type Disposer = () => void
  * @see bindAttr, bindProp for non-text targets.
  */
 export function bindText(node: Node, get: () => unknown): Disposer {
+  let prev: string | undefined
   return effect(() => {
     const v = get()
-    node.textContent = v == null ? '' : String(v)
+    const next = v == null ? '' : String(v)
+    if (next === prev) return
+    if (prev === undefined && node.textContent === next) {
+      prev = next
+      return
+    }
+    node.textContent = next
+    prev = next
   })
 }
 
@@ -106,15 +114,19 @@ export function bindShow(el: HTMLElement, get: () => unknown): Disposer {
  *   toggles.
  */
 export function bindAttr(el: Element, name: string, get: () => unknown): Disposer {
+  let prev: unknown
+  let init = false
   return effect(() => {
     const v = get()
-    if (v == null || v === false || v === '') {
-      el.removeAttribute(name)
-    } else if (v === true) {
-      el.setAttribute(name, '')
-    } else {
-      el.setAttribute(name, String(v))
+    if (init && v === prev) return
+    const next =
+      v == null || v === false || v === '' ? null : v === true ? '' : String(v)
+    if (init || el.getAttribute(name) !== next) {
+      if (next === null) el.removeAttribute(name)
+      else el.setAttribute(name, next)
     }
+    prev = v
+    init = true
   })
 }
 
@@ -138,9 +150,17 @@ export function bindAttr(el: Element, name: string, get: () => unknown): Dispose
  * @see bindAttr for general attribute binding; bindShow for visibility.
  */
 export function bindClass(el: Element, name: string, get: () => unknown): Disposer {
+  let prev: boolean | undefined
   return effect(() => {
-    if (get()) el.classList.add(name)
+    const v = !!get()
+    if (v === prev) return
+    if (prev === undefined && v === el.classList.contains(name)) {
+      prev = v
+      return
+    }
+    if (v) el.classList.add(name)
     else el.classList.remove(name)
+    prev = v
   })
 }
 
