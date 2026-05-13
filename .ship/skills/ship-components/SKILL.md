@@ -97,6 +97,13 @@ Three things to notice:
 
 Use `controller(def)` only — raw `function setup(ctx)` is not accepted. Get refs via `bind:this={el}` in the template; declarative slot reactivity (`<slot reflect-empty="<attr>">`) replaces hand-rolled slotchange listeners.
 
+**Don't create an empty controller.** Controllers are optional — if your
+component has no `scope`, no `derived`, no `on`, and no `mount`, skip the
+`.controller.ts` file entirely. The compiler synthesizes a no-op controller
+from the `.sui` template alone. The LSP rule `controller.empty` flags
+`controller({})`-shape files (and `export default null`) as a warning;
+delete them rather than satisfy the convention with ceremony.
+
 Working exemplars: `packages/ui-components/src/sui-error-boundary/`,
 `packages/ui-components/src/sui-portal/`,
 `packages/ui-components/src/sui-toast-container/`.

@@ -1,12 +1,14 @@
 // Setup-file diagnostics emitted alongside `.sui` analysis.
 //
-// Today's only producer is the derived-write check (D-3): `derived`
-// sections receive a readonly view of state — assignments inside them
-// are bugs. The TypeScript type-checker rejects these via the
-// `ReadonlyState<…>` parameter, but only when the user runs
-// `tsc --noEmit`. This module surfaces the same finding directly so
-// the LSP can publish a Warning marker on the offending line as soon
-// as the file is parsed.
+// Two producers:
+//   • derived-write (D-3) — `derived` sections receive a readonly view of
+//     state; assignments are bugs. tsc catches them via the
+//     `ReadonlyState<…>` parameter, but only on full type-check. This
+//     module surfaces the same finding immediately as a Warning.
+//   • empty-controller — a `controller({})` factory call (or `export
+//     default null`) whose argument carries no behavior. Controllers
+//     are optional in SUI; an empty file adds ceremony with no payoff,
+//     so we flag it and recommend deleting the file.
 //
 // Output is the LSP's standard `Diagnostic` shape so the server can
 // forward it under the setup file's URI without further translation.
@@ -18,6 +20,9 @@ import type { Diagnostic } from './diagnostics'
 const DERIVED_WRITE_MESSAGE =
   "derived sections cannot mutate state — move the assignment to an 'on' handler or 'mount'"
 
+const EMPTY_CONTROLLER_MESSAGE =
+  'Empty controller — delete this file. Components without behavior do not need a controller.'
+
 export function diagnoseSetup(setupPath: string, source: string): Diagnostic[] {
   const sf = ts.createSourceFile(
     path.basename(setupPath),
@@ -27,6 +32,8 @@ export function diagnoseSetup(setupPath: string, source: string): Diagnostic[] {
     ts.ScriptKind.TS,
   )
   const out: Diagnostic[] = []
+  const emptyDiag = diagnoseEmptyController(sf)
+  if (emptyDiag) out.push(emptyDiag)
   const def = findDefaultControllerCall(sf)
   if (!def) return out
   const arg = def.arguments[0]
@@ -45,6 +52,111 @@ export function diagnoseSetup(setupPath: string, source: string): Diagnostic[] {
     walkForAssignments(fn, sf, out)
   }
   return out
+}
+
+// Flag `export default null` and `export default controller({...})` calls
+// whose argument carries no behavior. The shapes recognized as "empty":
+//   • `null` / `undefined` default export
+//   • `controller()` — no argument
+//   • `controller({})` — empty object literal
+//   • `controller({ scope: () => ({}) })` — scope returns an empty object
+//   • Every present member is itself empty: `scope` returns `{}`,
+//     `derived` / `on` / `use` are `{}`, `mount` body is empty.
+function diagnoseEmptyController(sf: ts.SourceFile): Diagnostic | null {
+  const exportAssign = findDefaultExport(sf)
+  if (!exportAssign) return null
+  const expr = exportAssign.expression
+  // `export default null` / `export default undefined`
+  if (
+    expr.kind === ts.SyntaxKind.NullKeyword ||
+    (ts.isIdentifier(expr) && expr.text === 'undefined')
+  ) {
+    return {
+      range: { start: exportAssign.getStart(sf), end: exportAssign.getEnd() },
+      message: EMPTY_CONTROLLER_MESSAGE,
+      severity: 'warning',
+      source: 'sui-lsp',
+      code: 'controller.empty',
+    }
+  }
+  if (!ts.isCallExpression(expr)) return null
+  if (!ts.isIdentifier(expr.expression) || expr.expression.text !== 'controller') return null
+  const arg = expr.arguments[0]
+  let isEmpty = false
+  if (!arg) {
+    isEmpty = true
+  } else {
+    const obj = unwrapToObjectLiteral(arg)
+    if (!obj) return null
+    if (obj.properties.length === 0) isEmpty = true
+    else isEmpty = obj.properties.every(isEmptyControllerMember)
+  }
+  if (!isEmpty) return null
+  return {
+    range: { start: expr.getStart(sf), end: expr.getEnd() },
+    message: EMPTY_CONTROLLER_MESSAGE,
+    severity: 'warning',
+    source: 'sui-lsp',
+    code: 'controller.empty',
+  }
+}
+
+function isEmptyControllerMember(m: ts.ObjectLiteralElementLike): boolean {
+  const name = m.name && ts.isIdentifier(m.name) ? m.name.text : null
+  if (!name) return false
+  if (name === 'scope') {
+    const fn = functionInitializer(m)
+    if (!fn) {
+      if (ts.isPropertyAssignment(m)) {
+        const obj = unwrapToObjectLiteral(m.initializer)
+        return !!obj && obj.properties.length === 0
+      }
+      return false
+    }
+    return isEmptyFunctionReturningObject(fn)
+  }
+  if (name === 'derived' || name === 'on' || name === 'use') {
+    if (!ts.isPropertyAssignment(m)) return false
+    const obj = unwrapToObjectLiteral(m.initializer)
+    return !!obj && obj.properties.length === 0
+  }
+  if (name === 'mount') {
+    const fn = functionInitializer(m)
+    if (!fn) return false
+    if (!fn.body) return false
+    if (ts.isBlock(fn.body)) return fn.body.statements.length === 0
+    return false
+  }
+  return false
+}
+
+function isEmptyFunctionReturningObject(
+  fn: ts.ArrowFunction | ts.FunctionExpression | ts.MethodDeclaration,
+): boolean {
+  if (!fn.body) return false
+  if (!ts.isBlock(fn.body)) {
+    const obj = unwrapToObjectLiteral(fn.body)
+    return !!obj && obj.properties.length === 0
+  }
+  if (fn.body.statements.length === 0) return true
+  if (fn.body.statements.length !== 1) return false
+  const stmt = fn.body.statements[0]!
+  if (!ts.isReturnStatement(stmt) || !stmt.expression) return false
+  const obj = unwrapToObjectLiteral(stmt.expression)
+  return !!obj && obj.properties.length === 0
+}
+
+function findDefaultExport(sf: ts.SourceFile): ts.ExportAssignment | null {
+  for (const stmt of sf.statements) {
+    if (ts.isExportAssignment(stmt) && !stmt.isExportEquals) return stmt
+  }
+  return null
+}
+
+function unwrapToObjectLiteral(expr: ts.Node): ts.ObjectLiteralExpression | null {
+  if (ts.isParenthesizedExpression(expr)) return unwrapToObjectLiteral(expr.expression)
+  if (ts.isObjectLiteralExpression(expr)) return expr
+  return null
 }
 
 function functionInitializer(
