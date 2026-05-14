@@ -17,7 +17,7 @@ fn dry_run_infers_step_kind_from_body() {
 #[test]
 fn dry_run_preserves_normalized_run_and_empty_fallback() {
     let vars = HashMap::new();
-    let normalized = json!({ "id": "run-1", "type": "run", "command": "echo hi" });
+    let normalized = json!({ "id": "run-1", "type": "run", "run": "echo hi" });
     let empty = json!({ "id": "x" });
 
     assert_eq!(format_step_label(&normalized, &vars), "[run] echo hi");

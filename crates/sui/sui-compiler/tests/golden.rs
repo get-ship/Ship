@@ -14,17 +14,28 @@ use std::path::{Path, PathBuf};
 
 use sui_compiler::{compile, CompileOpts, CompileOutput};
 
+mod common;
+use common::strip_version_stamp;
+
 fn golden_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden")
 }
 
 fn output_to_json(out: &CompileOutput) -> serde_json::Value {
+    // `js` and `dts` are raw multi-line strings — the `_compilerVersion`
+    // stamp lives on real newlines there, so normalize them with the
+    // shared stripper before they're folded into the JSON (inside the
+    // JSON they'd become escaped `\n` content, invisible to a
+    // line-based pass). The `cem` / `schema` / `meta` JSON values still
+    // carry the stamp as a real `"_compilerVersion"` field; that form
+    // is handled by running `strip_version_stamp` over the final
+    // pretty-printed text in `run_golden`.
     serde_json::json!({
-        "js": out.js,
+        "js": strip_version_stamp(&out.js),
         "css": out.css,
         "cem": out.cem,
         "schema": out.schema,
-        "dts": out.dts,
+        "dts": out.dts.as_deref().map(strip_version_stamp),
         "ssrHtml": out.ssr_html,
         "meta": out.meta,
     })
@@ -42,7 +53,15 @@ fn run_golden(name: &str) {
         .unwrap_or_else(|e| panic!("compile {name}: {e:?}"));
 
     let actual = output_to_json(&out);
-    let actual_text = format!("{}\n", serde_json::to_string_pretty(&actual).unwrap());
+    // Route through the shared `_compilerVersion` normalizer — the
+    // identity stamp carries a git sha + timestamp + dirty flag, all
+    // non-deterministic. Stripping it (here and on the compare path)
+    // keeps the golden fixtures deterministic, exactly as `snapshot.rs`
+    // does for its snapshots.
+    let actual_text = format!(
+        "{}\n",
+        strip_version_stamp(&serde_json::to_string_pretty(&actual).unwrap()),
+    );
 
     let updating = std::env::var("SUI_GOLDEN_UPDATE").is_ok();
 
@@ -63,6 +82,11 @@ fn run_golden(name: &str) {
             );
         }
     };
+
+    // Strip the expected side too — mirrors `snapshot.rs`, which
+    // normalizes both sides so a stale stamped fixture still compares
+    // clean against freshly-normalized output.
+    let expected_text = strip_version_stamp(&expected_text);
 
     assert_eq_text(name, &expected_text, &actual_text, &expected_path);
 }

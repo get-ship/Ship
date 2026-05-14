@@ -442,6 +442,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SkillsGetVars_template(), skills_api::get_vars)
         .ship_route(Route::SkillsPutVar_template(), skills_api::put_var)
         .ship_route(Route::SkillsDeleteVar_template(), skills_api::delete_var)
+        .ship_route(Route::SkillsInvoke_template(), skills_api::invoke)
         .ship_route(Route::ChatSend, services::chat::send_message)
         // Specs REST
         .ship_route(Route::ListSpecs, specs_api::list_specs)

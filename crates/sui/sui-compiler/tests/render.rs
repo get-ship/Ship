@@ -203,6 +203,8 @@ fn agents_view_renders_without_panic() {
             .unwrap()
             .parent()
             .unwrap()
+            .parent()
+            .unwrap()
             .join("views/agents/page.sui"),
     )
     .expect("read agents view");
@@ -264,6 +266,8 @@ fn json_island_present_after_body() {
 fn agents_view_island_carries_loading_envelope() {
     let src = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
             .parent()
             .unwrap()
             .parent()
@@ -334,6 +338,8 @@ fn agents_view_round_trip_with_d3() {
             .unwrap()
             .parent()
             .unwrap()
+            .parent()
+            .unwrap()
             .join("views/agents/page.sui"),
     )
     .expect("read agents view");
@@ -369,6 +375,8 @@ fn agents_view_round_trip_with_d3() {
 fn walker_keys_match_registry() {
     let src = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
             .parent()
             .unwrap()
             .parent()

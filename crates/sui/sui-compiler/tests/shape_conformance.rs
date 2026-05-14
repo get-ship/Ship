@@ -21,8 +21,9 @@ use std::process::Command;
 use sui_compiler::{compile, CompileMode, CompileOpts, ComponentMeta};
 
 fn repo_root() -> PathBuf {
-    // crates/sui-compiler -> repo root is two levels up.
+    // crates/sui/sui-compiler -> repo root is three levels up.
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("..")
         .join("..")
         .join("..")
         .canonicalize()
