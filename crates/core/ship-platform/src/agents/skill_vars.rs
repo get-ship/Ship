@@ -99,7 +99,8 @@ fn parse_vars_schema(ship_dir: &Path, skill_id: &str) -> Option<HashMap<String, 
 /// Read merged variable state for a skill.
 ///
 /// Returns `None` if the skill has no `assets/vars.json`.
-/// Merge order: defaults → global (KV) → local (KV) → project (KV).
+/// Merge order: defaults → KV-state-for-storage-hint. Defaults seed the
+/// map; storage-hint-routed KV reads then override.
 pub fn get_skill_vars(ship_dir: &Path, skill_id: &str) -> Result<Option<HashMap<String, Value>>> {
     let Some(schema) = parse_vars_schema(ship_dir, skill_id) else {
         return Ok(None);
@@ -108,36 +109,18 @@ pub fn get_skill_vars(ship_dir: &Path, skill_id: &str) -> Result<Option<HashMap<
     let ctx = context_key(ship_dir);
     let mut merged: HashMap<String, Value> = HashMap::new();
 
-    // 1. Defaults
     for (name, meta) in &schema {
+        // 1. Default value (lowest precedence).
         if let Some(v) = &meta.default {
             merged.insert(name.clone(), v.clone());
         }
-    }
-
-    // 2. Global state (machine-wide)
-    for (name, meta) in &schema {
-        if meta.storage_hint == StorageHint::Global
-            && let Ok(Some(val)) = crate::kv::get(kv_ns_global(skill_id), name)
-        {
-            merged.insert(name.clone(), val);
-        }
-    }
-
-    // 3. Local state (this context, not shared)
-    for (name, meta) in &schema {
-        if meta.storage_hint == StorageHint::Local
-            && let Ok(Some(val)) = crate::kv::get(kv_ns_local(&ctx, skill_id), name)
-        {
-            merged.insert(name.clone(), val);
-        }
-    }
-
-    // 4. Project state (this context, intended to be shared)
-    for (name, meta) in &schema {
-        if meta.storage_hint == StorageHint::Project
-            && let Ok(Some(val)) = crate::kv::get(kv_ns_project(&ctx, skill_id), name)
-        {
+        // 2. KV value for this var's storage hint (overrides default).
+        let ns = match meta.storage_hint {
+            StorageHint::Global => kv_ns_global(skill_id),
+            StorageHint::Local => kv_ns_local(&ctx, skill_id),
+            StorageHint::Project => kv_ns_project(&ctx, skill_id),
+        };
+        if let Ok(Some(val)) = crate::kv::get(ns, name) {
             merged.insert(name.clone(), val);
         }
     }
@@ -253,7 +236,7 @@ mod tests {
 
     fn setup() -> (tempfile::TempDir, PathBuf) {
         let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+        let ship_dir = init_project(tmp.path()).unwrap();
         ensure_db().unwrap();
         (tmp, ship_dir)
     }

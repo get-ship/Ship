@@ -15,6 +15,8 @@
 
 pub mod dedup;
 pub mod emit;
+pub mod exit_handler;
+pub mod isolation;
 pub mod fanout;
 pub mod fanout_aggregate;
 pub mod fanout_cancel;
@@ -27,7 +29,6 @@ pub mod pipeline;
 pub mod pipeline_loader;
 #[cfg(test)]
 mod pipeline_loader_tests;
-pub mod pipeline_vars;
 pub mod pending;
 pub mod pipeline_specs;
 pub mod prompt_composer;
@@ -60,7 +61,7 @@ mod tests_heartbeat;
 #[cfg(test)]
 mod tests_step_io;
 #[cfg(test)]
-mod tests_yaml_load;
+mod tests_pipeline_load;
 #[cfg(test)]
 mod tests_fanout;
 #[cfg(test)]

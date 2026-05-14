@@ -161,22 +161,21 @@ fn rebuild_watcher(
             watch_path.clone()
         };
 
-        if !watched_paths.contains_key(&watch_dir) {
-            let recursive = fdef.watch.contains("**");
-            let mode = if recursive {
+        if let std::collections::hash_map::Entry::Vacant(slot) = watched_paths.entry(watch_dir.clone()) {
+            let mode = if fdef.watch.contains("**") {
                 RecursiveMode::Recursive
             } else {
                 RecursiveMode::NonRecursive
             };
-            if watch_dir.exists() {
-                if let Err(e) = watcher.watch(&watch_dir, mode) {
-                    tracing::warn!(
-                        path = %watch_dir.display(),
-                        "file-source: watch failed: {e}"
-                    );
-                }
+            if watch_dir.exists()
+                && let Err(e) = watcher.watch(&watch_dir, mode)
+            {
+                tracing::warn!(
+                    path = %watch_dir.display(),
+                    "file-source: watch failed: {e}"
+                );
             }
-            watched_paths.insert(watch_dir, true);
+            slot.insert(true);
         }
 
         entries.push(FileTriggerEntry {

@@ -5,7 +5,7 @@
 
 use ship_substrate::events::job::StepType;
 use ship_substrate::events::EventEnvelope;
-use crate::projections::job::{load_jobs, load_jobs_at};
+use crate::projections::job::load_jobs_at;
 use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -49,29 +49,45 @@ async fn advance_pipeline_inner(
     worktree_root_override: Option<&std::path::Path>,
 ) -> bool {
     // First pass: resolve the job_id so we can acquire the per-job lock.
+    // Lookups are index-backed: entity_id (PK), payload job_id (PK),
+    // payload slug (idx_jobs_slug). Test paths use load_jobs_at to honor
+    // ship_dir_override; production paths use the O(1) single-row helpers.
     let job_id = {
-        let jobs = match ship_dir_override {
-            Some(dir) => load_jobs_at(dir),
-            None => load_jobs(),
-        };
-        let jobs = match jobs {
-            Ok(j) => j,
-            Err(e) => {
-                tracing::warn!(entity_id = %envelope.entity_id, "pipeline: failed to load jobs: {e}");
-                return false;
-            }
-        };
-        let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
+        let payload: serde_json::Value =
+            serde_json::from_str(&envelope.payload_json).unwrap_or_default();
         let payload_slug = payload["slug"].as_str().unwrap_or("");
         let payload_job_id = payload["job_id"].as_str().unwrap_or("");
         let entity_id = &envelope.entity_id;
 
-        let job = jobs.values()
-            .find(|j| j.job_id == *entity_id)
-            .or_else(|| jobs.values().find(|j| !payload_job_id.is_empty() && j.job_id == payload_job_id))
-            .or_else(|| jobs.values().find(|j| !payload_slug.is_empty() && j.slug == payload_slug));
-        match job {
-            Some(j) => j.job_id.clone(),
+        let record = match ship_dir_override {
+            Some(dir) => match load_jobs_at(dir) {
+                Ok(jobs) => jobs
+                    .values()
+                    .find(|j| j.job_id == *entity_id)
+                    .or_else(|| jobs.values().find(|j| !payload_job_id.is_empty() && j.job_id == payload_job_id))
+                    .or_else(|| jobs.values().find(|j| !payload_slug.is_empty() && j.slug == payload_slug))
+                    .cloned(),
+                Err(e) => {
+                    tracing::warn!(entity_id = %envelope.entity_id, "pipeline: failed to load jobs: {e}");
+                    return false;
+                }
+            },
+            None => crate::projections::job::load_job_by_id(entity_id)
+                .ok()
+                .flatten()
+                .or_else(|| {
+                    (!payload_job_id.is_empty())
+                        .then(|| crate::projections::job::load_job_by_id(payload_job_id).ok().flatten())
+                        .flatten()
+                })
+                .or_else(|| {
+                    (!payload_slug.is_empty())
+                        .then(|| crate::projections::job::load_job_by_slug(payload_slug).ok().flatten())
+                        .flatten()
+                }),
+        };
+        match record {
+            Some(j) => j.job_id,
             None => {
                 tracing::warn!(entity_id = %entity_id, "pipeline: job not found in projection");
                 return false;
@@ -88,24 +104,31 @@ async fn advance_pipeline_inner(
     let _guard = job_lock.lock().await;
 
     // Reload projection under lock so we see the latest state.
-    let jobs = match ship_dir_override {
-        Some(dir) => load_jobs_at(dir),
-        None => load_jobs(),
-    };
-    let jobs = match jobs {
-        Ok(j) => j,
-        Err(e) => {
-            tracing::warn!(entity_id = %envelope.entity_id, "pipeline: failed to reload jobs: {e}");
-            return false;
-        }
-    };
-
-    let job = match jobs.get(&job_id) {
-        Some(j) => j.clone(),
-        None => {
-            tracing::warn!(job_id, "pipeline: job disappeared between lock acquire and reload");
-            return false;
-        }
+    let job = match ship_dir_override {
+        Some(dir) => match load_jobs_at(dir) {
+            Ok(jobs) => match jobs.get(&job_id) {
+                Some(j) => j.clone(),
+                None => {
+                    tracing::warn!(job_id, "pipeline: job disappeared between lock acquire and reload");
+                    return false;
+                }
+            },
+            Err(e) => {
+                tracing::warn!(entity_id = %envelope.entity_id, "pipeline: failed to reload jobs: {e}");
+                return false;
+            }
+        },
+        None => match crate::projections::job::load_job_by_id(&job_id) {
+            Ok(Some(j)) => j,
+            Ok(None) => {
+                tracing::warn!(job_id, "pipeline: job disappeared between lock acquire and reload");
+                return false;
+            }
+            Err(e) => {
+                tracing::warn!(entity_id = %envelope.entity_id, "pipeline: failed to reload jobs: {e}");
+                return false;
+            }
+        },
     };
 
     let slug = &job.slug;
@@ -166,7 +189,7 @@ async fn advance_pipeline_inner(
         next_steps.iter().find(|ns| ns.id == s.id).map(|ns| (i, *ns))
     }) {
         // Interpolate {{ var }} references before dispatch.
-        let step = match super::pipeline_vars::interpolate_step(step, &job_vars, &Default::default()) {
+        let step = match ship_pipelines::variables::interpolate_step(step, &job_vars, &Default::default()) {
             Ok(s) => s,
             Err(missing) => {
                 tracing::error!(slug, step_id = step.id, "pipeline: unresolved pipeline var: {missing} in step {}", step.id);

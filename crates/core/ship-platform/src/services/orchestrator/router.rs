@@ -47,9 +47,6 @@ pub async fn start_orchestrator(
         }
     };
 
-    // Start the periodic liveness sweep.
-    octx.platform.start_liveness_sweep(kernel.clone());
-
     // On startup: reconcile stale jobs, replay completions, dispatch pending.
     let replay_kernel = kernel.clone();
     let replay_octx = octx.clone();
@@ -302,11 +299,10 @@ async fn maybe_auto_merge(
 ) -> bool {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
     let job_id = payload["job_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
-    let jobs = match crate::projections::job::load_jobs() {
-        Ok(j) => j,
-        Err(_) => return false,
-    };
-    let Some(job) = jobs.values().find(|j| j.job_id == job_id).cloned() else {
+    let Some(job) = crate::projections::job::load_job_by_id(&job_id)
+        .ok()
+        .flatten()
+    else {
         return false;
     };
     let Some(pipeline) = job.steps.as_ref() else {
@@ -345,11 +341,7 @@ fn is_operator_event(event_type: &str) -> bool {
 /// can't be loaded or the job doesn't exist — callers treat that as
 /// "not terminal, proceed" so startup races don't drop events.
 fn load_job_record(entity_id: &str) -> Option<crate::projections::job::JobRecord> {
-    crate::projections::job::load_jobs()
-        .ok()?
-        .into_iter()
-        .map(|(_, v)| v)
-        .find(|r| r.job_id == entity_id)
+    crate::projections::job::load_job_by_id(entity_id).ok().flatten()
 }
 
 /// Extract the slug from an event envelope payload.
@@ -364,8 +356,10 @@ async fn check_and_fail_missing_outputs(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     declared: &StepDoneDeclaredPayload,
 ) {
-    let Ok(jobs) = crate::projections::job::load_jobs() else { return };
-    let Some(job) = jobs.values().find(|j| j.job_id == declared.job_id).cloned() else {
+    let Some(job) = crate::projections::job::load_job_by_id(&declared.job_id)
+        .ok()
+        .flatten()
+    else {
         return;
     };
     let Some(pipeline) = job.steps.as_ref() else { return };
@@ -389,8 +383,10 @@ async fn run_promotes_for_step(
     kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
     payload: &StepObservedPayload,
 ) {
-    let Ok(jobs) = crate::projections::job::load_jobs() else { return };
-    let Some(job) = jobs.values().find(|j| j.job_id == payload.job_id).cloned() else {
+    let Some(job) = crate::projections::job::load_job_by_id(&payload.job_id)
+        .ok()
+        .flatten()
+    else {
         return;
     };
     let Some(pipeline) = job.steps.as_ref() else { return };
@@ -410,8 +406,9 @@ async fn evaluate_step_gate(
 ) -> Option<String> {
     use super::gate_rules::{diff_paths, evaluate, GateOutcome};
 
-    let jobs = crate::projections::job::load_jobs().ok()?;
-    let job = jobs.values().find(|j| j.job_id == payload.job_id)?.clone();
+    let job = crate::projections::job::load_job_by_id(&payload.job_id)
+        .ok()
+        .flatten()?;
     let pipeline = job.steps.as_ref()?;
     let step = pipeline.steps.iter().find(|s| s.id == payload.step_name)?;
     let gate = step.gate.as_ref()?;

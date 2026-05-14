@@ -206,7 +206,7 @@ mod tests {
 
     fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
         let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+        let ship_dir = init_project(tmp.path()).unwrap();
         ensure_kv_db().unwrap();
         (tmp, ship_dir)
     }
@@ -263,10 +263,10 @@ mod tests {
 
     #[test]
     fn migrate_from_platform_db_copies_rows() {
-        use ship_substrate::db::{ensure_db_at, platform_db_path};
+        use ship_substrate::db::ensure_db_at;
 
         let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+        let ship_dir = init_project(tmp.path()).unwrap();
 
         // Seed kv_state in platform.db (before migration 0002 runs).
         // We open platform.db directly so we can write to kv_state while it

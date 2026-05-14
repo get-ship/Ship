@@ -5,7 +5,3 @@
 
 pub mod service;
 pub mod state;
-
-#[cfg(test)]
-#[path = "state_tests.rs"]
-mod state_tests;

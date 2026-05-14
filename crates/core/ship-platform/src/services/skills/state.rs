@@ -141,11 +141,12 @@ fn resolve_scope(
     }
 }
 
-// ── Frontmatter parser (YAML-lite — matches skills_state::parse_skill_md) ─
+// ── Frontmatter parser (YAML-lite) ─
 
-/// Parse SKILL.md → (frontmatter-as-object, body). Matches the existing
-/// `views::state::parse_skill_md` shape: top-level scalars become strings,
-/// inline lists (`[a, b]`) become arrays.
+/// Parse SKILL.md → (frontmatter-as-object, body). Limited grammar:
+/// top-level scalars become strings, inline lists (`[a, b]`) become
+/// arrays. Nested maps and multi-line list (`- item\n- item`) syntax
+/// are not supported — adding them means swapping in `serde_yaml`.
 pub fn parse_skill_md(raw: &str) -> (serde_json::Value, String) {
     let mut obj = serde_json::Map::new();
     if !raw.starts_with("---") {

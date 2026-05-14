@@ -5,19 +5,18 @@
 use std::path::Path;
 
 use anyhow::Context;
+use compiler::lockfile::ShipLock;
 
 use super::cache::{CachedPackage, PackageCache};
 use super::fetch::fetch_package_content;
 use super::tracking::track_install;
-use super::types::{ShipLock, parse_ship_lock, serialize_ship_lock};
 
 pub fn load_lock_if_present(path: &Path) -> anyhow::Result<Option<ShipLock>> {
     if !path.exists() {
         return Ok(None);
     }
-    let content =
-        std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
-    let lock = parse_ship_lock(&content).with_context(|| format!("parsing {}", path.display()))?;
+    let lock = ShipLock::from_file(path)
+        .with_context(|| format!("parsing {}", path.display()))?;
     Ok(Some(lock))
 }
 
@@ -71,8 +70,8 @@ pub fn should_write_lock(existing: &Option<ShipLock>, new: &ShipLock) -> bool {
     match existing {
         None => true,
         Some(old) => {
-            let mut old_pkgs = old.package.clone();
-            let mut new_pkgs = new.package.clone();
+            let mut old_pkgs = old.packages.clone();
+            let mut new_pkgs = new.packages.clone();
             old_pkgs.sort_by(|a, b| a.path.cmp(&b.path));
             new_pkgs.sort_by(|a, b| a.path.cmp(&b.path));
             old_pkgs != new_pkgs
@@ -81,11 +80,6 @@ pub fn should_write_lock(existing: &Option<ShipLock>, new: &ShipLock) -> bool {
 }
 
 pub fn write_lock_atomic(path: &Path, lock: &ShipLock) -> anyhow::Result<()> {
-    let content = serialize_ship_lock(lock)?;
-    let tmp_path = path.with_extension("lock.tmp");
-    std::fs::write(&tmp_path, &content)
-        .with_context(|| format!("writing tmp lockfile {}", tmp_path.display()))?;
-    std::fs::rename(&tmp_path, path)
-        .with_context(|| format!("renaming lockfile into place at {}", path.display()))?;
-    Ok(())
+    lock.write_atomic(path)
+        .with_context(|| format!("writing lockfile {}", path.display()))
 }

@@ -93,8 +93,11 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
         agent_path.display()
     );
     let agent_raw = fs::read_to_string(&agent_path)?;
-    let agent_json: serde_json::Value = serde_json::from_str(&agent_raw)?;
-    assert_eq!(agent_json["id"], "planning");
+    let agent_json: serde_json::Value =
+        serde_json::from_str(&ship_substrate::fs_util::strip_jsonc_comments(&agent_raw))?;
+    // Canonical schema: top-level `agent` block.
+    assert_eq!(agent_json["agent"]["id"], "planning");
+    assert_eq!(agent_json["agent"]["name"], "Planning");
 
     let mcp_cfg = fs::read_to_string(ship_dir.join("mcp.jsonc"))?;
     assert!(mcp_cfg.contains("\"github\""));

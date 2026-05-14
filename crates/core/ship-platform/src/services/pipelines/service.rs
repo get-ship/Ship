@@ -107,7 +107,7 @@ impl PipelinesService for PipelinesServiceImpl {
         let target = match args.scope {
             Some(s) => s,
             None => match state::find(&svc, &args.name) {
-                Some((s, _, _)) => s,
+                Some((s, _)) => s,
                 None => Scope::Project,
             },
         };

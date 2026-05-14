@@ -6,7 +6,7 @@ mod tests {
     use crate::collections::query::QueryRequest;
     use crate::collections::schema::{self, CollectionSchema};
     use crate::collections::store::{
-        self, create_item, delete_item, ensure_collection_table, get_item,
+        create_item, delete_item, ensure_collection_table, get_item,
         open_data_db, query_items, update_item,
     };
     use serde_json::json;

@@ -6,10 +6,3 @@
 pub mod service;
 pub mod state;
 pub mod view_state;
-
-#[cfg(test)]
-#[path = "state_tests.rs"]
-mod state_tests;
-#[cfg(test)]
-#[path = "view_state_tests.rs"]
-mod view_state_tests;

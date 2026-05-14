@@ -10,7 +10,7 @@ mod tests {
 
     fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
         let tmp = tempdir().unwrap();
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf()).unwrap();
+        let ship_dir = crate::testutil::init_project(tmp.path()).unwrap();
         ensure_db().unwrap();
         (tmp, ship_dir)
     }

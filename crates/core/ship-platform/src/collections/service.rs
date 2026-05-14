@@ -157,7 +157,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn create_emits_event() {
-        let (mut conn, schema, _tmp) = test_db();
+        let (mut conn, _schema, _tmp) = test_db();
         let kernel = test_kernel();
         let schema = test_schema();
 
@@ -173,7 +173,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn update_emits_event() {
-        let (mut conn, schema, _tmp) = test_db();
+        let (mut conn, _schema, _tmp) = test_db();
         let kernel = test_kernel();
         let schema = test_schema();
 
@@ -191,7 +191,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn delete_emits_event() {
-        let (mut conn, schema, _tmp) = test_db();
+        let (mut conn, _schema, _tmp) = test_db();
         let kernel = test_kernel();
         let schema = test_schema();
 
@@ -204,7 +204,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn delete_nonexistent_no_event() {
-        let (mut conn, schema, _tmp) = test_db();
+        let (mut conn, _schema, _tmp) = test_db();
         let kernel = test_kernel();
 
         assert!(!delete_item(&mut conn, &kernel, "note", "nope").await.unwrap());

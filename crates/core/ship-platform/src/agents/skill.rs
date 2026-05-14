@@ -17,8 +17,8 @@ pub use install::{SkillInstallScope, install_skill_from_source};
 pub use types::{Skill, SkillSource};
 
 use storage::{
-    ensure_project_skills_storage, ensure_user_skills_storage, list_skills_from_dir, parse_skill,
-    skill_dir, user_skill_dir, write_skill,
+    ensure_project_skills_storage, ensure_user_skills_storage, list_skills_from_dir,
+    parse_skill_spec, skill_dir, user_skill_dir, write_skill_spec,
 };
 
 use ship_substrate::events::EventEnvelope;
@@ -95,7 +95,7 @@ pub fn get_skill(project_dir: &Path, id: &str) -> Result<Skill> {
     if !dir.exists() {
         return Err(anyhow!("Skill '{}' not found", id));
     }
-    parse_skill(&dir)
+    parse_skill_spec(&dir)
 }
 
 pub fn get_user_skill(id: &str) -> Result<Skill> {
@@ -104,7 +104,7 @@ pub fn get_user_skill(id: &str) -> Result<Skill> {
     if !dir.exists() {
         return Err(anyhow!("Skill '{}' not found", id));
     }
-    parse_skill(&dir)
+    parse_skill_spec(&dir)
 }
 
 /// Resolve a skill by checking project scope first, then user scope.
@@ -113,12 +113,12 @@ pub fn get_effective_skill(project_dir: &Path, id: &str) -> Result<Skill> {
     let _ = ensure_user_skills_storage()?;
     let local_dir = skill_dir(project_dir, id);
     if local_dir.exists() {
-        return parse_skill(&local_dir);
+        return parse_skill_spec(&local_dir);
     }
 
     let global_dir = user_skill_dir(id)?;
     if global_dir.exists() {
-        return parse_skill(&global_dir);
+        return parse_skill_spec(&global_dir);
     }
 
     Err(anyhow!("Skill '{}' not found in project or user scope", id))
@@ -143,7 +143,7 @@ pub fn create_skill(project_dir: &Path, id: &str, name: &str, content: &str) -> 
         source: SkillSource::Custom,
         artifacts: vec![],
     };
-    write_skill(&dir, &skill)?;
+    write_skill_spec(&dir, &skill)?;
     emit_skill_event(
         SKILL_CREATED,
         id,
@@ -181,7 +181,7 @@ pub fn create_user_skill(id: &str, name: &str, content: &str) -> Result<Skill> {
         source: SkillSource::Custom,
         artifacts: vec![],
     };
-    write_skill(&dir, &skill)?;
+    write_skill_spec(&dir, &skill)?;
     emit_skill_event(
         SKILL_CREATED,
         id,
@@ -202,14 +202,14 @@ pub fn update_skill(
 ) -> Result<Skill> {
     let _ = ensure_project_skills_storage(project_dir)?;
     let dir = skill_dir(project_dir, id);
-    let mut skill = parse_skill(&dir)?;
+    let mut skill = parse_skill_spec(&dir)?;
     if let Some(n) = name {
         skill.name = n.to_string();
     }
     if let Some(c) = content {
         skill.content = c.to_string();
     }
-    write_skill(&dir, &skill)?;
+    write_skill_spec(&dir, &skill)?;
     emit_skill_event(
         SKILL_UPDATED,
         id,
@@ -227,14 +227,14 @@ pub fn update_user_skill(id: &str, name: Option<&str>, content: Option<&str>) ->
     if !dir.exists() {
         return Err(anyhow!("Skill '{}' not found", id));
     }
-    let mut skill = parse_skill(&dir)?;
+    let mut skill = parse_skill_spec(&dir)?;
     if let Some(n) = name {
         skill.name = n.to_string();
     }
     if let Some(c) = content {
         skill.content = c.to_string();
     }
-    write_skill(&dir, &skill)?;
+    write_skill_spec(&dir, &skill)?;
     emit_skill_event(
         SKILL_UPDATED,
         id,

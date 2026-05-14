@@ -5,7 +5,6 @@ use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
 
 use super::helpers::*;
-use super::types_session::*;
 
 // ---- Agent config resolution -----------------------------------------------
 
@@ -39,46 +38,6 @@ pub(crate) fn resolve_session_providers(
     Ok(resolved.providers)
 }
 
-// ---- Provider matrix -------------------------------------------------------
-
-#[allow(dead_code)]
-pub(crate) fn build_session_provider_matrix(
-    ship_dir: &Path,
-    branch: &str,
-    agent_id: Option<&str>,
-) -> Result<ProviderMatrix> {
-    let resolved_agent_id = agent_id.and_then(normalize_agent_ref);
-    let resolved = resolve_session_agent_config(ship_dir, agent_id)?;
-    let providers = resolved.providers;
-
-    let supported_providers = crate::agents::providers::SUPPORTED_PROVIDER_IDS
-        .iter()
-        .map(|&id| id.to_string())
-        .collect::<Vec<_>>();
-
-    let resolution_error = if providers.is_empty() {
-        Some(format!(
-            "No valid providers resolved for session on branch '{}'",
-            branch
-        ))
-    } else {
-        None
-    };
-
-    Ok(ProviderMatrix {
-        branch: branch.to_string(),
-        agent_id: resolved_agent_id,
-        source: if resolved.active_agent.is_some() {
-            "agent/config".to_string()
-        } else {
-            "config/default".to_string()
-        },
-        allowed_providers: providers,
-        supported_providers,
-        resolution_error,
-    })
-}
-
 // ---- Context root and missing configs --------------------------------------
 
 /// Resolve the on-disk root where provider config files should be written.
@@ -95,31 +54,6 @@ pub(crate) fn resolve_session_context_root(
         }
     }
     ship_dir.parent().unwrap_or(ship_dir).to_path_buf()
-}
-
-#[allow(dead_code)]
-pub(crate) fn missing_provider_configs_for_session(
-    context_root: &Path,
-    providers: &[String],
-) -> Vec<String> {
-    providers
-        .iter()
-        .filter_map(|provider| {
-            let config_path = match provider.as_str() {
-                "claude" => ".mcp.json",
-                "gemini" => ".gemini/settings.json",
-                "codex" => ".codex/config.toml",
-                "cursor" => ".cursor/mcp.json",
-                "opencode" => "opencode.json",
-                _ => return None,
-            };
-            if context_root.join(config_path).exists() {
-                None
-            } else {
-                Some(provider.clone())
-            }
-        })
-        .collect()
 }
 
 // ---- Compile session context ---------------------------------------------

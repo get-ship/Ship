@@ -10,6 +10,7 @@ pub use ship_substrate::services::server_session::{self};
 
 // L1 service actors.
 pub mod orchestrator;
+pub mod process_registry;
 pub mod provider_adapter;
 pub mod providers;
 pub mod watcher;
@@ -35,6 +36,4 @@ pub mod pipelines;
 pub mod skills;
 pub mod path_tolerant;
 pub mod rules;
-#[cfg(test)]
-#[path = "files_tests.rs"]
-mod files_tests;
+pub mod sessions;

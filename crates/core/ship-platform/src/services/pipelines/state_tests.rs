@@ -37,13 +37,13 @@ fn list_dedupes_project_over_user() {
 }
 
 #[test]
-fn list_discovers_yaml_alongside_jsonc() {
+fn list_ignores_non_jsonc_files() {
     let (s, _u, _p) = svc();
+    // YAML pipelines are no longer supported; they're filtered out by list.
     seed(&s, Scope::Project, "legacy", "yaml",
          "name: legacy\nsteps:\n  - id: a\n    run: echo\n");
     let items = list(&s);
-    assert_eq!(items.len(), 1);
-    assert_eq!(items[0].format, "yaml");
+    assert!(items.is_empty());
 }
 
 #[test]
@@ -57,13 +57,13 @@ fn load_doc_default_prefers_project() {
 }
 
 #[test]
-fn load_yaml_pipeline_as_json() {
+fn yaml_pipelines_are_unreadable() {
     let (s, _u, _p) = svc();
     seed(&s, Scope::Project, "yml", "yaml",
          "name: yml\nsteps:\n  - id: a\n    run: echo\n");
-    let (_scope, fmt, doc) = load_doc(&s, "yml", None).unwrap();
-    assert_eq!(fmt, "yaml");
-    assert_eq!(doc["steps"][0]["id"], "a");
+    // The legacy .yaml file is on disk but the loader doesn't see it —
+    // pipelines are jsonc-only now.
+    assert!(load_doc(&s, "yml", None).is_err());
 }
 
 #[test]
@@ -95,20 +95,6 @@ fn patch_creates_missing_intermediate_objects() {
     patch_doc(&s, "p", None, &patch).unwrap();
     let (_, _, doc) = load_doc(&s, "p", None).unwrap();
     assert_eq!(doc["vars"]["foo"], "bar");
-}
-
-#[test]
-fn patch_migrates_yaml_to_jsonc() {
-    let (s, _u, _p) = svc();
-    seed(&s, Scope::Project, "mig", "yaml",
-         "name: mig\nsteps:\n  - id: a\n    run: echo\n");
-    let patch: json_patch::Patch = serde_json::from_value(serde_json::json!([
-        { "op": "replace", "path": "/name", "value": "mig2" },
-    ])).unwrap();
-    patch_doc(&s, "mig", None, &patch).unwrap();
-    // New canonical file exists as jsonc.
-    let (_, fmt, _) = load_doc(&s, "mig", None).unwrap();
-    assert_eq!(fmt, "jsonc");
 }
 
 #[test]

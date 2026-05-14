@@ -1,9 +1,8 @@
 //! PipelineService — state layer. Pure domain logic over the file tree.
 //!
-//! Pipelines live at `<scope>/pipelines/<name>.{jsonc,json,yaml,yml}`.
-//! The canonical write format is JSONC; YAML is legacy but still
-//! discovered on reads so projects mid-migration don't silently lose
-//! their definitions.
+//! Pipelines live at `<scope>/pipelines/<name>.jsonc`. JSONC is the
+//! only supported format — legacy YAML files at the same name are
+//! ignored by the loader.
 //!
 //! Scope model: project wins by default, exactly as AgentService.
 
@@ -88,36 +87,28 @@ fn validate_name(name: &str) -> Result<(), Error> {
 
 // ── Path resolution ─────────────────────────────────────────────────
 
-/// Recognised pipeline extensions, preferred first (JSONC is canonical
-/// write target; others surface on read for legacy definitions).
-const EXTS: &[&str] = &["jsonc", "json", "yaml", "yml"];
+/// Canonical pipeline extension. JSONC is the only format.
+const PIPELINE_EXT: &str = "jsonc";
 
-fn rel_for(name: &str, ext: &str) -> PathBuf {
-    PathBuf::from(format!("pipelines/{name}.{ext}"))
+fn rel_for(name: &str) -> PathBuf {
+    PathBuf::from(format!("pipelines/{name}.{PIPELINE_EXT}"))
 }
 
-/// Locate a pipeline across both scopes (project wins). Returns the scope,
-/// relative path, and extension found.
-pub fn find(files: &FilesService, name: &str) -> Option<(Scope, PathBuf, String)> {
+/// Locate a pipeline across both scopes (project wins). Returns the scope
+/// and relative path.
+pub fn find(files: &FilesService, name: &str) -> Option<(Scope, PathBuf)> {
     for scope in [Scope::Project, Scope::User] {
-        for ext in EXTS {
-            let rel = rel_for(name, ext);
-            if files.exists(scope, &rel) {
-                return Some((scope, rel, (*ext).to_string()));
-            }
+        let rel = rel_for(name);
+        if files.exists(scope, &rel) {
+            return Some((scope, rel));
         }
     }
     None
 }
 
-fn find_in_scope(files: &FilesService, scope: Scope, name: &str) -> Option<(PathBuf, String)> {
-    for ext in EXTS {
-        let rel = rel_for(name, ext);
-        if files.exists(scope, &rel) {
-            return Some((rel, (*ext).to_string()));
-        }
-    }
-    None
+fn find_in_scope(files: &FilesService, scope: Scope, name: &str) -> Option<PathBuf> {
+    let rel = rel_for(name);
+    if files.exists(scope, &rel) { Some(rel) } else { None }
 }
 
 // ── Read ───────────────────────────────────────────────────────────
@@ -130,12 +121,12 @@ pub fn list(files: &FilesService) -> Vec<IndexEntry> {
         for p in entries {
             let Some(stem) = p.file_stem().and_then(|s| s.to_str()) else { continue };
             let ext = p.extension().and_then(|s| s.to_str()).unwrap_or("");
-            if !EXTS.contains(&ext) { continue }
+            if ext != PIPELINE_EXT { continue }
             if !seen.insert(stem.to_string()) { continue } // project wins
             out.push(IndexEntry {
                 name: stem.to_string(),
                 scope: scope.into(),
-                format: ext.to_string(),
+                format: PIPELINE_EXT.to_string(),
             });
         }
     }
@@ -143,53 +134,30 @@ pub fn list(files: &FilesService) -> Vec<IndexEntry> {
     out
 }
 
-/// Load a pipeline definition as raw JSON. YAML sources are parsed and
-/// converted through `serde_yaml::Value` so the output shape is always
-/// a `serde_json::Value`.
+/// Load a pipeline definition as raw JSON. Pipelines are JSONC; the
+/// returned value is always `serde_json::Value`.
 pub fn load_doc(
     files: &FilesService,
     name: &str,
     explicit_scope: Option<Scope>,
 ) -> Result<(Scope, String, serde_json::Value), Error> {
     validate_name(name)?;
-    let (scope, rel, ext) = match explicit_scope {
-        Some(s) => {
-            let (rel, ext) = find_in_scope(files, s, name)
-                .ok_or_else(|| Error::NotFound(name.into()))?;
-            (s, rel, ext)
-        }
+    let (scope, rel) = match explicit_scope {
+        Some(s) => (
+            s,
+            find_in_scope(files, s, name).ok_or_else(|| Error::NotFound(name.into()))?,
+        ),
         None => find(files, name).ok_or_else(|| Error::NotFound(name.into()))?,
     };
-    let doc = parse_pipeline_bytes(files, scope, &rel, &ext)?;
-    Ok((scope, ext, doc))
-}
-
-fn parse_pipeline_bytes(
-    files: &FilesService,
-    scope: Scope,
-    rel: &Path,
-    ext: &str,
-) -> Result<serde_json::Value, Error> {
-    let raw = files.read_string(scope, rel)?;
-    match ext {
-        "jsonc" | "json" => {
-            let json = ship_substrate::fs_util::strip_jsonc_comments(&raw);
-            serde_json::from_str(&json).map_err(|e| Error::Parse(e.to_string()))
-        }
-        "yaml" | "yml" => {
-            let v: serde_yaml::Value = serde_yaml::from_str(&raw)
-                .map_err(|e| Error::Parse(e.to_string()))?;
-            serde_json::to_value(v).map_err(|e| Error::Parse(e.to_string()))
-        }
-        other => Err(Error::Parse(format!("unsupported extension `{other}`"))),
-    }
+    let raw = files.read_string(scope, &rel)?;
+    let json = ship_substrate::fs_util::strip_jsonc_comments(&raw);
+    let doc = serde_json::from_str(&json).map_err(|e| Error::Parse(e.to_string()))?;
+    Ok((scope, PIPELINE_EXT.to_string(), doc))
 }
 
 // ── Write ──────────────────────────────────────────────────────────
 
-/// Write a pipeline doc. Always writes JSONC (`.jsonc`). If an existing
-/// legacy YAML file is present, it is trashed so the two formats can't
-/// drift.
+/// Write a pipeline doc. Always writes JSONC (`.jsonc`).
 pub fn write_doc(
     files: &FilesService,
     name: &str,
@@ -198,17 +166,9 @@ pub fn write_doc(
     allow_overwrite: bool,
 ) -> Result<(), Error> {
     validate_name(name)?;
-    let target = rel_for(name, "jsonc");
-    let existing = find_in_scope(files, scope, name);
-    if existing.is_some() && !allow_overwrite {
+    let target = rel_for(name);
+    if find_in_scope(files, scope, name).is_some() && !allow_overwrite {
         return Err(Error::AlreadyExists(name.into()));
-    }
-    // If there is a legacy YAML copy at the same name, retire it so the
-    // project converges on JSONC.
-    if let Some((rel, ext)) = existing
-        && ext != "jsonc"
-    {
-        let _ = files.trash(scope, &rel);
     }
     files.write_jsonc(scope, &target, doc)?;
     Ok(())
@@ -221,23 +181,20 @@ pub fn patch_doc(
     patch: &json_patch::Patch,
 ) -> Result<Scope, Error> {
     validate_name(name)?;
-    let (scope, rel, ext) = match explicit_scope {
-        Some(s) => {
-            let (rel, ext) = find_in_scope(files, s, name)
-                .ok_or_else(|| Error::NotFound(name.into()))?;
-            (s, rel, ext)
-        }
+    let (scope, rel) = match explicit_scope {
+        Some(s) => (
+            s,
+            find_in_scope(files, s, name).ok_or_else(|| Error::NotFound(name.into()))?,
+        ),
         None => find(files, name).ok_or_else(|| Error::NotFound(name.into()))?,
     };
-    let mut doc = parse_pipeline_bytes(files, scope, &rel, &ext)?;
+    let raw = files.read_string(scope, &rel)?;
+    let json = ship_substrate::fs_util::strip_jsonc_comments(&raw);
+    let mut doc: serde_json::Value =
+        serde_json::from_str(&json).map_err(|e| Error::Parse(e.to_string()))?;
     crate::services::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
     json_patch::patch(&mut doc, patch).map_err(|e| Error::Patch(e.to_string()))?;
-    // Migrate legacy formats to jsonc on write so the tree normalises.
-    let target = rel_for(name, "jsonc");
-    files.write_jsonc(scope, &target, &doc)?;
-    if ext != "jsonc" {
-        let _ = files.trash(scope, &rel);
-    }
+    files.write_jsonc(scope, &rel, &doc)?;
     Ok(scope)
 }
 
@@ -247,12 +204,11 @@ pub fn delete_doc(
     explicit_scope: Option<Scope>,
 ) -> Result<Scope, Error> {
     validate_name(name)?;
-    let (scope, rel, _ext) = match explicit_scope {
-        Some(s) => {
-            let (rel, ext) = find_in_scope(files, s, name)
-                .ok_or_else(|| Error::NotFound(name.into()))?;
-            (s, rel, ext)
-        }
+    let (scope, rel) = match explicit_scope {
+        Some(s) => (
+            s,
+            find_in_scope(files, s, name).ok_or_else(|| Error::NotFound(name.into()))?,
+        ),
         None => find(files, name).ok_or_else(|| Error::NotFound(name.into()))?,
     };
     files.trash(scope, &rel)?;

@@ -1,0 +1,364 @@
+//! Scope model + session registry — pure capability policy.
+//!
+//! Scopes are coarse-grained capabilities assigned to sessions based on
+//! the agent's role. The daemon's HTTP layer (in `apps/shipd/src/auth/`)
+//! consumes this module via `require_scope`, `session_register`, and the
+//! middleware that populates `AuthContext`.
+
+use std::collections::HashMap;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+/// Coarse-grained capability scopes for daemon session access control.
+/// Each handler declares which scope it requires; the auth layer checks
+/// the session's granted scopes before the handler runs.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum Scope {
+    ReadWorkspace,
+    WriteWorkspace,
+    ReadJobs,
+    CreateJobs,
+    ManageJobs,
+    EmitEvents,
+    MeshSend,
+    MeshBroadcast,
+    LogProgress,
+    StepDone,
+    AdminDaemon,
+    /// Fine-grained artifact grants — granted in addition to workspace grants.
+    ReadArtifactsRun,
+    WriteArtifactsRun,
+    DeleteArtifactsRun,
+    ReadArtifactsProject,
+    WriteArtifactsProject,
+    DeleteArtifactsProject,
+    ReadArtifactsUser,
+    WriteArtifactsUser,
+    DeleteArtifactsUser,
+    /// Promote an artifact from one scope to another.
+    PromoteArtifact,
+    /// Bypass all scope checks — used by daemon.token and contributor profile.
+    Full,
+}
+
+impl Scope {
+    /// Returns true if `granted` contains this scope or `Full`.
+    pub fn is_granted_by(self, granted: &[Scope]) -> bool {
+        granted.contains(&Scope::Full) || granted.contains(&self)
+    }
+}
+
+/// Artifact scopes granted to agents running inside a pipeline (worker/lead).
+fn pipeline_agent_artifact_scopes() -> Vec<Scope> {
+    vec![
+        Scope::ReadArtifactsRun,
+        Scope::WriteArtifactsRun,
+        Scope::DeleteArtifactsRun,
+        Scope::ReadArtifactsProject,
+    ]
+}
+
+/// Map an agent role to its granted scopes.
+pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
+    match role {
+        Some("commander") => {
+            let mut s = vec![
+                Scope::ReadWorkspace,
+                Scope::WriteWorkspace,
+                Scope::ReadJobs,
+                Scope::CreateJobs,
+                Scope::ManageJobs,
+                Scope::EmitEvents,
+                Scope::MeshSend,
+                Scope::MeshBroadcast,
+                Scope::LogProgress,
+            ];
+            s.extend(pipeline_agent_artifact_scopes());
+            s
+        }
+        Some("lead") => {
+            let mut s = vec![
+                Scope::ReadWorkspace,
+                Scope::WriteWorkspace,
+                Scope::ReadJobs,
+                Scope::CreateJobs,
+                Scope::LogProgress,
+                Scope::StepDone,
+                Scope::MeshSend,
+                Scope::EmitEvents,
+            ];
+            s.extend(pipeline_agent_artifact_scopes());
+            s
+        }
+        Some("contributor") => vec![Scope::Full],
+        Some("worker") | None => {
+            let mut s = vec![
+                Scope::ReadWorkspace,
+                Scope::ReadJobs,
+                Scope::LogProgress,
+                Scope::StepDone,
+                Scope::MeshSend,
+                Scope::EmitEvents,
+            ];
+            s.extend(pipeline_agent_artifact_scopes());
+            s
+        }
+        _ => vec![Scope::ReadWorkspace, Scope::ReadJobs, Scope::LogProgress],
+    }
+}
+
+// ── Session registry ────────────────────────────────────────────────────────
+
+/// A daemon-scoped session — maps a session token to an agent's granted scopes.
+#[derive(Debug, Clone)]
+pub struct DaemonSession {
+    pub token: String,
+    pub agent_id: String,
+    pub scopes: Vec<Scope>,
+    pub workspace_id: Option<String>,
+    pub created_at: std::time::Instant,
+    /// Unix seconds when this session expires. None = never expires (in-memory only).
+    pub expires_at_unix: Option<i64>,
+    /// If true, the session lives only in memory (dev-mode auto-pair). Not persisted.
+    pub ephemeral: bool,
+}
+
+impl DaemonSession {
+    /// Returns true if this session has passed its expiry.
+    pub fn is_expired(&self) -> bool {
+        match self.expires_at_unix {
+            Some(t) => chrono::Utc::now().timestamp() >= t,
+            None => false,
+        }
+    }
+}
+
+fn now_unix() -> i64 {
+    chrono::Utc::now().timestamp()
+}
+
+/// Persist a session via the event log. Skips ephemeral or no-expiry
+/// sessions (those live only in memory).
+pub fn persist_session(session: &DaemonSession) {
+    if session.ephemeral {
+        return;
+    }
+    let Some(expires_at_unix) = session.expires_at_unix else {
+        return;
+    };
+    let created_unix = now_unix()
+        .saturating_sub(session.created_at.elapsed().as_secs() as i64);
+    let scopes_json = match serde_json::to_string(&session.scopes) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("session persist: scopes serialize failed: {e}");
+            return;
+        }
+    };
+    let payload = ship_substrate::events::types::AuthSessionCreated {
+        agent_id: session.agent_id.clone(),
+        scopes_json,
+        project_id: session.workspace_id.clone(),
+        created_at_unix: created_unix,
+        expires_at_unix,
+        source: "persist".to_string(),
+    };
+    let envelope = match ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::AUTH_SESSION_CREATED,
+        &session.token,
+        &payload,
+    ) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("session persist: envelope build failed: {e}");
+            return;
+        }
+    };
+    let store = match ship_substrate::persistence::event_store::SqliteEventStore::new() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("session persist: store open failed: {e}");
+            return;
+        }
+    };
+    if let Err(e) = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope) {
+        tracing::warn!("session persist: append failed: {e}");
+    }
+}
+
+/// Revoke a persisted session via an `auth.session.revoked` event.
+pub fn remove_persisted_session(token: &str) {
+    let payload = ship_substrate::events::types::AuthSessionRevoked {
+        reason: "user".to_string(),
+    };
+    let envelope = match ship_substrate::events::EventEnvelope::new(
+        ship_substrate::events::types::event_types::AUTH_SESSION_REVOKED,
+        token,
+        &payload,
+    ) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::warn!("session revoke: envelope build failed: {e}");
+            return;
+        }
+    };
+    let store = match ship_substrate::persistence::event_store::SqliteEventStore::new() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("session revoke: store open failed: {e}");
+            return;
+        }
+    };
+    if let Err(e) = ship_substrate::persistence::event_store::EventStore::append(&store, &envelope) {
+        tracing::warn!("session revoke: append failed: {e}");
+    }
+}
+
+/// Load all non-expired sessions from the projection into the in-memory
+/// registry. Expired rows are skipped.
+pub async fn hydrate_sessions(registry: &SessionRegistry) {
+    let rows = match crate::projections::auth::list_active_sessions() {
+        Ok(rows) => rows,
+        Err(e) => {
+            tracing::warn!("session hydrate: list failed: {e}");
+            return;
+        }
+    };
+    let mut reg = registry.lock().await;
+    let mut loaded = 0usize;
+    for row in rows {
+        let scopes: Vec<Scope> =
+            serde_json::from_str(&row.scopes_json).unwrap_or_default();
+        let session = DaemonSession {
+            token: row.token.clone(),
+            agent_id: row.agent_id,
+            scopes,
+            workspace_id: row.project_id,
+            created_at: std::time::Instant::now(),
+            expires_at_unix: Some(row.expires_at_unix),
+            ephemeral: false,
+        };
+        reg.insert(row.token, session);
+        loaded += 1;
+    }
+    if loaded > 0 {
+        tracing::info!(loaded, "auth: hydrated sessions from projection");
+    }
+}
+
+/// Thread-safe session registry shared across the daemon.
+pub type SessionRegistry = Arc<Mutex<HashMap<String, DaemonSession>>>;
+
+/// Generate a session token with the `ship_sess_` prefix.
+///
+/// Returns an error if the OS entropy source is unavailable.
+pub fn generate_session_token() -> Result<String, getrandom::Error> {
+    let mut bytes = [0u8; 16];
+    getrandom::getrandom(&mut bytes)?;
+    Ok(format!("ship_sess_{}", hex_encode(&bytes)))
+}
+
+/// Returns true if the token is a session token (ship_sess_ prefix).
+pub fn is_session_token(token: &str) -> bool {
+    token.starts_with("ship_sess_")
+}
+
+/// Hex-encode a byte slice with lowercase ASCII. Used by token formatters
+/// across the auth module; defined here so the platform side doesn't
+/// depend on shipd's `auth::hex_encode`.
+pub fn hex_encode(bytes: &[u8]) -> String {
+    let mut out = String::with_capacity(bytes.len() * 2);
+    for b in bytes {
+        use std::fmt::Write;
+        let _ = write!(out, "{b:02x}");
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scope_full_grants_everything() {
+        let granted = vec![Scope::Full];
+        assert!(Scope::CreateJobs.is_granted_by(&granted));
+        assert!(Scope::AdminDaemon.is_granted_by(&granted));
+        assert!(Scope::MeshBroadcast.is_granted_by(&granted));
+    }
+
+    #[test]
+    fn scope_specific_grant() {
+        let granted = vec![Scope::ReadWorkspace, Scope::LogProgress];
+        assert!(Scope::ReadWorkspace.is_granted_by(&granted));
+        assert!(Scope::LogProgress.is_granted_by(&granted));
+        assert!(!Scope::CreateJobs.is_granted_by(&granted));
+    }
+
+    #[test]
+    fn scopes_for_worker_role() {
+        let scopes = scopes_for_role(Some("worker"));
+        assert!(Scope::ReadWorkspace.is_granted_by(&scopes));
+        assert!(Scope::LogProgress.is_granted_by(&scopes));
+        assert!(!Scope::CreateJobs.is_granted_by(&scopes));
+        assert!(!Scope::ManageJobs.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn scopes_for_commander_role() {
+        let scopes = scopes_for_role(Some("commander"));
+        assert!(Scope::CreateJobs.is_granted_by(&scopes));
+        assert!(Scope::ManageJobs.is_granted_by(&scopes));
+        assert!(Scope::MeshBroadcast.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn scopes_for_contributor_role() {
+        let scopes = scopes_for_role(Some("contributor"));
+        assert!(Scope::Full.is_granted_by(&scopes));
+        assert!(Scope::AdminDaemon.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn scopes_for_none_role_defaults_to_worker() {
+        let worker = scopes_for_role(Some("worker"));
+        let none = scopes_for_role(None);
+        assert_eq!(worker, none);
+    }
+
+    #[test]
+    fn session_token_format() {
+        let token = generate_session_token().unwrap();
+        assert!(is_session_token(&token));
+    }
+
+    #[test]
+    fn worker_can_write_run_artifacts_but_not_project() {
+        let scopes = scopes_for_role(Some("worker"));
+        assert!(Scope::WriteArtifactsRun.is_granted_by(&scopes));
+        assert!(!Scope::WriteArtifactsProject.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn worker_cannot_promote_artifacts() {
+        let scopes = scopes_for_role(Some("worker"));
+        assert!(!Scope::PromoteArtifact.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn only_contributor_and_full_can_promote_artifacts() {
+        assert!(!Scope::PromoteArtifact.is_granted_by(&scopes_for_role(Some("commander"))));
+        assert!(!Scope::PromoteArtifact.is_granted_by(&scopes_for_role(Some("lead"))));
+        assert!(!Scope::PromoteArtifact.is_granted_by(&scopes_for_role(Some("worker"))));
+        assert!(Scope::PromoteArtifact.is_granted_by(&[Scope::Full]));
+    }
+
+    #[test]
+    fn worker_can_read_project_artifacts_but_not_write() {
+        let scopes = scopes_for_role(Some("worker"));
+        assert!(Scope::ReadArtifactsProject.is_granted_by(&scopes));
+        assert!(!Scope::WriteArtifactsProject.is_granted_by(&scopes));
+        assert!(!Scope::DeleteArtifactsProject.is_granted_by(&scopes));
+    }
+}

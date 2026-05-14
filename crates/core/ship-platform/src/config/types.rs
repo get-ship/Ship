@@ -1,8 +1,7 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-pub const PRIMARY_CONFIG_FILE: &str = "ship.jsonc";
-pub const LEGACY_CONFIG_FILE: &str = "ship.toml";
+pub use ship_substrate::project::PRIMARY_CONFIG_FILE;
 
 // ─── Data types ───────────────────────────────────────────────────────────────
 

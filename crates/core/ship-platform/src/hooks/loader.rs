@@ -193,7 +193,7 @@ fn validate_action(action: &HookAction, idx: usize, ship_dir: &Path) -> Result<(
 }
 
 fn is_known_event(event: &str) -> bool {
-    KNOWN_EVENT_TYPES.iter().any(|e| *e == event)
+    KNOWN_EVENT_TYPES.contains(&event)
 }
 
 fn log_errors(report: &LoadReport) {

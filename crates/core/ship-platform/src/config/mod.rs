@@ -88,8 +88,7 @@ mod tests_io;
 // ─── Public API — mirrors the original config.rs public surface ───────────────
 
 pub use types::{
-    AgentLayerConfig, HookConfig, HookTrigger,
-    LEGACY_CONFIG_FILE, PRIMARY_CONFIG_FILE, PermissionConfig,
+    AgentLayerConfig, HookConfig, HookTrigger, PRIMARY_CONFIG_FILE, PermissionConfig,
 };
 
 pub use project::{
@@ -111,8 +110,7 @@ pub use discover::discover_projects;
 pub use watcher::{spawn_config_watcher, ConfigWatcher};
 
 pub use runtime_settings::{
-    drain_legacy_project_config_kv, drain_legacy_settings_kv, get_all_settings, get_setting,
-    set_setting, setting_default,
+    get_all_settings, get_setting, set_setting, setting_default,
 };
 
 pub use credentials::Credentials;

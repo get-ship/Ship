@@ -11,17 +11,22 @@ ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }
 ship-jobs = { path = "../ship-jobs" }
 ship-pipelines = { path = "../ship-pipelines", features = ["specta"] }
+compiler = { path = "../compiler", features = ["specta"] }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 serde_yaml = { workspace = true }
 toml = { workspace = true, features = ["preserve_order"] }
-home = "0.5"
+home = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 nanoid = { workspace = true }
 ulid = { workspace = true }
 walkdir = "2.3"
+futures-util = { workspace = true }
+getrandom = { workspace = true }
+jsonwebtoken = "9"
+utoipa = "5"
 # RFC 6902 JSON Patch — FilesService.patch_jsonc consumes these from
 # write_api handlers. No partial-edit shims; patch() is the canonical
 # partial-update path.
@@ -39,6 +44,7 @@ reqwest = { workspace = true, features = ["json", "rustls-tls"] }
 flate2 = "1"
 tar = "0.4"
 rmp-serde = "1"
+portable-pty = "0.9"
 tracing = { workspace = true }
 sea-query = { version = "0.32.7", features = ["backend-sqlite"] }
 indexmap = { workspace = true, features = ["serde"] }

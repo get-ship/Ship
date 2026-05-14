@@ -69,12 +69,6 @@ impl crate::services::dispatch_ports::AgentPlatform for NoopPlatform {
     async fn graceful_agent_exit(&self, _: &str, _: Option<&str>) {}
     async fn cleanup_job(&self, _: &str, _: &str) {}
     fn git_merge(&self, _: &str) -> anyhow::Result<bool> { Ok(true) }
-    fn start_exit_handler(
-        &self,
-        _: Arc<Mutex<ship_substrate::events::kernel_router::KernelRouter>>,
-        _: tokio::sync::mpsc::UnboundedReceiver<crate::services::dispatch_ports::ExitSignal>,
-    ) {}
-    fn start_liveness_sweep(&self, _: Arc<Mutex<ship_substrate::events::kernel_router::KernelRouter>>) {}
     async fn cleanup_orphaned_worktrees(&self) {}
 }
 

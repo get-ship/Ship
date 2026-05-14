@@ -5,7 +5,7 @@ use anyhow::Result;
 use tempfile::tempdir;
 
 fn init_project_with_provider(tmp: &tempfile::TempDir) -> Result<std::path::PathBuf> {
-    let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+    let ship_dir = crate::testutil::init_project(tmp.path())?;
     let mut config = crate::config::get_config(Some(ship_dir.clone()))?;
     config.providers = vec!["claude".to_string()];
     crate::config::save_config(&config, Some(ship_dir.clone()))?;

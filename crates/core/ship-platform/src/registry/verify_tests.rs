@@ -1,4 +1,6 @@
 use super::*;
+use ship_substrate::env::Var;
+use ship_substrate::testutil::EnvGuard;
 
 // ── find_version_hash unit tests ──────────────────────────────────────
 
@@ -62,45 +64,23 @@ fn find_hash_versions_not_array() {
 
 #[test]
 fn base_url_defaults_to_getship() {
-    let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
-    unsafe { std::env::remove_var("SHIP_REGISTRY_URL") };
-
+    let _env = EnvGuard::unset(Var::RegistryUrl);
     let url = registry_base_url();
     assert_eq!(url, Some("https://getship.dev".to_string()));
-
-    // Restore.
-    if let Some(val) = prev {
-        unsafe { std::env::set_var("SHIP_REGISTRY_URL", val) }
-    }
 }
 
 #[test]
-#[ignore = "parallel-test SHIP_REGISTRY_URL env race; passes in isolation"]
 fn base_url_respects_env_override() {
-    let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
-    unsafe { std::env::set_var("SHIP_REGISTRY_URL", "http://localhost:3000") };
-
+    let _env = EnvGuard::set(Var::RegistryUrl, "http://localhost:3000");
     let url = registry_base_url();
     assert_eq!(url, Some("http://localhost:3000".to_string()));
-
-    match prev {
-        Some(val) => unsafe { std::env::set_var("SHIP_REGISTRY_URL", val) },
-        None => unsafe { std::env::remove_var("SHIP_REGISTRY_URL") },
-    }
 }
 
 #[test]
 fn base_url_empty_string_opts_out() {
-    let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
-    unsafe { std::env::set_var("SHIP_REGISTRY_URL", "") };
-
+    let _env = EnvGuard::set(Var::RegistryUrl, "");
     let url = registry_base_url();
     assert_eq!(url, None);
-
-    match prev {
-        Some(val) => unsafe { std::env::set_var("SHIP_REGISTRY_URL", val) },
-        None => unsafe { std::env::remove_var("SHIP_REGISTRY_URL") },
-    }
 }
 
 // ── check_registry_hash unit tests ────────────────────────────────────
@@ -113,59 +93,30 @@ fn check_skipped_when_offline() {
 
 #[test]
 fn check_returns_none_when_registry_unavailable() {
-    // Point to a URL that won't resolve.
-    let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
-    unsafe { std::env::set_var("SHIP_REGISTRY_URL", "http://127.0.0.1:1") };
-
+    let _env = EnvGuard::set(Var::RegistryUrl, "http://127.0.0.1:1");
     let result = check_registry_hash("github.com/owner/pkg", "v1.0.0", "sha256:abc", false);
     assert_eq!(result, None);
-
-    match prev {
-        Some(val) => unsafe { std::env::set_var("SHIP_REGISTRY_URL", val) },
-        None => unsafe { std::env::remove_var("SHIP_REGISTRY_URL") },
-    }
 }
 
 #[test]
 fn check_returns_none_when_opted_out() {
-    let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
-    unsafe { std::env::set_var("SHIP_REGISTRY_URL", "") };
-
+    let _env = EnvGuard::set(Var::RegistryUrl, "");
     let result = check_registry_hash("github.com/owner/pkg", "v1.0.0", "sha256:abc", false);
     assert_eq!(result, None);
-
-    match prev {
-        Some(val) => unsafe { std::env::set_var("SHIP_REGISTRY_URL", val) },
-        None => unsafe { std::env::remove_var("SHIP_REGISTRY_URL") },
-    }
 }
 
 // ── fetch_registry_hash integration-style tests ───────────────────────
 
 #[test]
 fn fetch_returns_none_on_unreachable_registry() {
-    let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
-    unsafe { std::env::set_var("SHIP_REGISTRY_URL", "http://127.0.0.1:1") };
-
+    let _env = EnvGuard::set(Var::RegistryUrl, "http://127.0.0.1:1");
     let result = fetch_registry_hash("github.com/owner/pkg", "v1.0.0");
     assert_eq!(result, None);
-
-    match prev {
-        Some(val) => unsafe { std::env::set_var("SHIP_REGISTRY_URL", val) },
-        None => unsafe { std::env::remove_var("SHIP_REGISTRY_URL") },
-    }
 }
 
 #[test]
 fn fetch_returns_none_when_opted_out() {
-    let prev = ship_substrate::env::read_raw(ship_substrate::env::Var::RegistryUrl).ok();
-    unsafe { std::env::set_var("SHIP_REGISTRY_URL", "") };
-
+    let _env = EnvGuard::set(Var::RegistryUrl, "");
     let result = fetch_registry_hash("github.com/owner/pkg", "v1.0.0");
     assert_eq!(result, None);
-
-    match prev {
-        Some(val) => unsafe { std::env::set_var("SHIP_REGISTRY_URL", val) },
-        None => unsafe { std::env::remove_var("SHIP_REGISTRY_URL") },
-    }
 }

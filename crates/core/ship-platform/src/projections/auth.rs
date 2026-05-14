@@ -187,66 +187,6 @@ fn session_row(row: sqlx::sqlite::SqliteRow) -> AuthSessionRow {
     }
 }
 
-/// One-shot drain of the legacy `auth.sessions` KV namespace into events.
-/// For each persisted row, emit `auth.session.created` so the projection
-/// materializes equivalent state. Idempotent: re-running on a drained
-/// install is a no-op (KV namespace empty after drain).
-pub fn drain_legacy_sessions_kv() -> Result<usize> {
-    use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
-    use ship_substrate::events::EventEnvelope;
-    use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-    use ship_types::payload::AuthSessionCreated;
-
-    ensure_kv_db()?;
-    let mut conn = open_kv_db()?;
-    let rows = block_on(async {
-        sqlx::query("SELECT key, value_json FROM kv_state WHERE namespace = 'auth.sessions'")
-            .fetch_all(&mut conn)
-            .await
-    })?;
-    if rows.is_empty() {
-        return Ok(0);
-    }
-
-    #[derive(serde::Deserialize)]
-    struct LegacyPersistedSession {
-        token: String,
-        agent_id: String,
-        scopes: serde_json::Value,
-        workspace_id: Option<String>,
-        created_at_unix: i64,
-        expires_at_unix: i64,
-    }
-
-    let store = SqliteEventStore::new()?;
-    let mut migrated = 0usize;
-    for row in &rows {
-        let json_str: String = row.get(1);
-        let Ok(legacy) = serde_json::from_str::<LegacyPersistedSession>(&json_str) else {
-            continue;
-        };
-        let scopes_json = serde_json::to_string(&legacy.scopes)
-            .unwrap_or_else(|_| "[]".to_string());
-        let payload = AuthSessionCreated {
-            agent_id: legacy.agent_id,
-            scopes_json,
-            project_id: legacy.workspace_id,
-            created_at_unix: legacy.created_at_unix,
-            expires_at_unix: legacy.expires_at_unix,
-            source: "legacy_kv".to_string(),
-        };
-        let env = EventEnvelope::new(AUTH_SESSION_CREATED, &legacy.token, &payload)?;
-        let _ = store.append(&env);
-        migrated += 1;
-    }
-    block_on(async {
-        sqlx::query("DELETE FROM kv_state WHERE namespace = 'auth.sessions'")
-            .execute(&mut conn)
-            .await
-    })?;
-    Ok(migrated)
-}
-
 // ── Owner ──────────────────────────────────────────────────────────────────
 
 #[derive(Debug, Clone)]
@@ -310,53 +250,6 @@ fn apply_owner_unbound(event: &EventEnvelope, conn: &mut SqliteConnection) -> Re
             .await
     })?;
     Ok(())
-}
-
-/// One-shot drain of the legacy `auth.daemon_owner` KV namespace into a
-/// `daemon.owner.bound` event. Idempotent.
-pub fn drain_legacy_owner_kv() -> Result<usize> {
-    use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
-    use ship_substrate::events::EventEnvelope;
-    use ship_substrate::persistence::event_store::{EventStore, SqliteEventStore};
-    use ship_types::payload::DaemonOwnerBound;
-
-    ensure_kv_db()?;
-    let mut conn = open_kv_db()?;
-    let rows = block_on(async {
-        sqlx::query(
-            "SELECT key, value_json FROM kv_state WHERE namespace = 'auth.daemon_owner'",
-        )
-        .fetch_all(&mut conn)
-        .await
-    })?;
-    if rows.is_empty() {
-        return Ok(0);
-    }
-
-    let store = SqliteEventStore::new()?;
-    let mut migrated = 0usize;
-    for row in &rows {
-        let json_str: String = row.get(1);
-        let Ok(value) = serde_json::from_str::<serde_json::Value>(&json_str) else {
-            continue;
-        };
-        let Some(user_id) = value.as_str() else {
-            continue;
-        };
-        let payload = DaemonOwnerBound {
-            source: "legacy_kv".to_string(),
-            bound_at_unix: chrono::Utc::now().timestamp(),
-        };
-        let env = EventEnvelope::new(DAEMON_OWNER_BOUND, user_id, &payload)?;
-        let _ = store.append(&env);
-        migrated += 1;
-    }
-    block_on(async {
-        sqlx::query("DELETE FROM kv_state WHERE namespace = 'auth.daemon_owner'")
-            .execute(&mut conn)
-            .await
-    })?;
-    Ok(migrated)
 }
 
 /// Read the current daemon owner, if any.

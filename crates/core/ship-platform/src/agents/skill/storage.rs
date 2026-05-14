@@ -7,7 +7,6 @@ use anyhow::{Context, Result, anyhow};
 
 use ship_substrate::fs_util::write_atomic;
 
-use super::install::migrate_legacy_project_skills;
 use super::types::{
     Skill, SkillSource, SkillSpecFrontmatter, SkillSpecMetadata, validate_against_schema,
     validate_skill_spec_frontmatter,
@@ -24,7 +23,6 @@ pub(super) fn user_skills_dir() -> PathBuf {
 pub(super) fn ensure_project_skills_storage(project_dir: &Path) -> Result<PathBuf> {
     let target = skills_dir(project_dir);
     fs::create_dir_all(&target)?;
-    migrate_legacy_project_skills(project_dir, &target)?;
     Ok(target)
 }
 
@@ -183,15 +181,6 @@ pub(super) fn write_skill_spec(dir: &Path, skill: &Skill) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn parse_skill(dir: &Path) -> Result<Skill> {
-    parse_skill_spec(dir)
-}
-
-pub(super) fn write_skill(dir: &Path, skill: &Skill) -> Result<()> {
-    write_skill_spec(dir, skill)?;
-    Ok(())
-}
-
 pub(super) fn list_skills_from_dir(dir: &Path) -> Result<Vec<Skill>> {
     if !dir.exists() {
         return Ok(vec![]);
@@ -200,9 +189,9 @@ pub(super) fn list_skills_from_dir(dir: &Path) -> Result<Vec<Skill>> {
     for entry in fs::read_dir(dir)? {
         let path = entry?.path();
         if path.is_dir() {
-            match parse_skill(&path) {
+            match parse_skill_spec(&path) {
                 Ok(s) => skills.push(s),
-                Err(e) => eprintln!("warn: skipping {}: {}", path.display(), e),
+                Err(e) => tracing::warn!(path = %path.display(), error = %e, "skipping skill spec"),
             }
         }
     }

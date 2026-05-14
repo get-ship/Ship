@@ -1,8 +1,6 @@
 use ship_substrate::db::daemon_settings;
-use ship_substrate::db::{block_on, ensure_kv_db, open_kv_db};
 use anyhow::Result;
 use std::collections::HashMap;
-use sqlx::Row;
 
 /// Return the default value for a well-known setting key.
 ///
@@ -51,51 +49,3 @@ pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
     Ok(map)
 }
 
-/// One-shot drain of the legacy KV `settings` namespace into the
-/// daemon_settings table. Idempotent: re-running on an already-drained
-/// install is a no-op (UPSERT). Safe to call on every daemon startup;
-/// removes the legacy KV rows after copying.
-pub fn drain_legacy_settings_kv() -> Result<usize> {
-    ensure_kv_db()?;
-    let mut conn = open_kv_db()?;
-    let rows = block_on(async {
-        sqlx::query("SELECT key, value_json FROM kv_state WHERE namespace = 'settings'")
-            .fetch_all(&mut conn)
-            .await
-    })?;
-    if rows.is_empty() {
-        return Ok(0);
-    }
-    let mut migrated = 0usize;
-    for row in &rows {
-        let key: String = row.get(0);
-        let json_str: String = row.get(1);
-        let value: serde_json::Value =
-            serde_json::from_str(&json_str).unwrap_or(serde_json::Value::Null);
-        daemon_settings::set(&key, &value)?;
-        migrated += 1;
-    }
-    block_on(async {
-        sqlx::query("DELETE FROM kv_state WHERE namespace = 'settings'")
-            .execute(&mut conn)
-            .await
-    })?;
-    Ok(migrated)
-}
-
-/// One-shot drain of legacy `providers` rows from the per-project
-/// `runtime::*` KV namespace. Providers now live only in `ship.jsonc`,
-/// so the legacy KV rows can be deleted. Other keys in `runtime::*`
-/// (e.g. the `agents` cache) are preserved. Idempotent.
-pub fn drain_legacy_project_config_kv() -> Result<usize> {
-    ensure_kv_db()?;
-    let mut conn = open_kv_db()?;
-    let result = block_on(async {
-        sqlx::query(
-            "DELETE FROM kv_state WHERE namespace LIKE 'runtime::%' AND key = 'providers'",
-        )
-        .execute(&mut conn)
-        .await
-    })?;
-    Ok(result.rows_affected() as usize)
-}

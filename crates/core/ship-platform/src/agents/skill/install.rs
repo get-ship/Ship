@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 use super::storage::{
-    ensure_project_skills_storage, ensure_user_skills_storage, parse_skill,
+    ensure_project_skills_storage, ensure_user_skills_storage, parse_skill_spec,
 };
 use super::types::{Skill, is_valid_skill_name};
 
@@ -247,48 +247,6 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<()> {
     Ok(())
 }
 
-pub(super) fn migrate_legacy_project_skills(
-    project_dir: &Path,
-    target_root: &Path,
-) -> Result<()> {
-    let mut legacy_roots = vec![ship_substrate::project::legacy_agents_skills_dir(project_dir)];
-    legacy_roots.extend(ship_substrate::project::legacy_project_skills_dir_candidates(
-        project_dir,
-    ));
-
-    for legacy_root in legacy_roots {
-        if legacy_root == target_root || !legacy_root.exists() || !legacy_root.is_dir() {
-            continue;
-        }
-
-        for entry in fs::read_dir(&legacy_root)? {
-            let entry = entry?;
-            let source_path = entry.path();
-            if !source_path.is_dir() {
-                continue;
-            }
-            if !source_path.join("SKILL.md").is_file() {
-                continue;
-            }
-
-            let destination_path = target_root.join(entry.file_name());
-            if destination_path.exists() {
-                continue;
-            }
-
-            match fs::rename(&source_path, &destination_path) {
-                Ok(_) => {}
-                Err(_) => {
-                    copy_dir_recursive(&source_path, &destination_path)?;
-                    fs::remove_dir_all(&source_path)?;
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
 pub(super) fn find_skill_source_dir(search_root: &Path, skill_id: &str) -> Result<PathBuf> {
     let mut discovered = Vec::<(String, PathBuf)>::new();
 
@@ -392,7 +350,7 @@ fn install_skill_from_source_into_dir(
     run_skills_install_command(source, skill_id, &install_workspace, &install_home)?;
 
     let source_dir = find_skill_source_dir(&tmp_root, skill_id)?;
-    let source_skill = parse_skill(&source_dir)?;
+    let source_skill = parse_skill_spec(&source_dir)?;
 
     fs::create_dir_all(dest_root)?;
     let destination_dir = dest_root.join(&source_skill.id);
@@ -408,7 +366,7 @@ fn install_skill_from_source_into_dir(
     }
 
     copy_dir_recursive(&source_dir, &destination_dir)?;
-    parse_skill(&destination_dir)
+    parse_skill_spec(&destination_dir)
 }
 
 pub fn install_skill_from_source(

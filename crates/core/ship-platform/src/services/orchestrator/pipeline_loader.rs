@@ -2,9 +2,14 @@
 //!
 //! Resolves a pipeline for a job from (in priority order):
 //! 1. Already-set `steps` on the payload
-//! 2. Named pipeline reference in spec frontmatter (`pipeline: <name>`)
-//! 3. Inline `steps:` in spec frontmatter
+//! 2. Explicit `pipeline_name` on the payload (CLI/HTTP dispatch)
+//! 3. Named pipeline reference in spec frontmatter (`pipeline: <name>`)
 //! 4. None → single `Agent` step using the job's declared agent
+//!
+//! Pipelines are JSONC files at `.ship/pipelines/<name>.jsonc`. Spec
+//! frontmatter is YAML (markdown convention) and may carry a
+//! `pipeline: <name>` reference, but inline pipeline definitions in
+//! spec frontmatter are not supported.
 
 use ship_substrate::events::job::{JobCreatedPayload, Pipeline, PipelineStep};
 use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline};
@@ -16,8 +21,8 @@ use resolve::resolve_steps;
 
 /// Enrich a job with a pipeline and validate it. Resolution order:
 /// 1. Already has `steps` → use it
-/// 2. Spec frontmatter has `pipeline: <name>` → load from `.ship/pipelines/<name>.yaml`
-/// 3. Spec frontmatter has inline `steps:` → use it
+/// 2. Payload `pipeline_name` → load `.ship/pipelines/<name>.jsonc`
+/// 3. Spec frontmatter has `pipeline: <name>` → load `.ship/pipelines/<name>.jsonc`
 /// 4. None → single `Agent` step from `payload.agent`
 ///
 /// Returns `Err` if the resolved pipeline fails validation — currently, any
@@ -92,14 +97,14 @@ pub fn load_step_specs_by_name(name: &str) -> Option<Vec<String>> {
     meta.step_specs
 }
 
-/// Load a named pipeline from `.ship/pipelines/<name>.jsonc` (preferred) or
-/// `.ship/pipelines/<name>.yaml` (legacy) in the project root.
+/// Load a named pipeline from `.ship/pipelines/<name>.jsonc` in the project
+/// root. JSONC is the only supported format.
 ///
 /// Returns:
 /// - `Ok(Some(..))` — file found and parsed.
 /// - `Ok(None)` — no `.ship/` dir found or no pipeline file of that name exists.
 /// - `Err(msg)` — file exists but could not be read or parsed. The error
-///   message includes the source path so a YAML typo surfaces with context
+///   message includes the source path so a JSONC typo surfaces with context
 ///   rather than being misreported as "pipeline not found".
 ///
 /// Supports both old format (explicit id/type/agent) and new format (agents list,
@@ -109,16 +114,10 @@ pub(crate) fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, Pipelin
     loop {
         let ship_dir = ship_substrate::ShipHome::project_ship_dir(&dir);
         if ship_dir.is_dir() {
-            // Prefer .jsonc, fall back to .yaml for backwards compat
-            let jsonc_path = ship_dir.join("pipelines").join(format!("{name}.jsonc"));
-            let yaml_path = ship_dir.join("pipelines").join(format!("{name}.yaml"));
-            let path = if jsonc_path.exists() {
-                jsonc_path
-            } else if yaml_path.exists() {
-                yaml_path
-            } else {
+            let path = ship_dir.join("pipelines").join(format!("{name}.jsonc"));
+            if !path.exists() {
                 return Ok(None);
-            };
+            }
             let content = std::fs::read_to_string(&path)
                 .map_err(|e| format!("failed to read pipeline file '{}': {e}", path.display()))?;
             return parse_pipeline_content(&content)
@@ -131,7 +130,7 @@ pub(crate) fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, Pipelin
     }
 }
 
-/// Parse pipeline content (JSONC or YAML) into a Pipeline and metadata.
+/// Parse JSONC pipeline content into a Pipeline and metadata.
 /// Handles both old and new formats via ship_jobs normalization.
 ///
 /// Returns a human-readable error string on any parse failure — the caller

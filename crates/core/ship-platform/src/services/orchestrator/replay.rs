@@ -214,46 +214,7 @@ async fn reconcile_dispatched_inner(
     tracing::info!("job-dispatch: reconciliation complete");
 }
 
-/// Emit job.step_failed and persist to event store.
-#[allow(dead_code)]
-async fn emit_step_failed(
-    kernel: &Arc<Mutex<ship_substrate::events::KernelRouter>>,
-    job_id: &str,
-    slug: &str,
-    error: &str,
-    store_dir: Option<&std::path::Path>,
-) {
-    use ship_substrate::events::job::event_types;
-
-    let payload = serde_json::json!({
-        "job_id": job_id,
-        "error": error,
-    });
-    let envelope = match EventEnvelope::new(event_types::STEP_FAILED, job_id, &payload) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
-        Err(e) => {
-            tracing::warn!(slug, "job-dispatch: reconcile — failed to build envelope: {e}");
-            return;
-        }
-    };
-
-    let persist_result = match store_dir {
-        Some(dir) => ship_substrate::events::SqliteEventStore::new_at(dir)
-            .and_then(|s| ship_substrate::events::EventStore::append(&s, &envelope)),
-        None => ship_substrate::events::SqliteEventStore::new()
-            .and_then(|s| ship_substrate::events::EventStore::append(&s, &envelope)),
-    };
-    if let Err(e) = persist_result {
-        tracing::warn!(slug, "job-dispatch: reconcile — failed to persist step_failed: {e}");
-    }
-
-    let ctx = ship_substrate::events::EmitContext {
-        caller_kind: ship_substrate::events::CallerKind::Runtime,
-        skill_id: None,
-        project_id: None,
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
-        tracing::warn!(slug, "job-dispatch: reconcile — failed to emit step_failed: {e}");
-    }
-}
+// (Dead `emit_step_failed` removed — `super::emit::emit_step_failed` is the
+// canonical helper. The local variant also double-emitted via both
+// SqliteEventStore::append AND KernelRouter::emit, which would duplicate the
+// row had it ever been called.)

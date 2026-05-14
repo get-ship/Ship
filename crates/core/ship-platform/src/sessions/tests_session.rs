@@ -7,7 +7,7 @@ mod tests {
     #[test]
     fn workspace_session_start_and_end_happy_path() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 let started = start_session(
             &ship_dir,
@@ -46,7 +46,7 @@ let started = start_session(
     #[test]
     fn session_record_captures_metrics_on_end() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 let started = start_session(
             &ship_dir,
@@ -85,7 +85,7 @@ let started = start_session(
     #[test]
     fn session_record_metrics_default_to_none() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 start_session(&ship_dir, "feature/metrics-defaults", None, None, None)?;
 
@@ -107,7 +107,7 @@ start_session(&ship_dir, "feature/metrics-defaults", None, None, None)?;
     #[test]
     fn workspace_session_start_attaches_existing_active_session() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 let first = start_session(
             &ship_dir,
@@ -133,7 +133,7 @@ let first = start_session(
     #[test]
     fn workspace_session_list_filters_by_branch_workspace() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
         let a = start_session(&ship_dir, "feature/a", None, None, None)?;
         end_session(
@@ -161,7 +161,7 @@ let first = start_session(
     #[test]
     fn workspace_session_start_allows_explicit_primary_provider() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 let session = start_session(
             &ship_dir,
@@ -177,7 +177,7 @@ let session = start_session(
     #[test]
     fn workspace_session_start_rejects_provider_outside_allowed_targets() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 let err = start_session(
             &ship_dir,
@@ -198,7 +198,7 @@ let err = start_session(
     #[test]
     fn start_workspace_session_falls_back_to_claude_when_no_providers_configured() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
         // Clear project-level providers so the default fallback kicks in.
         let mut config = crate::config::get_config(Some(ship_dir.clone()))?;
@@ -225,7 +225,7 @@ let err = start_session(
     #[test]
     fn start_session_creates_session_for_branch() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
         let session = start_session(
             &ship_dir,
@@ -242,7 +242,7 @@ let err = start_session(
     #[test]
     fn end_session_fails_when_no_active_session() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 let err = end_session(
             &ship_dir,
@@ -262,7 +262,7 @@ let err = end_session(
     #[test]
     fn end_session_for_missing_workspace_fails() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
         let err = end_session(
             &ship_dir,
@@ -282,7 +282,7 @@ let err = end_session(
     #[test]
     fn concurrent_session_starts_return_same_session() -> Result<()> {
         let tmp = tempdir()?;
-        let ship_dir = crate::testutil::init_project(tmp.path().to_path_buf())?;
+        let ship_dir = crate::testutil::init_project(tmp.path())?;
 
 let s1 = start_session(
             &ship_dir,

@@ -16,5 +16,8 @@ pub use auth::{
     AuthSessionRow, AuthSessionsProjection, DaemonOwnerProjection, DaemonOwnerRow,
 };
 pub use compile_state::{CompileStateProjection, ProjectCompileState};
-pub use job::{JobRecord, JobStatus, load_jobs, project as project_jobs};
+pub use job::{
+    JobProjection, JobRecord, JobStatus, load_job_by_id, load_job_by_id_at, load_job_by_slug,
+    load_job_by_slug_at, load_jobs, project as project_jobs,
+};
 pub use projects::{ProjectRow, ProjectsProjection};

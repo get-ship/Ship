@@ -1,6 +1,7 @@
 // ── L1 modules (agent/collection domain layer) ────────────────────────────────
 pub mod agents;
 pub mod artifacts;
+pub mod auth;
 pub mod collections;
 pub mod config;
 pub mod hooks;
@@ -34,6 +35,7 @@ pub fn install_defaults() {
             Box::new(projections::ProjectsProjection),
             Box::new(projections::AuthSessionsProjection),
             Box::new(projections::DaemonOwnerProjection),
+            Box::new(projections::JobProjection),
         ]
     }));
     ship_substrate::supervisor::install_project_id_resolver(Box::new(|path| {
