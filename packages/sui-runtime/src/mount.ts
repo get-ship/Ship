@@ -99,6 +99,19 @@ export async function mount<Scope = Record<string, unknown>>(
       ? await fetchPayload(payloadOrName)
       : payloadOrName
 
+  // 0a. Seed route params from the payload. The daemon captured these
+  //     from `[param]` directory segments during resolution, so a
+  //     dynamic-route controller (`route.params.id()`) reads the real
+  //     segment value without depending on client-side path matching.
+  seedRouteParams(opts.route, payload.params)
+
+  // 0b. Load any islands this view declares but that aren't registered
+  //     yet. The compiler walks the template and lists every `<sui-*>`
+  //     island bundle in `payload.islands`; the host page only
+  //     bootstraps chrome islands, so view-owned islands (e.g.
+  //     sui-markdown-editor) are pulled here on demand.
+  await loadViewIslands(payload.islands)
+
   // 1. Adopt SSR markup if present (morph in place), else clean-mount.
   //    The view-host shell ships SSR content inside `target` before this
   //    runs; overwriting via `innerHTML = payload.html` would discard it
@@ -309,6 +322,35 @@ function hasHydratableMarkup(el: HTMLElement): boolean {
     }
   }
   return false
+}
+
+function seedRouteParams(
+  route: RouteSignals | undefined,
+  params: Record<string, string | undefined> | undefined,
+): void {
+  if (!route || !params) return
+  for (const [k, v] of Object.entries(params)) {
+    if (typeof v !== 'string') continue
+    // Reading the proxy key lazily creates the param signal; `.set`
+    // overrides its URL-seeded value with the daemon-resolved one.
+    route.params[k]?.set(v)
+  }
+}
+
+async function loadViewIslands(bundles: string[] | undefined): Promise<void> {
+  if (!bundles || bundles.length === 0) return
+  if (typeof customElements === 'undefined') return
+  await Promise.all(
+    bundles
+      .filter((bundle) => !customElements.get(bundle))
+      .map((bundle) =>
+        import(/* @vite-ignore */ `/_sui/islands/${bundle}/island.js`).catch(
+          (err) => {
+            console.error(`[sui/mount] failed to load island ${bundle}:`, err)
+          },
+        ),
+      ),
+  )
 }
 
 async function fetchPayload(nameOrPath: string): Promise<ViewPayload> {

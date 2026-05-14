@@ -13,7 +13,7 @@
  * This spec locks in:
  *   - the rail-item shadow `<a>` is the real nav target,
  *   - clicking it swaps the view in-app (no full reload),
- *   - the rail collapse toggle (expanded ↔ hidden) driven by the
+ *   - the rail collapse toggle (icon-only ↔ hidden) driven by the
  *     top-nav rail-toggle button,
  *   - rail-item labels surface as native `title` tooltips,
  *   - the top-nav has no chat-toggle button.
@@ -93,7 +93,7 @@ test.describe('shell2 rail + nav fundamentals', () => {
     expect(survived).toBe(true)
   })
 
-  test('rail collapse toggle: expanded ↔ hidden via the top-nav button', async ({ page }) => {
+  test('rail collapse toggle: icon-only ↔ hidden via the top-nav button', async ({ page }) => {
     await page.goto(`${SHELL2_URL}/home`)
     const rail = page.locator('sui-rail#ship-rail')
     await rail.waitFor()
@@ -101,11 +101,12 @@ test.describe('shell2 rail + nav fundamentals', () => {
 
     const railWidth = () => rail.evaluate((el) => el.getBoundingClientRect().width)
 
-    // Default: expanded, [collapsed] absent. The rail paints at its
-    // collapsed icon width first, then settles to the labelled
-    // full width once the rail-items upgrade — poll for that.
+    // The rail has exactly two states — icon-only (visible, ~48px, no
+    // labels) or hidden ([collapsed], width 0). There is no labelled /
+    // expanded state. Default is icon-only with [collapsed] absent.
     await expect(rail).not.toHaveAttribute('collapsed', '')
-    await expect.poll(railWidth).toBeGreaterThan(80)
+    await expect.poll(railWidth).toBeGreaterThan(0)
+    await expect.poll(railWidth).toBeLessThan(80)
 
     const clickRailToggle = () =>
       page.locator('sui-nav-top#ship-nav-top').evaluate((nav) => {
@@ -119,10 +120,11 @@ test.describe('shell2 rail + nav fundamentals', () => {
     await expect(rail).toHaveAttribute('collapsed', '')
     await expect.poll(railWidth).toBe(0)
 
-    // Restore → expanded again.
+    // Restore → icon-only again.
     await clickRailToggle()
     await expect(rail).not.toHaveAttribute('collapsed', '')
-    await expect.poll(railWidth).toBeGreaterThan(80)
+    await expect.poll(railWidth).toBeGreaterThan(0)
+    await expect.poll(railWidth).toBeLessThan(80)
   })
 
   test('rail-item labels surface as native title tooltips', async ({ page }) => {

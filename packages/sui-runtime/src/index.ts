@@ -226,6 +226,13 @@ export type { ViewPayload, MountOptions, MountHandle } from './mount'
 export { defineRoutes, navigate, route } from './route'
 export type { RouteShape, RouteSignals } from './route'
 
+// Re-export the patch applicator for the same reason as the route
+// surface above: `@ship/sdk-client`'s SSE layer imports
+// `@ship/sui-runtime/patch`, and the importmap points that subpath at
+// the single runtime.js bundle — so the symbols must be reachable here.
+export { applyPatch, applyPatches, tokenizePath } from './patch'
+export type { Patch, PatchOp, PathToken } from './patch'
+
 // Generated daemon ↔ runtime data contract. Authored by `cargo xtask
 // gen-types` from Rust source; do not edit `generated.ts` by hand.
 export type {
