@@ -1,6 +1,14 @@
+---
+group: Contributing
+title: Migration Plan
+description: Sequenced migration from current codebase state to the v1 launch target. Source-of-truth for v1 scope and post-v1 deferrals.
+audience: internal
+order: 10
+---
+
 # Plan: Aligning the Codebase with Ship's Story
 
-This is the migration from current state to target state. Current state is documented in [the architecture audit](../.artifacts/audit/architecture-map.md). Target state is described in [`what-is-ship.md`](what-is-ship.md). The plan below sequences the gap, with v1 launch criteria defined and post-v1 work explicitly deferred.
+This is the migration from current state to target state. Target state is described in the [What is Ship](/ship-concepts/what-is-ship) overview. The plan below sequences the gap, with v1 launch criteria defined and post-v1 work explicitly deferred.
 
 ## v1 launch criteria
 

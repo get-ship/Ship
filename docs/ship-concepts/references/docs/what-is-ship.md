@@ -1,4 +1,12 @@
-# Ship
+---
+group: Concepts
+title: What is Ship
+description: Ship in one page — what it is, who it's for, how you start, what it gives you.
+audience: public
+order: 2
+---
+
+# What is Ship
 
 **Ship is an application runtime for AI-native applications.** You describe what your app should do — its data, its agents, its surfaces, its rules — and Ship runs it. Local-first, with cloud sync as the optional paid layer.
 
