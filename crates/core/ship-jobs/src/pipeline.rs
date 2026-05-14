@@ -14,7 +14,7 @@ impl Pipeline {
     }
 }
 
-/// Pipeline-level metadata extracted from the YAML file.
+/// Pipeline-level metadata extracted from the pipeline file.
 #[derive(Debug, Clone, Default)]
 pub struct PipelineMeta {
     pub name: Option<String>,
@@ -32,16 +32,17 @@ pub struct PipelineMeta {
     pub auto_merge: Option<bool>,
 }
 
-/// Parse a pipeline definition and normalize it into the old-format steps array.
+/// Parse a pipeline definition and normalize it into a JSON `{ steps: [...] }`
+/// shape the runtime can deserialize via `PipelineStep`.
 ///
-/// Accepts both the new simplified format (agents list, string steps) and the
-/// old format (explicit id/type/agent/after per step). Returns a JSON Value
-/// with a `steps` array that the runtime PipelineStep deserializer can handle,
-/// plus extracted metadata.
-///
-/// Input can be JSONC (primary) or YAML (legacy/frontmatter).
+/// Accepts both the short form (`agents: [...]`) and the long form
+/// (`steps: [...]` with mixed entry types). Input format is JSONC —
+/// no YAML. Pipeline files (`.ship/pipelines/<name>.jsonc`) and inline
+/// pipeline blobs both come through here.
 pub fn normalize_pipeline(input: &str) -> Result<(Value, PipelineMeta), String> {
-    let val: Value = try_parse_jsonc_or_yaml(input)?;
+    let json_str = compiler::jsonc::strip_jsonc_comments(input);
+    let val: Value = serde_json::from_str(&json_str)
+        .map_err(|e| format!("invalid pipeline JSONC: {e}"))?;
 
     let meta = extract_meta(&val);
 
@@ -58,25 +59,6 @@ pub fn normalize_pipeline(input: &str) -> Result<(Value, PipelineMeta), String> 
     }
 
     Err("pipeline must have either `agents` or `steps`".to_string())
-}
-
-/// Backwards-compatible alias — callers migrating from YAML can use this name.
-pub fn normalize_pipeline_yaml(input: &str) -> Result<(Value, PipelineMeta), String> {
-    normalize_pipeline(input)
-}
-
-/// Try JSONC first, fall back to YAML for legacy/frontmatter content.
-fn try_parse_jsonc_or_yaml(input: &str) -> Result<Value, String> {
-    let trimmed = input.trim_start();
-    // If it looks like JSON (starts with `{` or `[`), parse as JSONC.
-    if trimmed.starts_with('{') || trimmed.starts_with('[') {
-        let json_str = compiler::jsonc::strip_jsonc_comments(input);
-        return serde_json::from_str(&json_str)
-            .map_err(|e| format!("invalid pipeline JSONC: {e}"));
-    }
-    // Otherwise treat as YAML (spec frontmatter, legacy files).
-    serde_yaml::from_str(input)
-        .map_err(|e| format!("invalid pipeline YAML: {e}"))
 }
 
 /// Extract pipeline-level metadata from the parsed value.
@@ -142,16 +124,13 @@ fn normalize_steps(steps: &[Value]) -> Result<Vec<Value>, String> {
     let mut step_counter: usize = 0;
 
     for (i, step_val) in steps.iter().enumerate() {
-        // Old format detection: has `id` field → pass through
+        // Explicit-id step → pass through
         if let Some(obj) = step_val.as_object()
-            && (obj.contains_key("id") || obj.contains_key("name"))
+            && obj.contains_key("id")
         {
             result.push(step_val.clone());
             // Track ID for sequential chaining of subsequent new-format steps
-            let id = obj.get("id").or_else(|| obj.get("name"))
-                .and_then(|v| v.as_str())
-                .map(str::to_string);
-            if let Some(id) = id {
+            if let Some(id) = obj.get("id").and_then(|v| v.as_str()).map(str::to_string) {
                 prev_id = Some(id);
             }
             continue;
@@ -182,7 +161,13 @@ fn normalize_steps(steps: &[Value]) -> Result<Vec<Value>, String> {
 
         step_counter += 1;
         let normalized = normalize_single_step(step_val, step_counter, &prev_id, i)?;
-        let id = normalized.get("id").and_then(|v| v.as_str()).unwrap().to_string();
+        // `normalize_single_step` always sets "id"; fall back to a generated
+        // form if a future refactor breaks that invariant rather than panic.
+        let id = normalized
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("step-{step_counter}"));
         prev_id = Some(id);
         result.push(normalized);
     }
@@ -271,7 +256,11 @@ fn normalize_parallel_group(
                 obj.insert("after".to_string(), json!([]));
             }
         }
-        let id = normalized.get("id").and_then(|v| v.as_str()).unwrap().to_string();
+        let id = normalized
+            .get("id")
+            .and_then(|v| v.as_str())
+            .map(str::to_string)
+            .unwrap_or_else(|| format!("step-{counter}"));
         ids.push(id);
         result.push(normalized);
     }

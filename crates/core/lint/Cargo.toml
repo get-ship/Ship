@@ -10,8 +10,8 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 anyhow = { workspace = true }
 regex = { workspace = true }
-once_cell = "1"
 minijinja = { workspace = true, features = ["unstable_machinery", "loop_controls"] }
+ship-substrate = { path = "../ship-substrate" }
 
 [dev-dependencies]
 tempfile = { workspace = true }

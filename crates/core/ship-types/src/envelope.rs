@@ -8,6 +8,11 @@ thread_local! {
     static ULID_GEN: RefCell<ulid::Generator> = const { RefCell::new(ulid::Generator::new()) };
 }
 
+/// Monotonic ULID generator. `Generator::generate_from_datetime` fails only on
+/// 64-bit randomness-counter exhaustion within the same millisecond (≈10^19
+/// IDs/ms) or clock-rollback past 1970 — neither is recoverable here, so we
+/// panic instead of poisoning every event-envelope caller with a Result.
+#[allow(clippy::expect_used)]
 fn monotonic_ulid() -> String {
     ULID_GEN.with(|g| {
         g.borrow_mut()

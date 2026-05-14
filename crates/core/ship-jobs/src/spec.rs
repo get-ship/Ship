@@ -12,7 +12,7 @@ pub struct JobSpec {
     /// Spec lifecycle status.
     #[serde(default)]
     pub status: SpecStatus,
-    /// Pipeline to execute (references .ship/pipelines/<name>.yaml).
+    /// Pipeline to execute (references `.ship/pipelines/<name>.jsonc`).
     pub pipeline: Option<String>,
     /// Verifiable acceptance criteria.
     #[serde(default)]

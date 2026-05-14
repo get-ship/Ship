@@ -10,8 +10,8 @@ path = "src/lib.rs"
 
 [dependencies]
 lint = { path = "../core/lint" }
-sui-lint = { path = "../sui-lint" }
-sui-compiler = { path = "../sui-compiler" }
+sui-lint = { path = "../sui/sui-lint" }
+sui-compiler = { path = "../sui/sui-compiler" }
 lsp-server = "0.7"
 lsp-types = "0.95"
 serde = { workspace = true }

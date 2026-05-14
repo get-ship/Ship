@@ -290,6 +290,3 @@ pub(crate) fn _publish_for_test(
 ) -> Result<()> {
     publish_for(conn, uri, text, prefer_disk)
 }
-
-#[allow(dead_code)]
-fn _silence_response_warning(_r: Response) {}

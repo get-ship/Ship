@@ -89,7 +89,7 @@ mod mesh_kernel {
         tokio::time::sleep(Duration::from_millis(50)).await;
         let events: Vec<EventEnvelope> = std::iter::from_fn(|| outbox.try_recv().ok()).collect();
         for e in events {
-            match router.route(e.clone(), ctx).await {
+            match router.emit(e.clone(), ctx).await {
                 Ok(()) => {}
                 Err(err) if err.to_string().contains("mailbox full") => {
                     if e.event_type == "mesh.message" {
@@ -108,7 +108,7 @@ mod mesh_kernel {
                         .unwrap()
                         .with_causation(&e.id)
                         .with_target(sender);
-                        let _ = router.route(fail, ctx).await;
+                        let _ = router.emit(fail, ctx).await;
                     }
                 }
                 Err(err) => panic!("route error: {err}"),
@@ -135,9 +135,9 @@ mod mesh_kernel {
         let (_s2, mut mb_receiver) = router.spawn_actor_with_permissions(identity("agent.receiver"), agent_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.sender", &[]), &ctx).await.unwrap();
-        router.route(register("agent.receiver", &[]), &ctx).await.unwrap();
-        router.route(send("agent.sender", "agent.receiver", serde_json::json!({"text": "hello"})), &ctx).await.unwrap();
+        router.emit(register("agent.sender", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.receiver", &[]), &ctx).await.unwrap();
+        router.emit(send("agent.sender", "agent.receiver", serde_json::json!({"text": "hello"})), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         let msg = recv(&mut mb_receiver).await;
@@ -156,16 +156,16 @@ mod mesh_kernel {
         let (_sb, mut mb_b) = router.spawn_actor_with_permissions(identity("agent.beta"), agent_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.alpha", &[]), &ctx).await.unwrap();
-        router.route(register("agent.beta", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.alpha", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.beta", &[]), &ctx).await.unwrap();
 
-        router.route(send("agent.alpha", "agent.beta", serde_json::json!({"msg": "ping"})), &ctx).await.unwrap();
+        router.emit(send("agent.alpha", "agent.beta", serde_json::json!({"msg": "ping"})), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
         let req = recv(&mut mb_b).await;
         let rp: serde_json::Value = serde_json::from_str(&req.payload_json).unwrap();
         assert_eq!(rp["body"]["msg"], "ping");
 
-        router.route(send("agent.beta", "agent.alpha", serde_json::json!({"msg": "pong"})), &ctx).await.unwrap();
+        router.emit(send("agent.beta", "agent.alpha", serde_json::json!({"msg": "pong"})), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
         let resp = recv(&mut mb_a).await;
         let rp2: serde_json::Value = serde_json::from_str(&resp.payload_json).unwrap();
@@ -182,10 +182,10 @@ mod mesh_kernel {
         let (_sc, mut mb_c) = router.spawn_actor_with_permissions(identity("agent.c"), agent_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.a", &["rust"]), &ctx).await.unwrap();
-        router.route(register("agent.b", &["rust", "go"]), &ctx).await.unwrap();
-        router.route(register("agent.c", &["go"]), &ctx).await.unwrap();
-        router.route(broadcast("agent.a", serde_json::json!({}), Some("rust")), &ctx).await.unwrap();
+        router.emit(register("agent.a", &["rust"]), &ctx).await.unwrap();
+        router.emit(register("agent.b", &["rust", "go"]), &ctx).await.unwrap();
+        router.emit(register("agent.c", &["go"]), &ctx).await.unwrap();
+        router.emit(broadcast("agent.a", serde_json::json!({}), Some("rust")), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         let msg = recv(&mut mb_b).await;
@@ -203,11 +203,11 @@ mod mesh_kernel {
         let (_sc, _mb_c) = router.spawn_actor_with_permissions(identity("agent.c"), agent_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.a", &[]), &ctx).await.unwrap();
-        router.route(register("agent.b", &[]), &ctx).await.unwrap();
-        router.route(register("agent.c", &[]), &ctx).await.unwrap();
-        router.route(ev("mesh.status", "agent.b", serde_json::json!({ "agent_id": "agent.b", "status": "busy" })), &ctx).await.unwrap();
-        router.route(ev("mesh.discover.request", "agent.a", serde_json::json!({ "from": "agent.a", "status": "active" })), &ctx).await.unwrap();
+        router.emit(register("agent.a", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.b", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.c", &[]), &ctx).await.unwrap();
+        router.emit(ev("mesh.status", "agent.b", serde_json::json!({ "agent_id": "agent.b", "status": "busy" })), &ctx).await.unwrap();
+        router.emit(ev("mesh.discover.request", "agent.a", serde_json::json!({ "from": "agent.a", "status": "active" })), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         let resp = recv(&mut mb_a).await;
@@ -226,8 +226,8 @@ mod mesh_kernel {
         let (_sa, mut mb_a) = router.spawn_actor_with_permissions(identity("agent.a"), agent_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.a", &[]), &ctx).await.unwrap();
-        router.route(send("agent.a", "agent.ghost", serde_json::json!({})), &ctx).await.unwrap();
+        router.emit(register("agent.a", &[]), &ctx).await.unwrap();
+        router.emit(send("agent.a", "agent.ghost", serde_json::json!({})), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         let fail = recv(&mut mb_a).await;
@@ -245,15 +245,15 @@ mod mesh_kernel {
         let (_sb, mut mb_b) = router.spawn_actor_with_permissions(identity("agent.b"), agent_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.a", &[]), &ctx).await.unwrap();
-        router.route(register("agent.b", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.a", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.b", &[]), &ctx).await.unwrap();
         for i in 0..100u32 {
-            router.route(send("agent.a", "agent.b", serde_json::json!({ "n": i })), &ctx).await.unwrap();
+            router.emit(send("agent.a", "agent.b", serde_json::json!({ "n": i })), &ctx).await.unwrap();
         }
 
         tokio::time::sleep(Duration::from_millis(200)).await;
         while let Ok(e) = outbox.try_recv() {
-            router.route(e, &ctx).await.unwrap();
+            router.emit(e, &ctx).await.unwrap();
         }
 
         let mut count = 0u32;
@@ -269,7 +269,7 @@ mod mesh_kernel {
             spawn_service(&mut router, "mesh", mesh_config(), Box::new(MeshService::new(tx))).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.test", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.test", &[]), &ctx).await.unwrap();
         tokio::time::sleep(Duration::from_millis(20)).await;
         drop(router); // closes the mesh mailbox sender → service sees None and exits
 
@@ -288,13 +288,13 @@ mod mesh_kernel {
         let ctx = ctx();
 
         let bad = EventEnvelope::new("mesh.send", "x", &serde_json::json!({})).unwrap();
-        router.route(bad, &ctx).await.unwrap();
+        router.emit(bad, &ctx).await.unwrap();
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         assert!(!handle.is_finished(), "service must survive a malformed payload");
 
         // Valid register still processed after the error
-        router.route(register("agent.ok", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.ok", &[]), &ctx).await.unwrap();
         tokio::time::sleep(Duration::from_millis(20)).await;
         assert!(!handle.is_finished(), "service must still be running after valid event");
     }
@@ -306,11 +306,11 @@ mod mesh_kernel {
         spawn_service(&mut router, "mesh", mesh_config(), Box::new(MeshService::new(tx))).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.only", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.only", &[]), &ctx).await.unwrap();
         // Drain the mesh.registered event from registration before testing broadcast
         flush(&mut outbox, &router, &ctx).await;
 
-        router.route(broadcast("agent.only", serde_json::json!({}), None), &ctx).await.unwrap();
+        router.emit(broadcast("agent.only", serde_json::json!({}), None), &ctx).await.unwrap();
         tokio::time::sleep(Duration::from_millis(50)).await;
 
         assert!(outbox.try_recv().is_err(), "sole agent broadcasting to itself must produce no messages");
@@ -329,7 +329,7 @@ mod mesh_kernel {
             router.spawn_actor_with_permissions(identity("observer"), observer_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.rust", &["rust", "testing"]), &ctx).await.unwrap();
+        router.emit(register("agent.rust", &["rust", "testing"]), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         // Observer should receive mesh.registered event
@@ -354,12 +354,12 @@ mod mesh_kernel {
             router.spawn_actor_with_permissions(identity("observer"), observer_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.rust", &["rust"]), &ctx).await.unwrap();
+        router.emit(register("agent.rust", &["rust"]), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
         // Drain observer's register event
         while mb_observer.try_recv().is_ok() {}
 
-        router.route(ev("mesh.deregister", "agent.rust", serde_json::json!({ "agent_id": "agent.rust" })), &ctx).await.unwrap();
+        router.emit(ev("mesh.deregister", "agent.rust", serde_json::json!({ "agent_id": "agent.rust" })), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         let mut found = false;
@@ -390,8 +390,8 @@ mod mesh_kernel {
             router.spawn_actor_with_permissions(identity("agent.target"), agent_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.sender", &[]), &ctx).await.unwrap();
-        router.route(register("agent.target", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.sender", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.target", &[]), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         // Fill target's mailbox to capacity.
@@ -399,12 +399,12 @@ mod mesh_kernel {
         // messages to fill it completely. Send enough to ensure it's full.
         for i in 0..MAILBOX_CAPACITY {
             let msg = send("agent.sender", "agent.target", serde_json::json!({ "n": i }));
-            router.route(msg, &ctx).await.unwrap();
+            router.emit(msg, &ctx).await.unwrap();
         }
         flush(&mut outbox, &router, &ctx).await;
 
         // Now send one more — target mailbox is full, mesh should signal back
-        router.route(
+        router.emit(
             send("agent.sender", "agent.target", serde_json::json!({ "overflow": true })),
             &ctx,
         ).await.unwrap();
@@ -440,19 +440,19 @@ mod mesh_kernel {
             router.spawn_actor_with_permissions(identity("agent.b"), agent_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.a", &["rust"]), &ctx).await.unwrap();
-        router.route(register("agent.b", &["rust"]), &ctx).await.unwrap();
+        router.emit(register("agent.a", &["rust"]), &ctx).await.unwrap();
+        router.emit(register("agent.b", &["rust"]), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         // Deregister agent.b (simulates ConnectionGuard cleanup)
-        router.route(
+        router.emit(
             ev("mesh.deregister", "agent.b", serde_json::json!({ "agent_id": "agent.b" })),
             &ctx,
         ).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         // agent.a discovers — should only see itself
-        router.route(
+        router.emit(
             ev("mesh.discover.request", "agent.a", serde_json::json!({ "from": "agent.a" })),
             &ctx,
         ).await.unwrap();
@@ -478,12 +478,12 @@ mod mesh_kernel {
             router.spawn_actor_with_permissions(identity("agent.b"), agent_perms()).unwrap();
         let ctx = ctx();
 
-        router.route(register("agent.a", &[]), &ctx).await.unwrap();
-        router.route(register("agent.b", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.a", &[]), &ctx).await.unwrap();
+        router.emit(register("agent.b", &[]), &ctx).await.unwrap();
         flush(&mut outbox, &router, &ctx).await;
 
         // Deregister agent.b
-        router.route(
+        router.emit(
             ev("mesh.deregister", "agent.b", serde_json::json!({ "agent_id": "agent.b" })),
             &ctx,
         ).await.unwrap();
@@ -492,7 +492,7 @@ mod mesh_kernel {
         while mb_a.try_recv().is_ok() {}
 
         // Try to send to deregistered agent.b
-        router.route(
+        router.emit(
             send("agent.a", "agent.b", serde_json::json!({ "text": "hello" })),
             &ctx,
         ).await.unwrap();
