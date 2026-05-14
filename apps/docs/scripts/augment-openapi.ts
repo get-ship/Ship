@@ -1,4 +1,4 @@
-#!/usr/bin/env -S pnpm exec tsx
+#!/usr/bin/env bun
 /**
  * OpenAPI augmentation — x-codeSamples injection.
  *

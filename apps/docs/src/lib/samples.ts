@@ -115,14 +115,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
     { label: 'Default' },
     { label: 'Accent', attrs: { tone: 'accent' } },
   ],
-  'ship-progress': [
-    { label: '40%', attrs: { value: '40', max: '100' } },
-    { label: '78% success', attrs: { value: '78', max: '100', tone: 'success' } },
-  ],
-  'ship-separator': [
-    { label: 'Horizontal', attrs: {} },
-    { label: 'Dashed',     attrs: { variant: 'dashed' } },
-  ],
   'ship-tabs': [
     {
       label: 'Underline',
@@ -143,16 +135,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
         <ship-tab name="one" label="Day"></ship-tab>
         <ship-tab name="two" label="Week"></ship-tab>
         <ship-tab name="three" label="Month"></ship-tab>
-      `,
-    },
-  ],
-  'ship-toolbar': [
-    {
-      label: 'Default',
-      innerHTML: `
-        <ship-button size="sm" variant="ghost">Cancel</ship-button>
-        <span slot="spacer"></span>
-        <ship-button size="sm" tone="primary" variant="solid">Save</ship-button>
       `,
     },
   ],
@@ -208,16 +190,6 @@ export const SHOTS: Record<string, ComponentShot[]> = {
   ],
   'ship-line-chart': [
     { label: 'Trend', attrs: { series: '[{"data":[3,7,5,11,8,14,10]}]', labels: 'M,T,W,T,F,S,S', width: '280', height: '100' } },
-  ],
-  'ship-timeline': [
-    {
-      label: 'Recent',
-      innerHTML: `
-        <ship-timeline-item at="09:14" tone="success">Weekly digest sent</ship-timeline-item>
-        <ship-timeline-item at="08:22" tone="info">Release post drafted</ship-timeline-item>
-        <ship-timeline-item at="yesterday" tone="accent">PR #412 reviewed</ship-timeline-item>
-      `,
-    },
   ],
   'ship-pipeline-step': [
     { label: 'Completed', attrs: { name: 'collect',     'step-type': 'run',   state: 'completed', agent: 'git log' } },

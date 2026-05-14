@@ -1921,6 +1921,40 @@
         ]
       }
     },
+    "/api/v1/pty-sessions": {
+      "get": {
+        "tags": [
+          "sessions"
+        ],
+        "summary": "List Pty Sessions",
+        "operationId": "listPtySessions",
+        "responses": {
+          "200": {
+            "description": "All known PTY sessions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionListResponse"
+                }
+              }
+            }
+          }
+        },
+        "description": "List PTY-backed sessions (terminal-attached agent/shell sessions\nfrom the runtime registry). Distinct from workspace sessions\n(`runtime_api::list_workspace_sessions` on `/api/v1/sessions`) and\nauth-token sessions (`auth::api::list_auth_sessions` on\n`/api/v1/auth/sessions`).",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/v1/pty-sessions \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v1/pty-sessions\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
+      }
+    },
     "/api/v1/rebuild-projections": {
       "post": {
         "tags": [
@@ -1990,8 +2024,9 @@
         "tags": [
           "runtime"
         ],
-        "summary": "List Sessions",
-        "operationId": "listSessions",
+        "summary": "List Workspace Sessions",
+        "description": "GET /api/v1/sessions[?workspace_id=<id>]\n\nLists *workspace* sessions (event-sourced runtime sessions per\nbranch). Distinct from the PTY-session registry\n(`sessions::api::list_pty_sessions` on `/api/v1/pty-sessions`) and\nthe auth-session token registry (`auth::api::list_auth_sessions` on\n`/api/v1/auth/sessions`).",
+        "operationId": "listWorkspaceSessions",
         "parameters": [
           {
             "name": "workspace_id",
@@ -2037,7 +2072,6 @@
             }
           }
         },
-        "description": "GET /api/v1/runtime/sessions[?workspace_id=<id>]",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -3335,11 +3369,11 @@
               "string",
               "null"
             ],
-            "description": "Model override (e.g. \"sonnet\"). When `None`, step YAML decides."
+            "description": "Model override (e.g. \"sonnet\"). When `None`, the pipeline step decides."
           },
           "pipeline": {
             "type": "string",
-            "description": "Pipeline name (file in `.ship/pipelines/<name>.{yaml,yml,jsonc,json}`)."
+            "description": "Pipeline name (file in `.ship/pipelines/<name>.jsonc`)."
           },
           "provider": {
             "type": [

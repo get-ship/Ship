@@ -1,4 +1,4 @@
-#!/usr/bin/env -S pnpm exec tsx
+#!/usr/bin/env bun
 /**
  * Skill-docs drift check.
  *
@@ -58,8 +58,8 @@ function walk(root: string): Map<string, string> {
 
 function runCollectorTo(outputDir: string): void {
   const res = spawnSync(
-    "pnpm",
-    ["exec", "tsx", COLLECTOR],
+    "bun",
+    [COLLECTOR],
     {
       cwd: REPO_ROOT,
       encoding: "utf8",
