@@ -47,18 +47,26 @@ fn main() -> anyhow::Result<()> {
     // --mode development|production (default: development).
     // SHIP_DAEMON_MODE env var is a fallback when --mode is not passed.
     let mode_str = extract_str_arg(&args, "--mode")
-        .or_else(|| std::env::var("SHIP_DAEMON_MODE").ok())
+        .or_else(|| ship_substrate::env::read(ship_substrate::env::Var::DaemonMode))
         .unwrap_or_else(|| "development".to_string());
     let daemon_mode = ship_sui::DaemonMode::from_str(&mode_str);
 
     // Project resolution:
     //   1. `--dev-worktree <path>` (dev-only; routes the daemon into a
     //      per-worktree IPC dir + hash-derived port so multiple Ship-dev
-    //      worktrees can run side-by-side without colliding). Hidden
-    //      behind the `dev` semantics — not a user-facing flag.
-    //   2. Otherwise walk up from CWD looking for `.ship/`, like git
+    //      worktrees can run side-by-side without colliding).
+    //   2. `--workspace <path>` — deprecated alias kept for the dev scripts
+    //      (`scripts/dev/start.sh`) that still pass it. Same effect: scopes
+    //      the daemon to that project root so its per-worktree daemon dir
+    //      matches what `ship daemon dir` resolves from cwd. Without this,
+    //      `discover_workspace` redirects a linked worktree to the main
+    //      checkout's `.ship/`, the daemon lands in the main checkout's
+    //      daemon dir, and the dev scripts wait on a port file that never
+    //      appears.
+    //   3. Otherwise walk up from CWD looking for `.ship/`, like git
     //      discovers the repo root.
     let workspace = extract_str_arg(&args, "--dev-worktree")
+        .or_else(|| extract_str_arg(&args, "--workspace"))
         .map(std::path::PathBuf::from)
         .or_else(discover_workspace);
 

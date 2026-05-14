@@ -80,3 +80,66 @@ build_sha() {
     fi
     git rev-parse --short=8 HEAD 2>/dev/null || echo "unknown"
 }
+
+# Path to the vite.pid file for the current daemon dir. shell2-start.sh
+# records the per-worktree vite PID here so dev-stop can reap it.
+vite_pid_file() {
+    echo "$(daemon_dir)/vite.pid"
+}
+
+# Kill the vite process recorded for the current daemon dir and remove the
+# pid file. No-op when nothing is tracked or the process is already gone.
+kill_vite() {
+    local pf pid kd
+    pf=$(vite_pid_file)
+    [ -f "$pf" ] || return 0
+    pid=$(cat "$pf")
+    rm -f "$pf"
+    [ -n "$pid" ] || return 0
+    if kill -0 "$pid" 2>/dev/null; then
+        kill "$pid" 2>/dev/null || true
+        kd=$(( $(date +%s) + 3 ))
+        while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$kd" ]; do
+            sleep 0.1
+        done
+        kill -9 "$pid" 2>/dev/null || true
+        echo "vite: killed pid $pid"
+    fi
+}
+
+# Stop the dev daemon serving the current daemon dir.
+#
+# `start.sh` launches `shipd` directly — not under `ship daemon supervise` —
+# so the running process's liveness is the `pid` handshake file shipd
+# writes into the daemon dir, NOT the flock-based `shipd.pid` that
+# `ship daemon stop` consults. A bare shipd never creates that flock
+# pidfile, so `ship daemon stop` finds no supervisor and exits 0 without
+# signalling anything. Signal shipd's own pid directly; it handles SIGTERM
+# with a graceful shutdown, so no SIGKILL escalation is needed. Returns
+# non-zero (rather than escalating) if shipd genuinely ignores SIGTERM, so
+# the failure surfaces instead of being papered over.
+kill_daemon() {
+    local d pf pid deadline
+    d=$(daemon_dir)
+    pf="$d/pid"
+    [ -f "$pf" ] || return 0
+    pid=$(cat "$pf" 2>/dev/null || true)
+    if [ -z "$pid" ] || ! kill -0 "$pid" 2>/dev/null; then
+        # Stale or empty handshake file — shipd is already gone. Clear the
+        # liveness files so the next start doesn't mistake them for a live
+        # daemon (shipd only prunes these on its *next* startup).
+        rm -f "$pf" "$d/port"
+        return 0
+    fi
+    kill "$pid" 2>/dev/null || true
+    deadline=$(( $(date +%s) + 10 ))
+    while kill -0 "$pid" 2>/dev/null && [ "$(date +%s)" -lt "$deadline" ]; do
+        sleep 0.1
+    done
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "kill_daemon: shipd pid $pid ignored SIGTERM after 10s" >&2
+        return 1
+    fi
+    rm -f "$pf" "$d/port"
+    echo "shipd stopped (pid $pid)"
+}

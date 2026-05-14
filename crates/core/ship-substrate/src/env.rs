@@ -29,6 +29,12 @@ pub enum Var {
     Home,
     ApiUrl,
     RegistryUrl,
+    /// `SHIP_DAEMON_MODE=development|production` — daemon operating mode,
+    /// a fallback for shipd's `--mode` flag. `production` enables immutable
+    /// cache headers, disables HMR routes, enables the SSR cache, and
+    /// redacts error details; `development` (the default) does none of
+    /// that. Unrecognized values fall back to `development`.
+    DaemonMode,
     // ── Runtime identity ─────────────────────────────────────────────────
     ActorId,
     WorkspaceId,
@@ -75,6 +81,7 @@ impl Var {
             Var::Home => "SHIP_HOME",
             Var::ApiUrl => "SHIP_API_URL",
             Var::RegistryUrl => "SHIP_REGISTRY_URL",
+            Var::DaemonMode => "SHIP_DAEMON_MODE",
             Var::ActorId => "SHIP_ACTOR_ID",
             Var::WorkspaceId => "SHIP_WORKSPACE_ID",
             Var::SessionId => "SHIP_SESSION_ID",
@@ -100,7 +107,9 @@ impl Var {
     /// Taxonomy category for this var.
     pub fn category(&self) -> Category {
         match self {
-            Var::Home | Var::ApiUrl | Var::RegistryUrl => Category::Configuration,
+            Var::Home | Var::ApiUrl | Var::RegistryUrl | Var::DaemonMode => {
+                Category::Configuration
+            }
             Var::ActorId
             | Var::WorkspaceId
             | Var::SessionId
@@ -219,6 +228,7 @@ mod tests {
             Var::Home,
             Var::ApiUrl,
             Var::RegistryUrl,
+            Var::DaemonMode,
             Var::ActorId,
             Var::WorkspaceId,
             Var::SessionId,
